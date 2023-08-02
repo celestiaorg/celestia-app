@@ -3,6 +3,9 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -11,21 +14,23 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/x/blob"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -47,19 +52,15 @@ type IntegrationTestSuite struct {
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 
-	numAccounts := 120
+	numAccounts := 142
 	s.accounts = make([]string, numAccounts)
 	for i := 0; i < numAccounts; i++ {
 		s.accounts[i] = tmrand.Str(20)
 	}
 
-	cctx, _, _ := testnode.NewNetwork(
-		t,
-		testnode.DefaultParams(),
-		testnode.DefaultTendermintConfig(),
-		testnode.DefaultAppConfig(),
-		s.accounts,
-	)
+	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
+
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -80,6 +81,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
+			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			950000,
@@ -96,6 +98,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
+			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			200000, // 200 KiB
@@ -113,6 +116,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
+			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			50000,
@@ -192,6 +196,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.Equal(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
+				ExtendBlobTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -228,7 +233,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			"large random typical",
 			mustNewBlob(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
-			[]types.TxBuilderOption{
+			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 				blobtypes.SetGasLimit(1_000_000_000),
 			},
@@ -256,7 +261,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			// 20) so we wait a few blocks for the txs to clear
 			require.NoError(t, s.cctx.WaitForBlocks(3))
 
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
+			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
@@ -270,13 +275,14 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg.TxConfig.TxEncoder(),
+		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		int(100000),
 		1,
 		false,
 		s.cctx.ChainID,
-		s.accounts[:1],
+		s.accounts[140:],
 	)
 
 	btx, isBlob := coretypes.UnmarshalBlobTx(blobTx[0])
@@ -293,13 +299,14 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg.TxConfig.TxEncoder(),
+		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		100000,
 		1,
 		true,
 		s.cctx.ChainID,
-		s.accounts[:20],
+		s.accounts[120:140],
 	)
 
 	hashes := make([]string, len(txs))
@@ -311,7 +318,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		hashes[i] = res.TxHash
 	}
 
-	require.NoError(t, s.cctx.WaitForBlocks(10))
+	require.NoError(t, s.cctx.WaitForBlocks(5))
 
 	for _, hash := range hashes {
 		txResp, err := testnode.QueryTx(s.cctx.Context, hash, true)
@@ -342,4 +349,91 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.NoError(t, err)
 		require.NoError(t, blobProof.Validate(blockRes.Block.DataHash))
 	}
+}
+
+// ExtendBlobTest re-extends the block and compares the data roots to ensure
+// that the public functions for extending the block are working correctly.
+func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
+	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
+	require.NoError(t, err)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
+		// save block to json file for further debugging if this occurs
+		b, err := json.MarshalIndent(block, "", "  ")
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0o644))
+	}
+}
+
+func (s *IntegrationTestSuite) TestEmptyBlock() {
+	t := s.T()
+	emptyHeights := []int64{1, 2, 3}
+	for _, h := range emptyHeights {
+		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
+		require.NoError(t, err)
+		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
+		ExtendBlobTest(t, blockRes.Block)
+	}
+}
+
+// TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
+// SubmitPayForBlob is invoked with different blob sizes.
+func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
+	t := s.T()
+	require.NoError(t, s.cctx.WaitForBlocks(3))
+
+	type testCase struct {
+		name string
+		blob *tmproto.Blob
+		// txResponseCode is the expected tx response ABCI code.
+		txResponseCode uint32
+	}
+	testCases := []testCase{
+		{
+			name:           "1,000 byte blob",
+			blob:           mustNewBlob(t, 1_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "10,000 byte blob",
+			blob:           mustNewBlob(t, 10_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "100,000 byte blob",
+			blob:           mustNewBlob(t, 100_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "1,000,000 byte blob",
+			blob:           mustNewBlob(t, 1_000_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "10,000,000 byte blob returns err tx too large",
+			blob:           mustNewBlob(t, 10_000_000),
+			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
+			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
+		})
+	}
+}
+
+func mustNewBlob(t *testing.T, blobSize int) *tmproto.Blob {
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	data := tmrand.Bytes(blobSize)
+	result, err := blobtypes.NewBlob(ns1, data, appconsts.ShareVersionZero)
+	require.NoError(t, err)
+	return result
 }

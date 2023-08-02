@@ -20,7 +20,7 @@ type Blob = tmproto.Blob
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
 func NewBlob(ns appns.Namespace, blob []byte, shareVersion uint8) (*Blob, error) {
-	err := ns.ValidateBlobNamespace()
+	err := ValidateBlobNamespace(ns)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +82,8 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 			return err
 		}
 
+		// this not only checks that the pfb namespaces match the ones in the blobs
+		// but that the namespace version and namespace id are valid
 		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
 		if err != nil {
 			return err

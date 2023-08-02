@@ -13,43 +13,56 @@ import (
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // FuzzSquare uses fuzzing to test the following:
 // - That neither `Construct` or `Reconstruct` panics
 // - That `Construct` never errors
+// - That `Deconstruct` extracts transactions from a square identical to those used for its `Construct`ion.
 // - That `Reconstruct` never errors from the input of `Construct`'s output
 // - That both `Construct` and `Reconstruct` return the same square
 // - That the square can be extended and a data availability header can be generated
 // - That each share commitment in each PFB can be used to verify the inclusion of the blob it corresponds to.
 func FuzzSquare(f *testing.F) {
 	var (
-		normalTxCount uint = 12
-		pfbCount      uint = 91
-		blobsPerPfb   uint = 2
-		blobSize      uint = 812
+		normalTxCount = 12
+		pfbCount      = 91
+		seed          = int64(3554045230938829713)
 	)
-	f.Add(normalTxCount, pfbCount, blobsPerPfb, blobSize)
-	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount, blobsPerPfb, blobSize uint) {
+	f.Add(normalTxCount, pfbCount, seed)
+	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int, seed int64) {
 		// ignore invalid values
-		if pfbCount > 0 && (blobSize == 0 || blobsPerPfb == 0) {
+		if normalTxCount < 0 || pfbCount < 0 {
 			t.Skip()
 		}
-		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(blobsPerPfb), int(blobSize))
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		rand := tmrand.NewRand()
+		rand.Seed(seed)
+		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
+
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
+		// check that orderedTxs is a subset of all txs
+		require.True(t, contains(txs, orderedTxs))
+
+		// check that the same set of transactions is extracted from the square
+		recomputedTxs, err := square.Deconstruct(s2, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, orderedTxs, recomputedTxs.ToSliceOfBytes())
 
 		cacher := inclusion.NewSubtreeCacher(uint64(s.Size()))
 		eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(s), appconsts.DefaultCodec(), cacher.Constructor)
 		require.NoError(t, err)
-		dah := da.NewDataAvailabilityHeader(eds)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
 
 		decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
-		builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, orderedTxs...)
+		builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, orderedTxs...)
 		require.NoError(t, err)
 		totalPfbs := builder.NumPFBs()
 		totalNormalTxs := builder.NumTxs() - totalPfbs
@@ -69,4 +82,20 @@ func FuzzSquare(f *testing.F) {
 			}
 		}
 	})
+}
+
+// contains checks whether subTxs is a subset of allTxs.
+func contains(allTxs [][]byte, subTxs [][]byte) bool {
+	// create a map of allTxs
+	allTxMap := make(map[string]bool)
+	for _, tx := range allTxs {
+		allTxMap[string(tx)] = true
+	}
+	// check that all subTxs are in allTxs
+	for _, t := range subTxs {
+		if !allTxMap[string(t)] {
+			return false
+		}
+	}
+	return true
 }

@@ -4,11 +4,14 @@ import (
 	"math/rand"
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -53,7 +56,7 @@ func RandBlobTxsWithAccounts(
 
 		// update the account info in the signer so the signature is valid
 		acc := DirectQueryAccount(capp, addr)
-		signer.SetAccountNumber(0)
+		signer.SetAccountNumber(acc.GetAccountNumber())
 		signer.SetSequence(acc.GetSequence())
 
 		if size <= 0 {
@@ -77,7 +80,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -117,6 +120,7 @@ func RandBlobTxsWithManualSequence(
 	chainid string,
 	accounts []string,
 	sequence, accountNum uint64,
+	invalidSignature bool,
 ) []coretypes.Tx {
 	coin := sdk.Coin{
 		Denom:  app.BondDenom,
@@ -160,11 +164,24 @@ func RandBlobTxsWithManualSequence(
 				randomizedBlobCount = 1
 			}
 		}
-		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
 			panic(err)
+		}
+		if invalidSignature {
+			invalidSig, err := builder.GetTx().GetSignaturesV2()
+			if err != nil {
+				panic(err)
+			}
+			invalidSig[0].Data.(*signing.SingleSignatureData).Signature = []byte("invalid signature")
+
+			if err := builder.SetSignatures(invalidSig...); err != nil {
+				panic(err)
+			}
+
+			stx = builder.GetTx()
 		}
 		rawTx, err := signer.EncodeTx(stx)
 		if err != nil {

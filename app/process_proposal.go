@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -17,13 +18,29 @@ import (
 
 const rejectedPropBlockLog = "Rejected proposal block:"
 
-func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
-	// create the anteHanders that are used to check the validity of
-	// transactions. We verify the signatures of PFB containing txs using the
-	// sigVerifyAnterHandler, and simply increase the nonce of all other
-	// transactions.
-	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
-	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+	// In the case of a panic from an unexpected condition, it is better for the liveness of the
+	// network that we catch it, log an error and vote nil than to crash the node.
+	defer func() {
+		if err := recover(); err != nil {
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("%v", err))
+			resp = reject()
+		}
+	}()
+
+	// Create the anteHander that are used to check the validity of
+	// transactions. All transactions need to be equally validated here
+	// so that the nonce number is always correctly incremented (which
+	// may affect the validity of future transactions).
+	handler := ante.NewAnteHandler(
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.BlobKeeper,
+		app.FeeGrantKeeper,
+		app.GetTxConfig().SignModeHandler(),
+		ante.DefaultSigVerificationGasConsumer,
+		app.IBCKeeper,
+	)
 	sdkCtx := app.NewProposalContext(req.Header)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
@@ -55,7 +72,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doens't exist.
-			sdkCtx, err = seqHandler(sdkCtx, sdkTx, false)
+			sdkCtx, err = handler(sdkCtx, sdkTx, false)
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
 				return reject()
@@ -78,7 +95,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		// validated the PFB signature
-		sdkCtx, err = svHander(sdkCtx, sdkTx, true)
+		sdkCtx, err = handler(sdkCtx, sdkTx, false)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
 			return reject()
@@ -105,7 +122,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		return reject()
 	}
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to create new data availability header", err)
+		return reject()
+	}
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid

@@ -24,7 +24,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (types.ShareP
 		return types.ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
 	}
 
-	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
+	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appVersion, txs...)
 	if err != nil {
 		return types.ShareProof{}, err
 	}
@@ -70,10 +70,18 @@ func NewShareInclusionProof(
 		return types.ShareProof{}, err
 	}
 
-	edsRowRoots := eds.RowRoots()
+	edsRowRoots, err := eds.RowRoots()
+	if err != nil {
+		return types.ShareProof{}, err
+	}
+
+	edsColRoots, err := eds.ColRoots()
+	if err != nil {
+		return types.ShareProof{}, err
+	}
 
 	// create the binary merkle inclusion proof for all the square rows to the data root
-	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
+	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, edsColRoots...))
 	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
 	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {

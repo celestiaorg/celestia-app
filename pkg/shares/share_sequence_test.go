@@ -151,7 +151,7 @@ func Test_validSequenceLen(t *testing.T) {
 	}
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
-	share, err := NamespacePaddingShare(ns1)
+	share, err := NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	namespacePadding := ShareSequence{
 		Namespace: ns1,
@@ -231,7 +231,7 @@ func generateValidShareSequence(t *testing.T) ShareSequence {
 	}
 }
 
-func Fuzz_validSequenceLen(f *testing.F) {
+func FuzzValidSequenceLen(f *testing.F) {
 	f.Fuzz(func(t *testing.T, rawData []byte, rawNamespace []byte) {
 		share, err := NewShare(rawData)
 		if err != nil {

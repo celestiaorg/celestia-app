@@ -122,7 +122,8 @@ func TestEDSSubRootCacher(t *testing.T) {
 	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	for i := range dah.RowRoots[:squareSize] {
 		expectedSubTreeRoots := calculateSubTreeRoots(t, eds.Row(uint(i))[:squareSize], 2)

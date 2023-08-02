@@ -14,7 +14,7 @@ func (k Keeper) Hooks() Hooks {
 	// if startup is mis-ordered in app.go this hook will halt the chain when
 	// called. Keep this check to make such a mistake obvious
 	if k.storeKey == nil {
-		panic("hooks initialized before GravityKeeper")
+		panic("hooks initialized before QGBKeeper")
 	}
 	return Hooks{k}
 }

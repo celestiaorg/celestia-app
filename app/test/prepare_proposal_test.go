@@ -3,9 +3,10 @@ package app_test
 import (
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -51,7 +52,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		1000,
 		accnts[0],
 		accnts[numBlobTxs:],
-		"",
+		testutil.ChainID,
 	)
 	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
@@ -59,6 +60,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		BlockData: &tmproto.Data{
 			Txs: txs,
 		},
+		ChainId: testutil.ChainID,
 	})
 	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.BlockData.Txs {
@@ -88,7 +90,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(3),
+			appns.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
@@ -103,7 +105,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		1000,
 		accounts[0],
 		accounts[len(accounts)-3:],
-		"",
+		testutil.ChainID,
 	)).ToSliceOfBytes()
 
 	validTxs := func() [][]byte {
@@ -123,7 +125,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		1000,
 		accounts[0],
 		accounts[:3],
-		"",
+		testutil.ChainID,
 	)).ToSliceOfBytes()
 
 	// create a transaction with an account that doesn't exist. This will cause the increment nonce
@@ -182,12 +184,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: &tmproto.Data{Txs: tt.txs()},
+				ChainId:   testutil.ChainID,
 			})
 			// check that we have the expected number of transactions
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
 			// check the the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
-				assert.NotContains(t, resp.BlockData.Txs, ptx)
+				require.NotContains(t, resp.BlockData.Txs, ptx)
 			}
 		})
 	}

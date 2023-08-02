@@ -3,8 +3,13 @@ package square_test
 import (
 	"bytes"
 	"fmt"
-	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+
+	"github.com/cosmos/cosmos-sdk/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -15,8 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -44,7 +48,8 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
+			rand := tmrand.NewRand()
+			txs := generateMixedTxs(rand, tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
 			square, _, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultGovMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
@@ -52,13 +57,13 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 }
 
-func generateMixedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	return shuffle(generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize))
+func generateMixedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+	return shuffle(rand, generateOrderedTxs(rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
 }
 
-func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, blobsPerPfb, blobSize)
+	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, pfbCount, blobsPerPfb, blobSize)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),
@@ -68,7 +73,58 @@ func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
-func shuffle(slice [][]byte) [][]byte {
+// GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
+func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	signer := apptypes.GenerateKeyringSigner(t)
+	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(txConfig, rand, signer, normalTxCount)
+	pfbTxs := blobfactory.RandMultiBlobTxsSameSigner(t, txConfig.TxEncoder(), rand, signer, pfbCount)
+	txs := append(append(
+		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
+		noramlTxs...),
+		pfbTxs...,
+	)
+	return coretypes.Txs(txs).ToSliceOfBytes()
+}
+
+// TestGenerateOrderedRandomTxs_Deterministic ensures that the same seed produces the same txs
+func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	noramlCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+
+	assert.Equal(t, set2, set1)
+}
+
+func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(rand, GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
+}
+
+// TestGenerateMixedRandomTxs_Deterministic ensures that the same seed produces the same txs
+func TestGenerateMixedRandomTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	noramlCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	set1 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	set2 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+
+	assert.Equal(t, set2, set1)
+}
+
+func shuffle(rand *tmrand.Rand, slice [][]byte) [][]byte {
 	for i := range slice {
 		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
@@ -77,7 +133,7 @@ func shuffle(slice [][]byte) [][]byte {
 }
 
 func TestBuilderRejectsTransactions(t *testing.T) {
-	builder, err := square.NewBuilder(2, appconsts.DefaultSubtreeRootThreshold) // 2 x 2 square
+	builder, err := square.NewBuilder(2, appconsts.LatestVersion) // 2 x 2 square
 	require.NoError(t, err)
 	require.False(t, builder.AppendTx(newTx(shares.AvailableBytesFromCompactShares(4)+1)))
 	require.True(t, builder.AppendTx(newTx(shares.AvailableBytesFromCompactShares(4))))
@@ -119,7 +175,7 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("case%d", idx), func(t *testing.T) {
-			builder, err := square.NewBuilder(2, appconsts.DefaultSubtreeRootThreshold)
+			builder, err := square.NewBuilder(2, appconsts.LatestVersion)
 			require.NoError(t, err)
 			txs := generateBlobTxsWithNamespaces(t, ns1.Repeat(len(tc.blobSize)), [][]int{tc.blobSize})
 			require.Len(t, txs, 1)
@@ -131,11 +187,11 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 }
 
 func TestBuilderInvalidConstructor(t *testing.T) {
-	_, err := square.NewBuilder(-4, appconsts.DefaultSubtreeRootThreshold)
+	_, err := square.NewBuilder(-4, appconsts.LatestVersion)
 	require.Error(t, err)
-	_, err = square.NewBuilder(0, appconsts.DefaultSubtreeRootThreshold)
+	_, err = square.NewBuilder(0, appconsts.LatestVersion)
 	require.Error(t, err)
-	_, err = square.NewBuilder(13, appconsts.DefaultSubtreeRootThreshold)
+	_, err = square.NewBuilder(13, appconsts.LatestVersion)
 	require.Error(t, err)
 }
 
@@ -146,10 +202,10 @@ func newTx(len int) []byte {
 func TestBuilderFindTxShareRange(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(5, 900).ToSliceOfBytes()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 5, 1000, 10).ToSliceOfBytes()...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
-	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, blockTxs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, blockTxs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -158,7 +214,7 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 
 	var lastEnd int
 	for idx, tx := range blockTxs {
-		blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}
@@ -348,10 +404,10 @@ func TestSquareBlobPostions(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
-			builder, err := square.NewBuilder(tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
+			builder, err := square.NewBuilder(tt.squareSize, appconsts.LatestVersion)
 			require.NoError(t, err)
 			for _, tx := range tt.blobTxs {
-				blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
+				blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
 				require.True(t, isBlobTx)
 				_ = builder.AppendBlobTx(blobTx)
 			}

@@ -68,7 +68,7 @@ func (m *Params) GetDataCommitmentWindow() uint64 {
 	return 0
 }
 
-// GenesisState struct, containing all persistent data required by the Gravity
+// GenesisState struct, containing all persistent data required by the QGB
 // module
 type GenesisState struct {
 	Params *Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params,omitempty"`

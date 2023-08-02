@@ -1,7 +1,10 @@
 package types
 
-// MintKey is the key to use for the keeper store.
-var MintKey = []byte{0x00}
+// KeyMinter is the key to use for the Minter in the mint store.
+var KeyMinter = []byte("Minter")
+
+// KeyGenesisTime is the key to use for GenesisTime in the mint store.
+var KeyGenesisTime = []byte("GenesisTime")
 
 const (
 	// ModuleName is the name of the mint module.

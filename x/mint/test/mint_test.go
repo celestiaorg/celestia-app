@@ -39,7 +39,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// longer work.
 	cparams.Block.TimeIotaMs = int64(sixMonths.Milliseconds())
 
-	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
+	cfg := testnode.DefaultConfig().
+		WithConsensusParams(cparams)
+
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
 }
 
@@ -70,7 +73,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	require := s.Require()
 
 	type testCase struct {
-		year int
+		year int64
 		want sdktypes.Dec
 	}
 	testCases := []testCase{
@@ -132,7 +135,7 @@ func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeigh
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestIntegrationTestSuite(t *testing.T) {
+func TestMintIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping mint integration test in short mode.")
 	}

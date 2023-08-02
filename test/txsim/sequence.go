@@ -42,14 +42,13 @@ type Operation struct {
 }
 
 const (
-	// set default gas limit to cover the costs of most transactions
-	// At 0.001 utia per gas, this equates to 1000utia per transaction
-	DefaultGasLimit = 1000000
+	// Set the default gas limit to cover the costs of most transactions.
+	// At 0.1 utia per gas, this equates to 20_000utia per transaction.
+	DefaultGasLimit = 200_000
 )
 
-// EndOfSequence is a special error which indicates that the sequence has been terminated
-// nolint: revive
-var EndOfSequence = errors.New("end of sequence")
+// ErrEndOfSequence is a special error which indicates that the sequence has been terminated
+var ErrEndOfSequence = errors.New("end of sequence")
 
 // AccountAllocator reserves and funds a series of accounts to be used exclusively by
 // the Sequence.
