@@ -1,15 +1,13 @@
 syntax = "proto3";
-package celestia.staking.v1beta1;
+package celestia.qgb.v1;
 
-import "google/protobuf/any.proto";
-import "google/protobuf/timestamp.proto";
 import "gogoproto/gogo.proto";
-
 import "cosmos_proto/cosmos.proto";
-import "cosmos/msg/v1/msg.proto";
+import "google/api/annotations.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
+// Msg is the message server for receiving qgb transactions
 service Msg {
   // RegisterEVMAddress records an evm address for the validator which is used
   // by the relayer to aggregate signatures. A validator can only register a
@@ -17,12 +15,13 @@ service Msg {
   // There are no validity checks of the EVM addresses existence on the Ethereum
   // state machine
   rpc RegisterEVMAddress(MsgRegisterEVMAddress)
-      returns (MsgRegisterEVMAddressResponse);
+      returns (MsgRegisterEVMAddressResponse) {
+    option (google.api.http).get = "/qgb/v1/register_evm_address";
+  }
 }
 
+// MsgRegisterEVMAddress registers an evm address to a validator
 message MsgRegisterEVMAddress {
-  option (cosmos.msg.v1.signer) = "validator_address";
-
   // The address of the validator
   string validator_address = 1
       [ (cosmos_proto.scalar) = "cosmos.AddressString" ];
@@ -31,4 +30,5 @@ message MsgRegisterEVMAddress {
   string evm_address = 2;
 }
 
+// MsgRegisterEVMAddressResponse is the response to registering an EVM address
 message MsgRegisterEVMAddressResponse {}
