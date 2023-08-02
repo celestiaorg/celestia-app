@@ -362,7 +362,7 @@ func (s *VestingModuleTestSuite) testDelegatingVestingAmount(name string) {
 
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
 	require.NoError(s.T(), err)
-	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, fmt.Sprintf("the delegation TX must succeed: \n%s", resQ.TxResult.String()))
+	assert.EqualValues(s.T(), abci.CodeTypeOK, resQ.TxResult.Code, fmt.Sprintf("the delegation TX must succeed: \n%s", resQ.TxResult.String()))
 
 	// verify the delegations
 	del, err = testfactory.GetAccountDelegations(s.cctx.GRPCClient, address)
