@@ -35,6 +35,9 @@ const (
 	// EarliestAvailableAttestationNonce indexes the earliest available
 	// attestation nonce
 	EarliestAvailableAttestationNonce = "EarliestAvailableAttestationNonce"
+
+	// EVMAddress indexes evm addresses by validator address
+	EVMAddress = "EVMAddress"
 )
 
 // GetAttestationKey returns the following key format
@@ -50,4 +53,8 @@ func ConvertByteArrToString(value []byte) string {
 		ret.WriteString(string(value[i]))
 	}
 	return ret.String()
+}
+
+func GetEVMKey(valAddress string) []byte {
+	return []byte(EVMAddress + valAddress)
 }

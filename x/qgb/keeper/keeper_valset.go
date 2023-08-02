@@ -94,8 +94,15 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
-		// TODO make sure this  is always the case
-		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: validator.EvmAddress}
+		evmAddress, exists := k.GetEVMAddress(ctx, val.String())
+		if !exists {
+			// validators may not have an EVM address associated with them.
+			// This is not enforced. We no longer include them from the validator
+			// set
+			continue
+		}
+
+		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: evmAddress}
 		ibv, err := types.NewInternalBridgeValidator(bv)
 		if err != nil {
 			return types.Valset{}, errors.Wrapf(err, types.ErrInvalidEVMAddress.Error(), val)
@@ -192,4 +199,17 @@ func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*type
 		sdkerrors.ErrNotFound,
 		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
 	)
+}
+
+func (k Keeper) SetEVMAddress(ctx sdk.Context, valAddress, evmAddress string) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.GetEVMKey(valAddress), []byte(evmAddress))
+}
+
+func (k Keeper) GetEVMAddress(ctx sdk.Context, valAddress string) (string, bool) {
+	store := ctx.KVStore(k.storeKey)
+	if !store.Has(types.GetEVMKey(valAddress)) {
+		return "", false 
+	}
+	return string(store.Get(types.GetEVMKey(valAddress))), true
 }
