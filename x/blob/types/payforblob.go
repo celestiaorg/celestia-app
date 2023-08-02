@@ -338,7 +338,7 @@ func validateBlobData(appVersion uint64, data []byte) error {
 		return ErrZeroBlobSize
 	}
 
-	maxBlobSize := blobSizeUpperBound(appconsts.LatestVersion)
+	maxBlobSize := blobSizeUpperBound(appVersion)
 	if len(data) > maxBlobSize {
 		return ErrBlobSizeTooLarge.Wrapf("max blob size is %d bytes", maxBlobSize)
 	}

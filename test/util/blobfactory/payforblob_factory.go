@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -275,7 +274,7 @@ func BlobTxWithSize(t *testing.T, encoder sdk.TxEncoder, kr keyring.Keyring, cha
 	}
 	options := []blobtypes.TxBuilderOption{
 		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-		blobtypes.SetGasLimit(types.DefaultEstimateGas([]uint32{uint32(size)})),
+		blobtypes.SetGasLimit(blobtypes.DefaultEstimateGas([]uint32{uint32(size)})),
 	}
 	builder := signer.NewTxBuilder(options...)
 
