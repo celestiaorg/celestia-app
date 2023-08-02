@@ -552,19 +552,19 @@ Applications MUST NOT use these reserved namespaces for their blob data.</p>
 <p>Reserved namespaces fall into two categories, <em>Primary Reserved Namespaces</em> and <em>Secondary Reserved Namespaces</em>.</p>
 <ul>
 <li>Primary Reserved Namespaces: Namespaces with values less than or equal to <code>0x00000000000000000000000000000000000000000000000000000000FF</code> are referred to as Primary Reserved Namespace and are exclusively reserved for use within the Celestia protocols.</li>
-<li>Secondary Reserved Namespaces: As of the time of writing, there are two secondary reserved namespaces, namely,  <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> which fall out of the range of primary reserved namespaces.
+<li>Secondary Reserved Namespaces: Currently, there are two secondary reserved namespaces, namely,  <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> which fall out of the range of primary reserved namespaces.
 In the table, you will notice that the <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> utilize the namespace version <code>255</code>, which differs from the supported user-specified versions.
 The reason for employing version <code>255</code> for the <code>PARITY_SHARE_NAMESPACE</code> is to enable more efficient proof generation within the context of <a href="https://github.com/celestiaorg/nmt">nmt</a>, where it is used in conjunction with the <code>IgnoreMaxNamespace</code> feature.
 Similarly, the <code>TAIL_PADDING_NAMESPACE</code> utilizes the namespace version <code>255</code> to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.</li>
 </ul>
-<p>Below is a list of currently used reserved namespaces, along with a brief description of each.
+<p>Below is a list of currently used primary and secondary reserved namespaces, along with a brief description of each.
 For additional information on the significance and application of the reserved namespaces, please refer to the <a href="specs/./data_square_layout.html">Data Square Layout</a> specifications.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
 <tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
 <tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
 <tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace reserved for transactions that contain a PayForBlob.</td></tr>
 <tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
-<tr><td><code>MAX_PRIMARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
+<tr><td><code>MAX_PRIMARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max primary reserved namespace is the largest primary reserved namespace designated for protocol use.</td></tr>
 <tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
 <tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
 </tbody></table>
