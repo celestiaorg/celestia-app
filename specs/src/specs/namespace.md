@@ -58,14 +58,17 @@ The ID is encoded as a byte slice of length 28.
 ## Reserved Namespaces
 
 Celestia reserves certain namespaces with specific meanings.
-Celestia makes use of the reserved namespaces to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
+Reserved namespaces are used to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
 Applications MUST NOT use these reserved namespaces for their blob data.
 
-Below is a list of reserved namespaces, along with a brief description of each.
-In addition to the items listed in this table, it should be noted that namespaces with values less than `0x00000000000000000000000000000000000000000000000000000000FF` are exclusively reserved for use within the Celestia protocols.
+Reserved namespaces fall into two categories, _Primary Reserved Namespaces_ and _Secondary Reserved Namespaces_.
+- Primary Reserved Namespaces: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF` are referred to as Primary Reserved Namespace and are exclusively reserved for use within the Celestia protocols.
+- Secondary Reserved Namespaces: As of the time of writing, there are two secondary reserved namespaces, namely,  `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` which fall out of the range of primary reserved namespaces.
 In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
 The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
 Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
+
+Below is a list of currently used reserved namespaces, along with a brief description of each.
 For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data_square_layout.md) specifications.
 
 | name                                | type        | value                                                          | description                                                                                          |
