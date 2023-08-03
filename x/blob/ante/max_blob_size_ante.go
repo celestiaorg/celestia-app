@@ -58,6 +58,7 @@ func (d MaxBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	return min(upperBound, int(govSquareSize))
 }
 
+// sum returns the total size of the given sizes.
 func sum(sizes []uint32) (total int) {
 	for _, size := range sizes {
 		total += int(size)
