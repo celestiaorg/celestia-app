@@ -241,9 +241,9 @@ func TestAllSharesInclusionProof(t *testing.T) {
 	require.NoError(t, err)
 	dataRoot := dah.Hash()
 
-	actualNID, err := proof.ParseNamespace(dataSquare, 0, 256)
+	actualNamespace, err := proof.ParseNamespace(dataSquare, 0, 256)
 	require.NoError(t, err)
-	require.Equal(t, appns.TxNamespace, actualNID)
+	require.Equal(t, appns.TxNamespace, actualNamespace)
 	proof, err := proof.NewShareInclusionProof(
 		dataSquare,
 		appns.TxNamespace,
