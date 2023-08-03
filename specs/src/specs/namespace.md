@@ -58,25 +58,28 @@ The ID is encoded as a byte slice of length 28.
 ## Reserved Namespaces
 
 Celestia reserves certain namespaces with specific meanings.
-Celestia makes use of the reserved namespaces to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
+Reserved namespaces are used to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
 Applications MUST NOT use these reserved namespaces for their blob data.
 
-Below is a list of reserved namespaces, along with a brief description of each.
-In addition to the items listed in this table, it should be noted that namespaces with values less than `0x00000000000000000000000000000000000000000000000000000000FF` are exclusively reserved for use within the Celestia protocols.
+Reserved namespaces fall into two categories, _Primary Reserved Namespaces_ and _Secondary Reserved Namespaces_.
+- Primary Reserved Namespaces: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF` are referred to as Primary Reserved Namespaces and are exclusively reserved for use within the Celestia protocols.
+- Secondary Reserved Namespaces: Currently, there are two secondary reserved namespaces, namely, `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` which fall out of the range of primary reserved namespaces.
 In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
 The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
 Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
+
+Below is a list of currently used primary and secondary reserved namespaces, along with a brief description of each.
 For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data_square_layout.md) specifications.
 
-| name                                | type        | value                                                          | description                                                                                          |
-|-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                        |
-| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                         |
-| `PAY_FOR_BLOB_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000004` | Namespace reserved for transactions that contain a PayForBlob.                                       |
-| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
-| `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
-| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.                 |
-| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
+| name                                | type        | value                                                          | description                                                                                           |
+|-------------------------------------|-------------|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                         |
+| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                          |
+| `PAY_FOR_BLOB_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000004` | Namespace reserved for transactions that contain a PayForBlob.                                        |
+| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                               |
+| `MAX_PRIMARY_RESERVED_NAMESPACE`    | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Max primary reserved namespace is the largest primary reserved namespace designated for protocol use. |
+| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.                  |
+| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                          |
 
 ## Assumptions and Considerations
 

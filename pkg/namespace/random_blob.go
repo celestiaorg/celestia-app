@@ -43,14 +43,6 @@ func isBlobNamespace(ns Namespace) bool {
 		return false
 	}
 
-	if ns.IsParityShares() {
-		return false
-	}
-
-	if ns.IsTailPadding() {
-		return false
-	}
-
 	if !slices.Contains(SupportedBlobNamespaceVersions, ns.Version) {
 		return false
 	}
