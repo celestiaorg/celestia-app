@@ -342,7 +342,8 @@ func sum(blobs []*tmproto.Blob) (total int) {
 	return total
 }
 
-// validateBlobData returns an error if the size of data is zero or too large.
+// validateBlobData returns an error if the total blob size exceeds the upper
+// bound.
 func validateBlobData(appVersion uint64, blobs []*tmproto.Blob) error {
 	total := sum(blobs)
 	upperBound := blobSizeUpperBound(appVersion)
