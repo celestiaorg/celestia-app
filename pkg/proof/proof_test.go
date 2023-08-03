@@ -221,3 +221,35 @@ func TestNewShareInclusionProof(t *testing.T) {
 		})
 	}
 }
+
+// TestAllSharesInclusionProof creates proof for all the shares in a block.
+// Since we can't prove multiple namespaces at the moment, the block will contain all the shares with the same namespace.
+func TestAllSharesInclusionProof(t *testing.T) {
+	txs := testfactory.GenerateRandomTxs(64, 500)
+
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound(appconsts.LatestVersion))
+	if err != nil {
+		panic(err)
+	}
+
+	// erasure the data square which we use to create the data root.
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	require.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	dataRoot := dah.Hash()
+
+	actualNID, err := proof.ParseNamespace(dataSquare, 0, 64)
+	require.NoError(t, err)
+	require.Equal(t, appns.TxNamespace, actualNID)
+	proof, err := proof.NewShareInclusionProof(
+		dataSquare,
+		appns.TxNamespace,
+		shares.NewRange(0, 64),
+	)
+	require.NoError(t, err)
+	assert.NoError(t, proof.Validate(dataRoot))
+}
