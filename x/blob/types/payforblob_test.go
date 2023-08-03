@@ -520,6 +520,6 @@ func TestValidateBlobs(t *testing.T) {
 // bound is a constant value.
 func Test_blobSizeUpperBound(t *testing.T) {
 	got := blobSizeUpperBound(appconsts.LatestVersion)
-	want := 7_896_606
+	want := 8_388_608
 	assert.Equal(t, want, got)
 }
