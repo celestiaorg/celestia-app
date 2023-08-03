@@ -62,8 +62,8 @@ Reserved namespaces are used to properly organize and order transactions and blo
 Applications MUST NOT use these reserved namespaces for their blob data.
 
 Reserved namespaces fall into two categories, _Primary Reserved Namespaces_ and _Secondary Reserved Namespaces_.
-- Primary Reserved Namespaces: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF` are referred to as Primary Reserved Namespace and are exclusively reserved for use within the Celestia protocols.
-- Secondary Reserved Namespaces: Currently, there are two secondary reserved namespaces, namely,  `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` which fall out of the range of primary reserved namespaces.
+- Primary Reserved Namespaces: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF` are referred to as Primary Reserved Namespaces and are exclusively reserved for use within the Celestia protocols.
+- Secondary Reserved Namespaces: Currently, there are two secondary reserved namespaces, namely, `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` which fall out of the range of primary reserved namespaces.
 In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
 The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
 Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
