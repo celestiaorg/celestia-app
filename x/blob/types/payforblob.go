@@ -319,53 +319,54 @@ func ValidateBlobs(appVersion uint64, blobs ...*Blob) error {
 			return err
 		}
 
-		err = validateBlobData(appVersion, blob.Data)
-		if err != nil {
-			return err
+		if len(blob.Data) == 0 {
+			return ErrZeroBlobSize
 		}
 
 		if !slices.Contains(appconsts.SupportedShareVersions, uint8(blob.ShareVersion)) {
 			return ErrUnsupportedShareVersion
 		}
 	}
+	err := validateBlobData(appVersion, blobs)
+	if err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func sum(blobs []*tmproto.Blob) (total int) {
+	for _, blob := range blobs {
+		total += len(blob.Data)
+	}
+	return total
 }
 
 // validateBlobData returns an error if the size of data is zero or too large.
-func validateBlobData(appVersion uint64, data []byte) error {
-	if len(data) == 0 {
-		return ErrZeroBlobSize
-	}
-
-	maxBlobSize := blobSizeUpperBound(appVersion)
-	if len(data) > maxBlobSize {
-		return ErrBlobSizeTooLarge.Wrapf("max blob size is %d bytes", maxBlobSize)
+func validateBlobData(appVersion uint64, blobs []*tmproto.Blob) error {
+	total := sum(blobs)
+	upperBound := blobSizeUpperBound(appVersion)
+	if total > upperBound {
+		return ErrBlobSizeTooLarge.Wrapf("total blob size %d bytes exceeds upper bound %d bytes", total, upperBound)
 	}
 	return nil
 }
 
-// blobSizeUpperBound returns an upper bound for the max valid blob size based
-// on the upper bounds for square size and block bytes. Note it is possible that
-// blobs of this size do not fit in a block because the limiting factor may be a
-// parameter in application state (i.e. GovMaxSquareSize). Additionally, even if
-// the application state parameters are at their upper bounds, the number of
-// shares available for blob bytes may be less than estimated in this function
-// (i.e. if the PFB tx shares occupy more than one share). As a result, the
-// upper bound returned by this function may over-estimate the max valid blob
-// size but it should not under-estimate. Consequently, it may be used to
-// immediately reject blobs that are too large but blobs smaller than this upper
-// bound may still fail to be included in a block.
+// blobSizeUpperBound returns an upper bound for the number of bytes available
+// for blobs in a data square based on the versioned constants (namely the max
+// square size). Note it is possible that txs with a total blobSize less than
+// this upper bound still fail to be included in a block due to overhead from
+// the PFB tx and/or padding shares. As a result, this upper bound should only
+// be used to reject transactions that are guaranteed to be too large.
 func blobSizeUpperBound(appVersion uint64) int {
-	maxSquareSize := appconsts.SquareSizeUpperBound(appVersion)
-	maxShares := maxSquareSize * maxSquareSize
+	squareSize := appconsts.SquareSizeUpperBound(appVersion)
+	return squareBytes(squareSize)
+}
 
-	// Subtract one from maxShares because at least one share must be occupied
-	// by the PFB tx associated with this blob.
-	maxBlobShares := maxShares - 1
-	maxBlobBytes := maxBlobShares * appconsts.ContinuationSparseShareContentSize
-
-	return min(maxBlobBytes, coretypes.MaxBlockSizeBytes)
+// squareBytes returns the number of bytes in a square of the given size.
+func squareBytes(squareSize int) int {
+	totalShares := squareSize * squareSize
+	return totalShares * appconsts.ShareSize
 }
 
 // min returns the minimum of two ints. This function can be removed once we
