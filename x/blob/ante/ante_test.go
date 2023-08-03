@@ -13,8 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testGasPerBlobByte = 10
-const testGovMaxSquareSize = 64
+const (
+	testGasPerBlobByte   = 10
+	testGovMaxSquareSize = 64
+)
 
 func TestPFBAnteHandler(t *testing.T) {
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig

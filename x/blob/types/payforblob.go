@@ -369,15 +369,6 @@ func squareBytes(squareSize int) int {
 	return totalShares * appconsts.ShareSize
 }
 
-// min returns the minimum of two ints. This function can be removed once we
-// upgrade to Go 1.21.
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // extractBlobComponents separates and returns the components of a slice of
 // blobs.
 func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {

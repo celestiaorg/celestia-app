@@ -2,7 +2,6 @@ package ante
 
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"cosmossdk.io/errors"
@@ -30,7 +29,7 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 
 	upperBound := d.blobSizeUpperBound(ctx)
 	for _, m := range tx.GetMsgs() {
-		if pfb, ok := m.(*types.MsgPayForBlobs); ok {
+		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
 			total := sum(pfb.BlobSizes)
 			if total > upperBound {
 				return ctx, errors.Wrapf(blobtypes.ErrBlobSizeTooLarge, "total blob size %d exceeds upper bound %d", total, upperBound)
