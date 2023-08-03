@@ -8,9 +8,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// MinGasPFBDecorator helps to prevent a PFB from being included in a block
-// but running out of gas in DeliverTx (effectively getting DA for free)
-// This decorator should be run after any decorator that consumes gas.
+// MaxBlobSizeDecorator helps to prevent a PFB from being included in a block
+// but not fitting in a data square.
 type MaxBlobSizeDecorator struct {
 	k BlobKeeper
 }
@@ -21,7 +20,7 @@ func NewMaxBlobSizeDecorator(k BlobKeeper) MaxBlobSizeDecorator {
 
 // AnteHandle implements the AnteHandler interface. It checks to see
 // if the transaction contains a MsgPayForBlobs and if so, checks that
-// the blobs in the MsgPayForBlobs are less than the max blob size.
+// the total blob size in the MsgPayForBlobs are less than the max blob size.
 func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if ctx.IsReCheckTx() {
 		return next(ctx, tx, simulate)
@@ -30,9 +29,9 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	upperBound := d.blobSizeUpperBound(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			total := sum(pfb.BlobSizes)
-			if total > upperBound {
-				return ctx, errors.Wrapf(blobtypes.ErrBlobSizeTooLarge, "total blob size %d exceeds upper bound %d", total, upperBound)
+			totalBlobSize := sum(pfb.BlobSizes)
+			if totalBlobSize > upperBound {
+				return ctx, errors.Wrapf(blobtypes.ErrBlobSizeTooLarge, "total blob size %d exceeds upper bound %d", totalBlobSize, upperBound)
 			}
 		}
 	}
@@ -47,12 +46,16 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 // tx and/or padding shares. As a result, this upper bound should only be used
 // to reject transactions that are guaranteed to be too large.
 func (d MaxBlobSizeDecorator) blobSizeUpperBound(ctx sdk.Context) int {
+	squareSize := d.getMaxSquareSize(ctx)
+	return squareBytes(squareSize)
+}
+
+func (d MaxBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	// NOTE: it is possible to remove upperBound if we enforce that GovMaxSquareSize <= MaxSquareSize
 	// See https://github.com/celestiaorg/celestia-app/pull/2203
 	upperBound := appconsts.SquareSizeUpperBound(ctx.ConsensusParams().Version.AppVersion)
 	govSquareSize := d.k.GovMaxSquareSize(ctx)
-	squareSize := min(upperBound, int(govSquareSize))
-	return squareBytes(squareSize)
+	return min(upperBound, int(govSquareSize))
 }
 
 func sum(sizes []uint32) (total int) {
@@ -62,10 +65,10 @@ func sum(sizes []uint32) (total int) {
 	return total
 }
 
-// squareBytes returns the number of bytes in a square of the given size.
+// squareBytes returns the number of bytes in a square for the given squareSize.
 func squareBytes(squareSize int) int {
-	totalShares := squareSize * squareSize
-	return totalShares * appconsts.ShareSize
+	numShares := squareSize * squareSize
+	return numShares * appconsts.ShareSize
 }
 
 // min returns the minimum of two ints. This function can be removed once we
