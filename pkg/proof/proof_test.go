@@ -222,8 +222,9 @@ func TestNewShareInclusionProof(t *testing.T) {
 	}
 }
 
-// TestAllSharesInclusionProof creates proof for all the shares in a block.
-// Since we can't prove multiple namespaces at the moment, the block will contain all the shares with the same namespace.
+// TestAllSharesInclusionProof creates a proof for all shares in the data
+// square. Since we can't prove multiple namespaces at the moment, all the
+// shares use the same namespace.
 func TestAllSharesInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(243, 500)
 
