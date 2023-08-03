@@ -135,7 +135,7 @@ func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeigh
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestIntegrationTestSuite(t *testing.T) {
+func TestMintIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping mint integration test in short mode.")
 	}
