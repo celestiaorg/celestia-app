@@ -225,6 +225,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 // Ensure that we reject negative index values and avoid overflows.
 // https://github.com/celestiaorg/celestia-app/issues/3140
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
@@ -241,4 +242,36 @@ func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	if len(rawProof) != 0 {
 		t.Fatal("no rawProof expected")
 	}
+=======
+// TestAllSharesInclusionProof creates a proof for all shares in the data
+// square. Since we can't prove multiple namespaces at the moment, all the
+// shares use the same namespace.
+func TestAllSharesInclusionProof(t *testing.T) {
+	txs := testfactory.GenerateRandomTxs(243, 500)
+
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, 128)
+	require.NoError(t, err)
+	assert.Equal(t, 256, len(dataSquare))
+
+	// erasure the data square which we use to create the data root.
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	require.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	dataRoot := dah.Hash()
+
+	actualNamespace, err := proof.ParseNamespace(dataSquare, 0, 256)
+	require.NoError(t, err)
+	require.Equal(t, appns.TxNamespace, actualNamespace)
+	proof, err := proof.NewShareInclusionProof(
+		dataSquare,
+		appns.TxNamespace,
+		shares.NewRange(0, 256),
+	)
+	require.NoError(t, err)
+	assert.NoError(t, proof.Validate(dataRoot))
+>>>>>>> 0c55a6e (fix: end exclusive parse namespace end share range (#2208))
 }
