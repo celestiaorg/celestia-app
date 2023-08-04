@@ -26,10 +26,10 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 		return next(ctx, tx, simulate)
 	}
 
-	upperBound := d.blobSizeUpperBound(ctx)
+	upperBound := d.totalBlobSizeUpperBound(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			totalBlobSize := sum(pfb.BlobSizes)
+			totalBlobSize := getTotalBlobSize(pfb.BlobSizes)
 			if totalBlobSize > upperBound {
 				return ctx, errors.Wrapf(blobtypes.ErrBlobSizeTooLarge, "total blob size %d exceeds upper bound %d", totalBlobSize, upperBound)
 			}
@@ -39,17 +39,19 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	return next(ctx, tx, simulate)
 }
 
-// blobSizeUpperBound returns an upper bound for the number of bytes available
-// for blobs in a data square based on state parameters (namely the max square
-// size). Note it is possible that txs with a total blobSize less than this
-// upper bound still fail to be included in a block due to overhead from the PFB
-// tx and/or padding shares. As a result, this upper bound should only be used
-// to reject transactions that are guaranteed to be too large.
-func (d MaxBlobSizeDecorator) blobSizeUpperBound(ctx sdk.Context) int {
+// totalBlobSizeUpperBound returns an upper bound for the number of bytes available
+// for blob data in a data square based on the max square size. Note it is
+// possible that txs with a total blob size less than this upper bound still
+// fail to be included in a block due to overhead from the PFB tx and/or padding
+// shares. As a result, this upper bound should only be used to reject
+// transactions that are guaranteed to be too large.
+func (d MaxBlobSizeDecorator) totalBlobSizeUpperBound(ctx sdk.Context) int {
 	squareSize := d.getMaxSquareSize(ctx)
 	return squareBytes(squareSize)
 }
 
+// getMaxSquareSize returns the maximum square size based on the current values
+// for the relevant governance parameter and the versioned constant.
 func (d MaxBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to our fork of the sdk not initializing state before
@@ -66,12 +68,12 @@ func (d MaxBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	return min(upperBound, int(govParam))
 }
 
-// sum returns the total size of the given sizes.
-func sum(sizes []uint32) (total int) {
+// getTotalBlobSize returns the sum of the given blob sizes.
+func getTotalBlobSize(sizes []uint32) (sum int) {
 	for _, size := range sizes {
-		total += int(size)
+		sum += int(size)
 	}
-	return total
+	return sum
 }
 
 // squareBytes returns the number of bytes in a square for the given squareSize.
