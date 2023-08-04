@@ -260,51 +260,6 @@ func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size i
 	return txs
 }
 
-// BlobTxWithSize returns a blobTx with a given size. It intentionally does not
-// use NewMsgPayForBlobs in order to bypass the ValidateBlobs() check which
-// would fail for large blobs.
-func BlobTxWithSize(t *testing.T, encoder sdk.TxEncoder, kr keyring.Keyring, chainID string, account string, size int) coretypes.Tx {
-	signer := blobtypes.NewKeyringSigner(kr, account, chainID)
-	address, err := signer.GetSignerInfo().GetAddress()
-	require.NoError(t, err)
-
-	coin := sdk.Coin{
-		Denom:  bondDenom,
-		Amount: sdk.NewInt(10),
-	}
-	options := []blobtypes.TxBuilderOption{
-		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-		blobtypes.SetGasLimit(blobtypes.DefaultEstimateGas([]uint32{uint32(size)})),
-	}
-	builder := signer.NewTxBuilder(options...)
-
-	namespace := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
-	blob, err := blobtypes.NewBlob(namespace, tmrand.Bytes(size), appconsts.ShareVersionZero)
-	require.NoError(t, err)
-
-	commitments, err := blobtypes.CreateCommitments([]*tmproto.Blob{blob})
-	require.NoError(t, err)
-
-	msg := &blobtypes.MsgPayForBlobs{
-		Signer:           address.String(),
-		Namespaces:       [][]byte{namespace.Bytes()},
-		ShareCommitments: commitments,
-		BlobSizes:        []uint32{uint32(size)},
-		ShareVersions:    []uint32{uint32(appconsts.ShareVersionZero)},
-	}
-	require.NoError(t, err)
-
-	signedTx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	rawTx, err := encoder(signedTx)
-	require.NoError(t, err)
-
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
-	require.NoError(t, err)
-	return blobTx
-}
-
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)

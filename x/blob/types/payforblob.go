@@ -49,7 +49,7 @@ const (
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
 func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
-	err := ValidateBlobs(appconsts.LatestVersion, blobs...)
+	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func CreateCommitments(blobs []*Blob) ([][]byte, error) {
 }
 
 // ValidateBlobs performs basic checks over the components of one or more PFBs.
-func ValidateBlobs(appVersion uint64, blobs ...*Blob) error {
+func ValidateBlobs(blobs ...*Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
@@ -319,47 +319,8 @@ func ValidateBlobs(appVersion uint64, blobs ...*Blob) error {
 			return ErrUnsupportedShareVersion
 		}
 	}
-	err := validateBlobData(appVersion, blobs)
-	if err != nil {
-		return err
-	}
 
 	return nil
-}
-
-func sum(blobs []*tmproto.Blob) (total int) {
-	for _, blob := range blobs {
-		total += len(blob.Data)
-	}
-	return total
-}
-
-// validateBlobData returns an error if the total blob size exceeds the upper
-// bound.
-func validateBlobData(appVersion uint64, blobs []*tmproto.Blob) error {
-	total := sum(blobs)
-	upperBound := blobSizeUpperBound(appVersion)
-	if total > upperBound {
-		return ErrBlobSizeTooLarge.Wrapf("total blob size %d bytes exceeds upper bound %d bytes", total, upperBound)
-	}
-	return nil
-}
-
-// blobSizeUpperBound returns an upper bound for the number of bytes available
-// for blobs in a data square based on the versioned constants (namely the max
-// square size). Note it is possible that txs with a total blobSize less than
-// this upper bound still fail to be included in a block due to overhead from
-// the PFB tx and/or padding shares. As a result, this upper bound should only
-// be used to reject transactions that are guaranteed to be too large.
-func blobSizeUpperBound(appVersion uint64) int {
-	squareSize := appconsts.SquareSizeUpperBound(appVersion)
-	return squareBytes(squareSize)
-}
-
-// squareBytes returns the number of bytes in a square of the given size.
-func squareBytes(squareSize int) int {
-	totalShares := squareSize * squareSize
-	return totalShares * appconsts.ShareSize
 }
 
 // extractBlobComponents separates and returns the components of a slice of

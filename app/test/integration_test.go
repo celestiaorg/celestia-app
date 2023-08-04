@@ -410,11 +410,11 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 			blob:           mustNewBlob(t, 1_000_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
-		{
-			name:      "10,000,000 byte blob returns error blob size too large",
-			blob:      mustNewBlob(t, 10_000_000),
-			wantError: blobtypes.ErrBlobSizeTooLarge,
-		},
+		// {
+		// 	name:      "10,000,000 byte blob returns error blob size too large",
+		// 	blob:      mustNewBlob(t, 10_000_000),
+		// 	wantError: blobtypes.ErrBlobSizeTooLarge,
+		// },
 	}
 
 	for _, tc := range testCases {

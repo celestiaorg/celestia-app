@@ -66,7 +66,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	for i, pblob := range bTx.Blobs {
 		sizes[i] = uint32(len(pblob.Data))
 	}
-	err = ValidateBlobs(appconsts.LatestVersion, bTx.Blobs...)
+	err = ValidateBlobs(bTx.Blobs...)
 	if err != nil {
 		return err
 	}
