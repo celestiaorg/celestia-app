@@ -70,7 +70,6 @@ Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to 
 
 Below is a list of currently used primary and secondary reserved namespaces, along with a brief description of each.
 For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data_square_layout.md) specifications.
-
 | name                                | type        | value                                                          | description                                                                                           |
 |-------------------------------------|-------------|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
 | `TRANSACTION_NAMESPACE`             | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                         |
@@ -86,7 +85,6 @@ For additional information on the significance and application of the reserved n
 Applications MUST refrain from using the [reserved namespaces](#reserved-namespaces) for their blob data.
 
 ## Implementation
-
 See [pkg/namespace](../../../pkg/namespace).
 
 ## Protobuf Definition
