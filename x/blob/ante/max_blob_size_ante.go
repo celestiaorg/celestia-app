@@ -51,11 +51,19 @@ func (d MaxBlobSizeDecorator) blobSizeUpperBound(ctx sdk.Context) int {
 }
 
 func (d MaxBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
-	// NOTE: it is possible to remove upperBound if we enforce that GovMaxSquareSize <= MaxSquareSize
-	// See https://github.com/celestiaorg/celestia-app/pull/2203
+	// TODO: fix hack that forces the max square size for the first height to
+	// 64. This is due to our fork of the sdk not initializing state before
+	// BeginBlock of the first block. This is remedied in versions of the sdk
+	// and comet that have full support of PreparePropsoal, although
+	// celestia-app does not currently use those. see this PR for more details
+	// https://github.com/cosmos/cosmos-sdk/pull/14505
+	if ctx.BlockHeader().Height <= 1 {
+		return int(appconsts.DefaultGovMaxSquareSize)
+	}
+
 	upperBound := appconsts.SquareSizeUpperBound(ctx.ConsensusParams().Version.AppVersion)
-	govSquareSize := d.k.GovMaxSquareSize(ctx)
-	return min(upperBound, int(govSquareSize))
+	govParam := d.k.GovMaxSquareSize(ctx)
+	return min(upperBound, int(govParam))
 }
 
 // sum returns the total size of the given sizes.
