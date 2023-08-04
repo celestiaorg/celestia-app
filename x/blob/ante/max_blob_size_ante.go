@@ -18,9 +18,10 @@ func NewMaxBlobSizeDecorator(k BlobKeeper) MaxBlobSizeDecorator {
 	return MaxBlobSizeDecorator{k}
 }
 
-// AnteHandle implements the AnteHandler interface. It checks to see
-// if the transaction contains a MsgPayForBlobs and if so, checks that
-// the total blob size in the MsgPayForBlobs are less than the max blob size.
+// AnteHandle implements the AnteHandler interface. It returns an error if the
+// tx contains a MsgPayForBlobs where the total blob data size exceeds the upper
+// bound. The upper bound is calculated based on the number of bytes in a data
+// square with the maximum square size.
 func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if ctx.IsReCheckTx() {
 		return next(ctx, tx, simulate)
