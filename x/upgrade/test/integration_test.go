@@ -68,8 +68,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	s.cctx = cctx
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
-	// set the gov module address
-	// retrieve the gov module account via grpc
+	// Retrieve the gov module account via grpc
 	aqc := authtypes.NewQueryClient(s.cctx.GRPCClient)
 	resp, err := aqc.ModuleAccountByName(
 		s.cctx.GoContext(), &authtypes.QueryModuleAccountByNameRequest{Name: "gov"},
@@ -79,6 +78,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	err = s.ecfg.InterfaceRegistry.UnpackAny(resp.Account, &acc)
 	s.Require().NoError(err)
 
+	// Set the gov module address
 	s.govModuleAddress = acc.GetAddress().String()
 }
 
@@ -90,6 +90,8 @@ func (s *UpgradeTestSuite) unusedAccount() string {
 	return acc
 }
 
+// TestLegacyGovUpgradeFailure verifies that a transaction with a legacy
+// software upgrade proposal fails to execute.
 func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	t := s.T()
 
@@ -119,6 +121,8 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	assert.Contains(t, finalResult.TxResult.Log, "no handler exists for proposal type")
 }
 
+// TestNewGovUpgradeFailure verifies that a transaction with a
+// MsgSoftwareUpgrade fails to execute.
 func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	t := s.T()
 	sss := types.MsgSoftwareUpgrade{

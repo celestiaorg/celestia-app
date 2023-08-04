@@ -141,7 +141,7 @@ test:
 	@go test -mod=readonly -timeout 30m ./...
 .PHONY: test
 
-## test-short: Run unit tests in short mode.
+## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
 	@go test -mod=readonly ./... -short
@@ -153,10 +153,12 @@ test-e2e:
 	@KNUU_NAMESPACE=celestia-app E2E=true go test -mod=readonly ./test/e2e/... -timeout 30m
 .PHONY: test-e2e
 
-## test-race: Run unit tests in race mode.
+## test-race: Run tests in race mode.
 test-race:
+# TODO: Remove the -skip flag once the following tests no longer contain data races.
+# https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@VERSION=$(VERSION) go test -mod=readonly -race -short ./...
+	@go test -mod=readonly ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.

@@ -15,7 +15,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Run unit tests
+      - name: Run tests
         run: make test
 
   test-coverage:
@@ -44,5 +44,5 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Run unit tests in race mode
+      - name: Run tests in race mode
         run: make test-race

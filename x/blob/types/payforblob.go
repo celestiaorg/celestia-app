@@ -186,15 +186,7 @@ func DefaultEstimateGas(blobSizes []uint32) uint64 {
 // tail padding).
 func ValidateBlobNamespace(ns appns.Namespace) error {
 	if ns.IsReserved() {
-		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
-	}
-
-	if ns.IsParityShares() {
-		return ErrParitySharesNamespace
-	}
-
-	if ns.IsTailPadding() {
-		return ErrTailPaddingNamespace
+		return ErrReservedNamespace
 	}
 
 	if !slices.Contains(appns.SupportedBlobNamespaceVersions, ns.Version) {

@@ -139,9 +139,9 @@ func TestValidateBasic(t *testing.T) {
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
 
-	// MsgPayForBlobs that uses the max reserved namespace
+	// MsgPayForBlobs that uses the max primary reserved namespace
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
-	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxReservedNamespace.Bytes()
+	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxPrimaryReservedNamespace.Bytes()
 
 	// MsgPayForBlobs that has an empty share commitment
 	emptyShareCommitment := validMsgPayForBlobs(t)
@@ -176,12 +176,12 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "parity shares namespace",
 			msg:     paritySharesMsg,
-			wantErr: ErrParitySharesNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "tail padding namespace",
 			msg:     tailPaddingMsg,
-			wantErr: ErrTailPaddingNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "tx namespace",
