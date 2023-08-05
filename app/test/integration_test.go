@@ -59,11 +59,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	}
 
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blobGenState := blobtypes.DefaultGenesis()
-	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 	cfg := testnode.DefaultConfig().
 		WithAccounts(s.accounts).
-		WithGenesisOptions(testnode.SetBlobParams(s.ecfg.Codec, blobGenState.Params))
+		WithGenesisOptions(testnode.SetBlobParams(s.ecfg.Codec, blobtypes.DefaultGenesis().Params))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
