@@ -2,6 +2,7 @@ package ante
 
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"cosmossdk.io/errors"
@@ -20,8 +21,8 @@ func NewMaxBlobSizeDecorator(k BlobKeeper) MaxBlobSizeDecorator {
 
 // AnteHandle implements the AnteHandler interface. It returns an error if the
 // tx contains a MsgPayForBlobs where the total blob data size exceeds the upper
-// bound. The upper bound is calculated based on the number of bytes in a data
-// square with the maximum square size.
+// bound. The upper bound is calculated based on the number of bytes available
+// to blobs in a data square with the maximum square size.
 func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
@@ -48,7 +49,9 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 // transactions that are guaranteed to be too large.
 func (d MaxBlobSizeDecorator) totalBlobSizeUpperBound(ctx sdk.Context) int {
 	squareSize := d.getMaxSquareSize(ctx)
-	return squareBytes(squareSize)
+	totalShares := squareSize * squareSize
+	blobShares := totalShares - 1 // subtract 1 to account for the PFB tx share
+	return shares.AvailableBytesFromSparseShares(blobShares)
 }
 
 // getMaxSquareSize returns the maximum square size based on the current values
@@ -75,12 +78,6 @@ func getTotalBlobSize(sizes []uint32) (sum int) {
 		sum += int(size)
 	}
 	return sum
-}
-
-// squareBytes returns the number of bytes in a square for the given squareSize.
-func squareBytes(squareSize int) int {
-	numShares := squareSize * squareSize
-	return numShares * appconsts.ShareSize
 }
 
 // min returns the minimum of two ints. This function can be removed once we
