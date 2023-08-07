@@ -259,7 +259,8 @@ func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.Genesis
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		gs, err := AddGenesisAccountsWithBalancesToGenesisState(gs, gAccounts, balances)
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
 		assert.NoError(s.T(), err)
 		return gs
 	}
@@ -295,7 +296,8 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		gs, err := AddGenesisAccountsWithBalancesToGenesisState(gs, gAccounts, balances)
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
 		require.NoError(s.T(), err)
 		return gs
 	}
@@ -344,7 +346,8 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		gs, err := AddGenesisAccountsWithBalancesToGenesisState(gs, gAccounts, balances)
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
 		assert.NoError(s.T(), err)
 		return gs
 	}
@@ -387,7 +390,8 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		gs, err := AddGenesisAccountsWithBalancesToGenesisState(gs, gAccounts, balances)
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
 		assert.NoError(s.T(), err)
 		return gs
 	}
@@ -482,26 +486,4 @@ func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int
 			return vAcc, name, err
 		}
 	}
-}
-
-// AddGenesisAccountsWithBalancesToGenesisState adds the given genesis accounts and balances to the
-// provided genesis state. It returns the updated genesis state and an error if any occurred.
-func AddGenesisAccountsWithBalancesToGenesisState(
-	gs map[string]json.RawMessage,
-	gAccounts []authtypes.GenesisAccount,
-	balances []banktypes.Balance,
-) (map[string]json.RawMessage, error) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	var err error
-	gs, err = testfactory.AddAccountsToGenesisState(encCfg, gs, gAccounts...)
-	if err != nil {
-		return gs, err
-	}
-
-	gs, err = testfactory.AddBalancesToGenesisState(encCfg, gs, balances)
-	if err != nil {
-		return gs, err
-	}
-	return gs, nil
 }

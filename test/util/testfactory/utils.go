@@ -256,6 +256,27 @@ func AddBalancesToGenesisState(encCfg encoding.Config, gs map[string]json.RawMes
 	return gs, nil
 }
 
+// AddGenesisAccountsWithBalancesToGenesisState adds the given genesis accounts and balances to the
+// provided genesis state. It returns the updated genesis state and an error if any occurred.
+func AddGenesisAccountsWithBalancesToGenesisState(
+	encCfg encoding.Config,
+	gs map[string]json.RawMessage,
+	gAccounts []authtypes.GenesisAccount,
+	balances []banktypes.Balance,
+) (map[string]json.RawMessage, error) {
+	var err error
+	gs, err = AddAccountsToGenesisState(encCfg, gs, gAccounts...)
+	if err != nil {
+		return gs, err
+	}
+
+	gs, err = AddBalancesToGenesisState(encCfg, gs, balances)
+	if err != nil {
+		return gs, err
+	}
+	return gs, nil
+}
+
 func GetValidators(grpcConn *grpc.ClientConn) (stakingtypes.Validators, error) {
 	scli := stakingtypes.NewQueryClient(grpcConn)
 	vres, err := scli.Validators(context.Background(), &stakingtypes.QueryValidatorsRequest{})
