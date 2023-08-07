@@ -1,4 +1,4 @@
-package app_test
+package genesis_test
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -248,7 +249,7 @@ func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.Genesis
 
 	for i := range names {
 		bAccount, defaultBalance := testfactory.NewBaseAccount(s.kr, names[i])
-		gAccount, balance, err := testfactory.NewGenesisRegularAccount(
+		gAccount, balance, err := genesis.NewGenesisRegularAccount(
 			bAccount.GetAddress().String(),
 			defaultBalance,
 		)
@@ -259,8 +260,7 @@ func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.Genesis
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
+		gs, err := genesis.AddGenesisAccountsWithBalancesToGenesisState(s.ecfg, gs, gAccounts, balances)
 		assert.NoError(s.T(), err)
 		return gs
 	}
@@ -281,7 +281,7 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 	endTime := tmtime.Now().Add(-2 * time.Second)
 	for i := range names {
 		bAccount, defaultBalance := testfactory.NewBaseAccount(s.kr, names[i])
-		gAccount, balance, err := testfactory.NewGenesisDelayedVestingAccount(
+		gAccount, balance, err := genesis.NewGenesisDelayedVestingAccount(
 			bAccount.GetAddress().String(),
 			defaultBalance,
 			initCoinsForGasFee,
@@ -296,8 +296,7 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
+		gs, err := genesis.AddGenesisAccountsWithBalancesToGenesisState(s.ecfg, gs, gAccounts, balances)
 		require.NoError(s.T(), err)
 		return gs
 	}
@@ -329,7 +328,7 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 	startTime := tmtime.Now()
 	for i := range names {
 		bAccount, defaultBalance := testfactory.NewBaseAccount(s.kr, names[i])
-		gAccount, balance, err := testfactory.NewGenesisPeriodicVestingAccount(
+		gAccount, balance, err := genesis.NewGenesisPeriodicVestingAccount(
 			bAccount.GetAddress().String(),
 			defaultBalance,
 			initCoinsForGasFee,
@@ -346,8 +345,7 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
+		gs, err := genesis.AddGenesisAccountsWithBalancesToGenesisState(s.ecfg, gs, gAccounts, balances)
 		assert.NoError(s.T(), err)
 		return gs
 	}
@@ -373,7 +371,7 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 		endTime := startTime.Add(20 * time.Second)
 
 		bAccount, defaultBalance := testfactory.NewBaseAccount(s.kr, names[i])
-		gAccount, balance, err := testfactory.NewGenesisContinuousVestingAccount(
+		gAccount, balance, err := genesis.NewGenesisContinuousVestingAccount(
 			bAccount.GetAddress().String(),
 			defaultBalance,
 			initCoinsForGasFee,
@@ -390,8 +388,7 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		gs, err := testfactory.AddGenesisAccountsWithBalancesToGenesisState(encCfg, gs, gAccounts, balances)
+		gs, err := genesis.AddGenesisAccountsWithBalancesToGenesisState(s.ecfg, gs, gAccounts, balances)
 		assert.NoError(s.T(), err)
 		return gs
 	}
@@ -486,4 +483,16 @@ func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int
 			return vAcc, name, err
 		}
 	}
+}
+
+func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
+	rec, err := kr.Key(account)
+	if err != nil {
+		panic(err)
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+	return addr
 }
