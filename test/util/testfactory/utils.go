@@ -131,18 +131,22 @@ func NewBaseAccount(kr keyring.Keyring, name string) (*authtypes.BaseAccount, sd
 	return bacc, origCoins
 }
 
-func GenerateBaseAccounts(kr keyring.Keyring, names []string, initExtraCoins ...sdk.Coin) ([]authtypes.BaseAccount, []banktypes.Balance) {
-	bAccounts := make([]authtypes.BaseAccount, len(names))
-	balances := make([]banktypes.Balance, len(names))
-	for i, name := range names {
-		acc, coins := NewBaseAccount(kr, name)
-		bAccounts[i] = *acc
-		balances[i] = banktypes.Balance{
-			Address: acc.GetAddress().String(),
-			Coins:   coins.Add(initExtraCoins...),
-		}
+func NewGenesisRegularAccount(
+	address string,
+	balances sdk.Coins,
+) (account authtypes.GenesisAccount, balance banktypes.Balance, err error) {
+	sdkAddr, err := sdk.AccAddressFromBech32(address)
+	if err != nil {
+		return account, balance, err
 	}
-	return bAccounts, balances
+
+	balance = banktypes.Balance{
+		Address: address,
+		Coins:   balances,
+	}
+	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
+
+	return authtypes.GenesisAccount(bAccount), balance, nil
 }
 
 // NewGenesisDelayedVestingAccount creates a new DelayedVestingAccount with the specified parameters.

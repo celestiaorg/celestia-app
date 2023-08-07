@@ -242,10 +242,20 @@ func (s *VestingModuleTestSuite) submitTransferTx(name string, amount int64) (tx
 func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.GenesisOption {
 	names := testfactory.GenerateAccounts(count)
 	s.accounts.Store(RegularAccountType, accountDispenser{names: names})
-	bAccounts, balances := testfactory.GenerateBaseAccounts(s.kr, names)
+
 	gAccounts := authtypes.GenesisAccounts{}
-	for i := range bAccounts {
-		gAccounts = append(gAccounts, authtypes.GenesisAccount(&bAccounts[i]))
+	balances := []banktypes.Balance{}
+
+	for i := range names {
+		bAccount, defaultBalance := testfactory.NewBaseAccount(s.kr, names[i])
+		gAccount, balance, err := testfactory.NewGenesisRegularAccount(
+			bAccount.GetAddress().String(),
+			defaultBalance,
+		)
+		require.NoError(s.T(), err)
+
+		gAccounts = append(gAccounts, gAccount)
+		balances = append(balances, balance)
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
