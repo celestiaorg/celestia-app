@@ -58,14 +58,12 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts[i] = tmrand.Str(20)
 	}
 
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	cfg := testnode.DefaultConfig().
-		WithAccounts(s.accounts).
-		WithGenesisOptions(testnode.SetBlobParams(s.ecfg.Codec, blobtypes.DefaultGenesis().Params))
+	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
+	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
