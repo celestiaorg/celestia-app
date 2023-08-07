@@ -1,13 +1,14 @@
 package app
 
 import (
+	"testing"
+	"time"
+
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"testing"
-	"time"
 )
 
 func TestBlockProductionestSuite(t *testing.T) {
