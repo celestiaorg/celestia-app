@@ -21,7 +21,6 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -31,7 +30,7 @@ const (
 	TestAccName               = "test-account"
 	TestAccMnemo              = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
 	bondDenom                 = "utia"
-	BaseAccountDefaultBalance = 10000
+	BaseAccountDefaultBalance = int64(10000)
 )
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
@@ -143,77 +142,76 @@ func GenerateBaseAccounts(kr keyring.Keyring, names []string, initExtraCoins ...
 			Coins:   coins.Add(initExtraCoins...),
 		}
 	}
-
 	return bAccounts, balances
 }
 
-func GenerateDelayedVestingAccounts(kr keyring.Keyring, names []string, initUnlockedCoins ...sdk.Coin) ([]*vestingtypes.DelayedVestingAccount, []banktypes.Balance) {
-	bAccounts, balances := GenerateBaseAccounts(kr, names, initUnlockedCoins...)
-	vAccounts := []*vestingtypes.DelayedVestingAccount{}
-
-	endTime := tmtime.Now().Add(-2 * time.Second)
-	for i := range bAccounts {
-		bal := balances[i]
-		// initUnlockedCoins are subbed to keep them unlocked
-		coins := bal.Coins.Sub(initUnlockedCoins...)
-		acc := vestingtypes.NewDelayedVestingAccount(&bAccounts[i], coins, endTime.Unix())
-		vAccounts = append(vAccounts, acc)
-
-		// the endTime is increased for each account to be able to test various scenarios
-		endTime = endTime.Add(5 * time.Second)
+// NewGenesisDelayedVestingAccount creates a new DelayedVestingAccount with the specified parameters.
+// then returns the created account converted to genesis account type and the account balance
+func NewGenesisDelayedVestingAccount(
+	address string,
+	vestingBalance,
+	initUnlockedCoins sdk.Coins,
+	endTime time.Time,
+) (account authtypes.GenesisAccount, balance banktypes.Balance, err error) {
+	sdkAddr, err := sdk.AccAddressFromBech32(address)
+	if err != nil {
+		return account, balance, err
 	}
 
-	return vAccounts, balances
+	balance = banktypes.Balance{
+		Address: address,
+		Coins:   initUnlockedCoins.Add(vestingBalance...),
+	}
+
+	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
+	vAccount := vestingtypes.NewDelayedVestingAccount(bAccount, vestingBalance, endTime.Unix())
+
+	return authtypes.GenesisAccount(vAccount), balance, nil
 }
 
-func GeneratePeriodicVestingAccounts(kr keyring.Keyring, names []string, initUnlockedCoins ...sdk.Coin) ([]*vestingtypes.PeriodicVestingAccount, []banktypes.Balance) {
-	bAccounts, balances := GenerateBaseAccounts(kr, names, initUnlockedCoins...)
-	vAccounts := []*vestingtypes.PeriodicVestingAccount{}
-
-	vestingAmount := balances[0].Coins.AmountOf(bondDenom).Int64()
-	allocationPerPeriod := vestingAmount / 4
-	periods := vestingtypes.Periods{
-		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(bondDenom, allocationPerPeriod)}},
-		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(bondDenom, allocationPerPeriod)}},
-		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(bondDenom, allocationPerPeriod)}},
-		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(bondDenom, allocationPerPeriod)}},
+func NewGenesisPeriodicVestingAccount(
+	address string,
+	vestingBalance,
+	initUnlockedCoins sdk.Coins,
+	startTime time.Time,
+	periods []vestingtypes.Period,
+) (account authtypes.GenesisAccount, balance banktypes.Balance, err error) {
+	sdkAddr, err := sdk.AccAddressFromBech32(address)
+	if err != nil {
+		return account, balance, err
 	}
 
-	startTime := tmtime.Now()
-	for i := range bAccounts {
-		bal := balances[i]
-		// initUnlockedCoins are subbed to keep them unlocked
-		coins := bal.Coins.Sub(initUnlockedCoins...)
-		acc := vestingtypes.NewPeriodicVestingAccount(&bAccounts[i], coins, startTime.Unix(), periods)
-		vAccounts = append(vAccounts, acc)
-
-		// the startTime is increased for each account to be able to test various scenarios
-		startTime = startTime.Add(5 * time.Second)
+	balance = banktypes.Balance{
+		Address: address,
+		Coins:   initUnlockedCoins.Add(vestingBalance...),
 	}
 
-	return vAccounts, balances
+	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
+	vAccount := vestingtypes.NewPeriodicVestingAccount(bAccount, vestingBalance, startTime.Unix(), periods)
+
+	return authtypes.GenesisAccount(vAccount), balance, nil
 }
 
-func GenerateContinuousVestingAccounts(kr keyring.Keyring, names []string, initUnlockedCoins ...sdk.Coin) ([]*vestingtypes.ContinuousVestingAccount, []banktypes.Balance) {
-	bAccounts, balances := GenerateBaseAccounts(kr, names, initUnlockedCoins...)
-	vAccounts := []*vestingtypes.ContinuousVestingAccount{}
-
-	startTime := tmtime.Now()
-
-	for i := range bAccounts {
-		bal := balances[i]
-		// initUnlockedCoins are subbed to keep them unlocked
-		coins := bal.Coins.Sub(initUnlockedCoins...)
-
-		endTime := startTime.Add(20 * time.Second)
-		acc := vestingtypes.NewContinuousVestingAccount(&bAccounts[i], coins, startTime.Unix(), endTime.Unix())
-		vAccounts = append(vAccounts, acc)
-
-		// the startTime is increased for each account to be able to test various scenarios
-		startTime = startTime.Add(5 * time.Second)
+func NewGenesisContinuousVestingAccount(
+	address string,
+	vestingBalance,
+	initUnlockedCoins sdk.Coins,
+	startTime, endTime time.Time,
+) (account authtypes.GenesisAccount, balance banktypes.Balance, err error) {
+	sdkAddr, err := sdk.AccAddressFromBech32(address)
+	if err != nil {
+		return account, balance, err
 	}
 
-	return vAccounts, balances
+	balance = banktypes.Balance{
+		Address: address,
+		Coins:   initUnlockedCoins.Add(vestingBalance...),
+	}
+
+	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
+	vAccount := vestingtypes.NewContinuousVestingAccount(bAccount, vestingBalance, startTime.Unix(), endTime.Unix())
+
+	return authtypes.GenesisAccount(vAccount), balance, nil
 }
 
 // AddAccountsToGenesisState adds the provided accounts to the genesis state (gs) map for the auth module.
