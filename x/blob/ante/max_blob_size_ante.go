@@ -23,7 +23,7 @@ func NewMaxBlobSizeDecorator(k BlobKeeper) MaxBlobSizeDecorator {
 // bound. The upper bound is calculated based on the number of bytes in a data
 // square with the maximum square size.
 func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if ctx.IsReCheckTx() {
+	if !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
 
