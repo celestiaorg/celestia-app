@@ -144,8 +144,7 @@ func AddGenesisAccountsWithBalancesToGenesisState(
 	gAccounts []authtypes.GenesisAccount,
 	balances []banktypes.Balance,
 ) (map[string]json.RawMessage, error) {
-	var err error
-	gs, err = AddAccountsToGenesisState(encCfg, gs, gAccounts...)
+	gs, err := AddAccountsToGenesisState(encCfg, gs, gAccounts...)
 	if err != nil {
 		return gs, err
 	}

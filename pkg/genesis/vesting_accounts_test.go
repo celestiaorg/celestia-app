@@ -86,27 +86,17 @@ func (s *VestingModuleTestSuite) SetupSuite() {
 
 	s.kr = testfactory.GenerateKeyring()
 
-	genOpts := []testnode.GenesisOption{}
-	genOpts = append(genOpts, s.initRegularAccounts(totalAccountsPerType))
-	genOpts = append(genOpts, s.initDelayedVestingAccounts(totalAccountsPerType))
-	genOpts = append(genOpts, s.initPeriodicVestingAccounts(totalAccountsPerType))
-	genOpts = append(genOpts, s.initContinuousVestingAccounts(totalAccountsPerType))
-
-	s.startNewNetworkWithGenesisOpt(genOpts...)
-}
-
-// startNewNetworkWithGenesisOpt creates a new test network with the specified genesis options for the VestingModuleTestSuite.
-// It initializes a default Tendermint configuration (tmCfg) and default application configuration (appConf).
-// The target block time is set to 1 millisecond. It applies the given genesis options to the test network
-// and stores the created client context (cctx) in the VestingModuleTestSuite.
-// The keyring of the context is set to the keyring (s.kr) of the VestingModuleTestSuite.
-func (s *VestingModuleTestSuite) startNewNetworkWithGenesisOpt(genesisOpts ...testnode.GenesisOption) {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
-	cfg.GenesisOptions = genesisOpts
 
-	cctx, _, _ := testnode.NewNetwork(s.T(), cfg)
-	s.cctx = cctx
+	cfg.GenesisOptions = []testnode.GenesisOption{
+		s.initRegularAccounts(totalAccountsPerType),
+		s.initDelayedVestingAccounts(totalAccountsPerType),
+		s.initPeriodicVestingAccounts(totalAccountsPerType),
+		s.initContinuousVestingAccounts(totalAccountsPerType),
+	}
+
+	s.cctx, _, _ = testnode.NewNetwork(s.T(), cfg)
 	s.cctx.Keyring = s.kr
 }
 
@@ -134,6 +124,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransferUnLock
 		time.Sleep(time.Second)
 	}
 	minExpectedSpendableBal := vAcc.GetVestedCoins(tmtime.Now()).AmountOf(app.BondDenom).Int64()
+	require.NotZero(s.T(), minExpectedSpendableBal)
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// it must be able to transfer the entire vesting amount
@@ -152,6 +143,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsTransferParti
 	}
 
 	minExpectedSpendableBal := vAcc.GetVestedCoins(tmtime.Now()).AmountOf(app.BondDenom).Int64()
+	require.NotZero(s.T(), minExpectedSpendableBal)
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	s.testTransferMustSucceed(name, minExpectedSpendableBal)
@@ -188,6 +180,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsTransferPar
 	}
 
 	minExpectedSpendableBal := vAcc.GetVestedCoins(tmtime.Now()).AmountOf(app.BondDenom).Int64()
+	require.NotZero(s.T(), minExpectedSpendableBal)
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	s.testTransferMustSucceed(name, minExpectedSpendableBal)

@@ -3,22 +3,18 @@ package testfactory
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
-	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -154,27 +150,6 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (bala
 	cli := banktypes.NewQueryClient(grpcConn)
 	res, err := cli.SpendableBalances(
 		context.Background(),
-		&banktypes.QuerySpendableBalancesRequest{
-			Address: address,
-		},
-	)
-	if err != nil || res == nil {
-		return nil, err
-	}
-	return res.GetBalances(), nil
-}
-
-// GetAccountSpendableBalanceByBlock retrieves the spendable balance of an account for the specified address at the given block using gRPC.
-func GetAccountSpendableBalanceByBlock(grpcConn *grpc.ClientConn, address string, block *coretypes.Block) (balances sdk.Coins, err error) {
-	cli := banktypes.NewQueryClient(grpcConn)
-	ctx := metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprint(block.Height))
-
-	// Since the blockTime is not inferred from block height to the GRPC server, we use the following
-	// line; however, it is commented out because we do not want to modify the SDK code to support it
-	// ctx = metadata.AppendToOutgoingContext(ctx, grpctypes.GRPCBlockTimeHeader, fmt.Sprint(block.Time.Unix()))
-
-	res, err := cli.SpendableBalances(
-		ctx,
 		&banktypes.QuerySpendableBalancesRequest{
 			Address: address,
 		},
