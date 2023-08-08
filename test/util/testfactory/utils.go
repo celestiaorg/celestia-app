@@ -110,6 +110,8 @@ func GenerateAccounts(count int) []string {
 	return accs
 }
 
+// NewBaseAccount generates a new base account and returns its instance.
+// If an empty string is passed as a name, a random one will be generated and used.
 func NewBaseAccount(kr keyring.Keyring, name string) (*authtypes.BaseAccount, sdk.Coins) {
 	if name == "" {
 		name = tmrand.Str(6)
