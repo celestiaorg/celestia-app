@@ -31,9 +31,9 @@ func (d MaxBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	upperBound := d.totalBlobSizeUpperBound(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			totalBlobSize := getTotalBlobSize(pfb.BlobSizes)
-			if totalBlobSize > upperBound {
-				return ctx, errors.Wrapf(blobtypes.ErrBlobSizeTooLarge, "total blob size %d exceeds upper bound %d", totalBlobSize, upperBound)
+			total := getTotal(pfb.BlobSizes)
+			if total > upperBound {
+				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds upper bound %d", total, upperBound)
 			}
 		}
 	}
@@ -72,8 +72,8 @@ func (d MaxBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	return min(upperBound, int(govParam))
 }
 
-// getTotalBlobSize returns the sum of the given blob sizes.
-func getTotalBlobSize(sizes []uint32) (sum int) {
+// getTotal returns the sum of the given sizes.
+func getTotal(sizes []uint32) (sum int) {
 	for _, size := range sizes {
 		sum += int(size)
 	}
