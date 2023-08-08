@@ -150,7 +150,7 @@ func TestCheckTx(t *testing.T) {
 				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000_000, 1, false, testutil.ChainID, accs[8:9])[0]
 				return tx
 			},
-			expectedABCICode: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
+			expectedABCICode: blobtypes.ErrBlobSizeTooLarge.ABCICode(),
 		},
 	}
 
