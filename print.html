@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/namespace.html"><strong aria-hidden="true">1.2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.4.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/fraud_proofs.html"><strong aria-hidden="true">1.7.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.8.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.9.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.10.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="specs/resource_pricing.html"><strong aria-hidden="true">1.11.</strong> Resource Pricing</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/namespace.html"><strong aria-hidden="true">1.2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/cat_pool.html"><strong aria-hidden="true">1.4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/fraud_proofs.html"><strong aria-hidden="true">1.7.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.8.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.9.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.10.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="specs/resource_pricing.html"><strong aria-hidden="true">1.11.</strong> Resource Pricing</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,7 +145,11 @@
 <li><a href="./specs/data_structures.html">Data Structures</a></li>
 <li><a href="./specs/namespace.html">Namespace</a></li>
 <li><a href="./specs/shares.html">Shares</a></li>
-<li><a href="./specs/consensus.html">Consensus</a></li>
+<li><a href="./specs/consensus.html">Consensus</a>
+<ul>
+<li><a href="./specs/cat_pool.html">CAT Pool</a></li>
+</ul>
+</li>
 <li><a href="./specs/block_proposer.html">Block Proposer</a></li>
 <li><a href="./specs/block_validity_rules.html">Block Validity Rules</a></li>
 <li><a href="./specs/fraud_proofs.html">Fraud Proofs</a></li>
@@ -171,7 +175,11 @@
 <li><a href="specs/./data_structures.html">Data Structures</a></li>
 <li><a href="specs/./namespace.html">Namespace</a></li>
 <li><a href="specs/./shares.html">Shares</a></li>
-<li><a href="specs/./consensus.html">Consensus</a></li>
+<li><a href="specs/./consensus.html">Consensus</a>
+<ul>
+<li><a href="specs/./cat_pool.html">CAT Pool</a></li>
+</ul>
+</li>
 <li><a href="specs/./block_proposer.html">Block Proposer</a></li>
 <li><a href="specs/./block_validity_rules.html">Block Validity Rules</a></li>
 <li><a href="specs/./networking.html">Networking</a></li>
@@ -1279,6 +1287,90 @@ else if account.status == AccountStatus.ValidatorBonded
 <p>At the end of a block, the top <code>MAX_VALIDATORS</code> validators by voting power with voting power <em>greater than</em> zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top <code>MAX_VALIDATORS</code> validators begin unbonding.</p>
 <p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="specs/consensus.html#signedtransactiondatabeginunbondingvalidator">here</a>, minus transaction sender updates (nonce, balance, and fee).</p>
 <p>This end block implicit state transition is a single state transition, and <a href="specs/consensus.html#blockavailabledata">only has a single intermediate state root</a> associated with it.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="content-addressable-transaction-pool-specification"><a class="header" href="#content-addressable-transaction-pool-specification">Content Addressable Transaction Pool Specification</a></h1>
+<ul>
+<li>01.12.2022 | Initial specification (@cmwaters)</li>
+<li>09.12.2022 | Add Push/Pull mechanics (@cmwaters)</li>
+</ul>
+<h3 id="outline"><a class="header" href="#outline">Outline</a></h3>
+<p>This document specifies the properties, design and implementation of a content addressable transaction pool (CAT). This protocol is intended as an alternative to the FIFO and Priority mempools currently built-in to the Tendermint consensus protocol. The term content-addressable here, indicates that each transaction is identified by a smaller, unique tag (in this case a sha256 hash). These tags are broadcast among the transactions as a means of more compactly indicating which peers have which transactions. Tracking what each peer has aims at reducing the amount of duplication. In a network without content tracking, a peer may receive as many duplicate transactions as peers connected to. The tradeoff here therefore is that the transactions are significantly larger than the tag such that the sum of the data saved sending what would be duplicated transactions is larger than the sum of sending each peer a tag.</p>
+<h3 id="purpose"><a class="header" href="#purpose">Purpose</a></h3>
+<p>The objective of such a protocol is to transport transactions from the author (usually a client) to a proposed block, optimizing both latency and throughput i.e. how quickly can a transaction be proposed (and committed) and how many transactions can be transported into a block at once.</p>
+<p>Typically the mempool serves to receive inbound transactions via an RPC endpoint, gossip them to all nodes in the network (regardless of whether they are capable of proposing a block or not), and stage groups of transactions to both consensus and the application to be included in a block.</p>
+<h3 id="assumptions"><a class="header" href="#assumptions">Assumptions</a></h3>
+<p>The following are assumptions inherited from existing Tendermint mempool protocols:</p>
+<ul>
+<li><code>CheckTx</code> should be seen as a simple gatekeeper to what transactions enter the pool to be gossiped and staged. It is non-deterministic: one node may reject a transaction that another node keeps.</li>
+<li>Applications implementing <code>CheckTx</code> are responsible for replay protection (i.e. the same transaction being present in multiple blocks). The mempool ensures that within the same block, no duplicate transactions can exist.</li>
+<li>The underlying p2p layer guarantees eventually reliable broadcast. A transaction need only be sent once to eventually reach the target peer.</li>
+</ul>
+<h3 id="messages"><a class="header" href="#messages">Messages</a></h3>
+<p>The CAT protocol extends on the existing mempool implementations by introducing two new protobuf messages:</p>
+<pre><code class="language-protobuf">message SeenTx {
+  bytes tx_key = 1;
+  optional string from = 2;
+}
+
+message WantTx {
+  bytes tx_key = 1;
+}
+</code></pre>
+<p>Both <code>SeenTx</code> and <code>WantTx</code> contain the sha256 hash of the raw transaction bytes. <code>SeenTx</code> also contains an optional <code>p2p.ID</code> that corresponds to the peer that the node recieved the tx from. The only validation for both is that the byte slice of the <code>tx_key</code> MUST have a length of 32.</p>
+<p>Both messages are sent across a new channel with the ID: <code>byte(0x31)</code>. This enables cross compatability as discussed in greater detail below.</p>
+<blockquote>
+<p><strong>Note:</strong>
+The term <code>SeenTx</code> is used over the more common <code>HasTx</code> because the transaction pool contains sophisticated eviction logic. TTL's, higher priority transactions and reCheckTx may mean that a transaction pool <em>had</em> a transaction but does not have it any more. Semantically it's more appropriate to use <code>SeenTx</code> to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.</p>
+</blockquote>
+<h3 id="outbound-logic"><a class="header" href="#outbound-logic">Outbound logic</a></h3>
+<p>A node in the protocol has two distinct modes: &quot;broadcast&quot; and &quot;request/response&quot;. When a node receives a transaction via RPC (or specifically through <code>CheckTx</code>), it assumed that it is the only recipient from that client and thus will immediately send that transaction, after validation, to all connected peers. Afterwards, only &quot;request/response&quot; is used to disseminate that transaction to everyone else.</p>
+<blockquote>
+<p><strong>Note:</strong>
+Given that one can configure a mempool to switch off broadcast, there are no guarantees when a client submits a transaction via RPC and no error is returned that it will find its way into a proposers transaction pool.</p>
+</blockquote>
+<p>A <code>SeenTx</code> is broadcasted to ALL nodes upon receiving a &quot;new&quot; transaction from a peer. The transaction pool does not need to track every unique inbound transaction, therefore &quot;new&quot; is identified as:</p>
+<ul>
+<li>The node does not currently have the transaction</li>
+<li>The node did not recently reject the transacton or has recently seen the same transaction committed (subject to the size of the cache)</li>
+<li>The node did not recently evict the transaction (subject to the size of the cache)</li>
+</ul>
+<p>Given this criteria, it is feasible, yet unlikely that a node receives two <code>SeenTx</code> messages from the same peer for the same transaction.</p>
+<p>A <code>SeenTx</code> MAY be sent for each transaction currently in the transaction pool when a connection with a peer is first established. This acts as a mechanism for syncing pool state across peers.</p>
+<p>The <code>SeenTx</code> message MUST only be broadcasted after validation and storage. Although it is possible that a node later drops a transaction under load shedding, a <code>SeenTx</code> should give as strong guarantees as possible that the node can be relied upon by others that don't yet have the transcation to obtain it.</p>
+<blockquote>
+<p><strong>Note:</strong>
+Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> message as it is assumed that the node is the first to see the transaction and by gossiping it to others it is implied that the node has seen the transaction.</p>
+</blockquote>
+<p>A <code>WantTx</code> message is always sent point to point and never broadcasted. A <code>WantTx</code> MUST only be sent after receiving a <code>SeenTx</code> message from that peer. There is one exception which is that a <code>WantTx</code> MAY also be sent by a node after receiving an identical <code>WantTx</code> message from a peer that had previously received the nodes <code>SeenTx</code> but which after the lapse in time, did no longer exist in the nodes transaction pool. This provides an optional synchronous method for communicating that a node no longer has a transaction rather than relying on the defaulted asynchronous approach which is to wait for a period of time and try again with a new peer.</p>
+<p><code>WantTx</code> must be tracked. A node SHOULD not send multiple <code>WantTx</code>s to multiple peers for the same transaction at once but wait for a period that matches the expected network latency before rerequesting the transaction to another peer.</p>
+<h3 id="inbound-logic"><a class="header" href="#inbound-logic">Inbound logic</a></h3>
+<p>Transaction pools are solely run in-memory; thus when a node stops, all transactions are discarded. To avoid the scenario where a node restarts and does not receive transactions because other nodes recorded a <code>SeenTx</code> message from their previous run, each transaction pool should track peer state based <strong>per connection</strong> and not per <code>NodeID</code>.</p>
+<p>Upon receiving a <code>Txs</code> message:</p>
+<ul>
+<li>Check whether it is in reponse to a request or simply an unsolicited broadcast</li>
+<li>Validate the tx against current resources and the applications <code>CheckTx</code></li>
+<li>If rejected or evicted, mark accordingly</li>
+<li>If successful, send a <code>SeenTx</code> message to all connected peers excluding the original sender. If it was from an initial broadcast, the <code>SeenTx</code> should populate the <code>From</code> field with the <code>p2p.ID</code> of the recipient else if it is in response to a request <code>From</code> should remain empty.</li>
+</ul>
+<p>Upon receiving a <code>SeenTx</code> message:</p>
+<ul>
+<li>It should mark the peer as having seen the message.</li>
+<li>If the node has recently rejected that transaction, it SHOULD ignore the message.</li>
+<li>If the node already has the transaction, it SHOULD ignore the message.</li>
+<li>If the node does not have the transaction but recently evicted it, it MAY choose to rerequest the transaction if it has adequate resources now to process it.</li>
+<li>If the node has not seen the transaction or does not have any pending requests for that transaction, it can do one of two things:
+<ul>
+<li>It MAY immediately request the tx from the peer with a <code>WantTx</code>.</li>
+<li>If the node is connected to the peer specified in <code>FROM</code>, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a <code>Txs</code> message for a bounded amount of time but MUST eventually send a <code>WantMsg</code> message to either the original peer or any other peer that <em>has</em> the specified transaction.</li>
+</ul>
+</li>
+</ul>
+<p>Upon receiving a <code>WantTx</code> message:</p>
+<ul>
+<li>If it has the transaction, it MUST respond with a <code>Txs</code> message containing that transaction.</li>
+<li>If it does not have the transaction, it MAY respond with an identical <code>WantTx</code> or rely on the timeout of the peer that requested the transaction to eventually ask another peer.</li>
+</ul>
+<h3 id="compatibility"><a class="header" href="#compatibility">Compatibility</a></h3>
+<p>CAT has Go API compatibility with the existing two mempool implementations. It implements both the <code>Reactor</code> interface required by Tendermint's P2P layer and the <code>Mempool</code> interface used by <code>consensus</code> and <code>rpc</code>. CAT is currently network compatible with existing implementations (by using another channel), but the protocol is unaware that it is communicating with a different mempool and that <code>SeenTx</code> and <code>WantTx</code> messages aren't reaching those peers thus it is recommended that the entire network use CAT.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="honest-block-proposer"><a class="header" href="#honest-block-proposer">Honest Block Proposer</a></h1>
 <!-- toc -->
 <p>This document describes the tasks of an honest block proposer to assemble a new block. Performing these actions is not enforced by the <a href="specs/./consensus.html">consensus rules</a>, so long as a valid block is produced.</p>
