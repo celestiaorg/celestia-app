@@ -5,6 +5,7 @@
   - [Namespace](./specs/namespace.md)
   - [Shares](./specs/shares.md)
   - [Consensus](./specs/consensus.md)
+    - [CAT Pool](./specs/cat_pool.md)
   - [Block Proposer](./specs/block_proposer.md)
   - [Block Validity Rules](./specs/block_validity_rules.md)
   - [Fraud Proofs](./specs/fraud_proofs.md)
