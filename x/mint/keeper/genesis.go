@@ -14,6 +14,9 @@ func (k Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types
 		GenesisTime: &blockTime,
 	}
 	k.SetGenesisTime(ctx, gt)
+	// Although ak.GetModuleAccount appears to be a no-op, it actually creates a
+	// new module account in the x/auth account store if it doesn't exist. See
+	// the x/auth keeper for more details.
 	ak.GetModuleAccount(ctx, types.ModuleName)
 }
 
