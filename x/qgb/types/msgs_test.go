@@ -18,5 +18,5 @@ func TestValidateBasic(t *testing.T) {
 	_, err = NewMsgRegisterEVMAddress(valAddr.String(), "invalid evm address")
 	require.Error(t, err)
 	_, err = NewMsgRegisterEVMAddress("invalid validator address", evmAddr)
-	require.NoError(t, err)
+	require.Error(t, err)
 }
