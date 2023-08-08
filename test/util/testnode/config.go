@@ -99,8 +99,8 @@ func (c *Config) WithGensisTime(t time.Time) *Config {
 	return c
 }
 
-// WithCommitTimeout sets the CommitTimeout and returns the Config.
-func (c *Config) WithCommitTimeout(d time.Duration) *Config {
+// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
 	return c
 }

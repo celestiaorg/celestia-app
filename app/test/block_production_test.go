@@ -35,7 +35,7 @@ func (s *BlockProductionestSuite) SetupSuite() {
 
 	cfg := testnode.DefaultConfig().
 		WithAccounts(accounts).
-		WithCommitTimeout(5 * time.Second)
+		WithTimeoutCommit(5 * time.Second)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
