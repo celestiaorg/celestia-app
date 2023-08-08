@@ -23,6 +23,9 @@ import (
 )
 
 func TestTxSimulator(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestTxSimulator in short mode.")
+	}
 	testCases := []struct {
 		name        string
 		sequences   []txsim.Sequence

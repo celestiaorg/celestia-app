@@ -88,7 +88,7 @@ func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, 
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
-// this private func is used in CmdPayForBlob and CmdTestRandBlob
+// this private func is used in CmdPayForBlob
 func broadcastPFB(cmd *cobra.Command, blob *types.Blob) error {
 	clientCtx, err := client.GetClientTxContext(cmd)
 	if err != nil {
