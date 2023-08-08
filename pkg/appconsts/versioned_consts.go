@@ -27,6 +27,13 @@ func SquareSizeUpperBound(_ uint64) int {
 	return v1.SquareSizeUpperBound
 }
 
+// MaxTotalBlobSize is the maximum total blob size possible for a version of the
+// state machine. This constant should be updated when governance changes the
+// max square size.
+func MaxTotalBlobSize(_ uint64) int {
+	return v1.MaxTotalBlobSize
+}
+
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
