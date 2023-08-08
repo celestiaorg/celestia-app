@@ -134,6 +134,6 @@ func TestMaxBlobSizeAnteHandler(t *testing.T) {
 	}
 }
 
-func mockNext(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 	return ctx, nil
 }
