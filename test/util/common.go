@@ -137,7 +137,7 @@ func initEVMAddrs(count int) []gethcommon.Address {
 
 // TestInput stores the various keepers required to test the QGB
 type TestInput struct {
-	QgbKeeper      *keeper.Keeper
+	QgbKeeper      keeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
 	StakingKeeper  stakingkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
@@ -305,7 +305,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		),
 	)
 	return TestInput{
-		QgbKeeper:      k,
+		QgbKeeper:      *k,
 		AccountKeeper:  accountKeeper,
 		BankKeeper:     bankKeeper,
 		StakingKeeper:  stakingKeeper,
@@ -355,7 +355,7 @@ func MakeTestMarshaler() codec.Codec {
 }
 
 // SetupFiveValChain does all the initialization for a 5 Validator chain using the keys here
-func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
+func SetupFiveValChain(t *testing.T, register bool) (TestInput, sdk.Context) {
 	t.Helper()
 	input := CreateTestEnv(t)
 
@@ -365,6 +365,9 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	// Initialize each of the validators
 	for i := range []int{0, 1, 2, 3, 4} {
 		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount, EVMAddrs[i])
+		if register {
+			RegisterEVMAddress(t, input, ValAddrs[i], EVMAddrs[i])
+		}
 	}
 
 	// Run the staking endblocker to ensure valset is correct in state
@@ -406,6 +409,19 @@ func CreateValidator(
 	require.NoError(t, err)
 }
 
+func RegisterEVMAddress(
+	t *testing.T,
+	input TestInput,
+	valAddr sdk.ValAddress,
+	evmAddr gethcommon.Address,
+) {
+	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
+	registerMsg, err := types.NewMsgRegisterEVMAddress(valAddr.String(), evmAddr.String())
+	require.NoError(t, err)
+	_, err = qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
+	require.NoError(t, err)
+}
+
 func NewTestMsgCreateValidator(
 	address sdk.ValAddress,
 	pubKey ccrypto.PubKey,
@@ -440,7 +456,8 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
 
 	// Initialize each of the validators
-	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	stakingMsgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
 	for i, weight := range weights {
 		consPrivKey := ed25519.GenPrivKey()
 		consPubKey := consPrivKey.PubKey()
@@ -465,10 +482,15 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 		// Create a validator for that account using some of the tokens in the account
 		// and the staking handler
-		_, err := msgServer.CreateValidator(
+		_, err := stakingMsgServer.CreateValidator(
 			input.Context,
 			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), EVMAddrs[i]),
 		)
+		require.NoError(t, err)
+
+		registerMsg, err := types.NewMsgRegisterEVMAddress(valAddr.String(), EVMAddrs[i].String())
+		require.NoError(t, err)
+		_, err = qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 		require.NoError(t, err)
 
 		// Run the staking endblocker to ensure valset is correct in state

@@ -11,7 +11,7 @@ import (
 )
 
 func TestRegisterEVMAddress(t *testing.T) {
-	input, sdkCtx := testutil.SetupFiveValChain(t)
+	input, sdkCtx := testutil.SetupFiveValChain(t, false)
 	k := input.QgbKeeper
 	vals := input.StakingKeeper.GetValidators(sdkCtx, 100)
 	require.GreaterOrEqual(t, len(vals), 1)
