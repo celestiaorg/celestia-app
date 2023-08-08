@@ -166,7 +166,13 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 	cfg.Mempool.TTLNumBlocks = 10
-	cfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	// Given that there is a stateful transaction size check in CheckTx,
+	// We set a loose upper bound on what we expect the transaction to
+	// be based on the upper bound size of the entire block for the given
+	// version. This acts as a first line of DoS protection
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	cfg.Mempool.MaxTxBytes = upperBoundBytes
+
 	cfg.Mempool.Version = "v1" // prioritized mempool
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit

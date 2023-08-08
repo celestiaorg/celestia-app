@@ -156,7 +156,8 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	tmCfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	tmCfg.Mempool.MaxTxBytes = upperBoundBytes
 
 	// remove all barriers from the testnode being able to accept very large
 	// transactions and respond to very queries with large responses (~200MB was
