@@ -18,7 +18,7 @@ const (
 
 func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
 	const acc = "signer"
-	kr := testfactory.GenerateKeyring(acc)
+	kr := testfactory.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {

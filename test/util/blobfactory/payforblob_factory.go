@@ -91,7 +91,7 @@ func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs,
 
 func RandBlobTxsRandomlySized(enc sdk.TxEncoder, rand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
 	const acc = "signer"
-	kr := testfactory.GenerateKeyring(acc)
+	kr := testfactory.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
@@ -221,7 +221,7 @@ func RandBlobTxsWithAccounts(
 
 func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size int) coretypes.Txs {
 	const acc = "signer"
-	kr := testfactory.GenerateKeyring(acc)
+	kr := testfactory.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
@@ -262,7 +262,7 @@ func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size i
 
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
 	const acc = "signer"
-	kr := testfactory.GenerateKeyring(acc)
+	kr := testfactory.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	return RandBlobTxsWithNamespacesAndSigner(enc, signer, namespaces, sizes)
 }

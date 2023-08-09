@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -27,7 +26,7 @@ import (
 
 const defaultPollTime = 3 * time.Second
 
-// Signer uses a keyring to sign and build celestia-app transactions
+// Signer is an abstraction for managing building, signing and broadcasting Celestia transactions
 type Signer struct {
 	keys          keyring.Keyring
 	address       sdktypes.Address
@@ -43,7 +42,7 @@ type Signer struct {
 	lastConfirmedSequence uint64
 }
 
-// NewSigner returns a new Signer using the provided keyring
+// NewSigner returns a new signer using the provided keyring
 func NewSigner(
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
@@ -78,6 +77,8 @@ func NewSigner(
 	}, nil
 }
 
+// SetupSingleSigner relies on the keyring with a single key. It extracts the address from the key and uses the
+// grpc connection to populate the chainID, account number and sequence number.
 func SetupSingleSigner(ctx context.Context, keys keyring.Keyring, conn *grpc.ClientConn, encCfg encoding.Config) (*Signer, error) {
 	records, err := keys.List()
 	if err != nil {
@@ -96,6 +97,8 @@ func SetupSingleSigner(ctx context.Context, keys keyring.Keyring, conn *grpc.Cli
 	return SetupSigner(ctx, keys, conn, address, encCfg)
 }
 
+// SetupSigner uses the underlying grpc connection to populate the chainID, accountNumber and sequence number of the
+// account.
 func SetupSigner(
 	ctx context.Context,
 	keys keyring.Keyring,
@@ -118,11 +121,31 @@ func SetupSigner(
 }
 
 func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	return nil, nil
+	txBytes, err := s.CreateTx(msgs, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.BroadcastTx(ctx, txBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []tmproto.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	return nil, nil
+func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	txBytes, err := s.CreatePayForBlob(blobs, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.BroadcastTx(ctx, txBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
 func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error) {
@@ -155,6 +178,7 @@ func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]by
 func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
 
+	// TODO (@cmwaters): handle nonce mismatch errors
 	resp, err := txClient.BroadcastTx(
 		ctx,
 		&tx.BroadcastTxRequest{
@@ -163,9 +187,8 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 		},
 	)
 	if err != nil {
-		return &sdktypes.TxResponse{}, err
+		return nil, err
 	}
-
 	return resp.TxResponse, nil
 }
 
@@ -219,6 +242,10 @@ func (s *Signer) AccountNumber() uint64 {
 	return s.accountNumber
 }
 
+func (s *Signer) Address() sdktypes.Address {
+	return s.address
+}
+
 func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
@@ -234,6 +261,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
 	draftsigV2 := signing.SignatureV2{
+		PubKey: s.pk,
 		Data: &signing.SingleSignatureData{
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: nil,
@@ -295,7 +323,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 }
 
 // NewTxBuilder returns the default sdk Tx builder using the celestia-app encoding config
-func (s *Signer) txBuilder(opts ...TxOption) sdkclient.TxBuilder {
+func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
 	builder := s.encCfg.TxConfig.NewTxBuilder()
 	for _, opt := range opts {
 		builder = opt(builder)
@@ -308,26 +336,6 @@ func (s *Signer) getSequence() uint64 {
 	defer s.mtx.Unlock()
 	defer func() { s.lastSignedSequence++ }()
 	return s.lastSignedSequence
-}
-
-func (s *Signer) setSequence(sequence uint64) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.lastConfirmedSequence = sequence
-	s.lastSignedSequence = sequence
-}
-
-// BroadcastTx uses the provided grpc connection to broadcast a signed and encoded transaction
-func BroadcastTx(ctx context.Context, conn *grpc.ClientConn, mode tx.BroadcastMode, txBytes []byte) (*tx.BroadcastTxResponse, error) {
-	txClient := tx.NewServiceClient(conn)
-
-	return txClient.BroadcastTx(
-		ctx,
-		&tx.BroadcastTxRequest{
-			Mode:    mode,
-			TxBytes: txBytes,
-		},
-	)
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.

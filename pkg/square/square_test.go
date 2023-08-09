@@ -120,7 +120,7 @@ func TestSquareTxShareRange(t *testing.T) {
 func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blobSizes [][]int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	const acc = "signer"
-	kr := testfactory.GenerateKeyring(acc)
+	kr := testfactory.NewKeyring(acc)
 	return blobfactory.ManyMultiBlobTx(
 		t,
 		encCfg.TxConfig.TxEncoder(),
