@@ -11,21 +11,21 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-func TestBlockProductionestSuite(t *testing.T) {
-	suite.Run(t, new(BlockProductionestSuite))
+func TestBlockProductionTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping block production test suite in short mode.")
+	}
+	suite.Run(t, new(BlockProductionTestSuite))
 }
 
-type BlockProductionestSuite struct {
+type BlockProductionTestSuite struct {
 	suite.Suite
 
 	accounts []string
 	cctx     testnode.Context
 }
 
-func (s *BlockProductionestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping full node integration test in short mode.")
-	}
+func (s *BlockProductionTestSuite) SetupSuite() {
 	t := s.T()
 
 	accounts := make([]string, 40)
@@ -42,11 +42,15 @@ func (s *BlockProductionestSuite) SetupSuite() {
 	s.accounts = accounts
 }
 
-func (s *BlockProductionestSuite) Test_PostData() {
+func (s *BlockProductionTestSuite) Test_PostData() {
 	require := s.Require()
 	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
-	// since the block production is delayed by 10 seconds, the transactions posted arrive when the node is still at height 0 (not started height 1 yet)
-	// this makes the post data fail with the following error:
-	// rpc error: code = Unknown desc = codespace sdk code 18: invalid request: failed to load state at height 0; no commit info found (latest height: 0)
-	require.Error(err) // change this to require.NoError(err) to see the error message
+
+	// since the block production is delayed by 10 seconds, the transactions
+	// posted arrive when the node is still at height 0 (not started height 1
+	// yet) this makes the post data fail with the following error: rpc error:
+	// code = Unknown desc = codespace sdk code 18: invalid request:
+	// failed to load state at height 0; no commit info found (latest height: 0)
+	require.Error(err) // change this to require.NoError(err) to see the error
+	require.ErrorContains(err, "rpc error: code = Unknown desc = codespace sdk code 18: invalid request: failed to load state at height 0; no commit info found (latest height: 0)")
 }
