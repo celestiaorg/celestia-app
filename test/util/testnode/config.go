@@ -99,6 +99,12 @@ func (c *Config) WithGensisTime(t time.Time) *Config {
 	return c
 }
 
+// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
