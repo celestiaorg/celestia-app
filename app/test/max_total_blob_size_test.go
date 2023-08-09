@@ -41,7 +41,7 @@ type MaxTotalBlobSizeSuite struct {
 func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 	t := s.T()
 
-	s.accounts = makeAccounts(1)
+	s.accounts = randAccounts(1)
 	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
@@ -61,24 +61,23 @@ func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 // SubmitPayForBlob is invoked with different blob sizes.
 func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 	t := s.T()
-	require.NoError(t, s.cctx.WaitForBlocks(3))
 
 	type testCase struct {
 		name string
 		blob *tmproto.Blob
-		// txResponseCode is the expected tx response ABCI code.
-		txResponseCode uint32
+		// want is the expected tx response ABCI code.
+		want uint32
 	}
 	testCases := []testCase{
 		{
-			name:           "1 byte blob",
-			blob:           mustNewBlob(t, 1),
-			txResponseCode: abci.CodeTypeOK,
+			name: "1 byte blob",
+			blob: mustNewBlob(t, 1),
+			want: abci.CodeTypeOK,
 		},
 		{
-			name:           "1 mebibyte blob",
-			blob:           mustNewBlob(t, mebibyte),
-			txResponseCode: abci.CodeTypeOK,
+			name: "1 mebibyte blob",
+			blob: mustNewBlob(t, mebibyte),
+			want: abci.CodeTypeOK,
 		},
 		// {
 		// 	name:           "2 mebibyte blob",
@@ -91,11 +90,11 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		s.Run(tc.name, func() {
 			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
 			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
+			txResp, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
 
 			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
+			require.NotNil(t, txResp)
+			require.Equal(t, tc.want, txResp.Code, txResp.Logs)
 		})
 	}
 }
@@ -108,7 +107,7 @@ func mustNewBlob(t *testing.T, blobSize int) *tmproto.Blob {
 	return result
 }
 
-func makeAccounts(count int) []string {
+func randAccounts(count int) []string {
 	accounts := make([]string, count)
 	for i := 0; i < count; i++ {
 		accounts[i] = tmrand.Str(20)
