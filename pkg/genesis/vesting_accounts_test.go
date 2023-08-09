@@ -460,7 +460,7 @@ func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int
 	for {
 		name, err = s.unusedAccount(DelayedVestingAccountType)
 		if err != nil {
-			return vAcc, name, err
+			return vestingtypes.PeriodicVestingAccount{}, "", err
 		}
 
 		address := getAddress(name, s.cctx.Keyring).String()
