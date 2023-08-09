@@ -93,15 +93,15 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	}
 
 	// Tendermint's default tx size limit is 1 MiB, so we get close to that by
-	// generating transactions of size 600 KiB because 3 blobs per transaction *
-	// 200,000 bytes each = 600,000 total bytes = 600 KiB per transaction.
+	// generating transactions of size 600 KB because 3 blobs per transaction *
+	// 200,000 bytes each = 600,000 total bytes = 600 KB per transaction.
 	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			200000, // 200 KiB
+			200000, // 200 KB
 			3,
 			false,
 			s.cctx.ChainID,
@@ -109,7 +109,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		)
 	}
 
-	// Generate 80 randomly sized txs (max size == 50 KiB). Generate these
+	// Generate 80 randomly sized txs (max size == 50 KB). Generate these
 	// transactions using some of the same accounts as the previous generator to
 	// ensure that the sequence number is being utilized correctly in blob
 	// txs
