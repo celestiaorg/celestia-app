@@ -61,7 +61,7 @@ func (s *BlockProductionTestSuite) Test_BlockOneTransactionNonInclusion() {
 // Test_FirstBlockIsEmpty tests whether the first block is empty.
 func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
 	require := s.Require()
-	// wait until the node is at height 1
+	// wait until the node starts height 1
 	time.Sleep(1 * s.timeoutCommit)
 
 	// send some transactions, these should be included in the second block
