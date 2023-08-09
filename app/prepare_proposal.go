@@ -32,7 +32,21 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 	)
-	txs := FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+
+	var txs [][]byte
+	if app.LastBlockHeight() == 0 { // no transactions are expected when app is still at height 0 (preparing block height 1), return empty set of txs
+		txs = make([][]byte, 0)
+		if len(req.BlockData.Txs) != 0 { // if there are non-empty txs, log it
+			app.Logger().Info(
+				"non-empty txs for the height 1",
+				"invalid",
+				len(req.BlockData.Txs),
+			)
+		}
+	} else {
+		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+
+	}
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
