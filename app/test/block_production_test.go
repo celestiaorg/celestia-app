@@ -59,7 +59,7 @@ func (s *BlockProductionTestSuite) Test_BlockOneTransactionNonInclusion() {
 }
 
 // Test_Empty_Block_One tests that the first block is empty
-func (s *BlockProductionestSuite) Test_Empty_Block_One() {
+func (s *BlockProductionTestSuite) Test_Empty_Block_One() {
 	require := s.Require()
 	// wait for 2*s.timeoutCommit+1*time.Second to ensure that the node is at height 2
 	_, err := s.cctx.WaitForHeightWithTimeout(2, 2*s.timeoutCommit+1*time.Second)
@@ -68,7 +68,7 @@ func (s *BlockProductionestSuite) Test_Empty_Block_One() {
 	one := int64(1)
 	b, err := s.cctx.Client.Block(s.cctx.GoContext(), &one)
 	require.NoError(err)
-	// perform some checks
+	// check whether the first block is empty
 	require.True(b.Block.Header.Height == 1)
 	require.Equal(len(b.Block.Data.Txs), 0)
 
