@@ -68,7 +68,8 @@ func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
 	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 
-	// wait for 2*s.timeoutCommit+1*time.Second to ensure that the node is at height 2
+	// wait for 2*s.timeoutCommit+1*time.Second to ensure that the node is
+	// at height 2
 	_, err = s.cctx.WaitForHeightWithTimeout(2, 2*s.timeoutCommit+1*time.Second)
 	require.NoError(err)
 
@@ -87,5 +88,4 @@ func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
 	// check whether the second block is non-empty
 	require.True(b2.Block.Header.Height == 2)
 	require.True(len(b2.Block.Data.Txs) == 1)
-
 }
