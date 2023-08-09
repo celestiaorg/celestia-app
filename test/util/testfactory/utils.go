@@ -143,7 +143,7 @@ func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingty
 		return nil, err
 	}
 
-	return res.DelegationResponses, err
+	return res.DelegationResponses, nil
 }
 
 func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (balances sdk.Coins, err error) {
