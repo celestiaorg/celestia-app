@@ -3,17 +3,17 @@
 - 01.12.2022 | Initial specification (@cmwaters)
 - 09.12.2022 | Add Push/Pull mechanics (@cmwaters)
 
-### Outline
+## Outline
 
 This document specifies the properties, design and implementation of a content addressable transaction pool (CAT). This protocol is intended as an alternative to the FIFO and Priority mempools currently built-in to the Tendermint consensus protocol. The term content-addressable here, indicates that each transaction is identified by a smaller, unique tag (in this case a sha256 hash). These tags are broadcast among the transactions as a means of more compactly indicating which peers have which transactions. Tracking what each peer has aims at reducing the amount of duplication. In a network without content tracking, a peer may receive as many duplicate transactions as peers connected to. The tradeoff here therefore is that the transactions are significantly larger than the tag such that the sum of the data saved sending what would be duplicated transactions is larger than the sum of sending each peer a tag.
 
-### Purpose
+## Purpose
 
 The objective of such a protocol is to transport transactions from the author (usually a client) to a proposed block, optimizing both latency and throughput i.e. how quickly can a transaction be proposed (and committed) and how many transactions can be transported into a block at once.
 
 Typically the mempool serves to receive inbound transactions via an RPC endpoint, gossip them to all nodes in the network (regardless of whether they are capable of proposing a block or not), and stage groups of transactions to both consensus and the application to be included in a block.
 
-### Assumptions
+## Assumptions
 
 The following are assumptions inherited from existing Tendermint mempool protocols:
 
@@ -21,7 +21,7 @@ The following are assumptions inherited from existing Tendermint mempool protoco
 - Applications implementing `CheckTx` are responsible for replay protection (i.e. the same transaction being present in multiple blocks). The mempool ensures that within the same block, no duplicate transactions can exist.
 - The underlying p2p layer guarantees eventually reliable broadcast. A transaction need only be sent once to eventually reach the target peer.
 
-### Messages
+## Messages
 
 The CAT protocol extends on the existing mempool implementations by introducing two new protobuf messages:
 
@@ -43,7 +43,7 @@ Both messages are sent across a new channel with the ID: `byte(0x31)`. This enab
 > **Note:**
 > The term `SeenTx` is used over the more common `HasTx` because the transaction pool contains sophisticated eviction logic. TTL's, higher priority transactions and reCheckTx may mean that a transaction pool *had* a transaction but does not have it any more. Semantically it's more appropriate to use `SeenTx` to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.
 
-### Outbound logic
+## Outbound logic
 
 A node in the protocol has two distinct modes: "broadcast" and "request/response". When a node receives a transaction via RPC (or specifically through `CheckTx`), it assumed that it is the only recipient from that client and thus will immediately send that transaction, after validation, to all connected peers. Afterwards, only "request/response" is used to disseminate that transaction to everyone else.
 
@@ -69,7 +69,7 @@ A `WantTx` message is always sent point to point and never broadcasted. A `WantT
 
 `WantTx` must be tracked. A node SHOULD not send multiple `WantTx`s to multiple peers for the same transaction at once but wait for a period that matches the expected network latency before rerequesting the transaction to another peer.
 
-### Inbound logic
+## Inbound logic
 
 Transaction pools are solely run in-memory; thus when a node stops, all transactions are discarded. To avoid the scenario where a node restarts and does not receive transactions because other nodes recorded a `SeenTx` message from their previous run, each transaction pool should track peer state based **per connection** and not per `NodeID`.
 
@@ -87,15 +87,14 @@ Upon receiving a `SeenTx` message:
 - If the node already has the transaction, it SHOULD ignore the message.
 - If the node does not have the transaction but recently evicted it, it MAY choose to rerequest the transaction if it has adequate resources now to process it.
 - If the node has not seen the transaction or does not have any pending requests for that transaction, it can do one of two things:
-    - It MAY immediately request the tx from the peer with a `WantTx`.
-    - If the node is connected to the peer specified in `FROM`, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a `Txs` message for a bounded amount of time but MUST eventually send a `WantMsg` message to either the original peer or any other peer that *has* the specified transaction.
+  - It MAY immediately request the tx from the peer with a `WantTx`.
+  - If the node is connected to the peer specified in `FROM`, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a `Txs` message for a bounded amount of time but MUST eventually send a `WantMsg` message to either the original peer or any other peer that *has* the specified transaction.
 
 Upon receiving a `WantTx` message:
 
 - If it has the transaction, it MUST respond with a `Txs` message containing that transaction.
 - If it does not have the transaction, it MAY respond with an identical `WantTx` or rely on the timeout of the peer that requested the transaction to eventually ask another peer.
 
-### Compatibility
+## Compatibility
 
 CAT has Go API compatibility with the existing two mempool implementations. It implements both the `Reactor` interface required by Tendermint's P2P layer and the `Mempool` interface used by `consensus` and `rpc`. CAT is currently network compatible with existing implementations (by using another channel), but the protocol is unaware that it is communicating with a different mempool and that `SeenTx` and `WantTx` messages aren't reaching those peers thus it is recommended that the entire network use CAT.
-
