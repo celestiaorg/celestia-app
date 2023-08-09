@@ -49,12 +49,6 @@ func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	require.NoError(t, cctx.WaitForNextBlock())
-
-	for _, account := range s.accounts {
-		signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, account, s.cctx.ChainID)
-		err := signer.QueryAccountNumber(s.cctx.GoContext(), s.cctx.GRPCClient)
-		require.NoError(t, err)
-	}
 }
 
 // TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
@@ -86,10 +80,11 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		// },
 	}
 
+	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
+	options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1e9)} // set gas limit to 1 billion to avoid gas exhaustion
+
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
-			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
 			txResp, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
 
 			require.NoError(t, err)
@@ -102,8 +97,10 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 func mustNewBlob(t *testing.T, blobSize int) *tmproto.Blob {
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	data := tmrand.Bytes(blobSize)
+
 	result, err := blobtypes.NewBlob(ns1, data, appconsts.ShareVersionZero)
 	require.NoError(t, err)
+
 	return result
 }
 
