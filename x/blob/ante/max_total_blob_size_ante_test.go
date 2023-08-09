@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	mebibyte = 1_048_576 // 1 MiB
+	mebibyte   = 1_048_576 // 1 MiB
+	squareSize = 64
 )
 
 func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
@@ -75,20 +76,20 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "PFB with 1 blob that is 4,095 shares",
+			name: "PFB with 1 blob that occupies total square - 1",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(4095))},
+				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
 			},
 			wantErr: false,
 		},
 		{
-			name: "PFB with 1 blob that is 4,096 shares",
+			name: "PFB with 1 blob that occupies total square",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(4096))},
+				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize))},
 			},
-			// This test case should return an error because max square size is
-			// 64 * 64 = 4,096. If the blob occupies 4,096 shares then there is
-			// no space for the PFB tx share.
+			// This test case should return an error because if the blob
+			// occupies the total square, there is no space for the PFB tx
+			// share.
 			wantErr: true,
 		},
 		{
@@ -102,11 +103,11 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "PFB with 2 blobs that are 2,048 shares each",
+			name: "PFB with 2 blobs that occupy half the square each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{
-					uint32(shares.AvailableBytesFromSparseShares(2048)),
-					uint32(shares.AvailableBytesFromSparseShares(2048)),
+					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
+					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
 				},
 			},
 			wantErr: true,
