@@ -42,7 +42,8 @@ func (s *BlockProductionTestSuite) SetupSuite() {
 	s.accounts = accounts
 }
 
-func (s *BlockProductionTestSuite) Test_PostData() {
+// Test_BlockOneTransactionNonInclusion tests that no transactions can be included in the first block.
+func (s *BlockProductionTestSuite) Test_BlockOneTransactionNonInclusion() {
 	require := s.Require()
 	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
 
