@@ -466,7 +466,7 @@ func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int
 		address := getAddress(name, s.cctx.Keyring).String()
 		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
 		if err != nil {
-			return vAcc, name, err
+			return vestingtypes.PeriodicVestingAccount{}, "", err
 		}
 
 		err = vAcc.Unmarshal(resAccBytes)
