@@ -128,11 +128,10 @@ func NewBaseAccount(kr keyring.Keyring, name string) (*authtypes.BaseAccount, sd
 func GetValidators(grpcConn *grpc.ClientConn) (stakingtypes.Validators, error) {
 	scli := stakingtypes.NewQueryClient(grpcConn)
 	vres, err := scli.Validators(context.Background(), &stakingtypes.QueryValidatorsRequest{})
-
-	if vres == nil {
+	if err != nil {
 		return stakingtypes.Validators{}, err
 	}
-	return vres.Validators, err
+	return vres.Validators, nil
 }
 
 func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingtypes.DelegationResponses, error) {
@@ -154,7 +153,7 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (bala
 			Address: address,
 		},
 	)
-	if err != nil || res == nil {
+	if err != nil {
 		return nil, err
 	}
 	return res.GetBalances(), nil
@@ -165,10 +164,8 @@ func GetRawAccountInfo(grpcConn *grpc.ClientConn, address string) ([]byte, error
 	res, err := cli.Account(context.Background(), &authtypes.QueryAccountRequest{
 		Address: address,
 	})
-
-	if err != nil || res == nil {
+	if err != nil {
 		return nil, err
 	}
-
 	return res.Account.Value, nil
 }

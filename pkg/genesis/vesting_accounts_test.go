@@ -421,12 +421,15 @@ func (s *VestingModuleTestSuite) getAnUnusedContinuousVestingAccount(minStartTim
 		address := getAddress(name, s.cctx.Keyring).String()
 		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
 		if err != nil {
-			return vAcc, name, err
+			return vestingtypes.ContinuousVestingAccount{}, "", err
 		}
 
 		err = vAcc.Unmarshal(resAccBytes)
-		if err != nil || vAcc.StartTime > minStartTime {
-			return vAcc, name, err
+		if err != nil {
+			return vestingtypes.ContinuousVestingAccount{}, "", err
+		}
+		if vAcc.StartTime > minStartTime {
+			return vAcc, name, nil
 		}
 	}
 }
@@ -443,12 +446,15 @@ func (s *VestingModuleTestSuite) getAnUnusedPeriodicVestingAccount(minStartTime 
 		address := getAddress(name, s.cctx.Keyring).String()
 		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
 		if err != nil {
-			return vAcc, name, err
+			return vestingtypes.PeriodicVestingAccount{}, "", err
 		}
 
 		err = vAcc.Unmarshal(resAccBytes)
-		if err != nil || vAcc.StartTime > minStartTime {
-			return vAcc, name, err
+		if err != nil {
+			return vestingtypes.PeriodicVestingAccount{}, "", err
+		}
+		if vAcc.StartTime > minStartTime {
+			return vAcc, name, nil
 		}
 	}
 }
@@ -460,18 +466,21 @@ func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int
 	for {
 		name, err = s.unusedAccount(DelayedVestingAccountType)
 		if err != nil {
-			return vestingtypes.PeriodicVestingAccount{}, "", err
+			return vestingtypes.DelayedVestingAccount{}, "", err
 		}
 
 		address := getAddress(name, s.cctx.Keyring).String()
 		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
 		if err != nil {
-			return vestingtypes.PeriodicVestingAccount{}, "", err
+			return vestingtypes.DelayedVestingAccount{}, "", err
 		}
 
 		err = vAcc.Unmarshal(resAccBytes)
-		if err != nil || vAcc.EndTime > minEndTime {
-			return vAcc, name, err
+		if err != nil {
+			return vestingtypes.DelayedVestingAccount{}, "", err
+		}
+		if vAcc.EndTime > minEndTime {
+			return vAcc, name, nil
 		}
 	}
 }
