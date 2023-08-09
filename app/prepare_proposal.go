@@ -34,11 +34,14 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	)
 
 	var txs [][]byte
-	if app.LastBlockHeight() == 0 { // no transactions are expected when app is still at height 0 (preparing block height 1), return empty set of txs
+	if app.LastBlockHeight() == 0 {
+		// the first block is expected to be empty; hence return an empty set of txs
 		txs = make([][]byte, 0)
-		if len(req.BlockData.Txs) != 0 { // if there are non-empty txs, log it
+		if len(req.BlockData.Txs) != 0 {
+			// if the consensus layer sends non-empty set of transactions for
+			// block height 1, log it
 			app.Logger().Info(
-				"non-empty txs for the height 1",
+				"non-empty txs received from the consensus layer for block height 1",
 				"invalid",
 				len(req.BlockData.Txs),
 			)
