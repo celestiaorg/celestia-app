@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	Mebibyte = 1_048_576 // 1 MiB
+	mebibyte = 1_048_576 // 1 MiB
 )
 
-func TestMaxBlobSizeAnteHandler(t *testing.T) {
+func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 	type testCase struct {
 		name    string
 		pfb     *blob.MsgPayForBlobs
@@ -36,19 +36,18 @@ func TestMaxBlobSizeAnteHandler(t *testing.T) {
 		{
 			name: "PFB with 1 blob that is 1 MiB",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{Mebibyte},
+				BlobSizes: []uint32{mebibyte},
 			},
 			wantErr: false,
 		},
 		{
-			name: "PFB with 1 blob that is 10 MiB",
+			name: "PFB with 1 blob that is 2 MiB",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{10 * Mebibyte},
+				BlobSizes: []uint32{2 * mebibyte},
 			},
 			// This test case should return an error because a square size of 64
-			// is approximately 2 MiB of capacity. 64 (squareSize) * 64
-			// (squareSize) * 512 (shareSize) = 2_097_152 = 2 MiB. 64 which is
-			// approximately 2 MiB capacity.
+			// has exactly 2 MiB of total capacity so the total blob capacity
+			// will be slightly smaller than 2 MiB.
 			wantErr: true,
 		},
 		{
@@ -59,10 +58,12 @@ func TestMaxBlobSizeAnteHandler(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "PFB with 2 blobs that are 5 MiB each",
+			name: "PFB with 2 blobs that are 1 MiB each",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{5 * Mebibyte, 5 * Mebibyte},
+				BlobSizes: []uint32{mebibyte, mebibyte},
 			},
+			// This test case should return an error for the same reason a
+			// single blob that is 2 MiB returns an error.
 			wantErr: true,
 		},
 		// tests based on shares
