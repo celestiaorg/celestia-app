@@ -298,8 +298,7 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 // initPeriodicVestingAccounts function initializes periodic vesting accounts for testing purposes.
 // It takes the count of accounts as input and returns a GenesisOption. It generates account names,
 // base accounts, and balances. It defines vesting periods and creates vesting accounts based on the
-// generated data. The function then updates the genesis state with the generated vesting accounts
-// and balances. The startTime of each account increases progressively to ensure some accounts have
+// generated data. The startTime of each account increases progressively to ensure some accounts have
 // locked balances, catering to the testing requirements.
 func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode.GenesisOption {
 	initCoinsForGasFee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee)))
@@ -346,8 +345,7 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 
 // initContinuousVestingAccounts function initializes continuous vesting accounts for testing purposes.
 // It takes the count of accounts as input and returns a GenesisOption. It generates account names,
-// base accounts, and balances. It defines start & end times to creates vesting accounts. The function
-// then updates the genesis state with the generated vesting accounts and balances. The start & endTime
+// base accounts, and balances. It defines start & end times to creates vesting accounts. The start & endTime
 // of each account increases progressively to ensure some accounts have locked balances, catering to the
 // testing requirements.
 func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testnode.GenesisOption {

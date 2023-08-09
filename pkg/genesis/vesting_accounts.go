@@ -120,9 +120,7 @@ func AddAccountsToGenesisState(encCfg encoding.Config, gs map[string]json.RawMes
 	return gs, nil
 }
 
-// AddBalancesToGenesisState adds the provided balances to the genesis state (gs) for the bank module.
-// It takes the raw genesis state (gs) and a variadic number of Balance objects (balances) as inputs.
-// It returns the updated gs and nil if the process is successful.
+// AddBalancesToGenesisState updates the genesis state by adding balances to the bank module.
 func AddBalancesToGenesisState(encCfg encoding.Config, gs map[string]json.RawMessage, balances []banktypes.Balance) (map[string]json.RawMessage, error) {
 	var bankGenState banktypes.GenesisState
 	err := encCfg.Codec.UnmarshalJSON(gs[banktypes.ModuleName], &bankGenState)

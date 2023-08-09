@@ -23,9 +23,7 @@ func SignAndBroadcastTx(encCfg encoding.Config, c client.Context, account string
 	return SignAndBroadcastTxWithBuilderOption(opts, encCfg, c, account, msg...)
 }
 
-// SignAndBroadcastTxWithBuilderOption signs a transaction using the provided
-// account and keyring. It accepts customized Tx builder options inside the
-// client.Context, then broadcasts it synchronously.
+// SignAndBroadcastTxWithBuilderOption signs and broadcasts a transaction with the given options.
 func SignAndBroadcastTxWithBuilderOption(opts []types.TxBuilderOption, encCfg encoding.Config, c client.Context, account string, msg ...sdk.Msg) (res *sdk.TxResponse, err error) {
 	// use the key for accounts[i] to create a signer used for a single PFB
 	signer := types.NewKeyringSigner(c.Keyring, account, c.ChainID)
