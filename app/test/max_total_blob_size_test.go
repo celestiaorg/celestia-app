@@ -1,14 +1,11 @@
 package app_test
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -92,16 +89,6 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			require.Equal(t, tc.want, txResp.Code, txResp.Logs)
 		})
 	}
-}
-
-func mustNewBlob(t *testing.T, blobSize int) *tmproto.Blob {
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	data := tmrand.Bytes(blobSize)
-
-	result, err := blobtypes.NewBlob(ns1, data, appconsts.ShareVersionZero)
-	require.NoError(t, err)
-
-	return result
 }
 
 func randAccounts(count int) []string {
