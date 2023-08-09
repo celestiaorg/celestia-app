@@ -101,6 +101,21 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
+<<<<<<< HEAD
+=======
+// WithGensisTime sets the GenesisTime and returns the Config.
+func (c *Config) WithGensisTime(t time.Time) *Config {
+	c.GenesisTime = t
+	return c
+}
+
+// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
+>>>>>>> 29f7f50 (test: tests tx inclusion in the first block (#2220))
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
