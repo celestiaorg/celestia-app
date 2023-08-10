@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/assert"
@@ -90,7 +89,7 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		{
 			name: "2 mebibyte blob",
 			blob: mustNewBlob(t, 2*mebibyte),
-			want: types.ErrTotalBlobSizeTooLarge.ABCICode(),
+			want: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
 		},
 	}
 
@@ -99,7 +98,7 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			blobTx := newBlobTx(t, signer, s.cctx.GRPCClient, tc.blob)
-			res, err := types.BroadcastTx(context.TODO(), s.cctx.GRPCClient, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
+			res, err := blobtypes.BroadcastTx(context.TODO(), s.cctx.GRPCClient, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.want, res.TxResponse.Code, res.TxResponse.Logs)
@@ -121,7 +120,7 @@ func newBlobTx(t *testing.T, signer *blobtypes.KeyringSigner, conn *grpc.ClientC
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	msg, err := types.NewMsgPayForBlobs(addr.String(), blob)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
 	require.NoError(t, err)
 
 	err = signer.QueryAccountNumber(context.TODO(), conn)
