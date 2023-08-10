@@ -3,15 +3,14 @@ package app
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // separateTxs decodes raw tendermint txs into normal and blob txs.
-func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []core.BlobTx) {
+func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []tmproto.BlobTx) {
 	normalTxs := make([][]byte, 0, len(rawTxs))
-	blobTxs := make([]core.BlobTx, 0, len(rawTxs))
+	blobTxs := make([]tmproto.BlobTx, 0, len(rawTxs))
 	for _, rawTx := range rawTxs {
 		bTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
 		if isBlob {
@@ -23,8 +22,8 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []core.BlobTx) {
 	return normalTxs, blobTxs
 }
 
-// filterTxs applies the antehandler to all proposed transactions and removes transactions that return an error.
-func filterTxs(ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
+// FilterTxs applies the antehandler to all proposed transactions and removes transactions that return an error.
+func FilterTxs(ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
 	normalTxs, blobTxs := separateTxs(txConfig, txs)
 	normalTxs, ctx = filterStdTxs(txConfig.TxDecoder(), ctx, handler, normalTxs)
 	blobTxs, _ = filterBlobTxs(txConfig.TxDecoder(), ctx, handler, blobTxs)

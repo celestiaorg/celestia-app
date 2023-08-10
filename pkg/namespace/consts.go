@@ -51,9 +51,10 @@ var (
 	// (ordinary and PFBs) but before blobs.
 	ReservedPaddingNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
 
-	// MaxReservedNamespace is lexicographically the largest namespace that is
-	// reserved for protocol use.
-	MaxReservedNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
+	// MaxPrimaryReservedNamespace represents the largest primary reserved
+	// namespace reserved for protocol use. Note that there may be other
+	// non-primary reserved namespaces beyond this upper limit.
+	MaxPrimaryReservedNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
 
 	// TailPaddingNamespace is the namespace reserved for tail padding. All data
 	// with this namespace will be ignored.
@@ -67,4 +68,7 @@ var (
 		Version: math.MaxUint8,
 		ID:      bytes.Repeat([]byte{0xFF}, NamespaceIDSize),
 	}
+
+	// SupportedBlobNamespaceVersions is a list of namespace versions that can be specified by a user for blobs.
+	SupportedBlobNamespaceVersions = []uint8{NamespaceVersionZero}
 )

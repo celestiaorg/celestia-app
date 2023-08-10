@@ -81,6 +81,8 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 ## Contributing
 
+This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
+
 ### Tools
 
 1. Install [golangci-lint](https://golangci-lint.run/usage/install/)

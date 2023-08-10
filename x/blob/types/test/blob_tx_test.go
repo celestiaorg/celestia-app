@@ -8,14 +8,12 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/rand"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -25,7 +23,7 @@ func TestValidateBlobTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := "test"
 	signer := types.GenerateKeyringSigner(t, acc)
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize))
+	ns1 := namespace.MustNewV0(bytes.Repeat([]byte{0x01}, namespace.NamespaceVersionZeroIDSize))
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
@@ -69,7 +67,7 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "invalid transaction, no pfb",
 			getTx: func() tmproto.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				return tmproto.BlobTx{
 					Tx:    sendTx[0],
@@ -83,7 +81,7 @@ func TestValidateBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
@@ -93,7 +91,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "invalid share commitment",
 			getTx: func() tmproto.BlobTx {
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					signerAddr.String(),
@@ -105,7 +103,7 @@ func TestValidateBlobTx(t *testing.T) {
 					&types.Blob{
 						NamespaceVersion: uint32(namespace.RandomBlobNamespace().Version),
 						NamespaceId:      namespace.RandomBlobNamespace().ID,
-						Data:             rand.Bytes(99),
+						Data:             tmrand.Bytes(99),
 						ShareVersion:     uint32(appconsts.ShareVersionZero),
 					})
 				require.NoError(t, err)
@@ -168,7 +166,7 @@ func TestValidateBlobTx(t *testing.T) {
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
-						[]int{100, 100})...,
+						[]int{100, 100}),
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -186,7 +184,7 @@ func TestValidateBlobTx(t *testing.T) {
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
-						[]int{100000, 1000000})...,
+						[]int{100000, 1000000}),
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -205,7 +203,7 @@ func TestValidateBlobTx(t *testing.T) {
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{ns, ns},
-						[]int{100, 100})...,
+						[]int{100, 100}),
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -232,7 +230,7 @@ func TestValidateBlobTx(t *testing.T) {
 					blobfactory.RandBlobsWithNamespace(
 						namespaces,
 						sizes,
-					)...)
+					))
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx

@@ -18,7 +18,8 @@ const (
 	MinimumDataCommitmentWindow = 100
 )
 
-// ParamsStoreKeyDataCommitmentWindow
+// ParamsStoreKeyDataCommitmentWindow is the key used for the
+// DataCommitmentWindow param.
 var ParamsStoreKeyDataCommitmentWindow = []byte("DataCommitmentWindow")
 
 // DefaultGenesis returns the default Capability genesis state

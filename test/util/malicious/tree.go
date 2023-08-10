@@ -1,7 +1,11 @@
 package malicious
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -30,13 +34,6 @@ type constructor struct {
 // calculate the data root. It creates that tree using a malicious version of
 // the wrapper.ErasuredNamespacedMerkleTree.
 func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
-	hasher := NewBlindHasher(appconsts.NewBaseHashFunc(), appconsts.NamespaceSize, true)
-	copts := []nmt.Option{
-		nmt.CustomHasher(hasher),
-		nmt.NamespaceIDSize(appconsts.NamespaceSize),
-		nmt.IgnoreMaxNamespace(true),
-	}
-	opts = append(opts, copts...)
 	return constructor{
 		squareSize: squareSize,
 		opts:       opts,
@@ -47,9 +44,27 @@ func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructo
 // wrapper.ErasuredNamespacedMerkleTree with predefined square size and
 // nmt.Options.
 func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-	nmtTree := nmt.New(appconsts.NewBaseHashFunc(), c.opts...)
+	hasher := NewNmtHasher(appconsts.NewBaseHashFunc(), appconsts.NamespaceSize, true)
+	copts := []nmt.Option{
+		nmt.CustomHasher(hasher),
+		nmt.NamespaceIDSize(appconsts.NamespaceSize),
+		nmt.IgnoreMaxNamespace(true),
+	}
+	nmtTree := nmt.New(appconsts.NewBaseHashFunc(), copts...)
 	maliciousTree := &BlindTree{nmtTree}
-	newTree := wrapper.NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, c.opts...)
+	newTree := wrapper.NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, copts...)
 	newTree.SetTree(maliciousTree)
 	return &newTree
+}
+
+func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
+	// Check that the length of the square is a power of 2.
+	if !shares.IsPowerOfTwo(len(s)) {
+		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
+	}
+	squareSize := square.Size(len(s))
+
+	// here we construct a tree
+	// Note: uses the nmt wrapper to construct the tree.
+	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
 }

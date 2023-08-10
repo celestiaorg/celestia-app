@@ -72,12 +72,12 @@ Implementations can prune rows containing only [tail padding](./consensus.md#res
 
 Data that is [erasure-coded](#erasure-coding) for [data availability checks](https://arxiv.org/abs/1809.09044).
 
-| name                        | type                                                    | description                                                                                                     |
-|-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| name                        | type                                                    | description                                                                                                  |
+|-----------------------------|---------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
 | `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for blobs to be included. |
-| `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
-| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                                |
-| `blobData`               | [BlobData](#blobdata)                             | Blob data. Blobs are app data.                                                                            |
+| `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                              |
+| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                             |
+| `blobData`                  | [BlobData](#blobdata)                                   | Blob data. Blobs are app data.                                                                               |
 
 ### Commit
 
@@ -140,27 +140,6 @@ enum CommitFlag : uint8_t {
 | `r`  | `byte[32]` | `r` value of the signature. |
 | `s`  | `byte[32]` | `s` value of signature.     |
 
-### Namespace
-
-| name      | type       | description |
-|-----------|------------|-------------|
-| `version` | `uint8`    |             |
-| `id`      | `byte[28]` |             |
-
-The namespace is a 29 byte array. The first byte is the `version`. The remaining 28 bytes are the `id`. The namespace version may enforce constraints on the id. The only supported `version` is `0`. The format for a namespace with `version: 0` is 18 bytes of leading `0`s followed by 10 bytes of significant namespace id.
-
-```go
-// valid namespaces
-0x0000000000000000000000000000000000000000000000000000000001
-0x0000000000000000000000000000000000000001010101010101010101
-0x0000000000000000000000000000000000000011111111111111111111
-
-// invalid namespaces
-0x0000000000000000000000000111111111111111111111111111111111
-0x1000000000000000000000000000000000000000000000000000000001
-0x1111111111111111111111111111111111111111111111111111111111
-```
-
 ## ConsensusVersion
 
 | name    | type     | description          |
@@ -179,7 +158,10 @@ Note: there are two requirements for a serialization scheme, should this need to
 
 ## Hashing
 
+<!-- disable markdown link check for doi.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
 All protocol-level hashing is done using SHA-2-256 as defined in [FIPS 180-4](https://doi.org/10.6028/NIST.FIPS.180-4). SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.
+<!-- markdown-link-check-enable -->
 
 Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto/sha256>) and Rust (<https://docs.rs/sha2>).
 
@@ -231,15 +213,18 @@ A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Sectio
 
 ### Namespace Merkle Tree
 
+<!-- disable markdown link check for bitcointalk.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
 [Shares](./shares.md) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
+<!-- markdown-link-check-enable -->
 
 Nodes contain three fields:
 
-| name    | type                      | description                                   |
-|---------|---------------------------|-----------------------------------------------|
-| `n_min` | [Namespace](#namespace)   | Min namespace in subtree rooted at this node. |
-| `n_max` | [Namespace](#namespace)   | Max namespace in subtree rooted at this node. |
-| `v`     | [HashDigest](#hashdigest) | Node value.                                   |
+| name    | type                        | description                                   |
+|---------|-----------------------------|-----------------------------------------------|
+| `n_min` | [Namespace](./namespace.md) | Min namespace in subtree rooted at this node. |
+| `n_max` | [Namespace](./namespace.md) | Max namespace in subtree rooted at this node. |
+| `v`     | [HashDigest](#hashdigest)   | Node value.                                   |
 
 The base case (an empty tree) is defined as:
 
@@ -282,11 +267,11 @@ A compact commitment can be computed by taking the [hash](#hashing) of the [seri
 
 #### NamespaceMerkleTreeInclusionProof
 
-| name            | type                          | description                                                     |
-|-----------------|-------------------------------|-----------------------------------------------------------------|
-| `siblingValues` | [HashDigest](#hashdigest)`[]` | Sibling hash values, ordered starting from the leaf's neighbor. |
-| `siblingMins`   | [Namespace](#namespace)`[]`   | Sibling min namespace IDs.                                      |
-| `siblingMaxes`  | [Namespace](#namespace)`[]`   | Sibling max namespace IDs.                                      |
+| name            | type                            | description                                                     |
+|-----------------|---------------------------------|-----------------------------------------------------------------|
+| `siblingValues` | [HashDigest](#hashdigest)`[]`   | Sibling hash values, ordered starting from the leaf's neighbor. |
+| `siblingMins`   | [Namespace](./namespace.md)`[]` | Sibling min namespace IDs.                                      |
+| `siblingMaxes`  | [Namespace](./namespace.md)`[]` | Sibling max namespace IDs.                                      |
 
 When verifying an NMT proof, the root hash is checked by reconstructing the root node `root_node` with the computed `root_node.v` (computed as with a [plain Merkle proof](#binarymerkletreeinclusionproof)) and the provided `rootNamespaceMin` and `rootNamespaceMax` as the `root_node.n_min` and `root_node.n_max`, respectively.
 
@@ -343,6 +328,8 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
 
+Note that each [share](./shares.md) only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.
+
 Then,
 
 1. For each of `transactionData`, `intermediateStateRootData`, PayForBlob transactions, [serialize](#serialization):
@@ -352,8 +339,6 @@ Then,
     1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
     1. Create a [share](./shares.md) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be set specially.
 1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
-
-Note that by construction, each share only has a single namespace, and that the list of concatenated shares is [lexicographically ordered by namespace ID](consensus.md#reserved-namespace-ids).
 
 These shares are arranged in the [first quadrant](#2d-reed-solomon-encoding-scheme) (`Q0`) of the `availableDataOriginalSquareSize*2 * availableDataOriginalSquareSize*2` available data matrix in _row-major_ order. In the example below, each reserved data element takes up exactly one share.
 
@@ -395,11 +380,11 @@ The blob share commitment rules may introduce empty shares that do not belong to
 
 Wrapped transactions include additional metadata by the block proposer that is committed to in the [available data matrix](#arranging-available-data-into-shares).
 
-| name                | type                        | description                                                                                                                                                                                                                                                                                                |
-|---------------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `index`             | `uint64`                    | Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking a transaction to an [intermediate state root](#wrappedintermediatestateroot). |
-| `transaction`       | [Transaction](#transaction) | Actual transaction.                                                                                                                                                                                                                                                                                        |
-| `blobStartIndex` | `uint64`                    | _Optional, only used if transaction pays for a blob or padding_. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.                                                                                       |
+| name             | type                        | description                                                                                                                                                                                                                                                                                                     |
+|------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `index`          | `uint64`                    | Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking a transaction to an [intermediate state root](#wrappedintermediatestateroot). |
+| `transaction`    | [Transaction](#transaction) | Actual transaction.                                                                                                                                                                                                                                                                                             |
+| `blobStartIndex` | `uint64`                    | _Optional, only used if transaction pays for a blob or padding_. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.                                                                                                     |
 
 #### Transaction
 
@@ -415,10 +400,10 @@ Celestia transactions are Cosmos SDK [transactions](https://docs.cosmos.network/
 
 #### WrappedIntermediateStateRoot
 
-| name                    | type                                            | description                                                                                                                                                                                                                                                                                                                  |
-|-------------------------|-------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                    | type                                            | description                                                                                                                                                                                                                                                                                                                       |
+|-------------------------|-------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `index`                 | `uint64`                                        | Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a [transaction](#wrappedtransaction). |
-| `intermediateStateRoot` | [IntermediateStateRoot](#intermediatestateroot) | Intermediate state root. Used for fraud proofs.                                                                                                                                                                                                                                                                              |
+| `intermediateStateRoot` | [IntermediateStateRoot](#intermediatestateroot) | Intermediate state root. Used for fraud proofs.                                                                                                                                                                                                                                                                                   |
 
 #### IntermediateStateRoot
 
@@ -428,14 +413,14 @@ Celestia transactions are Cosmos SDK [transactions](https://docs.cosmos.network/
 
 ### BlobData
 
-| name       | type                    | description       |
-|------------|-------------------------|-------------------|
+| name    | type              | description    |
+|---------|-------------------|----------------|
 | `blobs` | [Blob](#blob)`[]` | List of blobs. |
 
 #### Blob
 
-| name          | type                         | description                   |
-|---------------|------------------------------|-------------------------------|
+| name          | type                         | description                |
+|---------------|------------------------------|----------------------------|
 | `namespaceID` | [NamespaceID](#type-aliases) | Namespace ID of this blob. |
 | `rawData`     | `byte[]`                     | Raw blob bytes.            |
 

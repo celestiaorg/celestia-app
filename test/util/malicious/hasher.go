@@ -3,6 +3,7 @@ package malicious
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"hash"
 
 	"github.com/celestiaorg/nmt"
@@ -10,21 +11,42 @@ import (
 )
 
 // NOTE: This file is a copy of the original nmt.Hasher implementation, but with
-// all of the validation logic removed. This allows for malicious nodes to create nmt roots that are out of order.
+// all of the validation logic removed. This allows for malicious nodes to
+// create nmt roots that are out of order. The documentation of this file may be
+// incorrect.
 
 const (
 	LeafPrefix = 0
 	NodePrefix = 1
 )
 
-var _ hash.Hash = (*Hasher)(nil)
+var _ hash.Hash = (*NmtHasher)(nil)
 
 var (
-	ErrInvalidNodeLen = errors.New("invalid NMT node size")
-	ErrInvalidLeafLen = errors.New("invalid NMT leaf size")
+	ErrUnorderedSiblings         = errors.New("NMT sibling nodes should be ordered lexicographically by namespace IDs")
+	ErrInvalidNodeLen            = errors.New("invalid NMT node size")
+	ErrInvalidLeafLen            = errors.New("invalid NMT leaf size")
+	ErrInvalidNodeNamespaceOrder = errors.New("invalid NMT node namespace order")
 )
 
-type Hasher struct {
+// Hasher describes the interface nmts use to hash leafs and nodes.
+//
+// Note: it is not advised to create alternative hashers if following the
+// specification is desired. The main reason this exists is to not follow the
+// specification for testing purposes.
+type Hasher interface {
+	IsMaxNamespaceIDIgnored() bool
+	NamespaceSize() namespace.IDSize
+	HashLeaf(data []byte) ([]byte, error)
+	HashNode(leftChild, rightChild []byte) ([]byte, error)
+	EmptyRoot() []byte
+}
+
+var _ Hasher = &NmtHasher{}
+
+// NmtHasher is the default hasher. It follows the description of the original
+// hashing function described in the LazyLedger white paper.
+type NmtHasher struct { //nolint:revive
 	baseHasher   hash.Hash
 	NamespaceLen namespace.IDSize
 
@@ -42,17 +64,16 @@ type Hasher struct {
 	data []byte // written data of the NMT node
 }
 
-func (n *Hasher) IsMaxNamespaceIDIgnored() bool {
+func (n *NmtHasher) IsMaxNamespaceIDIgnored() bool {
 	return n.ignoreMaxNs
 }
 
-func (n *Hasher) NamespaceSize() namespace.IDSize {
+func (n *NmtHasher) NamespaceSize() namespace.IDSize {
 	return n.NamespaceLen
 }
 
-// NewBlindHasher returns a Hasher that performs no ordering validation when the Write method is invoked.
-func NewBlindHasher(baseHasher hash.Hash, nidLen namespace.IDSize, ignoreMaxNamespace bool) *Hasher {
-	return &Hasher{
+func NewNmtHasher(baseHasher hash.Hash, nidLen namespace.IDSize, ignoreMaxNamespace bool) *NmtHasher {
+	return &NmtHasher{
 		baseHasher:       baseHasher,
 		NamespaceLen:     nidLen,
 		ignoreMaxNs:      ignoreMaxNamespace,
@@ -61,7 +82,7 @@ func NewBlindHasher(baseHasher hash.Hash, nidLen namespace.IDSize, ignoreMaxName
 }
 
 // Size returns the number of bytes Sum will return.
-func (n *Hasher) Size() int {
+func (n *NmtHasher) Size() int {
 	return n.baseHasher.Size() + int(n.NamespaceLen)*2
 }
 
@@ -71,7 +92,7 @@ func (n *Hasher) Size() int {
 // write is allowed.
 // It panics if more than one single write is attempted.
 // If the data does not match the format of an NMT non-leaf node or leaf node, an error will be returned.
-func (n *Hasher) Write(data []byte) (int, error) {
+func (n *NmtHasher) Write(data []byte) (int, error) {
 	if n.data != nil {
 		panic("only a single Write is allowed")
 	}
@@ -80,9 +101,19 @@ func (n *Hasher) Write(data []byte) (int, error) {
 	switch ln {
 	// inner nodes are made up of the nmt hashes of the left and right children
 	case n.Size() * 2:
+		// check the format of the data
+		leftChild := data[:n.Size()]
+		rightChild := data[n.Size():]
+		if err := n.ValidateNodes(leftChild, rightChild); err != nil {
+			return 0, err
+		}
 		n.tp = NodePrefix
 	// leaf nodes contain the namespace length and a share
 	default:
+		// validate the format of the leaf
+		if err := n.ValidateLeaf(data); err != nil {
+			return 0, err
+		}
 		n.tp = LeafPrefix
 	}
 
@@ -93,7 +124,7 @@ func (n *Hasher) Write(data []byte) (int, error) {
 // Sum computes the hash. Does not append the given suffix, violating the
 // interface.
 // It may panic if the data being hashed is invalid. This should never happen since the Write method refuses an invalid data and errors out.
-func (n *Hasher) Sum([]byte) []byte {
+func (n *NmtHasher) Sum([]byte) []byte {
 	switch n.tp {
 	case LeafPrefix:
 		res, err := n.HashLeaf(n.data)
@@ -117,17 +148,17 @@ func (n *Hasher) Sum([]byte) []byte {
 }
 
 // Reset resets the Hash to its initial state.
-func (n *Hasher) Reset() {
+func (n *NmtHasher) Reset() {
 	n.tp, n.data = 255, nil // reset with an invalid node type, as zero value is a valid Leaf
 	n.baseHasher.Reset()
 }
 
 // BlockSize returns the hash's underlying block size.
-func (n *Hasher) BlockSize() int {
+func (n *NmtHasher) BlockSize() int {
 	return n.baseHasher.BlockSize()
 }
 
-func (n *Hasher) EmptyRoot() []byte {
+func (n *NmtHasher) EmptyRoot() []byte {
 	n.baseHasher.Reset()
 	emptyNs := bytes.Repeat([]byte{0}, int(n.NamespaceLen))
 	h := n.baseHasher.Sum(nil)
@@ -136,15 +167,29 @@ func (n *Hasher) EmptyRoot() []byte {
 	return digest
 }
 
+// ValidateLeaf verifies if data is namespaced and returns an error if not.
+func (n *NmtHasher) ValidateLeaf(data []byte) (err error) {
+	nidSize := int(n.NamespaceSize())
+	lenData := len(data)
+	if lenData < nidSize {
+		return fmt.Errorf("%w: got: %v, want >= %v", ErrInvalidLeafLen, lenData, nidSize)
+	}
+	return nil
+}
+
 // HashLeaf computes namespace hash of the namespaced data item `ndata` as
 // ns(ndata) || ns(ndata) || hash(leafPrefix || ndata), where ns(ndata) is the
 // namespaceID inside the data item namely leaf[:n.NamespaceLen]). Note that for
 // leaves minNs = maxNs = ns(leaf) = leaf[:NamespaceLen]. HashLeaf can return the ErrInvalidNodeLen error if the input is not namespaced.
 //
 //nolint:errcheck
-func (n *Hasher) HashLeaf(ndata []byte) ([]byte, error) {
+func (n *NmtHasher) HashLeaf(ndata []byte) ([]byte, error) {
 	h := n.baseHasher
 	h.Reset()
+
+	if err := n.ValidateLeaf(ndata); err != nil {
+		return nil, err
+	}
 
 	nID := ndata[:n.NamespaceLen]
 	resLen := int(2*n.NamespaceLen) + n.baseHasher.Size()
@@ -165,12 +210,49 @@ func (n *Hasher) HashLeaf(ndata []byte) ([]byte, error) {
 
 // MustHashLeaf is a wrapper around HashLeaf that panics if an error is
 // encountered. The ndata must be a valid leaf node.
-func (n *Hasher) MustHashLeaf(ndata []byte) []byte {
+func (n *NmtHasher) MustHashLeaf(ndata []byte) []byte {
 	res, err := n.HashLeaf(ndata)
 	if err != nil {
 		panic(err)
 	}
 	return res
+}
+
+// ValidateNodeFormat checks whether the supplied node conforms to the
+// namespaced hash format and returns ErrInvalidNodeLen if not.
+func (n *NmtHasher) ValidateNodeFormat(node []byte) (err error) {
+	expectedNodeLen := n.Size()
+	nodeLen := len(node)
+	if nodeLen != expectedNodeLen {
+		return fmt.Errorf("%w: got: %v, want %v", ErrInvalidNodeLen, nodeLen, expectedNodeLen)
+	}
+	return nil
+}
+
+// validateSiblingsNamespaceOrder is intentionally faulty in that it does not
+// check that two siblings are ordered with respect to their namespaces.
+func (n *NmtHasher) validateSiblingsNamespaceOrder(left, right []byte) (err error) {
+	if err := n.ValidateNodeFormat(left); err != nil {
+		return fmt.Errorf("%w: left node does not match the namesapce hash format", err)
+	}
+	if err := n.ValidateNodeFormat(right); err != nil {
+		return fmt.Errorf("%w: right node does not match the namesapce hash format", err)
+	}
+	return nil
+}
+
+// ValidateNodes is a helper function  to verify the
+// validity of the inputs of HashNode. It verifies whether left
+// and right comply by the namespace hash format, and are correctly ordered
+// according to their namespace IDs.
+func (n *NmtHasher) ValidateNodes(left, right []byte) error {
+	if err := n.ValidateNodeFormat(left); err != nil {
+		return err
+	}
+	if err := n.ValidateNodeFormat(right); err != nil {
+		return err
+	}
+	return n.validateSiblingsNamespaceOrder(left, right)
 }
 
 // HashNode calculates a namespaced hash of a node using the supplied left and
@@ -186,7 +268,12 @@ func (n *Hasher) MustHashLeaf(ndata []byte) []byte {
 // slightly changes. Let MAXNID be the maximum possible namespace ID value i.e., 2^NamespaceIDSize-1.
 // If the namespace range of the right child is start=end=MAXNID, indicating that it represents the root of a subtree whose leaves all have the namespace ID of `MAXNID`, then exclude the right child from the namespace range calculation. Instead,
 // assign the namespace range of the left child as the parent's namespace range.
-func (n *Hasher) HashNode(left, right []byte) ([]byte, error) {
+func (n *NmtHasher) HashNode(left, right []byte) ([]byte, error) {
+	// validate the inputs
+	if err := n.ValidateNodes(left, right); err != nil {
+		return nil, err
+	}
+
 	h := n.baseHasher
 	h.Reset()
 

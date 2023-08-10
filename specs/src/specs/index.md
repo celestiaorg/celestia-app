@@ -1,8 +1,10 @@
 # Specification
 
 - [Data Structures](./data_structures.md)
+- [Namespace](./namespace.md)
 - [Shares](./shares.md)
 - [Consensus](./consensus.md)
+  - [CAT Pool](./cat_pool.md)
 - [Block Proposer](./block_proposer.md)
 - [Block Validity Rules](./block_validity_rules.md)
 - [Networking](./networking.md)

@@ -35,7 +35,7 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	}
 
 	// First share
-	b, err := NewBuilder(blobNamespace, blob.ShareVersion, true).Init()
+	b, err := NewBuilder(blobNamespace, blob.ShareVersion, true)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 		}
 		sss.shares = append(sss.shares, *share)
 
-		b, err = NewBuilder(blobNamespace, blob.ShareVersion, false).Init()
+		b, err = NewBuilder(blobNamespace, blob.ShareVersion, false)
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,11 @@ func (sss *SparseShareSplitter) WriteNamespacePaddingShares(count int) error {
 	if err != nil {
 		return err
 	}
-	nsPaddingShares, err := NamespacePaddingShares(lastBlobNs, count)
+	lastBlobInfo, err := lastBlob.InfoByte()
+	if err != nil {
+		return err
+	}
+	nsPaddingShares, err := NamespacePaddingShares(lastBlobNs, lastBlobInfo.Version(), count)
 	if err != nil {
 		return err
 	}

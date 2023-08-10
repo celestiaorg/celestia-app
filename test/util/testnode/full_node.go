@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -18,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -82,6 +82,7 @@ func InitFiles(
 	genState map[string]json.RawMessage,
 	kr keyring.Keyring,
 	chainID string,
+	genesisTime time.Time,
 ) (string, keyring.Keyring, error) {
 	baseDir, err := initFileStructure(t, tmCfg)
 	if err != nil {
@@ -100,12 +101,12 @@ func InitFiles(
 		return baseDir, kr, err
 	}
 
-	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID)
+	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID, genesisTime)
 	if err != nil {
 		return baseDir, kr, err
 	}
 
-	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir)
+	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, baseDir)
 }
 
 // DefaultGenesisState returns a default genesis state and a keyring with
@@ -168,9 +169,10 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		genState = opt(genState)
 	}
 
-	chainID := tmrand.Str(6)
+	chainID := cfg.ChainID
+	genTime := cfg.GenesisTime
 
-	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID)
+	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID, genTime)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(t, baseDir, cfg)

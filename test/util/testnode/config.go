@@ -9,7 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/tendermint/tendermint/config"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -20,6 +19,8 @@ import (
 type Config struct {
 	// ChainID is the chain ID of the network.
 	ChainID string
+	// GenesisTime is the genesis block time of the network.
+	GenesisTime time.Time
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
@@ -92,11 +93,24 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
+// WithGensisTime sets the GenesisTime and returns the Config.
+func (c *Config) WithGensisTime(t time.Time) *Config {
+	c.GenesisTime = t
+	return c
+}
+
+// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
-	tmcfg.Consensus.TargetHeightDuration = 1 * time.Millisecond
+	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
+		WithGensisTime(time.Now()).
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
@@ -136,17 +150,20 @@ func DefaultParams() *tmproto.ConsensusParams {
 	return cparams
 }
 
-func DefaultTendermintConfig() *config.Config {
-	tmCfg := config.DefaultConfig()
-	// Reduce the target height duration so that blocks are produced faster
-	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+func DefaultTendermintConfig() *tmconfig.Config {
+	tmCfg := tmconfig.DefaultConfig()
+	// TimeoutCommit is the duration the node waits after committing a block
+	// before starting the next height. This duration influences the time
+	// interval between blocks. A smaller TimeoutCommit value could lead to
+	// less time between blocks (i.e. shorter block intervals).
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	tmCfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	tmCfg.Mempool.MaxTxBytes = upperBoundBytes
 
 	// remove all barriers from the testnode being able to accept very large
 	// transactions and respond to very queries with large responses (~200MB was

@@ -28,4 +28,4 @@ sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' ${HOME_DIR}/con
 sed -i'.bak' 's#"null"#"kv"#g' ${HOME_DIR}/config/config.toml
 
 # Start the celestia-app
-celestia-appd start --home ${HOME_DIR}
+celestia-appd start --home ${HOME_DIR} --api.enable
