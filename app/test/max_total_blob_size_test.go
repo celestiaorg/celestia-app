@@ -19,6 +19,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -94,30 +95,10 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 	}
 
 	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
-	options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1e9)} // set gas limit to 1 billion to avoid gas exhaustion
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			addr, err := signer.GetSignerInfo().GetAddress()
-			require.NoError(t, err)
-
-			blobs := []*tmproto.Blob{tc.blob}
-			msg, err := types.NewMsgPayForBlobs(addr.String(), blobs...)
-			require.NoError(t, err)
-
-			err = signer.QueryAccountNumber(context.TODO(), s.cctx.GRPCClient)
-			require.NoError(t, err)
-
-			builder := signer.NewTxBuilder(options...)
-			stx, err := signer.BuildSignedTx(builder, msg)
-			require.NoError(t, err)
-
-			rawTx, err := signer.EncodeTx(stx)
-			require.NoError(t, err)
-
-			blobTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
-			require.NoError(t, err)
-
+			blobTx := newBlobTx(t, signer, s.cctx.GRPCClient, tc.blob)
 			res, err := types.BroadcastTx(context.TODO(), s.cctx.GRPCClient, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
 			require.NoError(t, err)
 			require.NotNil(t, res)
@@ -132,4 +113,28 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			}
 		})
 	}
+}
+
+func newBlobTx(t *testing.T, signer *blobtypes.KeyringSigner, conn *grpc.ClientConn, blob *tmproto.Blob) coretypes.Tx {
+	addr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	msg, err := types.NewMsgPayForBlobs(addr.String(), blob)
+	require.NoError(t, err)
+
+	err = signer.QueryAccountNumber(context.TODO(), conn)
+	require.NoError(t, err)
+
+	options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1e9)} // set gas limit to 1 billion to avoid gas exhaustion
+	builder := signer.NewTxBuilder(options...)
+	stx, err := signer.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
+
+	rawTx, err := signer.EncodeTx(stx)
+	require.NoError(t, err)
+
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+	require.NoError(t, err)
+
+	return blobTx
 }
