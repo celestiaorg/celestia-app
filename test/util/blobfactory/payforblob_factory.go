@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -349,11 +350,11 @@ func ManyMultiBlobTx(
 func MultiBlobTx(
 	t *testing.T,
 	enc sdk.TxEncoder,
-	signer *blobtypes.KeyringSigner,
+	signer *user.Signer,
 	sequence uint64,
 	accountNum uint64,
 	blobs []*tmproto.Blob,
-	opts ...blobtypes.TxBuilderOption,
+	opts ...user.TxOption,
 ) coretypes.Tx {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)

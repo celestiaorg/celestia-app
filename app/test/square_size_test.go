@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -185,12 +186,12 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	)
 	require.NoError(t, err)
 
-	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, msg)
+	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+	require.NoError(t, err)
+
+	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg})
 	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
 	require.NoError(t, err)
-	resp, err := s.cctx.WaitForTx(res.TxHash, 10)
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
@@ -202,11 +203,9 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 
 	// create and submit a new vote
 	vote := v1.NewMsgVote(getAddress(account, s.cctx.Keyring), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
-	res, err = testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, vote)
+	res, err = signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote})
 	require.NoError(t, err)
-	resp, err = s.cctx.WaitForTx(res.TxHash, 10)
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
+	require.Equal(t, abci.CodeTypeOK, res.Code)
 
 	// wait for the voting period to complete
 	time.Sleep(time.Second * 6)

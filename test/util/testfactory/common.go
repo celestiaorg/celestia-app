@@ -9,6 +9,8 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
+const TestAddress = "celestia1g39egf59z8tud3lcyjg5a83m20df4kccx32qkp"
+
 func Repeat[T any](s T, count int) []T {
 	ss := make([]T, count)
 	for i := 0; i < count; i++ {
