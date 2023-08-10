@@ -59,7 +59,7 @@ func SetFeeGranter(feeGranter sdk.AccAddress) TxOption {
 }
 
 // InheritTxConfig sets all of the accessible configurations from a given tx
-// into a a give client.TxBuilder
+// into a given client.TxBuilder
 func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.TxBuilder {
 	if gas := tx.GetGas(); gas != 0 {
 		builder.SetGasLimit(gas)

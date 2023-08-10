@@ -26,7 +26,7 @@ import (
 
 const defaultPollTime = 3 * time.Second
 
-// Signer is an abstraction for managing building, signing and broadcasting Celestia transactions
+// Signer is an abstraction for building, signing, and broadcasting Celestia transactions
 type Signer struct {
 	keys          keyring.Keyring
 	address       sdktypes.Address
@@ -77,8 +77,10 @@ func NewSigner(
 	}, nil
 }
 
-// SetupSingleSigner relies on the keyring with a single key. It extracts the address from the key and uses the
-// grpc connection to populate the chainID, account number and sequence number.
+// SetupSingleSigner sets up a signer based on the provided keyring. The keyring
+// must contain exactly one key. It extracts the address from the key and uses
+// the grpc connection to populate the chainID, account number, and sequence
+// number.
 func SetupSingleSigner(ctx context.Context, keys keyring.Keyring, conn *grpc.ClientConn, encCfg encoding.Config) (*Signer, error) {
 	records, err := keys.List()
 	if err != nil {
