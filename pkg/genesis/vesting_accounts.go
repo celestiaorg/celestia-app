@@ -29,8 +29,9 @@ func NewGenesisRegularAccount(
 	return authtypes.GenesisAccount(bAccount), balance, nil
 }
 
-// NewGenesisDelayedVestingAccount creates a new DelayedVestingAccount with the specified parameters.
-// then returns the created account converted to genesis account type and the account balance
+// NewGenesisDelayedVestingAccount creates a new DelayedVestingAccount with the
+// specified parameters. It returns the created account converted to genesis
+// account type and the account balance.
 func NewGenesisDelayedVestingAccount(
 	address string,
 	vestingBalance,
