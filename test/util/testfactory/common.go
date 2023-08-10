@@ -43,3 +43,11 @@ func RandomAccountNames(count int) []string {
 	}
 	return accounts
 }
+
+func GenerateAccounts(count int) []string {
+	accs := make([]string, count)
+	for i := 0; i < count; i++ {
+		accs[i] = tmrand.Str(20)
+	}
+	return accs
+}

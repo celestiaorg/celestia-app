@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -120,7 +120,7 @@ func TestSquareTxShareRange(t *testing.T) {
 func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blobSizes [][]int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	const acc = "signer"
-	kr := testfactory.NewKeyring(acc)
+	kr := testnode.NewKeyring(acc)
 	return blobfactory.ManyMultiBlobTx(
 		t,
 		encCfg.TxConfig.TxEncoder(),

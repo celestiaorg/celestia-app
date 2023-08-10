@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -201,7 +201,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
 	})
 
-	kr, fundedBankAccs, fundedAuthAccs := testfactory.FundKeyringAccounts(genAccounts...)
+	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
 

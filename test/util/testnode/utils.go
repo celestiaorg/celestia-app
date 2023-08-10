@@ -1,4 +1,4 @@
-package testfactory
+package testnode
 
 import (
 	"context"
@@ -116,12 +116,4 @@ func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balan
 		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
 	return kr, genBalances, genAccounts
-}
-
-func GenerateAccounts(count int) []string {
-	accs := make([]string, count)
-	for i := 0; i < count; i++ {
-		accs[i] = tmrand.Str(20)
-	}
-	return accs
 }

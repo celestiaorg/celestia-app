@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,7 +23,7 @@ func TestTxsimCommandFlags(t *testing.T) {
 	defer cancel()
 
 	cmd.SetArgs([]string{
-		"--key-mnemonic", testfactory.TestAccMnemo,
+		"--key-mnemonic", testnode.TestAccMnemo,
 		"--rpc-endpoints", rpcAddr,
 		"--grpc-endpoints", grpcAddr,
 		"--blob", "5",
@@ -41,7 +40,7 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	os.Setenv(TxsimMnemonic, testfactory.TestAccMnemo)
+	os.Setenv(TxsimMnemonic, testnode.TestAccMnemo)
 	os.Setenv(TxsimRPC, rpcAddr)
 	os.Setenv(TxsimGRPC, grpcAddr)
 	os.Setenv(TxsimSeed, "1234")
@@ -67,8 +66,8 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 
 	cfg := testnode.DefaultConfig().
 		WithConsensusParams(cparams).
-		WithAccounts([]string{testfactory.TestAccName}).
-		WithGenesisOptions(testnode.FundAccounts(cdc, []sdk.AccAddress{testfactory.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))))
+		WithAccounts([]string{testnode.TestAccName}).
+		WithGenesisOptions(testnode.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))))
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var defaultSigner = testfactory.RandomAddress().String()
+var defaultSigner = testnode.TestAccAddr
 
 var (
 	// TestMaxBlobSize is the maximum size of each blob in a blob transaction, for testing purposes
@@ -91,7 +91,7 @@ func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs,
 
 func RandBlobTxsRandomlySized(enc sdk.TxEncoder, rand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
 	const acc = "signer"
-	kr := testfactory.NewKeyring(acc)
+	kr := testnode.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
@@ -221,7 +221,7 @@ func RandBlobTxsWithAccounts(
 
 func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size int) coretypes.Txs {
 	const acc = "signer"
-	kr := testfactory.NewKeyring(acc)
+	kr := testnode.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
@@ -262,7 +262,7 @@ func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size i
 
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
 	const acc = "signer"
-	kr := testfactory.NewKeyring(acc)
+	kr := testnode.NewKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	return RandBlobTxsWithNamespacesAndSigner(enc, signer, namespaces, sizes)
 }
