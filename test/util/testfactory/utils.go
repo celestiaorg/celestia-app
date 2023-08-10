@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -18,9 +19,18 @@ import (
 const (
 	// nolint:lll
 	TestAccName  = "test-account"
+	TestAccAddr  = "celestia1g39egf59z8tud3lcyjg5a83m20df4kccx32qkp"
 	TestAccMnemo = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
 	bondDenom    = "utia"
 )
+
+func TestAddress() sdk.AccAddress {
+	bz, err := sdk.GetFromBech32(TestAccAddr, "celestia")
+	if err != nil {
+		panic(err)
+	}
+	return sdk.AccAddress(bz)
+}
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
 	hash, err := hex.DecodeString(hashHexStr)
@@ -37,7 +47,7 @@ func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 }
 
 func TestKeyring(accounts ...string) keyring.Keyring {
-	cdc := simapp.MakeTestEncodingConfig().Codec
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kb := keyring.NewInMemory(cdc)
 
 	for _, acc := range accounts {
@@ -56,7 +66,7 @@ func TestKeyring(accounts ...string) keyring.Keyring {
 }
 
 func NewKeyring(accounts ...string) keyring.Keyring {
-	cdc := simapp.MakeTestEncodingConfig().Codec
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kb := keyring.NewInMemory(cdc)
 
 	for _, acc := range accounts {
