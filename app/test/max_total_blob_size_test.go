@@ -6,13 +6,14 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -38,8 +39,18 @@ type MaxTotalBlobSizeSuite struct {
 func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 	t := s.T()
 
-	s.accounts = randAccounts(1)
-	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
+	s.accounts = testfactory.GenerateAccounts(1)
+
+	tmConfig := testnode.DefaultTendermintConfig()
+	tmConfig.Mempool.MaxTxBytes = 10 * mebibyte
+
+	cParams := testnode.DefaultParams()
+	cParams.Block.MaxBytes = 10 * mebibyte
+
+	cfg := testnode.DefaultConfig().
+		WithAccounts(s.accounts).
+		WithTendermintConfig(tmConfig).
+		WithConsensusParams(cParams)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -70,11 +81,11 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			blob: mustNewBlob(t, mebibyte),
 			want: abci.CodeTypeOK,
 		},
-		// {
-		// 	name:           "2 mebibyte blob",
-		// 	blob:           mustNewBlob(t, 2*mebibyte),
-		// 	txResponseCode: types.ErrTotalBlobSizeTooLarge.ABCICode(),
-		// },
+		{
+			name: "2 mebibyte blob",
+			blob: mustNewBlob(t, 2*mebibyte),
+			want: types.ErrTotalBlobSizeTooLarge.ABCICode(),
+		},
 	}
 
 	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
@@ -89,12 +100,4 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			require.Equal(t, tc.want, txResp.Code, txResp.Logs)
 		})
 	}
-}
-
-func randAccounts(count int) []string {
-	accounts := make([]string, count)
-	for i := 0; i < count; i++ {
-		accounts[i] = tmrand.Str(20)
-	}
-	return accounts
 }
