@@ -106,9 +106,11 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 
 			sq, err := square.Construct([][]byte{blobTx}, appconsts.LatestVersion, squareSize)
 			if tc.want == abci.CodeTypeOK {
+				// verify that if the tx was accepted, the blob can fit in a square
 				assert.NoError(t, err)
 				assert.False(t, sq.IsEmpty())
 			} else {
+				// verify that if the tx was rejected, the blob can not fit in a square
 				assert.Error(t, err)
 			}
 		})
