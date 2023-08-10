@@ -3,6 +3,7 @@ package txsim
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -183,9 +184,9 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	} else {
 		builder.SetGasLimit(op.GasLimit)
 		if op.GasPrice > 0 {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*op.GasPrice))))
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(math.Ceil(float64(op.GasLimit)*op.GasPrice)))))
 		} else {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*appconsts.DefaultMinGasPrice))))
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice)))))
 		}
 	}
 
