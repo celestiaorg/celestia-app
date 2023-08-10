@@ -6,11 +6,14 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -19,7 +22,8 @@ import (
 )
 
 const (
-	mebibyte = 1_048_576 // one mebibyte in bytes
+	mebibyte   = 1_048_576 // one mebibyte in bytes
+	squareSize = 64
 )
 
 func TestMaxTotalBlobSizeSuite(t *testing.T) {
@@ -118,6 +122,14 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.want, res.TxResponse.Code, res.TxResponse.Logs)
+
+			sq, err := square.Construct([][]byte{blobTx}, appconsts.LatestVersion, squareSize)
+			if tc.want == abci.CodeTypeOK {
+				assert.NoError(t, err)
+				assert.False(t, sq.IsEmpty())
+			} else {
+				assert.Error(t, err)
+			}
 		})
 	}
 }
