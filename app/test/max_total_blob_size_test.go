@@ -8,13 +8,14 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -93,11 +94,30 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			txResp, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
-
+			addr, err := signer.GetSignerInfo().GetAddress()
 			require.NoError(t, err)
-			require.NotNil(t, txResp)
-			require.Equal(t, tc.want, txResp.Code, txResp.Logs)
+
+			blobs := []*tmproto.Blob{tc.blob}
+			msg, err := types.NewMsgPayForBlobs(addr.String(), blobs...)
+			require.NoError(t, err)
+
+			err = signer.QueryAccountNumber(context.TODO(), s.cctx.GRPCClient)
+			require.NoError(t, err)
+
+			builder := signer.NewTxBuilder(options...)
+			stx, err := signer.BuildSignedTx(builder, msg)
+			require.NoError(t, err)
+
+			rawTx, err := signer.EncodeTx(stx)
+			require.NoError(t, err)
+
+			blobTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
+			require.NoError(t, err)
+
+			res, err := types.BroadcastTx(context.TODO(), s.cctx.GRPCClient, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.Equal(t, tc.want, res.TxResponse.Code, res.TxResponse.Logs)
 		})
 	}
 }
