@@ -99,6 +99,12 @@ func (c *Config) WithGensisTime(t time.Time) *Config {
 	return c
 }
 
+// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
@@ -156,7 +162,8 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	tmCfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	tmCfg.Mempool.MaxTxBytes = upperBoundBytes
 
 	// remove all barriers from the testnode being able to accept very large
 	// transactions and respond to very queries with large responses (~200MB was
