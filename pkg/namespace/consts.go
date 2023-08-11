@@ -51,10 +51,17 @@ var (
 	// (ordinary and PFBs) but before blobs.
 	ReservedPaddingNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
 
-	// MaxPrimaryReservedNamespace represents the largest primary reserved
-	// namespace reserved for protocol use. Note that there may be other
-	// non-primary reserved namespaces beyond this upper limit.
+	// MaxPrimaryReservedNamespace is the highest primary reserved namespace.
+	// Namespaces lower than this are reserved for protocol use.
 	MaxPrimaryReservedNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
+
+	// MinSecondaryReservedNamespace is the lowest secondary reserved namespace
+	// reserved for protocol use. Namespaces higher than this are reserved for
+	// protocol use.
+	MinSecondaryReservedNamespace = Namespace{
+		Version: math.MaxUint8,
+		ID:      append(bytes.Repeat([]byte{0xFF}, NamespaceIDSize-1), 0),
+	}
 
 	// TailPaddingNamespace is the namespace reserved for tail padding. All data
 	// with this namespace will be ignored.
