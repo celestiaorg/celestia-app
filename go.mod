@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/celestiaorg/nmt v0.18.1
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
-	github.com/ethereum/go-ethereum v1.12.0
+	github.com/ethereum/go-ethereum v1.12.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0 // indirect
@@ -16,10 +16,10 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tm-db v0.6.7
-	golang.org/x/crypto v0.7.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/term v0.8.0 // indirect
 	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect
 	google.golang.org/grpc v1.57.0
 )
@@ -34,7 +34,7 @@ require (
 	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/rs/zerolog v1.30.0
 	github.com/tendermint/tendermint v0.34.28
-	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0
+	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
 	google.golang.org/genproto/googleapis/api v0.0.0-20230525234035-dd9d682886f9
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -70,9 +70,9 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.15.1 // indirect
 	go.opentelemetry.io/otel/sdk v1.15.1 // indirect
 	go.opentelemetry.io/otel/trace v1.15.1 // indirect
-	golang.org/x/mod v0.9.0 // indirect
-	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
-	golang.org/x/tools v0.7.0 // indirect
+	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/tools v0.9.1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.27.3 // indirect
@@ -163,7 +163,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
-	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c // indirect
+	github.com/holiman/uint256 v1.2.3 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.12.2 // indirect
@@ -219,7 +219,7 @@ require (
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.114.0 // indirect
