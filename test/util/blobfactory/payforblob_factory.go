@@ -99,7 +99,7 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, rand *tmrand.Rand, count, maxSi
 	}
 
 	coin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -155,7 +155,7 @@ func RandBlobTxsWithAccounts(
 	accounts []string,
 ) []coretypes.Tx {
 	coin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -229,7 +229,7 @@ func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size i
 	}
 
 	coin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -359,7 +359,7 @@ func MultiBlobTx(
 	require.NoError(t, err)
 
 	coin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blobs...)
@@ -401,7 +401,7 @@ func IndexWrappedTxWithInvalidNamespace(
 	require.NoError(t, err)
 
 	coin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 	opts := []blobtypes.TxBuilderOption{
@@ -443,7 +443,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 	}
 
 	coin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -482,7 +482,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, kr keyring.Keyr
 	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signerAddr.String(), 100, 1)
 
 	opts := []blobtypes.TxBuilderOption{
-		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
+		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(10)))),
 		blobtypes.SetGasLimit(100000000000000),
 	}
 
