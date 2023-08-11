@@ -264,7 +264,7 @@ func TestIsReserved(t *testing.T) {
 			want: true,
 		},
 		{
-			ns:   ReservedPaddingNamespace,
+			ns:   PrimaryReservedPaddingNamespace,
 			want: true,
 		},
 		{

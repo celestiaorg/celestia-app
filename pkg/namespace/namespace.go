@@ -128,7 +128,7 @@ func (n Namespace) IsTailPadding() bool {
 }
 
 func (n Namespace) IsReservedPadding() bool {
-	return bytes.Equal(n.Bytes(), ReservedPaddingNamespace.Bytes())
+	return bytes.Equal(n.Bytes(), PrimaryReservedPaddingNamespace.Bytes())
 }
 
 func (n Namespace) IsTx() bool {
