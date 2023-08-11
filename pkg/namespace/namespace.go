@@ -106,9 +106,7 @@ func validateID(version uint8, id []byte) error {
 
 // IsReserved returns true if the namespace is reserved for protocol-use.
 func (n Namespace) IsReserved() bool {
-	isPrimary := n.IsPrimaryReserved()
-	isSecondary := n.IsSecondaryReserved()
-	return isPrimary || isSecondary
+	return n.IsPrimaryReserved() || n.IsSecondaryReserved()
 }
 
 func (n Namespace) IsPrimaryReserved() bool {
