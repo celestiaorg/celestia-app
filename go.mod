@@ -238,3 +238,7 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.26.1-tm-v0.34.28
 )
+
+// temporary fix for godeltaprof. please remove when there is a new release.
+// more on this in here https://github.com/grafana/pyroscope-golang/issues/38
+replace github.com/pyroscope-io/godeltaprof => github.com/pyroscope-io/godeltaprof v0.1.2
