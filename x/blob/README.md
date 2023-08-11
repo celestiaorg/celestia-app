@@ -64,8 +64,7 @@ value is set below that of normal transaction gas consumption, which is 10.
 #### `GovMaxSquareSize`
 
 `GovMaxSquareSize` is the maximum size of a data square that is considered valid
-by the validator set. This value is superseded by the `MaxSquareSize`, which is
-hardcoded and cannot change without hardforking the chain. See
+by the validator set. See
 [ADR021](../../docs/architecture/adr-021-restricted-block-size.md) for more
 details.
 
