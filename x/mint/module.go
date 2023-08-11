@@ -111,7 +111,7 @@ func (AppModule) QuerierRoute() string {
 
 // LegacyQuerierHandler returns nil because this module doesn't support the
 // legacy querier or Amino codec.
-func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
+func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 	return nil
 }
 
