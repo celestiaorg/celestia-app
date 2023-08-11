@@ -118,6 +118,12 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransferUnLock
 	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(0)
 	require.NoError(s.T(), err)
 
+	// Since we want a partially unlocked balance we need to wait until
+	// the endTime is passed if not already
+	for vAcc.GetVestedCoins(tmtime.Now()).IsZero() {
+		time.Sleep(time.Second)
+	}
+
 	minExpectedSpendableBal := vAcc.GetVestedCoins(tmtime.Now()).AmountOf(app.BondDenom).Int64()
 	require.NotZero(s.T(), minExpectedSpendableBal)
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
