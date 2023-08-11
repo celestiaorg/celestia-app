@@ -238,10 +238,3 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.26.1-tm-v0.34.28
 )
-
-replace (
-	go.opentelemetry.io/otel => go.opentelemetry.io/otel v1.14.0
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace => go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.14.0
-	go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.14.0
-	go.opentelemetry.io/otel/trace => go.opentelemetry.io/otel/trace v1.14.0
-)
