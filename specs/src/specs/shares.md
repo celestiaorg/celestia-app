@@ -18,7 +18,7 @@ User submitted transactions are split into shares (see [share splitting](#share-
 
 [Padding](#padding) shares are added to the `k * k` matrix to ensure:
 
-1. Blob sequences start on an index that conforms to [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#reserved-padding-share))
+1. Blob sequences start on an index that conforms to [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#primary-reserved-padding-share))
 1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))
 
 ## Share Format
@@ -85,17 +85,17 @@ Padding shares vary based on namespace but they conform to the [share format](#s
 A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
 A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules). Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
-### Reserved Padding Share
+### Primary Reserved Padding Share
 
-Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.
+Primary reserved padding shares use the [`PRIMARY_RESERVED_PADDING_NAMESPACE`](./namespace.md#reserved-namespaces). Primary reserved padding shares are placed after shares in the primary reserved namespace range so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ### Tail Padding Share
 
-Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants). Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.
+Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./namespace.md#reserved-namespaces). Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ## Parity Share
 
-Parity shares use the [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
+Parity shares use the [`PARITY_SHARE_NAMESPACE`](./namespace.md#reserved-namespaces). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
 
 ## Share Splitting
 
