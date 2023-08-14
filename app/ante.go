@@ -36,11 +36,6 @@ func NewAnteHandler(
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
 		blobante.NewMinGasPFBDecorator(blobKeeper),
-<<<<<<< HEAD:app/ante.go
-=======
-		blobante.NewMaxBlobSizeDecorator(blobKeeper),
-		NewGovProposalDecorator(),
->>>>>>> b6f3968 (feat: reject tx if total blob size too large (#2202)):app/ante/ante.go
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
 	)

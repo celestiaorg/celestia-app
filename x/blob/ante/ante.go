@@ -48,5 +48,4 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 type BlobKeeper interface {
 	GasPerBlobByte(ctx sdk.Context) uint32
-	GovMaxSquareSize(ctx sdk.Context) uint64
 }

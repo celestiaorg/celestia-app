@@ -13,10 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testGasPerBlobByte   = 10
-	testGovMaxSquareSize = 64
-)
+const testGasPerBlobByte = 10
 
 func TestPFBAnteHandler(t *testing.T) {
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
@@ -108,8 +105,4 @@ type mockBlobKeeper struct{}
 
 func (mockBlobKeeper) GasPerBlobByte(_ sdk.Context) uint32 {
 	return testGasPerBlobByte
-}
-
-func (mockBlobKeeper) GovMaxSquareSize(_ sdk.Context) uint64 {
-	return testGovMaxSquareSize
 }
