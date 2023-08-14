@@ -162,11 +162,11 @@ func TestParseShares(t *testing.T) {
 			ignorePadding: false,
 			want: []ShareSequence{
 				{
-					Namespace: appns.PrimaryReservedPaddingNamespace,
+					Namespace: appns.ReservedPaddingNamespace,
 					Shares:    []Share{ReservedPaddingShare()},
 				},
 				{
-					Namespace: appns.PrimaryReservedPaddingNamespace,
+					Namespace: appns.ReservedPaddingNamespace,
 					Shares:    []Share{ReservedPaddingShare()},
 				},
 			},

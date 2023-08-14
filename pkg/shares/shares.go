@@ -121,11 +121,11 @@ func (s *Share) IsPadding() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	isPrimaryReservedPadding, err := s.isPrimaryReservedPadding()
+	isReservedPadding, err := s.isReservedPadding()
 	if err != nil {
 		return false, err
 	}
-	return isNamespacePadding || isTailPadding || isPrimaryReservedPadding, nil
+	return isNamespacePadding || isTailPadding || isReservedPadding, nil
 }
 
 func (s *Share) isNamespacePadding() (bool, error) {
@@ -149,12 +149,12 @@ func (s *Share) isTailPadding() (bool, error) {
 	return ns.IsTailPadding(), nil
 }
 
-func (s *Share) isPrimaryReservedPadding() (bool, error) {
+func (s *Share) isReservedPadding() (bool, error) {
 	ns, err := s.Namespace()
 	if err != nil {
 		return false, err
 	}
-	return ns.IsPrimaryReservedPadding(), nil
+	return ns.IsReservedPadding(), nil
 }
 
 func (s *Share) ToBytes() []byte {

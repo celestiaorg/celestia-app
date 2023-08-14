@@ -159,7 +159,7 @@ func Test_validSequenceLen(t *testing.T) {
 	}
 
 	reservedPadding := ShareSequence{
-		Namespace: appns.PrimaryReservedPaddingNamespace,
+		Namespace: appns.ReservedPaddingNamespace,
 		Shares:    []Share{ReservedPaddingShare()},
 	}
 

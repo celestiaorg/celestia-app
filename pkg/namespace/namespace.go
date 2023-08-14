@@ -122,19 +122,7 @@ func validateID(version uint8, id []byte) error {
 }
 
 func (n Namespace) IsReserved() bool {
-<<<<<<< HEAD
 	return bytes.Compare(n.Bytes(), MaxReservedNamespace.Bytes()) < 1
-=======
-	return n.IsPrimaryReserved() || n.IsSecondaryReserved()
-}
-
-func (n Namespace) IsPrimaryReserved() bool {
-	return n.IsLessOrEqualThan(MaxPrimaryReservedNamespace)
-}
-
-func (n Namespace) IsSecondaryReserved() bool {
-	return n.IsGreaterOrEqualThan(MinSecondaryReservedNamespace)
->>>>>>> cb8247e (feat!: reserve the last 256 namespaces for protocol use (#2257))
 }
 
 func (n Namespace) IsParityShares() bool {
@@ -145,8 +133,8 @@ func (n Namespace) IsTailPadding() bool {
 	return bytes.Equal(n.Bytes(), TailPaddingNamespace.Bytes())
 }
 
-func (n Namespace) IsPrimaryReservedPadding() bool {
-	return bytes.Equal(n.Bytes(), PrimaryReservedPaddingNamespace.Bytes())
+func (n Namespace) IsReservedPadding() bool {
+	return bytes.Equal(n.Bytes(), ReservedPaddingNamespace.Bytes())
 }
 
 func (n Namespace) IsTx() bool {
