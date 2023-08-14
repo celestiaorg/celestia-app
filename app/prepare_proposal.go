@@ -34,15 +34,26 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	)
 
 	var txs [][]byte
+	// This if statement verifies whether the preparation of the proposal
+	// pertains to the first block. If it does, the block is constructed using
+	// an empty set of transactions. However, even without this validation,
+	// the initial block is anticipated to be devoid of transactions, as
+	// established by the findings presented in
+	// https://github.com/celestiaorg/celestia-app/issues/1899;
+	// The inclusion of this check is out of an abundance of caution.
+	// The rationale behind having an empty first block revolves around the fact
+	// that no transactions can enter the mempool since no committed state exists
+	// until after the first block is committed (at which point the Genesis state
+	// gets committed too). Consequently, the prepare proposal request for the
+	// first block is expected to contain no transaction, so is the first block.
 	if app.LastBlockHeight() == 0 {
-		// the first block is expected to be empty; hence return an empty set of txs
 		txs = make([][]byte, 0)
 		if len(req.BlockData.Txs) != 0 {
 			// if the consensus layer sends non-empty set of transactions for
 			// block height 1, log it
 			app.Logger().Info(
 				"non-empty txs received from the consensus layer for block height 1",
-				"invalid",
+				"numberOfTransactions",
 				len(req.BlockData.Txs),
 			)
 		}
