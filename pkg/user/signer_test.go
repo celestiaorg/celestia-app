@@ -55,7 +55,7 @@ func (s *SignerTestSuite) TestSubmitTx() {
 	t := s.T()
 	fee := user.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1e6)))
 	gas := user.SetGasLimit(1e6)
-	msg := bank.NewMsgSend(s.signer.Address().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, resp.Code)

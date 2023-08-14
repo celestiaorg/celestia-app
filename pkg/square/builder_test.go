@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
-
 	"github.com/cosmos/cosmos-sdk/client"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -17,8 +15,10 @@ import (
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -75,7 +75,9 @@ func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb,
 
 // GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
 func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	signer := apptypes.GenerateKeyringSigner(t)
+	kr, addr := testnode.NewKeyring()
+	signer, err := user.NewSigner(kr, nil, addr[0], txConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
 	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(txConfig, rand, signer, normalTxCount)
 	pfbTxs := blobfactory.RandMultiBlobTxsSameSigner(t, txConfig.TxEncoder(), rand, signer, pfbCount)
 	txs := append(append(

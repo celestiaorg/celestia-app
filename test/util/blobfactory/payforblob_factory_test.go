@@ -5,8 +5,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
@@ -14,7 +15,8 @@ import (
 // TestRandMultiBlobTxsSameSigner_Deterministic tests whether with the same random seed the RandMultiBlobTxsSameSigner function produces the same blob txs.
 func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	pfbCount := 10
-	signer := apptypes.GenerateKeyringSigner(t)
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.TxConfig.TxDecoder()
 

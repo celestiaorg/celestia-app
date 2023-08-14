@@ -120,10 +120,10 @@ func TestSquareTxShareRange(t *testing.T) {
 func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blobSizes [][]int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	const acc = "signer"
-	kr := testnode.NewKeyring(acc)
+	kr, _ := testnode.NewKeyring(acc)
 	return blobfactory.ManyMultiBlobTx(
 		t,
-		encCfg.TxConfig.TxEncoder(),
+		encCfg.TxConfig,
 		kr,
 		"chainid",
 		blobfactory.Repeat(acc, len(blobSizes)),
@@ -197,7 +197,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
-		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, 100, 1, 1024).ToSliceOfBytes()
+		txs := blobfactory.RandBlobTxs(encCfg.TxConfig, rand, 100, 1, 1024).ToSliceOfBytes()
 		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())

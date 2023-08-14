@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,10 +18,6 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
-)
-
-const (
-	denom = "utia"
 )
 
 func TestNewBlob(t *testing.T) {
@@ -39,7 +36,8 @@ func TestNewBlob(t *testing.T) {
 func TestValidateBlobTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := "test"
-	signer := types.GenerateKeyringSigner(t, acc)
+	signer, err := user.NewSigner(t, acc)
+	require.NoError(t, err)
 	ns1 := namespace.MustNewV0(bytes.Repeat([]byte{0x01}, namespace.NamespaceVersionZeroIDSize))
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
@@ -127,10 +125,7 @@ func TestValidateBlobTx(t *testing.T) {
 
 				msg.ShareCommitments[0] = badCommit
 
-				builder := signer.NewTxBuilder()
-				stx, err := signer.BuildSignedTx(builder, msg)
-				require.NoError(t, err)
-				rawTx, err := encCfg.TxConfig.TxEncoder()(stx)
+				rawTx, err := signer.CreateTx([]sdk.Msg{msg})
 				require.NoError(t, err)
 
 				btx := tmproto.BlobTx{
@@ -144,8 +139,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "complex transaction with one send and one pfb",
 			getTx: func() tmproto.BlobTx {
-				signerAddr, err := signer.GetSignerInfo().GetAddress()
-				require.NoError(t, err)
+				signerAddr := signer.Address()
 
 				sendMsg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
 				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
@@ -180,7 +174,6 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
-					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100, 100}),
@@ -198,7 +191,6 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
-					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100000, 1000000}),
@@ -217,7 +209,6 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
-					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{ns, ns},
 						[]int{100, 100}),
@@ -243,7 +234,6 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
-					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						namespaces,
 						sizes,

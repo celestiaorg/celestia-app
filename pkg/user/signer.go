@@ -29,8 +29,8 @@ const defaultPollTime = 3 * time.Second
 // Signer is an abstraction for building, signing, and broadcasting Celestia transactions
 type Signer struct {
 	keys          keyring.Keyring
-	address       sdktypes.Address
-	encCfg        encoding.Config
+	address       sdktypes.AccAddress
+	enc           client.TxConfig
 	grpc          *grpc.ClientConn
 	pk            cryptotypes.PubKey
 	chainID       string
@@ -46,8 +46,8 @@ type Signer struct {
 func NewSigner(
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
-	address sdktypes.Address,
-	encCfg encoding.Config,
+	address sdktypes.AccAddress,
+	enc client.TxConfig,
 	chainID string,
 	accountNumber uint64,
 	sequence uint64,
@@ -67,7 +67,7 @@ func NewSigner(
 		keys:                  keys,
 		address:               address,
 		grpc:                  conn,
-		encCfg:                encCfg,
+		enc:                   enc,
 		pk:                    pk,
 		chainID:               chainID,
 		accountNumber:         accountNumber,
@@ -105,7 +105,7 @@ func SetupSigner(
 	ctx context.Context,
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
-	address sdktypes.Address,
+	address sdktypes.AccAddress,
 	encCfg encoding.Config,
 ) (*Signer, error) {
 	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
@@ -119,7 +119,7 @@ func SetupSigner(
 		return nil, err
 	}
 
-	return NewSigner(keys, conn, address, encCfg, chainID, accNum, seqNum)
+	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum)
 }
 
 func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
@@ -160,7 +160,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 		return nil, err
 	}
 
-	return s.encCfg.TxConfig.TxEncoder()(txBuilder.GetTx())
+	return s.enc.TxEncoder()(txBuilder.GetTx())
 }
 
 func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]byte, error) {
@@ -178,6 +178,10 @@ func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]by
 }
 
 func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
+	if s.grpc == nil {
+		return nil, errors.New("grpc connection is nil")
+	}
+
 	txClient := tx.NewServiceClient(s.grpc)
 
 	// TODO (@cmwaters): handle nonce mismatch errors
@@ -244,7 +248,7 @@ func (s *Signer) AccountNumber() uint64 {
 	return s.accountNumber
 }
 
-func (s *Signer) Address() sdktypes.Address {
+func (s *Signer) Address() sdktypes.AccAddress {
 	return s.address
 }
 
@@ -307,7 +311,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 		PubKey:        s.pk,
 	}
 
-	bytesToSign, err := s.encCfg.TxConfig.SignModeHandler().GetSignBytes(
+	bytesToSign, err := s.enc.SignModeHandler().GetSignBytes(
 		signing.SignMode_SIGN_MODE_DIRECT,
 		signerData,
 		builder.GetTx(),
@@ -326,7 +330,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 
 // NewTxBuilder returns the default sdk Tx builder using the celestia-app encoding config
 func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
-	builder := s.encCfg.TxConfig.NewTxBuilder()
+	builder := s.enc.NewTxBuilder()
 	for _, opt := range opts {
 		builder = opt(builder)
 	}

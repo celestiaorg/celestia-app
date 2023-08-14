@@ -65,23 +65,45 @@ func TestKeyring(accounts ...string) keyring.Keyring {
 	return kb
 }
 
-func NewKeyring(accounts ...string) keyring.Keyring {
+func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kb := keyring.NewInMemory(cdc)
 
-	for _, acc := range accounts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
+	addresses := make([]sdk.AccAddress, len(accounts))
+	for idx, acc := range accounts {
+		rec, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
 		if err != nil {
 			panic(err)
 		}
+		addr, err := rec.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+		addresses[idx] = addr
 	}
-	return kb
+	return kb, addresses
 }
 
 func RandomAddress() sdk.Address {
 	name := tmrand.Str(6)
-	kr := NewKeyring(name)
-	rec, err := kr.Key(name)
+	_, addresses := NewKeyring(name)
+	return addresses[0]
+}
+
+func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {
+	recs, err := keys.List()
+	if err != nil {
+		panic(err)
+	}
+	addresses := make([]sdk.AccAddress, 0, len(recs))
+	for idx, rec := range recs {
+		addresses[idx], err = rec.GetAddress()
+	}
+	return addresses
+}
+
+func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
+	rec, err := keys.Key(account)
 	if err != nil {
 		panic(err)
 	}
@@ -90,24 +112,14 @@ func RandomAddress() sdk.Address {
 		panic(err)
 	}
 	return addr
-}
+} 
 
 func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
-	kr := NewKeyring(accounts...)
+	kr, addresses := NewKeyring(accounts...)
 	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
 	genBalances := make([]banktypes.Balance, len(accounts))
 
-	for i, acc := range accounts {
-		rec, err := kr.Key(acc)
-		if err != nil {
-			panic(err)
-		}
-
-		addr, err := rec.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-
+	for i, addr := range addresses {
 		balances := sdk.NewCoins(
 			sdk.NewCoin(bondDenom, sdk.NewInt(99999999999999999)),
 		)

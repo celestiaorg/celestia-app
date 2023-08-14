@@ -5,8 +5,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -16,7 +19,9 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	TxDecoder := encCfg.TxConfig.TxDecoder()
 
-	signer := apptypes.GenerateKeyringSigner(t)
+	kr, addr := testnode.NewKeyring(testnode.TestAccName)
+	signer, err := user.NewSigner(kr, nil, addr[0], encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
 
 	rand := tmrand.NewRand()
 	rand.Seed(1)
