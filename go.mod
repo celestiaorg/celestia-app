@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/celestiaorg/nmt v0.18.1
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
-	github.com/ethereum/go-ethereum v1.12.1
+	github.com/ethereum/go-ethereum v1.12.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0 // indirect
@@ -34,7 +34,7 @@ require (
 	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/rs/zerolog v1.30.0
 	github.com/tendermint/tendermint v0.34.28
-	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
+	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 	google.golang.org/genproto/googleapis/api v0.0.0-20230525234035-dd9d682886f9
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -62,15 +62,15 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
-	github.com/pyroscope-io/client v0.7.0 // indirect
-	github.com/pyroscope-io/godeltaprof v0.1.0 // indirect
+	github.com/pyroscope-io/client v0.7.2 // indirect
+	github.com/pyroscope-io/godeltaprof v0.1.2 // indirect
 	github.com/pyroscope-io/otel-profiling-go v0.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	go.opentelemetry.io/otel v1.15.1 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.15.1 // indirect
 	go.opentelemetry.io/otel/sdk v1.15.1 // indirect
 	go.opentelemetry.io/otel/trace v1.15.1 // indirect
-	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
@@ -236,5 +236,5 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.16.1-sdk-v0.46.13
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.26.1-tm-v0.34.28
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.26.2-tm-v0.34.28
 )
