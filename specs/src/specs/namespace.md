@@ -63,12 +63,11 @@ Reserved namespaces are used to arrange the contents of the [data square](./data
 Applications MUST NOT use reserved namespaces for their blob data.
 Reserved namespaces fall into two categories: _Primary_ and _Secondary_.
 
-- Primary: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF`.
+- Primary: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF`. Primary namespaces always have a version of `0`.
 - Secondary: Namespaces with values greater than or equal to `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00`.
-
-In the table, you will notice that the secondary namespaces utilize the namespace version `255` (`0xFF`), which differs from the supported user-specified versions.
-The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
-Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
+Secondary namespaces always have a version of `255` (`0xFF`) so that they are placed after all user specifiable namespaces in a sorted data square.
+The `PARITY_SHARE_NAMESPACE` uses version `255` (`0xFF`) to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
+The `TAIL_PADDING_NAMESPACE` uses the version `255` to ensure that padding shares are always placed at the end of the Celestia data square even if a new user-specifiable version is introduced.
 
 Below is a list of the current reserved namespaces.
 For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data_square_layout.md) specifications.
