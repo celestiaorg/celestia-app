@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -21,7 +22,6 @@ const (
 	TestAccName  = "test-account"
 	TestAccAddr  = "celestia1g39egf59z8tud3lcyjg5a83m20df4kccx32qkp"
 	TestAccMnemo = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	bondDenom    = "utia"
 )
 
 func TestAddress() sdk.AccAddress {
@@ -109,7 +109,7 @@ func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balan
 		}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(bondDenom, sdk.NewInt(99999999999999999)),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(99999999999999999)),
 		)
 
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
