@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -180,13 +179,13 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 	if op.GasLimit == 0 {
 		builder.SetGasLimit(DefaultGasLimit)
-		builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(defaultFee))))
+		builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(defaultFee))))
 	} else {
 		builder.SetGasLimit(op.GasLimit)
 		if op.GasPrice > 0 {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(math.Ceil(float64(op.GasLimit)*op.GasPrice)))))
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(math.Ceil(float64(op.GasLimit)*op.GasPrice)))))
 		} else {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice)))))
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice)))))
 		}
 	}
 
@@ -235,7 +234,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 			return fmt.Errorf("master account has insufficient funds")
 		}
 
-		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(app.BondDenom, acc.Balance)))
+		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, acc.Balance)))
 		msgs = append(msgs, bankMsg)
 	}
 
@@ -388,7 +387,7 @@ func (am *AccountManager) updateAccount(ctx context.Context, account *Account) e
 func (am *AccountManager) getBalance(ctx context.Context, address types.AccAddress) (int64, error) {
 	balanceResp, err := am.query.Bank().Balance(ctx, &bank.QueryBalanceRequest{
 		Address: address.String(),
-		Denom:   app.BondDenom,
+		Denom:   appconsts.BondDenom,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("error getting balance for %s: %w", address.String(), err)

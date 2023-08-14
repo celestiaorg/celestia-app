@@ -79,14 +79,14 @@ func TestCreateCommitment(t *testing.T) {
 		{
 			name:         "blob of 3 shares succeeds",
 			namespace:    ns1,
-			blob:         bytes.Repeat([]byte{0xFF}, 3*ShareSize),
+			blob:         bytes.Repeat([]byte{0xFF}, 3*appconsts.ShareSize),
 			expected:     []byte{0x3b, 0x9e, 0x78, 0xb6, 0x64, 0x8e, 0xc1, 0xa2, 0x41, 0x92, 0x5b, 0x31, 0xda, 0x2e, 0xcb, 0x50, 0xbf, 0xc6, 0xf4, 0xad, 0x55, 0x2d, 0x32, 0x79, 0x92, 0x8c, 0xa1, 0x3e, 0xbe, 0xba, 0x8c, 0x2b},
 			shareVersion: appconsts.ShareVersionZero,
 		},
 		{
 			name:         "blob with unsupported share version should return error",
 			namespace:    ns1,
-			blob:         bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			blob:         bytes.Repeat([]byte{0xFF}, 12*appconsts.ShareSize),
 			expectErr:    true,
 			shareVersion: uint8(1), // unsupported share version
 		},

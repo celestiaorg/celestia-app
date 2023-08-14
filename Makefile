@@ -105,7 +105,7 @@ proto-format:
 ## build-docker: Build the celestia-appd docker image. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
 
 ## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
