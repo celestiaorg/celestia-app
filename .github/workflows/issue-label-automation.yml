@@ -12,7 +12,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Check if issue or PR was created by external contributor
-        if: ${{ github.actor != 'dependabot[bot]' }}
+        if: ${{ github.actor != 'dependabot[bot]' }} && ${{ github.actor == 'mergify[bot]' }}
         uses: tspascoal/get-user-teams-membership@v2
         id: teamCheck
         with:
@@ -40,7 +40,7 @@ jobs:
 
       # If a PR was created by dependabot add the `bot` label.
       - name: Maybe label PR with `bot`
-        if: ${{ github.actor == 'dependabot[bot]' }}
+        if: ${{ github.actor == 'dependabot[bot]' }} || ${{ github.actor == 'mergify[bot]' }}
         uses: andymckay/labeler@master
         with:
           add-labels: "bot"
