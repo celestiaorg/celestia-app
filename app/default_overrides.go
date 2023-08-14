@@ -19,7 +19,6 @@ import (
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -123,8 +122,6 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 	result = append(result,
 		paramsclient.ProposalHandler,
 		distrclient.ProposalHandler,
-		upgradeclient.LegacyProposalHandler,
-		upgradeclient.LegacyCancelProposalHandler,
 		ibcclientclient.UpdateClientProposalHandler,
 		ibcclientclient.UpgradeProposalHandler,
 	)
