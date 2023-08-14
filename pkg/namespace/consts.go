@@ -36,35 +36,63 @@ var (
 	// NamespaceVersionZeroPrefix is the prefix of a namespace ID for version 0.
 	NamespaceVersionZeroPrefix = bytes.Repeat([]byte{0}, NamespaceVersionZeroPrefixSize)
 
-	// TxNamespace is the namespace reserved for transaction data.
-	TxNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+	// TxNamespace is the namespace reserved for ordinary Cosmos SDK transactions.
+	TxNamespace = primaryReservedNamespace(0x01)
 
 	// IntermediateStateRootsNamespace is the namespace reserved for
 	// intermediate state root data.
-	IntermediateStateRootsNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 2})
+	IntermediateStateRootsNamespace = primaryReservedNamespace(0x02)
 
 	// PayForBlobNamespace is the namespace reserved for PayForBlobs transactions.
-	PayForBlobNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 4})
+	PayForBlobNamespace = primaryReservedNamespace(0x04)
 
-	// ReservedPaddingNamespace is the namespace used for padding after all
-	// reserved namespaces. In practice this padding is after transactions
-	// (ordinary and PFBs) but before blobs.
-	ReservedPaddingNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
+	// PrimaryReservedPaddingNamespace is the namespace used for padding after all
+	// primary reserved namespaces.
+	PrimaryReservedPaddingNamespace = primaryReservedNamespace(0xFF)
 
+<<<<<<< HEAD
 	// MaxReservedNamespace is lexicographically the largest namespace that is
 	// reserved for protocol use.
 	MaxReservedNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
+=======
+	// MaxPrimaryReservedNamespace is the highest primary reserved namespace.
+	// Namespaces lower than this are reserved for protocol use.
+	MaxPrimaryReservedNamespace = primaryReservedNamespace(0xFF)
+
+	// MinSecondaryReservedNamespace is the lowest secondary reserved namespace
+	// reserved for protocol use. Namespaces higher than this are reserved for
+	// protocol use.
+	MinSecondaryReservedNamespace = secondaryReservedNamespace(0x00)
+>>>>>>> cb8247e (feat!: reserve the last 256 namespaces for protocol use (#2257))
 
 	// TailPaddingNamespace is the namespace reserved for tail padding. All data
 	// with this namespace will be ignored.
-	TailPaddingNamespace = Namespace{
-		Version: math.MaxUint8,
-		ID:      append(bytes.Repeat([]byte{0xFF}, NamespaceIDSize-1), 0xFE),
-	}
+	TailPaddingNamespace = secondaryReservedNamespace(0xFE)
 
 	// ParitySharesNamespace is the namespace reserved for erasure coded data.
+<<<<<<< HEAD
 	ParitySharesNamespace = Namespace{
 		Version: math.MaxUint8,
 		ID:      bytes.Repeat([]byte{0xFF}, NamespaceIDSize),
 	}
+=======
+	ParitySharesNamespace = secondaryReservedNamespace(0xFF)
+
+	// SupportedBlobNamespaceVersions is a list of namespace versions that can be specified by a user for blobs.
+	SupportedBlobNamespaceVersions = []uint8{NamespaceVersionZero}
+>>>>>>> cb8247e (feat!: reserve the last 256 namespaces for protocol use (#2257))
 )
+
+func primaryReservedNamespace(lastByte byte) Namespace {
+	return Namespace{
+		Version: NamespaceVersionZero,
+		ID:      append(bytes.Repeat([]byte{0x00}, NamespaceIDSize-1), lastByte),
+	}
+}
+
+func secondaryReservedNamespace(lastByte byte) Namespace {
+	return Namespace{
+		Version: NamespaceVersionMax,
+		ID:      append(bytes.Repeat([]byte{0xFF}, NamespaceIDSize-1), lastByte),
+	}
+}

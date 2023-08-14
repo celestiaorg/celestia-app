@@ -2,6 +2,11 @@ package namespace
 
 import (
 	"bytes"
+<<<<<<< HEAD
+=======
+	"math"
+	"reflect"
+>>>>>>> cb8247e (feat!: reserve the last 256 namespaces for protocol use (#2257))
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -195,3 +200,93 @@ func TestBytes(t *testing.T) {
 
 	assert.Equal(t, want, got)
 }
+<<<<<<< HEAD
+=======
+
+func TestLeftPad(t *testing.T) {
+	tests := []struct {
+		input    []byte
+		size     int
+		expected []byte
+	}{
+		// input smaller than pad size
+		{[]byte{1, 2, 3}, 10, []byte{0, 0, 0, 0, 0, 0, 0, 1, 2, 3}},
+		{[]byte{1}, 5, []byte{0, 0, 0, 0, 1}},
+		{[]byte{1, 2}, 4, []byte{0, 0, 1, 2}},
+
+		// input equal to pad size
+		{[]byte{1, 2, 3}, 3, []byte{1, 2, 3}},
+		{[]byte{1, 2, 3, 4}, 4, []byte{1, 2, 3, 4}},
+
+		// input larger than pad size
+		{[]byte{1, 2, 3, 4, 5}, 4, []byte{1, 2, 3, 4, 5}},
+		{[]byte{1, 2, 3, 4, 5, 6, 7}, 3, []byte{1, 2, 3, 4, 5, 6, 7}},
+
+		// input size 0
+		{[]byte{}, 8, []byte{0, 0, 0, 0, 0, 0, 0, 0}},
+		{[]byte{}, 0, []byte{}},
+	}
+
+	for _, test := range tests {
+		result := leftPad(test.input, test.size)
+		assert.True(t, reflect.DeepEqual(result, test.expected))
+	}
+}
+
+func TestIsReserved(t *testing.T) {
+	type testCase struct {
+		ns   Namespace
+		want bool
+	}
+	testCases := []testCase{
+		{
+			ns:   MustNewV0(bytes.Repeat([]byte{1}, NamespaceVersionZeroIDSize)),
+			want: false,
+		},
+		{
+			ns:   TxNamespace,
+			want: true,
+		},
+		{
+			ns:   IntermediateStateRootsNamespace,
+			want: true,
+		},
+		{
+			ns:   PayForBlobNamespace,
+			want: true,
+		},
+		{
+			ns:   PrimaryReservedPaddingNamespace,
+			want: true,
+		},
+		{
+			ns:   MaxPrimaryReservedNamespace,
+			want: true,
+		},
+		{
+			ns:   MinSecondaryReservedNamespace,
+			want: true,
+		},
+		{
+			ns:   TailPaddingNamespace,
+			want: true,
+		},
+		{
+			ns:   ParitySharesNamespace,
+			want: true,
+		},
+		{
+			ns: Namespace{
+				Version: math.MaxUint8,
+				ID:      append(bytes.Repeat([]byte{0xFF}, NamespaceIDSize-1), 1),
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		got := tc.ns.IsReserved()
+		assert.Equal(t, tc.want, got)
+	}
+}
+>>>>>>> cb8247e (feat!: reserve the last 256 namespaces for protocol use (#2257))
