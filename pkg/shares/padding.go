@@ -53,7 +53,7 @@ func NamespacePaddingShares(ns appns.Namespace, shareVersion uint8, n int) ([]Sh
 // first blob can start at an index that conforms to non-interactive default
 // rules.
 func ReservedPaddingShare() Share {
-	share, err := NamespacePaddingShare(appns.ReservedPaddingNamespace, appconsts.ShareVersionZero)
+	share, err := NamespacePaddingShare(appns.PrimaryReservedPaddingNamespace, appconsts.ShareVersionZero)
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +62,7 @@ func ReservedPaddingShare() Share {
 
 // ReservedPaddingShare returns n reserved padding shares.
 func ReservedPaddingShares(n int) []Share {
-	shares, err := NamespacePaddingShares(appns.ReservedPaddingNamespace, appconsts.ShareVersionZero, n)
+	shares, err := NamespacePaddingShares(appns.PrimaryReservedPaddingNamespace, appconsts.ShareVersionZero, n)
 	if err != nil {
 		panic(err)
 	}
