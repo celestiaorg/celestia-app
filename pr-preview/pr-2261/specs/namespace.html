@@ -163,16 +163,6 @@
 <h3 id="id"><a class="header" href="#id">ID</a></h3>
 <p>The namespace ID is a 28 byte identifier that uniquely identifies a namespace. The ID is encoded as a byte slice of length 28.</p>
 <h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
-<h1>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
-| name                                | type        | value                                                          | description                                                                                          |
-|-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| <code>TRANSACTION_NAMESPACE</code>             | <code>Namespace</code> | <code>0x0000000000000000000000000000000000000000000000000000000001</code> | Transactions: requests that modify the state.                                                        |
-| <code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code> | <code>Namespace</code> | <code>0x0000000000000000000000000000000000000000000000000000000002</code> | Intermediate state roots, committed after every transaction.                                         |
-| <code>PAY_FOR_BLOB_NAMESPACE</code>            | <code>Namespace</code> | <code>0x0000000000000000000000000000000000000000000000000000000004</code> | Namespace reserved for transactions that contain a PayForBlob.                                       |
-| <code>RESERVED_PADDING_NAMESPACE</code>        | <code>Namespace</code> | <code>0x00000000000000000000000000000000000000000000000000000000FF</code> | Padding after all reserved namespaces but before blobs.                                              |
-| <code>MAX_RESERVED_NAMESPACE</code>            | <code>Namespace</code> | <code>0x00000000000000000000000000000000000000000000000000000000FF</code> | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
-| <code>TAIL_PADDING_NAMESPACE</code>            | <code>Namespace</code> | <code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code> | Tail padding for blobs: padding after all blobs to fill up the original data square.                 |
-| <code>PARITY_SHARE_NAMESPACE</code>            | <code>Namespace</code> | <code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code> | Parity shares: extended shares in the available data matrix.                                         |</h1>
 <p>Celestia reserves some namespaces for protocol use.
 These namespaces are called &quot;reserved namespaces&quot;.
 Reserved namespaces are used to arrange the contents of the <a href="./data_square_layout.html">data square</a>.
@@ -196,7 +186,6 @@ For additional information on the significance and application of the reserved n
 <tr><td><code>MIN_SECONDARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00</code></td><td>Namespace for the lowest secondary reserved namespace.</td></tr>
 <tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Namespace for padding after all blobs to fill up the original data square.</td></tr>
 <tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Namespace for parity shares.</td></tr>
-<tr><td>&gt;&gt;&gt;&gt;&gt;&gt;&gt; cb8247e (feat!: reserve the last 256 namespaces for protocol use (#2257))</td><td></td><td></td><td></td><td></td></tr>
 </tbody></table>
 </div>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
