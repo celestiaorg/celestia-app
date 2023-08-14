@@ -71,6 +71,9 @@ const (
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
+
+	// BondDenom defines the native staking denomination
+	BondDenom = "utia"
 )
 
 var (

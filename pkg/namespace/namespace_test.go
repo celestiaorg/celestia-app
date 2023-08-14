@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"bytes"
+	"math"
 	"reflect"
 	"testing"
 
@@ -237,5 +238,62 @@ func TestLeftPad(t *testing.T) {
 	for _, test := range tests {
 		result := leftPad(test.input, test.size)
 		assert.True(t, reflect.DeepEqual(result, test.expected))
+	}
+}
+
+func TestIsReserved(t *testing.T) {
+	type testCase struct {
+		ns   Namespace
+		want bool
+	}
+	testCases := []testCase{
+		{
+			ns:   MustNewV0(bytes.Repeat([]byte{1}, NamespaceVersionZeroIDSize)),
+			want: false,
+		},
+		{
+			ns:   TxNamespace,
+			want: true,
+		},
+		{
+			ns:   IntermediateStateRootsNamespace,
+			want: true,
+		},
+		{
+			ns:   PayForBlobNamespace,
+			want: true,
+		},
+		{
+			ns:   PrimaryReservedPaddingNamespace,
+			want: true,
+		},
+		{
+			ns:   MaxPrimaryReservedNamespace,
+			want: true,
+		},
+		{
+			ns:   MinSecondaryReservedNamespace,
+			want: true,
+		},
+		{
+			ns:   TailPaddingNamespace,
+			want: true,
+		},
+		{
+			ns:   ParitySharesNamespace,
+			want: true,
+		},
+		{
+			ns: Namespace{
+				Version: math.MaxUint8,
+				ID:      append(bytes.Repeat([]byte{0xFF}, NamespaceIDSize-1), 1),
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		got := tc.ns.IsReserved()
+		assert.Equal(t, tc.want, got)
 	}
 }
