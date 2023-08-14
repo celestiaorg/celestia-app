@@ -25,7 +25,6 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -264,7 +263,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 
 			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
+			res, err := signer.SubmitPayForBlob(context.TODO(), []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
@@ -276,7 +275,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	t := s.T()
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
-		s.ecfg.TxConfig.TxEncoder(),
+		s.ecfg,
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
@@ -300,7 +299,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
-		s.ecfg.TxConfig.TxEncoder(),
+		s.ecfg,
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
@@ -421,9 +420,11 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
-			options := []user.TxOption{blobtypes.SetGasLimit(1_000_000_000)}
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
+			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
+
+			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+			options := []user.TxOption{user.SetGasLimit(1_000_000_000)}
+			res, err := signer.SubmitPayForBlob(s.cctx.GoContext(), []*blobtypes.Blob{tc.blob}, options...)
 
 			require.NoError(t, err)
 			require.NotNil(t, res)
