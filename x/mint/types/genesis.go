@@ -1,21 +1,26 @@
 package types
 
+import "errors"
+
 // NewGenesisState creates a new GenesisState object
-func NewGenesisState(minter Minter) *GenesisState {
+func NewGenesisState(bondDenom string) *GenesisState {
 	return &GenesisState{
-		Minter: minter,
+		BondDenom: bondDenom,
 	}
 }
 
 // DefaultGenesisState creates a default GenesisState object
 func DefaultGenesisState() *GenesisState {
 	return &GenesisState{
-		Minter: DefaultMinter(),
+		BondDenom: DefaultBondDenom,
 	}
 }
 
 // ValidateGenesis validates the provided genesis state to ensure the
 // expected invariants holds.
 func ValidateGenesis(data GenesisState) error {
-	return data.Minter.Validate()
+	if data.BondDenom == "" {
+		return errors.New("bond denom cannot be empty")
+	}
+	return nil
 }
