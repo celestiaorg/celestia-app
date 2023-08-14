@@ -7,7 +7,9 @@ import (
 
 // InitGenesis initializes the x/mint store with data from the genesis state.
 func (k Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types.GenesisState) {
-	k.SetMinter(ctx, data.Minter)
+	minter := types.DefaultMinter()
+	minter.BondDenom = data.BondDenom
+	k.SetMinter(ctx, minter)
 	// override the genesis time with the actual genesis time supplied in `InitChain`
 	blockTime := ctx.BlockTime()
 	gt := types.GenesisTime{
@@ -22,6 +24,6 @@ func (k Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types
 
 // ExportGenesis returns a x/mint GenesisState for the given context.
 func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
-	minter := k.GetMinter(ctx)
-	return types.NewGenesisState(minter)
+	bondDenom := k.GetMinter(ctx).BondDenom
+	return types.NewGenesisState(bondDenom)
 }
