@@ -23,7 +23,7 @@ var nsOnePadding, _ = zeroPadIfNecessary(
 
 var reservedPadding, _ = zeroPadIfNecessary(
 	append(
-		appns.ReservedPaddingNamespace.Bytes(),
+		appns.PrimaryReservedPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
