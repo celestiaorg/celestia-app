@@ -63,7 +63,11 @@ func generateMixedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, b
 
 func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, pfbCount, blobsPerPfb, blobSize)
+	signer, err := testnode.NewOfflineSigner()
+	if err != nil {
+		panic(err)
+	}
+	pfbTxs := blobfactory.RandBlobTxs(signer, rand, pfbCount, blobsPerPfb, blobSize)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),

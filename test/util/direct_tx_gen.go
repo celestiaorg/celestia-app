@@ -10,11 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -141,25 +140,18 @@ func RandBlobTxsWithManualSequence(
 		tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 		require.NoError(t, err)
 		if invalidSignature {
-			stx, err := cfg.TxDecoder()(tx)
+			decodedTx, err := cfg.TxDecoder()(tx)
 			require.NoError(t, err)
-			invalidSig, err := stx.GetSignaturesV2()
-			if err != nil {
-				panic(err)
-			}
-			invalidSig[0].Data.(*signing.SingleSignatureData).Signature = []byte("invalid signature")
 
-			if err := builder.SetSignatures(invalidSig...); err != nil {
-				panic(err)
-			}
+			stx, ok := decodedTx.(*txtypes.Tx)
+			require.True(t, ok, "expected tx.Tx")
 
-			stx = builder.GetTx()
+			stx.Signatures[0] = []byte("invalid signature")
+
+			tx, err = cfg.TxEncoder()(stx)
+			require.NoError(t, err)
 		}
-		rawTx, err := signer.EncodeTx(stx)
-		if err != nil {
-			panic(err)
-		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
+		cTx, err := coretypes.MarshalBlobTx(tx, blobs...)
 		if err != nil {
 			panic(err)
 		}
@@ -175,22 +167,22 @@ func RandBlobTxsWithManualSequence(
 func SendTxsWithAccounts(
 	t *testing.T,
 	capp *app.App,
-	enc sdk.TxEncoder,
+	enc client.TxConfig,
 	kr keyring.Keyring,
 	amount uint64,
 	toAccount string,
 	accounts []string,
 	chainid string,
-	extraOpts ...blobtypes.TxBuilderOption,
+	extraOpts ...user.TxOption,
 ) []coretypes.Tx {
 	coin := sdk.Coin{
 		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
-	opts := []blobtypes.TxBuilderOption{
-		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-		blobtypes.SetGasLimit(1000000),
+	opts := []user.TxOption{
+		user.SetFeeAmount(sdk.NewCoins(coin)),
+		user.SetGasLimit(1000000),
 	}
 	opts = append(opts, extraOpts...)
 
@@ -222,7 +214,7 @@ func SendTxsWithAccounts(
 // account info must be provided.
 func SendTxWithManualSequence(
 	t *testing.T,
-	_ sdk.TxEncoder,
+	cfg client.TxConfig,
 	kr keyring.Keyring,
 	fromAcc, toAcc string,
 	amount uint64,
@@ -230,22 +222,14 @@ func SendTxWithManualSequence(
 	sequence, accountNum uint64,
 	opts ...user.TxOption,
 ) coretypes.Tx {
-	signer := user.NewSigner(kr, fromAcc, chainid)
-
-	signer.SetAccountNumber(accountNum)
-	signer.SetSequence(sequence)
-
 	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
+	signer, err := user.NewSigner(kr, nil, fromAddr, cfg, chainid, accountNum, sequence)
+	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
-
-	stx, err := signer.BuildSignedTx(signer.NewTxBuilder(opts...), msg)
+	stx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
-
-	rawTx, err := signer.EncodeTx(stx)
-	require.NoError(t, err)
-
-	return rawTx
+	return stx
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {

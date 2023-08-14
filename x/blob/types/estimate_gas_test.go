@@ -46,7 +46,8 @@ func TestPFBGasEstimation(t *testing.T) {
 			blobs := blobfactory.ManyRandBlobs(t, rand, tc.blobSizes...)
 			gas := blob.DefaultEstimateGas(toUint32(tc.blobSizes))
 			fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-			tx := blobfactory.MultiBlobTx(t, encCfg.TxConfig.TxEncoder(), signer, blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+			tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+			require.NoError(t, err)
 			blobTx, ok := types.UnmarshalBlobTx(tx)
 			require.True(t, ok)
 			resp := testApp.DeliverTx(abci.RequestDeliverTx{
@@ -90,7 +91,8 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		blobs := blobfactory.ManyRandBlobs(t, rand, blobSizes...)
 		gas := blob.DefaultEstimateGas(toUint32(blobSizes))
 		fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-		tx := blobfactory.MultiBlobTx(t, encCfg.TxConfig.TxEncoder(), signer, blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+		tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+		require.NoError(t, err)
 		blobTx, ok := types.UnmarshalBlobTx(tx)
 		require.True(t, ok)
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{

@@ -24,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
@@ -68,8 +69,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 
 	for _, acc := range s.accounts {
-		signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, acc, s.cctx.ChainID)
-		err := signer.QueryAccountNumber(s.cctx.GoContext(), s.cctx.GRPCClient)
+		addr := testnode.GetAddress(s.cctx.Keyring, acc)
+		_, _, err := user.QueryAccount(s.cctx.GoContext(), s.cctx.GRPCClient, s.ecfg, addr.String())
 		require.NoError(t, err)
 	}
 }
@@ -80,7 +81,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// tendermint's default tx size limit is 1Mb, so we get close to that
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg.TxConfig.TxEncoder(),
+			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
@@ -97,7 +98,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// 200,000 bytes each = 600,000 total bytes = 600 KB per transaction.
 	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg.TxConfig.TxEncoder(),
+			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
@@ -115,7 +116,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg.TxConfig.TxEncoder(),
+			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
@@ -218,40 +219,40 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	type test struct {
 		name string
 		blob *blobtypes.Blob
-		opts []blobtypes.TxBuilderOption
+		opts []user.TxOption
 	}
 
 	tests := []test{
 		{
 			"small random typical",
 			mustNewBlob(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
 			"large random typical",
 			mustNewBlob(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
 			"medium random with memo",
 			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetMemo("lol I could stick the rollup block here if I wanted to"),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
 			"medium random with timeout height",
 			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetTimeoutHeight(1000),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetTimeoutHeight(1000),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 	}
@@ -261,7 +262,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			// 20) so we wait a few blocks for the txs to clear
 			require.NoError(t, s.cctx.WaitForBlocks(3))
 
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
+			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
+			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
@@ -420,7 +422,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
-			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
+			options := []user.TxOption{blobtypes.SetGasLimit(1_000_000_000)}
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
 
 			require.NoError(t, err)

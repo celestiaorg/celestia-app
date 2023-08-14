@@ -359,12 +359,8 @@ func RandBlobTxsWithNamespacesAndSigner(
 	return txs
 }
 
-func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, kr keyring.Keyring, enc client.TxConfig, chainid, account string, msgs ...sdk.Msg) coretypes.Tx {
-	addr := testnode.GetAddress(kr, account)
-	signer, err := user.NewSigner(kr, nil, addr, enc, chainid, 1, 0)
-	require.NoError(t, err)
-
-	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), 100, 1)
+func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Signer, msgs ...sdk.Msg) coretypes.Tx {
+	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signer.Address().String(), 100, 1)
 
 	opts := []user.TxOption{
 		user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),

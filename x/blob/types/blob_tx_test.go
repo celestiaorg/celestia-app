@@ -8,8 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -35,12 +35,10 @@ func TestNewBlob(t *testing.T) {
 
 func TestValidateBlobTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	acc := "test"
-	signer, err := user.NewSigner(t, acc)
+	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 	ns1 := namespace.MustNewV0(bytes.Repeat([]byte{0x01}, namespace.NamespaceVersionZeroIDSize))
-	signerAddr, err := signer.GetSignerInfo().GetAddress()
-	require.NoError(t, err)
+	addr := signer.Address()
 
 	type test struct {
 		name        string
@@ -50,7 +48,6 @@ func TestValidateBlobTx(t *testing.T) {
 
 	validRawBtx := func() []byte {
 		btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-			encCfg.TxConfig.TxEncoder(),
 			signer,
 			[]namespace.Namespace{ns1},
 			[]int{10},
@@ -109,7 +106,7 @@ func TestValidateBlobTx(t *testing.T) {
 				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
-					signerAddr.String(),
+					addr.String(),
 					blob,
 				)
 				require.NoError(t, err)
@@ -145,10 +142,7 @@ func TestValidateBlobTx(t *testing.T) {
 				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
 					tmrand.NewRand(),
-					signer.Keyring,
-					encCfg.TxConfig.TxEncoder(),
-					"test",
-					acc,
+					signer,
 					sendMsg,
 				)
 				btx, isBlob := coretypes.UnmarshalBlobTx(tx)
@@ -170,14 +164,12 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "normal transaction with two blobs w/ different namespaces",
 			getTx: func() tmproto.BlobTx {
-				rawBtx := blobfactory.MultiBlobTx(
-					t,
-					encCfg.TxConfig.TxEncoder(),
-					signer,
+				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100, 100}),
 				)
+				require.NoError(t, err)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
@@ -187,14 +179,12 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "normal transaction with two large blobs w/ different namespaces",
 			getTx: func() tmproto.BlobTx {
-				rawBtx := blobfactory.MultiBlobTx(
-					t,
-					encCfg.TxConfig.TxEncoder(),
-					signer,
+				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100000, 1000000}),
 				)
+				require.NoError(t, err)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
@@ -205,14 +195,12 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "normal transaction with two blobs w/ same namespace",
 			getTx: func() tmproto.BlobTx {
 				ns := namespace.RandomBlobNamespace()
-				rawBtx := blobfactory.MultiBlobTx(
-					t,
-					encCfg.TxConfig.TxEncoder(),
-					signer,
+				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{ns, ns},
 						[]int{100, 100}),
 				)
+				require.NoError(t, err)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
@@ -230,14 +218,12 @@ func TestValidateBlobTx(t *testing.T) {
 					sizes[i] = 100
 					namespaces[i] = ns
 				}
-				rawBtx := blobfactory.MultiBlobTx(
-					t,
-					encCfg.TxConfig.TxEncoder(),
-					signer,
+				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
 						namespaces,
 						sizes,
 					))
+				require.NoError(t, err)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx

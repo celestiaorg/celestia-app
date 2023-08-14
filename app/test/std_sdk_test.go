@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -277,8 +278,11 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 
 	// sign and submit the transactions
 	for i, tt := range tests {
-		msgs, signer := tt.msgFunc()
-		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, signer, msgs...)
+		msgs, account := tt.msgFunc()
+		addr := testnode.GetAddress(s.cctx.Keyring, account)
+		signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+		require.NoError(t, err)
+		res, err := signer.SubmitTx(s.cctx.GoContext(), msgs)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
