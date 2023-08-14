@@ -151,7 +151,7 @@
 <p>User submitted transactions are split into shares (see <a href="#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="#share-format">share format</a>.</p>
 <p><a href="#padding">Padding</a> shares are added to the <code>k * k</code> matrix to ensure:</p>
 <ol>
-<li>Blob sequences start on an index that conforms to <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> (see <a href="#namespace-padding-share">namespace padding share</a> and <a href="#reserved-padding-share">reserved padding share</a>)</li>
+<li>Blob sequences start on an index that conforms to <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> (see <a href="#namespace-padding-share">namespace padding share</a> and <a href="#primary-reserved-padding-share">reserved padding share</a>)</li>
 <li>The number of shares in the matrix is a perfect square (see <a href="#tail-padding-share">tail padding share</a>)</li>
 </ol>
 <h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
@@ -206,12 +206,12 @@
 <h3 id="namespace-padding-share"><a class="header" href="#namespace-padding-share">Namespace Padding Share</a></h3>
 <p>A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
 A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a>. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
-<h3 id="reserved-padding-share"><a class="header" href="#reserved-padding-share">Reserved Padding Share</a></h3>
-<p>Reserved padding shares use the <a href="./consensus.html#constants"><code>RESERVED_PADDING_NAMESPACE</code></a>. Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<h3 id="primary-reserved-padding-share"><a class="header" href="#primary-reserved-padding-share">Primary Reserved Padding Share</a></h3>
+<p>Primary reserved padding shares use the <a href="./namespace.html#reserved-namespaces"><code>PRIMARY_RESERVED_PADDING_NAMESPACE</code></a>. Primary reserved padding shares are placed after shares in the primary reserved namespace range so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h3 id="tail-padding-share"><a class="header" href="#tail-padding-share">Tail Padding Share</a></h3>
-<p>Tail padding shares use the <a href="./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<p>Tail padding shares use the <a href="./namespace.html#reserved-namespaces"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
-<p>Parity shares use the <a href="./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
+<p>Parity shares use the <a href="./namespace.html#reserved-namespaces"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
 <h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
 <p>Share splitting is the process of converting a blob into a share sequence. The process is as follows:</p>
 <ol>

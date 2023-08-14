@@ -554,27 +554,29 @@ Below, we provide examples of valid and invalid encoded user-supplied namespaces
 The ID is encoded as a byte slice of length 28.</p>
 <!-- It may be useful to indicate the endianness of the encoding) -->
 <h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
-<p>Celestia reserves certain namespaces with specific meanings.
-Reserved namespaces are used to properly organize and order transactions and blobs inside the <a href="specs/./data_square_layout.html">data square</a>.
-Applications MUST NOT use these reserved namespaces for their blob data.</p>
-<p>Reserved namespaces fall into two categories, <em>Primary Reserved Namespaces</em> and <em>Secondary Reserved Namespaces</em>.</p>
+<p>Celestia reserves some namespaces for protocol use.
+These namespaces are called &quot;reserved namespaces&quot;.
+Reserved namespaces are used to arrange the contents of the <a href="specs/./data_square_layout.html">data square</a>.
+Applications MUST NOT use reserved namespaces for their blob data.
+Reserved namespaces fall into two categories: <em>Primary</em> and <em>Secondary</em>.</p>
 <ul>
-<li>Primary Reserved Namespaces: Namespaces with values less than or equal to <code>0x00000000000000000000000000000000000000000000000000000000FF</code> are referred to as Primary Reserved Namespaces and are exclusively reserved for use within the Celestia protocols.</li>
-<li>Secondary Reserved Namespaces: Currently, there are two secondary reserved namespaces, namely, <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> which fall out of the range of primary reserved namespaces.
-In the table, you will notice that the <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> utilize the namespace version <code>255</code>, which differs from the supported user-specified versions.
-The reason for employing version <code>255</code> for the <code>PARITY_SHARE_NAMESPACE</code> is to enable more efficient proof generation within the context of <a href="https://github.com/celestiaorg/nmt">nmt</a>, where it is used in conjunction with the <code>IgnoreMaxNamespace</code> feature.
-Similarly, the <code>TAIL_PADDING_NAMESPACE</code> utilizes the namespace version <code>255</code> to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.</li>
+<li>Primary: Namespaces with values less than or equal to <code>0x00000000000000000000000000000000000000000000000000000000FF</code>. Primary namespaces always have a version of <code>0</code>.</li>
+<li>Secondary: Namespaces with values greater than or equal to <code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00</code>.
+Secondary namespaces always have a version of <code>255</code> (<code>0xFF</code>) so that they are placed after all user specifiable namespaces in a sorted data square.
+The <code>PARITY_SHARE_NAMESPACE</code> uses version <code>255</code> (<code>0xFF</code>) to enable more efficient proof generation within the context of <a href="https://github.com/celestiaorg/nmt">nmt</a>, where it is used in conjunction with the <code>IgnoreMaxNamespace</code> feature.
+The <code>TAIL_PADDING_NAMESPACE</code> uses the version <code>255</code> to ensure that padding shares are always placed at the end of the Celestia data square even if a new user-specifiable version is introduced.</li>
 </ul>
-<p>Below is a list of currently used primary and secondary reserved namespaces, along with a brief description of each.
+<p>Below is a list of the current reserved namespaces.
 For additional information on the significance and application of the reserved namespaces, please refer to the <a href="specs/./data_square_layout.html">Data Square Layout</a> specifications.</p>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
-<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
-<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
-<tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace reserved for transactions that contain a PayForBlob.</td></tr>
-<tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
-<tr><td><code>MAX_PRIMARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max primary reserved namespace is the largest primary reserved namespace designated for protocol use.</td></tr>
-<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
-<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>category</th><th>value</th><th>description</th></tr></thead><tbody>
+<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Namespace for ordinary Cosmos SDK transactions.</td></tr>
+<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Namespace for intermediate state roots (not currently utilized).</td></tr>
+<tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace for transactions that contain a PayForBlob.</td></tr>
+<tr><td><code>PRIMARY_RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Namespace for padding after all primary reserved namespaces.</td></tr>
+<tr><td><code>MAX_PRIMARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Namespace for the highest primary reserved namespace.</td></tr>
+<tr><td><code>MIN_SECONDARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00</code></td><td>Namespace for the lowest secondary reserved namespace.</td></tr>
+<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Namespace for padding after all blobs to fill up the original data square.</td></tr>
+<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Namespace for parity shares.</td></tr>
 </tbody></table>
 </div>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
@@ -605,7 +607,7 @@ For additional information on the significance and application of the reserved n
 <p>User submitted transactions are split into shares (see <a href="specs/shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="specs/./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="specs/shares.html#share-format">share format</a>.</p>
 <p><a href="specs/shares.html#padding">Padding</a> shares are added to the <code>k * k</code> matrix to ensure:</p>
 <ol>
-<li>Blob sequences start on an index that conforms to <a href="specs/./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> (see <a href="specs/shares.html#namespace-padding-share">namespace padding share</a> and <a href="specs/shares.html#reserved-padding-share">reserved padding share</a>)</li>
+<li>Blob sequences start on an index that conforms to <a href="specs/./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> (see <a href="specs/shares.html#namespace-padding-share">namespace padding share</a> and <a href="specs/shares.html#primary-reserved-padding-share">reserved padding share</a>)</li>
 <li>The number of shares in the matrix is a perfect square (see <a href="specs/shares.html#tail-padding-share">tail padding share</a>)</li>
 </ol>
 <h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
@@ -660,12 +662,12 @@ For additional information on the significance and application of the reserved n
 <h3 id="namespace-padding-share"><a class="header" href="#namespace-padding-share">Namespace Padding Share</a></h3>
 <p>A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
 A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the <a href="specs/./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a>. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
-<h3 id="reserved-padding-share"><a class="header" href="#reserved-padding-share">Reserved Padding Share</a></h3>
-<p>Reserved padding shares use the <a href="specs/./consensus.html#constants"><code>RESERVED_PADDING_NAMESPACE</code></a>. Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<h3 id="primary-reserved-padding-share"><a class="header" href="#primary-reserved-padding-share">Primary Reserved Padding Share</a></h3>
+<p>Primary reserved padding shares use the <a href="specs/./namespace.html#reserved-namespaces"><code>PRIMARY_RESERVED_PADDING_NAMESPACE</code></a>. Primary reserved padding shares are placed after shares in the primary reserved namespace range so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h3 id="tail-padding-share"><a class="header" href="#tail-padding-share">Tail Padding Share</a></h3>
-<p>Tail padding shares use the <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<p>Tail padding shares use the <a href="specs/./namespace.html#reserved-namespaces"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
-<p>Parity shares use the <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
+<p>Parity shares use the <a href="specs/./namespace.html#reserved-namespaces"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
 <h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
 <p>Share splitting is the process of converting a blob into a share sequence. The process is as follows:</p>
 <ol>
