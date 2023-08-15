@@ -12,7 +12,7 @@ import (
 )
 
 func TestGetDataCommitmentForHeight(t *testing.T) {
-	input, sdkCtx := testutil.SetupFiveValChain(t, true)
+	input, sdkCtx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 
 	initialValset, err := k.GetCurrentValset(sdkCtx)
@@ -110,7 +110,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 }
 
 func TestLatestDataCommitment(t *testing.T) {
-	input, sdkCtx := testutil.SetupFiveValChain(t, true)
+	input, sdkCtx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 
 	initialValset, err := k.GetCurrentValset(sdkCtx)

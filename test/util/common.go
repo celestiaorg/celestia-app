@@ -354,7 +354,7 @@ func MakeTestMarshaler() codec.Codec {
 }
 
 // SetupFiveValChain does all the initialization for a 5 Validator chain using the keys here
-func SetupFiveValChain(t *testing.T, register bool) (TestInput, sdk.Context) {
+func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	t.Helper()
 	input := CreateTestEnv(t)
 

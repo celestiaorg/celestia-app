@@ -17,7 +17,7 @@ import (
 )
 
 func TestFirstAttestationIsValset(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(1)
@@ -40,7 +40,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 }
 
 func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(1)
@@ -66,7 +66,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 }
 
 func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(1)
@@ -93,12 +93,11 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	qgb.EndBlocker(ctx, pk)
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
-	// FIXME: this needs to change to 2 once we have a proper implementation of editing the EVM address
-	assert.Equal(t, currentAttestationNonce, pk.GetLatestAttestationNonce(ctx))
+	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
 
 func TestSetValset(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	vs, err := pk.GetCurrentValset(ctx)
@@ -110,7 +109,7 @@ func TestSetValset(t *testing.T) {
 }
 
 func TestSetDataCommitment(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
@@ -148,7 +147,7 @@ func TestSetDataCommitment(t *testing.T) {
 // Note: the table tests cannot be run separately. The reason we're using a
 // table structure is to make it easy to understand the test flow.
 func TestGetDataCommitment(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
 	tests := []struct {
@@ -223,7 +222,7 @@ func TestGetDataCommitment(t *testing.T) {
 }
 
 func TestDataCommitmentCreation(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(1)
@@ -247,7 +246,7 @@ func TestDataCommitmentCreation(t *testing.T) {
 }
 
 func TestDataCommitmentRange(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(1)
@@ -293,7 +292,7 @@ func TestDataCommitmentRange(t *testing.T) {
 }
 
 func TestHasDataCommitmentInStore(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 	// set the data commitment window
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
@@ -356,7 +355,7 @@ func TestHasDataCommitmentInStore(t *testing.T) {
 // changing the data commitment window in different occasions, to see if at the
 // end of the test, the data commitments cover all the needed ranges.
 func TestDataCommitmentCreationCatchup(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 	ctx = ctx.WithBlockHeight(1)
 
@@ -520,7 +519,7 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 // attestations 2. Running the QGB EndBlocker 3. Verifying that the expired
 // attestations are pruned
 func TestPruning(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t, true)
+	input, ctx := testutil.SetupFiveValChain(t)
 	qgbKeeper := input.QgbKeeper
 	// set the data commitment window
 	window := uint64(101)

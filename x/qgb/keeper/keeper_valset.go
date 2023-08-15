@@ -7,7 +7,7 @@ import (
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -95,10 +95,11 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		evmAddress, exists := k.GetEVMAddress(ctx, val.String())
 		if !exists {
-			// validators may not have an EVM address associated with them.
-			// This is not enforced. We no longer include them from the validator
-			// set
-			continue
+			// nodes must have an evm address to be held accountable for. Since
+			// the protocol doesn't require that they register it, if they don't
+			// we take some unique string to derive their evm address from, namely
+			// the validators address
+			evmAddress = gethcommon.BytesToAddress(val).String()
 		}
 
 		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: evmAddress}
