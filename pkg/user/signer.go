@@ -138,7 +138,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
-// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain. 
+// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	txBytes, err := s.CreatePayForBlob(blobs, opts...)
