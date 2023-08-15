@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
-	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	testutil "github.com/celestiaorg/celestia-app/test/util"
@@ -83,16 +82,13 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 
-	newEVMAddr, err := teststaking.RandomEVMAddress()
-	require.NoError(t, err)
 	editMsg := stakingtypes.NewMsgEditValidator(
 		testutil.ValAddrs[1],
 		stakingtypes.Description{},
 		nil,
 		nil,
-		newEVMAddr,
 	)
-	_, err = msgServer.EditValidator(ctx, editMsg)
+	_, err := msgServer.EditValidator(ctx, editMsg)
 	require.NoError(t, err)
 	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *pk)

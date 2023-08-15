@@ -94,8 +94,8 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
-		// TODO make sure this  is always the case
-		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: validator.EvmAddress}
+		// FIXME @cmwaters fix this by adding a mapping from val address to evm address
+		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: val.String()}
 		ibv, err := types.NewInternalBridgeValidator(bv)
 		if err != nil {
 			return types.Valset{}, errors.Wrapf(err, types.ErrInvalidEVMAddress.Error(), val)
