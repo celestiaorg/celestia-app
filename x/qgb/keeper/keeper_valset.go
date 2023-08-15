@@ -6,7 +6,7 @@ import (
 
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"cosmossdk.io/errors"
@@ -95,7 +95,8 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
 		// FIXME @cmwaters fix this by adding a mapping from val address to evm address
-		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: val.String()}
+		evmAddrs := gethcommon.BytesToAddress(val)
+		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: evmAddrs.String()}
 		ibv, err := types.NewInternalBridgeValidator(bv)
 		if err != nil {
 			return types.Valset{}, errors.Wrapf(err, types.ErrInvalidEVMAddress.Error(), val)
