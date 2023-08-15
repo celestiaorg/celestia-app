@@ -60,18 +60,17 @@ func (s *BlockProductionTestSuite) Test_BlockOneTransactionNonInclusion() {
 
 // Test_FirstBlockIsEmpty tests whether the first block is empty.
 func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
-	timeout := max(testnode.DefaultTimeout, s.timeoutCommit)
 	require := s.Require()
 	// wait until height 1 before posting transactions
 	// otherwise tx submission will fail
-	_, err := s.cctx.WaitForHeightWithTimeout(1, timeout)
+	_, err := s.cctx.WaitForHeightWithTimeout(1, s.timeoutCommit)
 	require.NoError(err)
 	// send some transactions, these should be included in the second block
 	_, err = s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 
 	// wait for height 2
-	_, err = s.cctx.WaitForHeightWithTimeout(2, timeout)
+	_, err = s.cctx.WaitForHeightWithTimeout(2, s.timeoutCommit)
 	require.NoError(err)
 
 	// fetch the first block
