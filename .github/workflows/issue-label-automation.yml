@@ -11,11 +11,11 @@ jobs:
       issues: write
       pull-requests: write
     env:
-      IS_BOT: ${{ github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]' }}
-      IS_HUMAN: ${{ github.actor != 'dependabot[bot]' && github.actor != 'mergify[bot]' }}
+      IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]') }}
+      IS_HUMAN: ${{ !(github.actor == 'dependabot[bot]' || github.actor == 'mergify[bot]') }}
     steps:
       - name: Check if issue or PR was created by external contributor
-        if: env.IS_HUMAN
+        if: env.IS_HUMAN == 'true' && github.repository_owner == 'celestiaorg'
         uses: tspascoal/get-user-teams-membership@v2
         id: teamCheck
         with:
@@ -35,7 +35,7 @@ jobs:
       # If an issue or PR was created by someone that isn't part of
       # celestia-core, add the `external` label.
       - name: Maybe label issue or PR with `external`
-        if: env.IS_HUMAN && steps.teamCheck.outputs.isTeamMember == 'false'
+        if: env.IS_HUMAN == 'true' && steps.teamCheck.outputs.isTeamMember == 'false'
         uses: andymckay/labeler@master
         with:
           add-labels: "external"
@@ -43,7 +43,7 @@ jobs:
 
       # If a PR was created by dependabot or mergify add the `bot` label.
       - name: Maybe label PR with `bot`
-        if: env.IS_BOT
+        if: env.IS_BOT == 'true'
         uses: andymckay/labeler@master
         with:
           add-labels: "bot"
