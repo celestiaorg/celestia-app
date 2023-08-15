@@ -60,17 +60,18 @@ func (s *BlockProductionTestSuite) Test_BlockOneTransactionNonInclusion() {
 
 // Test_FirstBlockIsEmpty tests whether the first block is empty.
 func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
+	timeOut := max(testnode.DefaultTimeout, s.timeoutCommit)
 	require := s.Require()
 	// wait until height 1 before posting transactions
 	// otherwise tx submission will fail
-	time.Sleep(1 * s.timeoutCommit)
+	_, err := s.cctx.WaitForHeightWithTimeout(1, timeOut)
+	require.NoError(err)
 	// send some transactions, these should be included in the second block
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err = s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 
-	// wait for 2*s.timeoutCommit+1*time.Second to ensure that the node is
-	// at height 2
-	_, err = s.cctx.WaitForHeightWithTimeout(2, 2*s.timeoutCommit+1*time.Second)
+	// wait for height 2
+	_, err = s.cctx.WaitForHeightWithTimeout(2, timeOut)
 	require.NoError(err)
 
 	// fetch the first block
@@ -88,4 +89,11 @@ func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
 	// check whether the second block is non-empty
 	require.True(b2.Block.Header.Height == 2)
 	require.True(len(b2.Block.Data.Txs) == 1)
+}
+
+func max(a, b time.Duration) time.Duration {
+	if a > b {
+		return a
+	}
+	return b
 }
