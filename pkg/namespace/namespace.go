@@ -106,10 +106,15 @@ func validateID(version uint8, id []byte) error {
 
 // IsReserved returns true if the namespace is reserved for protocol-use.
 func (n Namespace) IsReserved() bool {
-	isLessThanOrEqualToMaxPrimaryReservedNamespace := bytes.Compare(n.Bytes(), MaxPrimaryReservedNamespace.Bytes()) < 1
-	isParityNamespace := n.IsParityShares()
-	isTailPadding := n.IsTailPadding()
-	return isLessThanOrEqualToMaxPrimaryReservedNamespace || isParityNamespace || isTailPadding
+	return n.IsPrimaryReserved() || n.IsSecondaryReserved()
+}
+
+func (n Namespace) IsPrimaryReserved() bool {
+	return n.IsLessOrEqualThan(MaxPrimaryReservedNamespace)
+}
+
+func (n Namespace) IsSecondaryReserved() bool {
+	return n.IsGreaterOrEqualThan(MinSecondaryReservedNamespace)
 }
 
 func (n Namespace) IsParityShares() bool {
@@ -120,8 +125,8 @@ func (n Namespace) IsTailPadding() bool {
 	return bytes.Equal(n.Bytes(), TailPaddingNamespace.Bytes())
 }
 
-func (n Namespace) IsReservedPadding() bool {
-	return bytes.Equal(n.Bytes(), ReservedPaddingNamespace.Bytes())
+func (n Namespace) IsPrimaryReservedPadding() bool {
+	return bytes.Equal(n.Bytes(), PrimaryReservedPaddingNamespace.Bytes())
 }
 
 func (n Namespace) IsTx() bool {

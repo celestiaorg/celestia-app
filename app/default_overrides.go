@@ -22,7 +22,6 @@ import (
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -100,7 +99,7 @@ type mintModule struct {
 // DefaultGenesis returns custom x/mint module genesis state.
 func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := minttypes.DefaultGenesisState()
-	genState.Minter.BondDenom = BondDenom
+	genState.BondDenom = BondDenom
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -127,8 +126,6 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 	result = append(result,
 		paramsclient.ProposalHandler,
 		distrclient.ProposalHandler,
-		upgradeclient.LegacyProposalHandler,
-		upgradeclient.LegacyCancelProposalHandler,
 		ibcclientclient.UpdateClientProposalHandler,
 		ibcclientclient.UpgradeProposalHandler,
 	)
@@ -166,7 +163,13 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 	cfg.Mempool.TTLNumBlocks = 10
-	cfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	// Given that there is a stateful transaction size check in CheckTx,
+	// We set a loose upper bound on what we expect the transaction to
+	// be based on the upper bound size of the entire block for the given
+	// version. This acts as a first line of DoS protection
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	cfg.Mempool.MaxTxBytes = upperBoundBytes
+
 	cfg.Mempool.Version = "v1" // prioritized mempool
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit

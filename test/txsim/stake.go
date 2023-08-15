@@ -4,7 +4,7 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -57,7 +57,7 @@ func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand 
 				&staking.MsgDelegate{
 					DelegatorAddress: s.account.String(),
 					ValidatorAddress: s.delegatedTo,
-					Amount:           types.NewInt64Coin(app.BondDenom, int64(s.initialStake)),
+					Amount:           types.NewInt64Coin(appconsts.BondDenom, int64(s.initialStake)),
 				},
 			},
 		}, nil
@@ -77,7 +77,7 @@ func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand 
 						ValidatorSrcAddress: s.delegatedTo,
 						ValidatorDstAddress: val.OperatorAddress,
 						// NOTE: only the initial stake is redelgated (not the entire balance)
-						Amount: types.NewInt64Coin(app.BondDenom, int64(s.initialStake)),
+						Amount: types.NewInt64Coin(appconsts.BondDenom, int64(s.initialStake)),
 					},
 				},
 			}

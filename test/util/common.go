@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/qgb"
-
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -364,10 +363,8 @@ func SetupFiveValChain(t *testing.T, register bool) (TestInput, sdk.Context) {
 
 	// Initialize each of the validators
 	for i := range []int{0, 1, 2, 3, 4} {
-		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount, EVMAddrs[i])
-		if register {
-			RegisterEVMAddress(t, input, ValAddrs[i], EVMAddrs[i])
-		}
+		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount)
+		RegisterEVMAddress(t, input, ValAddrs[i], EVMAddrs[i])
 	}
 
 	// Run the staking endblocker to ensure valset is correct in state
@@ -386,7 +383,6 @@ func CreateValidator(
 	valAddr sdk.ValAddress,
 	consPubKey ccrypto.PubKey,
 	stakingAmount cosmosmath.Int,
-	evmAddr gethcommon.Address,
 ) {
 	// Initialize the account for the key
 	acc := input.AccountKeeper.NewAccount(
@@ -405,7 +401,7 @@ func CreateValidator(
 	// Create a validator for that account using some tokens in the account
 	// and the staking handler
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount, evmAddr))
+	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount))
 	require.NoError(t, err)
 }
 
@@ -426,7 +422,6 @@ func NewTestMsgCreateValidator(
 	address sdk.ValAddress,
 	pubKey ccrypto.PubKey,
 	amt cosmosmath.Int,
-	evmAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
 	out, err := stakingtypes.NewMsgCreateValidator(
@@ -438,7 +433,6 @@ func NewTestMsgCreateValidator(
 			SecurityContact: "",
 			Details:         "",
 		}, commission, sdk.OneInt(),
-		evmAddr,
 	)
 	if err != nil {
 		panic(err)
@@ -484,7 +478,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		// and the staking handler
 		_, err := stakingMsgServer.CreateValidator(
 			input.Context,
-			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), EVMAddrs[i]),
+			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight)),
 		)
 		require.NoError(t, err)
 

@@ -57,30 +57,31 @@ The ID is encoded as a byte slice of length 28.
 
 ## Reserved Namespaces
 
-Celestia reserves certain namespaces with specific meanings.
-Reserved namespaces are used to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
-Applications MUST NOT use these reserved namespaces for their blob data.
+Celestia reserves some namespaces for protocol use.
+These namespaces are called "reserved namespaces".
+Reserved namespaces are used to arrange the contents of the [data square](./data_square_layout.md).
+Applications MUST NOT use reserved namespaces for their blob data.
+Reserved namespaces fall into two categories: _Primary_ and _Secondary_.
 
-Reserved namespaces fall into two categories, _Primary Reserved Namespaces_ and _Secondary Reserved Namespaces_.
+- Primary: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF`. Primary namespaces always have a version of `0`.
+- Secondary: Namespaces with values greater than or equal to `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00`.
+Secondary namespaces always have a version of `255` (`0xFF`) so that they are placed after all user specifiable namespaces in a sorted data square.
+The `PARITY_SHARE_NAMESPACE` uses version `255` (`0xFF`) to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
+The `TAIL_PADDING_NAMESPACE` uses the version `255` to ensure that padding shares are always placed at the end of the Celestia data square even if a new user-specifiable version is introduced.
 
-- Primary Reserved Namespaces: Namespaces with values less than or equal to `0x00000000000000000000000000000000000000000000000000000000FF` are referred to as Primary Reserved Namespaces and are exclusively reserved for use within the Celestia protocols.
-- Secondary Reserved Namespaces: Currently, there are two secondary reserved namespaces, namely, `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` which fall out of the range of primary reserved namespaces.
-In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
-The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
-Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
-
-Below is a list of currently used primary and secondary reserved namespaces, along with a brief description of each.
+Below is a list of the current reserved namespaces.
 For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data_square_layout.md) specifications.
 
-| name                                | type        | value                                                          | description                                                                                           |
-|-------------------------------------|-------------|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                         |
-| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                          |
-| `PAY_FOR_BLOB_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000004` | Namespace reserved for transactions that contain a PayForBlob.                                        |
-| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                               |
-| `MAX_PRIMARY_RESERVED_NAMESPACE`    | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Max primary reserved namespace is the largest primary reserved namespace designated for protocol use. |
-| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.                  |
-| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                          |
+| name                                 | type        | category  | value                                                          | description                                                                |
+|--------------------------------------|-------------|-----------|----------------------------------------------------------------|----------------------------------------------------------------------------|
+| `TRANSACTION_NAMESPACE`              | `Namespace` | Primary   | `0x0000000000000000000000000000000000000000000000000000000001` | Namespace for ordinary Cosmos SDK transactions.                            |
+| `INTERMEDIATE_STATE_ROOT_NAMESPACE`  | `Namespace` | Primary   | `0x0000000000000000000000000000000000000000000000000000000002` | Namespace for intermediate state roots (not currently utilized).           |
+| `PAY_FOR_BLOB_NAMESPACE`             | `Namespace` | Primary   | `0x0000000000000000000000000000000000000000000000000000000004` | Namespace for transactions that contain a PayForBlob.                      |
+| `PRIMARY_RESERVED_PADDING_NAMESPACE` | `Namespace` | Primary   | `0x00000000000000000000000000000000000000000000000000000000FF` | Namespace for padding after all primary reserved namespaces.               |
+| `MAX_PRIMARY_RESERVED_NAMESPACE`     | `Namespace` | Primary   | `0x00000000000000000000000000000000000000000000000000000000FF` | Namespace for the highest primary reserved namespace.                      |
+| `MIN_SECONDARY_RESERVED_NAMESPACE`   | `Namespace` | Secondary | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00` | Namespace for the lowest secondary reserved namespace.                     |
+| `TAIL_PADDING_NAMESPACE`             | `Namespace` | Secondary | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Namespace for padding after all blobs to fill up the original data square. |
+| `PARITY_SHARE_NAMESPACE`             | `Namespace` | Secondary | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Namespace for parity shares.                                               |
 
 ## Assumptions and Considerations
 

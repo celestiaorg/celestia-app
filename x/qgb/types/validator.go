@@ -2,12 +2,11 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	math "math"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
-
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"cosmossdk.io/errors"
 )
@@ -42,7 +41,8 @@ type InternalBridgeValidator struct {
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
 	if !common.IsHexAddress(bridgeValidator.EvmAddress) {
-		return nil, stakingtypes.ErrEVMAddressNotHex
+		// TODO @cmwaters add appropriate QGB error type for this
+		return nil, fmt.Errorf("bridge validator evm address (%s) is not HEX formatted", bridgeValidator.EvmAddress)
 	}
 	validatorEVMAddr := common.HexToAddress(bridgeValidator.EvmAddress)
 	i := &InternalBridgeValidator{
