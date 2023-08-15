@@ -48,15 +48,6 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// first block is expected to contain no transaction, so is the first block.
 	if app.LastBlockHeight() == 0 {
 		txs = make([][]byte, 0)
-		if len(req.BlockData.Txs) != 0 {
-			// if the consensus layer sends non-empty set of transactions for
-			// block height 1, log it
-			app.Logger().Info(
-				"non-empty txs received from the consensus layer for block height 1",
-				"numberOfTransactions",
-				len(req.BlockData.Txs),
-			)
-		}
 	} else {
 		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 	}
