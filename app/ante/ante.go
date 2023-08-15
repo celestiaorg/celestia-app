@@ -1,4 +1,4 @@
-package app
+package ante
 
 import (
 	blobante "github.com/celestiaorg/celestia-app/x/blob/ante"
@@ -36,7 +36,11 @@ func NewAnteHandler(
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
 		blobante.NewMinGasPFBDecorator(blobKeeper),
+		blobante.NewMaxBlobSizeDecorator(blobKeeper),
+		NewGovProposalDecorator(),
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
 	)
 }
+
+var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer

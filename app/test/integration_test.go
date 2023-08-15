@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/stretchr/testify/suite"
 
@@ -29,6 +30,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -373,4 +375,65 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
 		ExtendBlobTest(t, blockRes.Block)
 	}
+}
+
+// TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
+// SubmitPayForBlob is invoked with different blob sizes.
+func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
+	t := s.T()
+	require.NoError(t, s.cctx.WaitForBlocks(3))
+
+	type testCase struct {
+		name string
+		blob *tmproto.Blob
+		// txResponseCode is the expected tx response ABCI code.
+		txResponseCode uint32
+	}
+	testCases := []testCase{
+		{
+			name:           "1,000 byte blob",
+			blob:           mustNewBlob(t, 1_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "10,000 byte blob",
+			blob:           mustNewBlob(t, 10_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "100,000 byte blob",
+			blob:           mustNewBlob(t, 100_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "1,000,000 byte blob",
+			blob:           mustNewBlob(t, 1_000_000),
+			txResponseCode: abci.CodeTypeOK,
+		},
+		{
+			name:           "10,000,000 byte blob returns err tx too large",
+			blob:           mustNewBlob(t, 10_000_000),
+			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
+			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
+		})
+	}
+}
+
+func mustNewBlob(t *testing.T, blobSize int) *tmproto.Blob {
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	data := tmrand.Bytes(blobSize)
+	result, err := blobtypes.NewBlob(ns1, data, appconsts.ShareVersionZero)
+	require.NoError(t, err)
+	return result
 }
