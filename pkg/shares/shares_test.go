@@ -241,7 +241,7 @@ func TestIsPadding(t *testing.T) {
 		),
 		appconsts.ShareSize)
 
-	nsPadding, err := NamespacePaddingShare(ns1)
+	nsPadding, err := NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	testCases := []testCase{

@@ -151,7 +151,7 @@ func Test_validSequenceLen(t *testing.T) {
 	}
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
-	share, err := NamespacePaddingShare(ns1)
+	share, err := NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	namespacePadding := ShareSequence{
 		Namespace: ns1,
@@ -159,7 +159,7 @@ func Test_validSequenceLen(t *testing.T) {
 	}
 
 	reservedPadding := ShareSequence{
-		Namespace: appns.ReservedPaddingNamespace,
+		Namespace: appns.PrimaryReservedPaddingNamespace,
 		Shares:    []Share{ReservedPaddingShare()},
 	}
 

@@ -86,7 +86,11 @@ func (sss *SparseShareSplitter) WriteNamespacePaddingShares(count int) error {
 	if err != nil {
 		return err
 	}
-	nsPaddingShares, err := NamespacePaddingShares(lastBlobNs, count)
+	lastBlobInfo, err := lastBlob.InfoByte()
+	if err != nil {
+		return err
+	}
+	nsPaddingShares, err := NamespacePaddingShares(lastBlobNs, lastBlobInfo.Version(), count)
 	if err != nil {
 		return err
 	}

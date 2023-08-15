@@ -23,7 +23,7 @@ var nsOnePadding, _ = zeroPadIfNecessary(
 
 var reservedPadding, _ = zeroPadIfNecessary(
 	append(
-		appns.ReservedPaddingNamespace.Bytes(),
+		appns.PrimaryReservedPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
@@ -40,13 +40,13 @@ var tailPadding, _ = zeroPadIfNecessary(
 	), appconsts.ShareSize)
 
 func TestNamespacePaddingShare(t *testing.T) {
-	got, err := NamespacePaddingShare(ns1)
+	got, err := NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	assert.NoError(t, err)
 	assert.Equal(t, nsOnePadding, got.ToBytes())
 }
 
 func TestNamespacePaddingShares(t *testing.T) {
-	shares, err := NamespacePaddingShares(ns1, 2)
+	shares, err := NamespacePaddingShares(ns1, appconsts.ShareVersionZero, 2)
 	assert.NoError(t, err)
 	for _, share := range shares {
 		assert.Equal(t, nsOnePadding, share.ToBytes())
