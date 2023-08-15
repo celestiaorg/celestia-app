@@ -6,8 +6,8 @@ import (
 
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
