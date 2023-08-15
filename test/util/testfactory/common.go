@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 func Repeat[T any](s T, count int) []T {
@@ -42,4 +43,8 @@ func RandomAccountNames(count int) []string {
 		accounts = append(accounts, tmrand.Str(10))
 	}
 	return accounts
+}
+
+func RandomEVMAddress() gethcommon.Address {
+	return gethcommon.BytesToAddress(tmrand.Bytes(gethcommon.AddressLength))
 }
