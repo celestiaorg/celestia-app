@@ -87,6 +87,7 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 		testutil.ValAddrs[1].String(),
 		newEVMAddr.String(),
 	)
+	require.NoError(t, err)
 	_, err = msgServer.RegisterEVMAddress(ctx, registerMsg)
 	require.NoError(t, err)
 	staking.EndBlocker(ctx, input.StakingKeeper)

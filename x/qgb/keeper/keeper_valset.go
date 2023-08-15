@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/errors"
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	gethcommon "github.com/ethereum/go-ethereum/common"
-	"cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // GetLatestValset returns the latest validator set in store. This is different

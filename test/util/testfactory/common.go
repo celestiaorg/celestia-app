@@ -6,8 +6,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	gethcommon "github.com/ethereum/go-ethereum/common"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func Repeat[T any](s T, count int) []T {
