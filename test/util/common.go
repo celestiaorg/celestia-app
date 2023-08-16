@@ -113,7 +113,7 @@ var (
 	}
 
 	// EVMAddrs holds etheruem addresses
-	EVMAddrs = initEVMAddrs(9)
+	EVMAddrs = initEVMAddrs(100)
 
 	// InitTokens holds the number of tokens to initialize an account with
 	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
