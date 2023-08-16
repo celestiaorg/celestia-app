@@ -30,11 +30,11 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgRegisterEVMAddress registers an evm address to a validator
+// MsgRegisterEVMAddress registers an evm address to a validator.
 type MsgRegisterEVMAddress struct {
-	// The address of the validator
+	// The operating address of the validator.
 	ValidatorAddress string `protobuf:"bytes,1,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
-	// The matching address of the EVM
+	// The matching address of the EVM.
 	EvmAddress string `protobuf:"bytes,2,opt,name=evm_address,json=evmAddress,proto3" json:"evm_address,omitempty"`
 }
 
@@ -85,7 +85,7 @@ func (m *MsgRegisterEVMAddress) GetEvmAddress() string {
 	return ""
 }
 
-// MsgRegisterEVMAddressResponse is the response to registering an EVM address
+// MsgRegisterEVMAddressResponse is the response to registering an EVM address.
 type MsgRegisterEVMAddressResponse struct {
 }
 
@@ -170,7 +170,7 @@ type MsgClient interface {
 	// by the relayer to aggregate signatures. A validator can only register a
 	// single EVM address. The EVM address can be overridden by a later message.
 	// There are no validity checks of the EVM addresses existence on the Ethereum
-	// state machine
+	// state machine.
 	RegisterEVMAddress(ctx context.Context, in *MsgRegisterEVMAddress, opts ...grpc.CallOption) (*MsgRegisterEVMAddressResponse, error)
 }
 
@@ -197,7 +197,7 @@ type MsgServer interface {
 	// by the relayer to aggregate signatures. A validator can only register a
 	// single EVM address. The EVM address can be overridden by a later message.
 	// There are no validity checks of the EVM addresses existence on the Ethereum
-	// state machine
+	// state machine.
 	RegisterEVMAddress(context.Context, *MsgRegisterEVMAddress) (*MsgRegisterEVMAddressResponse, error)
 }
 

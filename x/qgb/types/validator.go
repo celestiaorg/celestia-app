@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"fmt"
 	math "math"
 	"sort"
 
@@ -41,8 +40,7 @@ type InternalBridgeValidator struct {
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
 	if !common.IsHexAddress(bridgeValidator.EvmAddress) {
-		// TODO @cmwaters add appropriate QGB error type for this
-		return nil, fmt.Errorf("bridge validator evm address (%s) is not HEX formatted", bridgeValidator.EvmAddress)
+		return nil, ErrEVMAddressNotHex
 	}
 	validatorEVMAddr := common.HexToAddress(bridgeValidator.EvmAddress)
 	i := &InternalBridgeValidator{

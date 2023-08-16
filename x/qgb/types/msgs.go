@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -24,6 +26,11 @@ func (msg MsgRegisterEVMAddress) ValidateBasic() error {
 
 	if !common.IsHexAddress(msg.EvmAddress) {
 		return ErrEVMAddressNotHex
+	}
+
+	// assert that the length of the EVM address is correct
+	if len(msg.EvmAddress) != common.AddressLength*2+2 {
+		return fmt.Errorf("EVM address must be %d bytes long got %d", common.AddressLength*2+2, len(msg.EvmAddress))
 	}
 
 	return nil
