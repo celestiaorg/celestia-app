@@ -26,6 +26,7 @@ type SendSequence struct {
 	accounts       []types.AccAddress
 	index          int
 	numIterations  int
+	useFeegrant    bool
 }
 
 func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
@@ -35,6 +36,11 @@ func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
 		maxHeightDelay: 5,
 		numIterations:  numIterations,
 	}
+}
+
+func (s *SendSequence) WithFeegrant(useFeegrant bool) *SendSequence {
+	s.useFeegrant = useFeegrant
+	return s
 }
 
 func (s *SendSequence) Clone(n int) []Sequence {
@@ -49,7 +55,7 @@ func (s *SendSequence) Clone(n int) []Sequence {
 // multiplied by the number of expected iterations plus the amount to be sent from one account to another
 func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
 	amount := s.sendAmount + (s.numIterations * int(sendFee))
-	s.accounts = allocateAccounts(s.numAccounts, amount)
+	s.accounts = allocateAccounts(s.numAccounts, amount, s.useFeegrant)
 }
 
 // Next sumbits a transaction to remove funds from one account to the next

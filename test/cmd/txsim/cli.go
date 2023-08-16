@@ -38,6 +38,7 @@ var (
 	pollTime                                          time.Duration
 	send, sendIterations, sendAmount                  int
 	stake, stakeValue, blob                           int
+	useFeegrant                                       bool
 )
 
 func main() {
@@ -127,7 +128,7 @@ well funded account that can act as the master account. The command runs until a
 					return fmt.Errorf("invalid blob amounts: %w", err)
 				}
 
-				sequences = append(sequences, txsim.NewBlobSequence(sizes, blobsPerPFB).Clone(blob)...)
+				sequences = append(sequences, txsim.NewBlobSequence(sizes, blobsPerPFB).WithFeegrant(useFeegrant).Clone(blob)...)
 			}
 
 			if seed == 0 {
@@ -185,6 +186,7 @@ func flags() *flag.FlagSet {
 	flags.IntVar(&blob, "blob", 0, "number of blob sequences to run")
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs to send per PFB in a sequence")
+	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	return flags
 }
 

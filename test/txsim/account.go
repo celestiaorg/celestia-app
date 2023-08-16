@@ -17,6 +17,7 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/rs/zerolog/log"
 )
 
@@ -40,6 +41,7 @@ type Account struct {
 	Sequence      uint64
 	AccountNumber uint64
 	Balance       int64
+	UseFeegrant   bool
 }
 
 func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxClient, queryClient *QueryClient) (*AccountManager, error) {
@@ -128,7 +130,7 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
 
 // AllocateAccounts is used by sequences to specify the number of accounts
 // and the balance of each of those accounts. Not concurrently safe.
-func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
+func (am *AccountManager) AllocateAccounts(n, balance int, useFeegrant bool) []types.AccAddress {
 	if n < 1 {
 		panic("n must be greater than 0")
 	}
@@ -154,9 +156,10 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 		}
 
 		am.pending = append(am.pending, &Account{
-			Address: addresses[i],
-			PubKey:  pk,
-			Balance: int64(balance),
+			Address:     addresses[i],
+			PubKey:      pk,
+			Balance:     int64(balance),
+			UseFeegrant: useFeegrant,
 		})
 	}
 	return addresses
@@ -232,6 +235,15 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	for _, acc := range am.pending {
 		if am.masterAccount.Balance < acc.Balance {
 			return fmt.Errorf("master account has insufficient funds")
+		}
+
+		if acc.UseFeegrant {
+			// create a feegrant message so that the master account pays for all the fees of the sub accounts
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.masterAccount.Address, acc.Address)
+			if err != nil {
+				return fmt.Errorf("error creating feegrant message: %w", err)
+			}
+			msgs = append(msgs, feegrantMsg)
 		}
 
 		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, acc.Balance)))

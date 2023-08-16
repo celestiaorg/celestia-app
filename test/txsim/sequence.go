@@ -52,4 +52,4 @@ var ErrEndOfSequence = errors.New("end of sequence")
 
 // AccountAllocator reserves and funds a series of accounts to be used exclusively by
 // the Sequence.
-type AccountAllocator func(n, balance int) []types.AccAddress
+type AccountAllocator func(n, balance int, useFeegrant bool) []types.AccAddress

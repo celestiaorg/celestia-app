@@ -21,6 +21,7 @@ type StakeSequence struct {
 	redelegatePropability int
 	delegatedTo           string
 	account               types.AccAddress
+	useFeegrant           bool
 }
 
 func NewStakeSequence(initialStake int) *StakeSequence {
@@ -28,6 +29,11 @@ func NewStakeSequence(initialStake int) *StakeSequence {
 		initialStake:          initialStake,
 		redelegatePropability: 10, // 1 in every 10
 	}
+}
+
+func (s *StakeSequence) WithFeegrant() *StakeSequence {
+	s.useFeegrant = true
+	return s
 }
 
 func (s *StakeSequence) Clone(n int) []Sequence {
@@ -39,7 +45,11 @@ func (s *StakeSequence) Clone(n int) []Sequence {
 }
 
 func (s *StakeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
-	s.account = allocateAccounts(1, s.initialStake+fundsForGas)[0]
+	funds := fundsForGas
+	if s.useFeegrant {
+		funds = 1
+	}
+	s.account = allocateAccounts(1, s.initialStake+funds, s.useFeegrant)[0]
 }
 
 func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error) {
