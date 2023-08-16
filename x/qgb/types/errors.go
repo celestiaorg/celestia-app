@@ -24,5 +24,5 @@ var (
 	ErrEarliestAvailableNonceStillNotInitialized = errors.Register(ModuleName, 33, "the earliest available nonce after pruning has still not been defined in store")
 	ErrRequestedNonceWasPruned                   = errors.Register(ModuleName, 34, "the requested nonce has been pruned")
 	ErrUnknownAttestationType                    = errors.Register(ModuleName, 35, "unknown attestation type")
-	ErrEVMAddressNotHex                          = errors.Register(ModuleName, 36, "the provided eth address is not a valid hex address")
+	ErrEVMAddressNotHex                          = errors.Register(ModuleName, 36, "the provided evm address is not a valid hex address")
 )
