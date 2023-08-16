@@ -11,7 +11,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
@@ -66,7 +65,6 @@ type StakingKeeper interface {
 	GetLastValidatorPower(ctx sdk.Context, valAddr sdk.ValAddress) int64
 	GetParams(ctx sdk.Context) stakingtypes.Params
 	ValidatorQueueIterator(ctx sdk.Context, endTime time.Time, endHeight int64) sdk.Iterator
-	GetValidatorByEVMAddress(ctx sdk.Context, addr common.Address) (validator stakingtypes.Validator, found bool)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

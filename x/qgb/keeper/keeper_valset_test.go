@@ -80,7 +80,6 @@ func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
 		testutil.ValAddrs[0],
 		testutil.ConsPubKeys[0],
 		testutil.StakingAmount,
-		testutil.EVMAddrs[0],
 	)
 	// Run the staking endblocker to ensure valset is correct in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)
@@ -131,7 +130,6 @@ func TestCheckingAttestationNonceInValsets(t *testing.T) {
 		testutil.ValAddrs[0],
 		testutil.ConsPubKeys[0],
 		testutil.StakingAmount,
-		testutil.EVMAddrs[0],
 	)
 	// Run the staking endblocker to ensure valset is correct in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)
