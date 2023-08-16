@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"testing"
 	"time"
 
@@ -38,7 +37,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -113,9 +111,6 @@ var (
 		sdk.ValAddress(AccPubKeys[4].Address()),
 	}
 
-	// EVMAddrs holds etheruem addresses
-	EVMAddrs = initEVMAddrs(1000000) // TODO update 1000000 with a more realistic value
-
 	// InitTokens holds the number of tokens to initialize an account with
 	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
 
@@ -125,15 +120,6 @@ var (
 	// StakingAmount holds the staking power to start a validator with
 	StakingAmount = sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction)
 )
-
-func initEVMAddrs(count int) []gethcommon.Address {
-	addresses := make([]gethcommon.Address, count)
-	for i := 0; i < count; i++ {
-		evmAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
-		addresses[i] = evmAddr
-	}
-	return addresses
-}
 
 // TestInput stores the various keepers required to test the QGB
 type TestInput struct {
@@ -364,7 +350,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 
 	// Initialize each of the validators
 	for i := range []int{0, 1, 2, 3, 4} {
-		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount, EVMAddrs[i])
+		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount)
 	}
 
 	// Run the staking endblocker to ensure valset is correct in state
@@ -383,7 +369,6 @@ func CreateValidator(
 	valAddr sdk.ValAddress,
 	consPubKey ccrypto.PubKey,
 	stakingAmount cosmosmath.Int,
-	evmAddr gethcommon.Address,
 ) {
 	// Initialize the account for the key
 	acc := input.AccountKeeper.NewAccount(
@@ -402,7 +387,7 @@ func CreateValidator(
 	// Create a validator for that account using some tokens in the account
 	// and the staking handler
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount, evmAddr))
+	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount))
 	require.NoError(t, err)
 }
 
@@ -410,7 +395,6 @@ func NewTestMsgCreateValidator(
 	address sdk.ValAddress,
 	pubKey ccrypto.PubKey,
 	amt cosmosmath.Int,
-	evmAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
 	out, err := stakingtypes.NewMsgCreateValidator(
@@ -422,7 +406,6 @@ func NewTestMsgCreateValidator(
 			SecurityContact: "",
 			Details:         "",
 		}, commission, sdk.OneInt(),
-		evmAddr,
 	)
 	if err != nil {
 		panic(err)
@@ -467,7 +450,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		// and the staking handler
 		_, err := msgServer.CreateValidator(
 			input.Context,
-			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), EVMAddrs[i]),
+			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight)),
 		)
 		require.NoError(t, err)
 
