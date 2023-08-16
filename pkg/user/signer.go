@@ -214,7 +214,7 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		},
 	)
 	if err == nil {
-		return resp.TxResponse, err
+		return resp.TxResponse, nil
 	}
 
 	// this is a bit brittle
@@ -236,7 +236,7 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 			)
 
 			if err == nil {
-				return resp.TxResponse, err
+				return resp.TxResponse, nil
 			}
 
 			if !strings.Contains(err.Error(), "not found") {
@@ -289,7 +289,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("error setting draft signatures: %w", err)
 	}
 
-	// now we can use the data to produce the signature from each signer
+	// now we can use the data to produce the signature from the signer
 	signature, err := s.createSignature(builder, sequence)
 	if err != nil {
 		return fmt.Errorf("error creating signature: %w", err)
@@ -337,7 +337,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 	return signature, nil
 }
 
-// NewTxBuilder returns the default sdk Tx builder using the celestia-app encoding config
+// txBuilder returns the default sdk Tx builder using the celestia-app encoding config
 func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
 	builder := s.encCfg.TxConfig.NewTxBuilder()
 	for _, opt := range opts {
