@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -32,6 +33,10 @@ func (k Keeper) RegisterEVMAddress(goCtx context.Context, msg *types.MsgRegister
 
 	if _, exists := k.StakingKeeper.GetValidator(ctx, valAddr); !exists {
 		return nil, staking.ErrNoValidatorFound
+	}
+
+	if !k.IsEVMAddressUnique(ctx, msg.EvmAddress) {
+		return nil, errors.Wrapf(types.ErrEVMAddressAlreadyExists, "address %s", msg.EvmAddress)
 	}
 
 	k.SetEVMAddress(ctx, msg.ValidatorAddress, msg.EvmAddress)

@@ -113,7 +113,7 @@ var (
 	}
 
 	// EVMAddrs holds etheruem addresses
-	EVMAddrs = initEVMAddrs(1000000) // TODO update 1000000 with a more realistic value
+	EVMAddrs = initEVMAddrs(9)
 
 	// InitTokens holds the number of tokens to initialize an account with
 	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
@@ -364,9 +364,6 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	// Initialize each of the validators
 	for i := range []int{0, 1, 2, 3, 4} {
 		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount)
-		// sanity checks that the length is correct for validation
-		require.Len(t, EVMAddrs[i], gethcommon.AddressLength)
-		require.Len(t, EVMAddrs[i].String(), gethcommon.AddressLength*2+2)
 		RegisterEVMAddress(t, input, ValAddrs[i], EVMAddrs[i])
 	}
 

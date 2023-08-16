@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
@@ -95,11 +96,12 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		evmAddress, exists := k.GetEVMAddress(ctx, val.String())
 		if !exists {
-			// nodes must have an evm address to be held accountable for. Since
-			// the protocol doesn't require that they register it, if they don't
-			// we take some unique string to derive their evm address from, namely
-			// the validators address
-			evmAddress = gethcommon.BytesToAddress(val).String()
+			// This should never happen and indicates a bug in the design of
+			// the system (most likely that a hook wasn't called). A validator
+			// should always have an associated EVM address. Fortunately we can
+			// safely recover from this by deriving the default again.
+			ctx.Logger().Error("validator does not have an evm address set")
+			evmAddress = types.DefaultEVMAddress(val).String()
 		}
 
 		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: evmAddress}
@@ -203,7 +205,9 @@ func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*type
 
 func (k Keeper) SetEVMAddress(ctx sdk.Context, valAddress, evmAddress string) {
 	store := ctx.KVStore(k.storeKey)
-	store.Set(types.GetEVMKey(valAddress), []byte(evmAddress))
+	// convert the address first from Hex (this may pad or prune the initial string)
+	addrBytes := gethcommon.HexToAddress(evmAddress).Bytes()
+	store.Set(types.GetEVMKey(valAddress), addrBytes)
 }
 
 func (k Keeper) GetEVMAddress(ctx sdk.Context, valAddress string) (string, bool) {
@@ -211,5 +215,22 @@ func (k Keeper) GetEVMAddress(ctx sdk.Context, valAddress string) (string, bool)
 	if !store.Has(types.GetEVMKey(valAddress)) {
 		return "", false
 	}
-	return string(store.Get(types.GetEVMKey(valAddress))), true
+	addrBytes := store.Get(types.GetEVMKey(valAddress))
+	return gethcommon.BytesToAddress(addrBytes).String(), true
+}
+
+// IsEVMAddressUnique checks if the provided evm address is globally unique. This
+// includes the defaults we set validators when they initially create a validator
+// before registering
+func (k Keeper) IsEVMAddressUnique(ctx sdk.Context, evmAddress string) bool {
+	store := ctx.KVStore(k.storeKey)
+	addrBytes := gethcommon.HexToAddress(evmAddress).Bytes()
+	iterator := sdk.KVStorePrefixIterator(store, []byte(types.EVMAddress))
+	defer iterator.Close()
+	for ; iterator.Valid(); iterator.Next() {
+		if bytes.Equal(iterator.Value(), addrBytes) {
+			return false
+		}
+	}
+	return true
 }

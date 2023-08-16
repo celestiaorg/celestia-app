@@ -25,4 +25,5 @@ var (
 	ErrRequestedNonceWasPruned                   = errors.Register(ModuleName, 34, "the requested nonce has been pruned")
 	ErrUnknownAttestationType                    = errors.Register(ModuleName, 35, "unknown attestation type")
 	ErrEVMAddressNotHex                          = errors.Register(ModuleName, 36, "the provided evm address is not a valid hex address")
+	ErrEVMAddressAlreadyExists                   = errors.Register(ModuleName, 37, "the provided evm address already exists")
 )
