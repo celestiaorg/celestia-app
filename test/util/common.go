@@ -1,15 +1,15 @@
 package util
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/qgb"
-
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -37,6 +37,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -111,6 +112,9 @@ var (
 		sdk.ValAddress(AccPubKeys[4].Address()),
 	}
 
+	// EVMAddrs holds etheruem addresses
+	EVMAddrs = initEVMAddrs(100)
+
 	// InitTokens holds the number of tokens to initialize an account with
 	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
 
@@ -121,9 +125,18 @@ var (
 	StakingAmount = sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction)
 )
 
+func initEVMAddrs(count int) []gethcommon.Address {
+	addresses := make([]gethcommon.Address, count)
+	for i := 0; i < count; i++ {
+		evmAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, gethcommon.AddressLength))
+		addresses[i] = evmAddr
+	}
+	return addresses
+}
+
 // TestInput stores the various keepers required to test the QGB
 type TestInput struct {
-	QgbKeeper      *keeper.Keeper
+	QgbKeeper      keeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
 	StakingKeeper  stakingkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
@@ -139,7 +152,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	t.Helper()
 
 	// Initialize store keys
-	qgbKey := sdk.NewKVStoreKey(types.StoreKey)
+	qgbKey := sdk.NewKVStoreKey(qgbtypes.StoreKey)
 	keyAcc := sdk.NewKVStoreKey(authtypes.StoreKey)
 	keyStaking := sdk.NewKVStoreKey(stakingtypes.StoreKey)
 	keyBank := sdk.NewKVStoreKey(banktypes.StoreKey)
@@ -197,7 +210,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	paramsKeeper.Subspace(banktypes.ModuleName)
 	paramsKeeper.Subspace(stakingtypes.ModuleName)
 	paramsKeeper.Subspace(distrtypes.ModuleName)
-	paramsKeeper.Subspace(types.DefaultParamspace)
+	paramsKeeper.Subspace(qgbtypes.DefaultParamspace)
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
 
 	// this is also used to initialize module accounts for all the map keys
@@ -206,7 +219,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		distrtypes.ModuleName:          nil,
 		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		types.ModuleName:               {authtypes.Minter, authtypes.Burner},
+		qgbtypes.ModuleName:            {authtypes.Minter, authtypes.Burner},
 	}
 
 	accountKeeper := authkeeper.NewAccountKeeper(
@@ -253,16 +266,16 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	for name, perms := range maccPerms {
 		mod := authtypes.NewEmptyModuleAccount(name, perms...)
 		if name == stakingtypes.NotBondedPoolName {
-			err = bankKeeper.MintCoins(ctx, types.ModuleName, totalSupply)
+			err = bankKeeper.MintCoins(ctx, qgbtypes.ModuleName, totalSupply)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, mod.Name, totalSupply)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, qgbtypes.ModuleName, mod.Name, totalSupply)
 			require.NoError(t, err)
 		} else if name == distrtypes.ModuleName {
 			// some big pot to pay out
 			amt := sdk.NewCoins(sdk.NewInt64Coin("stake", 500000))
-			err = bankKeeper.MintCoins(ctx, types.ModuleName, amt)
+			err = bankKeeper.MintCoins(ctx, qgbtypes.ModuleName, amt)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, mod.Name, amt)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, qgbtypes.ModuleName, mod.Name, amt)
 			require.NoError(t, err)
 		}
 		accountKeeper.SetModuleAccount(ctx, mod)
@@ -279,8 +292,8 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		getSubspace(paramsKeeper, slashingtypes.ModuleName).WithKeyTable(slashingtypes.ParamKeyTable()),
 	)
 
-	k := keeper.NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, types.DefaultParamspace), &stakingKeeper)
-	testQGBParams := types.DefaultGenesis().Params
+	k := keeper.NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, qgbtypes.DefaultParamspace), &stakingKeeper)
+	testQGBParams := qgbtypes.DefaultGenesis().Params
 	k.SetParams(ctx, *testQGBParams)
 
 	stakingKeeper = *stakingKeeper.SetHooks(
@@ -291,7 +304,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		),
 	)
 	return TestInput{
-		QgbKeeper:      k,
+		QgbKeeper:      *k,
 		AccountKeeper:  accountKeeper,
 		BankKeeper:     bankKeeper,
 		StakingKeeper:  stakingKeeper,
@@ -321,7 +334,7 @@ func MakeTestCodec() *codec.LegacyAmino {
 	sdk.RegisterLegacyAminoCodec(cdc)
 	ccodec.RegisterCrypto(cdc)
 	params.AppModuleBasic{}.RegisterLegacyAminoCodec(cdc)
-	types.RegisterCodec(cdc)
+	qgbtypes.RegisterLegacyAminoCodec(cdc)
 	return cdc
 }
 
@@ -336,7 +349,7 @@ func MakeTestMarshaler() codec.Codec {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	std.RegisterInterfaces(interfaceRegistry)
 	ModuleBasics.RegisterInterfaces(interfaceRegistry)
-	types.RegisterInterfaces(interfaceRegistry)
+	qgbtypes.RegisterInterfaces(interfaceRegistry)
 	return codec.NewProtoCodec(interfaceRegistry)
 }
 
@@ -351,6 +364,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	// Initialize each of the validators
 	for i := range []int{0, 1, 2, 3, 4} {
 		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount)
+		RegisterEVMAddress(t, input, ValAddrs[i], EVMAddrs[i])
 	}
 
 	// Run the staking endblocker to ensure valset is correct in state
@@ -377,8 +391,8 @@ func CreateValidator(
 	)
 
 	// Set the balance for the account
-	require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, InitCoins))
-	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
+	require.NoError(t, input.BankKeeper.MintCoins(input.Context, qgbtypes.ModuleName, InitCoins))
+	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, qgbtypes.ModuleName, acc.GetAddress(), InitCoins)
 	require.NoError(t, err)
 
 	// Set the account in state
@@ -388,6 +402,18 @@ func CreateValidator(
 	// and the staking handler
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount))
+	require.NoError(t, err)
+}
+
+func RegisterEVMAddress(
+	t *testing.T,
+	input TestInput,
+	valAddr sdk.ValAddress,
+	evmAddr gethcommon.Address,
+) {
+	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
+	registerMsg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
+	_, err := qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 	require.NoError(t, err)
 }
 
@@ -423,7 +449,8 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
 
 	// Initialize each of the validators
-	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	stakingMsgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
 	for i, weight := range weights {
 		consPrivKey := ed25519.GenPrivKey()
 		consPubKey := consPrivKey.PubKey()
@@ -440,18 +467,22 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 		// Set the balance for the account
 		weightCoins := sdk.NewCoins(sdk.NewInt64Coin(TestingStakeParams.BondDenom, int64(weight)))
-		require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, weightCoins))
-		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, accAddr, weightCoins))
+		require.NoError(t, input.BankKeeper.MintCoins(input.Context, qgbtypes.ModuleName, weightCoins))
+		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, qgbtypes.ModuleName, accAddr, weightCoins))
 
 		// Set the account in state
 		input.AccountKeeper.SetAccount(input.Context, acc)
 
 		// Create a validator for that account using some of the tokens in the account
 		// and the staking handler
-		_, err := msgServer.CreateValidator(
+		_, err := stakingMsgServer.CreateValidator(
 			input.Context,
 			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight)),
 		)
+		require.NoError(t, err)
+
+		registerMsg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, EVMAddrs[i])
+		_, err = qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 		require.NoError(t, err)
 
 		// Run the staking endblocker to ensure valset is correct in state
