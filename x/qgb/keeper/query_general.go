@@ -23,3 +23,20 @@ func (k Keeper) Params(c context.Context, _ *types.QueryParamsRequest) (*types.Q
 		Params: params,
 	}, nil
 }
+
+// EVMAddress tries to find the associated EVM address for a given validator address. If
+// none is found, an empty address is returned
+func (k Keeper) EVMAddress(goCtx context.Context, req *types.QueryEVMAddressRequest) (*types.QueryEVMAddressResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	valAddr, err := sdk.ValAddressFromBech32(req.ValidatorAddress)
+	if err != nil {
+		return nil, err
+	}
+	evmAddr, exists := k.GetEVMAddress(ctx, valAddr)
+	if !exists {
+		return &types.QueryEVMAddressResponse{}, nil
+	}
+	return &types.QueryEVMAddressResponse{
+		EvmAddress: evmAddr.Hex(),
+	}, nil
+}
