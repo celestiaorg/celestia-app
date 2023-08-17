@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -88,6 +89,7 @@ func TestMaliciousTestNode(t *testing.T) {
 		cctx.GoContext(),
 		signer,
 		cctx.GRPCClient,
+		sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
 		blobs,
 		blobtypes.SetGasLimit(1_000_000),
 		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1_000_000)))),
