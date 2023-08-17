@@ -114,7 +114,11 @@ test-short:
 ## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
+<<<<<<< HEAD
 	@VERSION=$(VERSION) go test -mod=readonly -race -short ./...
+=======
+	@go test -mod=readonly ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestVestingModule|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite"
+>>>>>>> 9306f5c (chore: bump rsmt2d to v0.11.0 (#2304))
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
