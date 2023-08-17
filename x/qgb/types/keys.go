@@ -2,6 +2,8 @@ package types
 
 import (
 	"strings"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 const (
@@ -55,6 +57,6 @@ func ConvertByteArrToString(value []byte) string {
 	return ret.String()
 }
 
-func GetEVMKey(valAddress string) []byte {
-	return []byte(EVMAddress + valAddress)
+func GetEVMKey(valAddress sdk.ValAddress) []byte {
+	return append([]byte(EVMAddress), valAddress...)
 }

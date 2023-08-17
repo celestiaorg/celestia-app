@@ -7,12 +7,12 @@ import (
 
 var _ sdk.Msg = &MsgRegisterEVMAddress{}
 
-func NewMsgRegisterEVMAddress(valAddress, evmAddress string) (*MsgRegisterEVMAddress, error) {
+func NewMsgRegisterEVMAddress(valAddress sdk.ValAddress, evmAddress common.Address) *MsgRegisterEVMAddress {
 	msg := &MsgRegisterEVMAddress{
-		ValidatorAddress: valAddress,
-		EvmAddress:       evmAddress,
+		ValidatorAddress: valAddress.String(),
+		EvmAddress:       evmAddress.Hex(),
 	}
-	return msg, msg.ValidateBasic()
+	return msg
 }
 
 // ValidateBasic verifies that the EVM address and val address are of a valid type

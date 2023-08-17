@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -36,12 +37,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	dbm "github.com/tendermint/tm-db"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -411,9 +412,8 @@ func RegisterEVMAddress(
 	evmAddr gethcommon.Address,
 ) {
 	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
-	registerMsg, err := qgbtypes.NewMsgRegisterEVMAddress(valAddr.String(), evmAddr.String())
-	require.NoError(t, err)
-	_, err = qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
+	registerMsg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
+	_, err := qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 	require.NoError(t, err)
 }
 
@@ -481,8 +481,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		)
 		require.NoError(t, err)
 
-		registerMsg, err := qgbtypes.NewMsgRegisterEVMAddress(valAddr.String(), EVMAddrs[i].String())
-		require.NoError(t, err)
+		registerMsg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, EVMAddrs[i])
 		_, err = qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 		require.NoError(t, err)
 

@@ -9,6 +9,7 @@ import (
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -60,7 +61,7 @@ func (s *QGBIntegrationSuite) TestQGB() {
 
 				rvalAddr := sdk.ValAddress(valAddr)
 
-				msg, err := qgbtypes.NewMsgRegisterEVMAddress(rvalAddr.String(), "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5")
+				msg := qgbtypes.NewMsgRegisterEVMAddress(rvalAddr, gethcommon.HexToAddress("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5"))
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
@@ -77,7 +78,7 @@ func (s *QGBIntegrationSuite) TestQGB() {
 
 				rvalAddr := sdk.ValAddress(valAddr)
 
-				msg, err := qgbtypes.NewMsgRegisterEVMAddress(rvalAddr.String(), "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5")
+				msg := qgbtypes.NewMsgRegisterEVMAddress(rvalAddr, gethcommon.HexToAddress("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5"))
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},

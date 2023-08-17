@@ -83,12 +83,11 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	msgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
 
 	newEVMAddr := testfactory.RandomEVMAddress()
-	registerMsg, err := types.NewMsgRegisterEVMAddress(
-		testutil.ValAddrs[1].String(),
-		newEVMAddr.String(),
+	registerMsg := types.NewMsgRegisterEVMAddress(
+		testutil.ValAddrs[1],
+		newEVMAddr,
 	)
-	require.NoError(t, err)
-	_, err = msgServer.RegisterEVMAddress(ctx, registerMsg)
+	_, err := msgServer.RegisterEVMAddress(ctx, registerMsg)
 	require.NoError(t, err)
 	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, pk)

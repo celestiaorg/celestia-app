@@ -170,3 +170,34 @@ func TestCheckingAttestationNonceInValsets(t *testing.T) {
 		})
 	}
 }
+
+func TestEVMAddresses(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
+	k := input.QgbKeeper
+
+	_, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.False(t, exists)
+
+	// now create the validator
+	testutil.CreateValidator(
+		t,
+		input,
+		testutil.AccAddrs[0],
+		testutil.AccPubKeys[0],
+		0,
+		testutil.ValAddrs[0],
+		testutil.ConsPubKeys[0],
+		testutil.StakingAmount,
+	)
+
+	evmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.True(t, exists)
+	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[0]), evmAddress)
+
+	newEvmAddress := gethcommon.BytesToAddress([]byte("a"))
+
+	k.SetEVMAddress(input.Context, testutil.ValAddrs[0], newEvmAddress)
+	checkEvmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.True(t, exists)
+	require.Equal(t, newEvmAddress, checkEvmAddress)
+}

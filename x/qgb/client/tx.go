@@ -42,8 +42,11 @@ send a new message overriding the previous one.
 			}
 
 			valAddress, evmAddress := args[0], args[1]
-			msg, err := types.NewMsgRegisterEVMAddress(valAddress, evmAddress)
-			if err != nil {
+			msg := &types.MsgRegisterEVMAddress{
+				ValidatorAddress: valAddress,
+				EvmAddress:       evmAddress,
+			}
+			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
 

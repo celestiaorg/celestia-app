@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -31,15 +32,17 @@ func (k Keeper) RegisterEVMAddress(goCtx context.Context, msg *types.MsgRegister
 		return nil, err
 	}
 
+	evmAddr := gethcommon.HexToAddress(msg.EvmAddress)
+
 	if _, exists := k.StakingKeeper.GetValidator(ctx, valAddr); !exists {
 		return nil, staking.ErrNoValidatorFound
 	}
 
-	if !k.IsEVMAddressUnique(ctx, msg.EvmAddress) {
+	if !k.IsEVMAddressUnique(ctx, evmAddr) {
 		return nil, errors.Wrapf(types.ErrEVMAddressAlreadyExists, "address %s", msg.EvmAddress)
 	}
 
-	k.SetEVMAddress(ctx, msg.ValidatorAddress, msg.EvmAddress)
+	k.SetEVMAddress(ctx, valAddr, evmAddr)
 
 	return &types.MsgRegisterEVMAddressResponse{}, nil
 }

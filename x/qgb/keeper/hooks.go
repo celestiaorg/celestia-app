@@ -45,10 +45,10 @@ func (h Hooks) AfterValidatorCreated(ctx sdk.Context, addr sdk.ValAddress) error
 	// This should practically never happen that we have a collision. It may be
 	// bad UX to reject the attempt to create a validator and require the user to
 	// generate a new set of keys but this ensures EVM address uniqueness
-	if !h.k.IsEVMAddressUnique(ctx, defaultEvmAddr.String()) {
-		return errors.Wrapf(types.ErrEVMAddressAlreadyExists, "create a validator with a different operator address to %s", addr.String())
+	if !h.k.IsEVMAddressUnique(ctx, defaultEvmAddr) {
+		return errors.Wrapf(types.ErrEVMAddressAlreadyExists, "create a validator with a different operator address to %s (pubkey collision)", addr.String())
 	}
-	h.k.SetEVMAddress(ctx, addr.String(), defaultEvmAddr.String())
+	h.k.SetEVMAddress(ctx, addr, defaultEvmAddr)
 	return nil
 }
 
