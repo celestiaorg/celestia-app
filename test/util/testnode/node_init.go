@@ -1,7 +1,6 @@
 package testnode
 
 import (
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -21,7 +20,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tendermint/tendermint/config"
 	tmos "github.com/tendermint/tendermint/libs/os"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -29,22 +27,16 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
-// NodeEVMPrivateKey the key used to initialize the test node validator.
-// Its corresponding address is: "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329".
-var NodeEVMPrivateKey, _ = crypto.HexToECDSA("64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad")
-
 func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, chainID, rootDir string) error {
-	genTime := tmtime.Now()
-
 	gentxsDir := filepath.Join(rootDir, "gentxs")
-
-	initCfg := genutiltypes.NewInitConfig(chainID, gentxsDir, nodeID, pubKey)
 
 	genFile := tmCfg.GenesisFile()
 	genDoc, err := types.GenesisDocFromFile(genFile)
 	if err != nil {
 		return err
 	}
+
+	initCfg := genutiltypes.NewInitConfig(chainID, gentxsDir, nodeID, pubKey)
 
 	appState, err := genutil.GenAppStateFromConfig(
 		encCfg.Codec,
@@ -59,7 +51,7 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 	}
 
 	genDoc = &types.GenesisDoc{
-		GenesisTime:     genTime,
+		GenesisTime:     tmtime.Now(),
 		ChainID:         chainID,
 		Validators:      nil,
 		AppState:        appState,
@@ -124,8 +116,6 @@ func createValidator(
 	if err != nil {
 		return err
 	}
-	orchEVMPublicKey := NodeEVMPrivateKey.Public().(*ecdsa.PublicKey)
-	evmAddr := crypto.PubkeyToAddress(*orchEVMPublicKey)
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
 		sdk.ValAddress(addr),
@@ -134,7 +124,6 @@ func createValidator(
 		stakingtypes.NewDescription("test", "", "", "", ""),
 		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
 		sdk.OneInt(),
-		evmAddr,
 	)
 	if err != nil {
 		return err

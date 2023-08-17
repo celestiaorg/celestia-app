@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -38,7 +40,15 @@ func (h Hooks) BeforeDelegationCreated(_ sdk.Context, _ sdk.AccAddress, _ sdk.Va
 	return nil
 }
 
-func (h Hooks) AfterValidatorCreated(_ sdk.Context, _ sdk.ValAddress) error {
+func (h Hooks) AfterValidatorCreated(ctx sdk.Context, addr sdk.ValAddress) error {
+	defaultEvmAddr := types.DefaultEVMAddress(addr)
+	// This should practically never happen that we have a collision. It may be
+	// bad UX to reject the attempt to create a validator and require the user to
+	// generate a new set of keys but this ensures EVM address uniqueness
+	if !h.k.IsEVMAddressUnique(ctx, defaultEvmAddr) {
+		return errors.Wrapf(types.ErrEVMAddressAlreadyExists, "create a validator with a different operator address to %s (pubkey collision)", addr.String())
+	}
+	h.k.SetEVMAddress(ctx, addr, defaultEvmAddr)
 	return nil
 }
 

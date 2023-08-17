@@ -25,9 +25,7 @@ import (
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/tendermint/tendermint/privval"
@@ -140,7 +138,6 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 		if err != nil {
 			return types.GenesisDoc{}, err
 		}
-		evmAddress := common.HexToAddress(crypto.CRandHex(common.AddressLength))
 
 		validators = append(validators, staking.Validator{
 			OperatorAddress: sdk.ValAddress(addr).String(),
@@ -154,7 +151,6 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 			// 5% commission
 			Commission:        staking.NewCommission(sdk.NewDecWithPrec(5, 2), sdk.OneDec(), sdk.OneDec()),
 			MinSelfDelegation: sdk.ZeroInt(),
-			EvmAddress:        evmAddress.Hex(),
 		})
 		totalBonded += node.SelfDelegation
 		consensusAddr := pk.Address()

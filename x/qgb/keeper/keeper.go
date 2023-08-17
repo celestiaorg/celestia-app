@@ -3,7 +3,6 @@ package keeper
 import (
 	"encoding/binary"
 	"fmt"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -11,7 +10,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
@@ -64,9 +62,6 @@ type StakingKeeper interface {
 	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
 	GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator
 	GetLastValidatorPower(ctx sdk.Context, valAddr sdk.ValAddress) int64
-	GetParams(ctx sdk.Context) stakingtypes.Params
-	ValidatorQueueIterator(ctx sdk.Context, endTime time.Time, endHeight int64) sdk.Iterator
-	GetValidatorByEVMAddress(ctx sdk.Context, addr common.Address) (validator stakingtypes.Validator, found bool)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
