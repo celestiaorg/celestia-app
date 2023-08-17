@@ -210,16 +210,16 @@ func TestEVMAddresses(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, errors.Is(err, types.ErrEVMAddressAlreadyExists), err.Error())
 
-	resp, err := k.EVMAddress(input.Context, &types.QueryEvmAddressRequest{
+	resp, err := k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{
 		ValidatorAddress: testutil.ValAddrs[0].String(),
 	})
 	require.NoError(t, err)
 	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[1]).String(), resp.EvmAddress)
 
-	_, err = k.EVMAddress(input.Context, &types.QueryEvmAddressRequest{})
+	_, err = k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{})
 	require.Error(t, err)
 
-	resp, err = k.EVMAddress(input.Context, &types.QueryEvmAddressRequest{
+	resp, err = k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{
 		ValidatorAddress: testutil.ValAddrs[1].String(),
 	})
 	require.NoError(t, err)
