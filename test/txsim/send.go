@@ -27,7 +27,6 @@ type SendSequence struct {
 	accounts       []types.AccAddress
 	index          int
 	numIterations  int
-	useFeegrant    bool
 }
 
 func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
