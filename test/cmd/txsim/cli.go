@@ -22,22 +22,23 @@ import (
 
 // A set of environment variables that can be used instead of flags
 const (
-	TxsimGRPC     = "TXSIM_GRPC"
-	TxsimRPC      = "TXSIM_RPC"
-	TxsimSeed     = "TXSIM_SEED"
-	TxsimPoll     = "TXSIM_POLL"
-	TxsimKeypath  = "TXSIM_KEYPATH"
-	TxsimMnemonic = "TXSIM_MNEMONIC"
+	TxsimGRPC          = "TXSIM_GRPC"
+	TxsimRPC           = "TXSIM_RPC"
+	TxsimSeed          = "TXSIM_SEED"
+	TxsimPoll          = "TXSIM_POLL"
+	TxsimKeypath       = "TXSIM_KEYPATH"
+	TxsimMasterAccName = "TXSIM_MASTER_ACC_NAME"
+	TxsimMnemonic      = "TXSIM_MNEMONIC"
 )
 
 // Values for all flags
 var (
-	keyPath, keyMnemonic, rpcEndpoints, grpcEndpoints string
-	blobSizes, blobAmounts                            string
-	seed                                              int64
-	pollTime                                          time.Duration
-	send, sendIterations, sendAmount                  int
-	stake, stakeValue, blob                           int
+	keyPath, masterAccName, keyMnemonic, rpcEndpoints, grpcEndpoints string
+	blobSizes, blobAmounts                                           string
+	seed                                                             int64
+	pollTime                                                         time.Duration
+	send, sendIterations, sendAmount                                 int
+	stake, stakeValue, blob                                          int
 )
 
 func main() {
@@ -101,6 +102,10 @@ well funded account that can act as the master account. The command runs until a
 				}
 			}
 
+			if masterAccName == "" {
+				masterAccName = os.Getenv(TxsimMasterAccName)
+			}
+
 			if stake == 0 && send == 0 && blob == 0 {
 				return errors.New("no sequences specified. Use --stake, --send or --blob")
 			}
@@ -154,6 +159,7 @@ well funded account that can act as the master account. The command runs until a
 				strings.Split(rpcEndpoints, ","),
 				strings.Split(grpcEndpoints, ","),
 				keys,
+				masterAccName,
 				seed,
 				pollTime,
 				sequences...,
@@ -172,6 +178,7 @@ well funded account that can act as the master account. The command runs until a
 func flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 	flags.StringVar(&keyPath, "key-path", "", "path to the keyring")
+	flags.StringVar(&masterAccName, "master", "", "the account name of the master account. Leaving empty will result in using the account with the most funds.")
 	flags.StringVar(&keyMnemonic, "key-mnemonic", "", "space separated mnemonic for the keyring. The hdpath used is an empty string")
 	flags.StringVar(&rpcEndpoints, "rpc-endpoints", "", "comma separated list of rpc endpoints")
 	flags.StringVar(&grpcEndpoints, "grpc-endpoints", "", "comma separated list of grpc endpoints")
