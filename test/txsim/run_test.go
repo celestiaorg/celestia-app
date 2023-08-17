@@ -105,6 +105,7 @@ func TestTxSimulator(t *testing.T) {
 				[]string{rpcAddr},
 				[]string{grpcAddr},
 				keyring,
+				"",
 				9001,
 				time.Second,
 				tc.useFeegrant,
