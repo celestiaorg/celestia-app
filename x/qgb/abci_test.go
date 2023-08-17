@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	testutil "github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
@@ -23,7 +23,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	ctx = ctx.WithBlockHeight(1)
 	expectedTime := ctx.BlockTime()
 	// EndBlocker should set a new validator set
-	qgb.EndBlocker(ctx, *pk)
+	qgb.EndBlocker(ctx, pk)
 
 	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
 	attestation, found, err := pk.GetAttestationByNonce(ctx, 1)
@@ -46,7 +46,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *pk)
+	qgb.EndBlocker(ctx, pk)
 
 	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
 	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
@@ -59,7 +59,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	_, err := msgServer.Undelegate(ctx, undelegateMsg)
 	require.NoError(t, err)
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *pk)
+	qgb.EndBlocker(ctx, pk)
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
 	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
@@ -73,29 +73,27 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 
 	// run abci methods after chain init
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *pk)
+	qgb.EndBlocker(ctx, pk)
 
 	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
 	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	msgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
 
-	editMsg := stakingtypes.NewMsgEditValidator(
+	newEVMAddr := testfactory.RandomEVMAddress()
+	registerMsg := types.NewMsgRegisterEVMAddress(
 		testutil.ValAddrs[1],
-		stakingtypes.Description{},
-		nil,
-		nil,
+		newEVMAddr,
 	)
-	_, err := msgServer.EditValidator(ctx, editMsg)
+	_, err := msgServer.RegisterEVMAddress(ctx, registerMsg)
 	require.NoError(t, err)
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *pk)
+	qgb.EndBlocker(ctx, pk)
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
-	// FIXME: this needs to change to 2 once we have a proper implementation of editing the EVM address
-	assert.Equal(t, currentAttestationNonce, pk.GetLatestAttestationNonce(ctx))
+	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
 
 func TestSetValset(t *testing.T) {
@@ -231,7 +229,7 @@ func TestDataCommitmentCreation(t *testing.T) {
 
 	// run abci methods after chain init
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *qk)
+	qgb.EndBlocker(ctx, qk)
 
 	// current attestation nonce should be 1 because a valset has been emitted
 	// upon chain init.
@@ -241,7 +239,7 @@ func TestDataCommitmentCreation(t *testing.T) {
 	// increment height to be the same as the data commitment window
 	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx))
 	ctx = ctx.WithBlockHeight(newHeight)
-	qgb.EndBlocker(ctx, *qk)
+	qgb.EndBlocker(ctx, qk)
 
 	require.LessOrEqual(t, newHeight, ctx.BlockHeight())
 	assert.Equal(t, uint64(2), qk.GetLatestAttestationNonce(ctx))
@@ -254,7 +252,7 @@ func TestDataCommitmentRange(t *testing.T) {
 	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *qk)
+	qgb.EndBlocker(ctx, qk)
 
 	// current attestation nonce should be 1 because a valset has been emitted
 	// upon chain init.
@@ -264,7 +262,7 @@ func TestDataCommitmentRange(t *testing.T) {
 	// increment height to be the same as the data commitment window
 	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx)) + 1
 	ctx = ctx.WithBlockHeight(newHeight)
-	qgb.EndBlocker(ctx, *qk)
+	qgb.EndBlocker(ctx, qk)
 
 	require.LessOrEqual(t, newHeight, ctx.BlockHeight())
 	assert.Equal(t, uint64(2), qk.GetLatestAttestationNonce(ctx))
@@ -281,7 +279,7 @@ func TestDataCommitmentRange(t *testing.T) {
 	// increment height to 2*data commitment window
 	newHeight = int64(qk.GetDataCommitmentWindowParam(ctx))*2 + 1
 	ctx = ctx.WithBlockHeight(newHeight)
-	qgb.EndBlocker(ctx, *qk)
+	qgb.EndBlocker(ctx, qk)
 
 	att2, found, err := qk.GetAttestationByNonce(ctx, 3)
 	require.NoError(t, err)
@@ -363,19 +361,19 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 
 	// from height 1 to 1500 with a window of 400
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
-	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1, 1501)
+	ctx = testutil.ExecuteQGBHeights(ctx, qk, 1, 1501)
 
 	// change window to 100 and execute up to 1920
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 100})
-	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1501, 1921)
+	ctx = testutil.ExecuteQGBHeights(ctx, qk, 1501, 1921)
 
 	// change window to 1000 and execute up to 3500
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 1000})
-	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1921, 3501)
+	ctx = testutil.ExecuteQGBHeights(ctx, qk, 1921, 3501)
 
 	// change window to 111 and execute up to 3800
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 111})
-	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 3501, 3801)
+	ctx = testutil.ExecuteQGBHeights(ctx, qk, 3501, 3801)
 
 	// check if a data commitment was created
 	hasDataCommitment, err := qk.HasDataCommitmentInStore(ctx)
@@ -522,7 +520,7 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 // attestations are pruned
 func TestPruning(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qgbKeeper := *input.QgbKeeper
+	qgbKeeper := input.QgbKeeper
 	// set the data commitment window
 	window := uint64(101)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
