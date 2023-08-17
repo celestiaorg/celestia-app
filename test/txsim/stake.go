@@ -104,7 +104,8 @@ func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand 
 				ValidatorAddress: s.delegatedTo,
 			},
 		},
-		Delay: rand.Int63n(20),
+		Delay:       rand.Int63n(20),
+		UseFeegrant: s.useFeegrant,
 	}
 
 	return op, nil

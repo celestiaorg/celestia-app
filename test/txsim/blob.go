@@ -56,6 +56,7 @@ func (s *BlobSequence) Clone(n int) []Sequence {
 			namespace:   s.namespace,
 			sizes:       s.sizes,
 			blobsPerPFB: s.blobsPerPFB,
+			useFeegrant: s.useFeegrant,
 		}
 	}
 	return sequenceGroup
@@ -64,7 +65,7 @@ func (s *BlobSequence) Clone(n int) []Sequence {
 func (s *BlobSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
 	funds := fundsForGas
 	if s.useFeegrant {
-		funds = 0
+		funds = 1
 	}
 	s.account = allocateAccounts(1, funds, s.useFeegrant)[0]
 }
@@ -95,9 +96,10 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 		return Operation{}, err
 	}
 	return Operation{
-		Msgs:     []types.Msg{msg},
-		Blobs:    blobs,
-		GasLimit: estimateGas(sizes, s.useFeegrant),
+		Msgs:        []types.Msg{msg},
+		Blobs:       blobs,
+		GasLimit:    estimateGas(sizes, s.useFeegrant),
+		UseFeegrant: s.useFeegrant,
 	}, nil
 }
 

@@ -192,6 +192,10 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		}
 	}
 
+	if op.UseFeegrant {
+		builder.SetFeeGranter(am.masterAccount.Address)
+	}
+
 	if err := am.signTransaction(builder); err != nil {
 		return err
 	}
@@ -231,10 +235,11 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	}
 
 	msgs := make([]types.Msg, 0)
+	gasLimit := 0
 	// batch together all the messages needed to create all the accounts
 	for _, acc := range am.pending {
 		if am.masterAccount.Balance < acc.Balance {
-			return fmt.Errorf("master account has insufficient funds")
+			return fmt.Errorf("master account has insufficient funds. has: %v needed: %v", am.masterAccount.Balance, acc.Balance)
 		}
 
 		if acc.UseFeegrant {
@@ -244,13 +249,15 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 				return fmt.Errorf("error creating feegrant message: %w", err)
 			}
 			msgs = append(msgs, feegrantMsg)
+			gasLimit += FeegrantGasLimit
 		}
 
 		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, acc.Balance)))
 		msgs = append(msgs, bankMsg)
+		gasLimit += SendGasLimit
 	}
 
-	err := am.Submit(ctx, Operation{Msgs: msgs, GasLimit: SendGasLimit * uint64(len(am.pending))})
+	err := am.Submit(ctx, Operation{Msgs: msgs, GasLimit: uint64(gasLimit)})
 	if err != nil {
 		return fmt.Errorf("error funding accounts: %w", err)
 	}

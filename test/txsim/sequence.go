@@ -34,11 +34,12 @@ type Sequence interface {
 // single transaction. A delay (in heights) may also be set before the transaction is sent.
 // The gas limit and price can also be set. If left at 0, the DefaultGasLimit will be used.
 type Operation struct {
-	Msgs     []types.Msg
-	Blobs    []*blob.Blob
-	Delay    int64
-	GasLimit uint64
-	GasPrice float64
+	Msgs        []types.Msg
+	Blobs       []*blob.Blob
+	Delay       int64
+	GasLimit    uint64
+	GasPrice    float64
+	UseFeegrant bool
 }
 
 const (
