@@ -207,7 +207,6 @@ func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*type
 
 func (k Keeper) SetEVMAddress(ctx sdk.Context, valAddress sdk.ValAddress, evmAddress gethcommon.Address) {
 	store := ctx.KVStore(k.storeKey)
-	// convert the address first from Hex (this may pad or prune the initial string)
 	store.Set(types.GetEVMKey(valAddress), evmAddress.Bytes())
 }
 
