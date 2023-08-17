@@ -128,7 +128,7 @@ well funded account that can act as the master account. The command runs until a
 					return fmt.Errorf("invalid blob amounts: %w", err)
 				}
 
-				sequences = append(sequences, txsim.NewBlobSequence(sizes, blobsPerPFB).WithFeegrant(useFeegrant).Clone(blob)...)
+				sequences = append(sequences, txsim.NewBlobSequence(sizes, blobsPerPFB).Clone(blob)...)
 			}
 
 			if seed == 0 {
@@ -157,6 +157,7 @@ well funded account that can act as the master account. The command runs until a
 				keys,
 				seed,
 				pollTime,
+				useFeegrant,
 				sequences...,
 			)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {

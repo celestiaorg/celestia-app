@@ -33,6 +33,7 @@ type AccountManager struct {
 	mtx           sync.Mutex
 	masterAccount *Account
 	accounts      map[string]*Account
+	useFeegrant   bool
 }
 
 type Account struct {
@@ -41,10 +42,9 @@ type Account struct {
 	Sequence      uint64
 	AccountNumber uint64
 	Balance       int64
-	UseFeegrant   bool
 }
 
-func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxClient, queryClient *QueryClient) (*AccountManager, error) {
+func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxClient, queryClient *QueryClient, useFeegrant bool) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
 		return nil, err
@@ -55,11 +55,12 @@ func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxCl
 	}
 
 	am := &AccountManager{
-		keys:     keys,
-		accounts: make(map[string]*Account),
-		pending:  make([]*Account, 0),
-		tx:       txClient,
-		query:    queryClient,
+		keys:        keys,
+		accounts:    make(map[string]*Account),
+		pending:     make([]*Account, 0),
+		tx:          txClient,
+		query:       queryClient,
+		useFeegrant: useFeegrant,
 	}
 
 	if err := am.setupMasterAccount(ctx); err != nil {
@@ -130,7 +131,7 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
 
 // AllocateAccounts is used by sequences to specify the number of accounts
 // and the balance of each of those accounts. Not concurrently safe.
-func (am *AccountManager) AllocateAccounts(n, balance int, useFeegrant bool) []types.AccAddress {
+func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 	if n < 1 {
 		panic("n must be greater than 0")
 	}
@@ -156,10 +157,9 @@ func (am *AccountManager) AllocateAccounts(n, balance int, useFeegrant bool) []t
 		}
 
 		am.pending = append(am.pending, &Account{
-			Address:     addresses[i],
-			PubKey:      pk,
-			Balance:     int64(balance),
-			UseFeegrant: useFeegrant,
+			Address: addresses[i],
+			PubKey:  pk,
+			Balance: int64(balance),
 		})
 	}
 	return addresses
@@ -192,7 +192,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		}
 	}
 
-	if op.UseFeegrant {
+	if am.useFeegrant {
 		builder.SetFeeGranter(am.masterAccount.Address)
 	}
 
@@ -242,7 +242,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 			return fmt.Errorf("master account has insufficient funds. has: %v needed: %v", am.masterAccount.Balance, acc.Balance)
 		}
 
-		if acc.UseFeegrant {
+		if am.useFeegrant {
 			// create a feegrant message so that the master account pays for all the fees of the sub accounts
 			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.masterAccount.Address, acc.Address)
 			if err != nil {

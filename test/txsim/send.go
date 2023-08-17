@@ -39,11 +39,6 @@ func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
 	}
 }
 
-func (s *SendSequence) WithFeegrant(useFeegrant bool) *SendSequence {
-	s.useFeegrant = useFeegrant
-	return s
-}
-
 func (s *SendSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
 	for i := 0; i < n; i++ {
@@ -54,9 +49,9 @@ func (s *SendSequence) Clone(n int) []Sequence {
 
 // Init sets up the accounts involved in the sequence. It calculates the necessary balance as the fees per transaction
 // multiplied by the number of expected iterations plus the amount to be sent from one account to another
-func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
+func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, _ bool) {
 	amount := s.sendAmount + (s.numIterations * int(sendFee))
-	s.accounts = allocateAccounts(s.numAccounts, amount, s.useFeegrant)
+	s.accounts = allocateAccounts(s.numAccounts, amount)
 }
 
 // Next sumbits a transaction to remove funds from one account to the next
@@ -68,9 +63,8 @@ func (s *SendSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 		Msgs: []types.Msg{
 			bank.NewMsgSend(s.accounts[s.index%s.numAccounts], s.accounts[(s.index+1)%s.numAccounts], types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(s.sendAmount)))),
 		},
-		Delay:       rand.Int63n(int64(s.maxHeightDelay)),
-		GasLimit:    SendGasLimit,
-		UseFeegrant: s.useFeegrant,
+		Delay:    rand.Int63n(int64(s.maxHeightDelay)),
+		GasLimit: SendGasLimit,
 	}
 	s.index++
 	return op, nil
