@@ -92,7 +92,7 @@ See [./test/mint_test.go](./test/mint_test.go) for an integration test suite for
 
 Source: <https://en.wikipedia.org/wiki/Year#Calendar_year>
 
-This module assumes `DaysPerYear = 365.2425`  so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:
+This module assumes `DaysPerYear = 365.2425` so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:
 
 ```go
 // oneYear is 31,556,952 seconds which will likely return expected results in tests
@@ -101,6 +101,18 @@ oneYear := time.Duration(minttypes.NanosecondsPerYear)
 // oneYear is 31,536,000 seconds which will likely return unexpected results in tests
 oneYear := time.Hour * 24 * 365
 ```
+
+### Security
+
+Q: Can validators manipulate the amount of tokens minted due to inflation?
+
+A:
+
+This x/mint module calculates block provisions based on block timestamps so it is important to understand how block timestamps work in CometBFT. In CometBFT, block timestamps are monotonically increasing. A block's timestamp is the median of the `Vote.Time` fields from vote messages, where each vote's timestamp is weighted based on the voting power of the validator that cast it.
+
+Based on [BFT time](https://docs.cometbft.com/v0.34/spec/consensus/bft-time), a block's timestamp is manipulatable by malicious validators if they control > 1/3 of the total voting power. Consequently, if malicious validators control > 1/3 of the total voting power, they could manipulate a block's timestamp to some arbitrary value (e.g. one year in the future) effectively advancing the inflation schedule by a year.
+
+It is worth noting that in the scenario above, a CometBFT light client will reject a block if the block's timestamp is > 10 seconds ahead of the light client's current time. See [`verifyNewHeaderAndVals`](https://github.com/celestiaorg/celestia-core/blob/c6954760907680ab3f492f518d58d3d90237bed2/light/verifier.go#L176-L181) and [`defaultMaxClockDrift`](https://github.com/celestiaorg/celestia-core/blob/d02553fdba2720f0314f2f6451a5d50b6755e62c/light/client.go#L34-L38). Therefore, it seems infeasible for a malicious validator set with > 1/3 total voting power to manipulate the inflation schedule by more than 10 seconds.
 
 ## Implementation
 
