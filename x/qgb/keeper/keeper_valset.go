@@ -1,16 +1,16 @@
 package keeper
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/errors"
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	gethcommon "github.com/ethereum/go-ethereum/common"
-
-	"cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // GetLatestValset returns the latest validator set in store. This is different
@@ -94,9 +94,19 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
-		// FIXME @cmwaters fix this by adding a mapping from val address to evm address
-		evmAddrs := gethcommon.BytesToAddress(val)
-		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: evmAddrs.String()}
+		evmAddress, exists := k.GetEVMAddress(ctx, val)
+		if !exists {
+			// This should never happen and indicates a bug in the design of
+			// the system (most likely that a hook wasn't called or a migration
+			// for existing validators wasn't conducted). A validator
+			// should always have an associated EVM address. Fortunately we can
+			// safely recover from this by deriving the default again.
+			ctx.Logger().Error("validator does not have an evm address set")
+			evmAddress = types.DefaultEVMAddress(val)
+			k.SetEVMAddress(ctx, val, evmAddress)
+		}
+
+		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: evmAddress.Hex()}
 		ibv, err := types.NewInternalBridgeValidator(bv)
 		if err != nil {
 			return types.Valset{}, errors.Wrapf(err, types.ErrInvalidEVMAddress.Error(), val)
@@ -193,4 +203,34 @@ func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*type
 		sdkerrors.ErrNotFound,
 		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
 	)
+}
+
+func (k Keeper) SetEVMAddress(ctx sdk.Context, valAddress sdk.ValAddress, evmAddress gethcommon.Address) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.GetEVMKey(valAddress), evmAddress.Bytes())
+}
+
+func (k Keeper) GetEVMAddress(ctx sdk.Context, valAddress sdk.ValAddress) (gethcommon.Address, bool) {
+	store := ctx.KVStore(k.storeKey)
+	if !store.Has(types.GetEVMKey(valAddress)) {
+		return gethcommon.Address{}, false
+	}
+	addrBytes := store.Get(types.GetEVMKey(valAddress))
+	return gethcommon.BytesToAddress(addrBytes), true
+}
+
+// IsEVMAddressUnique checks if the provided evm address is globally unique. This
+// includes the defaults we set validators when they initially create a validator
+// before registering
+func (k Keeper) IsEVMAddressUnique(ctx sdk.Context, evmAddress gethcommon.Address) bool {
+	store := ctx.KVStore(k.storeKey)
+	addrBytes := evmAddress.Bytes()
+	iterator := sdk.KVStorePrefixIterator(store, []byte(types.EVMAddress))
+	defer iterator.Close()
+	for ; iterator.Valid(); iterator.Next() {
+		if bytes.Equal(iterator.Value(), addrBytes) {
+			return false
+		}
+	}
+	return true
 }

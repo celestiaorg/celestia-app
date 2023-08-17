@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/qgb"
@@ -9,6 +10,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,4 +171,43 @@ func TestCheckingAttestationNonceInValsets(t *testing.T) {
 			assert.ErrorIs(t, err, tt.expectedError)
 		})
 	}
+}
+
+func TestEVMAddresses(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
+	k := input.QgbKeeper
+
+	_, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.False(t, exists)
+
+	// now create the validator
+	testutil.CreateValidator(
+		t,
+		input,
+		testutil.AccAddrs[0],
+		testutil.AccPubKeys[0],
+		0,
+		testutil.ValAddrs[0],
+		testutil.ConsPubKeys[0],
+		testutil.StakingAmount,
+	)
+
+	evmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.True(t, exists)
+	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[0]), evmAddress)
+
+	newEvmAddress := gethcommon.BytesToAddress([]byte("a"))
+
+	k.SetEVMAddress(input.Context, testutil.ValAddrs[0], newEvmAddress)
+	checkEvmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.True(t, exists)
+	require.Equal(t, newEvmAddress, checkEvmAddress)
+
+	// squat the next validators default evm address
+	k.SetEVMAddress(input.Context, testutil.ValAddrs[0], types.DefaultEVMAddress(testutil.ValAddrs[1]))
+
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	_, err := msgServer.CreateValidator(input.Context, testutil.NewTestMsgCreateValidator(testutil.ValAddrs[1], testutil.ConsPubKeys[1], testutil.StakingAmount))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, types.ErrEVMAddressAlreadyExists), err.Error())
 }
