@@ -197,7 +197,6 @@ func TestEVMAddresses(t *testing.T) {
 	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[0]), evmAddress)
 
 	newEvmAddress := gethcommon.BytesToAddress([]byte("a"))
-
 	k.SetEVMAddress(input.Context, testutil.ValAddrs[0], newEvmAddress)
 	checkEvmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
 	require.True(t, exists)
@@ -210,4 +209,19 @@ func TestEVMAddresses(t *testing.T) {
 	_, err := msgServer.CreateValidator(input.Context, testutil.NewTestMsgCreateValidator(testutil.ValAddrs[1], testutil.ConsPubKeys[1], testutil.StakingAmount))
 	require.Error(t, err)
 	require.True(t, errors.Is(err, types.ErrEVMAddressAlreadyExists), err.Error())
+
+	resp, err := k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{
+		ValidatorAddress: testutil.ValAddrs[0].String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[1]).String(), resp.EvmAddress)
+
+	_, err = k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{})
+	require.Error(t, err)
+
+	resp, err = k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{
+		ValidatorAddress: testutil.ValAddrs[1].String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "", resp.EvmAddress)
 }

@@ -61,6 +61,12 @@ service Query {
       returns (QueryLatestDataCommitmentResponse) {
     option (google.api.http).get = "/qgb/v1/data_commitment/latest";
   }
+
+  // EVMAddress returns the evm address associated with a supplied
+  // validator address
+  rpc EVMAddress(QueryEVMAddressRequest) returns (QueryEVMAddressResponse) {
+    option (google.api.http).get = "/qgb/v1/evm_address";
+  }
 }
 
 // QueryParamsRequest
@@ -116,3 +122,9 @@ message QueryDataCommitmentRangeForHeightRequest { uint64 height = 1; }
 message QueryDataCommitmentRangeForHeightResponse {
   DataCommitment data_commitment = 1;
 }
+
+// QueryEVMAddressRequest
+message QueryEVMAddressRequest { string validator_address = 1; }
+
+// QueryEVMAddressResponse
+message QueryEVMAddressResponse { string evm_address = 1; }
