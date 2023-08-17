@@ -136,6 +136,7 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 		[]string{s.rpcAddr},
 		[]string{s.grpcAddr},
 		s.cctx.Keyring,
+		"",
 		rand.Int63(),
 		time.Second,
 		seqs...,
