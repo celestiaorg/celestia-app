@@ -42,7 +42,7 @@ type Account struct {
 	Balance       int64
 }
 
-func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxClient, queryClient *QueryClient) (*AccountManager, error) {
+func NewAccountManager(ctx context.Context, keys keyring.Keyring, masterAccName string, txClient *TxClient, queryClient *QueryClient) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
 		return nil, err
@@ -60,8 +60,14 @@ func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxCl
 		query:    queryClient,
 	}
 
-	if err := am.setupMasterAccount(ctx); err != nil {
-		return nil, err
+	if masterAccName == "" {
+		if err := am.setupDefaultMasterAccount(ctx); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := am.setupSpecifiedMasterAccount(ctx, masterAccName); err != nil {
+			return nil, err
+		}
 	}
 
 	log.Info().
@@ -73,10 +79,10 @@ func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxCl
 	return am, nil
 }
 
-// setupMasterAccount loops through all accounts in the keyring and picks out the one with
+// setupDefaultMasterAccount loops through all accounts in the keyring and picks out the one with
 // the highest balance as the master account. Accounts that don't yet exist on chain are
 // ignored.
-func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
+func (am *AccountManager) setupDefaultMasterAccount(ctx context.Context) error {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
 
@@ -121,6 +127,44 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
 
 	if am.masterAccount == nil {
 		return fmt.Errorf("no suitable master account found")
+	}
+
+	return nil
+}
+
+func (am *AccountManager) setupSpecifiedMasterAccount(ctx context.Context, masterAccName string) error {
+	masterRecord, err := am.keys.Key(masterAccName)
+	if err != nil {
+		return fmt.Errorf("error getting specified master account %s: %w", masterAccName, err)
+	}
+
+	masterAddress, err := masterRecord.GetAddress()
+	if err != nil {
+		return fmt.Errorf("error getting address for account %s: %w", masterAccName, err)
+	}
+
+	// search for the account on chain
+	masterBalance, err := am.getBalance(ctx, masterAddress)
+	if err != nil {
+		return fmt.Errorf("error getting specified master account %s balance: %w", masterAccName, err)
+	}
+
+	accountNumber, sequence, err := am.getAccountDetails(ctx, masterAddress)
+	if err != nil {
+		return fmt.Errorf("error getting account details for account %s: %w", masterRecord.Name, err)
+	}
+
+	pk, err := masterRecord.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("error getting public key for account %s: %w", masterRecord.Name, err)
+	}
+
+	am.masterAccount = &Account{
+		Address:       masterAddress,
+		PubKey:        pk,
+		Sequence:      sequence,
+		AccountNumber: accountNumber,
+		Balance:       masterBalance,
 	}
 
 	return nil
@@ -220,8 +264,8 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	return nil
 }
 
-// Generate the pending accounts by sending the adequate funds and setting up the feegrant permissions.
-// This operation is not concurrently safe.
+// Generate the pending accounts by sending the adequate funds. This operation
+// is not concurrently safe.
 func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	if len(am.pending) == 0 {
 		return nil
@@ -231,7 +275,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	// batch together all the messages needed to create all the accounts
 	for _, acc := range am.pending {
 		if am.masterAccount.Balance < acc.Balance {
-			return fmt.Errorf("master account has insufficient funds")
+			return fmt.Errorf("master account has insufficient funds needed: %v", acc.Balance)
 		}
 
 		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, acc.Balance)))

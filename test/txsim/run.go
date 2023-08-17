@@ -27,6 +27,7 @@ func Run(
 	ctx context.Context,
 	rpcEndpoints, grpcEndpoints []string,
 	keys keyring.Keyring,
+	masterAccName string,
 	seed int64,
 	pollTime time.Duration,
 	sequences ...Sequence,
@@ -45,7 +46,7 @@ func Run(
 	defer queryClient.Close()
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, txClient, queryClient)
+	manager, err := NewAccountManager(ctx, keys, masterAccName, txClient, queryClient)
 	if err != nil {
 		return err
 	}

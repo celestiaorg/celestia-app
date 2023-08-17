@@ -7,8 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	"cosmossdk.io/errors"
 )
 
@@ -42,7 +40,7 @@ type InternalBridgeValidator struct {
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
 	if !common.IsHexAddress(bridgeValidator.EvmAddress) {
-		return nil, stakingtypes.ErrEVMAddressNotHex
+		return nil, ErrEVMAddressNotHex
 	}
 	validatorEVMAddr := common.HexToAddress(bridgeValidator.EvmAddress)
 	i := &InternalBridgeValidator{
