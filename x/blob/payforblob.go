@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -18,6 +18,7 @@ func SubmitPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
+	mode sdktx.BroadcastMode,
 	blobs []*types.Blob,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
@@ -46,7 +47,7 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	txResp, err := types.BroadcastTx(ctx, conn, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
+	txResp, err := types.BroadcastTx(ctx, conn, mode, blobTx)
 	if err != nil {
 		return nil, err
 	}

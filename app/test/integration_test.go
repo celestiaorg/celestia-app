@@ -28,6 +28,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -262,7 +263,14 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			require.NoError(t, s.cctx.WaitForBlocks(3))
 
 			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
+			res, err := blob.SubmitPayForBlob(
+				context.TODO(),
+				signer,
+				s.cctx.GRPCClient,
+				sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
+				[]*blobtypes.Blob{tc.blob, tc.blob},
+				tc.opts...,
+			)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
@@ -421,7 +429,14 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 		s.Run(tc.name, func() {
 			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
 			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
+			res, err := blob.SubmitPayForBlob(
+				context.TODO(),
+				signer,
+				s.cctx.GRPCClient,
+				sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
+				[]*blobtypes.Blob{tc.blob},
+				options...,
+			)
 
 			require.NoError(t, err)
 			require.NotNil(t, res)
