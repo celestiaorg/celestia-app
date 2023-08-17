@@ -44,7 +44,14 @@ type Account struct {
 	Balance       int64
 }
 
-func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxClient, queryClient *QueryClient, useFeegrant bool) (*AccountManager, error) {
+func NewAccountManager(
+	ctx context.Context,
+	keys keyring.Keyring,
+	masterAccName string,
+	txClient *TxClient,
+	queryClient *QueryClient,
+	useFeegrant bool,
+) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
 		return nil, err
