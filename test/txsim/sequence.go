@@ -21,7 +21,7 @@ type Sequence interface {
 	// Init allows the sequence to initialize itself. It may read the current state of
 	// the chain and provision accounts for usage throughout the sequence.
 	// For any randomness, use the rand source provided.
-	Init(ctx context.Context, querier grpc.ClientConn, accountAllocator AccountAllocator, rand *rand.Rand)
+	Init(ctx context.Context, querier grpc.ClientConn, accountAllocator AccountAllocator, rand *rand.Rand, useFeegrant bool)
 
 	// Next returns the next operation in the sequence. It returns EndOfSequence
 	// when the sequence has been exhausted. The sequence may make use of the

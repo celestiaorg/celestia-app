@@ -30,6 +30,7 @@ func Run(
 	masterAccName string,
 	seed int64,
 	pollTime time.Duration,
+	useFeegrant bool,
 	sequences ...Sequence,
 ) error {
 	r := rand.New(rand.NewSource(seed))
@@ -46,14 +47,14 @@ func Run(
 	defer queryClient.Close()
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, masterAccName, txClient, queryClient)
+	manager, err := NewAccountManager(ctx, keys, masterAccName, txClient, queryClient, useFeegrant)
 	if err != nil {
 		return err
 	}
 
 	// Initiaize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
-		sequence.Init(ctx, manager.query.Conn(), manager.AllocateAccounts, r)
+		sequence.Init(ctx, manager.query.Conn(), manager.AllocateAccounts, r, useFeegrant)
 	}
 
 	// Generate the allotted accounts on chain by sending them sufficient funds

@@ -13,8 +13,9 @@ import (
 var _ Sequence = &SendSequence{}
 
 const (
-	SendGasLimit = 100000
-	sendFee      = SendGasLimit * appconsts.DefaultMinGasPrice
+	SendGasLimit     = 100000
+	FeegrantGasLimit = 800000
+	sendFee          = SendGasLimit * appconsts.DefaultMinGasPrice
 )
 
 // SendSequence sets up an endless sequence of send transactions, moving tokens
@@ -47,7 +48,7 @@ func (s *SendSequence) Clone(n int) []Sequence {
 
 // Init sets up the accounts involved in the sequence. It calculates the necessary balance as the fees per transaction
 // multiplied by the number of expected iterations plus the amount to be sent from one account to another
-func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
+func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, _ bool) {
 	amount := s.sendAmount + (s.numIterations * int(sendFee))
 	s.accounts = allocateAccounts(s.numAccounts, amount)
 }

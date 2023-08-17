@@ -17,6 +17,7 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/rs/zerolog/log"
 )
 
@@ -32,6 +33,7 @@ type AccountManager struct {
 	mtx           sync.Mutex
 	masterAccount *Account
 	accounts      map[string]*Account
+	useFeegrant   bool
 }
 
 type Account struct {
@@ -42,7 +44,14 @@ type Account struct {
 	Balance       int64
 }
 
-func NewAccountManager(ctx context.Context, keys keyring.Keyring, masterAccName string, txClient *TxClient, queryClient *QueryClient) (*AccountManager, error) {
+func NewAccountManager(
+	ctx context.Context,
+	keys keyring.Keyring,
+	masterAccName string,
+	txClient *TxClient,
+	queryClient *QueryClient,
+	useFeegrant bool,
+) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
 		return nil, err
@@ -53,11 +62,12 @@ func NewAccountManager(ctx context.Context, keys keyring.Keyring, masterAccName 
 	}
 
 	am := &AccountManager{
-		keys:     keys,
-		accounts: make(map[string]*Account),
-		pending:  make([]*Account, 0),
-		tx:       txClient,
-		query:    queryClient,
+		keys:        keys,
+		accounts:    make(map[string]*Account),
+		pending:     make([]*Account, 0),
+		tx:          txClient,
+		query:       queryClient,
+		useFeegrant: useFeegrant,
 	}
 
 	if masterAccName == "" {
@@ -233,6 +243,10 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		}
 	}
 
+	if am.useFeegrant {
+		builder.SetFeeGranter(am.masterAccount.Address)
+	}
+
 	if err := am.signTransaction(builder); err != nil {
 		return err
 	}
@@ -272,17 +286,29 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	}
 
 	msgs := make([]types.Msg, 0)
+	gasLimit := 0
 	// batch together all the messages needed to create all the accounts
 	for _, acc := range am.pending {
 		if am.masterAccount.Balance < acc.Balance {
-			return fmt.Errorf("master account has insufficient funds needed: %v", acc.Balance)
+			return fmt.Errorf("master account has insufficient funds. has: %v needed: %v", am.masterAccount.Balance, acc.Balance)
+		}
+
+		if am.useFeegrant {
+			// create a feegrant message so that the master account pays for all the fees of the sub accounts
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.masterAccount.Address, acc.Address)
+			if err != nil {
+				return fmt.Errorf("error creating feegrant message: %w", err)
+			}
+			msgs = append(msgs, feegrantMsg)
+			gasLimit += FeegrantGasLimit
 		}
 
 		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, acc.Balance)))
 		msgs = append(msgs, bankMsg)
+		gasLimit += SendGasLimit
 	}
 
-	err := am.Submit(ctx, Operation{Msgs: msgs, GasLimit: SendGasLimit * uint64(len(am.pending))})
+	err := am.Submit(ctx, Operation{Msgs: msgs, GasLimit: uint64(gasLimit)})
 	if err != nil {
 		return fmt.Errorf("error funding accounts: %w", err)
 	}

@@ -41,7 +41,7 @@ func TestE2ESimple(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err = txsim.Run(ctx, testnet.RPCEndpoints(), testnet.GRPCEndpoints(), kr, "", seed, 3*time.Second, sequences...)
+	err = txsim.Run(ctx, testnet.RPCEndpoints(), testnet.GRPCEndpoints(), kr, "", seed, 3*time.Second, false, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())

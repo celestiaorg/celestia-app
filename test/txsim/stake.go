@@ -38,8 +38,12 @@ func (s *StakeSequence) Clone(n int) []Sequence {
 	return sequenceGroup
 }
 
-func (s *StakeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
-	s.account = allocateAccounts(1, s.initialStake+fundsForGas)[0]
+func (s *StakeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, useFeegrant bool) {
+	funds := fundsForGas
+	if useFeegrant {
+		funds = 1
+	}
+	s.account = allocateAccounts(1, s.initialStake+funds)[0]
 }
 
 func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error) {

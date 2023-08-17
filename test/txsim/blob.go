@@ -15,7 +15,7 @@ import (
 var _ Sequence = &BlobSequence{}
 
 // As napkin math, this would cover the cost of 8267 4KB blobs
-const fundsForGas = 1e9 // 1000 TIA
+const fundsForGas int = 1e9 // 1000 TIA
 
 // BlobSequence defines a pattern whereby a single user repeatedly sends a pay for blob
 // message roughly every height. The PFB may consist of several blobs
@@ -24,7 +24,8 @@ type BlobSequence struct {
 	sizes       Range
 	blobsPerPFB Range
 
-	account types.AccAddress
+	account     types.AccAddress
+	useFeegrant bool
 }
 
 func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
@@ -53,8 +54,13 @@ func (s *BlobSequence) Clone(n int) []Sequence {
 	return sequenceGroup
 }
 
-func (s *BlobSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
-	s.account = allocateAccounts(1, fundsForGas)[0]
+func (s *BlobSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, useFeegrant bool) {
+	s.useFeegrant = useFeegrant
+	funds := fundsForGas
+	if useFeegrant {
+		funds = 1
+	}
+	s.account = allocateAccounts(1, funds)[0]
 }
 
 func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Rand) (Operation, error) {
@@ -85,7 +91,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	return Operation{
 		Msgs:     []types.Msg{msg},
 		Blobs:    blobs,
-		GasLimit: estimateGas(sizes),
+		GasLimit: estimateGas(sizes, s.useFeegrant),
 	}, nil
 }
 
@@ -107,11 +113,17 @@ func (r Range) Rand(rand *rand.Rand) int {
 }
 
 // estimateGas estimates the gas required to pay for a set of blobs in a PFB.
-func estimateGas(blobSizes []int) uint64 {
+func estimateGas(blobSizes []int, useFeegrant bool) uint64 {
 	size := make([]uint32, len(blobSizes))
 	for i, s := range blobSizes {
 		size[i] = uint32(s)
 	}
 
-	return blob.DefaultEstimateGas(size)
+	// account for the extra gas required to pay for the fee granter
+	extra := uint64(0)
+	if useFeegrant {
+		extra = 12000
+	}
+
+	return blob.DefaultEstimateGas(size) + extra
 }

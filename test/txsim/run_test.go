@@ -30,6 +30,7 @@ func TestTxSimulator(t *testing.T) {
 		name        string
 		sequences   []txsim.Sequence
 		expMessages map[string]int64
+		useFeegrant bool
 	}{
 		{
 			name:      "send sequence",
@@ -77,6 +78,20 @@ func TestTxSimulator(t *testing.T) {
 				sdk.MsgTypeURL(&blob.MsgPayForBlobs{}):                     10,
 			},
 		},
+		{
+			name: "multi mixed sequence using feegrant",
+			sequences: append(append(
+				txsim.NewSendSequence(2, 1000, 100).Clone(3),
+				txsim.NewStakeSequence(1000).Clone(3)...),
+				txsim.NewBlobSequence(txsim.NewRange(1000, 1000), txsim.NewRange(1, 3)).Clone(3)...),
+			expMessages: map[string]int64{
+				sdk.MsgTypeURL(&bank.MsgSend{}):                            15,
+				sdk.MsgTypeURL(&staking.MsgDelegate{}):                     2,
+				sdk.MsgTypeURL(&distribution.MsgWithdrawDelegatorReward{}): 10,
+				sdk.MsgTypeURL(&blob.MsgPayForBlobs{}):                     10,
+			},
+			useFeegrant: true,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -93,6 +108,7 @@ func TestTxSimulator(t *testing.T) {
 				"",
 				9001,
 				time.Second,
+				tc.useFeegrant,
 				tc.sequences...,
 			)
 			// Expect all sequences to run for at least 30 seconds without error
