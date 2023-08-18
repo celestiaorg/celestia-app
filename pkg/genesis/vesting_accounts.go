@@ -45,8 +45,9 @@ func NewGenesisDelayedVestingAccount(
 
 	balance = banktypes.Balance{
 		Address: address,
-		Coins:   initUnlockedCoins.Add(vestingBalance...),
+		Coins:   vestingBalance,
 	}
+	vestingBalance = vestingBalance.Sub(initUnlockedCoins...)
 
 	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
 	vAccount := vestingtypes.NewDelayedVestingAccount(bAccount, vestingBalance, endTime.Unix())
@@ -68,8 +69,9 @@ func NewGenesisPeriodicVestingAccount(
 
 	balance = banktypes.Balance{
 		Address: address,
-		Coins:   initUnlockedCoins.Add(vestingBalance...),
+		Coins:   vestingBalance,
 	}
+	vestingBalance = vestingBalance.Sub(initUnlockedCoins...)
 
 	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
 	vAccount := vestingtypes.NewPeriodicVestingAccount(bAccount, vestingBalance, startTime.Unix(), periods)
@@ -90,8 +92,9 @@ func NewGenesisContinuousVestingAccount(
 
 	balance = banktypes.Balance{
 		Address: address,
-		Coins:   initUnlockedCoins.Add(vestingBalance...),
+		Coins:   vestingBalance,
 	}
+	vestingBalance = vestingBalance.Sub(initUnlockedCoins...)
 
 	bAccount := authtypes.NewBaseAccountWithAddress(sdkAddr)
 	vAccount := vestingtypes.NewContinuousVestingAccount(bAccount, vestingBalance, startTime.Unix(), endTime.Unix())
