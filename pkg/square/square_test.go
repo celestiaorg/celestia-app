@@ -136,9 +136,8 @@ func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blob
 
 // The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
 func TestSquareBlobShareRange_Flaky(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	rand := tmrand.NewRand()
-	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), rand, 10, 1000, 10).ToSliceOfBytes()
+	txs := blobfactory.RandBlobTxsRandomlySized(rand, 10, 1000, 10).ToSliceOfBytes()
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)

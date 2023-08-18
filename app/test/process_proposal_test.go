@@ -204,9 +204,8 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace in index wrapper tx",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
-				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), signer, uint32(index))
+				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
 				blobTx, err := coretypes.MarshalBlobTx(tx, &blob)
 				require.NoError(t, err)
 

@@ -105,7 +105,7 @@ proto-format:
 ## build-docker: Build the celestia-appd docker image. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
 
 ## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
@@ -158,7 +158,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -mod=readonly ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestSignerTestSuite"
+	@go test -mod=readonly ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestVestingModule|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.

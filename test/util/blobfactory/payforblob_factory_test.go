@@ -22,11 +22,11 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	marshalledBlobTxs1 := RandMultiBlobTxsSameSigner(t, encCfg.TxConfig.TxEncoder(), rand1, signer, pfbCount)
+	marshalledBlobTxs1 := RandMultiBlobTxsSameSigner(t, rand1, signer, pfbCount)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	marshalledBlobTxs2 := RandMultiBlobTxsSameSigner(t, encCfg.TxConfig.TxEncoder(), rand2, signer, pfbCount)
+	marshalledBlobTxs2 := RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)
 
 	// additional checks for the sake of future debugging
 	for index := 0; index < pfbCount; index++ {

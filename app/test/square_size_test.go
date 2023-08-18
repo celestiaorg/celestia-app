@@ -137,8 +137,10 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 		[]string{s.rpcAddr},
 		[]string{s.grpcAddr},
 		s.cctx.Keyring,
+		"",
 		rand.Int63(),
 		time.Second,
+		false,
 		seqs...,
 	)
 
@@ -181,7 +183,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	msg, err := oldgov.NewMsgSubmitProposal(
 		content,
 		sdk.NewCoins(
-			sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000000000))),
 		addr,
 	)
 	require.NoError(t, err)

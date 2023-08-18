@@ -21,7 +21,6 @@ import (
 
 const (
 	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
-	ShareSize         = appconsts.ShareSize
 
 	// PFBGasFixedCost is a rough estimate for the "fixed cost" in the gas cost
 	// formula: gas cost = gas per byte * bytes per share * shares occupied by

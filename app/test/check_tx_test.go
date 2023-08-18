@@ -9,8 +9,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,9 +42,12 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal transaction, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
+				addr := testnode.GetAddress(kr, accs[0])
+				account := testutil.DirectQueryAccount(testApp, addr)
+				signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, account.GetAccountNumber(), account.GetSequence())
+				require.NoError(t, err)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-					encCfg.TxConfig.TxEncoder(),
-					blobtypes.NewKeyringSigner(kr, accs[0], testutil.ChainID),
+					signer,
 					[]appns.Namespace{ns1},
 					[]int{100},
 				)[0]
@@ -54,9 +59,12 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal transaction, CheckTxType_Recheck",
 			checkType: abci.CheckTxType_Recheck,
 			getTx: func() []byte {
+				addr := testnode.GetAddress(kr, accs[1])
+				account := testutil.DirectQueryAccount(testApp, addr)
+				signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, account.GetAccountNumber(), account.GetSequence())
+				require.NoError(t, err)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-					encCfg.TxConfig.TxEncoder(),
-					blobtypes.NewKeyringSigner(kr, accs[1], testutil.ChainID),
+					signer,
 					[]appns.Namespace{ns1},
 					[]int{100},
 				)[0]
@@ -68,9 +76,12 @@ func TestCheckTx(t *testing.T) {
 			name:      "invalid transaction, mismatched namespace",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
+				addr := testnode.GetAddress(kr, accs[2])
+				account := testutil.DirectQueryAccount(testApp, addr)
+				signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, account.GetAccountNumber(), account.GetSequence())
+				require.NoError(t, err)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-					encCfg.TxConfig.TxEncoder(),
-					blobtypes.NewKeyringSigner(kr, accs[2], testutil.ChainID),
+					signer,
 					[]appns.Namespace{ns1},
 					[]int{100},
 				)[0]
@@ -87,9 +98,12 @@ func TestCheckTx(t *testing.T) {
 			name:      "PFB with no blob, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
+				addr := testnode.GetAddress(kr, accs[3])
+				account := testutil.DirectQueryAccount(testApp, addr)
+				signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, account.GetAccountNumber(), account.GetSequence())
+				require.NoError(t, err)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-					encCfg.TxConfig.TxEncoder(),
-					blobtypes.NewKeyringSigner(kr, accs[3], testutil.ChainID),
+					signer,
 					[]appns.Namespace{ns1},
 					[]int{100},
 				)[0]
@@ -102,7 +116,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg, tmrand.NewRand(), kr, nil, 10000, 10, true, accs[3:4])[0]
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
@@ -111,7 +125,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 1_000, 1, false, testutil.ChainID, accs[4:5])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg, tmrand.NewRand(), kr, nil, 1_000, 1, false, accs[4:5])[0]
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
@@ -120,7 +134,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "10,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000, 1, false, testutil.ChainID, accs[5:6])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg, tmrand.NewRand(), kr, nil, 10_000, 1, false, accs[5:6])[0]
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
@@ -129,7 +143,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "100,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 100_000, 1, false, testutil.ChainID, accs[6:7])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg, tmrand.NewRand(), kr, nil, 100_000, 1, false, accs[6:7])[0]
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
@@ -138,7 +152,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 1_000_000, 1, false, testutil.ChainID, accs[7:8])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg, tmrand.NewRand(), kr, nil, 1_000_000, 1, false, accs[7:8])[0]
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
@@ -147,13 +161,10 @@ func TestCheckTx(t *testing.T) {
 			name:      "10,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000_000, 1, false, testutil.ChainID, accs[8:9])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg, tmrand.NewRand(), kr, nil, 10_000_000, 1, false, accs[8:9])[0]
 				return tx
 			},
-			// TODO: consider modifying CheckTx to return an error for this case
-			// so that consensus nodes do not propagate blobs that are too
-			// large.
-			expectedABCICode: abci.CodeTypeOK,
+			expectedABCICode: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
 		},
 	}
 

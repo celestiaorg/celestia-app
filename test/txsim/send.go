@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -14,8 +13,9 @@ import (
 var _ Sequence = &SendSequence{}
 
 const (
-	SendGasLimit = 100000
-	sendFee      = SendGasLimit * appconsts.DefaultMinGasPrice
+	SendGasLimit     = 100000
+	FeegrantGasLimit = 800000
+	sendFee          = SendGasLimit * appconsts.DefaultMinGasPrice
 )
 
 // SendSequence sets up an endless sequence of send transactions, moving tokens
@@ -48,7 +48,7 @@ func (s *SendSequence) Clone(n int) []Sequence {
 
 // Init sets up the accounts involved in the sequence. It calculates the necessary balance as the fees per transaction
 // multiplied by the number of expected iterations plus the amount to be sent from one account to another
-func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
+func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, _ bool) {
 	amount := s.sendAmount + (s.numIterations * int(sendFee))
 	s.accounts = allocateAccounts(s.numAccounts, amount)
 }
@@ -60,7 +60,7 @@ func (s *SendSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	}
 	op := Operation{
 		Msgs: []types.Msg{
-			bank.NewMsgSend(s.accounts[s.index%s.numAccounts], s.accounts[(s.index+1)%s.numAccounts], types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(s.sendAmount)))),
+			bank.NewMsgSend(s.accounts[s.index%s.numAccounts], s.accounts[(s.index+1)%s.numAccounts], types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(s.sendAmount)))),
 		},
 		Delay:    rand.Int63n(int64(s.maxHeightDelay)),
 		GasLimit: SendGasLimit,

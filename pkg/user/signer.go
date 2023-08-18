@@ -122,6 +122,8 @@ func SetupSigner(
 	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum)
 }
 
+// SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
+// may be provided to set the fee and gas limit.
 func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	txBytes, err := s.CreateTx(msgs, opts...)
 	if err != nil {
@@ -136,6 +138,8 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
+// SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	txBytes, err := s.CreatePayForBlob(blobs, opts...)
 	if err != nil {
@@ -150,6 +154,8 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, op
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
+// CreateTx forms a transaction from the provided messages and signs it. TxOptions may be optionally
+// used to set the gas limit and fee.
 func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error) {
 	txBuilder := s.txBuilder(opts...)
 	if err := txBuilder.SetMsgs(msgs...); err != nil {
@@ -177,11 +183,8 @@ func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]by
 	return tmtypes.MarshalBlobTx(txBytes, blobs...)
 }
 
+// BroadcastTx submits the provided transaction bytes to the chain and returns the response.
 func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
-	if s.grpc == nil {
-		return nil, errors.New("grpc connection is nil")
-	}
-
 	txClient := tx.NewServiceClient(s.grpc)
 
 	// TODO (@cmwaters): handle nonce mismatch errors
@@ -198,6 +201,9 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 	return resp.TxResponse, nil
 }
 
+// ConfirmTx periodically pings the provided node for the commitment of a transaction by its
+// hash. It will continually loop until the context is cancelled, the tx is found or an error
+// is encountered.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
 
@@ -208,7 +214,7 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		},
 	)
 	if err == nil {
-		return resp.TxResponse, err
+		return resp.TxResponse, nil
 	}
 
 	// this is a bit brittle
@@ -230,7 +236,7 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 			)
 
 			if err == nil {
-				return resp.TxResponse, err
+				return resp.TxResponse, nil
 			}
 
 			if !strings.Contains(err.Error(), "not found") {
@@ -240,14 +246,17 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 	}
 }
 
+// ChainID returns the chain ID of the signer.
 func (s *Signer) ChainID() string {
 	return s.chainID
 }
 
+// AccountNumber returns the account number of the signer.
 func (s *Signer) AccountNumber() uint64 {
 	return s.accountNumber
 }
 
+// Address returns the address of the signer.
 func (s *Signer) Address() sdktypes.AccAddress {
 	return s.address
 }
@@ -280,7 +289,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("error setting draft signatures: %w", err)
 	}
 
-	// now we can use the data to produce the signature from each signer
+	// now we can use the data to produce the signature from the signer
 	signature, err := s.createSignature(builder, sequence)
 	if err != nil {
 		return fmt.Errorf("error creating signature: %w", err)
@@ -328,7 +337,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 	return signature, nil
 }
 
-// NewTxBuilder returns the default sdk Tx builder using the celestia-app encoding config
+// txBuilder returns the default sdk Tx builder using the celestia-app encoding config
 func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
 	builder := s.enc.NewTxBuilder()
 	for _, opt := range opts {

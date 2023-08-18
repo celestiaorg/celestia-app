@@ -19,17 +19,17 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	TxDecoder := encCfg.TxConfig.TxDecoder()
 
-	kr, addr := testnode.NewKeyring(testnode.TestAccName)
+	kr, addr := testnode.NewKeyring(testfactory.TestAccName)
 	signer, err := user.NewSigner(kr, nil, addr[0], encCfg.TxConfig, testfactory.ChainID, 1, 0)
 	require.NoError(t, err)
 
 	rand := tmrand.NewRand()
 	rand.Seed(1)
-	encodedTxs1 := GenerateManyRandomRawSendTxsSameSigner(encCfg.TxConfig, rand, signer, normalTxCount)
+	encodedTxs1 := GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	encodedTxs2 := GenerateManyRandomRawSendTxsSameSigner(encCfg.TxConfig, rand2, signer, normalTxCount)
+	encodedTxs2 := GenerateManyRandomRawSendTxsSameSigner(rand2, signer, normalTxCount)
 
 	// additional check for the sake of future debugging
 	for i := 0; i < normalTxCount; i++ {

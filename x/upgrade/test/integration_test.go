@@ -114,10 +114,9 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code) // we're only submitting the tx, so we expect everything to work
-	require.NoError(t, s.cctx.WaitForNextBlock())
 
 	// compare the result after the tx has been executed.
-	finalResult, err := testnode.QueryTx(s.cctx.Context, res.TxHash, false)
+	finalResult, err := s.cctx.WaitForTx(res.TxHash, 100)
 	require.NoError(t, err)
 	require.NotNil(t, finalResult)
 	assert.Contains(t, finalResult.TxResult.Log, "no handler exists for proposal type")

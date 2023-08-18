@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/qgb"
@@ -9,6 +10,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,7 +82,6 @@ func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
 		testutil.ValAddrs[0],
 		testutil.ConsPubKeys[0],
 		testutil.StakingAmount,
-		testutil.EVMAddrs[0],
 	)
 	// Run the staking endblocker to ensure valset is correct in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)
@@ -131,7 +132,6 @@ func TestCheckingAttestationNonceInValsets(t *testing.T) {
 		testutil.ValAddrs[0],
 		testutil.ConsPubKeys[0],
 		testutil.StakingAmount,
-		testutil.EVMAddrs[0],
 	)
 	// Run the staking endblocker to ensure valset is correct in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)
@@ -171,4 +171,57 @@ func TestCheckingAttestationNonceInValsets(t *testing.T) {
 			assert.ErrorIs(t, err, tt.expectedError)
 		})
 	}
+}
+
+func TestEVMAddresses(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
+	k := input.QgbKeeper
+
+	_, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.False(t, exists)
+
+	// now create the validator
+	testutil.CreateValidator(
+		t,
+		input,
+		testutil.AccAddrs[0],
+		testutil.AccPubKeys[0],
+		0,
+		testutil.ValAddrs[0],
+		testutil.ConsPubKeys[0],
+		testutil.StakingAmount,
+	)
+
+	evmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.True(t, exists)
+	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[0]), evmAddress)
+
+	newEvmAddress := gethcommon.BytesToAddress([]byte("a"))
+	k.SetEVMAddress(input.Context, testutil.ValAddrs[0], newEvmAddress)
+	checkEvmAddress, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
+	require.True(t, exists)
+	require.Equal(t, newEvmAddress, checkEvmAddress)
+
+	// squat the next validators default evm address
+	k.SetEVMAddress(input.Context, testutil.ValAddrs[0], types.DefaultEVMAddress(testutil.ValAddrs[1]))
+
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	_, err := msgServer.CreateValidator(input.Context, testutil.NewTestMsgCreateValidator(testutil.ValAddrs[1], testutil.ConsPubKeys[1], testutil.StakingAmount))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, types.ErrEVMAddressAlreadyExists), err.Error())
+
+	resp, err := k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{
+		ValidatorAddress: testutil.ValAddrs[0].String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, types.DefaultEVMAddress(testutil.ValAddrs[1]).String(), resp.EvmAddress)
+
+	_, err = k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{})
+	require.Error(t, err)
+
+	resp, err = k.EVMAddress(input.Context, &types.QueryEVMAddressRequest{
+		ValidatorAddress: testutil.ValAddrs[1].String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "", resp.EvmAddress)
 }

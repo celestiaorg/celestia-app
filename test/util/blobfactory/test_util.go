@@ -1,6 +1,7 @@
 package blobfactory
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
@@ -9,12 +10,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
-)
-
-const (
-	// bondDenom should match app.BondDenom. We copy it here so that we don't
-	// have to import the application, causing an import cycle
-	bondDenom = "utia"
 )
 
 func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
@@ -26,7 +21,7 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 	}
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		txs[i] = GenerateRawSendTx(txConfig, signer, 100)
+		txs[i] = GenerateRawSendTx(signer, 100)
 	}
 	return txs
 }
@@ -35,9 +30,9 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 // proposal, they are not meant to actually be executed by the state machine. If
 // we want that, we have to update nonce, and send funds to someone other than
 // the same account signing the transaction.
-func GenerateRawSendTx(txConfig client.TxConfig, signer *user.Signer, amount int64) []byte {
+func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
 	feeCoin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(1),
 	}
 
@@ -47,7 +42,7 @@ func GenerateRawSendTx(txConfig client.TxConfig, signer *user.Signer, amount int
 	}
 
 	amountCoin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(amount),
 	}
 
@@ -71,16 +66,16 @@ func GenerateRandomAmount(rand *tmrand.Rand) int64 {
 }
 
 // GenerateRandomRawSendTx generates a random raw send tx.
-func GenerateRandomRawSendTx(txConfig client.TxConfig, rand *tmrand.Rand, signer *user.Signer) (rawTx []byte) {
+func GenerateRandomRawSendTx(rand *tmrand.Rand, signer *user.Signer) (rawTx []byte) {
 	amount := GenerateRandomAmount(rand)
-	return GenerateRawSendTx(txConfig, signer, amount)
+	return GenerateRawSendTx(signer, amount)
 }
 
 // GenerateManyRandomRawSendTxsSameSigner  generates count many random raw send txs.
-func GenerateManyRandomRawSendTxsSameSigner(txConfig client.TxConfig, rand *tmrand.Rand, signer *user.Signer, count int) []coretypes.Tx {
+func GenerateManyRandomRawSendTxsSameSigner(rand *tmrand.Rand, signer *user.Signer, count int) []coretypes.Tx {
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		txs[i] = GenerateRandomRawSendTx(txConfig, rand, signer)
+		txs[i] = GenerateRandomRawSendTx(rand, signer)
 	}
 	return txs
 }

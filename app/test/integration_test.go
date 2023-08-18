@@ -87,7 +87,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			950000,
 			1,
 			false,
-			s.cctx.ChainID,
 			s.accounts[:20],
 		)
 	}
@@ -104,7 +103,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			200000, // 200 KB
 			3,
 			false,
-			s.cctx.ChainID,
 			s.accounts[20:40],
 		)
 	}
@@ -122,7 +120,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			50000,
 			8,
 			true,
-			s.cctx.ChainID,
 			s.accounts[40:120],
 		)
 	}
@@ -263,6 +260,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 
 			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+			require.NoError(t, err)
 			res, err := signer.SubmitPayForBlob(context.TODO(), []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
@@ -282,7 +280,6 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 		int(100000),
 		1,
 		false,
-		s.cctx.ChainID,
 		s.accounts[140:],
 	)
 
@@ -306,7 +303,6 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		100000,
 		1,
 		true,
-		s.cctx.ChainID,
 		s.accounts[120:140],
 	)
 
@@ -423,9 +419,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
 
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-			options := []user.TxOption{user.SetGasLimit(1_000_000_000)}
-			res, err := signer.SubmitPayForBlob(s.cctx.GoContext(), []*blobtypes.Blob{tc.blob}, options...)
-
+			require.NoError(t, err)
+			res, err := signer.SubmitPayForBlob(s.cctx.GoContext(), []*blobtypes.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)

@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -270,7 +271,7 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 		NamespaceVersion: uint32(appns.NamespaceVersionZero),
 		ShareVersion:     uint32(appconsts.ShareVersionZero),
 	}
-	
+
 	addr := signer.Address()
 	pfb, err := types.NewMsgPayForBlobs(addr.String(), pblob)
 	assert.NoError(t, err)
@@ -334,7 +335,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:   "valid msg PFB with small blob",
-			signer: testnode.TestAccAddr,
+			signer: testfactory.TestAccAddr,
 			blobs: []*tmproto.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
@@ -347,7 +348,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		},
 		{
 			name:   "valid msg PFB with large blob",
-			signer: testnode.TestAccAddr,
+			signer: testfactory.TestAccAddr,
 			blobs: []*tmproto.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
@@ -360,7 +361,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		},
 		{
 			name:   "valid msg PFB with two blobs",
-			signer: testnode.TestAccAddr,
+			signer: testfactory.TestAccAddr,
 			blobs: []*tmproto.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
@@ -378,7 +379,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		},
 		{
 			name:   "unsupported share version returns an error",
-			signer: testnode.TestAccAddr,
+			signer: testfactory.TestAccAddr,
 			blobs: []*tmproto.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
@@ -391,7 +392,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		},
 		{
 			name:   "msg PFB with tx namespace returns an error",
-			signer: testnode.TestAccAddr,
+			signer: testfactory.TestAccAddr,
 			blobs: []*tmproto.Blob{
 				{
 					NamespaceVersion: uint32(appns.TxNamespace.Version),
@@ -404,7 +405,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		},
 		{
 			name:   "msg PFB with invalid signer returns an error",
-			signer: testnode.TestAccAddr[:10],
+			signer: testfactory.TestAccAddr[:10],
 			blobs: []*tmproto.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),

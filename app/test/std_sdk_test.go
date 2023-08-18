@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"math/big"
 	"sync"
 	"testing"
 
@@ -20,7 +19,6 @@ import (
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -133,7 +131,6 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				account := s.unusedAccount()
 				valopAccAddr := getAddress(account, s.cctx.Keyring)
 				valopAddr := sdk.ValAddress(valopAccAddr)
-				evmAddr := common.BigToAddress(big.NewInt(420))
 				msg, err := stakingtypes.NewMsgCreateValidator(
 					valopAddr,
 					pv.PrivKey.PubKey(),
@@ -141,7 +138,6 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
 					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
 					sdk.NewInt(1000000),
-					evmAddr,
 				)
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account

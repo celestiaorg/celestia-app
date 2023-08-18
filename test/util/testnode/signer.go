@@ -9,7 +9,7 @@ import (
 
 func NewOfflineSigner() (*user.Signer, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr, addr := NewKeyring(TestAccName)
+	kr, addr := NewKeyring(testfactory.TestAccName)
 	return user.NewSigner(kr, nil, addr[0], encCfg.TxConfig, testfactory.ChainID, 1, 0)
 }
 

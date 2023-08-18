@@ -34,10 +34,14 @@ type SignerTestSuite struct {
 
 func (s *SignerTestSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig())
+	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithAccounts([]string{"a"}))
 	_, err := s.ctx.WaitForHeight(1)
 	s.Require().NoError(err)
-	s.signer, err = user.SetupSingleSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, s.encCfg)
+	rec, err := s.ctx.Keyring.Key("a")
+	s.Require().NoError(err)
+	addr, err := rec.GetAddress()
+	s.Require().NoError(err)
+	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addr, s.encCfg)
 	s.Require().NoError(err)
 }
 

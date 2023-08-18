@@ -119,6 +119,7 @@ func RandBlobTxsWithManualSequence(
 	for i := 0; i < len(accounts); i++ {
 		addr := testnode.GetAddress(kr, accounts[i])
 		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, accountNum, sequence)
+		require.NoError(t, err)
 
 		randomizedSize := size
 		if randSize {
