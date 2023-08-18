@@ -44,7 +44,10 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
-	tx, err := signer.CreatePayForBlob([]*tmproto.Blob{b}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))
+	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), b)
+	require.NoError(t, err)
+
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))
 	require.NoError(t, err)
 	sdkTx, err := enc.TxConfig.TxDecoder()(tx)
 	require.NoError(t, err)

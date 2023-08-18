@@ -1,10 +1,11 @@
-package blobfactory
+package blobfactory_test
 
 import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,11 +23,12 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	marshalledBlobTxs1 := RandMultiBlobTxsSameSigner(t, rand1, signer, pfbCount)
+	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxsSameSigner(t, rand1, signer, pfbCount)
 
+	signer.ForceSetSequence(0)
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	marshalledBlobTxs2 := RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)
+	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)
 
 	// additional checks for the sake of future debugging
 	for index := 0; index < pfbCount; index++ {

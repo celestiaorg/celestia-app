@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -141,6 +142,10 @@ func RandBlobTxsWithAccounts(
 	randSize bool,
 	accounts []string,
 ) []coretypes.Tx {
+	if conn == nil {
+		panic("no grpc connection provided")
+	}
+
 	coin := sdk.Coin{
 		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(10),
@@ -260,12 +265,17 @@ func ManyMultiBlobTx(
 	accInfos []AccountInfo,
 	blobs [][]*tmproto.Blob,
 ) [][]byte {
+	t.Helper()
 	txs := make([][]byte, len(accounts))
+	opts := []user.TxOption{
+		user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(1e9)))),
+		user.SetGasLimit(1e9),
+	}
 	for i, acc := range accounts {
 		addr := testnode.GetAddress(kr, acc)
 		signer, err := user.NewSigner(kr, nil, addr, enc, chainid, accInfos[i].AccountNum, accInfos[i].Sequence)
 		require.NoError(t, err)
-		txs[i], err = signer.CreatePayForBlob(blobs[i])
+		txs[i], err = signer.CreatePayForBlob(blobs[i], opts...)
 		require.NoError(t, err)
 	}
 	return txs
@@ -279,6 +289,7 @@ func IndexWrappedTxWithInvalidNamespace(
 	signer *user.Signer,
 	index uint32,
 ) (coretypes.Tx, tmproto.Blob) {
+	t.Helper()
 	addr := signer.Address()
 	coin := sdk.Coin{
 		Denom:  appconsts.BondDenom,
@@ -311,7 +322,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 	addr := signer.Address()
 	coin := sdk.Coin{
 		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(10),
+		Amount: sdk.NewInt(1000000),
 	}
 
 	opts := []user.TxOption{
@@ -334,6 +345,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 }
 
 func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Signer, msgs ...sdk.Msg) coretypes.Tx {
+	t.Helper()
 	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signer.Address().String(), 100, 1)
 
 	opts := []user.TxOption{

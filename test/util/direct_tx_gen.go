@@ -13,7 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -141,15 +141,22 @@ func RandBlobTxsWithManualSequence(
 		tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 		require.NoError(t, err)
 		if invalidSignature {
-			decodedTx, err := cfg.TxDecoder()(tx)
+			builder := cfg.NewTxBuilder()
+			for _, opt := range opts {
+				builder = opt(builder)
+			}
+			require.NoError(t, builder.SetMsgs(msg))
+			err := builder.SetSignatures(signing.SignatureV2{
+				PubKey: signer.PubKey(),
+				Data: &signing.SingleSignatureData{
+					SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+					Signature: []byte("invalid signature"),
+				},
+				Sequence: signer.GetSequence(),
+			})
 			require.NoError(t, err)
 
-			stx, ok := decodedTx.(*txtypes.Tx)
-			require.True(t, ok, "expected tx.Tx")
-
-			stx.Signatures[0] = []byte("invalid signature")
-
-			tx, err = cfg.TxEncoder()(stx)
+			tx, err = cfg.TxEncoder()(builder.GetTx())
 			require.NoError(t, err)
 		}
 		cTx, err := coretypes.MarshalBlobTx(tx, blobs...)

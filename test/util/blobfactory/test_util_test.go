@@ -27,6 +27,7 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	rand.Seed(1)
 	encodedTxs1 := GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
 
+	signer.ForceSetSequence(0)
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
 	encodedTxs2 := GenerateManyRandomRawSendTxsSameSigner(rand2, signer, normalTxCount)

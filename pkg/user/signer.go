@@ -261,6 +261,28 @@ func (s *Signer) Address() sdktypes.AccAddress {
 	return s.address
 }
 
+// PubKey returns the public key of the signer
+func (s *Signer) PubKey() cryptotypes.PubKey {
+	return s.pk
+}
+
+// GetSequencer gets the lastest signed sequnce and increments the local sequence number
+func (s *Signer) GetSequence() uint64 {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	defer func() { s.lastSignedSequence++ }()
+	return s.lastSignedSequence
+}
+
+// ForceSetSequence manually overrides the current sequence number. Be careful when
+// invoking this as it may cause the transactions to reject the sequence if
+// it doesn't match the one in state
+func (s *Signer) ForceSetSequence(seq uint64) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.lastSignedSequence = seq
+}
+
 func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
@@ -271,7 +293,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
 
-	sequence := s.getSequence()
+	sequence := s.GetSequence()
 
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
@@ -344,13 +366,6 @@ func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
 		builder = opt(builder)
 	}
 	return builder
-}
-
-func (s *Signer) getSequence() uint64 {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	defer func() { s.lastSignedSequence++ }()
-	return s.lastSignedSequence
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.

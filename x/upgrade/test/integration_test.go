@@ -109,7 +109,7 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewSignerFromContext(s.cctx)
+	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
 	require.NoError(t, err)
 	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(t, err)
@@ -141,7 +141,7 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewSignerFromContext(s.cctx)
+	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
 	require.NoError(t, err)
 	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(t, err)

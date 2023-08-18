@@ -90,7 +90,7 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		},
 	}
 
-	signer, err := testnode.NewSignerFromContext(s.cctx)
+	signer, err := testnode.NewSingleSignerFromContext(s.cctx)
 	require.NoError(t, err)
 
 	for _, tc := range testCases {

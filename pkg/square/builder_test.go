@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cosmos/cosmos-sdk/client"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -78,10 +76,7 @@ func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb,
 }
 
 // GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
-func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	kr, addr := testnode.NewKeyring()
-	signer, err := user.NewSigner(kr, nil, addr[0], txConfig, testfactory.ChainID, 1, 0)
-	require.NoError(t, err)
+func GenerateOrderedRandomTxs(t *testing.T, signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
 	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
 	pfbTxs := blobfactory.RandMultiBlobTxsSameSigner(t, rand, signer, pfbCount)
 	txs := append(append(
@@ -98,19 +93,26 @@ func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
 	noramlCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	kr := testfactory.TestKeyring(encCfg.Codec)
+	signer, err := user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
+
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+	set1 := GenerateOrderedRandomTxs(t, signer, rand1, noramlCount, pfbCount)
+
+	signer, err = user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+	set2 := GenerateOrderedRandomTxs(t, signer, rand2, noramlCount, pfbCount)
 
 	assert.Equal(t, set2, set1)
 }
 
-func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	return shuffle(rand, GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
+func GenerateMixedRandomTxs(t *testing.T, signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(rand, GenerateOrderedRandomTxs(t, signer, rand, normalTxCount, pfbCount))
 }
 
 // TestGenerateMixedRandomTxs_Deterministic ensures that the same seed produces the same txs
@@ -119,13 +121,20 @@ func TestGenerateMixedRandomTxs_Deterministic(t *testing.T) {
 	noramlCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	kr := testfactory.TestKeyring(encCfg.Codec)
+	signer, err := user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
+
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	set1 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+	set1 := GenerateMixedRandomTxs(t, signer, rand1, noramlCount, pfbCount)
+
+	signer, err = user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	set2 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+	set2 := GenerateMixedRandomTxs(t, signer, rand2, noramlCount, pfbCount)
 
 	assert.Equal(t, set2, set1)
 }
