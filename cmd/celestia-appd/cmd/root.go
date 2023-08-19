@@ -88,10 +88,12 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			// optionally log to file by replaceing the default logger with a file logger
-			err = replaceLogger(cmd)
-			if err != nil {
-				return err
+			// optionally log to file by replacing the default logger with a file logger
+			if cmd.Flags().Changed(FlagLogToFile) {
+				err = replaceLogger(cmd)
+				if err != nil {
+					return err
+				}
 			}
 
 			return setDefaultConsensusParams(cmd)
