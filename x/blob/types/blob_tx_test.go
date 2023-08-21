@@ -78,7 +78,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "invalid transaction, no pfb",
 			getTx: func() tmproto.BlobTx {
-				sendTx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)
+				sendTx := blobfactory.GenerateManyRawSendTxs(signer, 1)
 				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				return tmproto.BlobTx{
@@ -154,7 +154,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "only send tx",
 			getTx: func() tmproto.BlobTx {
-				sendtx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)[0]
+				sendtx := blobfactory.GenerateManyRawSendTxs(signer, 1)[0]
 				return tmproto.BlobTx{
 					Tx: sendtx,
 				}

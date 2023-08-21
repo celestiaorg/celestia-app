@@ -1,4 +1,4 @@
-package blobfactory
+package blobfactory_test
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
@@ -25,12 +26,12 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 
 	rand := tmrand.NewRand()
 	rand.Seed(1)
-	encodedTxs1 := GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
+	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
 
 	signer.ForceSetSequence(0)
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	encodedTxs2 := GenerateManyRandomRawSendTxsSameSigner(rand2, signer, normalTxCount)
+	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand2, signer, normalTxCount)
 
 	// additional check for the sake of future debugging
 	for i := 0; i < normalTxCount; i++ {

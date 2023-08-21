@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 
 	for _, acc := range s.accounts {
-		addr := testnode.GetAddress(s.cctx.Keyring, acc)
+		addr := testfactory.GetAddress(s.cctx.Keyring, acc)
 		_, _, err := user.QueryAccount(s.cctx.GoContext(), s.cctx.GRPCClient, s.ecfg, addr.String())
 		require.NoError(t, err)
 	}
@@ -258,7 +259,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			// 20) so we wait a few blocks for the txs to clear
 			require.NoError(t, s.cctx.WaitForBlocks(3))
 
-			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
+			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
 			res, err := signer.SubmitPayForBlob(context.TODO(), []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
@@ -416,7 +417,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			addr := testnode.GetAddress(s.cctx.Keyring, s.accounts[141])
+			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
 
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)

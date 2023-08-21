@@ -5,13 +5,11 @@ import (
 	"context"
 	"testing"
 
-	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -89,23 +87,9 @@ func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs,
 	return msg, blob
 }
 
-func RandBlobTxsRandomlySized(rand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
-	signer, err := testnode.NewOfflineSigner()
-	if err != nil {
-		panic(err)
-	}
+func RandBlobTxsRandomlySized(signer *user.Signer, rand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
 	addr := signer.Address()
-
-	coin := sdk.Coin{
-		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(100000000),
-	}
-
+	opts := DefaultTxOpts()
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
 		// pick a random non-zero size of max maxSize
@@ -145,16 +129,6 @@ func RandBlobTxsWithAccounts(
 	if conn == nil {
 		panic("no grpc connection provided")
 	}
-
-	coin := sdk.Coin{
-		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(100000000000000),
-	}
 	if size <= 0 {
 		panic("size should be positive")
 	}
@@ -162,9 +136,10 @@ func RandBlobTxsWithAccounts(
 		panic("blobCount should be strictly positive")
 	}
 
+	opts := DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
-		addr := testnode.GetAddress(kr, accounts[i])
+		addr := testfactory.GetAddress(kr, accounts[i])
 		signer, err := user.SetupSigner(context.Background(), kr, conn, addr, enc)
 		if err != nil {
 			panic(err)
@@ -197,20 +172,10 @@ func RandBlobTxsWithAccounts(
 }
 
 func RandBlobTxs(signer *user.Signer, rand *tmrand.Rand, count, blobsPerTx, size int) coretypes.Txs {
-	coin := sdk.Coin{
-		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(10000000),
-	}
-
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
 		_, blobs := RandMsgPayForBlobsWithSigner(rand, signer.Address().String(), size, blobsPerTx)
-		tx, err := signer.CreatePayForBlob(blobs, opts...)
+		tx, err := signer.CreatePayForBlob(blobs, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)
 		}
@@ -267,12 +232,9 @@ func ManyMultiBlobTx(
 ) [][]byte {
 	t.Helper()
 	txs := make([][]byte, len(accounts))
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(1e9)))),
-		user.SetGasLimit(1e9),
-	}
+	opts := DefaultTxOpts()
 	for i, acc := range accounts {
-		addr := testnode.GetAddress(kr, acc)
+		addr := testfactory.GetAddress(kr, acc)
 		signer, err := user.NewSigner(kr, nil, addr, enc, chainid, accInfos[i].AccountNum, accInfos[i].Sequence)
 		require.NoError(t, err)
 		txs[i], err = signer.CreatePayForBlob(blobs[i], opts...)
@@ -291,21 +253,12 @@ func IndexWrappedTxWithInvalidNamespace(
 ) (coretypes.Tx, tmproto.Blob) {
 	t.Helper()
 	addr := signer.Address()
-	coin := sdk.Coin{
-		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(10000000),
-	}
-
 	blob := ManyRandBlobs(t, rand, 100)[0]
 	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
 	require.NoError(t, err)
 
 	cTx, err := coretypes.MarshalIndexWrapper(rawTx, index)
@@ -320,21 +273,11 @@ func RandBlobTxsWithNamespacesAndSigner(
 	sizes []int,
 ) []coretypes.Tx {
 	addr := signer.Address()
-	coin := sdk.Coin{
-		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(1000000),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(10000000),
-	}
-
 	txs := make([]coretypes.Tx, len(namespaces))
 	for i := 0; i < len(namespaces); i++ {
 		// TODO: this can be refactored as the signer only needs the blobs and can construct the PFB itself
 		_, blob := RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), namespaces[i], sizes[i])
-		cTx, err := signer.CreatePayForBlob([]*tmproto.Blob{blob}, opts...)
+		cTx, err := signer.CreatePayForBlob([]*tmproto.Blob{blob}, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)
 		}
@@ -347,14 +290,9 @@ func RandBlobTxsWithNamespacesAndSigner(
 func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Signer, msgs ...sdk.Msg) coretypes.Tx {
 	t.Helper()
 	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signer.Address().String(), 100, 1)
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(10)))),
-		user.SetGasLimit(100000000000000),
-	}
 	msgs = append(msgs, pfb)
 
-	rawTx, err := signer.CreateTx(msgs, opts...)
+	rawTx, err := signer.CreateTx(msgs, DefaultTxOpts()...)
 	require.NoError(t, err)
 
 	btx, err := coretypes.MarshalBlobTx(rawTx, blobs...)

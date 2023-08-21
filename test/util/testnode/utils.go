@@ -65,33 +65,6 @@ func RandomAddress() sdk.Address {
 	return addresses[0]
 }
 
-func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {
-	recs, err := keys.List()
-	if err != nil {
-		panic(err)
-	}
-	addresses := make([]sdk.AccAddress, 0, len(recs))
-	for idx, rec := range recs {
-		addresses[idx], err = rec.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-	}
-	return addresses
-}
-
-func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
-	rec, err := keys.Key(account)
-	if err != nil {
-		panic(err)
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		panic(err)
-	}
-	return addr
-}
-
 func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
 	kr, addresses := NewKeyring(accounts...)
 	genAccounts := make([]authtypes.GenesisAccount, len(accounts))

@@ -13,6 +13,7 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -215,9 +216,7 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
 func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
-	opts := []user.TxOption{
-		user.SetGasLimit(100000000000000),
-	}
+	opts := blobfactory.DefaultTxOpts()
 
 	rec, err := c.Keyring.Key(account)
 	if err != nil {

@@ -4,20 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,10 +33,7 @@ func TestCheckTx(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 	testApp.Commit()
 
-	opts := []user.TxOption{
-		user.SetGasLimit(1e9),
-		user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(1e9)))),
-	}
+	opts := blobfactory.DefaultTxOpts()
 
 	type test struct {
 		name             string
@@ -194,7 +188,7 @@ func TestCheckTx(t *testing.T) {
 }
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
-	addr := testnode.GetAddress(kr, accountName)
+	addr := testfactory.GetAddress(kr, accountName)
 	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, accNum, 0)
 	require.NoError(t, err)
 	return signer

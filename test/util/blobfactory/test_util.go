@@ -3,22 +3,20 @@ package blobfactory
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
-	const acc = "signer"
-	kr, addr := testnode.NewKeyring(acc)
-	signer, err := user.NewSigner(kr, nil, addr[0], txConfig, testfactory.ChainID, 1, 0)
-	if err != nil {
-		panic(err)
+func DefaultTxOpts() []user.TxOption {
+	return []user.TxOption{
+		user.SetFee(1e9),
+		user.SetGasLimit(1e9),
 	}
+}
+
+func GenerateManyRawSendTxs(signer *user.Signer, count int) []coretypes.Tx {
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
 		txs[i] = GenerateRawSendTx(signer, 100)
@@ -31,15 +29,7 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 // we want that, we have to update nonce, and send funds to someone other than
 // the same account signing the transaction.
 func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
-	feeCoin := sdk.Coin{
-		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(1),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(feeCoin)),
-		user.SetGasLimit(1000000000),
-	}
+	opts := DefaultTxOpts()
 
 	amountCoin := sdk.Coin{
 		Denom:  appconsts.BondDenom,

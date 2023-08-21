@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -36,23 +36,14 @@ func RandBlobTxsWithAccounts(
 	accounts []string,
 	extraOpts ...user.TxOption,
 ) []coretypes.Tx {
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(100000000000000),
-	}
-	opts = append(opts, extraOpts...)
+	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
 
 	require.Greater(t, size, 0)
 	require.Greater(t, blobCount, 0)
 
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
-		addr := testnode.GetAddress(kr, accounts[i])
+		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
 		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, acc.GetAccountNumber(), acc.GetSequence())
 		require.NoError(t, err)
@@ -105,19 +96,10 @@ func RandBlobTxsWithManualSequence(
 	require.Greater(t, size, 0)
 	require.Greater(t, blobCount, 0)
 
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(100000000000000),
-	}
-
+	opts := blobfactory.DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
-		addr := testnode.GetAddress(kr, accounts[i])
+		addr := testfactory.GetAddress(kr, accounts[i])
 		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, accountNum, sequence)
 		require.NoError(t, err)
 
@@ -183,16 +165,7 @@ func SendTxsWithAccounts(
 	chainid string,
 	extraOpts ...user.TxOption,
 ) []coretypes.Tx {
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []user.TxOption{
-		user.SetFeeAmount(sdk.NewCoins(coin)),
-		user.SetGasLimit(1000000),
-	}
-	opts = append(opts, extraOpts...)
+	opts := append(blobfactory.DefaultTxOpts(), extraOpts...)
 
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {

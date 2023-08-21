@@ -47,7 +47,9 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rand := tmrand.NewRand()
-			txs := generateMixedTxs(rand, tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
+			signer, err := testnode.NewOfflineSigner()
+			require.NoError(t, err)
+			txs := generateMixedTxs(signer, rand, tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
 			square, _, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultGovMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
@@ -55,18 +57,13 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 }
 
-func generateMixedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	return shuffle(rand, generateOrderedTxs(rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
+func generateMixedTxs(signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+	return shuffle(rand, generateOrderedTxs(signer, rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
 }
 
-func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	signer, err := testnode.NewOfflineSigner()
-	if err != nil {
-		panic(err)
-	}
+func generateOrderedTxs(signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
 	pfbTxs := blobfactory.RandBlobTxs(signer, rand, pfbCount, blobsPerPfb, blobSize)
-	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
+	normieTxs := blobfactory.GenerateManyRawSendTxs(signer, normalTxCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),
 		normieTxs...),
@@ -215,8 +212,10 @@ func newTx(len int) []byte {
 }
 
 func TestBuilderFindTxShareRange(t *testing.T) {
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
 	blockTxs := testfactory.GenerateRandomTxs(5, 900).ToSliceOfBytes()
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(signer, tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, blockTxs...)

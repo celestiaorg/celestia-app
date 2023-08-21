@@ -134,6 +134,9 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 	if err != nil {
 		return nil, err
 	}
+	if resp.Code != 0 {
+		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
@@ -149,6 +152,9 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, op
 	resp, err := s.BroadcastTx(ctx, txBytes)
 	if err != nil {
 		return nil, err
+	}
+	if resp.Code != 0 {
+		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)

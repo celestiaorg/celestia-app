@@ -11,7 +11,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -40,7 +39,7 @@ func TestPFBGasEstimation(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
 			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-			addr := testnode.GetAddress(kr, accnts[0])
+			addr := testfactory.GetAddress(kr, accnts[0])
 			signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0)
 			require.NoError(t, err)
 			blobs := blobfactory.ManyRandBlobs(t, rand, tc.blobSizes...)
@@ -85,7 +84,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-		addr := testnode.GetAddress(kr, accnts[0])
+		addr := testfactory.GetAddress(kr, accnts[0])
 		signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0)
 		require.NoError(t, err)
 		blobs := blobfactory.ManyRandBlobs(t, rand, blobSizes...)

@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -91,7 +92,7 @@ func (s *QGBIntegrationSuite) TestQGB() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msgs, accountName := tt.msgFunc()
-			addr := testnode.GetAddress(s.cctx.Keyring, accountName)
+			addr := testfactory.GetAddress(s.cctx.Keyring, accountName)
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
 			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs)

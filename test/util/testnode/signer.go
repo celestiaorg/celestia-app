@@ -20,6 +20,6 @@ func NewSingleSignerFromContext(ctx Context) (*user.Signer, error) {
 
 func NewSignerFromContext(ctx Context, acc string) (*user.Signer, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	addr := GetAddress(ctx.Keyring, acc)
+	addr := testfactory.GetAddress(ctx.Keyring, acc)
 	return user.SetupSigner(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, addr, encCfg)
 }

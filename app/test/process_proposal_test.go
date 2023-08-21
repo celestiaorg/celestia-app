@@ -23,7 +23,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
 )
 
 func TestProcessProposal(t *testing.T) {
@@ -31,7 +30,7 @@ func TestProcessProposal(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
-	addr := testnode.GetAddress(kr, accounts[0])
+	addr := testfactory.GetAddress(kr, accounts[0])
 	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence)
 	require.NoError(t, err)
 

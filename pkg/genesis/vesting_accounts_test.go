@@ -218,7 +218,7 @@ func (s *VestingModuleTestSuite) submitTransferTx(name string, amount int64) (tx
 		getAddress(randomAcc, s.cctx.Keyring),
 		sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(amount))),
 	)
-	addr := testnode.GetAddress(s.cctx.Keyring, randomAcc)
+	addr := testfactory.GetAddress(s.cctx.Keyring, randomAcc)
 	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 	if err != nil {
 		return 0, err
