@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -95,7 +96,7 @@ func (s *QGBIntegrationSuite) TestQGB() {
 			addr := testfactory.GetAddress(s.cctx.Keyring, accountName)
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
-			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs)
+			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tt.expectedCheckTxCode, res.Code, res.RawLog)

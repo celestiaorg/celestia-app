@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -279,7 +280,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		addr := testfactory.GetAddress(s.cctx.Keyring, account)
 		signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 		require.NoError(t, err)
-		res, err := signer.SubmitTx(s.cctx.GoContext(), msgs)
+		res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, abci.CodeTypeOK, res.Code, tt.name)

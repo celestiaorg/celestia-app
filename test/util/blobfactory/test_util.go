@@ -10,9 +10,14 @@ import (
 )
 
 func DefaultTxOpts() []user.TxOption {
+	return FeeTxOpts(10_000_000)
+}
+
+func FeeTxOpts(gas uint64) []user.TxOption {
+	fee := uint64(float64(gas)*appconsts.DefaultMinGasPrice) + 1
 	return []user.TxOption{
-		user.SetFee(1e9),
-		user.SetGasLimit(1e9),
+		user.SetFee(fee),
+		user.SetGasLimit(gas),
 	}
 }
 

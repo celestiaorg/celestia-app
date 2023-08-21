@@ -112,7 +112,7 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	// submit the transaction and wait a block for it to be included
 	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
 	require.NoError(t, err)
-	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
@@ -141,7 +141,7 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	// submit the transaction and wait a block for it to be included
 	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
 	require.NoError(t, err)
-	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)

@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -191,9 +192,9 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 	require.NoError(t, err)
 
-	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg})
-	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
+	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
+	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
@@ -205,7 +206,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 
 	// create and submit a new vote
 	vote := v1.NewMsgVote(getAddress(account, s.cctx.Keyring), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
-	res, err = signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote})
+	res, err = signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code)
 

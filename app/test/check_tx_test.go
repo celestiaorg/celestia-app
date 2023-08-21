@@ -33,7 +33,7 @@ func TestCheckTx(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 	testApp.Commit()
 
-	opts := blobfactory.DefaultTxOpts()
+	opts := blobfactory.FeeTxOpts(1e9)
 
 	type test struct {
 		name             string
