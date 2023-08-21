@@ -32,6 +32,8 @@ func NewGenesisRegularAccount(
 // NewGenesisDelayedVestingAccount creates a new DelayedVestingAccount with the
 // specified parameters. It returns the created account converted to genesis
 // account type and the account balance.
+// The final vesting balance is calculated by subtracting the initial unlocked coins
+// from the vesting balance.
 func NewGenesisDelayedVestingAccount(
 	address string,
 	vestingBalance,
@@ -55,6 +57,8 @@ func NewGenesisDelayedVestingAccount(
 	return authtypes.GenesisAccount(vAccount), balance, nil
 }
 
+// The final vesting balance is calculated by subtracting the initial unlocked coins
+// from the vesting balance.
 func NewGenesisPeriodicVestingAccount(
 	address string,
 	vestingBalance,
@@ -79,6 +83,8 @@ func NewGenesisPeriodicVestingAccount(
 	return authtypes.GenesisAccount(vAccount), balance, nil
 }
 
+// The final vesting balance is calculated by subtracting the initial unlocked coins
+// from the vesting balance.
 func NewGenesisContinuousVestingAccount(
 	address string,
 	vestingBalance,
