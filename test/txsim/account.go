@@ -65,6 +65,7 @@ func NewAccountManager(
 		encCfg:      encCfg,
 		pending:     make([]*account, 0),
 		conn:        conn,
+		pollTime:    pollTime,
 		useFeegrant: useFeegrant,
 	}
 
@@ -75,7 +76,9 @@ func NewAccountManager(
 		}
 	}
 
-	am.setupMasterAccount(ctx, masterAccName)
+	if err := am.setupMasterAccount(ctx, masterAccName); err != nil {
+		return nil, err
+	}
 
 	return am, nil
 }
@@ -208,7 +211,9 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	// If a delay is set, wait for that many blocks to have been produced
 	// before continuing
 	if op.Delay != 0 {
-		am.waitDelay(ctx, uint64(op.Delay))
+		if err := am.waitDelay(ctx, uint64(op.Delay)); err != nil {
+			return fmt.Errorf("error delaying tx submission: %w", err)
+		}
 	}
 
 	signer, err := am.getSubAccount(address)
@@ -393,14 +398,6 @@ type account struct {
 }
 
 func accountName(n int) string { return fmt.Sprintf("tx-sim-%d", n) }
-
-func addrsToString(addrs []types.AccAddress) string {
-	addrsStr := make([]string, len(addrs))
-	for i, addr := range addrs {
-		addrsStr[i] = addr.String()
-	}
-	return strings.Join(addrsStr, ",")
-}
 
 func msgsToString(msgs []types.Msg) string {
 	msgsStr := make([]string, len(msgs))
