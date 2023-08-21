@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-const defaultPollTime = 3 * time.Second
+const DefaultPollTime = 3 * time.Second
 
 // Signer is an abstraction for building, signing, and broadcasting Celestia transactions
 type Signer struct {
@@ -73,7 +73,7 @@ func NewSigner(
 		accountNumber:         accountNumber,
 		lastSignedSequence:    sequence,
 		lastConfirmedSequence: sequence,
-		pollTime:              defaultPollTime,
+		pollTime:              DefaultPollTime,
 	}, nil
 }
 
@@ -259,6 +259,12 @@ func (s *Signer) AccountNumber() uint64 {
 // Address returns the address of the signer.
 func (s *Signer) Address() sdktypes.Address {
 	return s.address
+}
+
+func (s *Signer) SetPollTime(pollTime time.Duration) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.pollTime = pollTime
 }
 
 func (s *Signer) signTransaction(builder client.TxBuilder) error {

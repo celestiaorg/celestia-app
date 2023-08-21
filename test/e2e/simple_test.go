@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -39,9 +41,10 @@ func TestE2ESimple(t *testing.T) {
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
 	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err = txsim.Run(ctx, testnet.RPCEndpoints(), testnet.GRPCEndpoints(), kr, "", seed, 3*time.Second, false, sequences...)
+	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, "", seed, 3*time.Second, false, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())

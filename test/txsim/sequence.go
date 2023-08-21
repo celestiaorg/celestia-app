@@ -36,7 +36,7 @@ type Sequence interface {
 type Operation struct {
 	Msgs     []types.Msg
 	Blobs    []*blob.Blob
-	Delay    int64
+	Delay    uint64
 	GasLimit uint64
 	GasPrice float64
 }
