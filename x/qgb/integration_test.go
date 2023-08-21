@@ -48,9 +48,9 @@ func (s *QGBIntegrationSuite) SetupSuite() {
 func (s *QGBIntegrationSuite) TestQGB() {
 	t := s.T()
 	type test struct {
-		name                string
-		msgFunc             func() (msgs []sdk.Msg, signer string)
-		expectedCheckTxCode uint32
+		name           string
+		msgFunc        func() (msgs []sdk.Msg, signer string)
+		expectedTxCode uint32
 	}
 	tests := []test{
 		{
@@ -68,7 +68,7 @@ func (s *QGBIntegrationSuite) TestQGB() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
-			expectedCheckTxCode: abci.CodeTypeOK,
+			expectedTxCode: abci.CodeTypeOK,
 		},
 		{
 			name: "unable to edit a qgb validator address",
@@ -85,7 +85,7 @@ func (s *QGBIntegrationSuite) TestQGB() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
-			expectedCheckTxCode: errors.ErrInvalidPubKey.ABCICode(),
+			expectedTxCode: errors.ErrInvalidPubKey.ABCICode(),
 		},
 	}
 
@@ -97,9 +97,13 @@ func (s *QGBIntegrationSuite) TestQGB() {
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
 			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
-			require.NoError(t, err)
+			if tt.expectedTxCode == abci.CodeTypeOK {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
 			require.NotNil(t, res)
-			require.Equal(t, tt.expectedCheckTxCode, res.Code, res.RawLog)
+			require.Equal(t, tt.expectedTxCode, res.Code, res.RawLog)
 		})
 	}
 }

@@ -199,7 +199,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {
-		addr := getAddress(acc, kr)
+		addr := testfactory.GetAddress(kr, acc)
 		accI := testutil.DirectQueryAccount(capp, addr)
 		infos[i] = blobfactory.AccountInfo{
 			AccountNum: accI.GetAccountNumber(),

@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -179,7 +180,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 		"description",
 		[]proposal.ParamChange{change1, change2},
 	)
-	addr := getAddress(account, s.cctx.Keyring)
+	addr := testfactory.GetAddress(s.cctx.Keyring, account)
 
 	msg, err := oldgov.NewMsgSubmitProposal(
 		content,
@@ -205,7 +206,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	require.Len(t, gresp.Proposals, 1)
 
 	// create and submit a new vote
-	vote := v1.NewMsgVote(getAddress(account, s.cctx.Keyring), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
+	vote := v1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, account), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
 	res, err = signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code)

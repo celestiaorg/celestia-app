@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/genesis"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -193,8 +194,8 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsTransferPar
 // transaction is equal to 5, indicating an InsufficientFunds error.
 func (s *VestingModuleTestSuite) testTransferMustFail(name string, amount int64) {
 	txResultCode, err := s.submitTransferTx(name, amount)
-	assert.NoError(s.T(), err)
-	assert.EqualValues(s.T(), sdkerrors.ErrInsufficientFunds.ABCICode(), txResultCode, "the transfer TX must fail")
+	require.Error(s.T(), err)
+	assert.EqualValues(s.T(), sdkerrors.ErrInsufficientFunds.ABCICode(), txResultCode, err.Error())
 }
 
 // testTransferMustSucceed tests the transfer of a certain amount of funds from one account
@@ -202,7 +203,7 @@ func (s *VestingModuleTestSuite) testTransferMustFail(name string, amount int64)
 // a success.
 func (s *VestingModuleTestSuite) testTransferMustSucceed(name string, amount int64) {
 	txResultCode, err := s.submitTransferTx(name, amount)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.EqualValues(s.T(), abci.CodeTypeOK, txResultCode, "the transfer TX must succeed")
 }
 
@@ -218,21 +219,17 @@ func (s *VestingModuleTestSuite) submitTransferTx(name string, amount int64) (tx
 		getAddress(randomAcc, s.cctx.Keyring),
 		sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(amount))),
 	)
-	addr := testfactory.GetAddress(s.cctx.Keyring, randomAcc)
+	addr := testfactory.GetAddress(s.cctx.Keyring, name)
 	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 	if err != nil {
 		return 0, err
 	}
-	resTx, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSend})
+	resTx, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSend}, blobfactory.FeeTxOpts(1e5)...)
 	if err != nil {
 		return 0, err
 	}
 
-	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
-	if err != nil {
-		return 0, err
-	}
-	return resQ.TxResult.Code, nil
+	return resTx.Code, nil
 }
 
 // initRegularAccounts initializes regular accounts for the VestingModuleTestSuite.
