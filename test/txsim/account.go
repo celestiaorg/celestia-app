@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -18,38 +19,30 @@ import (
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	"github.com/gogo/protobuf/grpc"
 	"github.com/rs/zerolog/log"
 )
 
 const defaultFee = DefaultGasLimit * appconsts.DefaultMinGasPrice
 
 type AccountManager struct {
-	keys    keyring.Keyring
-	tx      *TxClient
-	query   *QueryClient
-	pending []*Account
+	keys        keyring.Keyring
+	conn        *grpc.ClientConn
+	pending     []*user.Signer
+	useFeegrant bool
 
 	// to protect from concurrent writes to the map
-	mtx           sync.Mutex
-	masterAccount *Account
-	accounts      map[string]*Account
-	useFeegrant   bool
-}
-
-type Account struct {
-	Address       types.AccAddress
-	PubKey        cryptotypes.PubKey
-	Sequence      uint64
-	AccountNumber uint64
-	Balance       int64
+	mtx         sync.Mutex
+	master      *user.Signer
+	balance     uint64
+	subaccounts map[string]*user.Signer
 }
 
 func NewAccountManager(
 	ctx context.Context,
 	keys keyring.Keyring,
 	masterAccName string,
-	txClient *TxClient,
-	queryClient *QueryClient,
+	conn *grpc.ClientConn,
 	useFeegrant bool,
 ) (*AccountManager, error) {
 	records, err := keys.List()
@@ -63,22 +56,20 @@ func NewAccountManager(
 
 	am := &AccountManager{
 		keys:        keys,
-		accounts:    make(map[string]*Account),
-		pending:     make([]*Account, 0),
-		tx:          txClient,
-		query:       queryClient,
+		subaccounts: make(map[string]*user.Signer),
+		pending:     make([]*user.Signer, 0),
+		conn:        conn,
 		useFeegrant: useFeegrant,
 	}
 
 	if masterAccName == "" {
-		if err := am.setupDefaultMasterAccount(ctx); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := am.setupSpecifiedMasterAccount(ctx, masterAccName); err != nil {
+		masterAccName, err = am.findWealthiestAccount(ctx)
+		if err != nil {
 			return nil, err
 		}
 	}
+
+
 
 	log.Info().
 		Str("address", am.masterAccount.Address.String()).
@@ -89,10 +80,50 @@ func NewAccountManager(
 	return am, nil
 }
 
-// setupDefaultMasterAccount loops through all accounts in the keyring and picks out the one with
+func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, error) {
+	am.mtx.Lock()
+	defer am.mtx.Unlock()
+
+	records, err := am.keys.List()
+	if err != nil {
+		return "", err
+	}
+
+	var (
+		highestBalance int64
+		wealthiestAddress string
+	)
+
+	for _, record := range records {
+		address, err := record.GetAddress()
+		if err != nil {
+			return "", fmt.Errorf("error getting address for account %s: %w", record.Name, err)
+		}
+
+		// search for the account on chain
+		balance, err := am.getBalance(ctx, address)
+		if err != nil {
+			log.Err(err).Str("account", record.Name).Msg("error getting initial account balance")
+			continue
+		}
+
+		if wealthiestAddress == "" || balance > highestBalance {
+			wealthiestAddress = record.Name
+			highestBalance = balance
+		}
+	}
+
+	if wealthiestAddress == "" {
+		return "", fmt.Errorf("no suitable master account found")
+	}
+
+	return wealthiestAddress, nil
+}
+
+// setupMasterAccount loops through all accounts in the keyring and picks out the one with
 // the highest balance as the master account. Accounts that don't yet exist on chain are
 // ignored.
-func (am *AccountManager) setupDefaultMasterAccount(ctx context.Context) error {
+func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
 
@@ -142,7 +173,7 @@ func (am *AccountManager) setupDefaultMasterAccount(ctx context.Context) error {
 	return nil
 }
 
-func (am *AccountManager) setupSpecifiedMasterAccount(ctx context.Context, masterAccName string) error {
+func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName string) error {
 	masterRecord, err := am.keys.Key(masterAccName)
 	if err != nil {
 		return fmt.Errorf("error getting specified master account %s: %w", masterAccName, err)
@@ -455,7 +486,7 @@ func (am *AccountManager) updateAccount(ctx context.Context, account *Account) e
 
 // getBalance returns the balance for the given address
 func (am *AccountManager) getBalance(ctx context.Context, address types.AccAddress) (int64, error) {
-	balanceResp, err := am.query.Bank().Balance(ctx, &bank.QueryBalanceRequest{
+	balanceResp, err := bank.NewQueryClient(am.conn).Balance(ctx, &bank.QueryBalanceRequest{
 		Address: address.String(),
 		Denom:   appconsts.BondDenom,
 	})
