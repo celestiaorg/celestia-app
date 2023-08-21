@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -97,7 +99,9 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		s.Run(tc.name, func() {
 			blobTx, err := signer.CreatePayForBlob([]*tmproto.Blob{tc.blob}, user.SetGasLimit(1e9))
 			require.NoError(t, err)
-			res, err := signer.BroadcastTx(s.cctx.GoContext(), blobTx)
+			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+			defer cancel()
+			res, err := signer.BroadcastTx(subCtx, blobTx)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.want, res.Code, res.Logs)

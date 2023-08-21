@@ -216,8 +216,6 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
 func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
-	opts := blobfactory.DefaultTxOpts()
-
 	rec, err := c.Keyring.Key(account)
 	if err != nil {
 		return nil, err
@@ -243,6 +241,9 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	if err != nil {
 		return nil, err
 	}
+
+	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
+	opts := blobfactory.FeeTxOpts(gas)
 
 	blobTx, err := signer.CreatePayForBlob([]*types.Blob{blob}, opts...)
 	if err != nil {

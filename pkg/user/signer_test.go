@@ -48,16 +48,18 @@ func (s *SignerTestSuite) SetupSuite() {
 func (s *SignerTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
 	blobs := blobfactory.ManyRandBlobs(t, rand.NewRand(), 1e3, 1e4)
-	fee := user.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1e6)))
+	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
-	resp, err := s.signer.SubmitPayForBlob(s.ctx.GoContext(), blobs, fee, gas)
+	subCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	resp, err := s.signer.SubmitPayForBlob(subCtx, blobs, fee, gas)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, resp.Code)
 }
 
 func (s *SignerTestSuite) TestSubmitTx() {
 	t := s.T()
-	fee := user.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1e6)))
+	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
 	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)

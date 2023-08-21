@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -380,6 +381,9 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	t := s.T()
 	require.NoError(t, s.cctx.WaitForBlocks(3))
+	addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
+	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+	require.NoError(t, err)
 
 	type testCase struct {
 		name string
@@ -417,12 +421,14 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
-
-			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-			require.NoError(t, err)
-			res, err := signer.SubmitPayForBlob(s.cctx.GoContext(), []*blobtypes.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
-			require.NoError(t, err)
+			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+			defer cancel()
+			res, err := signer.SubmitPayForBlob(subCtx, []*blobtypes.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
+			if tc.txResponseCode == abci.CodeTypeOK {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
 			require.NotNil(t, res)
 			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
 		})
