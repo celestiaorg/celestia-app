@@ -1,6 +1,7 @@
 module github.com/celestiaorg/celestia-app
 
 go 1.20
+toolchain go1.21.0
 
 require (
 	github.com/celestiaorg/nmt v0.18.1
@@ -26,7 +27,7 @@ require (
 
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
-	cosmossdk.io/math v1.0.0-rc.0
+	cosmossdk.io/math v1.1.1
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.14
