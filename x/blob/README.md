@@ -206,7 +206,7 @@ celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [fla
 ```
 
 For submitting PFB transaction via a light client's rpc, see [celestia-node's
-documention](https://docs.celestia.org/developers/rpc-tutorial/#submitpayforblob-arguments).
+documention](https://docs.celestia.org/developers/node-tutorial/#submitting-data ).
 
 The steps in the
 [`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)
