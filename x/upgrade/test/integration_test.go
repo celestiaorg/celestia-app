@@ -115,7 +115,7 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
 	assert.Contains(t, res.RawLog, "no handler exists for proposal type")
 }
@@ -144,7 +144,7 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.EqualValues(t, 10, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
 	require.Contains(t, res.RawLog, "proposal message not recognized by router")
 }

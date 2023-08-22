@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/genesis"
 	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -264,7 +263,7 @@ func (s *VestingModuleTestSuite) submitTransferTx(ctx context.Context, name stri
 		return 0, err
 	}
 
-	resTx, err := signer.SubmitTx(ctx, []sdk.Msg{msgSend}, blobfactory.FeeTxOpts(1e5)...)
+	resTx, err := signer.SubmitTx(ctx, []sdk.Msg{msgSend}, user.SetGasLimit(1e6), user.SetFee(1))
 	if err != nil {
 		return resTx.Code, err
 	}
