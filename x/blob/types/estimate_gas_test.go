@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -38,11 +39,14 @@ func TestPFBGasEstimation(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
 			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-			signer := blob.NewKeyringSigner(kr, accnts[0], testutil.ChainID)
+			addr := testfactory.GetAddress(kr, accnts[0])
+			signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0)
+			require.NoError(t, err)
 			blobs := blobfactory.ManyRandBlobs(t, rand, tc.blobSizes...)
 			gas := blob.DefaultEstimateGas(toUint32(tc.blobSizes))
 			fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-			tx := blobfactory.MultiBlobTx(t, encCfg.TxConfig.TxEncoder(), signer, 0, 1, blobs, blob.SetGasLimit(gas), blob.SetFeeAmount(fee))
+			tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+			require.NoError(t, err)
 			blobTx, ok := types.UnmarshalBlobTx(tx)
 			require.True(t, ok)
 			resp := testApp.DeliverTx(abci.RequestDeliverTx{
@@ -80,11 +84,14 @@ func FuzzPFBGasEstimation(f *testing.F) {
 
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-		signer := blob.NewKeyringSigner(kr, accnts[0], testutil.ChainID)
+		addr := testfactory.GetAddress(kr, accnts[0])
+		signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0)
+		require.NoError(t, err)
 		blobs := blobfactory.ManyRandBlobs(t, rand, blobSizes...)
 		gas := blob.DefaultEstimateGas(toUint32(blobSizes))
 		fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-		tx := blobfactory.MultiBlobTx(t, encCfg.TxConfig.TxEncoder(), signer, 0, 1, blobs, blob.SetGasLimit(gas), blob.SetFeeAmount(fee))
+		tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+		require.NoError(t, err)
 		blobTx, ok := types.UnmarshalBlobTx(tx)
 		require.True(t, ok)
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{
