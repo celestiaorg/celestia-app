@@ -281,7 +281,11 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
 			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
-			require.NoError(t, err)
+			if tt.expectedCode != abci.CodeTypeOK {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			require.NotNil(t, res)
 			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
 		})
