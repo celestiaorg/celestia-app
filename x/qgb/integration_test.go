@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -49,51 +49,36 @@ func (s *QGBIntegrationSuite) TestQGB() {
 	t := s.T()
 	type test struct {
 		name           string
-		msgFunc        func() (msgs []sdk.Msg, signer string)
+		msgFunc        func() (msgs []sdk.Msg, address sdk.AccAddress)
 		expectedTxCode uint32
 	}
 	tests := []test{
 		{
 			name: "edit a qgb validator address",
-			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				account := "validator"
-				valAcc, err := s.cctx.Keyring.Key(account)
-				require.NoError(t, err)
-				valAddr, err := valAcc.GetAddress()
-				require.NoError(t, err)
-
-				rvalAddr := sdk.ValAddress(valAddr)
-
-				msg := qgbtypes.NewMsgRegisterEVMAddress(rvalAddr, gethcommon.HexToAddress("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5"))
-				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
+			msgFunc: func() ([]sdk.Msg, sdk.AccAddress) {
+				addr := testfactory.GetAddress(s.cctx.Keyring, "validator")
+				valAddr := sdk.ValAddress(addr)
+				msg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, gethcommon.HexToAddress("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5"))
+				return []sdk.Msg{msg}, addr
 			},
 			expectedTxCode: abci.CodeTypeOK,
 		},
 		{
-			name: "unable to edit a qgb validator address",
-			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				account := s.accounts[0]
-				valAcc, err := s.cctx.Keyring.Key("validator")
-				require.NoError(t, err)
-				valAddr, err := valAcc.GetAddress()
-				require.NoError(t, err)
-
-				rvalAddr := sdk.ValAddress(valAddr)
-
-				msg := qgbtypes.NewMsgRegisterEVMAddress(rvalAddr, gethcommon.HexToAddress("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5"))
-				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
+			name: "edit a non qgb validator address",
+			msgFunc: func() ([]sdk.Msg, sdk.AccAddress) {
+				addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[0])
+				valAddr := sdk.ValAddress(addr)
+				msg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, gethcommon.HexToAddress("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5"))
+				return []sdk.Msg{msg}, addr
 			},
-			expectedTxCode: errors.ErrInvalidPubKey.ABCICode(),
+			expectedTxCode: staking.ErrNoValidatorFound.ABCICode(),
 		},
 	}
 
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msgs, accountName := tt.msgFunc()
-			addr := testfactory.GetAddress(s.cctx.Keyring, accountName)
+			msgs, addr := tt.msgFunc()
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
 			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)

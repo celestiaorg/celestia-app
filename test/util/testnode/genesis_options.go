@@ -2,7 +2,6 @@ package testnode
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -58,7 +57,6 @@ func FundAccounts(codec codec.Codec, addresses []sdk.AccAddress, balance sdk.Coi
 		genBalances := make([]banktypes.Balance, len(addresses))
 		for idx, addr := range addresses {
 			genAccounts[idx] = authtypes.NewBaseAccount(addr, nil, uint64(idx+len(authGenState.Accounts)), 0)
-			fmt.Println("base account", genAccounts[idx])
 			genBalances[idx] = banktypes.Balance{Address: addr.String(), Coins: sdk.NewCoins(balance)}
 		}
 

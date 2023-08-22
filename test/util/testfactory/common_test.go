@@ -1,7 +1,6 @@
 package testfactory_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -18,7 +17,6 @@ func TestTestAccount(t *testing.T) {
 	require.NoError(t, err)
 	addr, err := record.GetAddress()
 	require.NoError(t, err)
-	fmt.Println(addr)
 	require.Equal(t, testfactory.TestAccAddr, addr.String())
 	require.Equal(t, testnode.TestAddress(), addr)
 }
