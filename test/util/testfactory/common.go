@@ -15,6 +15,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"google.golang.org/grpc"
 )
@@ -69,6 +70,10 @@ func GenerateAccounts(count int) []string {
 		accs[i] = tmrand.Str(20)
 	}
 	return accs
+}
+
+func GenerateAddress() sdk.AccAddress {
+	return sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address())
 }
 
 func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {

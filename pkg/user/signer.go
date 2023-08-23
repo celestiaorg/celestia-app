@@ -241,6 +241,16 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 	}
 }
 
+// EncodeTx encodes the provided sdk.Tx using the signer's encoding config.
+func (s *Signer) EncodeTx(sdkTx sdktypes.Tx) ([]byte, error) {
+	return s.enc.TxEncoder()(sdkTx)
+}
+
+// DecodeTx decodes the provided transaction bytes using the signer's encoding config.
+func (s *Signer) DecodeTx(txBytes []byte) (sdktypes.Tx, error) {
+	return s.enc.TxDecoder()(txBytes)
+}
+
 // ChainID returns the chain ID of the signer.
 func (s *Signer) ChainID() string {
 	return s.chainID

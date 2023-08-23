@@ -1,6 +1,7 @@
 package ante
 
 import (
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	blobante "github.com/celestiaorg/celestia-app/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -45,12 +46,11 @@ func NewAnteHandler(
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
-
 func NewPostHandlers(
-	accountKeeper ante.AccountKeeper,
 	bankKeeper BankKeeper,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
-		NewGasRefundDecorator(v2.Version, accountKeeper, bankKeeper),
+		// Gas refunds are only supported as of v2
+		NewGasRefundDecorator(v2.Version, bankKeeper),
 	)
-} 
+}
