@@ -2,10 +2,11 @@ package appconsts
 
 import (
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 )
 
 const (
-	LatestVersion = v1.Version
+	LatestVersion = v2.Version
 )
 
 // SubtreeRootThreshold works as a target upper bound for the number of subtree
