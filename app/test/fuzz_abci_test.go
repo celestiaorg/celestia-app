@@ -95,7 +95,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					txs := testutil.RandBlobTxsWithAccounts(
 						t,
 						testApp,
-						encConf.TxConfig.TxEncoder(),
+						encConf.TxConfig,
 						kr,
 						tt.size,
 						tt.count,
@@ -107,7 +107,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					sendTxs := testutil.SendTxsWithAccounts(
 						t,
 						testApp,
-						encConf.TxConfig.TxEncoder(),
+						encConf.TxConfig,
 						kr,
 						1000,
 						accounts[0],

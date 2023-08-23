@@ -57,7 +57,7 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 		return nil, err
 	}
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaceVersions, namespaceIds, sizes, shareVersions := ExtractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
@@ -237,7 +237,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// over that blob. The size of the tree is only increased if the number of
 	// subtree roots surpasses a constant threshold.
 	subTreeWidth := appshares.SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
-	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
+	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
 	}
@@ -322,9 +322,9 @@ func ValidateBlobs(blobs ...*Blob) error {
 	return nil
 }
 
-// extractBlobComponents separates and returns the components of a slice of
+// ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
 	namespaceIds = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
@@ -340,13 +340,13 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, 
 	return namespaceVersions, namespaceIds, sizes, shareVersions
 }
 
-// merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
+// MerkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
 // trees in a merkle mountain range constructed for a given totalSize and
 // maxTreeSize.
 //
 // https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
 // https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
-func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
+func MerkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 	var treeSizes []uint64
 
 	for totalSize != 0 {

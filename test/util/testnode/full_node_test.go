@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
@@ -93,7 +92,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		err = s.cctx.WaitForBlocks(3)
 		require.NoError(err, squareSize)
 
-		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
+		res, err := QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err, squareSize)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code, squareSize)
 

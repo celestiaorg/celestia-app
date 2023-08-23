@@ -6,10 +6,13 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -31,30 +34,28 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	minGasPrice, err := sdk.ParseDecCoins(fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom))
 	require.NoError(t, err)
 	ctx := testApp.NewContext(true, tmproto.Header{}).WithMinGasPrices(minGasPrice)
-	signer := blob.NewKeyringSigner(kr, account, testutil.ChainID)
-	builder := signer.NewTxBuilder()
-	builder.SetGasLimit(gasLimit)
-	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(feeAmount))))
-
-	address, err := signer.GetSignerInfo().GetAddress()
+	addr := testfactory.GetAddress(kr, account)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	acc := testutil.DirectQueryAccount(testApp, addr)
+	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), acc.GetSequence())
 	require.NoError(t, err)
 
-	_, err = sdk.AccAddressFromBech32(address.String())
-	require.NoError(t, err, address)
-
+	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(feeAmount)))
 	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
-	pfb, err := blob.NewMsgPayForBlobs(address.String(), b)
-	require.NoError(t, err, address)
+	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), b)
+	require.NoError(t, err)
 
-	tx, err := signer.BuildSignedTx(builder, pfb)
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))
+	require.NoError(t, err)
+	sdkTx, err := enc.TxConfig.TxDecoder()(tx)
 	require.NoError(t, err)
 
 	decorator := ante.NewDeductFeeDecorator(testApp.AccountKeeper, testApp.BankKeeper, testApp.FeeGrantKeeper, nil)
 	anteHandler := sdk.ChainAnteDecorators(decorator)
 
-	_, err = anteHandler(ctx, tx, false)
+	_, err = anteHandler(ctx, sdkTx, false)
 	require.True(t, apperr.IsInsufficientMinGasPrice(err))
 	actualGasPrice, err := apperr.ParseInsufficientMinGasPrice(err, gasPrice, gasLimit)
 	require.NoError(t, err)

@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,11 +26,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -69,8 +70,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 
 	for _, acc := range s.accounts {
-		signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, acc, s.cctx.ChainID)
-		err := signer.QueryAccountNumber(s.cctx.GoContext(), s.cctx.GRPCClient)
+		addr := testfactory.GetAddress(s.cctx.Keyring, acc)
+		_, _, err := user.QueryAccount(s.cctx.GoContext(), s.cctx.GRPCClient, s.ecfg, addr.String())
 		require.NoError(t, err)
 	}
 }
@@ -81,14 +82,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// tendermint's default tx size limit is 1Mb, so we get close to that
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg.TxConfig.TxEncoder(),
+			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			950000,
 			1,
 			false,
-			s.cctx.ChainID,
 			s.accounts[:20],
 		)
 	}
@@ -98,14 +98,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// 200,000 bytes each = 600,000 total bytes = 600 KB per transaction.
 	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg.TxConfig.TxEncoder(),
+			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			200000, // 200 KB
 			3,
 			false,
-			s.cctx.ChainID,
 			s.accounts[20:40],
 		)
 	}
@@ -116,14 +115,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg.TxConfig.TxEncoder(),
+			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			50000,
 			8,
 			true,
-			s.cctx.ChainID,
 			s.accounts[40:120],
 		)
 	}
@@ -155,7 +153,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for i, tx := range txs {
 				res, err := s.cctx.Context.BroadcastTxSync(tx)
 				require.NoError(t, err)
-				assert.Equal(t, abci.CodeTypeOK, res.Code)
+				assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 				if res.Code != abci.CodeTypeOK {
 					continue
 				}
@@ -219,40 +217,40 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	type test struct {
 		name string
 		blob *blobtypes.Blob
-		opts []blobtypes.TxBuilderOption
+		opts []user.TxOption
 	}
 
 	tests := []test{
 		{
 			"small random typical",
 			mustNewBlob(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
 			"large random typical",
 			mustNewBlob(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
 			"medium random with memo",
 			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetMemo("lol I could stick the rollup block here if I wanted to"),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
 			"medium random with timeout height",
 			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetTimeoutHeight(1000),
-				blobtypes.SetGasLimit(1_000_000_000),
+			[]user.TxOption{
+				user.SetTimeoutHeight(1000),
+				user.SetGasLimit(1_000_000_000),
 			},
 		},
 	}
@@ -262,15 +260,10 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			// 20) so we wait a few blocks for the txs to clear
 			require.NoError(t, s.cctx.WaitForBlocks(3))
 
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
-			res, err := blob.SubmitPayForBlob(
-				context.TODO(),
-				signer,
-				s.cctx.GRPCClient,
-				sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
-				[]*blobtypes.Blob{tc.blob, tc.blob},
-				tc.opts...,
-			)
+			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
+			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+			require.NoError(t, err)
+			res, err := signer.SubmitPayForBlob(context.TODO(), []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
@@ -282,14 +275,13 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	t := s.T()
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
-		s.ecfg.TxConfig.TxEncoder(),
+		s.ecfg,
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		int(100000),
 		1,
 		false,
-		s.cctx.ChainID,
 		s.accounts[140:],
 	)
 
@@ -306,14 +298,13 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
-		s.ecfg.TxConfig.TxEncoder(),
+		s.ecfg,
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		100000,
 		1,
 		true,
-		s.cctx.ChainID,
 		s.accounts[120:140],
 	)
 
@@ -390,6 +381,9 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	t := s.T()
 	require.NoError(t, s.cctx.WaitForBlocks(3))
+	addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
+	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+	require.NoError(t, err)
 
 	type testCase struct {
 		name string
@@ -427,18 +421,14 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
-			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
-			res, err := blob.SubmitPayForBlob(
-				context.TODO(),
-				signer,
-				s.cctx.GRPCClient,
-				sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
-				[]*blobtypes.Blob{tc.blob},
-				options...,
-			)
-
-			require.NoError(t, err)
+			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+			defer cancel()
+			res, err := signer.SubmitPayForBlob(subCtx, []*blobtypes.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
+			if tc.txResponseCode == abci.CodeTypeOK {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
 			require.NotNil(t, res)
 			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
 		})

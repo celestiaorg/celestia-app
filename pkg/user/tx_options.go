@@ -1,6 +1,7 @@
 package user
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
@@ -19,6 +20,13 @@ func SetGasLimit(limit uint64) TxOption {
 func SetFeeAmount(fees sdk.Coins) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetFeeAmount(fees)
+		return builder
+	}
+}
+
+func SetFee(fees uint64) TxOption {
+	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
+		builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(int64(fees)))))
 		return builder
 	}
 }
