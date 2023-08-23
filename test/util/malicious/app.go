@@ -44,7 +44,7 @@ func (a *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
 type App struct {
 	*app.App
 	maliciousStartHeight      int64
-	malPreparePropsoalHandler PrepareProposalHandler
+	malPrepareProposalHandler PrepareProposalHandler
 }
 
 func New(
@@ -75,7 +75,7 @@ func (a *App) SetMaliciousBehavior(mcfg BehaviorConfig) {
 	if _, ok := a.PrepareProposalHandlerMap()[mcfg.HandlerName]; !ok {
 		panic("unknown malicious prepare proposal handler")
 	}
-	a.malPreparePropsoalHandler = a.PrepareProposalHandlerMap()[mcfg.HandlerName]
+	a.malPrepareProposalHandler = a.PrepareProposalHandlerMap()[mcfg.HandlerName]
 	a.maliciousStartHeight = mcfg.StartHeight
 }
 
@@ -83,7 +83,7 @@ func (a *App) SetMaliciousBehavior(mcfg BehaviorConfig) {
 // malicious behavior after a given height.
 func (a *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	if a.LastBlockHeight()+1 >= a.maliciousStartHeight {
-		return a.malPreparePropsoalHandler(req)
+		return a.malPrepareProposalHandler(req)
 	}
 	return a.App.PrepareProposal(req)
 }

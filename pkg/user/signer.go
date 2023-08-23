@@ -256,13 +256,6 @@ func (s *Signer) Address() sdktypes.AccAddress {
 	return s.address
 }
 
-// SetPollTime sets how often the signer should poll for the confirmation of the transaction
-func (s *Signer) SetPollTime(pollTime time.Duration) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.pollTime = pollTime
-}
-
 // PubKey returns the public key of the signer
 func (s *Signer) PubKey() cryptotypes.PubKey {
 	return s.pk

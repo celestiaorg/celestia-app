@@ -6,10 +6,9 @@ import (
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
@@ -24,8 +23,11 @@ import (
 
 func TestNewTxInclusionProof(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(50, 500).ToSliceOfBytes()
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 50, 1, 500).ToSliceOfBytes()...)
+
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
+
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(signer, tmrand.NewRand(), 50, 1, 500).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 100)
 
 	type test struct {
@@ -95,8 +97,9 @@ func TestNewShareInclusionProof(t *testing.T) {
 	ns2 := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
 	ns3 := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
 
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blobTxs := blobfactory.RandBlobTxsWithNamespaces(encCfg.TxConfig.TxEncoder(), []appns.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
+	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []appns.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 

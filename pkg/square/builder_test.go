@@ -7,18 +7,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
-
-	"github.com/cosmos/cosmos-sdk/client"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -49,7 +47,9 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rand := tmrand.NewRand()
-			txs := generateMixedTxs(rand, tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
+			signer, err := testnode.NewOfflineSigner()
+			require.NoError(t, err)
+			txs := generateMixedTxs(signer, rand, tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
 			square, _, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultGovMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
@@ -57,14 +57,13 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 }
 
-func generateMixedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	return shuffle(rand, generateOrderedTxs(rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
+func generateMixedTxs(signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+	return shuffle(rand, generateOrderedTxs(signer, rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
 }
 
-func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, pfbCount, blobsPerPfb, blobSize)
-	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
+func generateOrderedTxs(signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+	pfbTxs := blobfactory.RandBlobTxs(signer, rand, pfbCount, blobsPerPfb, blobSize)
+	normieTxs := blobfactory.GenerateManyRawSendTxs(signer, normalTxCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),
 		normieTxs...),
@@ -74,10 +73,9 @@ func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb,
 }
 
 // GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
-func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	signer := apptypes.GenerateKeyringSigner(t)
-	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(txConfig, rand, signer, normalTxCount)
-	pfbTxs := blobfactory.RandMultiBlobTxsSameSigner(t, txConfig.TxEncoder(), rand, signer, pfbCount)
+func GenerateOrderedRandomTxs(t *testing.T, signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
+	pfbTxs := blobfactory.RandMultiBlobTxsSameSigner(t, rand, signer, pfbCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
 		noramlTxs...),
@@ -92,19 +90,26 @@ func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
 	noramlCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	kr := testfactory.TestKeyring(encCfg.Codec)
+	signer, err := user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
+
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+	set1 := GenerateOrderedRandomTxs(t, signer, rand1, noramlCount, pfbCount)
+
+	signer, err = user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+	set2 := GenerateOrderedRandomTxs(t, signer, rand2, noramlCount, pfbCount)
 
 	assert.Equal(t, set2, set1)
 }
 
-func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	return shuffle(rand, GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
+func GenerateMixedRandomTxs(t *testing.T, signer *user.Signer, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(rand, GenerateOrderedRandomTxs(t, signer, rand, normalTxCount, pfbCount))
 }
 
 // TestGenerateMixedRandomTxs_Deterministic ensures that the same seed produces the same txs
@@ -113,13 +118,20 @@ func TestGenerateMixedRandomTxs_Deterministic(t *testing.T) {
 	noramlCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	kr := testfactory.TestKeyring(encCfg.Codec)
+	signer, err := user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
+
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	set1 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+	set1 := GenerateMixedRandomTxs(t, signer, rand1, noramlCount, pfbCount)
+
+	signer, err = user.NewSigner(kr, nil, testnode.TestAddress(), encCfg.TxConfig, testfactory.ChainID, 1, 0)
+	require.NoError(t, err)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	set2 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+	set2 := GenerateMixedRandomTxs(t, signer, rand2, noramlCount, pfbCount)
 
 	assert.Equal(t, set2, set1)
 }
@@ -200,9 +212,10 @@ func newTx(len int) []byte {
 }
 
 func TestBuilderFindTxShareRange(t *testing.T) {
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
 	blockTxs := testfactory.GenerateRandomTxs(5, 900).ToSliceOfBytes()
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(signer, tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, blockTxs...)

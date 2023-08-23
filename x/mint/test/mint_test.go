@@ -59,7 +59,7 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 
 	initalSupply := s.getTotalSupply(initialHeight)
 
-	_, err = s.cctx.WaitForHeight(laterHeight)
+	_, err = s.cctx.WaitForHeight(laterHeight + 1)
 	require.NoError(err)
 	laterSupply := s.getTotalSupply(laterHeight)
 
