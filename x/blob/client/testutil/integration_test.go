@@ -20,7 +20,7 @@ import (
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/network"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -175,7 +175,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			s.Require().NoError(s.network.WaitForNextBlock())
 
 			// attempt to query for the transaction using the tx's hash
-			res, err := testfactory.QueryWithoutProof(clientCtx, txResp.TxHash)
+			res, err := testnode.QueryWithoutProof(clientCtx, txResp.TxHash)
 			require.NoError(err)
 			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 		})

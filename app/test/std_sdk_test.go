@@ -6,6 +6,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -72,7 +75,6 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	type test struct {
 		name         string
 		msgFunc      func() (msgs []sdk.Msg, signer string)
-		hash         string
 		expectedCode uint32
 	}
 	tests := []test{
@@ -81,8 +83,8 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend := banktypes.NewMsgSend(
-					getAddress(account1, s.cctx.Keyring),
-					getAddress(account2, s.cctx.Keyring),
+					testfactory.GetAddress(s.cctx.Keyring, account1),
+					testfactory.GetAddress(s.cctx.Keyring, account2),
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend}, account1
@@ -94,8 +96,8 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msg []sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend := banktypes.NewMsgSend(
-					getAddress(account1, s.cctx.Keyring),
-					getAddress(account2, s.cctx.Keyring),
+					testfactory.GetAddress(s.cctx.Keyring, account1),
+					testfactory.GetAddress(s.cctx.Keyring, account2),
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000))),
 				)
 				return []sdk.Msg{msgSend}, account1
@@ -105,9 +107,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		{
 			name: "delegate 1 TIA",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				valopAddr := sdk.ValAddress(getAddress("validator", s.cctx.Keyring))
+				valopAddr := sdk.ValAddress(testfactory.GetAddress(s.cctx.Keyring, "validator"))
 				account1 := s.unusedAccount()
-				account1Addr := getAddress(account1, s.cctx.Keyring)
+				account1Addr := testfactory.GetAddress(s.cctx.Keyring, account1)
 				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
 				return []sdk.Msg{msg}, account1
 			},
@@ -116,7 +118,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		{
 			name: "undelegate 1 TIA",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				valAccAddr := getAddress("validator", s.cctx.Keyring)
+				valAccAddr := testfactory.GetAddress(s.cctx.Keyring, "validator")
 				valopAddr := sdk.ValAddress(valAccAddr)
 				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
 				return []sdk.Msg{msg}, "validator"
@@ -128,7 +130,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				pv := mock.NewPV()
 				account := s.unusedAccount()
-				valopAccAddr := getAddress(account, s.cctx.Keyring)
+				valopAccAddr := testfactory.GetAddress(s.cctx.Keyring, account)
 				valopAddr := sdk.ValAddress(valopAccAddr)
 				msg, err := stakingtypes.NewMsgCreateValidator(
 					valopAddr,
@@ -150,8 +152,8 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				_, _, err := s.cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
 				require.NoError(t, err)
 				sendAcc := s.unusedAccount()
-				sendingAccAddr := getAddress(sendAcc, s.cctx.Keyring)
-				vestAccAddr := getAddress(vestAccName, s.cctx.Keyring)
+				sendingAccAddr := testfactory.GetAddress(s.cctx.Keyring, sendAcc)
+				vestAccAddr := testfactory.GetAddress(s.cctx.Keyring, vestAccName)
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
@@ -175,10 +177,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				content := disttypes.NewCommunityPoolSpendProposal(
 					"title",
 					"description",
-					getAddress(s.unusedAccount(), s.cctx.Keyring),
+					testfactory.GetAddress(s.cctx.Keyring, s.unusedAccount()),
 					coins,
 				)
-				addr := getAddress(account, s.cctx.Keyring)
+				addr := testfactory.GetAddress(s.cctx.Keyring, account)
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
@@ -196,7 +198,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				account := s.unusedAccount()
 				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
 				require.True(t, ok)
-				addr := getAddress(account, s.cctx.Keyring)
+				addr := testfactory.GetAddress(s.cctx.Keyring, account)
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
@@ -215,14 +217,14 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend1 := banktypes.NewMsgSend(
-					getAddress(account1, s.cctx.Keyring),
-					getAddress(account2, s.cctx.Keyring),
+					testfactory.GetAddress(s.cctx.Keyring, account1),
+					testfactory.GetAddress(s.cctx.Keyring, account2),
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
 				)
 				account3 := s.unusedAccount()
 				msgSend2 := banktypes.NewMsgSend(
-					getAddress(account1, s.cctx.Keyring),
-					getAddress(account3, s.cctx.Keyring),
+					testfactory.GetAddress(s.cctx.Keyring, account1),
+					testfactory.GetAddress(s.cctx.Keyring, account3),
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
@@ -235,7 +237,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				account := s.unusedAccount()
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
 				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
-				addr := getAddress(account, s.cctx.Keyring)
+				addr := testfactory.GetAddress(s.cctx.Keyring, account)
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
@@ -257,7 +259,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				account := s.unusedAccount()
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
 				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
-				addr := getAddress(account, s.cctx.Keyring)
+				addr := testfactory.GetAddress(s.cctx.Keyring, account)
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
@@ -272,32 +274,20 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	}
 
 	// sign and submit the transactions
-	for i, tt := range tests {
-		msgs, signer := tt.msgFunc()
-		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, signer, msgs...)
-		require.NoError(t, err)
-		require.NotNil(t, res)
-		assert.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
-		tests[i].hash = res.TxHash
-	}
-
-	require.NoError(s.T(), s.cctx.WaitForNextBlock())
-
 	for _, tt := range tests {
-		res, err := testnode.QueryTx(s.cctx.Context, tt.hash, true)
-		assert.NoError(t, err)
-		assert.Equal(t, tt.expectedCode, res.TxResult.Code, tt.name)
+		t.Run(tt.name, func(t *testing.T) {
+			msgs, account := tt.msgFunc()
+			addr := testfactory.GetAddress(s.cctx.Keyring, account)
+			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+			require.NoError(t, err)
+			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
+			if tt.expectedCode != abci.CodeTypeOK {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.NotNil(t, res)
+			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
+		})
 	}
-}
-
-func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
-	rec, err := kr.Key(account)
-	if err != nil {
-		panic(err)
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		panic(err)
-	}
-	return addr
 }

@@ -3,7 +3,6 @@ package malicious
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -12,10 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -83,17 +78,10 @@ func TestMaliciousTestNode(t *testing.T) {
 	// submit a multiblob tx where each blob is using a random namespace. This
 	// will result in the first two blobs being swapped in the square as per the
 	// malicious square builder.
-	signer := blobtypes.NewKeyringSigner(cctx.Keyring, accounts[0], cctx.ChainID)
+	signer, err := testnode.NewSignerFromContext(cctx, accounts[0])
+	require.NoError(t, err)
 	blobs := blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
-	txres, err := blob.SubmitPayForBlob(
-		cctx.GoContext(),
-		signer,
-		cctx.GRPCClient,
-		sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
-		blobs,
-		blobtypes.SetGasLimit(1_000_000),
-		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1_000_000)))),
-	)
+	txres, err := signer.SubmitPayForBlob(cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)
 

@@ -29,8 +29,8 @@ const defaultPollTime = 3 * time.Second
 // Signer is an abstraction for building, signing, and broadcasting Celestia transactions
 type Signer struct {
 	keys          keyring.Keyring
-	address       sdktypes.Address
-	encCfg        encoding.Config
+	address       sdktypes.AccAddress
+	enc           client.TxConfig
 	grpc          *grpc.ClientConn
 	pk            cryptotypes.PubKey
 	chainID       string
@@ -46,8 +46,8 @@ type Signer struct {
 func NewSigner(
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
-	address sdktypes.Address,
-	encCfg encoding.Config,
+	address sdktypes.AccAddress,
+	enc client.TxConfig,
 	chainID string,
 	accountNumber uint64,
 	sequence uint64,
@@ -67,7 +67,7 @@ func NewSigner(
 		keys:                  keys,
 		address:               address,
 		grpc:                  conn,
-		encCfg:                encCfg,
+		enc:                   enc,
 		pk:                    pk,
 		chainID:               chainID,
 		accountNumber:         accountNumber,
@@ -105,7 +105,7 @@ func SetupSigner(
 	ctx context.Context,
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
-	address sdktypes.Address,
+	address sdktypes.AccAddress,
 	encCfg encoding.Config,
 ) (*Signer, error) {
 	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
@@ -119,7 +119,7 @@ func SetupSigner(
 		return nil, err
 	}
 
-	return NewSigner(keys, conn, address, encCfg, chainID, accNum, seqNum)
+	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -133,6 +133,9 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 	resp, err := s.BroadcastTx(ctx, txBytes)
 	if err != nil {
 		return nil, err
+	}
+	if resp.Code != 0 {
+		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
@@ -150,6 +153,9 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, op
 	if err != nil {
 		return nil, err
 	}
+	if resp.Code != 0 {
+		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
@@ -166,7 +172,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 		return nil, err
 	}
 
-	return s.encCfg.TxConfig.TxEncoder()(txBuilder.GetTx())
+	return s.enc.TxEncoder()(txBuilder.GetTx())
 }
 
 func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]byte, error) {
@@ -206,42 +212,31 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 // is encountered.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
-
-	resp, err := txClient.GetTx(
-		ctx,
-		&tx.GetTxRequest{
-			Hash: txHash,
-		},
-	)
-	if err == nil {
-		return resp.TxResponse, nil
-	}
-
-	// this is a bit brittle
-	if !strings.Contains(err.Error(), "not found") {
-		return &sdktypes.TxResponse{}, err
-	}
-
-	timer := time.NewTimer(s.pollTime)
+	timer := time.NewTimer(0)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return &sdktypes.TxResponse{}, ctx.Err()
 		case <-timer.C:
-			resp, err = txClient.GetTx(
+			resp, err := txClient.GetTx(
 				ctx,
 				&tx.GetTxRequest{
 					Hash: txHash,
 				},
 			)
-
 			if err == nil {
+				if resp.TxResponse.Code != 0 {
+					return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+				}
 				return resp.TxResponse, nil
 			}
 
 			if !strings.Contains(err.Error(), "not found") {
 				return &sdktypes.TxResponse{}, err
 			}
+
+			timer.Reset(s.pollTime)
 		}
 	}
 }
@@ -257,8 +252,30 @@ func (s *Signer) AccountNumber() uint64 {
 }
 
 // Address returns the address of the signer.
-func (s *Signer) Address() sdktypes.Address {
+func (s *Signer) Address() sdktypes.AccAddress {
 	return s.address
+}
+
+// PubKey returns the public key of the signer
+func (s *Signer) PubKey() cryptotypes.PubKey {
+	return s.pk
+}
+
+// GetSequencer gets the lastest signed sequnce and increments the local sequence number
+func (s *Signer) GetSequence() uint64 {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	defer func() { s.lastSignedSequence++ }()
+	return s.lastSignedSequence
+}
+
+// ForceSetSequence manually overrides the current sequence number. Be careful when
+// invoking this as it may cause the transactions to reject the sequence if
+// it doesn't match the one in state
+func (s *Signer) ForceSetSequence(seq uint64) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.lastSignedSequence = seq
 }
 
 func (s *Signer) signTransaction(builder client.TxBuilder) error {
@@ -271,7 +288,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
 
-	sequence := s.getSequence()
+	sequence := s.GetSequence()
 
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
@@ -320,7 +337,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 		PubKey:        s.pk,
 	}
 
-	bytesToSign, err := s.encCfg.TxConfig.SignModeHandler().GetSignBytes(
+	bytesToSign, err := s.enc.SignModeHandler().GetSignBytes(
 		signing.SignMode_SIGN_MODE_DIRECT,
 		signerData,
 		builder.GetTx(),
@@ -339,18 +356,11 @@ func (s *Signer) createSignature(builder client.TxBuilder, sequence uint64) ([]b
 
 // txBuilder returns the default sdk Tx builder using the celestia-app encoding config
 func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
-	builder := s.encCfg.TxConfig.NewTxBuilder()
+	builder := s.enc.NewTxBuilder()
 	for _, opt := range opts {
 		builder = opt(builder)
 	}
 	return builder
-}
-
-func (s *Signer) getSequence() uint64 {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	defer func() { s.lastSignedSequence++ }()
-	return s.lastSignedSequence
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
