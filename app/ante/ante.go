@@ -44,3 +44,13 @@ func NewAnteHandler(
 }
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
+
+
+func NewPostHandlers(
+	accountKeeper ante.AccountKeeper,
+	bankKeeper BankKeeper,
+) sdk.AnteHandler {
+	return sdk.ChainAnteDecorators(
+		NewGasRefundDecorator(v2.Version, accountKeeper, bankKeeper),
+	)
+} 
