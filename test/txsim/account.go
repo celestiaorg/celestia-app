@@ -234,7 +234,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	if am.useFeegrant {
-		opts = append(opts, user.SetFeeGranter(am.master.Address().(types.AccAddress)))
+		opts = append(opts, user.SetFeeGranter(am.master.Address()))
 	}
 
 	var res *types.TxResponse
@@ -276,7 +276,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 
 		if am.useFeegrant {
 			// create a feegrant message so that the master account pays for all the fees of the sub accounts
-			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.master.Address().(types.AccAddress), acc.address)
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.master.Address(), acc.address)
 			if err != nil {
 				return fmt.Errorf("error creating feegrant message: %w", err)
 			}
@@ -284,7 +284,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 			gasLimit += FeegrantGasLimit
 		}
 
-		bankMsg := bank.NewMsgSend(am.master.Address().(types.AccAddress), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
+		bankMsg := bank.NewMsgSend(am.master.Address(), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
 		msgs = append(msgs, bankMsg)
 		gasLimit += SendGasLimit
 	}
