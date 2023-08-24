@@ -34,7 +34,7 @@ sed -i'.bak' 's#"null"#"kv"#g' ${HOME_DIR}/config/config.toml
 # Register the validator EVM address
 {
   # wait for block 1
-  sleep 20s
+  sleep 20
 
   # private key: da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
   ${BIN_PATH} tx qgb register \
