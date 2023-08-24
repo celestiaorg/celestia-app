@@ -1,8 +1,6 @@
 package ante
 
 import (
-	"math"
-
 	errors "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
@@ -51,13 +49,13 @@ func checkTxFeeWithValidatorMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins,
 func getTxPriority(fee sdk.Coins, gas int64) int64 {
 	var priority int64
 	for _, c := range fee {
-		p := int64(math.MaxInt64)
-		gasPrice := c.Amount.Mul(sdk.NewInt(1_000_000)).QuoRaw(gas)
-		if gasPrice.IsInt64() {
-			p = gasPrice.Int64()
+		p := c.Amount.Mul(sdk.NewInt(1000000)).QuoRaw(gas)
+		if !p.IsInt64() {
+			continue
 		}
-		if priority == 0 || p < priority {
-			priority = p
+		// take the lowest priority as the tx priority
+		if priority == 0 || p.Int64() < priority {
+			priority = p.Int64()
 		}
 	}
 
