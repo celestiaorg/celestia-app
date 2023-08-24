@@ -6,6 +6,11 @@ import (
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+const (
+	// priorityScalingFactor is a scaling factor to convert the gas price to a priority.
+	priorityScalingFactor = 1_000_000
+)
+
 // checkTxFeeWithValidatorMinGasPrices implements the default fee logic, where the minimum price per
 // unit of gas is fixed and set by each validator, can the tx priority is computed from the gas price.
 func checkTxFeeWithValidatorMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
@@ -49,7 +54,7 @@ func checkTxFeeWithValidatorMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins,
 func getTxPriority(fee sdk.Coins, gas int64) int64 {
 	var priority int64
 	for _, c := range fee {
-		p := c.Amount.Mul(sdk.NewInt(1000000)).QuoRaw(gas)
+		p := c.Amount.Mul(sdk.NewInt(priorityScalingFactor)).QuoRaw(gas)
 		if !p.IsInt64() {
 			continue
 		}
