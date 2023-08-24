@@ -34,7 +34,7 @@ func NewAnteHandler(
 		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, nil),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, checkTxFeeWithValidatorMinGasPrices),
 		// NewSetPubKeyDecorator must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
 		// Ensure that the tx's count of signatures is <= the tx signature limit.
