@@ -38,6 +38,12 @@ func TestGetTxPriority(t *testing.T) {
 			gas:         75000,
 			expectedPri: 13333333333333,
 		},
+		{
+			name:        "0.001 utia gas price",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin("utia", 1_000)),
+			gas:         1_000_000,
+			expectedPri: 1000,
+		},
 	}
 
 	for _, tc := range cases {
