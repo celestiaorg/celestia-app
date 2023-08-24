@@ -30,7 +30,7 @@ func NewAnteHandler(
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// check that the fee matches the gas and the local minimum gas price
 		// of the validator
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, nil),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, checkTxFeeWithValidatorMinGasPrices),
 		ante.NewSetPubKeyDecorator(accountKeeper), // SetPubKeyDecorator must be called before all signature verification decorators
 		ante.NewValidateSigCountDecorator(accountKeeper),
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
