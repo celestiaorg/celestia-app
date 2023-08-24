@@ -25,7 +25,7 @@ func TestTxsimCommandFlags(t *testing.T) {
 
 	cmd.SetArgs([]string{
 		"--key-mnemonic", testfactory.TestAccMnemo,
-		"--grpc-endpoints", grpcAddr,
+		"--grpc-endpoint", grpcAddr,
 		"--blob", "5",
 		"--seed", "1234",
 	})
