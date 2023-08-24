@@ -21,9 +21,8 @@ func NewAnteHandler(
 	channelKeeper *ibckeeper.Keeper,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
-		ante.NewSetUpContextDecorator(), // outermost AnteDecorator. SetUpContext must be called first
-		// reject all tx extensions
-		ante.NewExtensionOptionsDecorator(nil),
+		ante.NewSetUpContextDecorator(),        // NewSetUpContextDecorator() must be called first.
+		ante.NewExtensionOptionsDecorator(nil), // Reject all tx extensions.
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),
 		ante.NewValidateMemoDecorator(accountKeeper),
