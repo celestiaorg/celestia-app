@@ -1,6 +1,7 @@
 package txsim
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -31,10 +32,10 @@ type AccountManager struct {
 	encCfg      encoding.Config
 	pollTime    time.Duration
 	useFeegrant bool
+	master       *user.Signer
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
-	master       *user.Signer
 	balance      uint64
 	latestHeight uint64
 	lastUpdated  time.Time
@@ -205,6 +206,10 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 		if address == nil {
 			address = signers[0]
+		} else {
+			if !bytes.Equal(address, signers[0]) {
+				return fmt.Errorf("received a tx with two different signers: %s & %s", address, signers[0])
+			}
 		}
 	}
 
@@ -244,7 +249,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("submitting tx: %w", err)
 	}
 
 	// update the latest latestHeight
@@ -336,6 +341,9 @@ func (am *AccountManager) getSubAccount(address types.AccAddress) (*user.Signer,
 	defer am.mtx.Unlock()
 	signer, exists := am.subaccounts[address.String()]
 	if !exists {
+		if bytes.Equal(am.master.Address(), address) {
+			return am.master, nil
+		}
 		return nil, fmt.Errorf("account %s does not exist", address)
 	}
 	return signer, nil
@@ -376,6 +384,7 @@ func (am *AccountManager) setLatestHeight(height int64) uint64 {
 func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 	am.mtx.Lock()
 	if time.Since(am.lastUpdated) < am.pollTime {
+		am.mtx.Unlock()
 		return am.latestHeight, nil
 	}
 	am.mtx.Unlock()
