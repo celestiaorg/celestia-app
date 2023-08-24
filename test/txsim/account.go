@@ -32,7 +32,7 @@ type AccountManager struct {
 	encCfg      encoding.Config
 	pollTime    time.Duration
 	useFeegrant bool
-	master       *user.Signer
+	master      *user.Signer
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
