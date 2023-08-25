@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -26,6 +28,7 @@ func TestTxSimulator(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestTxSimulator in short mode.")
 	}
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testCases := []struct {
 		name        string
 		sequences   []txsim.Sequence
@@ -102,9 +105,9 @@ func TestTxSimulator(t *testing.T) {
 
 			err := txsim.Run(
 				ctx,
-				[]string{rpcAddr},
-				[]string{grpcAddr},
+				grpcAddr,
 				keyring,
+				encCfg,
 				"",
 				9001,
 				time.Second,
