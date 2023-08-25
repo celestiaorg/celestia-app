@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -61,7 +62,7 @@ func (s *SignerTestSuite) TestSubmitTx() {
 	t := s.T()
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	msg := bank.NewMsgSend(s.signer.Address(), testfactory.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, resp.Code)
