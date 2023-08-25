@@ -103,15 +103,19 @@ func TestTxSimulator(t *testing.T) {
 
 			keyring, rpcAddr, grpcAddr := Setup(t)
 
+			opts := txsim.DefaultOptions().
+				SuppressLogs().
+				WithPollTime(time.Second)
+			if tc.useFeegrant {
+				opts.UseFeeGrant()
+			}
+
 			err := txsim.Run(
 				ctx,
 				grpcAddr,
 				keyring,
 				encCfg,
-				"",
-				9001,
-				time.Second,
-				tc.useFeegrant,
+				opts,
 				tc.sequences...,
 			)
 			// Expect all sequences to run for at least 30 seconds without error

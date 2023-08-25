@@ -44,7 +44,8 @@ func TestE2ESimple(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, "", seed, 3*time.Second, false, sequences...)
+	opts := txsim.DefaultOptions().WithSeed(seed)
+	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
