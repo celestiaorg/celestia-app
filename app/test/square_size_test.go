@@ -136,9 +136,9 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	_ = txsim.Run(
 		ctx,
-		[]string{s.rpcAddr},
-		[]string{s.grpcAddr},
+		s.grpcAddr,
 		s.cctx.Keyring,
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
 		"",
 		rand.Int63(),
 		time.Second,
