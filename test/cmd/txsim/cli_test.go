@@ -17,7 +17,7 @@ import (
 )
 
 func TestTxsimCommandFlags(t *testing.T) {
-	_, rpcAddr, grpcAddr := setup(t)
+	_, _, grpcAddr := setup(t)
 	cmd := command()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -25,8 +25,7 @@ func TestTxsimCommandFlags(t *testing.T) {
 
 	cmd.SetArgs([]string{
 		"--key-mnemonic", testfactory.TestAccMnemo,
-		"--rpc-endpoints", rpcAddr,
-		"--grpc-endpoints", grpcAddr,
+		"--grpc-endpoint", grpcAddr,
 		"--blob", "5",
 		"--seed", "1234",
 	})
@@ -35,14 +34,13 @@ func TestTxsimCommandFlags(t *testing.T) {
 }
 
 func TestTxsimCommandEnvVar(t *testing.T) {
-	_, rpcAddr, grpcAddr := setup(t)
+	_, _, grpcAddr := setup(t)
 	cmd := command()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	os.Setenv(TxsimMnemonic, testfactory.TestAccMnemo)
-	os.Setenv(TxsimRPC, rpcAddr)
 	os.Setenv(TxsimGRPC, grpcAddr)
 	os.Setenv(TxsimSeed, "1234")
 	defer os.Clearenv()

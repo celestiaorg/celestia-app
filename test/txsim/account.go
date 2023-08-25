@@ -1,6 +1,7 @@
 package txsim
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -336,6 +337,9 @@ func (am *AccountManager) getSubAccount(address types.AccAddress) (*user.Signer,
 	defer am.mtx.Unlock()
 	signer, exists := am.subaccounts[address.String()]
 	if !exists {
+		if bytes.Equal(am.master.Address(), address) {
+			return am.master, nil
+		}
 		return nil, fmt.Errorf("account %s does not exist", address)
 	}
 	return signer, nil
@@ -376,6 +380,7 @@ func (am *AccountManager) setLatestHeight(height int64) uint64 {
 func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 	am.mtx.Lock()
 	if time.Since(am.lastUpdated) < am.pollTime {
+		am.mtx.Unlock()
 		return am.latestHeight, nil
 	}
 	am.mtx.Unlock()
