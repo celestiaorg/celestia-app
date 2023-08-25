@@ -5,12 +5,14 @@ This guide provides instructions on how to use the Celestia `txsim` Docker image
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Running the Docker Image](#running-the-docker-image)
-    - [Docker Run](#docker-run)
-    - [Docker Compose](#docker-compose)
-    - [Kubernetes Deployment](#kubernetes-deployment)
-3. [Flag Breakdown](#flag-breakdown)
+1. [Celestia `txsim` Docker Image Usage Guide](#celestia-txsim-docker-image-usage-guide)
+   1. [Table of Contents](#table-of-contents)
+   2. [Prerequisites](#prerequisites)
+   3. [Running the Docker Image](#running-the-docker-image)
+      1. [Docker Run](#docker-run)
+      2. [Docker Compose](#docker-compose)
+      3. [Kubernetes Deployment](#kubernetes-deployment)
+   4. [Flag Breakdown](#flag-breakdown)
 
 ## Prerequisites
 
@@ -39,7 +41,6 @@ services:
     image: ghcr.io/celestiaorg/txsim
     command: >
       -k 0
-      -r http://consensus-validator-robusta-rc6.celestia-robusta.com:26657,http://consensus-full-robusta-rc6.celestia-robusta.com:26657
       -g consensus-validator-robusta-rc6.celestia-robusta.com:9090
       -t 10s
       -b 10
@@ -76,8 +77,6 @@ spec:
         args:
         - "-k"
         - "0"
-        - "-r"
-        - "http://consensus-validator-robusta-rc6.celestia-robusta.com:26657,http://consensus-full-robusta-rc6.celestia-robusta.com:26657"
         - "-g"
         - "consensus-validator-robusta-rc6.celestia-robusta.com:9090"
         - "-t"
@@ -105,8 +104,7 @@ Here's a breakdown of what each flag means:
 
 - `-k`: Whether a new key should be created (1 for yes, 0 for no)
 - `-p`: The path to the keyring for the prefunded account
-- `-r`: The RPC endpoints for the `txsim` binary
-- `-g`: The gRPC endpoints for the `txsim` binary
+- `-g`: The gRPC endpoint for the `txsim` binary
 - `-t`: The poll time for the `txsim` binary
 - `-b`: The number of blob sequences to run
 - `-a`: The range of blobs to send per PFB in a sequence
