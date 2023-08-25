@@ -1,55 +1,54 @@
 package txsim
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
 )
 
 const defaultFee = DefaultGasLimit * appconsts.DefaultMinGasPrice
 
 type AccountManager struct {
-	keys    keyring.Keyring
-	tx      *TxClient
-	query   *QueryClient
-	pending []*Account
+	keys        keyring.Keyring
+	conn        *grpc.ClientConn
+	pending     []*account
+	encCfg      encoding.Config
+	pollTime    time.Duration
+	useFeegrant bool
+	master      *user.Signer
 
 	// to protect from concurrent writes to the map
-	mtx           sync.Mutex
-	masterAccount *Account
-	accounts      map[string]*Account
-	useFeegrant   bool
-}
-
-type Account struct {
-	Address       types.AccAddress
-	PubKey        cryptotypes.PubKey
-	Sequence      uint64
-	AccountNumber uint64
-	Balance       int64
+	mtx          sync.Mutex
+	balance      uint64
+	latestHeight uint64
+	lastUpdated  time.Time
+	subaccounts  map[string]*user.Signer
 }
 
 func NewAccountManager(
 	ctx context.Context,
 	keys keyring.Keyring,
+	encCfg encoding.Config,
 	masterAccName string,
-	txClient *TxClient,
-	queryClient *QueryClient,
+	conn *grpc.ClientConn,
+	pollTime time.Duration,
 	useFeegrant bool,
 ) (*AccountManager, error) {
 	records, err := keys.List()
@@ -63,48 +62,46 @@ func NewAccountManager(
 
 	am := &AccountManager{
 		keys:        keys,
-		accounts:    make(map[string]*Account),
-		pending:     make([]*Account, 0),
-		tx:          txClient,
-		query:       queryClient,
+		subaccounts: make(map[string]*user.Signer),
+		encCfg:      encCfg,
+		pending:     make([]*account, 0),
+		conn:        conn,
+		pollTime:    pollTime,
 		useFeegrant: useFeegrant,
 	}
 
 	if masterAccName == "" {
-		if err := am.setupDefaultMasterAccount(ctx); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := am.setupSpecifiedMasterAccount(ctx, masterAccName); err != nil {
+		masterAccName, err = am.findWealthiestAccount(ctx)
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	log.Info().
-		Str("address", am.masterAccount.Address.String()).
-		Int64("balance", am.masterAccount.Balance).
-		Msg("set master account")
-	am.accounts[am.masterAccount.Address.String()] = am.masterAccount
+	if err := am.setupMasterAccount(ctx, masterAccName); err != nil {
+		return nil, err
+	}
 
 	return am, nil
 }
 
-// setupDefaultMasterAccount loops through all accounts in the keyring and picks out the one with
-// the highest balance as the master account. Accounts that don't yet exist on chain are
-// ignored.
-func (am *AccountManager) setupDefaultMasterAccount(ctx context.Context) error {
+func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, error) {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
 
 	records, err := am.keys.List()
 	if err != nil {
-		return err
+		return "", err
 	}
+
+	var (
+		highestBalance    uint64
+		wealthiestAddress string
+	)
 
 	for _, record := range records {
 		address, err := record.GetAddress()
 		if err != nil {
-			return fmt.Errorf("error getting address for account %s: %w", record.Name, err)
+			return "", fmt.Errorf("error getting address for account %s: %w", record.Name, err)
 		}
 
 		// search for the account on chain
@@ -114,38 +111,26 @@ func (am *AccountManager) setupDefaultMasterAccount(ctx context.Context) error {
 			continue
 		}
 
-		// the master account is the account with the highest balance
-		if am.masterAccount == nil || balance > am.masterAccount.Balance {
-			accountNumber, sequence, err := am.getAccountDetails(ctx, address)
-			if err != nil {
-				log.Err(err).Str("account", record.Name).Msg("error getting initial account details")
-				continue
-			}
-			pk, err := record.GetPubKey()
-			if err != nil {
-				return fmt.Errorf("error getting public key for account %s: %w", record.Name, err)
-			}
-			am.masterAccount = &Account{
-				Address:       address,
-				PubKey:        pk,
-				Sequence:      sequence,
-				AccountNumber: accountNumber,
-				Balance:       balance,
-			}
+		if wealthiestAddress == "" || balance > highestBalance {
+			wealthiestAddress = record.Name
+			highestBalance = balance
 		}
 	}
 
-	if am.masterAccount == nil {
-		return fmt.Errorf("no suitable master account found")
+	if wealthiestAddress == "" {
+		return "", fmt.Errorf("no suitable master account found")
 	}
 
-	return nil
+	return wealthiestAddress, nil
 }
 
-func (am *AccountManager) setupSpecifiedMasterAccount(ctx context.Context, masterAccName string) error {
+// setupMasterAccount loops through all accounts in the keyring and picks out the one with
+// the highest balance as the master account. Accounts that don't yet exist on chain are
+// ignored.
+func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName string) error {
 	masterRecord, err := am.keys.Key(masterAccName)
 	if err != nil {
-		return fmt.Errorf("error getting specified master account %s: %w", masterAccName, err)
+		return fmt.Errorf("error getting master account %s: %w", masterAccName, err)
 	}
 
 	masterAddress, err := masterRecord.GetAddress()
@@ -154,28 +139,20 @@ func (am *AccountManager) setupSpecifiedMasterAccount(ctx context.Context, maste
 	}
 
 	// search for the account on chain
-	masterBalance, err := am.getBalance(ctx, masterAddress)
+	am.balance, err = am.getBalance(ctx, masterAddress)
 	if err != nil {
-		return fmt.Errorf("error getting specified master account %s balance: %w", masterAccName, err)
+		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	accountNumber, sequence, err := am.getAccountDetails(ctx, masterAddress)
+	am.master, err = user.SetupSigner(ctx, am.keys, am.conn, masterAddress, am.encCfg)
 	if err != nil {
-		return fmt.Errorf("error getting account details for account %s: %w", masterRecord.Name, err)
+		return err
 	}
 
-	pk, err := masterRecord.GetPubKey()
-	if err != nil {
-		return fmt.Errorf("error getting public key for account %s: %w", masterRecord.Name, err)
-	}
-
-	am.masterAccount = &Account{
-		Address:       masterAddress,
-		PubKey:        pk,
-		Sequence:      sequence,
-		AccountNumber: accountNumber,
-		Balance:       masterBalance,
-	}
+	log.Info().
+		Str("address", am.master.Address().String()).
+		Uint64("balance", am.balance).
+		Msg("set master account")
 
 	return nil
 }
@@ -202,15 +179,9 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 			panic(err)
 		}
 
-		pk, err := record.GetPubKey()
-		if err != nil {
-			panic(err)
-		}
-
-		am.pending = append(am.pending, &Account{
-			Address: addresses[i],
-			PubKey:  pk,
-			Balance: int64(balance),
+		am.pending = append(am.pending, &account{
+			address: addresses[i],
+			balance: uint64(balance),
 		})
 	}
 	return addresses
@@ -218,60 +189,75 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 
 // Submit executes on an operation. This is thread safe.
 func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
+	if len(op.Msgs) == 0 {
+		return errors.New("operation must contain at least one message")
+	}
+
+	var address types.AccAddress
 	for _, msg := range op.Msgs {
 		if err := msg.ValidateBasic(); err != nil {
 			return fmt.Errorf("error validating message: %w", err)
 		}
-	}
 
-	// create the tx builder and add the messages
-	builder := am.tx.Tx()
-	err := builder.SetMsgs(op.Msgs...)
-	if err != nil {
-		return fmt.Errorf("error setting messages: %w", err)
-	}
+		signers := msg.GetSigners()
+		if len(signers) != 1 {
+			return fmt.Errorf("only a single signer is supported got: %d", len(signers))
+		}
 
-	if op.GasLimit == 0 {
-		builder.SetGasLimit(DefaultGasLimit)
-		builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(defaultFee))))
-	} else {
-		builder.SetGasLimit(op.GasLimit)
-		if op.GasPrice > 0 {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(math.Ceil(float64(op.GasLimit)*op.GasPrice)))))
+		if address == nil {
+			address = signers[0]
 		} else {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice)))))
+			if !bytes.Equal(address, signers[0]) {
+				return fmt.Errorf("received a tx with two different signers: %s & %s", address, signers[0])
+			}
+		}
+	}
+
+	// If a delay is set, wait for that many blocks to have been produced
+	// before continuing
+	if op.Delay != 0 {
+		if err := am.waitDelay(ctx, uint64(op.Delay)); err != nil {
+			return fmt.Errorf("error delaying tx submission: %w", err)
+		}
+	}
+
+	signer, err := am.getSubAccount(address)
+	if err != nil {
+		return err
+	}
+
+	opts := make([]user.TxOption, 0)
+	if op.GasLimit == 0 {
+		opts = append(opts, user.SetGasLimit(DefaultGasLimit), user.SetFee(defaultFee))
+	} else {
+		opts = append(opts, user.SetGasLimit(op.GasLimit))
+		if op.GasPrice > 0 {
+			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*op.GasPrice))))
+		} else {
+			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice))))
 		}
 	}
 
 	if am.useFeegrant {
-		builder.SetFeeGranter(am.masterAccount.Address)
+		opts = append(opts, user.SetFeeGranter(am.master.Address()))
 	}
 
-	if err := am.signTransaction(builder); err != nil {
-		return err
+	var res *types.TxResponse
+	if len(op.Blobs) > 0 {
+		res, err = signer.SubmitPayForBlob(ctx, op.Blobs, opts...)
+	} else {
+		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
 	}
-
-	// If the sequence specified a delay, then wait for those blocks to be produced
-	if op.Delay != 0 {
-		if err := am.tx.WaitForNBlocks(ctx, op.Delay); err != nil {
-			return fmt.Errorf("error waiting for blocks: %w", err)
-		}
-	}
-
-	// broadcast the transaction
-	resp, err := am.tx.Broadcast(ctx, builder, op.Blobs)
 	if err != nil {
-		return fmt.Errorf("error broadcasting transaction: %w", err)
+		return fmt.Errorf("submitting tx: %w", err)
 	}
 
-	signers := builder.GetTx().GetSigners()
-
-	// increment the sequence number for all the signers
-	am.incrementSignerSequences(signers)
+	// update the latest latestHeight
+	am.setLatestHeight(res.Height)
 
 	log.Info().
-		Int64("height", resp.Height).
-		Str("signers", addrsToString(signers)).
+		Int64("height", res.Height).
+		Str("address", address.String()).
 		Str("msgs", msgsToString(op.Msgs)).
 		Msg("tx committed")
 
@@ -289,13 +275,13 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	gasLimit := 0
 	// batch together all the messages needed to create all the accounts
 	for _, acc := range am.pending {
-		if am.masterAccount.Balance < acc.Balance {
-			return fmt.Errorf("master account has insufficient funds. has: %v needed: %v", am.masterAccount.Balance, acc.Balance)
+		if am.balance < acc.balance {
+			return fmt.Errorf("master account has insufficient funds. has: %v needed: %v", am.balance, acc.balance)
 		}
 
 		if am.useFeegrant {
 			// create a feegrant message so that the master account pays for all the fees of the sub accounts
-			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.masterAccount.Address, acc.Address)
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.master.Address(), acc.address)
 			if err != nil {
 				return fmt.Errorf("error creating feegrant message: %w", err)
 			}
@@ -303,7 +289,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 			gasLimit += FeegrantGasLimit
 		}
 
-		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, acc.Balance)))
+		bankMsg := bank.NewMsgSend(am.master.Address(), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
 		msgs = append(msgs, bankMsg)
 		gasLimit += SendGasLimit
 	}
@@ -315,26 +301,22 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 
 	// check that the account now exists
 	for _, acc := range am.pending {
-		acc.AccountNumber, acc.Sequence, err = am.getAccountDetails(ctx, acc.Address)
+		signer, err := user.SetupSigner(ctx, am.keys, am.conn, acc.address, am.encCfg)
 		if err != nil {
-			return fmt.Errorf("getting account %s: %w", acc.Address, err)
+			return err
 		}
 
-		// set the account
-		am.accounts[acc.Address.String()] = acc
-		log.Info().
-			Str("address", acc.Address.String()).
-			Int64("balance", acc.Balance).
-			Str("pubkey", acc.PubKey.String()).
-			Uint64("account number", acc.AccountNumber).
-			Uint64("sequence", acc.Sequence).
-			Msg("initialized account")
-	}
+		signer.SetPollTime(am.pollTime)
 
-	// update master account
-	err = am.updateAccount(ctx, am.masterAccount)
-	if err != nil {
-		return fmt.Errorf("updating master account: %w", err)
+		// set the account
+		am.mtx.Lock()
+		am.subaccounts[acc.address.String()] = signer
+		am.mtx.Unlock()
+		log.Info().
+			Str("address", acc.address.String()).
+			Uint64("balance", acc.balance).
+			Uint64("account number", signer.AccountNumber()).
+			Msg("initialized account")
 	}
 
 	// clear the pending accounts
@@ -342,168 +324,89 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	return nil
 }
 
-func (am *AccountManager) signTransaction(builder client.TxBuilder) error {
-	signers := builder.GetTx().GetSigners()
-	for _, signer := range signers {
-		_, ok := am.accounts[signer.String()]
-		if !ok {
-			return fmt.Errorf("account %s not found", signer.String())
-		}
-	}
-
-	// To ensure we have the correct bytes to sign over we produce
-	// a dry run of the signing data
-	draftsigV2 := make([]signing.SignatureV2, len(signers))
-	index := 0
-	for _, signer := range signers {
-		acc := am.accounts[signer.String()]
-		record, err := am.keys.KeyByAddress(signer)
-		if err != nil {
-			return fmt.Errorf("error getting key for account %s: %w", signer.String(), err)
-		}
-		pk, _ := record.GetPubKey()
-		if !pk.Equals(acc.PubKey) {
-			return fmt.Errorf("public key (%s != %s) mismatch for account %s", pk.String(), acc.PubKey.String(), signer.String())
-		}
-		draftsigV2[index] = signing.SignatureV2{
-			PubKey: acc.PubKey,
-			Data: &signing.SingleSignatureData{
-				SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-				Signature: nil,
-			},
-			Sequence: acc.Sequence,
-		}
-		index++
-	}
-
-	err := builder.SetSignatures(draftsigV2...)
-	if err != nil {
-		return fmt.Errorf("error setting draft signatures: %w", err)
-	}
-
-	// now we can use the data to produce the signature from each signer
-	index = 0
-	sigV2 := make([]signing.SignatureV2, len(signers))
-	for _, signer := range signers {
-		acc := am.accounts[signer.String()]
-		signature, err := am.createSignature(acc, builder)
-		if err != nil {
-			return fmt.Errorf("error creating signature: %w", err)
-		}
-		sigV2[index] = signing.SignatureV2{
-			PubKey: acc.PubKey,
-			Data: &signing.SingleSignatureData{
-				SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-				Signature: signature,
-			},
-			Sequence: acc.Sequence,
-		}
-		index++
-	}
-
-	err = builder.SetSignatures(sigV2...)
-	if err != nil {
-		return fmt.Errorf("error setting signatures: %w", err)
-	}
-
-	return nil
-}
-
-func (am *AccountManager) createSignature(account *Account, builder client.TxBuilder) ([]byte, error) {
-	signerData := authsigning.SignerData{
-		Address:       account.Address.String(),
-		ChainID:       am.tx.ChainID(),
-		AccountNumber: account.AccountNumber,
-		Sequence:      account.Sequence,
-		PubKey:        account.PubKey,
-	}
-
-	bytesToSign, err := am.tx.encCfg.TxConfig.SignModeHandler().GetSignBytes(
-		signing.SignMode_SIGN_MODE_DIRECT,
-		signerData,
-		builder.GetTx(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error getting sign bytes: %w", err)
-	}
-
-	signature, _, err := am.keys.SignByAddress(account.Address, bytesToSign)
-	if err != nil {
-		return nil, fmt.Errorf("error signing bytes: %w", err)
-	}
-
-	return signature, nil
-}
-
-func (am *AccountManager) updateAccount(ctx context.Context, account *Account) error {
-	newBalance, err := am.getBalance(ctx, account.Address)
-	if err != nil {
-		return fmt.Errorf("getting account balance: %w", err)
-	}
-	newAccountNumber, newSequence, err := am.getAccountDetails(ctx, account.Address)
-	if err != nil {
-		return fmt.Errorf("getting account details: %w", err)
-	}
-
-	am.mtx.Lock()
-	defer am.mtx.Unlock()
-	account.Balance = newBalance
-	account.AccountNumber = newAccountNumber
-	account.Sequence = newSequence
-	return nil
-}
-
 // getBalance returns the balance for the given address
-func (am *AccountManager) getBalance(ctx context.Context, address types.AccAddress) (int64, error) {
-	balanceResp, err := am.query.Bank().Balance(ctx, &bank.QueryBalanceRequest{
+func (am *AccountManager) getBalance(ctx context.Context, address types.AccAddress) (uint64, error) {
+	balanceResp, err := bank.NewQueryClient(am.conn).Balance(ctx, &bank.QueryBalanceRequest{
 		Address: address.String(),
 		Denom:   appconsts.BondDenom,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("error getting balance for %s: %w", address.String(), err)
 	}
-	return balanceResp.GetBalance().Amount.Int64(), nil
+	return balanceResp.GetBalance().Amount.Uint64(), nil
 }
 
-// getAccountDetails returns the account number and sequence for the given address
-func (am *AccountManager) getAccountDetails(ctx context.Context, address types.AccAddress) (uint64, uint64, error) {
-	accountResp, err := am.query.Auth().Account(ctx, &auth.QueryAccountRequest{
-		Address: address.String(),
-	})
-	if err != nil {
-		return 0, 0, fmt.Errorf("error getting account state for %s: %w", address.String(), err)
-	}
-
-	var acc auth.AccountI
-	err = am.tx.encCfg.InterfaceRegistry.UnpackAny(accountResp.Account, &acc)
-	if err != nil {
-		return 0, 0, fmt.Errorf("error unpacking account: %w", err)
-	}
-
-	return acc.GetAccountNumber(), acc.GetSequence(), nil
-}
-
-func (am *AccountManager) incrementSignerSequences(signers []types.AccAddress) {
+func (am *AccountManager) getSubAccount(address types.AccAddress) (*user.Signer, error) {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
-	for _, signer := range signers {
-		am.accounts[signer.String()].Sequence++
+	signer, exists := am.subaccounts[address.String()]
+	if !exists {
+		if bytes.Equal(am.master.Address(), address) {
+			return am.master, nil
+		}
+		return nil, fmt.Errorf("account %s does not exist", address)
 	}
+	return signer, nil
+}
+
+func (am *AccountManager) waitDelay(ctx context.Context, blocks uint64) error {
+	latestHeight, err := am.updateHeight(ctx)
+	if err != nil {
+		return err
+	}
+	ticker := time.NewTicker(am.pollTime)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			height, err := am.updateHeight(ctx)
+			if err != nil {
+				return err
+			}
+			if height > latestHeight+blocks {
+				return nil
+			}
+		}
+	}
+}
+
+func (am *AccountManager) setLatestHeight(height int64) uint64 {
+	am.mtx.Lock()
+	defer am.mtx.Unlock()
+	if uint64(height) > am.latestHeight {
+		am.latestHeight = uint64(height)
+		am.lastUpdated = time.Now()
+	}
+	return am.latestHeight
+}
+
+func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
+	am.mtx.Lock()
+	if time.Since(am.lastUpdated) < am.pollTime {
+		am.mtx.Unlock()
+		return am.latestHeight, nil
+	}
+	am.mtx.Unlock()
+	resp, err := tmservice.NewServiceClient(am.conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
+	if err != nil {
+		return 0, err
+	}
+	return am.setLatestHeight(resp.SdkBlock.Header.Height), nil
 }
 
 func (am *AccountManager) nextAccountName() string {
-	return accountName(len(am.pending) + len(am.accounts))
+	am.mtx.Lock()
+	defer am.mtx.Unlock()
+	return accountName(len(am.pending) + len(am.subaccounts))
+}
+
+type account struct {
+	address types.AccAddress
+	balance uint64
 }
 
 func accountName(n int) string { return fmt.Sprintf("tx-sim-%d", n) }
-
-func addrsToString(addrs []types.AccAddress) string {
-	addrsStr := make([]string, len(addrs))
-	for i, addr := range addrs {
-		addrsStr[i] = addr.String()
-	}
-	return strings.Join(addrsStr, ",")
-}
 
 func msgsToString(msgs []types.Msg) string {
 	msgsStr := make([]string, len(msgs))

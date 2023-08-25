@@ -98,7 +98,7 @@ func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand 
 				ValidatorAddress: s.delegatedTo,
 			},
 		},
-		Delay: rand.Int63n(20),
+		Delay: uint64(rand.Int63n(20)),
 	}
 
 	return op, nil

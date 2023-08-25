@@ -7,10 +7,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
@@ -25,8 +26,9 @@ import (
 // repeatedly sends random PFBs to be scaled up to 1000 accounts sending PFBs.
 func Run(
 	ctx context.Context,
-	rpcEndpoints, grpcEndpoints []string,
+	grpcEndpoint string,
 	keys keyring.Keyring,
+	encCfg encoding.Config,
 	masterAccName string,
 	seed int64,
 	pollTime time.Duration,
@@ -35,26 +37,20 @@ func Run(
 ) error {
 	r := rand.New(rand.NewSource(seed))
 
-	txClient, err := NewTxClient(ctx, encoding.MakeConfig(app.ModuleEncodingRegisters...), pollTime, rpcEndpoints)
+	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return err
+		return fmt.Errorf("dialing %s: %w", grpcEndpoint, err)
 	}
-
-	queryClient, err := NewQueryClient(grpcEndpoints)
-	if err != nil {
-		return err
-	}
-	defer queryClient.Close()
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, masterAccName, txClient, queryClient, useFeegrant)
+	manager, err := NewAccountManager(ctx, keys, encCfg, masterAccName, conn, pollTime, useFeegrant)
 	if err != nil {
 		return err
 	}
 
 	// Initiaize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
-		sequence.Init(ctx, manager.query.Conn(), manager.AllocateAccounts, r, useFeegrant)
+		sequence.Init(ctx, manager.conn, manager.AllocateAccounts, r, useFeegrant)
 	}
 
 	// Generate the allotted accounts on chain by sending them sufficient funds
@@ -72,7 +68,7 @@ func Run(
 			// each sequence loops through the next set of operations, the new messages are then
 			// submitted on chain
 			for {
-				ops, err := sequence.Next(ctx, manager.query.Conn(), r)
+				ops, err := sequence.Next(ctx, manager.conn, r)
 				if err != nil {
 					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
 					return
