@@ -185,7 +185,7 @@ The blob module emits the following events:
 
 ### Blob Events
 
-#### `EventPayForBlob`
+#### `EventPayForBlobs`
 
 | Attribute Key | Attribute Value                               |
 |---------------|-----------------------------------------------|
