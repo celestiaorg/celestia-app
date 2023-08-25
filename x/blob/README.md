@@ -185,13 +185,13 @@ The blob module emits the following events:
 
 ### Blob Events
 
-#### `EventPayForBlob`
+#### `EventPayForBlobs`
 
 | Attribute Key | Attribute Value                               |
 |---------------|-----------------------------------------------|
 | signer        | {bech32 encoded signer address}               |
 | blob_sizes    | {sizes of blobs in bytes}                     |
-| namespace_ids | {namespaces the blobs should be published to} |
+| namespaces    | {namespaces the blobs should be published to} |
 
 ## Parameters
 
