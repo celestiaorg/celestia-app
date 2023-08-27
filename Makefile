@@ -144,7 +144,7 @@ test:
 ## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
-	@go test  ./... -short
+	@go test ./... -short
 .PHONY: test-short
 
 ## test-e2e: Run end to end tests via knuu.
