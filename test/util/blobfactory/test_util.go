@@ -1,6 +1,7 @@
 package blobfactory
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -8,12 +9,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
-)
-
-const (
-	// bondDenom should match app.BondDenom. We copy it here so that we don't
-	// have to import the application, causing an import cycle
-	bondDenom = "utia"
 )
 
 func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
@@ -33,7 +28,7 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 // the same account signing the transaction.
 func GenerateRawSendTx(txConfig client.TxConfig, signer *blobtypes.KeyringSigner, amount int64) (rawTx []byte) {
 	feeCoin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(1),
 	}
 
@@ -43,7 +38,7 @@ func GenerateRawSendTx(txConfig client.TxConfig, signer *blobtypes.KeyringSigner
 	}
 
 	amountCoin := sdk.Coin{
-		Denom:  bondDenom,
+		Denom:  appconsts.BondDenom,
 		Amount: sdk.NewInt(amount),
 	}
 

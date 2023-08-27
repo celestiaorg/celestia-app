@@ -86,6 +86,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -104,7 +105,7 @@ const (
 	AccountAddressPrefix = "celestia"
 	Name                 = "celestia-app"
 	// BondDenom defines the native staking token denomination.
-	BondDenom = "utia"
+	BondDenom = appconsts.BondDenom
 	// BondDenomAlias defines an alias for BondDenom.
 	BondDenomAlias = "microtia"
 	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
