@@ -19,7 +19,4 @@ Celestia makes use of a Cosmos SDK [AnteHandler](https://docs.cosmos.network/v0.
 In addition to the above criteria, the ante handler also has a number of side-effects:
 
 - The nonce of all tx signers is incremented by 1.
-
-// TODO(@rootulp):
-
-- Fees are deducted from the tx's feepayer and added to the fee collector module account.
+- Tx fees are deducted from the tx's feepayer and added to the fee collector module account.

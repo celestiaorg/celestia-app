@@ -32,19 +32,24 @@ func NewAnteHandler(
 		// Ensure the tx's memo is <= max memo characters.
 		ante.NewValidateMemoDecorator(accountKeeper),
 		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
+		// Side effect: consumes gas from the gas meter.
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
+		// Side effect: deducts fees from the fee payer.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, checkTxFeeWithValidatorMinGasPrices),
 		// NewSetPubKeyDecorator must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
 		// Ensure that the tx's count of signatures is <= the tx signature limit.
 		ante.NewValidateSigCountDecorator(accountKeeper),
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
+		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
 		// Ensure that the tx's signatures are valid.
+		// Note: does not consume gas from the gas meter.
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// NewMinGasPFBDecorator must be called after all decorators that consume gas.
+		// Note: does not consume gas from the gas meter.
 		blobante.NewMinGasPFBDecorator(blobKeeper),
 		// Ensure that the tx's total blob size is <= the max blob size.
 		blobante.NewMaxBlobSizeDecorator(blobKeeper),
