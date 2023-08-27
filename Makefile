@@ -138,7 +138,7 @@ fmt:
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test  -timeout 30m ./...
+	@go test -timeout 30m ./...
 .PHONY: test
 
 ## test-short: Run tests in short mode.
