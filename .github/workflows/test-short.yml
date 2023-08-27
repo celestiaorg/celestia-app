@@ -1,6 +1,6 @@
 name: test-short
 on:
-  pull_request_target:
+  pull_request:
 
 env:
   GO_VERSION: '1.21'
@@ -8,7 +8,6 @@ env:
 jobs:
   test-short:
     runs-on: ubuntu-latest
-    timeout-minutes: 1
     steps:
       - uses: actions/checkout@v3
 
@@ -18,3 +17,4 @@ jobs:
 
       - name: Run tests
         run: make test-short
+        timeout-minutes: 1
