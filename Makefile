@@ -69,7 +69,7 @@ build: mod
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
 install: go.sum
 	@echo "--> Installing celestia-appd"
-	@go install  $(BUILD_FLAGS) ./cmd/celestia-appd
+	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
 ## mod: Update go.mod.
