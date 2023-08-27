@@ -8,6 +8,7 @@ env:
 jobs:
   test-short:
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     steps:
       - uses: actions/checkout@v3
 
