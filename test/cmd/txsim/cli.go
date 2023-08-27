@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -33,13 +34,13 @@ const (
 
 // Values for all flags
 var (
-	keyPath, masterAccName, keyMnemonic, rpcEndpoints, grpcEndpoints string
-	blobSizes, blobAmounts                                           string
-	seed                                                             int64
-	pollTime                                                         time.Duration
-	send, sendIterations, sendAmount                                 int
-	stake, stakeValue, blob                                          int
-	useFeegrant                                                      bool
+	keyPath, masterAccName, keyMnemonic, grpcEndpoint string
+	blobSizes, blobAmounts                            string
+	seed                                              int64
+	pollTime                                          time.Duration
+	send, sendIterations, sendAmount                  int
+	stake, stakeValue, blob                           int
+	useFeegrant, suppressLogs                         bool
 )
 
 func main() {
@@ -90,15 +91,9 @@ well funded account that can act as the master account. The command runs until a
 			}
 
 			// get the rpc and grpc endpoints
-			if rpcEndpoints == "" {
-				rpcEndpoints = os.Getenv(TxsimRPC)
-				if rpcEndpoints == "" {
-					return errors.New("rpc endpoints not specified. Use --rpc-endpoints or TXSIM_RPC env var")
-				}
-			}
-			if grpcEndpoints == "" {
-				grpcEndpoints = os.Getenv(TxsimGRPC)
-				if grpcEndpoints == "" {
+			if grpcEndpoint == "" {
+				grpcEndpoint = os.Getenv(TxsimGRPC)
+				if grpcEndpoint == "" {
 					return errors.New("grpc endpoints not specified. Use --grpc-endpoints or TXSIM_GRPC env var")
 				}
 			}
@@ -148,22 +143,32 @@ well funded account that can act as the master account. The command runs until a
 				}
 			}
 
-			if os.Getenv(TxsimPoll) != "" && pollTime != txsim.DefaultPollTime {
+			if os.Getenv(TxsimPoll) != "" && pollTime != user.DefaultPollTime {
 				pollTime, err = time.ParseDuration(os.Getenv(TxsimPoll))
 				if err != nil {
 					return fmt.Errorf("parsing poll time: %w", err)
 				}
 			}
 
+			opts := txsim.DefaultOptions().
+				SpecifyMasterAccount(masterAccName).
+				WithSeed(seed)
+
+			if useFeegrant {
+				opts.UseFeeGrant()
+			}
+
+			if suppressLogs {
+				opts.SuppressLogs()
+			}
+
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
-				strings.Split(rpcEndpoints, ","),
-				strings.Split(grpcEndpoints, ","),
+				grpcEndpoint,
 				keys,
-				masterAccName,
-				seed,
-				pollTime,
-				useFeegrant,
+				encCfg,
+				opts,
 				sequences...,
 			)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -182,10 +187,9 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&keyPath, "key-path", "", "path to the keyring")
 	flags.StringVar(&masterAccName, "master", "", "the account name of the master account. Leaving empty will result in using the account with the most funds.")
 	flags.StringVar(&keyMnemonic, "key-mnemonic", "", "space separated mnemonic for the keyring. The hdpath used is an empty string")
-	flags.StringVar(&rpcEndpoints, "rpc-endpoints", "", "comma separated list of rpc endpoints")
-	flags.StringVar(&grpcEndpoints, "grpc-endpoints", "", "comma separated list of grpc endpoints")
+	flags.StringVar(&grpcEndpoint, "grpc-endpoint", "", "grpc endpoint to a running node")
 	flags.Int64Var(&seed, "seed", 0, "seed for the random number generator")
-	flags.DurationVar(&pollTime, "poll-time", txsim.DefaultPollTime, "poll time for the transaction client")
+	flags.DurationVar(&pollTime, "poll-time", user.DefaultPollTime, "poll time for the transaction client")
 	flags.IntVar(&send, "send", 0, "number of send sequences to run")
 	flags.IntVar(&sendIterations, "send-iterations", 1000, "number of send iterations to run per sequence")
 	flags.IntVar(&sendAmount, "send-amount", 1000, "amount to send from one account to another")
@@ -195,6 +199,7 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs to send per PFB in a sequence")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
+	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
 	return flags
 }
 

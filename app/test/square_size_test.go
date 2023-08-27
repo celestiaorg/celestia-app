@@ -20,7 +20,6 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -132,17 +131,15 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 	startBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
 
-	// disable the logger
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 	_ = txsim.Run(
 		ctx,
-		[]string{s.rpcAddr},
-		[]string{s.grpcAddr},
+		s.grpcAddr,
 		s.cctx.Keyring,
-		"",
-		rand.Int63(),
-		time.Second,
-		false,
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
+		txsim.DefaultOptions().
+			WithSeed(rand.Int63()).
+			WithPollTime(time.Second).
+			SuppressLogs(),
 		seqs...,
 	)
 
