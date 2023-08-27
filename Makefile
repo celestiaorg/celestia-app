@@ -150,7 +150,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu.
 test-e2e:
 	@echo "--> Running e2e tests"
-	@KNUU_NAMESPACE=celestia-app E2E=true go test  ./test/e2e/... -timeout 30m
+	@KNUU_NAMESPACE=celestia-app E2E=true go test ./test/e2e/... -timeout 30m
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
