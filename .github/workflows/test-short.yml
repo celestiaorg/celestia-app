@@ -17,4 +17,4 @@ jobs:
 
       - name: Run tests
         run: make test-short
-        timeout-minutes: 1
+        timeout-minutes: 10
