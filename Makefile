@@ -176,7 +176,7 @@ test-coverage:
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
-	@go install  $(BUILD_FLAGS) ./test/cmd/txsim
+	@go install $(BUILD_FLAGS) ./test/cmd/txsim
 .PHONY: txsim-install
 
 ## txsim-build: Build the tx simulator binary into the ./build directory.
