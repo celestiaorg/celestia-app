@@ -33,7 +33,7 @@ build: mod
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
 install: go.sum
 	@echo "--> Installing celestia-appd"
-	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/celestia-appd
+	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
 ## mod: Update go.mod.
@@ -102,25 +102,25 @@ fmt:
 ## test: Run unit tests.
 test:
 	@echo "--> Running unit tests"
-	@go test -mod=readonly ./...
+	@go test ./...
 .PHONY: test
 
 ## test-short: Run unit tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
-	@go test -mod=readonly ./... -short
+	@go test ./... -short
 .PHONY: test-short
 
 ## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
-	@VERSION=$(VERSION) go test -mod=readonly -race -short ./...
+	@VERSION=$(VERSION) go test -race -short ./...
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
 test-bench:
 	@echo "--> Running tests in bench mode"
-	@go test -mod=readonly -bench=. ./...
+	@go test -bench=. ./...
 .PHONY: test-bench
 
 ## test-coverage: Generate test coverage.txt
