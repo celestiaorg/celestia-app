@@ -10,7 +10,7 @@ Proposed
 
 ## Context
 
-Nonces are a crucial component in transactions for replay protection; preventing users from having their transaction executed multiple times. Each account has a monotonically increasing number associated with it: the nonce (also referred as the `sequence` in the Cosmos SDK). If the last executed nonce is `n`, then the next transaction signed by that account must have a nonce of `n + 1`. This, however, comes with a few downsides. If a user submits 3 transactions in a row with nonces 6, 7, 8 and while propogating throughout the network they are received by the next proposer as 8, 7, 6. Transactions with nonces 7 and 8 will be rejected and only 6 will make it into the mempool to be proposed in the next block. Furthermore, a local hash-based cache may prevent 7 or 8 from every making it into the mempool. Secondly, if the transaction with nonce 6 happened to have too low priority it would block all other transactions. A user would not be able to overwrite the transaction by submitting the same one yet with a higher fee.
+Nonces are a crucial component in transactions for replay protection; preventing users from having their transaction executed multiple times. Each account has a monotonically increasing number associated with it: the nonce (also referred as the `sequence` in the Cosmos SDK). If the last executed nonce is `n`, then the next transaction signed by that account must have a nonce of `n + 1`. This, however, comes with a few downsides. If a user submits 3 transactions in a row with nonces 6, 7, 8 and while propogating throughout the network they are received by the next proposer as 8, 7, 6. Transactions with nonces 7 and 8 will be rejected and only 6 will make it into the mempool to be proposed in the next block. Furthermore, a local hash-based cache may prevent 7 or 8 from ever making it into the mempool. Secondly, if the transaction with nonce 6 happened to have too low priority it would block all other transactions. A user would not be able to overwrite the transaction by submitting the same one yet with a higher fee.
 
 ## Decision
 
@@ -20,7 +20,7 @@ Break up the `SigVerifyDecorator` into two: one for checking the validity of the
 
 The second part of the solution is to introduce an ordering mechanism in `PrepareProposal` which will take the priority ordered list of transactions and shuffle any transactions which have a greater nonce than the last executed one.
 
-Specifically, it will loop through all transactions. Any transaction that has a a nonce below the last executed for that account will be dropped. If the transaction has a nonce more than one greater than the last executed it will be put in a temporary map (`map[string]map[uint64]sdk.Tx`). If the tranasction with the correct nonce appears later in the list, the protocol will check the map, and append the saved transaction directly after it (we already know it has a greater priority).
+Specifically, it will loop through all transactions. Any transaction that has a a nonce below the last executed for that account will be dropped. If the transaction has a nonce more than one greater than the last executed it will be put in a temporary map (`map[string]map[uint64]sdk.Tx` where the map represents address => nonce => tx). If the transaction with the correct nonce appears later in the list, the protocol will check the map, and append the saved transaction directly after it (we already know it has a greater priority).
 
 > NOTE: In future SDK versions, it is likely that priority will be managed on the application side (instead of on the consensus side).
 
@@ -32,7 +32,6 @@ An alternative approach would be to use nonce lanes. This works by having multip
 
 ## Consequences
 
-> This section describes the consequences, after applying the decision. All consequences should be summarized here, not just the "positive" ones.
 
 ### Positive
 
