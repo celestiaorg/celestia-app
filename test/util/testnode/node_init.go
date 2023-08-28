@@ -11,6 +11,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/cometbft/cometbft/config"
+	tmos "github.com/cometbft/cometbft/libs/os"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -21,10 +25,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/tendermint/tendermint/config"
-	tmos "github.com/tendermint/tendermint/libs/os"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
 )
 
 func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, rootDir string) error {

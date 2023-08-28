@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -19,9 +19,9 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestSquareConstruction(t *testing.T) {

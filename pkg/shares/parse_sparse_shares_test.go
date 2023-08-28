@@ -8,9 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/nmt/namespace"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func Test_parseSparseShares(t *testing.T) {

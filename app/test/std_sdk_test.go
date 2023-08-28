@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -24,8 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {

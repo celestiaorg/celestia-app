@@ -14,11 +14,11 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // This will detect any changes to the DeductFeeDecorator which may cause a

@@ -9,17 +9,16 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
+	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -79,7 +78,7 @@ func DefaultConfig() network.Config {
 			return app.New(
 				val.Ctx.Logger, tmdb.NewMemDB(), nil, true, map[int64]bool{}, val.Ctx.Config.RootDir, 0,
 				encCfg,
-				simapp.EmptyAppOptions{},
+				servertypes.AppOptions{},
 				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
 				func(b *baseapp.BaseApp) {

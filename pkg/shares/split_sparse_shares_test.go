@@ -6,8 +6,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // TestSparseShareSplitter tests that the spare share splitter can split blobs

@@ -5,14 +5,14 @@ import (
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
+	tmconfig "github.com/cometbft/cometbft/config"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
-	tmconfig "github.com/tendermint/tendermint/config"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
+	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
 )
 
 // Config is the configuration of a test node.

@@ -11,9 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 
+	tmcli "github.com/cometbft/cometbft/libs/cli"
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
@@ -34,8 +35,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	tmcli "github.com/tendermint/tendermint/libs/cli"
-	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 )
 

@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
 )
 
 func TestPFBGasEstimation(t *testing.T) {

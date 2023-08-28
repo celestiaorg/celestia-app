@@ -11,13 +11,13 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestNewBlob(t *testing.T) {

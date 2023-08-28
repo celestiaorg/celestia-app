@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"

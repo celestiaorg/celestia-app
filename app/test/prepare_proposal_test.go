@@ -3,14 +3,14 @@ package app_test
 import (
 	"testing"
 
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"

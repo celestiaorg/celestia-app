@@ -8,6 +8,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/p2p"
+	"github.com/cometbft/cometbft/p2p/pex"
+	"github.com/cometbft/cometbft/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -17,10 +21,6 @@ import (
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	slashing "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/p2p/pex"
-	"github.com/tendermint/tendermint/types"
 )
 
 type GenesisAccount struct {

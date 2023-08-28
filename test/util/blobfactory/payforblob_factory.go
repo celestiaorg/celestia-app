@@ -11,13 +11,13 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
 

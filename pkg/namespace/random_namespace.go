@@ -1,6 +1,6 @@
 package namespace
 
-import tmrand "github.com/tendermint/tendermint/libs/rand"
+import tmrand "github.com/cometbft/cometbft/libs/rand"
 
 func RandomNamespace() Namespace {
 	for {

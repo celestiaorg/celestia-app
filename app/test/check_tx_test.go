@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -16,10 +16,10 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // Here we only need to check the functionality that is added to CheckTx. We

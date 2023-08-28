@@ -10,6 +10,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -19,8 +21,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
 

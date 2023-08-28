@@ -4,12 +4,14 @@ import (
 	"math/rand"
 	"testing"
 
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,8 +19,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // RandBlobTxsWithAccounts will create random blob transactions using the

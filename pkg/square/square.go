@@ -9,9 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	coreproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/types"
-	coreproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
 )
 
 // Build takes an arbitrary long list of (prioritized) transactions and builds a square that is never

@@ -15,6 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -22,8 +24,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestSquareSizeIntegrationTest(t *testing.T) {

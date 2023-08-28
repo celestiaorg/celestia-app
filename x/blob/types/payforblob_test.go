@@ -11,11 +11,11 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func Test_MerkleMountainRangeHeights(t *testing.T) {

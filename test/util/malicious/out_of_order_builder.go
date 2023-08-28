@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	core "github.com/tendermint/tendermint/types"
+	core "github.com/cometbft/cometbft/types"
 )
 
 type ExportFn func(builder *square.Builder) (square.Square, error)

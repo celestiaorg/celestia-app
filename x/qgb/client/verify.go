@@ -7,16 +7,16 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
+	tmlog "github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

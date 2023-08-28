@@ -9,9 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestCompactShareSplitter(t *testing.T) {

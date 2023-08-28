@@ -6,9 +6,9 @@ import (
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestBlockProductionTestSuite(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	"github.com/cometbft/cometbft/types"
 )
 
 func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {

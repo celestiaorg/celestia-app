@@ -6,12 +6,12 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
+	tmlog "github.com/cometbft/cometbft/libs/log"
+	"github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func TestParamFilter(t *testing.T) {

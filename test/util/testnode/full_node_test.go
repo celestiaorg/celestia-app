@@ -11,11 +11,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {

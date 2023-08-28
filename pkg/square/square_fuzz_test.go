@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // FuzzSquare uses fuzzing to test the following:

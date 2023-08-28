@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	coretypes "github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 )
 
 // ParseTxs collects all of the transactions from the shares provided

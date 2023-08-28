@@ -8,6 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	tmcfg "github.com/cometbft/cometbft/config"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -15,17 +18,13 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
-	tmcfg "github.com/tendermint/tendermint/config"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
+	ibcclientclient "github.com/cosmos/ibc-go/v7/modules/core/02-client/client"
 )
 
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
@@ -125,7 +124,6 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 	result = append(result,
 		paramsclient.ProposalHandler,
-		distrclient.ProposalHandler,
 		ibcclientclient.UpdateClientProposalHandler,
 		ibcclientclient.UpgradeProposalHandler,
 	)

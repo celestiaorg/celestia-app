@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/network"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 	"github.com/stretchr/testify/suite"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 type CLITestSuite struct {

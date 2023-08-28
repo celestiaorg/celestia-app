@@ -10,9 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/tendermint/tendermint/pkg/consts"
-	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/pkg/consts"
+	coretypes "github.com/cometbft/cometbft/proto/tendermint/types"
+	core "github.com/cometbft/cometbft/types"
 )
 
 type Builder struct {

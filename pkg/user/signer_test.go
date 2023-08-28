@@ -10,11 +10,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/cometbft/cometbft/libs/rand"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestSignerTestSuite(t *testing.T) {

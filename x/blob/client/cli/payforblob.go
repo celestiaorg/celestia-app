@@ -11,12 +11,12 @@ import (
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/input"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (

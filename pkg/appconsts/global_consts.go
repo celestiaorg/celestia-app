@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/cometbft/cometbft/pkg/consts"
 )
 
 // These constants were originally sourced from:

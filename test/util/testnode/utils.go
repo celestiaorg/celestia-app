@@ -8,14 +8,14 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func TestAddress() sdk.AccAddress {

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"

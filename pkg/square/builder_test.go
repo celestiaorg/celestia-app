@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestBuilderSquareSizeEstimation(t *testing.T) {

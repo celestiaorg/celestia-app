@@ -9,9 +9,9 @@ import (
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
 )
 
 // Blob wraps the tendermint type so that users can simply import this one.

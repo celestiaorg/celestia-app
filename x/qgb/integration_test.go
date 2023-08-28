@@ -10,12 +10,12 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 func TestQGBIntegrationSuite(t *testing.T) {

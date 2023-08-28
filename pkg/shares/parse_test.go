@@ -9,10 +9,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	"github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
 )
 
 func TestParseShares(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	tmcli "github.com/cometbft/cometbft/libs/cli"
 	"github.com/stretchr/testify/suite"
-	tmcli "github.com/tendermint/tendermint/libs/cli"
 
 	"github.com/celestiaorg/celestia-app/x/mint/client/cli"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"

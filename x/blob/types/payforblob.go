@@ -10,12 +10,12 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/slices"
 )
 

@@ -3,10 +3,10 @@ package blobfactory
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func DefaultTxOpts() []user.TxOption {

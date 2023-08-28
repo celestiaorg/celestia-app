@@ -11,10 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 )
 
 // NewTxInclusionProof returns a new share inclusion proof for the given

@@ -6,7 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	coretypes "github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 )
 
 // CompactShareSplitter will write raw data compactly across a progressively

@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	abci "github.com/tendermint/tendermint/abci/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // CheckTx implements the ABCI interface and executes a tx in CheckTx mode. This

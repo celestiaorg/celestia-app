@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	coretypes "github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 )
 
 type sequence struct {

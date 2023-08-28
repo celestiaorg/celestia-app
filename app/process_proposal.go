@@ -9,11 +9,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/log"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"

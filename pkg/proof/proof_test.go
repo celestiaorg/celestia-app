@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"

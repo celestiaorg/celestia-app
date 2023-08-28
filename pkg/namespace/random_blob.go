@@ -1,7 +1,7 @@
 package namespace
 
 import (
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"golang.org/x/exp/slices"
 )
 

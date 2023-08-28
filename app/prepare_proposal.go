@@ -5,8 +5,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	abci "github.com/tendermint/tendermint/abci/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	core "github.com/cometbft/cometbft/proto/tendermint/types"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by

@@ -10,7 +10,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
-	abci "github.com/tendermint/tendermint/abci/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"

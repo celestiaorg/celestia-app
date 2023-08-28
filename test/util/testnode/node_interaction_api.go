@@ -15,15 +15,15 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmconfig "github.com/cometbft/cometbft/config"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmconfig "github.com/tendermint/tendermint/config"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 const (

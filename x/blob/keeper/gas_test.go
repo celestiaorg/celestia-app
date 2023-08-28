@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -12,7 +13,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	typesparams "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
 )
 

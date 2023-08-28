@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -19,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestUpgrade(t *testing.T) {
@@ -135,7 +135,7 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000)))
 	acc := s.unusedAccount()
 	accAddr := getAddress(acc, s.cctx.Keyring)
-	msg, err := v1.NewMsgSubmitProposal([]sdk.Msg{&sss}, dep, accAddr.String(), "")
+	msg, err := v1.NewMsgSubmitProposal([]sdk.Msg{&sss}, dep, accAddr.String(), "", "", "")
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
