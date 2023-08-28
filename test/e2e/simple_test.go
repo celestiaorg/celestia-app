@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const seed          = 42
+const seed = 42
 
 var latestVersion = "v1.0.0-rc12"
 
