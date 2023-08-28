@@ -101,8 +101,8 @@ fmt:
 
 ## test: Run unit tests.
 test:
-	@echo "--> Running tests"
-	@go test -timeout 30m ./...
+	@echo "--> Running unit tests"
+	@go test ./...
 .PHONY: test
 
 ## test-short: Run unit tests in short mode.
@@ -111,7 +111,7 @@ test-short:
 	@go test ./... -short
 .PHONY: test-short
 
-## test-race: Run tests in race mode.
+## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
 	@VERSION=$(VERSION) go test -race -short ./...
