@@ -1,8 +1,8 @@
-name: stale
+name: nightly
 on:
   schedule:
     # runs every three days at 6am UTC
-    - cron: "0 6 */3 * *"
+    - cron: "0 6 * * *"
 
 env:
   GO_VERSION: '1.21'
