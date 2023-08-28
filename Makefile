@@ -63,19 +63,19 @@ build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@go mod tidy -compat=1.21
+	@go mod tidy
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
 install: go.sum
 	@echo "--> Installing celestia-appd"
-	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/celestia-appd
+	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
 ## mod: Update go.mod.
 mod:
 	@echo "--> Updating go.mod"
-	@go mod tidy -compat=1.21
+	@go mod tidy
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -138,13 +138,13 @@ fmt:
 ## test: Run tests.
 test:
 	@echo "--> Running tests"
-	@go test -mod=readonly -timeout 30m ./...
+	@go test -timeout 30m ./...
 .PHONY: test
 
 ## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
-	@go test -mod=readonly ./... -short
+	@go test ./... -short
 .PHONY: test-short
 
 ## test-e2e: Run end to end tests via knuu.
@@ -159,13 +159,13 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -mod=readonly ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestVestingModule|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
 test-bench:
 	@echo "--> Running tests in bench mode"
-	@go test -mod=readonly -bench=. ./...
+	@go test -bench=. ./...
 .PHONY: test-bench
 
 ## test-coverage: Generate test coverage.txt
@@ -177,7 +177,7 @@ test-coverage:
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
-	@go install -mod=readonly $(BUILD_FLAGS) ./test/cmd/txsim
+	@go install $(BUILD_FLAGS) ./test/cmd/txsim
 .PHONY: txsim-install
 
 ## txsim-build: Build the tx simulator binary into the ./build directory.
@@ -186,7 +186,7 @@ txsim-build:
 	@cd ./test/cmd/txsim
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./test/cmd/txsim
-	@go mod tidy -compat=1.21
+	@go mod tidy
 .PHONY: txsim-build
 
 ## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.

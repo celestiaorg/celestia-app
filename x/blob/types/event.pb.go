@@ -28,8 +28,8 @@ type EventPayForBlobs struct {
 	Signer    string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	BlobSizes []uint32 `protobuf:"varint,2,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
 	// namespaces is a list of namespaces that the blobs in blob_sizes belong to.
-	// A namespace has length of 33 bytes where the first byte is the
-	// namespaceVersion and the subsequent 32 bytes are the namespaceID.
+	// A namespace has length of 29 bytes where the first byte is the
+	// namespaceVersion and the subsequent 28 bytes are the namespaceID.
 	Namespaces [][]byte `protobuf:"bytes,3,rep,name=namespaces,proto3" json:"namespaces,omitempty"`
 }
 
