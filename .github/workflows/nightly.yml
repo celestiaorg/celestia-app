@@ -1,7 +1,7 @@
 name: nightly
 on:
   schedule:
-    # runs every three days at 6am UTC
+    # runs every day at 6am UTC
     - cron: "0 6 * * *"
 
 env:
