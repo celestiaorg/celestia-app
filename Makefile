@@ -144,7 +144,7 @@ test:
 ## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
-	@go test -mod=readonly ./... -short
+	@go test -mod=readonly ./... -short -timeout 1m
 .PHONY: test-short
 
 ## test-e2e: Run end to end tests via knuu.
