@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/cmd/spoon"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
@@ -165,6 +166,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		tmcli.NewCompletionCmd(rootCmd, true),
 		debugCmd,
 		config.Cmd(),
+		spoon.CmdSoftSpoon(),
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)

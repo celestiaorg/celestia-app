@@ -3,6 +3,7 @@ package testnode
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -161,9 +162,14 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		genState = opt(genState)
 	}
 
+	if cfg.Keyring != nil {
+		kr = cfg.Keyring
+	}
+
 	chainID := cfg.ChainID
 
 	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, cfg.TmConfig, genState, kr, chainID)
+	fmt.Println("error", err)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(t, baseDir, cfg)

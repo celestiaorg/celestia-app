@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -37,6 +38,10 @@ type Config struct {
 	AppCreator srvtypes.AppCreator
 	// SupressLogs
 	SupressLogs bool
+	// Keyring allows for a custom keyring to be used instead of the one
+	// generated. Note that there must be a key with the account name
+	// "validator" added if this is used.
+	Keyring keyring.Keyring
 }
 
 // WithChainID sets the ChainID and returns the Config.
@@ -98,6 +103,12 @@ func (c *Config) WithAppCreator(creator srvtypes.AppCreator) *Config {
 // WithSupressLogs sets the SupressLogs and returns the Config.
 func (c *Config) WithSupressLogs(sl bool) *Config {
 	c.SupressLogs = sl
+	return c
+}
+
+// WithKeyring sets the keyring and returns the Config.
+func (c *Config) WithKeyring(kr keyring.Keyring) *Config {
+	c.Keyring = kr
 	return c
 }
 
