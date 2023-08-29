@@ -46,7 +46,9 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
-		// Ensure that the tx's signatures are valid.
+		// Ensure that the tx's signatures are valid. For each signature, ensure
+		// that the signature's sequence number (a.k.a nonce) matches the
+		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
