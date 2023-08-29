@@ -1,6 +1,13 @@
 # AnteHandler
 
-Celestia makes use of a Cosmos SDK [AnteHandler](https://docs.cosmos.network/v0.46/modules/auth/03_antehandlers.html#antehandlers) in order to reject decodable sdk.Txs that do not meet certain criteria. The ante handler is defined in [app/ante/ante.go](https://github.com/celestiaorg/celestia-app/blob/7f97788a64af7fe0fce00959753d6dd81663e98f/app/ante/ante.go). It chains together several decorators to ensure the following criteria are met:
+Celestia makes use of a Cosmos SDK [AnteHandler](https://docs.cosmos.network/v0.46/modules/auth/03_antehandlers.html#antehandlers) in order to reject decodable sdk.Txs that do not meet certain criteria. The ante handler is defined in [app/ante/ante.go](https://github.com/celestiaorg/celestia-app/blob/7f97788a64af7fe0fce00959753d6dd81663e98f/app/ante/ante.go) and is invoked at multiple times during the transaction lifecycle:
+
+1. `CheckTx` prior to the transaction entering the mempool
+1. `PrepareProposal` when the block proposer includes the transaction in a block proposal
+1. `ProcessProposal` when validators validate the transaction in a block proposal
+1. `DeliverTx` when full nodes execute the transaction in a decided block
+
+The ante handler chains together several decorators to ensure the following criteria are met:
 
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
 - The tx passes `ValidateBasic()`.
