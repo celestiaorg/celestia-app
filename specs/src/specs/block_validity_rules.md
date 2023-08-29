@@ -39,9 +39,9 @@ Celestia specifc validity rules can be categorized into two groups:
 
 ### Transaction Validity Rules
 
-All `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules)
+All `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
 
-All remaining transaction types do not have to be valid if included in a block. In other words: random tx data is permitted, but decodable sdk.Txs must pass all [AnteHandler](./ante_handler.md) checks in order for the block to be valid.
+All remaining transactions must be decodable and pass all [AnteHandler](./ante_handler.md) checks.
 
 For a complete list of modules see [state machine modules](./state_machine_modules.md).
 
