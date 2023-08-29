@@ -20,9 +20,9 @@ There are however still a very small percentage of changes that require signific
 
 ### Balancing Hardfork and Halting Risk
 
-One of the main difficulties of social upgrades when using tendermint consensus is finding a balance between risking a halt and ending up in a situation where the community must hardfork. If social consensus is reached, but validators do not incorporate the upgrade, then a hardfork must be performed. This involves changing the chain-id and the validator set, which would force the governance of connected IBC chains to recognize the changes in order to preserve celestia token holders that have bridged to one of those chains.
+One of the main difficulties of social upgrades when using tendermint consensus is finding a balance between risking a halt and ending up in a situation where the community must hardfork. If social consensus is reached, but validators do not incorporate the upgrade, then a hardfork must be performed. This involves changing the chain-id and the validator set, which would force the governance of connected IBC chains to recognize the changes in order to preserve the funds of Celestia token holders that have bridged to one of those chains.
 
-One mechanism that has been proposed is to add some halt height (aka difficulty bomb) for light clients and consensus nodes. This halt height could be determined before the upgrade binary is released, or it could be incorporated to the upgraded binary. The important feature of such mechanisms is to set a deadline for validators to upgrade. If a solution cannot be agreed upon by all parties offchain by that point, then a fork will be created by the community.
+One mechanism that has been proposed is to add some halt height for light clients and consensus nodes. This halt height could be determined before the upgrade binary is released, or it could be incorporated to the upgraded binary. The important feature of such mechanisms is to set a deadline for validators to upgrade. If a solution cannot be agreed upon by all parties offchain by that point, then a fork will be created by the community.
 
 ### Deciding And Relaying Upgrade Height
 
@@ -54,7 +54,7 @@ It seems that the majority of readers are in favor of rolling, and since the vas
 
 Per synchronous discussions, it seems that we are in favor of using a signaled approach given this eliminates the risk of a halt.
 
-### Add a halting height (aka difficulty bomb)
+### Add a halting height
 
 As discussed above, we could add a halt height to the upgrade binary. This would set a deadline for the upgrade. If the community reaches social consensus, then they will use the upgraded binary. If the validators do not upgrade by that time, then the network will halt. If the deadline is distant enough in the future, and the validators refuse to upgrade, then all participants, including connected IBC chains, could prepare for the fork.
 
