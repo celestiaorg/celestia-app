@@ -149,8 +149,9 @@ test-short:
 
 ## test-e2e: Run end to end tests via knuu.
 test-e2e:
-	@echo "--> Running e2e tests"
-	@KNUU_NAMESPACE=celestia-app E2E=true go test ./test/e2e/... -timeout 30m
+	@version=$(git rev-parse --short HEAD)
+	@echo "--> Running e2e tests on version: $version"
+	@KNUU_NAMESPACE=test E2E_VERSION=$version E2E=true go test ./test/e2e/... -timeout 30m
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
