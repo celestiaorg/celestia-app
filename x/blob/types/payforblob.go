@@ -3,28 +3,49 @@ package types
 import (
 	"crypto/sha256"
 	fmt "fmt"
-	math "math"
+
+	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
-	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slices"
 )
 
 const (
 	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
-	ShareSize         = appconsts.ShareSize
-	SquareSize        = appconsts.DefaultMaxSquareSize
-	NamespaceIDSize   = appconsts.NamespaceSize
+
+	// PFBGasFixedCost is a rough estimate for the "fixed cost" in the gas cost
+	// formula: gas cost = gas per byte * bytes per share * shares occupied by
+	// blob + "fixed cost". In this context, "fixed cost" accounts for the gas
+	// consumed by operations outside the blob's GasToConsume function (i.e.
+	// signature verification, tx size, read access to accounts).
+	//
+	// Since the gas cost of these operations is not easy to calculate, linear
+	// regression was performed on a set of observed data points to derive an
+	// approximate formula for gas cost. Assuming gas per byte = 8 and bytes per
+	// share = 512, we can solve for "fixed cost" and arrive at 65,000. gas cost
+	// = 8 * 512 * number of shares occupied by the blob + 65,000 has a
+	// correlation coefficient of 0.996. To be conservative, we round up "fixed
+	// cost" to 75,000 because the first tx always takes up 10,000 more gas than
+	// subsequent txs.
+	PFBGasFixedCost = 75000
+
+	// BytesPerBlobInfo is a rough estimation for the amount of extra bytes in
+	// information a blob adds to the size of the underlying transaction.
+	BytesPerBlobInfo = 70
 )
 
-var _ sdk.Msg = &MsgPayForBlobs{}
+// MsgPayForBlobs implements the `LegacyMsg` interface.
+// See: https://docs.cosmos.network/v0.46/building-modules/messages-and-queries.html#legacy-amino-legacymsgs
+var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
 func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
@@ -36,12 +57,9 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 		return nil, err
 	}
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaceVersions, namespaceIds, sizes, shareVersions := ExtractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		if namespaceVersions[i] > math.MaxUint8 {
-			return nil, fmt.Errorf("namespace version %d is too large (max %d)", namespaceVersions[i], math.MaxUint8)
-		}
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
 		if err != nil {
 			return nil, err
@@ -67,10 +85,10 @@ func namespacesToBytes(namespaces []appns.Namespace) (result [][]byte) {
 	return result
 }
 
-// Route fulfills the sdk.Msg interface
+// Route fulfills the legacytx.LegacyMsg interface
 func (msg *MsgPayForBlobs) Route() string { return RouterKey }
 
-// Type fulfills the sdk.Msg interface
+// Type fulfills the legacytx.LegacyMsg interface
 func (msg *MsgPayForBlobs) Type() string {
 	return URLMsgPayForBlobs
 }
@@ -104,9 +122,9 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	for _, namespace := range msg.Namespaces {
 		ns, err := appns.From(namespace)
 		if err != nil {
-			return err
+			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
-		err = ValidateBlobNamespaceID(ns)
+		err = ValidateBlobNamespace(ns)
 		if err != nil {
 			return err
 		}
@@ -124,32 +142,60 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, commitment := range msg.ShareCommitments {
-		if len(commitment) == 0 {
-			return ErrEmptyShareCommitment
+		if len(commitment) != appconsts.HashLength() {
+			return ErrInvalidShareCommitment
 		}
 	}
 
 	return nil
 }
 
-// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
-func ValidateBlobNamespaceID(ns appns.Namespace) error {
+func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
+	return GasToConsume(msg.BlobSizes, gasPerByte)
+}
+
+// GasToConsume works out the extra gas charged to pay for a set of blobs in a PFB.
+// Note that tranasctions will incur other gas costs, such as the signature verification
+// and reads to the user's account.
+func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
+	var totalSharesUsed uint64
+	for _, size := range blobSizes {
+		totalSharesUsed += uint64(appshares.SparseSharesNeeded(size))
+	}
+
+	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
+}
+
+// EstimateGas estimates the total gas required to pay for a set of blobs in a PFB.
+// It is based on a linear model that is dependent on the governance parameters:
+// gasPerByte and txSizeCost. It assumes other variables are constant. This includes
+// assuming the PFB is the only message in the transaction.
+func EstimateGas(blobSizes []uint32, gasPerByte uint32, txSizeCost uint64) uint64 {
+	return GasToConsume(blobSizes, gasPerByte) + (txSizeCost * BytesPerBlobInfo * uint64(len(blobSizes))) + PFBGasFixedCost
+}
+
+// DefaultEstimateGas runs EstimateGas with the system defaults. The network may change these values
+// through governance, thus this function should predominantly be used in testing.
+func DefaultEstimateGas(blobSizes []uint32) uint64 {
+	return EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
+}
+
+// ValidateBlobNamespace returns an error if the provided namespace is an
+// invalid user-specifiable blob namespace (e.g. reserved, parity shares, or
+// tail padding).
+func ValidateBlobNamespace(ns appns.Namespace) error {
 	if ns.IsReserved() {
-		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
+		return ErrReservedNamespace
 	}
 
-	if ns.IsParityShares() {
-		return ErrParitySharesNamespace
-	}
-
-	if ns.IsTailPadding() {
-		return ErrTailPaddingNamespace
+	if !slices.Contains(appns.SupportedBlobNamespaceVersions, ns.Version) {
+		return ErrInvalidNamespaceVersion
 	}
 
 	return nil
 }
 
-// GetSignBytes fulfills the sdk.Msg interface by returning a deterministic set
+// GetSignBytes fulfills the legacytx.LegacyMsg interface by returning a deterministic set
 // of bytes to sign over
 func (msg *MsgPayForBlobs) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
@@ -165,10 +211,10 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 }
 
 // CreateCommitment generates the share commitment for a given blob.
-// See [Message layout rationale] and [Non-interactive default rules].
+// See [data square layout rationale] and [blob share commitment rules].
 //
-// [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
-// [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
+// [data square layout rationale]: ../../specs/src/specs/data_square_layout.md
+// [blob share commitment rules]: ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
 func CreateCommitment(blob *Blob) ([]byte, error) {
 	coreblob := coretypes.Blob{
 		NamespaceID:      blob.NamespaceId,
@@ -176,17 +222,22 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		ShareVersion:     uint8(blob.ShareVersion),
 		NamespaceVersion: uint8(blob.NamespaceVersion),
 	}
+	namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
+	if err != nil {
+		return nil, err
+	}
 
-	shares, err := appshares.SplitBlobs(0, nil, []coretypes.Blob{coreblob}, false)
+	shares, err := appshares.SplitBlobs(coreblob)
 	if err != nil {
 		return nil, err
 	}
 
 	// the commitment is the root of a merkle mountain range with max tree size
-	// equal to the minimum square size the blob can be included in. See
-	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
-	minSquareSize := BlobMinSquareSize(len(blob.Data))
-	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
+	// determined by the number of roots required to create a share commitment
+	// over that blob. The size of the tree is only increased if the number of
+	// subtree roots surpasses a constant threshold.
+	subTreeWidth := appshares.SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
+	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +252,8 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt todo(evan) use nmt wrapper
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize))
+		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
-			namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
-			if err != nil {
-				return nil, err
-			}
 			// the namespace must be added again here even though it is already
 			// included in the leaf to ensure that the hash will match that of
 			// the nmt wrapper (pkg/wrapper). Each namespace is added to keep
@@ -223,7 +270,11 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 			}
 		}
 		// add the root
-		subTreeRoots[i] = tree.Root()
+		root, err := tree.Root()
+		if err != nil {
+			return nil, err
+		}
+		subTreeRoots[i] = root
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
@@ -247,14 +298,14 @@ func ValidateBlobs(blobs ...*Blob) error {
 	}
 
 	for _, blob := range blobs {
-		if blob.NamespaceVersion > math.MaxUint8 {
+		if blob.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
 			return fmt.Errorf("namespace version %d is too large", blob.NamespaceVersion)
 		}
 		ns, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
 		if err != nil {
 			return err
 		}
-		err = ns.ValidateBlobNamespace()
+		err = ValidateBlobNamespace(ns)
 		if err != nil {
 			return err
 		}
@@ -271,9 +322,9 @@ func ValidateBlobs(blobs ...*Blob) error {
 	return nil
 }
 
-// extractBlobComponents separates and returns the components of a slice of
+// ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
 	namespaceIds = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
@@ -289,22 +340,13 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, 
 	return namespaceVersions, namespaceIds, sizes, shareVersions
 }
 
-// BlobMinSquareSize returns the minimum square size that blobSize can be included
-// in. The returned square size does not account for the associated transaction
-// shares or non-interactive defaults, so it is a minimum.
-func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
-	shareCount := appshares.SparseSharesNeeded(uint32(blobSize))
-	return T(appshares.MinSquareSize(shareCount))
-}
-
-// merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
+// MerkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
 // trees in a merkle mountain range constructed for a given totalSize and
 // maxTreeSize.
 //
 // https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
 // https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
-// TODO: potentially rename function because this doesn't return heights
-func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
+func MerkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 	var treeSizes []uint64
 
 	for totalSize != 0 {

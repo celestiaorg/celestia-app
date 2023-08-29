@@ -12,7 +12,7 @@ type Namespace struct {
 
 // New returns a new namespace with the provided version and id.
 func New(version uint8, id []byte) (Namespace, error) {
-	err := validateVersion(version)
+	err := validateVersionSupported(version)
 	if err != nil {
 		return Namespace{}, err
 	}
@@ -38,14 +38,30 @@ func MustNew(version uint8, id []byte) Namespace {
 	return ns
 }
 
-// MustNewV0 returns a new namespace with version 0 and the provided id. This
-// function panics if the provided id is not exactly NamespaceVersionZeroIDSize bytes.
-func MustNewV0(id []byte) Namespace {
-	if len(id) != NamespaceVersionZeroIDSize {
-		panic(fmt.Sprintf("invalid namespace id length: %v must be %v", len(id), NamespaceVersionZeroIDSize))
+// NewV0 returns a new namespace with version 0 and the provided subID. subID
+// must be <= 10 bytes. If subID is < 10 bytes, it will be left-padded with 0s
+// to fill 10 bytes.
+func NewV0(subID []byte) (Namespace, error) {
+	if lenSubID := len(subID); lenSubID > NamespaceVersionZeroIDSize {
+		return Namespace{}, fmt.Errorf("subID must be <= %v, but it was %v bytes", NamespaceVersionZeroIDSize, lenSubID)
 	}
 
-	ns, err := New(NamespaceVersionZero, append(NamespaceVersionZeroPrefix, id...))
+	subID = leftPad(subID, NamespaceVersionZeroIDSize)
+	id := make([]byte, NamespaceIDSize)
+	copy(id[NamespaceVersionZeroPrefixSize:], subID)
+
+	ns, err := New(NamespaceVersionZero, id)
+	if err != nil {
+		return Namespace{}, err
+	}
+
+	return ns, nil
+}
+
+// MustNewV0 returns a new namespace with version 0 and the provided subID. This
+// function panics if the provided subID would result in an invalid namespace.
+func MustNewV0(subID []byte) Namespace {
+	ns, err := NewV0(subID)
 	if err != nil {
 		panic(err)
 	}
@@ -67,26 +83,9 @@ func (n Namespace) Bytes() []byte {
 	return append([]byte{n.Version}, n.ID...)
 }
 
-// ValidateBlobNamespace returns an error if this namespace is not a valid blob namespace.
-func (n Namespace) ValidateBlobNamespace() error {
-	if n.IsReserved() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use a reserved namespace ID, want > %v", n.Bytes(), MaxReservedNamespace.Bytes())
-	}
-
-	if n.IsParityShares() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use parity shares namespace ID", n.Bytes())
-	}
-
-	if n.IsTailPadding() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use tail padding namespace ID", n.Bytes())
-	}
-
-	return nil
-}
-
-// validateVersion returns an error if the version is not supported.
-func validateVersion(version uint8) error {
-	if version != NamespaceVersionZero {
+// validateVersionSupported returns an error if the version is not supported.
+func validateVersionSupported(version uint8) error {
+	if version != NamespaceVersionZero && version != NamespaceVersionMax {
 		return fmt.Errorf("unsupported namespace version %v", version)
 	}
 	return nil
@@ -105,8 +104,17 @@ func validateID(version uint8, id []byte) error {
 	return nil
 }
 
+// IsReserved returns true if the namespace is reserved for protocol-use.
 func (n Namespace) IsReserved() bool {
-	return bytes.Compare(n.Bytes(), MaxReservedNamespace.Bytes()) < 1
+	return n.IsPrimaryReserved() || n.IsSecondaryReserved()
+}
+
+func (n Namespace) IsPrimaryReserved() bool {
+	return n.IsLessOrEqualThan(MaxPrimaryReservedNamespace)
+}
+
+func (n Namespace) IsSecondaryReserved() bool {
+	return n.IsGreaterOrEqualThan(MinSecondaryReservedNamespace)
 }
 
 func (n Namespace) IsParityShares() bool {
@@ -117,8 +125,8 @@ func (n Namespace) IsTailPadding() bool {
 	return bytes.Equal(n.Bytes(), TailPaddingNamespace.Bytes())
 }
 
-func (n Namespace) IsReservedPadding() bool {
-	return bytes.Equal(n.Bytes(), ReservedPaddingNamespace.Bytes())
+func (n Namespace) IsPrimaryReservedPadding() bool {
+	return bytes.Equal(n.Bytes(), PrimaryReservedPaddingNamespace.Bytes())
 }
 
 func (n Namespace) IsTx() bool {
@@ -127,4 +135,57 @@ func (n Namespace) IsTx() bool {
 
 func (n Namespace) IsPayForBlob() bool {
 	return bytes.Equal(n.Bytes(), PayForBlobNamespace.Bytes())
+}
+
+func (n Namespace) Repeat(times int) []Namespace {
+	ns := make([]Namespace, times)
+	for i := 0; i < times; i++ {
+		ns[i] = n.deepCopy()
+	}
+	return ns
+}
+
+func (n Namespace) Equals(n2 Namespace) bool {
+	return bytes.Equal(n.Bytes(), n2.Bytes())
+}
+
+func (n Namespace) IsLessThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) == -1
+}
+
+func (n Namespace) IsLessOrEqualThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) < 1
+}
+
+func (n Namespace) IsGreaterThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) == 1
+}
+
+func (n Namespace) IsGreaterOrEqualThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) > -1
+}
+
+// leftPad returns a new byte slice with the provided byte slice left-padded to the provided size.
+// If the provided byte slice is already larger than the provided size, the original byte slice is returned.
+func leftPad(b []byte, size int) []byte {
+	if len(b) >= size {
+		return b
+	}
+	pad := make([]byte, size-len(b))
+	return append(pad, b...)
+}
+
+// deepCopy returns a deep copy of the Namespace object.
+func (n Namespace) deepCopy() Namespace {
+	// Create a deep copy of the ID slice
+	copyID := make([]byte, len(n.ID))
+	copy(copyID, n.ID)
+
+	// Create a new Namespace object with the copied fields
+	copyNamespace := Namespace{
+		Version: n.Version,
+		ID:      copyID,
+	}
+
+	return copyNamespace
 }

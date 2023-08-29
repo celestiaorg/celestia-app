@@ -7,17 +7,17 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	"cosmossdk.io/errors"
 )
 
-// ToInternal transforms a BridgeValidator into its fully validated internal type.
+// ToInternal transforms a BridgeValidator into its fully validated internal
+// type.
 func (b BridgeValidator) ToInternal() (*InternalBridgeValidator, error) {
 	return NewInternalBridgeValidator(b)
 }
 
-// BridgeValidators is the sorted set of validator data for EVM bridge MultiSig set.
+// BridgeValidators is the sorted set of validators EVM address and their corresponding
+// power.
 type BridgeValidators []BridgeValidator
 
 func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
@@ -40,7 +40,7 @@ type InternalBridgeValidator struct {
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
 	if !common.IsHexAddress(bridgeValidator.EvmAddress) {
-		return nil, stakingtypes.ErrEVMAddressNotHex
+		return nil, ErrEVMAddressNotHex
 	}
 	validatorEVMAddr := common.HexToAddress(bridgeValidator.EvmAddress)
 	i := &InternalBridgeValidator{
@@ -95,20 +95,23 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 	return bytes.Compare([]byte(e.Hex())[:], []byte(o.Hex())[:]) == -1
 }
 
-// PowerDiff returns the difference in power between two bridge validator sets
-// note this is Gravity bridge power *not* Cosmos voting power. Cosmos voting
-// power is based on the absolute number of tokens in the staking pool at any given
-// time Gravity bridge power is normalized using the equation.
+// PowerDiff returns the difference in power between two bridge validator sets.
+// Note this is QGB bridge power *not* Cosmos voting power.
+// Cosmos voting power is based on the absolute number of tokens in the staking
+// pool at any given time.
+// QGB bridge power is normalized using the equation.
 //
-// validators cosmos voting power / total cosmos voting power in this block = gravity bridge power / u32_max
+// validators cosmos voting power / total cosmos voting power in this block =
+// QGB bridge power / u32_max
 //
-// As an example if someone has 52% of the Cosmos voting power when a validator set is created their Gravity
-// bridge voting power is u32_max * .52
+// As an example if someone has 52% of the Cosmos voting power when a validator
+// set is created their QGB bridge voting power is u32_max * .52
 //
-// Normalized voting power dramatically reduces how often we have to produce new validator set updates. For example
-// if the total on chain voting power increases by 1% due to inflation, we shouldn't have to generate a new validator
-// set, after all the validators retained their relative percentages during inflation and normalized Gravity bridge power
-// shows no difference.
+// Normalized voting power dramatically reduces how often we have to produce new
+// validator set updates. For example if the total on chain voting power
+// increases by 1% due to inflation, we shouldn't have to generate a new
+// validator set, after all the validators retained their relative percentages
+// during inflation and normalized QGB power shows no difference.
 func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 {
 	powers := map[string]int64{}
 	// loop over ibv and initialize the map with their powers
@@ -140,14 +143,14 @@ func (ibv InternalBridgeValidators) TotalPower() (out uint64) {
 	for _, v := range ibv {
 		out += v.Power
 	}
-	return
+	return out
 }
 
 // HasDuplicates returns true if there are duplicates in the set.
 func (ibv InternalBridgeValidators) HasDuplicates() bool {
 	m := make(map[string]struct{}, len(ibv))
-	// creates a hashmap then ensures that the hashmap and the array
-	// have the same length, this acts as an O(n) duplicates check
+	// creates a hashmap then ensures that the hashmap and the array have the
+	// same length, this acts as an O(n) duplicates check
 	for i := range ibv {
 		m[ibv[i].EVMAddress.Hex()] = struct{}{}
 	}

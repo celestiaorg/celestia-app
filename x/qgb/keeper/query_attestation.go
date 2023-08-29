@@ -13,8 +13,13 @@ func (k Keeper) AttestationRequestByNonce(
 	ctx context.Context,
 	request *types.QueryAttestationRequestByNonceRequest,
 ) (*types.QueryAttestationRequestByNonceResponse, error) {
+	unwrappedCtx := sdk.UnwrapSDKContext(ctx)
+	if latestAttestationNonce := k.GetLatestAttestationNonce(unwrappedCtx); latestAttestationNonce < request.Nonce {
+		return nil, types.ErrNonceHigherThanLatestAttestationNonce
+	}
+
 	attestation, found, err := k.GetAttestationByNonce(
-		sdk.UnwrapSDKContext(ctx),
+		unwrappedCtx,
 		request.Nonce,
 	)
 	if err != nil {
@@ -34,8 +39,11 @@ func (k Keeper) AttestationRequestByNonce(
 
 func (k Keeper) LatestAttestationNonce(
 	ctx context.Context,
-	request *types.QueryLatestAttestationNonceRequest,
+	_ *types.QueryLatestAttestationNonceRequest,
 ) (*types.QueryLatestAttestationNonceResponse, error) {
+	if !k.CheckLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)) {
+		return nil, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	return &types.QueryLatestAttestationNonceResponse{
 		Nonce: k.GetLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)),
 	}, nil

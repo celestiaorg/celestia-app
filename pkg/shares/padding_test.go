@@ -23,7 +23,7 @@ var nsOnePadding, _ = zeroPadIfNecessary(
 
 var reservedPadding, _ = zeroPadIfNecessary(
 	append(
-		appns.ReservedPaddingNamespace.Bytes(),
+		appns.PrimaryReservedPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
@@ -40,13 +40,13 @@ var tailPadding, _ = zeroPadIfNecessary(
 	), appconsts.ShareSize)
 
 func TestNamespacePaddingShare(t *testing.T) {
-	got, err := NamespacePaddingShare(ns1)
+	got, err := NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	assert.NoError(t, err)
 	assert.Equal(t, nsOnePadding, got.ToBytes())
 }
 
 func TestNamespacePaddingShares(t *testing.T) {
-	shares, err := NamespacePaddingShares(ns1, 2)
+	shares, err := NamespacePaddingShares(ns1, appconsts.ShareVersionZero, 2)
 	assert.NoError(t, err)
 	for _, share := range shares {
 		assert.Equal(t, nsOnePadding, share.ToBytes())
@@ -54,29 +54,33 @@ func TestNamespacePaddingShares(t *testing.T) {
 }
 
 func TestReservedPaddingShare(t *testing.T) {
-	got, err := ReservedPaddingShare()
-	require.NoError(t, err)
-	assert.Equal(t, reservedPadding, got.ToBytes())
+	require.NotPanics(t, func() {
+		got := ReservedPaddingShare()
+		assert.Equal(t, reservedPadding, got.ToBytes())
+	})
 }
 
 func TestReservedPaddingShares(t *testing.T) {
-	shares, err := ReservedPaddingShares(2)
-	require.NoError(t, err)
-	for _, share := range shares {
-		assert.Equal(t, reservedPadding, share.ToBytes())
-	}
+	require.NotPanics(t, func() {
+		shares := ReservedPaddingShares(2)
+		for _, share := range shares {
+			assert.Equal(t, reservedPadding, share.ToBytes())
+		}
+	})
 }
 
 func TestTailPaddingShare(t *testing.T) {
-	got, err := TailPaddingShare()
-	require.NoError(t, err)
-	assert.Equal(t, tailPadding, got.ToBytes())
+	require.NotPanics(t, func() {
+		got := TailPaddingShare()
+		assert.Equal(t, tailPadding, got.ToBytes())
+	})
 }
 
 func TestTailPaddingShares(t *testing.T) {
-	shares, err := TailPaddingShares(2)
-	require.NoError(t, err)
-	for _, share := range shares {
-		assert.Equal(t, tailPadding, share.ToBytes())
-	}
+	require.NotPanics(t, func() {
+		shares := TailPaddingShares(2)
+		for _, share := range shares {
+			assert.Equal(t, tailPadding, share.ToBytes())
+		}
+	})
 }

@@ -2,12 +2,16 @@ package types
 
 import (
 	"bytes"
+	"fmt"
+	math "math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	core "github.com/tendermint/tendermint/types"
 )
 
 // Blob wraps the tendermint type so that users can simply import this one.
@@ -15,8 +19,8 @@ type Blob = tmproto.Blob
 
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns appns.Namespace, blob []byte) (*Blob, error) {
-	err := ns.ValidateBlobNamespace()
+func NewBlob(ns appns.Namespace, blob []byte, shareVersion uint8) (*Blob, error) {
+	err := ValidateBlobNamespace(ns)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +32,7 @@ func NewBlob(ns appns.Namespace, blob []byte) (*Blob, error) {
 	return &tmproto.Blob{
 		NamespaceId:      ns.ID,
 		Data:             blob,
-		ShareVersion:     uint32(appconsts.DefaultShareVersion),
+		ShareVersion:     uint32(shareVersion),
 		NamespaceVersion: uint32(ns.Version),
 	}, nil
 }
@@ -78,6 +82,8 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 			return err
 		}
 
+		// this not only checks that the pfb namespaces match the ones in the blobs
+		// but that the namespace version and namespace id are valid
 		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
 		if err != nil {
 			return err
@@ -108,6 +114,27 @@ func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 		sharesUsed += shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 	return sharesUsed
+}
+
+func BlobFromProto(p *tmproto.Blob) (core.Blob, error) {
+	if p == nil {
+		return core.Blob{}, fmt.Errorf("nil blob")
+	}
+
+	if p.ShareVersion > math.MaxUint8 {
+		return core.Blob{}, fmt.Errorf("invalid share version %d", p.ShareVersion)
+	}
+
+	if p.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
+		return core.Blob{}, fmt.Errorf("invalid namespace version %d", p.NamespaceVersion)
+	}
+
+	return core.Blob{
+		NamespaceID:      p.NamespaceId,
+		Data:             p.Data,
+		ShareVersion:     uint8(p.ShareVersion),
+		NamespaceVersion: uint8(p.NamespaceVersion),
+	}, nil
 }
 
 func equalSlices[T comparable](a, b []T) bool {

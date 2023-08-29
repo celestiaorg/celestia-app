@@ -1,7 +1,6 @@
 package types
 
 import (
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -31,22 +30,4 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	)
 
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
-}
-
-type localEncoder struct{}
-
-func (localEncoder) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
-	RegisterLegacyAminoCodec(cdc)
-}
-
-func (localEncoder) RegisterInterfaces(r codectypes.InterfaceRegistry) {
-	RegisterInterfaces(r)
-}
-
-// makeBlobEncodingConfig uses the blob modules RegisterInterfaces
-// function to create an encoding config for the blob module. This is useful
-// so that we don't have to import the app package.
-func makeBlobEncodingConfig() encoding.Config {
-	e := localEncoder{}
-	return encoding.MakeConfig(e)
 }

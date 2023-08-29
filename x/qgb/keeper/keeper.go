@@ -3,7 +3,6 @@ package keeper
 import (
 	"encoding/binary"
 	"fmt"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -11,7 +10,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
@@ -40,7 +38,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, paramSpace p
 // GetParams returns the parameters from the store
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
 	k.paramSpace.GetParamSet(ctx, &params)
-	return
+	return params
 }
 
 // SetParams sets the parameters in the store
@@ -49,7 +47,7 @@ func (k Keeper) SetParams(ctx sdk.Context, ps types.Params) {
 }
 
 // DeserializeValidatorIterator returns validators from the validator iterator.
-// Adding here in gravity keeper as cdc is not available inside endblocker.
+// Adding here in QGB keeper as cdc is not available inside endblocker.
 func (k Keeper) DeserializeValidatorIterator(vals []byte) stakingtypes.ValAddresses {
 	validators := stakingtypes.ValAddresses{
 		Addresses: []string{},
@@ -58,14 +56,12 @@ func (k Keeper) DeserializeValidatorIterator(vals []byte) stakingtypes.ValAddres
 	return validators
 }
 
-// StakingKeeper restricts the functionality of the bank keeper used in the qgb keeper
+// StakingKeeper restricts the functionality of the bank keeper used in the qgb
+// keeper
 type StakingKeeper interface {
 	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
 	GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator
 	GetLastValidatorPower(ctx sdk.Context, valAddr sdk.ValAddress) int64
-	GetParams(ctx sdk.Context) stakingtypes.Params
-	ValidatorQueueIterator(ctx sdk.Context, endTime time.Time, endHeight int64) sdk.Iterator
-	GetValidatorByEVMAddress(ctx sdk.Context, addr common.Address) (validator stakingtypes.Validator, found bool)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

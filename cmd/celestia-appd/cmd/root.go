@@ -1,17 +1,16 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -36,7 +34,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	tmcfg "github.com/tendermint/tendermint/config"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -83,20 +80,7 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			// Override the default tendermint config for celestia-app
-			tmCfg := tmcfg.DefaultConfig()
-
-			// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
-			// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
-			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
-			tmCfg.Mempool.TTLNumBlocks = 10
-			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
-			tmCfg.Mempool.Version = "v1"               // prioritized mempool
-			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
-			tmCfg.Consensus.SkipTimeoutCommit = false
-			tmCfg.TxIndex.Indexer = "null"
-
+			tmCfg := app.DefaultConsensusConfig()
 			customAppTemplate, customAppConfig := initAppConfig()
 
 			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
@@ -104,13 +88,15 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			// optionally log to file by replaceing the default logger with a file logger
-			err = replaceLogger(cmd)
-			if err != nil {
-				return err
+			// optionally log to file by replacing the default logger with a file logger
+			if cmd.Flags().Changed(FlagLogToFile) {
+				err = replaceLogger(cmd)
+				if err != nil {
+					return err
+				}
 			}
 
-			return overrideServerConfig(cmd)
+			return setDefaultConsensusParams(cmd)
 		},
 		SilenceUsage: true,
 	}
@@ -130,22 +116,21 @@ func initAppConfig() (string, interface{}) {
 
 	// Optionally allow the chain developer to overwrite the SDK's default
 	// server config.
-	srvCfg := serverconfig.DefaultConfig()
-	srvCfg.API.Enable = true
-
-	// the default snapshot interval was determined by picking a large enough
-	// value as to not dramatically increase resource requirements while also
-	// being greater than zero so that there are more nodes that will serve
-	// snapshots to nodes that state sync
-	srvCfg.StateSync.SnapshotInterval = 1500
-	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
+	srvCfg := app.DefaultAppConfig()
 
 	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
 
 	CelestiaAppTemplate := serverconfig.DefaultConfigTemplate
 
 	return CelestiaAppTemplate, CelestiaAppCfg
+}
+
+// setDefaultConsensusParams sets the default consensus parameters for the
+// embedded server context.
+func setDefaultConsensusParams(command *cobra.Command) error {
+	ctx := server.GetServerContextFromCmd(command)
+	ctx.DefaultConsensusParams = app.DefaultConsensusParams()
+	return server.SetCmdServerContext(command, ctx)
 }
 
 func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
@@ -277,6 +262,9 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		baseapp.SetTrace(cast.ToBool(appOpts.Get(server.FlagTrace))),
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)))),
+		func(b *baseapp.BaseApp) {
+			b.SetProtocolVersion(appconsts.LatestVersion)
+		},
 	)
 }
 

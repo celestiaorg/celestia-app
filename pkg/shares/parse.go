@@ -35,7 +35,10 @@ func ParseBlobs(shares []Share) ([]coretypes.Blob, error) {
 	return blobList, nil
 }
 
-func ParseShares(shares []Share) ([]ShareSequence, error) {
+// ParseShares parses the shares provided and returns a list of ShareSequences.
+// If ignorePadding is true then the returned ShareSequences will not contain
+// any padding sequences.
+func ParseShares(shares []Share, ignorePadding bool) ([]ShareSequence, error) {
 	sequences := []ShareSequence{}
 	currentSequence := ShareSequence{}
 
@@ -77,5 +80,17 @@ func ParseShares(shares []Share) ([]ShareSequence, error) {
 		}
 	}
 
-	return sequences, nil
+	result := []ShareSequence{}
+	for _, sequence := range sequences {
+		isPadding, err := sequence.isPadding()
+		if err != nil {
+			return nil, err
+		}
+		if ignorePadding && isPadding {
+			continue
+		}
+		result = append(result, sequence)
+	}
+
+	return result, nil
 }

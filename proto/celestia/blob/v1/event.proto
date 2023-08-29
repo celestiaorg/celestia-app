@@ -1,8 +1,6 @@
 syntax = "proto3";
 package celestia.blob.v1;
 
-import "gogoproto/gogo.proto";
-
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // EventPayForBlobs defines an event that is emitted after a pay for blob has

@@ -1,13 +1,14 @@
 # ADR 010: Remove `WireMsgPayForBlob`
 
-## Changelog
-
-- 2022-11-14: Initial draft
-- 2023-3-24: Update types
-
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-core/pull/893> and <https://github.com/celestiaorg/celestia-app/pull/1089>.
+Implemented in <https://github.com/celestiaorg/celestia-core/pull/893> and <https://github.com/celestiaorg/celestia-app/pull/1089>
+
+## Changelog
+
+- 2022/11/14: Initial draft
+- 2023/3/24: Update types
+- 2023/5/30: Update status
 
 ## Context
 
@@ -103,7 +104,7 @@ Assume a user wants to publish the data "hello world" to the namespace: `1111111
     }
     ```
 
-2. Implement a []`ValidateBlobTx`](https://github.com/celestiaorg/celestia-app/blob/74a3e4ba41c8137332ced5682508a89db64e99cb/x/blob/types/blob_tx.go#L37) that:
+2. Implement a [`ValidateBlobTx`](https://github.com/celestiaorg/celestia-app/blob/74a3e4ba41c8137332ced5682508a89db64e99cb/x/blob/types/blob_tx.go#L37) that:
     1. Checks that the BlobTx contains a `MsgPayForBlobs` and invokes `ValidateBasic` on it
     2. Checks that the number of blobs attached to the BlobTx matches the number of blobs specified in the `MsgPayForBlobs`
     3. Checks that the namespaces of the blobs attached to the BlobTx match the namespaces specified in the `MsgPayForBlobs`

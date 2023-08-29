@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -18,8 +19,8 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/testutil/network"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/network"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -39,6 +40,7 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 	return &IntegrationTestSuite{cfg: cfg}
 }
 
+// Note: the SetupSuite may act flaky especially in CI.
 func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
 		s.T().Skip("skipping integration test in short mode.")
@@ -62,8 +64,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
 	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
+	invalidNamespaceID := hex.EncodeToString(bytes.Repeat([]byte{0}, 8)) // invalid because ID is expected to be 10 bytes
 
-	// some hex blob
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
 
 	testCases := []struct {
@@ -84,6 +86,50 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			expectErr:    false,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "unsupported share version",
+			args: []string{
+				hexNamespace,
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=1", paycli.FlagShareVersion),
+			},
+			expectErr:    true,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "invalid namespace ID",
+			args: []string{
+				invalidNamespaceID,
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+			},
+			expectErr:    true,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "invalid namespace version",
+			args: []string{
+				hexNamespace,
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=1", paycli.FlagNamespaceVersion),
+			},
+			expectErr:    true,
 			expectedCode: 0,
 			respType:     &sdk.TxResponse{},
 		},
@@ -129,13 +175,14 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			s.Require().NoError(s.network.WaitForNextBlock())
 
 			// attempt to query for the transaction using the tx's hash
-			res, err := testfactory.QueryWithoutProof(clientCtx, txResp.TxHash)
+			res, err := testnode.QueryWithoutProof(clientCtx, txResp.TxHash)
 			require.NoError(err)
 			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 		})
 	}
 }
 
-func TestIntegrationTestSuite(t *testing.T) {
+// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
+func TestIntegrationTestSuite_Flaky(t *testing.T) {
 	suite.Run(t, NewIntegrationTestSuite(network.DefaultConfig()))
 }

@@ -1,68 +1,60 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then, this method
 // generates the data root for the proposal block and passes it back to
-// tendermint via the BlockData.
+// tendermint via the BlockData. Panics indicate a developer error and should
+// immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	// cap the amount of transactions in the block. See https://github.com/celestiaorg/celestia-app/issues/1209
-	// TODO: find a better long term solution
-	if len(req.BlockData.Txs) > appconsts.TransactionsPerBlockLimit {
-		req.BlockData.Txs = req.BlockData.Txs[:appconsts.TransactionsPerBlockLimit]
+	// create a context using a branch of the state and loaded using the
+	// proposal height and chain-id
+	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
+	// filter out invalid transactions.
+	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
+	// and only check the state dependent checks like fees and nonces as all these transactions have already
+	// passed CheckTx.
+	handler := ante.NewAnteHandler(
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.BlobKeeper,
+		app.FeeGrantKeeper,
+		app.GetTxConfig().SignModeHandler(),
+		ante.DefaultSigVerificationGasConsumer,
+		app.IBCKeeper,
+	)
+
+	var txs [][]byte
+	// This if statement verifies whether the preparation of the proposal
+	// pertains to the first block. If it does, the block is constructed using
+	// an empty set of transactions. However, even without this validation,
+	// the initial block is anticipated to be devoid of transactions, as
+	// established by the findings presented in
+	// https://github.com/celestiaorg/celestia-app/issues/1899;
+	// The inclusion of this check is out of an abundance of caution.
+	// The rationale behind having an empty first block revolves around the fact
+	// that no transactions can enter the mempool since no committed state exists
+	// until after the first block is committed (at which point the Genesis state
+	// gets committed too). Consequently, the prepare proposal request for the
+	// first block is expected to contain no transaction, so is the first block.
+	if app.LastBlockHeight() == 0 {
+		txs = make([][]byte, 0)
+	} else {
+		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 	}
 
-	// parse the txs, extracting any valid BlobTxs. Original order of
-	// the txs is maintained.
-	normalTxs, blobTxs := separateTxs(app.txConfig, req.BlockData.Txs)
-
-	sdkCtx, err := app.NewProcessProposalQueryContext()
-	if err != nil {
-		panic(err)
-	}
-
-	// increment the sequences of the standard cosmos-sdk transactions. Panics
-	// from the anteHandler are caught and logged.
-	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
-	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, seqHandler, normalTxs)
-
-	// check the signatures and increment the sequences of the blob txs,
-	// and filter out any that fail. Panics from the anteHandler are caught and
-	// logged.
-	svHandler := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
-	blobTxs, _ = filterBlobTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, svHandler, blobTxs)
-
-	// estimate the square size. This estimation errs on the side of larger
-	// squares but can only return values within the min and max square size.
-	squareSize, nonreservedStart := estimateSquareSize(normalTxs, blobTxs)
-
-	// finalizeLayout wraps any blob transactions with their final share index.
-	// This requires sorting the blobs by namespace and potentially pruning
-	// MsgPayForBlobs transactions and their respective blobs from the block if
-	// they do not fit into the square.
-	wrappedPFBTxs, blobs := finalizeBlobLayout(squareSize, nonreservedStart, blobTxs)
-
-	blockData := core.Data{
-		Txs:        append(normalTxs, wrappedPFBTxs...),
-		Blobs:      blobs,
-		SquareSize: squareSize,
-	}
-
-	coreData, err := coretypes.DataFromProto(&blockData)
-	if err != nil {
-		panic(err)
-	}
-
-	dataSquare, err := shares.Split(coreData, true)
+	// build the square from the set of valid and prioritised transactions.
+	// The txs returned are the ones used in the square and block
+	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(), app.GovSquareSizeUpperBound(sdkCtx))
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +62,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// erasure the data square which we use to create the data root.
 	// Note: uses the nmt wrapper to construct the tree.
 	// checkout pkg/wrapper/nmt_wrapper.go for more information.
-	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",
@@ -82,16 +74,23 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// create the new data root by creating the data availability header (merkle
 	// roots of each row and col of the erasure data).
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	// We use the block data struct to pass the square size and calculated data
-	// root to tendermint.
-	blockData.Hash = dah.Hash()
-	blockData.SquareSize = squareSize
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		app.Logger().Error(
+			"failure to create new data availability header",
+			"error",
+			err.Error(),
+		)
+		panic(err)
+	}
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
 	return abci.ResponsePrepareProposal{
-		BlockData: &blockData,
+		BlockData: &core.Data{
+			Txs:        txs,
+			SquareSize: uint64(dataSquare.Size()),
+			Hash:       dah.Hash(),
+		},
 	}
 }

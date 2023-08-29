@@ -3,11 +3,10 @@ package shares
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,9 +58,10 @@ func Test_parseSparseShares(t *testing.T) {
 				blobs[i] = testfactory.GenerateRandomBlob(tc.blobSize)
 			}
 
-			sort.Sort(coretypes.BlobsByNamespace(blobs))
+			blobs = testfactory.SortBlobs(blobs)
 
-			shares, _ := SplitBlobs(0, nil, blobs, false)
+			shares, err := SplitBlobs(blobs...)
+			require.NoError(t, err)
 			parsedBlobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
@@ -77,7 +77,8 @@ func Test_parseSparseShares(t *testing.T) {
 		// run the same tests using randomly sized blobs with caps of tc.blobSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			blobs := testfactory.GenerateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
-			shares, _ := SplitBlobs(0, nil, blobs, false)
+			shares, err := SplitBlobs(blobs...)
+			require.NoError(t, err)
 			parsedBlobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
@@ -105,7 +106,7 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 	rawShare = append(rawShare, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}...)
 	rawShare = append(rawShare, byte(infoByte))
 	rawShare = append(rawShare, bytes.Repeat([]byte{0}, appconsts.ShareSize-len(rawShare))...)
-	share, err := newShare(rawShare)
+	share, err := NewShare(rawShare)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,18 +134,18 @@ func Test_parseSparseSharesWithNamespacedPadding(t *testing.T) {
 		randomSmallBlob,
 		randomLargeBlob,
 	}
-	sort.Sort(coretypes.BlobsByNamespace(blobs))
+	blobs = testfactory.SortBlobs(blobs)
 
 	err := sss.Write(blobs[0])
 	require.NoError(t, err)
 
-	err = sss.WriteNamespacedPaddedShares(4)
+	err = sss.WriteNamespacePaddingShares(4)
 	require.NoError(t, err)
 
 	err = sss.Write(blobs[1])
 	require.NoError(t, err)
 
-	err = sss.WriteNamespacedPaddedShares(10)
+	err = sss.WriteNamespacePaddingShares(10)
 	require.NoError(t, err)
 
 	shares := sss.Export()
