@@ -2,8 +2,6 @@ package app
 
 import (
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
@@ -176,20 +174,6 @@ var (
 )
 
 var _ servertypes.Application = (*App)(nil)
-
-func init() {
-	userHomeDir := os.Getenv("CELESTIA_HOME")
-
-	if userHomeDir == "" {
-		var err error
-		userHomeDir, err = os.UserHomeDir()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)
-}
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
