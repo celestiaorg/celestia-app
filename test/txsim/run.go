@@ -55,7 +55,7 @@ func Run(
 		return err
 	}
 
-	// Initiaize each of the sequences by allowing them to allocate accounts.
+	// Initialize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
 		sequence.Init(ctx, manager.conn, manager.AllocateAccounts, r, opts.useFeeGrant)
 	}
