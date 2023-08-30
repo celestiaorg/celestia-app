@@ -39,9 +39,11 @@ Celestia specifc validity rules can be categorized into two groups:
 
 ### Transaction Validity Rules
 
-All `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules)
+All `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
 
-All remaining transaction types do not have to by valid if included in a block. For a complete list of modules see [state machine modules](./state_machine_modules.md).
+All remaining transactions must be decodable and pass all [AnteHandler](./ante_handler.md) checks.
+
+For a complete list of modules see [state machine modules](./state_machine_modules.md).
 
 ### Data Root Construction
 
