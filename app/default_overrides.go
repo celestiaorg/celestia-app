@@ -28,6 +28,14 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const (
+	// oneGigabit 1Gbit == 1 billion bits
+	oneGigabit = 1_000_000_000
+	// defaultBandwidth is the symetric bandwidth a node is assumed to have in
+	// bytes (not bits!)
+	defaultBandwidth = oneGigabit / 8
+)
+
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
 // implementation to provide custom default genesis state.
 type bankModule struct {
@@ -175,6 +183,9 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
 	cfg.TxIndex.Indexer = "null"
+
+	cfg.P2P.SendRate = int64(defaultBandwidth / cfg.P2P.MaxNumInboundPeers)
+	cfg.P2P.RecvRate = int64(defaultBandwidth / cfg.P2P.MaxNumInboundPeers)
 	return cfg
 }
 
