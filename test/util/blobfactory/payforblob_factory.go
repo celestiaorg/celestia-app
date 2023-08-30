@@ -5,6 +5,10 @@ import (
 	"context"
 	"testing"
 
+	// HACKHACK - add an explicit import on celestia-app/app to ensure that the
+	// init() function is invoked in order to set up bech32 prefixes. TODO:
+	// refactor to avoid depending on init().
+	_ "github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
