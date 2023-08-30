@@ -1,6 +1,4 @@
 # Block Validity Rules
-<<<<<<< HEAD
-=======
 
 ## Introduction
 
@@ -53,4 +51,3 @@ The data root must be calculated from a correctly constructed data square per th
 
 <img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/>
->>>>>>> 97fc207 (docs: specify the ante handler (#2352))
