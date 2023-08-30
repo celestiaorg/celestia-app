@@ -40,7 +40,7 @@ var (
 	pollTime                                          time.Duration
 	send, sendIterations, sendAmount                  int
 	stake, stakeValue, blob                           int
-	useFeegrant                                       bool
+	useFeegrant, suppressLogs                         bool
 )
 
 func main() {
@@ -150,16 +150,25 @@ well funded account that can act as the master account. The command runs until a
 				}
 			}
 
+			opts := txsim.DefaultOptions().
+				SpecifyMasterAccount(masterAccName).
+				WithSeed(seed)
+
+			if useFeegrant {
+				opts.UseFeeGrant()
+			}
+
+			if suppressLogs {
+				opts.SuppressLogs()
+			}
+
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
 				grpcEndpoint,
 				keys,
 				encCfg,
-				masterAccName,
-				seed,
-				pollTime,
-				useFeegrant,
+				opts,
 				sequences...,
 			)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -190,6 +199,7 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs to send per PFB in a sequence")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
+	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
 	return flags
 }
 

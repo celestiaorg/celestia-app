@@ -24,7 +24,6 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -312,20 +311,4 @@ func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
 		}
 	}
 	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
-}
-
-// LatestBlock retrieves the latest block from the context.
-//
-// It returns a pointer to the latest block and an error if any.
-func (c *Context) LatestBlock() (*coretypes.Block, error) {
-	height, err := c.LatestHeight()
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := c.Client.Block(context.Background(), &height)
-	if err != nil {
-		return nil, err
-	}
-	return result.Block, nil
 }

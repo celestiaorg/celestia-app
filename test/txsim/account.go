@@ -32,10 +32,10 @@ type AccountManager struct {
 	encCfg      encoding.Config
 	pollTime    time.Duration
 	useFeegrant bool
-	master      *user.Signer
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
+	master       *user.Signer
 	balance      uint64
 	latestHeight uint64
 	lastUpdated  time.Time
@@ -206,10 +206,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 		if address == nil {
 			address = signers[0]
-		} else {
-			if !bytes.Equal(address, signers[0]) {
-				return fmt.Errorf("received a tx with two different signers: %s & %s", address, signers[0])
-			}
 		}
 	}
 
@@ -249,7 +245,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
 	}
 	if err != nil {
-		return fmt.Errorf("submitting tx: %w", err)
+		return err
 	}
 
 	// update the latest latestHeight
