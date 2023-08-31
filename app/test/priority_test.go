@@ -113,18 +113,18 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 
 	// check that the transactions in each height are sorted by fee after
 	// sorting by index
-	highestTxsPerBlock := 0
+	highestNumOfTxsPerBlock := 0
 	for _, responses := range heightMap {
 		responses = sortByIndex(responses)
 		require.True(t, isSortedByFee(t, s.ecfg, responses))
-		if len(responses) > highestTxsPerBlock {
-			highestTxsPerBlock = len(responses)
+		if len(responses) > highestNumOfTxsPerBlock {
+			highestNumOfTxsPerBlock = len(responses)
 		}
 	}
 
 	// check that there was at least one block with more than three transactions
 	// in it. This is more of a sanity check than a test.
-	require.True(t, highestTxsPerBlock > 3)
+	require.True(t, highestNumOfTxsPerBlock > 3)
 }
 
 func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx {
