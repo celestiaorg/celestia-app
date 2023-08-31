@@ -66,7 +66,10 @@ func SetFeeGranter(feeGranter sdk.AccAddress) TxOption {
 	}
 }
 
-func SetGasPrice(gasLimit uint64, gasPrice float64) TxOption {
+// SetGasLimitAndFee sets the gas limit and fee using the provided gas price and
+// gas limit. Note that this could overwrite or be overwritten by other
+// conflicting TxOptions.
+func SetGasLimitAndFee(gasLimit uint64, gasPrice float64) TxOption {
 	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
 		builder.SetGasLimit(gasLimit)
 		builder.SetFeeAmount(
