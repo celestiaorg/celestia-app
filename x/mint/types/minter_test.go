@@ -176,10 +176,11 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 	r1 := rand.New(s1)
 	minter.AnnualProvisions = sdk.NewDec(r1.Int63n(1000000))
 	current := time.Unix(r1.Int63n(1000000), 0)
-	previous := current.Add(time.Second * 15)
+	previous := current.Add(-time.Second * 15)
 
 	for n := 0; n < b.N; n++ {
-		minter.CalculateBlockProvision(current, previous)
+		_, err := minter.CalculateBlockProvision(current, previous)
+		require.NoError(b, err)
 	}
 }
 
