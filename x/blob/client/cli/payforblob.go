@@ -34,8 +34,10 @@ func CmdPayForBlob() *cobra.Command {
 		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
 		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Long: "Pay for a data blob to be published to the Celestia blockchain. " +
-			"[hexNamespaceID] must be a 10 byte hex encoded namespace ID. " +
+			"[hexNamespaceID] must be a 10 byte hex encoded namespace ID, " +
+			"(for the namespace version 0). " +
 			"[hexBlob] can be an arbitrary length hex encoded data blob. " +
+			"Hex strings should not include a 0x prefix. " +
 			"This command only supports a single blob per invocation. ",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
