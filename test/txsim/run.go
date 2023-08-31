@@ -87,7 +87,6 @@ func Run(
 					return
 				}
 				opNum++
-				fmt.Println("sequence", seqID, "op", opNum)
 			}
 		}(idx, sequence, errCh)
 	}
