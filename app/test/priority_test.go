@@ -63,6 +63,10 @@ func (s *PriorityTestSuite) SetupSuite() {
 	}
 }
 
+// TestPriorityByGasPrice tests that transactions are sorted by gas price when
+// they are included in a block. It does this by submitting blobs with random
+// gas prices, and then compares the ordering of the transactions after they are
+// committed.
 func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	t := s.T()
 
@@ -78,7 +82,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 				s.rand,
 				[]namespace.Namespace{namespace.RandomBlobNamespace()},
 				[]int{100}),
-			user.SetGasPrice(gasLimit, gasPrice),
+			user.SetGasLimitAndFee(gasLimit, gasPrice),
 		)
 		require.NoError(t, err)
 		resp, err := signer.BroadcastTx(s.cctx.GoContext(), btx)
