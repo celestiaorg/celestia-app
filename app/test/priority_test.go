@@ -87,7 +87,8 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		hashes = append(hashes, resp.TxHash)
 	}
 
-	s.cctx.WaitForNextBlock()
+	err := s.cctx.WaitForNextBlock()
+	require.NoError(t, err)
 
 	// get the responses for each tx for analysis and sort by height
 	// note: use rpc types because they contain the tx index
