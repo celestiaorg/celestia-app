@@ -114,7 +114,11 @@ test-short:
 ## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
+<<<<<<< HEAD
 	@VERSION=$(VERSION) go test -race -short ./...
+=======
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite"
+>>>>>>> 58c1e4e (chore: add test for tx priority (#2394))
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
