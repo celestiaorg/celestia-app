@@ -1,10 +1,10 @@
 package types
 
 // KeyMinter is the key to use for the Minter in the mint store.
-var KeyMinter = []byte("Minter")
+var KeyMinter = []byte{0x0}
 
 // KeyGenesisTime is the key to use for GenesisTime in the mint store.
-var KeyGenesisTime = []byte("GenesisTime")
+var KeyGenesisTime = []byte{0x1}
 
 const (
 	// ModuleName is the name of the mint module.
