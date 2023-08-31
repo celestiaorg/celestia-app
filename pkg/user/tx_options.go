@@ -66,6 +66,18 @@ func SetFeeGranter(feeGranter sdk.AccAddress) TxOption {
 	}
 }
 
+func SetGasPrice(gasLimit uint64, gasPrice float64) TxOption {
+	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
+		builder.SetGasLimit(gasLimit)
+		builder.SetFeeAmount(
+			sdk.NewCoins(
+				sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(int64(gasPrice*float64(gasLimit)))),
+			),
+		)
+		return builder
+	}
+}
+
 // InheritTxConfig sets all of the accessible configurations from a given tx
 // into a given client.TxBuilder
 func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.TxBuilder {
