@@ -18,13 +18,12 @@ func TestDecodeStore(t *testing.T) {
 	cdc := simapp.MakeTestEncodingConfig().Codec
 	decoder := simulation.NewDecodeStore(cdc)
 	minter := types.NewMinter(sdk.OneDec(), sdk.NewDec(15), sdk.DefaultBondDenom)
-	unixEpoch := time.Unix(0, 0).UTC()
-	genesisTime := types.GenesisTime{GenesisTime: &unixEpoch}
+	genesisTime := time.Unix(0, 0).UTC()
 
 	kvPairs := kv.Pairs{
 		Pairs: []kv.Pair{
 			{Key: types.KeyMinter, Value: cdc.MustMarshal(&minter)},
-			{Key: types.KeyGenesisTime, Value: cdc.MustMarshal(&genesisTime)},
+			{Key: types.KeyGenesisTime, Value: sdk.FormatTimeBytes(genesisTime)},
 			{Key: []byte{0x99}, Value: []byte{0x99}},
 		},
 	}

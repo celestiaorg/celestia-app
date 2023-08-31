@@ -21,7 +21,8 @@ var oneYear = time.Duration(minttypes.NanosecondsPerYear)
 func TestInflationRate(t *testing.T) {
 	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
-	genesisTime := app.MintKeeper.GetGenesisTime(ctx).GenesisTime
+	genesisTime, err := app.MintKeeper.GetGenesisTime(ctx)
+	require.NoError(t, err)
 
 	yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
 	yearOne := genesisTime.Add(oneYear)
@@ -38,7 +39,7 @@ func TestInflationRate(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: "inflation rate is 0.08 for year zero",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(*genesisTime),
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(genesisTime),
 			want: sdk.MustNewDecFromStr("0.08"),
 		},
 		{
@@ -70,7 +71,8 @@ func TestInflationRate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mint.BeginBlocker(tc.ctx, app.MintKeeper)
+			err := mint.BeginBlocker(tc.ctx, app.MintKeeper)
+			require.NoError(t, err)
 			got, err := app.MintKeeper.InflationRate(ctx, &minttypes.QueryInflationRateRequest{})
 			assert.NoError(t, err)
 			assert.Equal(t, tc.want, got.InflationRate)
@@ -84,14 +86,16 @@ func TestAnnualProvisions(t *testing.T) {
 		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
 		assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
-		mint.BeginBlocker(ctx, a.MintKeeper)
+		err := mint.BeginBlocker(ctx, a.MintKeeper)
+		require.NoError(t, err)
 		assert.False(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
 	})
 
 	t.Run("annual provisions are not updated more than once per year", func(t *testing.T) {
 		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
-		genesisTime := a.MintKeeper.GetGenesisTime(ctx).GenesisTime
+		genesisTime, err := a.MintKeeper.GetGenesisTime(ctx)
+		require.NoError(t, err)
 		yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
 
 		initialSupply := sdk.NewInt(100_000_001_000_000)
@@ -118,7 +122,8 @@ func TestAnnualProvisions(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(fmt.Sprintf("block height %v", tc.height), func(t *testing.T) {
 				ctx = ctx.WithBlockHeight(tc.height).WithBlockTime(tc.time)
-				mint.BeginBlocker(ctx, a.MintKeeper)
+				err := mint.BeginBlocker(ctx, a.MintKeeper)
+				require.NoError(t, err)
 				assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.Equal(want))
 			})
 		}
@@ -126,7 +131,8 @@ func TestAnnualProvisions(t *testing.T) {
 		t.Run("one year later", func(t *testing.T) {
 			yearOne := genesisTime.Add(oneYear)
 			ctx = ctx.WithBlockHeight(5).WithBlockTime(yearOne)
-			mint.BeginBlocker(ctx, a.MintKeeper)
+			err := mint.BeginBlocker(ctx, a.MintKeeper)
+			require.NoError(t, err)
 			assert.False(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.Equal(want))
 		})
 	})

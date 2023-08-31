@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"time"
+
 	"cosmossdk.io/math"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -67,21 +69,20 @@ func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 }
 
 // GetGenesisTime returns the genesis time.
-func (k Keeper) GetGenesisTime(ctx sdk.Context) (gt types.GenesisTime) {
+func (k Keeper) GetGenesisTime(ctx sdk.Context) (time.Time, error) {
 	store := ctx.KVStore(k.storeKey)
 	b := store.Get(types.KeyGenesisTime)
 	if b == nil {
 		panic("stored genesis time should not have been nil")
 	}
 
-	k.cdc.MustUnmarshal(b, &gt)
-	return gt
+	return sdk.ParseTimeBytes(b)
 }
 
 // SetGenesisTime sets the genesis time.
-func (k Keeper) SetGenesisTime(ctx sdk.Context, gt types.GenesisTime) {
+func (k Keeper) SetGenesisTime(ctx sdk.Context, gt time.Time) {
 	store := ctx.KVStore(k.storeKey)
-	b := k.cdc.MustMarshal(&gt)
+	b := sdk.FormatTimeBytes(gt)
 	store.Set(types.KeyGenesisTime, b)
 }
 

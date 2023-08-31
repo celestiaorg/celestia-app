@@ -10,12 +10,8 @@ func (k Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types
 	minter := types.DefaultMinter()
 	minter.BondDenom = data.BondDenom
 	k.SetMinter(ctx, minter)
-	// override the genesis time with the actual genesis time supplied in `InitChain`
-	blockTime := ctx.BlockTime()
-	gt := types.GenesisTime{
-		GenesisTime: &blockTime,
-	}
-	k.SetGenesisTime(ctx, gt)
+	// Override the genesis time with the actual genesis time supplied in `InitChain`
+	k.SetGenesisTime(ctx, ctx.BlockTime())
 	// Although ak.GetModuleAccount appears to be a no-op, it actually creates a
 	// new module account in the x/auth account store if it doesn't exist. See
 	// the x/auth keeper for more details.

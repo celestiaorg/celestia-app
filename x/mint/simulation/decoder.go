@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/kv"
 )
 
@@ -20,9 +21,14 @@ func NewDecodeStore(cdc codec.Codec) func(kvA, kvB kv.Pair) string {
 			cdc.MustUnmarshal(kvB.Value, &minterB)
 			return fmt.Sprintf("%v\n%v", minterA, minterB)
 		case bytes.Equal(kvA.Key, types.KeyGenesisTime):
-			var genesisTimeA, genesisTimeB types.GenesisTime
-			cdc.MustUnmarshal(kvA.Value, &genesisTimeA)
-			cdc.MustUnmarshal(kvB.Value, &genesisTimeB)
+			genesisTimeA, err := sdk.ParseTimeBytes(kvA.Value)
+			if err != nil {
+				panic(err)
+			}
+			genesisTimeB, err := sdk.ParseTimeBytes(kvB.Value)
+			if err != nil {
+				panic(err)
+			}
 			return fmt.Sprintf("%v\n%v", genesisTimeA, genesisTimeB)
 		default:
 			panic(fmt.Sprintf("invalid mint key %X", kvA.Key))

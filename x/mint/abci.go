@@ -11,22 +11,29 @@ import (
 
 // BeginBlocker updates the inflation rate, annual provisions, and then mints
 // the block provision for the current block.
-func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
+func BeginBlocker(ctx sdk.Context, k keeper.Keeper) error {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
-	maybeUpdateMinter(ctx, k)
+	err := maybeUpdateMinter(ctx, k)
+	if err != nil {
+		return err
+	}
 	mintBlockProvision(ctx, k)
 	setPreviousBlockTime(ctx, k)
+	return nil
 }
 
 // maybeUpdateMinter updates the inflation rate and annual provisions if the
 // inflation rate has changed. The inflation rate is expected to change once per
 // year at the genesis time anniversary until the TargetInflationRate is
 // reached.
-func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
+func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) error {
 	minter := k.GetMinter(ctx)
-	genesisTime := k.GetGenesisTime(ctx).GenesisTime
-	newInflationRate := minter.CalculateInflationRate(ctx, *genesisTime)
+	genesisTime, err := k.GetGenesisTime(ctx)
+	if err != nil {
+		return err
+	}
+	newInflationRate := minter.CalculateInflationRate(ctx, genesisTime)
 
 	isNonZeroAnnualProvisions := !minter.AnnualProvisions.IsZero()
 	if newInflationRate.Equal(minter.InflationRate) && isNonZeroAnnualProvisions {
@@ -34,13 +41,14 @@ func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 		// values for this year. Exit early because we don't need to update
 		// them. AnnualProvisions must be updated if it is zero (expected at
 		// genesis).
-		return
+		return nil
 	}
 
 	totalSupply := k.StakingTokenSupply(ctx)
 	minter.InflationRate = newInflationRate
 	minter.AnnualProvisions = newInflationRate.MulInt(totalSupply)
 	k.SetMinter(ctx, minter)
+	return nil
 }
 
 // mintBlockProvision mints the block provision for the current block.
