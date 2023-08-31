@@ -3,6 +3,7 @@ package app_test
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -146,7 +147,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create vesting account",
+			name: "create continuous vesting account with a start time in the future",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				vestAccName := "vesting"
 				_, _, err := s.cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
@@ -158,7 +159,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					sendingAccAddr,
 					vestAccAddr,
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
-					10000, true,
+					time.Now().Add(time.Hour).Unix(),
+					time.Now().Add(time.Hour*2).Unix(),
+					false,
 				)
 				return []sdk.Msg{msg}, sendAcc
 			},
