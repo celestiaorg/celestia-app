@@ -44,7 +44,6 @@ func (s *PriorityTestSuite) SetupSuite() {
 
 	cfg := testnode.DefaultConfig().
 		WithAccounts(testfactory.GenerateAccounts(10)).
-		// use a long block time to guarantee that some transactions are included in the same block
 		WithTimeoutCommit(time.Second)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)

@@ -6,6 +6,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
@@ -47,4 +49,16 @@ func RandomAccountNames(count int) []string {
 
 func RandomEVMAddress() gethcommon.Address {
 	return gethcommon.BytesToAddress(tmrand.Bytes(gethcommon.AddressLength))
+}
+
+func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
+	rec, err := keys.Key(account)
+	if err != nil {
+		panic(err)
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+	return addr
 }
