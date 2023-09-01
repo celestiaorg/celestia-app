@@ -144,10 +144,7 @@ each PFB, to be included in a block must follow a set of validity rules.
    must be valid. This validity is determined by the following sub-rules:
     1. The namepsace of each blob must match the respective (same index)
        namespace in the `MsgPayForBlobs` `sdk.Msg` field `namespaces`.
-    1. The namespace is lexicographically greater than the [MAX_RESERVED_NAMESPACE](../../specs/src/specs/consensus.md#constants).
-    1. The namespace is not the
-       [TAIL_PADDING_NAMESPACE](../../specs/src/specs/consensus.md#constants)
-       or [PARITY_SHARE_NAMESPACE](../../specs/src/specs/consensus.md#constants).
+    1. The namespace is not reserved for protocol use.
 1. Blob Size: No blob can have a size of 0.
 1. Blob Count: There must be one or more blobs included in the transaction.
 1. Share Commitment Validity: Each share commitment must be valid.
@@ -185,13 +182,13 @@ The blob module emits the following events:
 
 ### Blob Events
 
-#### `EventPayForBlob`
+#### `EventPayForBlobs`
 
 | Attribute Key | Attribute Value                               |
 |---------------|-----------------------------------------------|
 | signer        | {bech32 encoded signer address}               |
 | blob_sizes    | {sizes of blobs in bytes}                     |
-| namespace_ids | {namespaces the blobs should be published to} |
+| namespaces    | {namespaces the blobs should be published to} |
 
 ## Parameters
 
