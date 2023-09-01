@@ -30,8 +30,8 @@ type Sequence interface {
 	Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error)
 }
 
-// An operation represents a series of messages and blobs that are to be bundled in a
-// single transaction. A delay (in heights) may also be set before the transaction is sent.
+// Operation represents a series of messages and blobs that are to be bundled
+// in a single transaction. A delay (in heights) may also be set before the transaction is sent.
 // The gas limit and price can also be set. If left at 0, the DefaultGasLimit will be used.
 type Operation struct {
 	Msgs     []types.Msg
