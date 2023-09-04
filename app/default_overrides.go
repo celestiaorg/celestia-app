@@ -117,7 +117,7 @@ type govModule struct {
 // DefaultGenesis returns custom x/gov module genesis state.
 func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10000000)))
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(100000000)))
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -138,7 +138,7 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:     DefaultBlockParams(),
-		Evidence:  coretypes.DefaultEvidenceParams(),
+		Evidence:  DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
 			AppVersion: appconsts.LatestVersion,
@@ -154,6 +154,15 @@ func DefaultBlockParams() tmproto.BlockParams {
 		MaxGas:     -1,
 		TimeIotaMs: 1, // 1ms
 	}
+}
+
+// DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
+// determined using a goal block time.
+func DefaultEvidenceParams() tmproto.EvidenceParams {
+	evdParams := coretypes.DefaultEvidenceParams()
+	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
+	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
+	return evdParams
 }
 
 func DefaultConsensusConfig() *tmcfg.Config {
