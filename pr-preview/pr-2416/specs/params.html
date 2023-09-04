@@ -140,7 +140,8 @@
                         <h1 id="celestia-governance-params"><a class="header" href="#celestia-governance-params">Celestia Governance Params</a></h1>
 <p>These are the parameters for mainnet. Note that not all of these parameters are
 changable via governance. This list also includes parameter that require a
-hardfork to change.</p>
+hardfork to change due to being manually hardcoded in the application or they
+are blocked by the <code>x/paramfilter</code> module.</p>
 <h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Module.Parameter</th><th>Default</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
 <tr><td>auth.MaxMemoCharacters</td><td>256</td><td>Largest allowed size for a memo.</td><td>True</td></tr>
