@@ -148,7 +148,7 @@ var (
 		newGovModule(),
 		params.AppModuleBasic{},
 		crisisModule{},
-		slashing.AppModuleBasic{},
+		slashingModule{},
 		authzmodule.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
 		ibc.AppModuleBasic{},

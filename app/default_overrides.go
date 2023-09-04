@@ -20,6 +20,8 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
+	"github.com/cosmos/cosmos-sdk/x/slashing"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
@@ -77,6 +79,26 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params.BondDenom = BondDenom
 
 	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
+		Params: params,
+	})
+}
+
+// stakingModule wraps the x/staking module in order to overwrite specific
+// ModuleManager APIs.
+type slashingModule struct {
+	slashing.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/staking module genesis state.
+func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	params := slashingtypes.DefaultParams()
+	params.MinSignedPerWindow = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SignedBlocksWindow = 15000
+	params.DowntimeJailDuration = time.Minute * 1
+	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SlashFractionDowntime = sdk.NewDecWithPrec(1, 2)   // 1%
+
+	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
 		Params: params,
 	})
 }
