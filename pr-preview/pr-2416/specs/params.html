@@ -152,8 +152,8 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>bank.SendEnabled</td><td>true</td><td>Allow transfers.</td><td>False</td></tr>
 <tr><td>blob.GasPerBlobByte</td><td>8</td><td>Gas used per blob byte.</td><td>True</td></tr>
 <tr><td>MaxBlockBytes</td><td>100MiB</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
-<tr><td>MaxSquareSize</td><td>128</td><td>Hardcoded maximum square size determined per shares per row or column.</td><td>False</td></tr>
-<tr><td>blob.GovMaxSquareSize</td><td>64</td><td>Governance parameter for the maximum square size determined by shares per row or column. If larger than MaxSquareSize, MaxSquareSize is used.</td><td>True</td></tr>
+<tr><td>MaxSquareSize</td><td>128</td><td>Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended).</td><td>False</td></tr>
+<tr><td>blob.GovMaxSquareSize</td><td>64</td><td>Governance parameter for the maximum square size determined per shares per row or column for the original data square (not yet extended)s. If larger than MaxSquareSize, MaxSquareSize is used.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxBytes</td><td>1.88MiB</td><td>Governance parameter for the maximum size of the protobuf encoded block.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
