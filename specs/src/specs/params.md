@@ -17,8 +17,8 @@ are blocked by the `x/paramfilter` module.
 | bank.SendEnabled | true | Allow transfers. | False |
 | blob.GasPerBlobByte | 8 | Gas used per blob byte. | True |
 | MaxBlockBytes | 100MiB | Hardcoded value in CometBFT for the protobuf encoded block. | False |
-| MaxSquareSize | 128 | Hardcoded maximum square size determined per shares per row or column. | False |
-| blob.GovMaxSquareSize | 64 | Governance parameter for the maximum square size determined by shares per row or column. If larger than MaxSquareSize, MaxSquareSize is used. | True |
+| MaxSquareSize | 128 | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False |
+| blob.GovMaxSquareSize | 64 | Governance parameter for the maximum square size determined per shares per row or column for the original data square (not yet extended)s. If larger than MaxSquareSize, MaxSquareSize is used. | True |
 | consensus.block.MaxBytes | 1.88MiB | Governance parameter for the maximum size of the protobuf encoded block. | True |
 | consensus.block.MaxGas | -1 | Maximum gas allowed per block (-1 is infinite). | True |
 | consensus.block.TimeIotaMs | 1000 | Minimum time added to the time in the header each block. | False |
