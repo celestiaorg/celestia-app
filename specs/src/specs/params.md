@@ -17,23 +17,23 @@ are blocked by the `x/paramfilter` module.
 | bank.SendEnabled | true | Allow transfers. | False |
 | blob.GasPerBlobByte | 8 | Gas used per blob byte. | True |
 | MaxBlockBytes | 100MiB | Hardcoded value in CometBFT for the protobuf encoded block. | False |
-| MaxSquareSize | 128 | Hardcoded value in the applications that requires a hardfork to change. | False |
-| blob.GovMaxSquareSize | 64 | Governance parameter for the  square size. If larger than MaxSquareSize, MaxSquareSize is used. | True |
+| MaxSquareSize | 128 | Hardcoded maximum square size determined per shares per row or column. | False |
+| blob.GovMaxSquareSize | 64 | Governance parameter for the maximum square size determined by shares per row or column. If larger than MaxSquareSize, MaxSquareSize is used. | True |
 | consensus.block.MaxBytes | 1.88MiB | Governance parameter for the maximum size of the block. | True |
 | consensus.block.MaxGas | -1 | Maximum gas allowed per block (-1 is infinite). | True |
 | consensus.block.TimeIotaMs | 1000 | Minimum time added to the time in the header each block. | False |
 | consensus.evidence.MaxAgeNumBlocks | 100000 | The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data. | True |
-| consensus.evidence.MaxAgeDuration | 2 days | The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period. | True |
-| consensus.evidence.MaxBytes | 1MB | Maximum size in bytes used by evidence in a given block. | True |
+| consensus.evidence.MaxAgeDuration | 1814400000000000 (21 days) | The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period. | True |
+| consensus.evidence.MaxBytes | 1MiB | Maximum size in bytes used by evidence in a given block. | True |
 | consensus.validator.PubKeyTypes | Ed25519 | The type of public key used by validators. | False |
 | consensus.Version.AppVersion | 1 | Determines protocol rules used for a given height. Incremented by the application upon an upgrade. | False |
-| distribution.communitytax | 0.02 | Percentage of the inflation sent to the community pool. | True |
+| distribution.communitytax | 2.0% | Percentage of the inflation sent to the community pool. | True |
 | distribution.WithdrawAddrEnabled | true | Enables delegators to withdraw funds to a different address. | True |
-| distribution.BaseProposerReward | 0 | Reward for proposing a block. | True |
-| distribution.BonusProposerReward | 0 | Extra reward for proposers based on the voting power included in the commit. | True |
+| distribution.BaseProposerReward | 0 | Reward in the mint demonination for proposing a block. | True |
+| distribution.BonusProposerReward | 0 | Extra reward in the mint denomination for proposers based on the voting power included in the commit. | True |
 | gov.DepositParams.MinDeposit | 10000000utia | Minimum deposit for a proposal to enter voting period in seconds. | True |
-| gov.DepositParams.MaxDepositPeriod | 172800s | Maximum period for token holders to deposit on a proposal in seconds. | True |
-| gov.VotingParams.VotingPeriod | 172800s | Duration of the voting period in seconds. | True |
+| gov.DepositParams.MaxDepositPeriod | 172800 (2 days) | Maximum period for token holders to deposit on a proposal in seconds. | True |
+| gov.VotingParams.VotingPeriod | 172800 (2 days) | Duration of the voting period in seconds. | True |
 | gov.TallyParams.Quorum | 33.4% | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
 | gov.TallyParams.Threshold | 50.0% | Minimum proportion of Yes votes for proposal to pass. | True |
 | gov.TallyParams.VetoThreshold | 33.4% | Minimum value of Veto votes to Total votes ratio for proposal to be vetoed. | True |
@@ -42,7 +42,7 @@ are blocked by the `x/paramfilter` module.
 | slashing.DowntimeJailDuration | 10 mins | Duration of time a validator must stay jailed. | True |
 | slashing.SlashFractionDoubleSign | 5.0% | Percentage slashed after a validator is jailed for downtime. | True |
 | slashing.SlashFractionDowntime | 1.0% | Percentage slashed after a validator is jailed for downtime. | True |
-| staking.UnbondingTime | 21 days | Duration of time for unbonding. | False |
+| staking.UnbondingTime | 1814400 (21 days) | Duration of time for unbonding in seconds. | False |
 | staking.MaxValidators | 100 | Maximum number of validators. | False |
 | staking.MaxEntries | 7 | Maximum number of entries in the redelegation queue. | True |
 | staking.HistoricalEntries | 10000 | Number of historical entries to persist in store. | True |
