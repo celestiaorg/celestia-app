@@ -9,21 +9,21 @@ are blocked by the `x/paramfilter` module.
 
 | Module.Parameter | Default | Summary | Changeable via Governance |
 | --- | --- | --- | --- |
-| auth.MaxMemoCharacters | 256 | Largest allowed size for a memo. | True |
+| auth.MaxMemoCharacters | 256 | Largest allowed size for a memo in bytes. | True |
 | auth.TxSigLimit | 7 | Max number of signatures allowed in a multisig transaction. | True |
 | auth.TxSizeCostPerByte | 10 | Gas used per transaction byte. | True |
 | auth.SigVerifyCostED25519 | 590 | Gas used to verify Ed25519 signature. | True |
 | auth.SigVerifyCostSecp256k1 | 1000 | Gas used to verify secp256k1 signature. | True |
 | bank.SendEnabled | true | Allow transfers. | False |
 | blob.GasPerBlobByte | 8 | Gas used per blob byte. | True |
-| MaxBlockBytes | 100MB | Hardcoded value in CometBFT for the protobuf encoded block. | False |
+| MaxBlockBytes | 100MiB | Hardcoded value in CometBFT for the protobuf encoded block. | False |
 | MaxSquareSize | 128 | Hardcoded value in the applications that requires a hardfork to change. | False |
 | blob.GovMaxSquareSize | 64 | Governance parameter for the  square size. If larger than MaxSquareSize, MaxSquareSize is used. | True |
-| consensus.block.MaxBytes | 1.8MB | Governance parameter for the maximum size of the block. | True |
+| consensus.block.MaxBytes | 1.88MiB | Governance parameter for the maximum size of the block. | True |
 | consensus.block.MaxGas | -1 | Maximum gas allowed per block (-1 is infinite). | True |
 | consensus.block.TimeIotaMs | 1000 | Minimum time added to the time in the header each block. | False |
 | consensus.evidence.MaxAgeNumBlocks | 100000 | The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data. | True |
-| consensus.evidence.MaxAgeDuration | 172800000000000 | The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period. | True |
+| consensus.evidence.MaxAgeDuration | 2 days | The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period. | True |
 | consensus.evidence.MaxBytes | 1MB | Maximum size in bytes used by evidence in a given block. | True |
 | consensus.validator.PubKeyTypes | Ed25519 | The type of public key used by validators. | False |
 | consensus.Version.AppVersion | 1 | Determines protocol rules used for a given height. Incremented by the application upon an upgrade. | False |
@@ -31,17 +31,17 @@ are blocked by the `x/paramfilter` module.
 | distribution.WithdrawAddrEnabled | true | Enables delegators to withdraw funds to a different address. | True |
 | distribution.BaseProposerReward | 0 | Reward for proposing a block. | True |
 | distribution.BonusProposerReward | 0 | Extra reward for proposers based on the voting power included in the commit. | True |
-| gov.DepositParams.MinDeposit |  | Minimum deposit for a proposal to enter voting period. | True |
-| gov.DepositParams.MaxDepositPeriod |  | Maximum period for token holders to deposit on a proposal. | True |
-| gov.VotingParams.VotingPeriod |  | Duration of the voting period. | True |
-| gov.TallyParams.Quorum | 33.4 | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
-| gov.TallyParams.Threshold | 50.0 | Minimum proportion of Yes votes for proposal to pass. | True |
-| gov.TallyParams.VetoThreshold | 33.4 | Minimum value of Veto votes to Total votes ratio for proposal to be vetoed. | True |
+| gov.DepositParams.MinDeposit | 10000000utia | Minimum deposit for a proposal to enter voting period in seconds. | True |
+| gov.DepositParams.MaxDepositPeriod | 172800s | Maximum period for token holders to deposit on a proposal in seconds. | True |
+| gov.VotingParams.VotingPeriod | 172800s | Duration of the voting period in seconds. | True |
+| gov.TallyParams.Quorum | 33.4% | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
+| gov.TallyParams.Threshold | 50.0% | Minimum proportion of Yes votes for proposal to pass. | True |
+| gov.TallyParams.VetoThreshold | 33.4% | Minimum value of Veto votes to Total votes ratio for proposal to be vetoed. | True |
 | slashing.SignedBlocksWindow | 5000 | The range of blocks used to count for downtime. | True |
 | slashing.MinSignedPerWindow | 5 | Minumum signatures in the block. | True |
 | slashing.DowntimeJailDuration | 10 mins | Duration of time a validator must stay jailed. | True |
-| slashing.SlashFractionDoubleSign | 1/20 | Percentage slashed after a validator is jailed for downtime. | True |
-| slashing.SlashFractionDowntime | 1/100 | Percentage slashed after a validator is jailed for downtime. | True |
+| slashing.SlashFractionDoubleSign | 5.0% | Percentage slashed after a validator is jailed for downtime. | True |
+| slashing.SlashFractionDowntime | 1.0% | Percentage slashed after a validator is jailed for downtime. | True |
 | staking.UnbondingTime | 21 days | Duration of time for unbonding. | False |
 | staking.MaxValidators | 100 | Maximum number of validators. | False |
 | staking.MaxEntries | 7 | Maximum number of entries in the redelegation queue. | True |
