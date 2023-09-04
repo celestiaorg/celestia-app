@@ -24,7 +24,9 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
+	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -77,6 +79,7 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := stakingtypes.DefaultParams()
 	params.UnbondingTime = appconsts.DefaultUnbondingTime
 	params.BondDenom = BondDenom
+	params.MinCommissionRate = sdk.NewDecWithPrec(5, 2) // 5%
 
 	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
 		Params: params,
@@ -111,6 +114,24 @@ type crisisModule struct {
 func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
+	})
+}
+
+type ibcModule struct {
+	ibc.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/crisis module genesis state.
+func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	// per ibc documentation, this value should be 3-5 times the expected block
+	// time. The expected block time is 15 seconds, therefore this value is 75
+	// seconds.
+	maxBlockTime := appconsts.GoalBlockTime * 5
+	gs := ibctypes.DefaultGenesisState()
+	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
+	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
+	return cdc.MustMarshalJSON(&ibctypes.GenesisState{
+		ClientGenesis: ibctypes.DefaultGenesisState().ClientGenesis,
 	})
 }
 
