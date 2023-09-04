@@ -37,6 +37,10 @@ are blocked by the `x/paramfilter` module.
 | gov.TallyParams.Quorum | 33.4% | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
 | gov.TallyParams.Threshold | 50.0% | Minimum proportion of Yes votes for proposal to pass. | True |
 | gov.TallyParams.VetoThreshold | 33.4% | Minimum value of Veto votes to Total votes ratio for proposal to be vetoed. | True |
+| ibc.ClientGenesis.AllowedClients | []string{"06-solomachine", "07-tendermint"} | List of allowed IBC light clients. | True |
+| ibc.ConnectionGenesis.MaxExpectedTimePerBlock | 7500000000000 (75 seconds) | Maximum expected time per block in nanoseconds under normal operation. | True |
+| ibc.Transfer.SendEnabled | true | Enable sending tokens via IBC. | True |
+| ibc.Transfer.ReceiveEnabled | true | Enable receiving tokens via IBC. | True |
 | slashing.SignedBlocksWindow | 5000 | The range of blocks used to count for downtime. | True |
 | slashing.MinSignedPerWindow | 5 | Minumum signatures in the block. | True |
 | slashing.DowntimeJailDuration | 10 mins | Duration of time a validator must stay jailed. | True |
