@@ -19,7 +19,7 @@ are blocked by the `x/paramfilter` module.
 | MaxBlockBytes | 100MiB | Hardcoded value in CometBFT for the protobuf encoded block. | False |
 | MaxSquareSize | 128 | Hardcoded maximum square size determined per shares per row or column. | False |
 | blob.GovMaxSquareSize | 64 | Governance parameter for the maximum square size determined by shares per row or column. If larger than MaxSquareSize, MaxSquareSize is used. | True |
-| consensus.block.MaxBytes | 1.88MiB | Governance parameter for the maximum size of the block. | True |
+| consensus.block.MaxBytes | 1.88MiB | Governance parameter for the maximum size of the protobuf encoded block. | True |
 | consensus.block.MaxGas | -1 | Maximum gas allowed per block (-1 is infinite). | True |
 | consensus.block.TimeIotaMs | 1000 | Minimum time added to the time in the header each block. | False |
 | consensus.evidence.MaxAgeNumBlocks | 100000 | The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data. | True |
