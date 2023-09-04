@@ -27,7 +27,7 @@ active parameters for Celestia on mainnet.
 | consensus.evidence.MaxAgeDuration | 172800000000000 | The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period. |
 | consensus.evidence.MaxBytes | 1MB | Maximum size in bytes used by evidence in a given block. |
 | consensus.validator.PubKeyTypes | Ed25519 | The type of public key used by validators. |
-| consensus.Version.AppVersion | 0 | Determines protocol rules used for a given height. Incremented by the application upon an upgrade. |
+| consensus.Version.AppVersion | 1 | Determines protocol rules used for a given height. Incremented by the application upon an upgrade. |
 | distribution.communitytax | 0.02 | Percentage of the inflation sent to the community pool. |
 | distribution.WithdrawAddrEnabled | true | Enables delegators to withdraw funds to a different address. |
 | distribution.BaseProposerReward | 0 | Reward for proposing a block. |
