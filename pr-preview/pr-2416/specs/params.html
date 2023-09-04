@@ -172,6 +172,10 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>gov.TallyParams.Quorum</td><td>33.4%</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
 <tr><td>gov.TallyParams.Threshold</td><td>50.0%</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
 <tr><td>gov.TallyParams.VetoThreshold</td><td>33.4%</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
+<tr><td>ibc.ClientGenesis.AllowedClients</td><td>[]string{&quot;06-solomachine&quot;, &quot;07-tendermint&quot;}</td><td>List of allowed IBC light clients.</td><td>True</td></tr>
+<tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>7500000000000 (75 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation.</td><td>True</td></tr>
+<tr><td>ibc.Transfer.SendEnabled</td><td>true</td><td>Enable sending tokens via IBC.</td><td>True</td></tr>
+<tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
 <tr><td>slashing.SignedBlocksWindow</td><td>5000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
 <tr><td>slashing.MinSignedPerWindow</td><td>5</td><td>Minumum signatures in the block.</td><td>True</td></tr>
 <tr><td>slashing.DowntimeJailDuration</td><td>10 mins</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
