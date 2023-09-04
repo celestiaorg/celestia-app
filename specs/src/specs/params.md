@@ -12,15 +12,15 @@ are blocked by the `x/paramfilter` module.
 | auth.MaxMemoCharacters | 256 | Largest allowed size for a memo. | True |
 | auth.TxSigLimit | 7 | Max number of signatures allowed in a multisig transaction. | True |
 | auth.TxSizeCostPerByte | 10 | Gas used per transaction byte. | True |
-| auth.SigVerifyCostED25519 | 590 | Gas used to verify ED25519 signature. | True |
+| auth.SigVerifyCostED25519 | 590 | Gas used to verify Ed25519 signature. | True |
 | auth.SigVerifyCostSecp256k1 | 1000 | Gas used to verify secp256k1 signature. | True |
 | bank.SendEnabled | true | Allow transfers. | False |
 | blob.GasPerBlobByte | 8 | Gas used per blob byte. | True |
-| MaxBlockBytes | 100MB | Hardcoded value in tendermint for the protobuf encoded block. | False |
+| MaxBlockBytes | 100MB | Hardcoded value in CometBFT for the protobuf encoded block. | False |
 | MaxSquareSize | 128 | Hardcoded value in the applications that requires a hardfork to change. | False |
 | blob.GovMaxSquareSize | 64 | Governance parameter for the  square size. If larger than MaxSquareSize, MaxSquareSize is used. | True |
 | consensus.block.MaxBytes | 1.8MB | Governance parameter for the maximum size of the block. | True |
-| consensus.block.MaxGas | -1 / ∞ | Maximum gas allowed per block (-1 is infinite). | True |
+| consensus.block.MaxGas | -1 | Maximum gas allowed per block (-1 is infinite). | True |
 | consensus.block.TimeIotaMs | 1000 | Minimum time added to the time in the header each block. | False |
 | consensus.evidence.MaxAgeNumBlocks | 100000 | The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data. | True |
 | consensus.evidence.MaxAgeDuration | 172800000000000 | The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period. | True |
