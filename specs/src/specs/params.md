@@ -2,7 +2,8 @@
 
 These are the parameters for mainnet. Note that not all of these parameters are
 changable via governance. This list also includes parameter that require a
-hardfork to change.
+hardfork to change due to being manually hardcoded in the application or they
+are blocked by the `x/paramfilter` module.
 
 ## Parameters
 
