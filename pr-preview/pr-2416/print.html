@@ -1954,21 +1954,21 @@ hardfork to change due to being manually hardcoded in the application or they
 are blocked by the <code>x/paramfilter</code> module.</p>
 <h2 id="parameters-1"><a class="header" href="#parameters-1">Parameters</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Module.Parameter</th><th>Default</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
-<tr><td>auth.MaxMemoCharacters</td><td>256</td><td>Largest allowed size for a memo.</td><td>True</td></tr>
+<tr><td>auth.MaxMemoCharacters</td><td>256</td><td>Largest allowed size for a memo in bytes.</td><td>True</td></tr>
 <tr><td>auth.TxSigLimit</td><td>7</td><td>Max number of signatures allowed in a multisig transaction.</td><td>True</td></tr>
 <tr><td>auth.TxSizeCostPerByte</td><td>10</td><td>Gas used per transaction byte.</td><td>True</td></tr>
 <tr><td>auth.SigVerifyCostED25519</td><td>590</td><td>Gas used to verify Ed25519 signature.</td><td>True</td></tr>
 <tr><td>auth.SigVerifyCostSecp256k1</td><td>1000</td><td>Gas used to verify secp256k1 signature.</td><td>True</td></tr>
 <tr><td>bank.SendEnabled</td><td>true</td><td>Allow transfers.</td><td>False</td></tr>
 <tr><td>blob.GasPerBlobByte</td><td>8</td><td>Gas used per blob byte.</td><td>True</td></tr>
-<tr><td>MaxBlockBytes</td><td>100MB</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
+<tr><td>MaxBlockBytes</td><td>100MiB</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
 <tr><td>MaxSquareSize</td><td>128</td><td>Hardcoded value in the applications that requires a hardfork to change.</td><td>False</td></tr>
 <tr><td>blob.GovMaxSquareSize</td><td>64</td><td>Governance parameter for the  square size. If larger than MaxSquareSize, MaxSquareSize is used.</td><td>True</td></tr>
-<tr><td>consensus.block.MaxBytes</td><td>1.8MB</td><td>Governance parameter for the maximum size of the block.</td><td>True</td></tr>
+<tr><td>consensus.block.MaxBytes</td><td>1.88MiB</td><td>Governance parameter for the maximum size of the block.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
 <tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>100000</td><td>The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data.</td><td>True</td></tr>
-<tr><td>consensus.evidence.MaxAgeDuration</td><td>172800000000000</td><td>The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxAgeDuration</td><td>2 days</td><td>The maximum age of evidence before it is considered invalid. This value should be identical to the unbonding period.</td><td>True</td></tr>
 <tr><td>consensus.evidence.MaxBytes</td><td>1MB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
 <tr><td>consensus.Version.AppVersion</td><td>1</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
@@ -1976,17 +1976,17 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
 <tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward for proposing a block.</td><td>True</td></tr>
 <tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward for proposers based on the voting power included in the commit.</td><td>True</td></tr>
-<tr><td>gov.DepositParams.MinDeposit</td><td></td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
-<tr><td>gov.DepositParams.MaxDepositPeriod</td><td></td><td>Maximum period for token holders to deposit on a proposal.</td><td>True</td></tr>
-<tr><td>gov.VotingParams.VotingPeriod</td><td></td><td>Duration of the voting period.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.Quorum</td><td>33.4</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.Threshold</td><td>50.0</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.VetoThreshold</td><td>33.4</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
+<tr><td>gov.DepositParams.MinDeposit</td><td>10000000utia</td><td>Minimum deposit for a proposal to enter voting period in seconds.</td><td>True</td></tr>
+<tr><td>gov.DepositParams.MaxDepositPeriod</td><td>172800s</td><td>Maximum period for token holders to deposit on a proposal in seconds.</td><td>True</td></tr>
+<tr><td>gov.VotingParams.VotingPeriod</td><td>172800s</td><td>Duration of the voting period in seconds.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.Quorum</td><td>33.4%</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.Threshold</td><td>50.0%</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.VetoThreshold</td><td>33.4%</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
 <tr><td>slashing.SignedBlocksWindow</td><td>5000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
 <tr><td>slashing.MinSignedPerWindow</td><td>5</td><td>Minumum signatures in the block.</td><td>True</td></tr>
 <tr><td>slashing.DowntimeJailDuration</td><td>10 mins</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
-<tr><td>slashing.SlashFractionDoubleSign</td><td>1/20</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
-<tr><td>slashing.SlashFractionDowntime</td><td>1/100</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDoubleSign</td><td>5.0%</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDowntime</td><td>1.0%</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
 <tr><td>staking.UnbondingTime</td><td>21 days</td><td>Duration of time for unbonding.</td><td>False</td></tr>
 <tr><td>staking.MaxValidators</td><td>100</td><td>Maximum number of validators.</td><td>False</td></tr>
 <tr><td>staking.MaxEntries</td><td>7</td><td>Maximum number of entries in the redelegation queue.</td><td>True</td></tr>
