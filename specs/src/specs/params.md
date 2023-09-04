@@ -31,7 +31,7 @@ are blocked by the `x/paramfilter` module.
 | distribution.WithdrawAddrEnabled | true | Enables delegators to withdraw funds to a different address. | True |
 | distribution.BaseProposerReward | 0 | Reward in the mint demonination for proposing a block. | True |
 | distribution.BonusProposerReward | 0 | Extra reward in the mint denomination for proposers based on the voting power included in the commit. | True |
-| gov.DepositParams.MinDeposit | 10000000utia | Minimum deposit for a proposal to enter voting period in seconds. | True |
+| gov.DepositParams.MinDeposit | 1000000000utia (1000 TIA) | Minimum deposit for a proposal to enter voting period. | True |
 | gov.DepositParams.MaxDepositPeriod | 172800 (2 days) | Maximum period for token holders to deposit on a proposal in seconds. | True |
 | gov.VotingParams.VotingPeriod | 172800 (2 days) | Duration of the voting period in seconds. | True |
 | gov.TallyParams.Quorum | 33.4% | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
@@ -48,3 +48,7 @@ are blocked by the `x/paramfilter` module.
 | staking.HistoricalEntries | 10000 | Number of historical entries to persist in store. | True |
 | staking.BondDenom | utia | Bondable coin denomination. | False |
 | staking.MinCommissionRate | 0.05 (5%) | Minimum commission rate used by all validators. | True |
+| mint.BondDenom | utia | Denomination that is inflated and sent to the distribution module account. | False |
+| mint.InflationRateChange | 10.0% | The rate at which the annual provisions decrease each year. | False |
+| mint.InflationRate | 8.0% | Initial annual inflation rate used to calculate the annual provisions. | False |
+| qgb.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |
