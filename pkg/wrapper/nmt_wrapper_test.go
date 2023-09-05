@@ -1,4 +1,4 @@
-package wrapper
+package wrapper_test
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
@@ -31,7 +32,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tree := NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
+			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
 
 			for _, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
 				err := tree.Push(d)
@@ -48,7 +49,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
 	data := testfactory.GenerateRandNamespacedRawData(size)
-	nmtErasured := NewErasuredNamespacedMerkleTree(uint64(size), 0)
+	nmtErasured := wrapper.NewErasuredNamespacedMerkleTree(uint64(size), 0)
 	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
 	for _, d := range data {
@@ -74,12 +75,12 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 // TestErasuredNamespacedMerkleTreeEmptyRoot checks that the root of an empty erasured NMT is always the same
 func TestErasuredNamespacedMerkleTreeEmptyRoot(t *testing.T) {
 	// set up a first tree with some parameters
-	tree1 := NewErasuredNamespacedMerkleTree(1, 0)
+	tree1 := wrapper.NewErasuredNamespacedMerkleTree(1, 0)
 	r1, err := tree1.Root()
 	assert.NoError(t, err)
 
 	// set up a second tree with different parameters
-	tree2 := NewErasuredNamespacedMerkleTree(2, 1)
+	tree2 := wrapper.NewErasuredNamespacedMerkleTree(2, 1)
 	r2, err := tree2.Root()
 	assert.NoError(t, err)
 
@@ -116,7 +117,7 @@ func TestErasureNamespacedMerkleTreePushErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
+			tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
 			var err error
 			for _, d := range tc.data {
 				err = tree.Push(d)
@@ -131,7 +132,7 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 	// data for a 4X4 square
 	data := testfactory.GenerateRandNamespacedRawData(squareSize * squareSize)
 
-	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
+	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
 	assert.NoError(t, err)
 }
 
@@ -150,7 +151,7 @@ func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]b
 // TestErasuredNamespacedMerkleTree_ProveRange checks that the proof returned by the ProveRange for all the shares within the erasured data is non-empty.
 func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 	for sqaureSize := 1; sqaureSize <= 16; sqaureSize++ {
-		tree := NewErasuredNamespacedMerkleTree(uint64(sqaureSize), 0, nmt.IgnoreMaxNamespace(true))
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqaureSize), 0, nmt.IgnoreMaxNamespace(true))
 		data := generateErasuredData(t, sqaureSize, appconsts.DefaultCodec())
 		for _, d := range data {
 			err := tree.Push(d)

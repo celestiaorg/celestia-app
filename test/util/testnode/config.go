@@ -1,11 +1,11 @@
 package testnode
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -19,15 +19,15 @@ import (
 type Config struct {
 	// ChainID is the chain ID of the network.
 	ChainID string
+	// GenesisTime is the genesis block time of the network.
+	GenesisTime time.Time
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
 	AppConfig *srvconfig.Config
 	// ConsensusParams are the consensus parameters of the test node.
 	ConsensusParams *tmproto.ConsensusParams
-	// AppOptions are the application options of the test node. Portions of the
-	// app config will automatically be set into the app option when the app
-	// config is set.
+	// AppOptions are the application options of the test node.
 	AppOptions *KVAppOptions
 	// GenesisOptions are the genesis options of the test node.
 	GenesisOptions []GenesisOption
@@ -52,13 +52,8 @@ func (c *Config) WithTendermintConfig(conf *tmconfig.Config) *Config {
 }
 
 // WithAppConfig sets the AppConfig and returns the Config.
-//
-// Warning: This method will also overwrite relevant portions of the app config
-// to the app options. See the SetFromAppConfig method for more information on
-// which values are overwritten.
 func (c *Config) WithAppConfig(conf *srvconfig.Config) *Config {
 	c.AppConfig = conf
-	c.AppOptions.SetFromAppConfig(conf)
 	return c
 }
 
@@ -69,9 +64,6 @@ func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 }
 
 // WithAppOptions sets the AppOptions and returns the Config.
-//
-// Warning: If the app config is set after this, it could overwrite some values.
-// See SetFromAppConfig for more information on which values are overwritten.
 func (c *Config) WithAppOptions(opts *KVAppOptions) *Config {
 	c.AppOptions = opts
 	return c
@@ -101,17 +93,30 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
+// WithGensisTime sets the GenesisTime and returns the Config.
+func (c *Config) WithGensisTime(t time.Time) *Config {
+	c.GenesisTime = t
+	return c
+}
+
+// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
+		WithGensisTime(time.Now()).
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
+		WithAppConfig(DefaultAppConfig()).
 		WithConsensusParams(DefaultParams()).
 		WithAppOptions(DefaultAppOptions()).
-		WithAppConfig(DefaultAppConfig()).
 		WithGenesisOptions().
 		WithAppCreator(cmd.NewAppServer).
 		WithSupressLogs(true)
@@ -119,10 +124,6 @@ func DefaultConfig() *Config {
 
 type KVAppOptions struct {
 	options map[string]interface{}
-}
-
-func NewKVAppOptions() *KVAppOptions {
-	return &KVAppOptions{options: make(map[string]interface{})}
 }
 
 // Get implements AppOptions
@@ -135,35 +136,10 @@ func (ao *KVAppOptions) Set(o string, v interface{}) {
 	ao.options[o] = v
 }
 
-// SetMany adds an option to the KVAppOptions
-func (ao *KVAppOptions) SetMany(o map[string]interface{}) {
-	for k, v := range o {
-		ao.Set(k, v)
-	}
-}
-
-func (ao *KVAppOptions) SetFromAppConfig(appCfg *srvconfig.Config) {
-	opts := map[string]interface{}{
-		server.FlagPruning:                     appCfg.Pruning,
-		server.FlagPruningKeepRecent:           appCfg.PruningKeepRecent,
-		server.FlagPruningInterval:             appCfg.PruningInterval,
-		server.FlagMinGasPrices:                appCfg.MinGasPrices,
-		server.FlagMinRetainBlocks:             appCfg.MinRetainBlocks,
-		server.FlagIndexEvents:                 appCfg.IndexEvents,
-		server.FlagStateSyncSnapshotInterval:   appCfg.StateSync.SnapshotInterval,
-		server.FlagStateSyncSnapshotKeepRecent: appCfg.StateSync.SnapshotKeepRecent,
-		server.FlagHaltHeight:                  appCfg.HaltHeight,
-		server.FlagHaltTime:                    appCfg.HaltTime,
-	}
-	ao.SetMany(opts)
-}
-
-// DefaultAppOptions returns the default application options. The options are
-// set using the default app config. If the app config is set after this, it
-// will overwrite these values.
+// DefaultAppOptions returns the default application options.
 func DefaultAppOptions() *KVAppOptions {
-	opts := NewKVAppOptions()
-	opts.SetFromAppConfig(DefaultAppConfig())
+	opts := &KVAppOptions{options: make(map[string]interface{})}
+	opts.Set(server.FlagPruning, pruningtypes.PruningOptionNothing)
 	return opts
 }
 
@@ -176,25 +152,23 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
-	// Reduce the target height duration so that blocks are produced faster
-	// during tests.
-	tmCfg.Consensus.TimeoutCommit = 100 * time.Millisecond
+	// TimeoutCommit is the duration the node waits after committing a block
+	// before starting the next height. This duration influences the time
+	// interval between blocks. A smaller TimeoutCommit value could lead to
+	// less time between blocks (i.e. shorter block intervals).
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	tmCfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	tmCfg.Mempool.MaxTxBytes = upperBoundBytes
 
 	// remove all barriers from the testnode being able to accept very large
 	// transactions and respond to very queries with large responses (~200MB was
 	// chosen only as an arbitrary large number).
 	tmCfg.RPC.MaxBodyBytes = 200_000_000
-
-	// set all the ports to random open ones
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
 	return tmCfg
 }

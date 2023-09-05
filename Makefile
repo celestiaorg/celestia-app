@@ -105,7 +105,7 @@ proto-format:
 ## build-docker: Build the celestia-appd docker image. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
 
 ## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
@@ -135,22 +135,31 @@ fmt:
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
-## test: Run unit tests.
+## test: Run tests.
 test:
-	@echo "--> Running unit tests"
-	@go test ./...
+	@echo "--> Running tests"
+	@go test -timeout 30m ./...
 .PHONY: test
 
-## test-short: Run unit tests in short mode.
+## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
-	@go test ./... -short
+	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-race: Run unit tests in race mode.
+## test-e2e: Run end to end tests via knuu.
+test-e2e:
+	@version=$(git rev-parse --short HEAD)
+	@echo "--> Running e2e tests on version: $version"
+	@KNUU_NAMESPACE=test E2E_VERSION=$version E2E=true go test ./test/e2e/... -timeout 30m
+.PHONY: test-e2e
+
+## test-race: Run tests in race mode.
 test-race:
+# TODO: Remove the -skip flag once the following tests no longer contain data races.
+# https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@VERSION=$(VERSION) go test -race -short ./...
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -164,6 +173,26 @@ test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
+
+## txsim-install: Install the tx simulator.
+txsim-install:
+	@echo "--> Installing tx simulator"
+	@go install $(BUILD_FLAGS) ./test/cmd/txsim
+.PHONY: txsim-install
+
+## txsim-build: Build the tx simulator binary into the ./build directory.
+txsim-build:
+	@echo "--> Building tx simulator"
+	@cd ./test/cmd/txsim
+	@mkdir -p build/
+	@go build $(BUILD_FLAGS) -o build/ ./test/cmd/txsim
+	@go mod tidy
+.PHONY: txsim-build
+
+## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
+txsim-build-docker:
+	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
+.PHONY: txsim-build-docker
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
 adr-gen:

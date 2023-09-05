@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,9 @@ func FuzzSquare(f *testing.F) {
 		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		rand := tmrand.NewRand()
 		rand.Seed(seed)
-		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
+		signer, err := testnode.NewOfflineSigner()
+		require.NoError(t, err)
+		txs := GenerateMixedRandomTxs(t, signer, rand, normalTxCount, pfbCount)
 
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -31,9 +32,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-const (
-	ChainID = "testapp"
-)
+const ChainID = testfactory.ChainID
 
 // Get flags every time the simulator is run
 func init() {
@@ -104,6 +103,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	// commit genesis changes
 	testApp.Commit()
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            ChainID,
 		Height:             testApp.LastBlockHeight() + 1,
 		AppHash:            testApp.LastCommitID().Hash,
 		ValidatorsHash:     valSet.Hash(),
@@ -200,7 +200,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
 	})
 
-	kr, fundedBankAccs, fundedAuthAccs := testfactory.FundKeyringAccounts(genAccounts...)
+	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
 

@@ -3,10 +3,12 @@ package testnode
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -26,7 +28,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
@@ -80,6 +81,7 @@ func InitFiles(
 	genState map[string]json.RawMessage,
 	kr keyring.Keyring,
 	chainID string,
+	genesisTime time.Time,
 ) (string, keyring.Keyring, error) {
 	baseDir, err := initFileStructure(t, tmCfg)
 	if err != nil {
@@ -98,12 +100,12 @@ func InitFiles(
 		return baseDir, kr, err
 	}
 
-	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID)
+	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID, genesisTime)
 	if err != nil {
 		return baseDir, kr, err
 	}
 
-	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir)
+	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, baseDir)
 }
 
 // DefaultGenesisState returns a default genesis state and a keyring with
@@ -114,7 +116,7 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	state := app.ModuleBasics.DefaultGenesis(encCfg.Codec)
 	fundedAccounts = append(fundedAccounts, "validator")
-	kr, bankBals, authAccs := testfactory.FundKeyringAccounts(fundedAccounts...)
+	kr, bankBals, authAccs := FundKeyringAccounts(fundedAccounts...)
 
 	// set the accounts in the genesis state
 	var authGenState authtypes.GenesisState
@@ -154,6 +156,11 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
+	tmCfg := cfg.TmConfig
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+
 	genState, kr, err := DefaultGenesisState(cfg.Accounts...)
 	require.NoError(t, err)
 
@@ -162,19 +169,24 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	}
 
 	chainID := cfg.ChainID
+	genTime := cfg.GenesisTime
 
-	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, cfg.TmConfig, genState, kr, chainID)
+	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID, genTime)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(t, baseDir, cfg)
 	require.NoError(t, err)
 
-	cctx = NewContext(context.TODO(), kr, cfg.TmConfig, chainID)
+	cctx = NewContext(context.TODO(), kr, tmCfg, chainID)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, cfg.AppConfig, cctx)
+	appCfg := cfg.AppConfig
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+
+	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -183,7 +195,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		require.NoError(t, cleanupGRPC())
 	})
 
-	return cctx, cfg.TmConfig.RPC.ListenAddress, cfg.AppConfig.GRPC.Address
+	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
 }
 
 func GetFreePort() int {

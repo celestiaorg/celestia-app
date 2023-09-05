@@ -181,7 +181,10 @@ func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestIntegrationTestSuite(t *testing.T) {
+func TestMintIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestMintIntegrationTestSuite in short mode.")
+	}
 	cfg := appnetwork.DefaultConfig()
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }

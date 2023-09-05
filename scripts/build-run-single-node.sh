@@ -47,4 +47,4 @@ sed -i'.bak' 's#"null"#"kv"#g' ${HOME_DIR}/config/config.toml
 } &
 
 # Start the celestia-app
-${BIN_PATH} start --home ${HOME_DIR}
+${BIN_PATH} start --home ${HOME_DIR} --api.enable

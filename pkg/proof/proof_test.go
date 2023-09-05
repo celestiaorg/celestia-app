@@ -6,10 +6,9 @@ import (
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
@@ -24,8 +23,11 @@ import (
 
 func TestNewTxInclusionProof(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(50, 500).ToSliceOfBytes()
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 50, 1, 500).ToSliceOfBytes()...)
+
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
+
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(signer, tmrand.NewRand(), 50, 1, 500).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 100)
 
 	type test struct {
@@ -95,8 +97,9 @@ func TestNewShareInclusionProof(t *testing.T) {
 	ns2 := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
 	ns3 := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
 
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blobTxs := blobfactory.RandBlobTxsWithNamespaces(encCfg.TxConfig.TxEncoder(), []appns.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
+	signer, err := testnode.NewOfflineSigner()
+	require.NoError(t, err)
+	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []appns.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
@@ -220,4 +223,36 @@ func TestNewShareInclusionProof(t *testing.T) {
 			assert.NoError(t, proof.Validate(dataRoot))
 		})
 	}
+}
+
+// TestAllSharesInclusionProof creates a proof for all shares in the data
+// square. Since we can't prove multiple namespaces at the moment, all the
+// shares use the same namespace.
+func TestAllSharesInclusionProof(t *testing.T) {
+	txs := testfactory.GenerateRandomTxs(243, 500)
+
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, 128)
+	require.NoError(t, err)
+	assert.Equal(t, 256, len(dataSquare))
+
+	// erasure the data square which we use to create the data root.
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	require.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	dataRoot := dah.Hash()
+
+	actualNamespace, err := proof.ParseNamespace(dataSquare, 0, 256)
+	require.NoError(t, err)
+	require.Equal(t, appns.TxNamespace, actualNamespace)
+	proof, err := proof.NewShareInclusionProof(
+		dataSquare,
+		appns.TxNamespace,
+		shares.NewRange(0, 256),
+	)
+	require.NoError(t, err)
+	assert.NoError(t, proof.Validate(dataRoot))
 }

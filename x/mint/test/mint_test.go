@@ -59,7 +59,7 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 
 	initalSupply := s.getTotalSupply(initialHeight)
 
-	_, err = s.cctx.WaitForHeight(laterHeight)
+	_, err = s.cctx.WaitForHeight(laterHeight + 1)
 	require.NoError(err)
 	laterSupply := s.getTotalSupply(laterHeight)
 
@@ -135,7 +135,7 @@ func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeigh
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestIntegrationTestSuite(t *testing.T) {
+func TestMintIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping mint integration test in short mode.")
 	}

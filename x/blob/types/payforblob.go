@@ -21,7 +21,6 @@ import (
 
 const (
 	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
-	ShareSize         = appconsts.ShareSize
 
 	// PFBGasFixedCost is a rough estimate for the "fixed cost" in the gas cost
 	// formula: gas cost = gas per byte * bytes per share * shares occupied by
@@ -58,7 +57,7 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 		return nil, err
 	}
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaceVersions, namespaceIds, sizes, shareVersions := ExtractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
@@ -223,6 +222,10 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		ShareVersion:     uint8(blob.ShareVersion),
 		NamespaceVersion: uint8(blob.NamespaceVersion),
 	}
+	namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
+	if err != nil {
+		return nil, err
+	}
 
 	shares, err := appshares.SplitBlobs(coreblob)
 	if err != nil {
@@ -234,7 +237,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// over that blob. The size of the tree is only increased if the number of
 	// subtree roots surpasses a constant threshold.
 	subTreeWidth := appshares.SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
-	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
+	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
 	}
@@ -251,10 +254,6 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		// create the nmt todo(evan) use nmt wrapper
 		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
-			namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
-			if err != nil {
-				return nil, err
-			}
 			// the namespace must be added again here even though it is already
 			// included in the leaf to ensure that the hash will match that of
 			// the nmt wrapper (pkg/wrapper). Each namespace is added to keep
@@ -323,9 +322,9 @@ func ValidateBlobs(blobs ...*Blob) error {
 	return nil
 }
 
-// extractBlobComponents separates and returns the components of a slice of
+// ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
 	namespaceIds = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
@@ -341,14 +340,13 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, 
 	return namespaceVersions, namespaceIds, sizes, shareVersions
 }
 
-// merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
+// MerkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
 // trees in a merkle mountain range constructed for a given totalSize and
 // maxTreeSize.
 //
 // https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
 // https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
-// TODO: potentially rename function because this doesn't return heights
-func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
+func MerkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 	var treeSizes []uint64
 
 	for totalSize != 0 {

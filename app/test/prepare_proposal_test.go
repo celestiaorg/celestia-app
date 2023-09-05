@@ -30,7 +30,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		encCfg.TxConfig.TxEncoder(),
+		encCfg.TxConfig,
 		kr,
 		testutil.ChainID,
 		accnts[:numBlobTxs],
@@ -47,7 +47,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	normalTxs := testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encCfg.TxConfig.TxEncoder(),
+		encCfg.TxConfig,
 		kr,
 		1000,
 		accnts[0],
@@ -83,7 +83,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// and sequences
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		encConf.TxConfig.TxEncoder(),
+		encConf.TxConfig,
 		kr,
 		testutil.ChainID,
 		accounts[:3],
@@ -100,7 +100,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encConf.TxConfig.TxEncoder(),
+		encConf.TxConfig,
 		kr,
 		1000,
 		accounts[0],
@@ -120,7 +120,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encConf.TxConfig.TxEncoder(),
+		encConf.TxConfig,
 		kr,
 		1000,
 		accounts[0],
@@ -132,7 +132,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	nilAccount := "carmon san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig.TxEncoder(), kr, nilAccount, accounts[0], 1000, "", 0, 6))
+	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
 	type test struct {
 		name      string
@@ -199,7 +199,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {
-		addr := getAddress(acc, kr)
+		addr := testfactory.GetAddress(kr, acc)
 		accI := testutil.DirectQueryAccount(capp, addr)
 		infos[i] = blobfactory.AccountInfo{
 			AccountNum: accI.GetAccountNumber(),

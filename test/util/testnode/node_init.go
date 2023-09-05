@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -24,10 +25,9 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
-func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, chainID, rootDir string) error {
+func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, rootDir string) error {
 	gentxsDir := filepath.Join(rootDir, "gentxs")
 
 	genFile := tmCfg.GenesisFile()
@@ -36,7 +36,7 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 		return err
 	}
 
-	initCfg := genutiltypes.NewInitConfig(chainID, gentxsDir, nodeID, pubKey)
+	initCfg := genutiltypes.NewInitConfig(genDoc.ChainID, gentxsDir, nodeID, pubKey)
 
 	appState, err := genutil.GenAppStateFromConfig(
 		encCfg.Codec,
@@ -51,8 +51,8 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 	}
 
 	genDoc = &types.GenesisDoc{
-		GenesisTime:     tmtime.Now(),
-		ChainID:         chainID,
+		GenesisTime:     genDoc.GenesisTime,
+		ChainID:         genDoc.ChainID,
 		Validators:      nil,
 		AppState:        appState,
 		ConsensusParams: genDoc.ConsensusParams,
@@ -71,6 +71,7 @@ func initGenFiles(
 	_ codec.Codec,
 	file,
 	chainID string,
+	genTime time.Time,
 ) error {
 	appGenStateJSON, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -78,6 +79,7 @@ func initGenFiles(
 	}
 
 	genDoc := types.GenesisDoc{
+		GenesisTime:     genTime,
 		ChainID:         chainID,
 		AppState:        appGenStateJSON,
 		ConsensusParams: cparams,
@@ -87,6 +89,8 @@ func initGenFiles(
 	return genDoc.SaveAs(file)
 }
 
+// createValidator creates a genesis transaction for adding a validator account.
+// The transaction is stored in the `test.json` file under the 'baseDir/gentxs`.
 func createValidator(
 	kr keyring.Keyring,
 	encCfg encoding.Config,

@@ -1,13 +1,16 @@
-package testfactory
+package testnode
 
 import (
 	"context"
 	"encoding/hex"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -15,12 +18,13 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-const (
-	// nolint:lll
-	TestAccName  = "test-account"
-	TestAccMnemo = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	bondDenom    = "utia"
-)
+func TestAddress() sdk.AccAddress {
+	bz, err := sdk.GetFromBech32(testfactory.TestAccAddr, "celestia")
+	if err != nil {
+		panic(err)
+	}
+	return sdk.AccAddress(bz)
+}
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
 	hash, err := hex.DecodeString(hashHexStr)
@@ -36,57 +40,39 @@ func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 	return node.Tx(context.Background(), hash, false)
 }
 
-func GenerateKeyring(accounts ...string) keyring.Keyring {
-	cdc := simapp.MakeTestEncodingConfig().Codec
+func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kb := keyring.NewInMemory(cdc)
 
-	for _, acc := range accounts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
+	addresses := make([]sdk.AccAddress, len(accounts))
+	for idx, acc := range accounts {
+		rec, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
 		if err != nil {
 			panic(err)
 		}
-	}
-
-	_, err := kb.NewAccount(TestAccName, TestAccMnemo, "", "", hd.Secp256k1)
-	if err != nil {
-		panic(err)
-	}
-
-	return kb
-}
-
-func RandomAddress() sdk.Address {
-	name := tmrand.Str(6)
-	kr := GenerateKeyring(name)
-	rec, err := kr.Key(name)
-	if err != nil {
-		panic(err)
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		panic(err)
-	}
-	return addr
-}
-
-func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
-	kr := GenerateKeyring(accounts...)
-	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
-	genBalances := make([]banktypes.Balance, len(accounts))
-
-	for i, acc := range accounts {
-		rec, err := kr.Key(acc)
-		if err != nil {
-			panic(err)
-		}
-
 		addr, err := rec.GetAddress()
 		if err != nil {
 			panic(err)
 		}
+		addresses[idx] = addr
+	}
+	return kb, addresses
+}
 
+func RandomAddress() sdk.Address {
+	name := tmrand.Str(6)
+	_, addresses := NewKeyring(name)
+	return addresses[0]
+}
+
+func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
+	kr, addresses := NewKeyring(accounts...)
+	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
+	genBalances := make([]banktypes.Balance, len(accounts))
+
+	for i, addr := range addresses {
 		balances := sdk.NewCoins(
-			sdk.NewCoin(bondDenom, sdk.NewInt(99999999999999999)),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(99999999999999999)),
 		)
 
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}

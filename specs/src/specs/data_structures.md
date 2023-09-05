@@ -213,7 +213,10 @@ A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Sectio
 
 ### Namespace Merkle Tree
 
+<!-- disable markdown link check for bitcointalk.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
 [Shares](./shares.md) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
+<!-- markdown-link-check-enable -->
 
 Nodes contain three fields:
 
@@ -325,6 +328,8 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
 
+Note that each [share](./shares.md) only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.
+
 Then,
 
 1. For each of `transactionData`, `intermediateStateRootData`, PayForBlob transactions, [serialize](#serialization):
@@ -334,8 +339,6 @@ Then,
     1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
     1. Create a [share](./shares.md) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be set specially.
 1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
-
-Note that by construction, each share only has a single namespace, and that the list of concatenated shares is [lexicographically ordered by namespace ID](consensus.md#reserved-namespace-ids).
 
 These shares are arranged in the [first quadrant](#2d-reed-solomon-encoding-scheme) (`Q0`) of the `availableDataOriginalSquareSize*2 * availableDataOriginalSquareSize*2` available data matrix in _row-major_ order. In the example below, each reserved data element takes up exactly one share.
 
