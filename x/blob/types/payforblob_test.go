@@ -239,7 +239,7 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "invalid namespace version",
 			msg:     invalidNamespaceVersionMsgPayForBlobs(t),
-			wantErr: ErrInvalidNamespaceVersion,
+			wantErr: types.ErrInvalidNamespaceVersion,
 		},
 	}
 
