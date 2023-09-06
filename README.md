@@ -55,7 +55,7 @@ celestia-appd --help
 
 | Variable        | Explanation                        | Default value                                            | Required |
 | --------------- | ---------------------------------- | -------------------------------------------------------- | -------- |
-| `CELESITA_HOME` | Home directory for the application | User home dir. [Ref](https://pkg.go.dev/os#UserHomeDir). | Optional |
+| `CELESTIA_HOME` | Home directory for the application | User home dir. [Ref](https://pkg.go.dev/os#UserHomeDir). | Optional |
 
 ### Create your own single node devnet
 
