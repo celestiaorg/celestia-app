@@ -42,7 +42,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     permissions: "write-all"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Version Release
         uses: celestiaorg/.github/.github/actions/version-release@v0.2.2
         with:

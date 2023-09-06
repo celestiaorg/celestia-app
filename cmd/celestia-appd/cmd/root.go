@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	"github.com/tendermint/tendermint/cmd/cometbft/commands"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -149,6 +150,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		tmcli.NewCompletionCmd(rootCmd, true),
 		debugCmd,
 		config.Cmd(),
+		commands.CompactGoLevelDBCmd,
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
