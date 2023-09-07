@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestParamFilter(t *testing.T) {
@@ -39,23 +40,27 @@ func TestParamFilter(t *testing.T) {
 	})
 
 	t.Run("test that a proposal with an unblocked params is accepted", func(t *testing.T) {
-		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
+		ps := app.StakingKeeper.GetParams(ctx)
+		// Ensure that MaxValidators has not been modified
+		require.Equal(t, stakingtypes.DefaultMaxValidators, ps.MaxValidators)
+
+		newMaxValidators := 1
+		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), fmt.Sprint(newMaxValidators))
+
 		p := testProposal(validChange)
 		err := handler(ctx, p)
 		require.NoError(t, err)
-
-		ps := app.StakingKeeper.GetParams(ctx)
-		require.Equal(t, ps.MaxValidators, uint32(1))
+		require.Equal(t, newMaxValidators, ps.MaxValidators)
 	})
 
 	t.Run("test that a proposal with a blocked param and an unblocked param is rejected", func(t *testing.T) {
 		for _, p := range app.BlockedParams() {
-			originalMaxEntries := stakingtypes.DefaultMaxEntries
-			newMaxEntries := 8
 
 			ps := app.StakingKeeper.GetParams(ctx)
-			require.Equal(t, ps.MaxEntries, originalMaxEntries)
+			// Ensure that MaxEntries has not been modified
+			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
 
+			newMaxEntries := 8
 			validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxEntries), fmt.Sprint(newMaxEntries))
 			invalidChange := proposal.NewParamChange(p[0], p[1], "value")
 
@@ -63,8 +68,17 @@ func TestParamFilter(t *testing.T) {
 			err := handler(ctx, p)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "parameter can not be modified")
-			require.Equal(t, ps.MaxEntries, originalMaxEntries)
+			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
 		}
+	})
+
+	t.Run("test if a consensus param can be updated", func(t *testing.T) {
+		cp := app.GetConsensusParams(ctx)
+		defaultMaxAgeNumBlocks := coretypes.DefaultEvidenceParams().MaxAgeNumBlocks
+		// Ensure that MaxAgeNumBlocks has not been modified
+		require.Equal(t, defaultMaxAgeNumBlocks, cp.Evidence.MaxAgeNumBlocks)
+
+		// newMaxAgeNumBlocks := defaultMaxAgeNumBlocks + 1
 	})
 }
 
