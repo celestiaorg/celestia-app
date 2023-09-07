@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -28,36 +29,43 @@ func TestParamFilter(t *testing.T) {
 	handler := pph.GovHandler(app.ParamsKeeper)
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
-	for _, p := range app.BlockedParams() {
-		p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
+	t.Run("test that a proposal with a blocked param is rejected", func(t *testing.T) {
+		for _, p := range app.BlockedParams() {
+			p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
+			err := handler(ctx, p)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "parameter can not be modified")
+		}
+	})
+
+	t.Run("test that a proposal with an unblocked params is accepted", func(t *testing.T) {
+		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
+		p := testProposal(validChange)
 		err := handler(ctx, p)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "parameter can not be modified")
-	}
-
-	// ensure that we are not filtering out valid proposals
-	validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
-	p := testProposal(validChange)
-	err := handler(ctx, p)
-	require.NoError(t, err)
-
-	ps := app.StakingKeeper.GetParams(ctx)
-	require.Equal(t, ps.MaxValidators, uint32(1))
-
-	// ensure that we're throwing out entire proposals if any of the changes are blocked
-	for _, p := range app.BlockedParams() {
-		// try to set the max validators to 2, unlike above this should fail
-		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "2")
-		invalidChange := proposal.NewParamChange(p[0], p[1], "value")
-		p := testProposal(validChange, invalidChange)
-		err := handler(ctx, p)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "parameter can not be modified")
+		require.NoError(t, err)
 
 		ps := app.StakingKeeper.GetParams(ctx)
 		require.Equal(t, ps.MaxValidators, uint32(1))
+	})
 
-	}
+	t.Run("test that a proposal with a blocked param and an unblocked param is rejected", func(t *testing.T) {
+		for _, p := range app.BlockedParams() {
+			originalMaxEntries := stakingtypes.DefaultMaxEntries
+			newMaxEntries := 8
+
+			ps := app.StakingKeeper.GetParams(ctx)
+			require.Equal(t, ps.MaxEntries, originalMaxEntries)
+
+			validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxEntries), fmt.Sprint(newMaxEntries))
+			invalidChange := proposal.NewParamChange(p[0], p[1], "value")
+
+			p := testProposal(validChange, invalidChange)
+			err := handler(ctx, p)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "parameter can not be modified")
+			require.Equal(t, ps.MaxEntries, originalMaxEntries)
+		}
+	})
 }
 
 func testProposal(changes ...proposal.ParamChange) *proposal.ParameterChangeProposal {
