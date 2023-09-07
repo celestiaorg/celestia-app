@@ -111,6 +111,31 @@ make proto-gen
 make goreleaser-build
 ```
 
+### Publishing a Release
+
+To generate the binaries for the github release, you can run the following command:
+
+```sh
+make goreleaser-release
+```
+
+This will generate the binaries as defined in `.goreleaser.yaml` and put them in `build/goreleaser` like so:
+
+```sh
+build
+└── goreleaser
+    ├── CHANGELOG.md
+    ├── artifacts.json
+    ├── celestia-app_Linux_x86_64.tar.gz
+    ├── celestia-app_linux_amd64_v1
+    │   └── celestia-appd
+    ├── checksums.txt
+    ├── config.yaml
+    └── metadata.json
+```
+
+For the Github release, you just need to upload the `checksum.txt` and `celestia-app_Linux_x86_64.tar.gz` files. 
+
 ### Docs
 
 Package-specific READMEs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
