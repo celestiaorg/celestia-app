@@ -90,6 +90,7 @@ This repo attempts to conform to [conventional commits](https://www.conventional
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
 1. Install [markdown-link-check](https://github.com/tcort/markdown-link-check)
+1. Install [goreleaser](https://goreleaser.com/install/)
 
 ### Helpful Commands
 
@@ -105,6 +106,9 @@ make fmt
 
 # Regenerate Protobuf files (this assumes Docker is running)
 make proto-gen
+
+# Build binaries with goreleaser
+make goreleaser-build
 ```
 
 ### Docs
