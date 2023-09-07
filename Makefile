@@ -199,3 +199,24 @@ adr-gen:
 	@echo "--> Downloading ADR template"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
+
+## goreleaser: list goreleaser options and checks if goreleaser is installed
+goreleaser: Makefile
+	@echo " Choose a goreleaser command to run:"
+	@sed -n 's/^## goreleaser/goreleaser/p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@goreleaser --version
+.PHONY: goreleaser
+
+## goreleaser-build: builds the celestia-appd binary using goreleaser for your
+# local OS
+goreleaser-build:
+	goreleaser build --snapshot --clean --single-target
+.PHONY: goreleaser-build
+
+## goreleaser-release: builds the release celestia-appd binary as defined in
+# .goreleaser.yaml, this requires there be a git tag for the release in the
+# local git history.
+# TODO - update to build the binary that is published with the github release
+goreleaser-release:
+	goreleaser release --clean --fail-fast --skip-publish
+.PHONY: goreleaser-release
