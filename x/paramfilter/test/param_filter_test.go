@@ -80,16 +80,26 @@ func TestParamFilter(t *testing.T) {
 
 		updated := tmproto.EvidenceParams{
 			MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
-			MaxAgeDuration:  defaults.MaxAgeDuration,
+			MaxAgeDuration:  1,
 			MaxBytes:        defaults.MaxBytes,
 		}
 		require.NoError(t, baseapp.ValidateEvidenceParams(updated))
-		validChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), updated.String())
 
+		marshalled, err := app.AppCodec().MarshalJSON(&updated)
+		require.NoError(t, err)
+
+		// Ensure that marshalling to and from JSON works. This is important
+		// because later on this test fails due to a JSON unmarshalling error.
+		unmarshalled := &tmproto.EvidenceParams{}
+		app.AppCodec().MustUnmarshalJSON(marshalled, unmarshalled)
+		require.Equal(t, updated, *unmarshalled)
+		fmt.Printf("unmarshalled %v\n", unmarshalled)
+
+		validChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), string(marshalled))
 		p := testProposal(validChange)
-		err := handler(ctx, p)
 
-		require.NoError(t, err) // fails with: key: EvidenceParams, value: max_age_num_blocks:100001 max_age_duration:<seconds:172800 > max_bytes:1048576 , err: invalid character 'm' looking for beginning of value: failed to set parameter
+		err = handler(ctx, p)   // key: EvidenceParams, value: {"max_age_num_blocks":"100001","max_age_duration":"0.000000001s","max_bytes":"1048576"}, err: invalid character 's' after top-level value: failed to set parameter
+		require.NoError(t, err) // Test fails here because error above.
 		require.Equal(t, updated, app.GetConsensusParams(ctx).Evidence)
 	})
 }

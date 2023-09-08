@@ -8,6 +8,7 @@ coverage.txt
 .vscode
 tools-stamp
 __debug_bin
+__debug_bin*
 profile.out
 tmp/
 run.sh
