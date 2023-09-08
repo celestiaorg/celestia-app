@@ -213,7 +213,6 @@ goreleaser-build:
 .PHONY: goreleaser-build
 
 ## goreleaser-release: Builds the release celestia-appd binary as defined in .goreleaser.yaml. This requires there be a git tag for the release in the local git history.
-# TODO: update to build the binary that is published with the Github release.
 goreleaser-release:
 	goreleaser release --clean --fail-fast --skip-publish
 .PHONY: goreleaser-release
