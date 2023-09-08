@@ -44,6 +44,10 @@ node            |  |                               |  |
     make install
     ```
 
+### Ledger Support
+
+Ledger is not supported on Windows and OpenBSD.
+
 ## Usage
 
 ```sh
