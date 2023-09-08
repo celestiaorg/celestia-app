@@ -39,6 +39,51 @@ func TestParamFilter(t *testing.T) {
 		}
 	})
 
+	t.Run("test that a proposal with another blocked param (validator consensus params) is rejected", func(t *testing.T) {
+		defaults := app.DefaultConsensusParams().Validator
+		// Ensure that the validator params haven't been modified yet
+		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Validator)
+
+		updated := tmproto.ValidatorParams{
+			PubKeyTypes: []string{"foo"},
+		}
+		marshalled := testApp.AppCodec().MustMarshalJSON(&updated)
+		invalidChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams), string(marshalled))
+
+		p := testProposal(invalidChange)
+		err := handler(ctx, p)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parameter can not be modified")
+
+		// Ensure that the validator params still haven't been modified
+		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Validator)
+	})
+
+	t.Run("test that another proposal with a blocked param (evidence consensus params) is rejected", func(t *testing.T) {
+		defaults := coretypes.DefaultEvidenceParams()
+		// Ensure that the evidence params haven't been modified yet
+		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
+
+		updated := tmproto.EvidenceParams{
+			MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
+			MaxAgeDuration:  1,
+			MaxBytes:        defaults.MaxBytes,
+		}
+		require.NoError(t, baseapp.ValidateEvidenceParams(updated))
+
+		marshalled, err := testApp.AppCodec().MarshalJSON(&defaults)
+		require.NoError(t, err)
+
+		invalidChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), string(marshalled))
+		p := testProposal(invalidChange)
+		err = handler(ctx, p)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parameter can not be modified")
+
+		// Ensure that the evidence params still haven't been modified
+		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
+	})
+
 	t.Run("test that a proposal with an unblocked params is accepted", func(t *testing.T) {
 		ps := testApp.StakingKeeper.GetParams(ctx)
 		// Ensure that MaxValidators has not been modified
@@ -69,53 +114,6 @@ func TestParamFilter(t *testing.T) {
 			require.Contains(t, err.Error(), "parameter can not be modified")
 			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
 		}
-	})
-
-	t.Run("test if evidence params can be updated", func(t *testing.T) {
-		defaults := coretypes.DefaultEvidenceParams()
-
-		// Ensure that the evidence params haven't been modified yet
-		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
-
-		// updated := tmproto.EvidenceParams{
-		// 	MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
-		// 	MaxAgeDuration:  1,
-		// 	MaxBytes:        defaults.MaxBytes,
-		// }
-		// require.NoError(t, baseapp.ValidateEvidenceParams(updated))
-
-		marshalled, err := testApp.AppCodec().MarshalJSON(&defaults)
-		require.NoError(t, err)
-
-		// Ensure that marshalling to and from JSON works. This is important
-		// because later on this test fails due to a JSON unmarshalling error.
-		unmarshalled := &tmproto.EvidenceParams{}
-		testApp.AppCodec().MustUnmarshalJSON(marshalled, unmarshalled)
-		require.Equal(t, defaults, *unmarshalled)
-		fmt.Printf("unmarshalled %v\n", unmarshalled)
-
-		validChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), string(marshalled))
-		p := testProposal(validChange)
-
-		err = handler(ctx, p)   // key: EvidenceParams, value: {"max_age_num_blocks":"100001","max_age_duration":"0.000000001s","max_bytes":"1048576"}, err: invalid character 's' after top-level value: failed to set parameter
-		require.NoError(t, err) // Test fails here because error above.
-		require.Equal(t, defaults, testApp.GetConsensusParams(ctx).Evidence)
-	})
-
-	t.Run("test if other consensus params can be modified", func(t *testing.T) {
-		defaults := app.DefaultConsensusParams().Validator
-		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Validator)
-
-		updated := tmproto.ValidatorParams{
-			PubKeyTypes: []string{"foo"},
-		}
-		marshalled := testApp.AppCodec().MustMarshalJSON(&updated)
-		validChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams), string(marshalled))
-
-		p := testProposal(validChange)
-		err := handler(ctx, p)
-		require.NoError(t, err)
-		require.Equal(t, updated, *testApp.GetConsensusParams(ctx).Validator)
 	})
 }
 

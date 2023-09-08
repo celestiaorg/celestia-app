@@ -720,8 +720,10 @@ func (*App) BlockedParams() [][2]string {
 		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
 		// staking.BondDenom
 		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
-		// consensus.validator.PubKeyTypes
-		// {baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+		// consensus.validator.ValidatorParams
+		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+		// consensus.evidence.EvidenceParams
+		{baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams)},
 	}
 }
 
