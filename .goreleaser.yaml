@@ -4,8 +4,8 @@
 # NOTE: CGO is required for ledger support to work, however goreleaser
 # technically doesn't support CGO. But it seems to work so that's cool. This
 # only seems to work because we are building for a single binary. Cross
-# compiling binaries for multiple distributions might be problematic and a
-# proper workaround might be needed.
+# compiling binaries for multiple distributions doesn't work and a proper
+# workaround will be needed.
 #
 # REF: https://goreleaser.com/limitations/cgo/
 

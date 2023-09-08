@@ -113,6 +113,8 @@ make goreleaser-build
 
 ### Publishing a Release
 
+> **NOTE** Due to `goreleaser`'s CGO limitations, cross-compiling the binary does not work. So the binaries must be built on the target platform. This means that the release process must be done on a Linux amd64 machine.
+
 To generate the binaries for the Github release, you can run the following command:
 
 ```sh
