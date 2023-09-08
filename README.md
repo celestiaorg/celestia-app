@@ -113,7 +113,7 @@ make goreleaser-build
 
 ### Publishing a Release
 
-To generate the binaries for the github release, you can run the following command:
+To generate the binaries for the Github release, you can run the following command:
 
 ```sh
 make goreleaser-release
@@ -134,7 +134,7 @@ build
     └── metadata.json
 ```
 
-For the Github release, you just need to upload the `checksum.txt` and `celestia-app_Linux_x86_64.tar.gz` files. 
+For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files. 
 
 ### Docs
 
