@@ -13,7 +13,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -30,7 +29,7 @@ func TestParamFilter(t *testing.T) {
 	}
 
 	handler := pph.GovHandler(app.ParamsKeeper)
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{}, false, tmlog.NewNopLogger())
 
 	t.Run("test that a proposal with a blocked param is rejected", func(t *testing.T) {
 		for _, p := range app.BlockedParams() {
@@ -73,7 +72,7 @@ func TestParamFilter(t *testing.T) {
 		}
 	})
 
-	t.Run("test if a consensus params can be updated", func(t *testing.T) {
+	t.Run("test if evidence params can be updated", func(t *testing.T) {
 		defaults := coretypes.DefaultEvidenceParams()
 
 		// Ensure that the evidence params haven't been modified yet
