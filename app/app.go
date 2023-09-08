@@ -721,7 +721,7 @@ func (*App) BlockedParams() [][2]string {
 		// staking.BondDenom
 		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
 		// consensus.validator.PubKeyTypes
-		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+		// {baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
 	}
 }
 
