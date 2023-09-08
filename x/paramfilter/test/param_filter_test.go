@@ -7,12 +7,14 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -55,7 +57,6 @@ func TestParamFilter(t *testing.T) {
 
 	t.Run("test that a proposal with a blocked param and an unblocked param is rejected", func(t *testing.T) {
 		for _, p := range app.BlockedParams() {
-
 			ps := app.StakingKeeper.GetParams(ctx)
 			// Ensure that MaxEntries has not been modified
 			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
@@ -72,13 +73,25 @@ func TestParamFilter(t *testing.T) {
 		}
 	})
 
-	t.Run("test if a consensus param can be updated", func(t *testing.T) {
-		cp := app.GetConsensusParams(ctx)
-		defaultMaxAgeNumBlocks := coretypes.DefaultEvidenceParams().MaxAgeNumBlocks
-		// Ensure that MaxAgeNumBlocks has not been modified
-		require.Equal(t, defaultMaxAgeNumBlocks, cp.Evidence.MaxAgeNumBlocks)
+	t.Run("test if a consensus params can be updated", func(t *testing.T) {
+		defaults := coretypes.DefaultEvidenceParams()
 
-		// newMaxAgeNumBlocks := defaultMaxAgeNumBlocks + 1
+		// Ensure that the evidence params haven't been modified yet
+		require.Equal(t, defaults, *app.GetConsensusParams(ctx).Evidence)
+
+		updated := tmproto.EvidenceParams{
+			MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
+			MaxAgeDuration:  defaults.MaxAgeDuration,
+			MaxBytes:        defaults.MaxBytes,
+		}
+		require.NoError(t, baseapp.ValidateEvidenceParams(updated))
+		validChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), updated.String())
+
+		p := testProposal(validChange)
+		err := handler(ctx, p)
+
+		require.NoError(t, err) // fails with: key: EvidenceParams, value: max_age_num_blocks:100001 max_age_duration:<seconds:172800 > max_bytes:1048576 , err: invalid character 'm' looking for beginning of value: failed to set parameter
+		require.Equal(t, updated, app.GetConsensusParams(ctx).Evidence)
 	})
 }
 
