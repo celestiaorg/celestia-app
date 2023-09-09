@@ -85,17 +85,16 @@ func TestParamFilter(t *testing.T) {
 	})
 
 	t.Run("test that a proposal with an unblocked params is accepted", func(t *testing.T) {
-		ps := testApp.StakingKeeper.GetParams(ctx)
 		// Ensure that MaxValidators has not been modified
-		require.Equal(t, stakingtypes.DefaultMaxValidators, ps.MaxValidators)
+		require.Equal(t, stakingtypes.DefaultMaxValidators, testApp.StakingKeeper.GetParams(ctx).MaxValidators)
 
-		newMaxValidators := 1
+		newMaxValidators := uint32(1)
 		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), fmt.Sprint(newMaxValidators))
 
 		p := testProposal(validChange)
 		err := handler(ctx, p)
 		require.NoError(t, err)
-		require.Equal(t, newMaxValidators, ps.MaxValidators)
+		require.Equal(t, newMaxValidators, testApp.StakingKeeper.GetParams(ctx).MaxValidators)
 	})
 
 	t.Run("test that a proposal with a blocked param and an unblocked param is rejected", func(t *testing.T) {
