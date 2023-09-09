@@ -70,7 +70,7 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
 
-## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
+## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
