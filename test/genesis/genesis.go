@@ -37,14 +37,14 @@ type Genesis struct {
 	kr keyring.Keyring
 
 	// accounts are the genesis accounts that will be included in the genesis.
-	accounts []GenesisAccount
+	accounts []Account
 	// validators are the validators of the network. Note that each validator
 	// also has a genesis account.
 	validators []Validator
 	// genTxs are the genesis transactions that will be included in the genesis.
 	// Transactions are generated upon adding a validator to the genesis.
 	genTxs []sdk.Tx
-	genOps []GenesisOption
+	genOps []Modifier
 }
 
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
@@ -56,12 +56,12 @@ func NewDefaultGenesis() *Genesis {
 		ChainID:         tmrand.Str(6),
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(ecfg.Codec),
-		genOps:          []GenesisOption{},
+		genOps:          []Modifier{},
 	}
 	return g
 }
 
-func (g *Genesis) WithGenesisOptions(ops ...GenesisOption) *Genesis {
+func (g *Genesis) WithModifiers(ops ...Modifier) *Genesis {
 	g.genOps = append(g.genOps, ops...)
 	return g
 }
@@ -91,9 +91,9 @@ func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	return g
 }
 
-func (g *Genesis) WithAccounts(accs ...GenesisAccount) *Genesis {
+func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
 	for _, acc := range accs {
-		err := g.AddGenesisAccount(acc)
+		err := g.AddAccount(acc)
 		if err != nil {
 			panic(err)
 		}
@@ -101,7 +101,7 @@ func (g *Genesis) WithAccounts(accs ...GenesisAccount) *Genesis {
 	return g
 }
 
-func (g *Genesis) AddGenesisAccount(acc GenesisAccount) error {
+func (g *Genesis) AddAccount(acc Account) error {
 	_, err := g.kr.Key(acc.Name)
 	if err == nil {
 		return fmt.Errorf("account with name %s already exists", acc.Name)
@@ -123,7 +123,7 @@ func (g *Genesis) AddValidator(val Validator) error {
 	}
 
 	// Add the validator's genesis account
-	if err := g.AddGenesisAccount(val.GenesisAccount); err != nil {
+	if err := g.AddAccount(val.Account); err != nil {
 		return err
 	}
 
@@ -139,12 +139,12 @@ func (g *Genesis) AddValidator(val Validator) error {
 	return nil
 }
 
-func (g *Genesis) GenesisAccounts() []GenesisAccount {
+func (g *Genesis) Accounts() []Account {
 	return g.accounts
 }
 
 // genAccountsToSDKTypes converts the genesis accounts to native SDK types.
-func genAccountsToSDKTypes(kr keyring.Keyring, accs []GenesisAccount) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
+func genAccountsToSDKTypes(kr keyring.Keyring, accs []Account) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
 	genBals := make([]banktypes.Balance, len(accs))
 	genAccs := make([]authtypes.GenesisAccount, len(accs))
 	hasMap := make(map[string]bool)
@@ -184,7 +184,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	bankGenState := banktypes.DefaultGenesisState()
 	genutilGenState := genutiltypes.DefaultGenesisState()
 
-	genBals, genAccs, err := genAccountsToSDKTypes(g.kr, g.GenesisAccounts())
+	genBals, genAccs, err := genAccountsToSDKTypes(g.kr, g.Accounts())
 	if err != nil {
 		return nil, err
 	}

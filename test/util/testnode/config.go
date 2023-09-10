@@ -76,17 +76,17 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	return c
 }
 
-// WithGenesisAccounts sets the genesis accounts and returns the Config.
+// WithAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithAccounts(
-		genesis.NewGenesisAccounts(999999999999999999, accounts...)...,
+		genesis.NewAccounts(999999999999999999, accounts...)...,
 	)
 	return c
 }
 
-// WithGenesisOptions sets the genesis options and returns the Config.
-func (c *Config) WithGenesisOptions(ops ...genesis.GenesisOption) *Config {
-	c.Genesis = c.Genesis.WithGenesisOptions(ops...)
+// WithModifiers sets the genesis options and returns the Config.
+func (c *Config) WithModifiers(ops ...genesis.Modifier) *Config {
+	c.Genesis = c.Genesis.WithModifiers(ops...)
 	return c
 }
 
@@ -118,7 +118,7 @@ func DefaultConfig() *Config {
 				WithChainID(tmrand.Str(6)).
 				WithGenesisTime(time.Now()).
 				WithConsensusParams(DefaultParams()).
-				WithGenesisOptions().
+				WithModifiers().
 				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
 		).
 		WithTendermintConfig(DefaultTendermintConfig()).

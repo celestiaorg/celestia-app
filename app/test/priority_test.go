@@ -54,7 +54,7 @@ func (s *PriorityTestSuite) SetupSuite() {
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	for _, acc := range cfg.Genesis.GenesisAccounts() {
+	for _, acc := range cfg.Genesis.Accounts() {
 		addr := testfactory.GetAddress(s.cctx.Keyring, acc.Name)
 		signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 		signer.SetPollTime(time.Millisecond * 300)

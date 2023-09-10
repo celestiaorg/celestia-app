@@ -67,7 +67,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 	cfg := testnode.DefaultConfig().
 		WithConsensusParams(cparams).
 		WithFundedAccounts(testfactory.TestAccName).
-		WithGenesisOptions(
+		WithModifiers(
 			genesis.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))),
 		)
 

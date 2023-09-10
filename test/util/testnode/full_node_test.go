@@ -47,7 +47,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cfg := DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithGenesisOptions(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
+		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx

@@ -19,7 +19,7 @@ func TestQGBRPCQueries(t *testing.T) {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	cfg := testnode.DefaultConfig().WithGenesisOptions(genesis.SetDataCommitmentWindow(ecfg.Codec, 100))
+	cfg := testnode.DefaultConfig().WithModifiers(genesis.SetDataCommitmentWindow(ecfg.Codec, 100))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 

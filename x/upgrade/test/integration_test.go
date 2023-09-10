@@ -62,7 +62,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
 		WithTendermintConfig(tmCfg).
-		WithGenesisOptions(genesis.ImmediateProposals(s.ecfg.Codec))
+		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 

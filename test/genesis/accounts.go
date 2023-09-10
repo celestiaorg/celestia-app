@@ -15,15 +15,15 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 )
 
-type GenesisAccount struct {
+type Account struct {
 	Name          string
 	InitialTokens int64
 }
 
-func NewGenesisAccounts(initBal int64, names ...string) []GenesisAccount {
-	accounts := make([]GenesisAccount, len(names))
+func NewAccounts(initBal int64, names ...string) []Account {
+	accounts := make([]Account, len(names))
 	for i, name := range names {
-		accounts[i] = GenesisAccount{
+		accounts[i] = Account{
 			Name:          name,
 			InitialTokens: initBal,
 		}
@@ -31,7 +31,7 @@ func NewGenesisAccounts(initBal int64, names ...string) []GenesisAccount {
 	return accounts
 }
 
-func (ga *GenesisAccount) ValidateBasic() error {
+func (ga *Account) ValidateBasic() error {
 	if ga.Name == "" {
 		return fmt.Errorf("name cannot be empty")
 	}
@@ -42,7 +42,7 @@ func (ga *GenesisAccount) ValidateBasic() error {
 }
 
 type Validator struct {
-	GenesisAccount
+	Account
 	Stake int64
 
 	// ConsensusKey is the key used by the validator to sign votes.
@@ -53,7 +53,7 @@ type Validator struct {
 func NewDefaultValidator(name string) Validator {
 	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 	return Validator{
-		GenesisAccount: GenesisAccount{
+		Account: Account{
 			Name:          name,
 			InitialTokens: 999_999_999_999_999_999,
 		},
@@ -65,7 +65,7 @@ func NewDefaultValidator(name string) Validator {
 
 // ValidateBasic performs stateless validation on the validitor
 func (v *Validator) ValidateBasic() error {
-	if err := v.GenesisAccount.ValidateBasic(); err != nil {
+	if err := v.Account.ValidateBasic(); err != nil {
 		return err
 	}
 	if v.Stake <= 0 {
