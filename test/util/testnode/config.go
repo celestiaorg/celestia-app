@@ -163,7 +163,6 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// interval between blocks. A smaller TimeoutCommit value could lead to
 	// less time between blocks (i.e. shorter block intervals).
 	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
-	tmCfg.Consensus.TimeoutPropose = 300 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
