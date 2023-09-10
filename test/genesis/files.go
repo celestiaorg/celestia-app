@@ -38,22 +38,25 @@ func InitFiles(
 	if err != nil {
 		return "", err
 	}
-	gDoc.SaveAs(tmCfg.GenesisFile())
+	err = gDoc.SaveAs(tmCfg.GenesisFile())
+	if err != nil {
+		return "", err
+	}
 
 	pvStateFile := tmCfg.PrivValidatorStateFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
-		return basePath, err
+		return "", err
 	}
 	pvKeyFile := tmCfg.PrivValidatorKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
-		return basePath, err
+		return "", err
 	}
 	filePV := privval.NewFilePV(val.ConsensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 
 	nodeKeyFile := tmCfg.NodeKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
-		return basePath, err
+		return "", err
 	}
 	nodeKey := &p2p.NodeKey{
 		PrivKey: val.NetworkKey,

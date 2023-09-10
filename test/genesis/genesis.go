@@ -83,14 +83,20 @@ func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
 
 func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	for _, val := range vals {
-		g.AddValidator(val)
+		err := g.AddValidator(val)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return g
 }
 
 func (g *Genesis) WithAccounts(accs ...GenesisAccount) *Genesis {
 	for _, acc := range accs {
-		g.AddGenesisAccount(acc)
+		err := g.AddGenesisAccount(acc)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return g
 }
