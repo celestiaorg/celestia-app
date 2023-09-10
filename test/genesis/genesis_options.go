@@ -17,7 +17,7 @@ import (
 
 // Modifier allows for arbitrary changes to be made on the genesis state
 // after initial accounts have been added. It accepts the genesis state as input
-// and is expected to return the modifed genesis as output.
+// and is expected to return the modified genesis as output.
 type Modifier func(state map[string]json.RawMessage) map[string]json.RawMessage
 
 // SetBlobParams will set the provided blob params as genesis state.

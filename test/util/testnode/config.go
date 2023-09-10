@@ -76,7 +76,7 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	return c
 }
 
-// WithAccounts sets the genesis accounts and returns the Config.
+// WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithAccounts(
 		genesis.NewAccounts(999999999999999999, accounts...)...,
