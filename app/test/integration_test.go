@@ -60,7 +60,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts[i] = tmrand.Str(20)
 	}
 
-	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 

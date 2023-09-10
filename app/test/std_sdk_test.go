@@ -51,14 +51,14 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
 
-	accounts := make([]string, 300)
+	accounts := make([]string, 35)
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
 
-	cfg := testnode.DefaultConfig().WithAccounts(accounts)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	s.accounts = cfg.Accounts
+	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
 }
@@ -136,10 +136,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := stakingtypes.NewMsgCreateValidator(
 					valopAddr,
 					pv.PrivKey.PubKey(),
-					sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)),
+					sdk.NewCoin(app.BondDenom, sdk.NewInt(1)),
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
 					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
-					sdk.NewInt(1000000),
+					sdk.NewInt(1),
 				)
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account

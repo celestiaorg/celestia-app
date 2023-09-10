@@ -2,19 +2,33 @@ package genesis
 
 import (
 	"fmt"
+	mrand "math/rand"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/tendermint/tendermint/crypto"
 )
 
 type GenesisAccount struct {
 	Name          string
 	InitialTokens int64
+}
+
+func NewGenesisAccounts(initBal int64, names ...string) []GenesisAccount {
+	accounts := make([]GenesisAccount, len(names))
+	for i, name := range names {
+		accounts[i] = GenesisAccount{
+			Name:          name,
+			InitialTokens: initBal,
+		}
+	}
+	return accounts
 }
 
 func (ga *GenesisAccount) ValidateBasic() error {
@@ -32,7 +46,21 @@ type Validator struct {
 	Stake int64
 
 	// ConsensusKey is the key used by the validator to sign votes.
-	ConsensusKey cryptotypes.PrivKey
+	ConsensusKey crypto.PrivKey
+	NetworkKey   crypto.PrivKey
+}
+
+func NewDefaultValidator(name string) Validator {
+	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+	return Validator{
+		GenesisAccount: GenesisAccount{
+			Name:          name,
+			InitialTokens: 999_999_999_999_999_999,
+		},
+		Stake:        99_999_999_999_999_999, // save some tokens for fees
+		ConsensusKey: GenerateEd25519(NewSeed(r)),
+		NetworkKey:   GenerateEd25519(NewSeed(r)),
+	}
 }
 
 // ValidateBasic performs stateless validation on the validitor
@@ -70,13 +98,18 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
+	pk, err := cryptocodec.FromTmPubKeyInterface(v.ConsensusKey.PubKey())
+	if err != nil {
+		return nil, fmt.Errorf("converting public key for node %s: %w", v.Name, err)
+	}
+
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
 		sdk.ValAddress(addr),
-		v.ConsensusKey.PubKey(),
+		pk,
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
 		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
-		sdk.OneInt(),
+		sdk.NewInt(v.Stake/2),
 	)
 	if err != nil {
 		return nil, err

@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -59,9 +60,9 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	tmCfg.Consensus.TimeoutCommit = 3 * time.Second
 
 	cfg := testnode.DefaultConfig().
-		WithAccounts(accounts).
+		WithFundedAccounts(accounts...).
 		WithTendermintConfig(tmCfg).
-		WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
+		WithGenesisOptions(genesis.ImmediateProposals(s.ecfg.Codec))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 

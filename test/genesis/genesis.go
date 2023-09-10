@@ -1,4 +1,4 @@
-package testground
+package genesis
 
 import (
 	"encoding/json"
@@ -8,15 +8,13 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -25,17 +23,18 @@ import (
 // to be used as the first step to any test that requires a network.
 type Genesis struct {
 	ecfg encoding.Config
+	// ConsensusParams are the consensus parameters of the network.
+	ConsensusParams *tmproto.ConsensusParams
+	// ChainID is the chain ID of the network.
+	ChainID string
+	// GenesisTime is the genesis time of the network.
+	GenesisTime time.Time
 
 	// kr is the keyring used to generate the genesis accounts and validators.
 	// Transaction keys for all genesis accounts are stored in this keyring and
 	// are indexed by account name. Public keys and addresses can be derived
 	// from those keys using the existing keyring API.
 	kr keyring.Keyring
-
-	// ChainID is the chain ID of the network.
-	ChainID string
-	// GenesisTime is the genesis time of the network.
-	GenesisTime time.Time
 
 	// accounts are the genesis accounts that will be included in the genesis.
 	accounts []GenesisAccount
@@ -45,16 +44,66 @@ type Genesis struct {
 	// genTxs are the genesis transactions that will be included in the genesis.
 	// Transactions are generated upon adding a validator to the genesis.
 	genTxs []sdk.Tx
+	genOps []GenesisOption
+}
 
-	// ConsensusParams are the consensus parameters of the network.
-	ConsensusParams *tmproto.ConsensusParams
+// NewDefaultGenesis creates a new default genesis with no accounts or validators.
+func NewDefaultGenesis() *Genesis {
+	ecfg := encoding.MakeConfig(app.ModuleBasics)
+	g := &Genesis{
+		ecfg:            ecfg,
+		ConsensusParams: DefaultConsensusParams(),
+		ChainID:         tmrand.Str(6),
+		GenesisTime:     time.Now(),
+		kr:              keyring.NewInMemory(ecfg.Codec),
+		genOps:          []GenesisOption{},
+	}
+	return g
+}
+
+func (g *Genesis) WithGenesisOptions(ops ...GenesisOption) *Genesis {
+	g.genOps = append(g.genOps, ops...)
+	return g
+}
+
+func (g *Genesis) WithConsensusParams(params *tmproto.ConsensusParams) *Genesis {
+	g.ConsensusParams = params
+	return g
+}
+
+func (g *Genesis) WithChainID(chainID string) *Genesis {
+	g.ChainID = chainID
+	return g
+}
+
+func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
+	g.GenesisTime = genesisTime
+	return g
+}
+
+func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
+	for _, val := range vals {
+		g.AddValidator(val)
+	}
+	return g
+}
+
+func (g *Genesis) WithAccounts(accs ...GenesisAccount) *Genesis {
+	for _, acc := range accs {
+		g.AddGenesisAccount(acc)
+	}
+	return g
 }
 
 func (g *Genesis) AddGenesisAccount(acc GenesisAccount) error {
+	_, err := g.kr.Key(acc.Name)
+	if err == nil {
+		return fmt.Errorf("account with name %s already exists", acc.Name)
+	}
 	if err := acc.ValidateBasic(); err != nil {
 		return err
 	}
-	_, _, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+	_, _, err = g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		return err
 	}
@@ -84,39 +133,40 @@ func (g *Genesis) AddValidator(val Validator) error {
 	return nil
 }
 
-// GenesisAccounts returns the genesis accounts of the network. This includes
-// the genesis accounts in the validators.
 func (g *Genesis) GenesisAccounts() []GenesisAccount {
-	accs := make([]GenesisAccount, len(g.accounts)+len(g.validators))
-	for i, acc := range g.accounts {
-		accs[i] = acc
-	}
-	for i, val := range g.validators {
-		accs[i+len(g.accounts)] = val.GenesisAccount
-	}
-	return accs
+	return g.accounts
 }
 
 // genAccountsToSDKTypes converts the genesis accounts to native SDK types.
 func genAccountsToSDKTypes(kr keyring.Keyring, accs []GenesisAccount) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
 	genBals := make([]banktypes.Balance, len(accs))
 	genAccs := make([]authtypes.GenesisAccount, len(accs))
+	hasMap := make(map[string]bool)
 	for i, acc := range accs {
 		rec, err := kr.Key(acc.Name)
 		if err != nil {
 			return nil, nil, err
 		}
+
 		addr, err := rec.GetAddress()
 		if err != nil {
 			return nil, nil, err
 		}
+
+		if hasMap[addr.String()] {
+			return nil, nil, fmt.Errorf("duplicate account address %s", addr)
+		}
+		hasMap[addr.String()] = true
+
 		pubKey, err := rec.GetPubKey()
 		if err != nil {
 			return nil, nil, err
 		}
+
 		balances := sdk.NewCoins(
 			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(acc.InitialTokens)),
 		)
+
 		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 		genAccs[i] = authtypes.NewBaseAccount(addr, pubKey, uint64(i), 0)
 	}
@@ -139,6 +189,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	}
 	authGenState.Accounts = append(authGenState.Accounts, accounts...)
 	bankGenState.Balances = append(bankGenState.Balances, genBals...)
+	bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
 
 	for _, genTx := range g.genTxs {
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
@@ -165,6 +216,10 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	state[banktypes.ModuleName] = g.ecfg.Codec.MustMarshalJSON(bankGenState)
 	state[genutiltypes.ModuleName] = g.ecfg.Codec.MustMarshalJSON(genutilGenState)
 
+	for _, option := range g.genOps {
+		state = option(state)
+	}
+
 	stateBz, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return nil, err
@@ -185,95 +240,22 @@ func (g *Genesis) Keyring() keyring.Keyring {
 	return g.kr
 }
 
-type GenesisAccount struct {
-	Name          string
-	InitialTokens int64
+func (g *Genesis) Validators() []Validator {
+	return g.validators
 }
 
-func (ga *GenesisAccount) ValidateBasic() error {
-	if ga.Name == "" {
-		return fmt.Errorf("name cannot be empty")
+// Validator returns the validator at the given index. False is returned if the
+// index is out of bounds.
+func (g *Genesis) Validator(i int) (Validator, bool) {
+	if i < len(g.validators) {
+		return g.validators[i], true
 	}
-	if ga.InitialTokens <= 0 {
-		return fmt.Errorf("initial tokens must be positive")
-	}
-	return nil
+	return Validator{}, false
 }
 
-type Validator struct {
-	GenesisAccount
-	Stake int64
-
-	// ConsensusKey is the key used by the validator to sign votes.
-	ConsensusKey cryptotypes.PrivKey
-}
-
-// ValidateBasic performs stateless validation on the validitor
-func (v *Validator) ValidateBasic() error {
-	if err := v.GenesisAccount.ValidateBasic(); err != nil {
-		return err
-	}
-	if v.Stake <= 0 {
-		return fmt.Errorf("stake must be positive")
-	}
-	if v.ConsensusKey == nil {
-		return fmt.Errorf("consensus key cannot be empty")
-	}
-	if v.Stake > v.InitialTokens {
-		return fmt.Errorf("stake cannot be greater than initial tokens")
-	}
-	return nil
-}
-
-// GenTx generates a genesis transaction to create a validator as configured by
-// the validator struct. It assumes the validator's genesis account has already
-// been added to the keyring and that the sequence for that account is 0.
-func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID string) (sdk.Tx, error) {
-	rec, err := kr.Key(v.Name)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		return nil, err
-	}
-
-	commission, err := sdk.NewDecFromStr("0.5")
-	if err != nil {
-		return nil, err
-	}
-
-	createValMsg, err := stakingtypes.NewMsgCreateValidator(
-		sdk.ValAddress(addr),
-		v.ConsensusKey.PubKey(),
-		sdk.NewCoin(app.BondDenom, sdk.NewInt(v.Stake)),
-		stakingtypes.NewDescription(v.Name, "", "", "", ""),
-		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
-		sdk.OneInt(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
-	txBuilder := ecfg.TxConfig.NewTxBuilder()
-	err = txBuilder.SetMsgs(createValMsg)
-	if err != nil {
-		return nil, err
-	}
-	txBuilder.SetFeeAmount(fee)    // Arbitrary fee
-	txBuilder.SetGasLimit(1000000) // Need at least 100386
-
-	txFactory := tx.Factory{}
-	txFactory = txFactory.
-		WithChainID(chainID).
-		WithKeybase(kr).
-		WithTxConfig(ecfg.TxConfig)
-
-	err = tx.Sign(txFactory, v.Name, txBuilder, true)
-	if err != nil {
-		return nil, err
-	}
-
-	return txBuilder.GetTx(), nil
+func DefaultConsensusParams() *tmproto.ConsensusParams {
+	cparams := coretypes.DefaultConsensusParams()
+	cparams.Block.TimeIotaMs = 1
+	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
+	return cparams
 }
