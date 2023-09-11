@@ -1,0 +1,38 @@
+[metadata]
+name = "sanity"
+author = "core-app"
+
+[global]
+plan = "celestia"
+case = "001-val-large-txs"
+total_instances = 4
+builder = "docker:generic"
+runner = "local:docker"
+disable_metrics = false
+
+[global.run.test_params]
+execution-time = "10"
+latency = "0"
+bandwidth = "420Mib"
+validator = "3"
+persistent-peers = "2"
+seed = "1"
+msg-size = "100000"
+
+[[groups]]
+id = "validators"
+builder = "docker:generic"
+[groups.resources]
+memory = "8Gi"
+cpu = "6"
+[groups.instances]
+count = 2
+percentage = 0.0
+[groups.build_config]
+build_base_image = "golang:1.21.0"
+enable_go_build_cache = true
+enabled = true
+go_version = "1.21"
+[groups.build]
+[groups.run]
+artifact = ""

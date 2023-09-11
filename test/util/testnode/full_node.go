@@ -23,7 +23,7 @@ import (
 // NewCometNode creates a ready to use comet node that operates a single
 // validator celestia-app network. It expects that all configuration files are
 // already initialized and saved to the baseDir.
-func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtypes.Application, error) {
+func NewCometNode(baseDir string, cfg *UniversalTestingConfig) (*node.Node, srvtypes.Application, error) {
 	var logger log.Logger
 	if cfg.SupressLogs {
 		logger = log.NewNopLogger()
@@ -34,7 +34,9 @@ func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtyp
 
 	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
 	db, err := dbm.NewGoLevelDB("application", dbPath)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	cfg.AppOptions.Set(flags.FlagHome, baseDir)
 
@@ -78,7 +80,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	baseDir, err := genesis.InitFiles(t.TempDir(), tmCfg, cfg.Genesis, 0)
 	require.NoError(t, err)
 
-	tmNode, app, err := NewCometNode(t, baseDir, cfg)
+	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
 	require.NoError(t, err)
 
 	cctx = NewContext(context.TODO(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)

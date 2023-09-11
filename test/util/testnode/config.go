@@ -20,9 +20,8 @@ const (
 	DefaultValidatorAccountName = "validator"
 )
 
-// Config is the configuration of a test node.
-type Config struct {
-	Genesis *genesis.Genesis
+// todo: properly abstract and rename
+type UniversalTestingConfig struct {
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
@@ -33,6 +32,12 @@ type Config struct {
 	AppCreator srvtypes.AppCreator
 	// SupressLogs
 	SupressLogs bool
+}
+
+// Config is the configuration of a test node.
+type Config struct {
+	Genesis *genesis.Genesis
+	UniversalTestingConfig
 }
 
 func (c *Config) WithGenesis(g *genesis.Genesis) *Config {

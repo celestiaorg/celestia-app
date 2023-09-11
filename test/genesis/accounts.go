@@ -12,12 +12,16 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/tendermint/tendermint/crypto"
+	ed25519 "github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 type Account struct {
 	Name          string
 	InitialTokens int64
+	// Mnemonic is the mnemonic used to generate the account key. This is used
+	// to make the account key more portable in a trusted test environment such
+	// as testground.
+	Mnemonic string
 }
 
 func NewAccounts(initBal int64, names ...string) []Account {
@@ -46,8 +50,8 @@ type Validator struct {
 	Stake int64
 
 	// ConsensusKey is the key used by the validator to sign votes.
-	ConsensusKey crypto.PrivKey
-	NetworkKey   crypto.PrivKey
+	ConsensusKey ed25519.PrivKey
+	NetworkKey   ed25519.PrivKey
 }
 
 func NewDefaultValidator(name string) Validator {

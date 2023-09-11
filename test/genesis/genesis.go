@@ -109,10 +109,11 @@ func (g *Genesis) AddAccount(acc Account) error {
 	if err := acc.ValidateBasic(); err != nil {
 		return err
 	}
-	_, _, err = g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+	_, mn, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		return err
 	}
+	acc.Mnemonic = mn
 	g.accounts = append(g.accounts, acc)
 	return nil
 }

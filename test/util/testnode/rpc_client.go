@@ -1,7 +1,6 @@
 package testnode
 
 import (
-	"context"
 	"os"
 	"path"
 	"strings"
@@ -27,10 +26,7 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	coreClient := local.New(tmNode)
 
 	cctx.Context = cctx.WithClient(coreClient)
-	goCtx, cancel := context.WithCancel(context.Background())
-	cctx.rootCtx = goCtx
 	cleanup := func() error {
-		cancel()
 		err := tmNode.Stop()
 		if err != nil {
 			return err

@@ -1,0 +1,27 @@
+name = "celestia"
+
+[defaults]
+builder = "docker:generic"
+runner = "local:docker"
+
+[builders."docker:generic"]
+enabled = true
+build_base_image = "golang:1.21.0"
+go_version = "1.20"
+enable_go_build_cache = true
+
+[runners."local:docker"]
+enabled = true
+
+[runners."cluster:k8s"]
+enabled = true
+
+[[testcases]]
+name = "sanity"
+instances = { min = 1, max = 200, default = 3 }
+[testcases.params]
+execution-time = { type = "int" }
+latency = { type = "int", default = 0 }
+bandwidth = { type = "string", default = "420Mib" }
+validator = { type = "int", default = 2 }
+p2p-network = { type = "string", default = "private" }
