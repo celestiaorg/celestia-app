@@ -35,7 +35,7 @@ func TestParamFilter(t *testing.T) {
 			p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
 			err := handler(ctx, p)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "parameter can not be modified")
+			require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
 		}
 	})
 
@@ -53,7 +53,7 @@ func TestParamFilter(t *testing.T) {
 		p := testProposal(invalidChange)
 		err := handler(ctx, p)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "parameter can not be modified")
+		require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
 
 		// Ensure that the validator params still haven't been modified
 		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Validator)
@@ -78,7 +78,7 @@ func TestParamFilter(t *testing.T) {
 		p := testProposal(invalidChange)
 		err = handler(ctx, p)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "parameter can not be modified")
+		require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
 
 		// Ensure that the evidence params still haven't been modified
 		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
@@ -110,7 +110,7 @@ func TestParamFilter(t *testing.T) {
 			p := testProposal(validChange, invalidChange)
 			err := handler(ctx, p)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "parameter can not be modified")
+			require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
 			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
 		}
 	})
