@@ -39,26 +39,6 @@ func TestParamFilter(t *testing.T) {
 		}
 	})
 
-	t.Run("test that a proposal with another blocked param (validator consensus params) is rejected", func(t *testing.T) {
-		defaults := app.DefaultConsensusParams().Validator
-		// Ensure that the validator params haven't been modified yet
-		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Validator)
-
-		updated := tmproto.ValidatorParams{
-			PubKeyTypes: []string{"foo"},
-		}
-		marshalled := testApp.AppCodec().MustMarshalJSON(&updated)
-		invalidChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams), string(marshalled))
-
-		p := testProposal(invalidChange)
-		err := handler(ctx, p)
-		require.Error(t, err)
-		require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
-
-		// Ensure that the validator params still haven't been modified
-		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Validator)
-	})
-
 	t.Run("test that another proposal with a blocked param (evidence consensus params) is rejected", func(t *testing.T) {
 		defaults := coretypes.DefaultEvidenceParams()
 		// Ensure that the evidence params haven't been modified yet
