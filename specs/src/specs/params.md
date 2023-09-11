@@ -42,7 +42,7 @@ are blocked by the `x/paramfilter` module.
 | ibc.Transfer.SendEnabled | true | Enable sending tokens via IBC. | True |
 | ibc.Transfer.ReceiveEnabled | true | Enable receiving tokens via IBC. | True |
 | slashing.SignedBlocksWindow | 5000 | The range of blocks used to count for downtime. | True |
-| slashing.MinSignedPerWindow | 5 | Minumum signatures in the block. | True |
+| slashing.MinSignedPerWindow | 0.05 (5%) | Minimum proportion of blocks signed per window to avoid being slashed. | True |
 | slashing.DowntimeJailDuration | 10 mins | Duration of time a validator must stay jailed. | True |
 | slashing.SlashFractionDoubleSign | 5.0% | Percentage slashed after a validator is jailed for downtime. | True |
 | slashing.SlashFractionDowntime | 1.0% | Percentage slashed after a validator is jailed for downtime. | True |
