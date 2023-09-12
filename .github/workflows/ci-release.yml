@@ -49,7 +49,7 @@ jobs:
         # version_bump section, it would skip and not run, which would result
         # in goreleaser not running either.
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
@@ -63,7 +63,7 @@ jobs:
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
     permissions: "write-all"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: git fetch --force --tags
       - uses: actions/setup-go@v4
         with:
