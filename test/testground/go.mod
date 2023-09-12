@@ -1,8 +1,11 @@
 module github.com/celestiaorg/celestia-app/test/testground
 
-go 1.21.0
+go 1.21
 
-require github.com/testground/sdk-go v0.3.0
+require (
+	github.com/testground/sdk-go v0.3.0
+	github.com/celestiaorg/celestia-app v1.0.0
+)
 
 require (
 	github.com/avast/retry-go v2.6.0+incompatible // indirect

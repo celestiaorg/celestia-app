@@ -9,15 +9,24 @@ import (
 )
 
 const (
-	TopologyParamKey            = "topology"
-	ConnectAllTopology          = "connect-all"
-	ConnectSubsetTopology       = "connect-subset"
-	TurnOffPexTopology          = "turn-off-pex"
+	TopologyParamKey            = "topologies"
+	ConnectAllTopology          = "connect_all"
+	ConnectSubsetTopology       = "connect_subset"
+	TurnOffPexTopology          = "turn_off_pex"
 	PersistentPeerCountParamKey = "persistent-peer-count"
 )
 
+func DefaultTopologies() []string {
+	return []string{
+		ConnectAllTopology,
+	}
+}
+
 func GetTopologyFns(runenv *runtime.RunEnv) ([]TopologyFn, error) {
 	topologies := runenv.StringArrayParam(TopologyParamKey)
+	if len(topologies) == 0 {
+		topologies = DefaultTopologies()
+	}
 	tops := make([]TopologyFn, 0, len(topologies))
 	for _, topology := range topologies {
 		switch topology {

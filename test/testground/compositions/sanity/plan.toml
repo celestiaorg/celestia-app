@@ -3,22 +3,20 @@ name = "sanity"
 author = "core-app"
 
 [global]
-plan = "celestia"
+plan = "core-app"
 case = "entrypoint"
-total_instances = 4
+total_instances = 2
 builder = "docker:generic"
 runner = "local:docker"
 disable_metrics = false
 
 [global.run.test_params]
 timeout = "21m"
-halt_height = 100
+halt_height = "100"
 latency = "0"
 bandwidth = "420Mib"
-validators = "3"
+validators = "2"
 persistent-peers = "2"
-seed = "1"
-msg-size = "100000"
 
 [[groups]]
 id = "validators"

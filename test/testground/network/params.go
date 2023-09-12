@@ -16,7 +16,6 @@ const (
 	ValidatorsParam = "validators"
 	FullNodesParam  = "full_nodes"
 	HaltHeightParam = "halt_height"
-	TopologyParam   = "topology"
 	PexParam        = "pex"
 	SeedNodeParam   = "seed_node"
 )
