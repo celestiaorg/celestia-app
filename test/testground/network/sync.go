@@ -27,9 +27,9 @@ var (
 )
 
 type Config struct {
-	ChainID string                `json:"chain_id"`
-	Genesis json.RawMessage       `json:"genesis"`
-	Nodes   map[string]NodeConfig `json:"nodes"`
+	ChainID string          `json:"chain_id"`
+	Genesis json.RawMessage `json:"genesis"`
+	Nodes   []NodeConfig    `json:"nodes"`
 }
 
 func PublishConfig(ctx context.Context, initCtx *run.InitContext, cfg Config) error {
@@ -143,15 +143,10 @@ func parseBandwidth(s string) (uint64, error) {
 // Given the first two octets as a string (e.g., "192.168")
 // and a slice of GlobalSeq values,
 // this function returns a slice of full IP address strings.
-func calculateIPAddresses(baseIP string, globalSequences []int) []string {
-	var ips []string
+func calculateIPAddresses(baseIP string, globalSequence int) string {
+	ipC := byte((globalSequence >> 8) + 1)
+	ipD := byte(globalSequence)
+	fullIP := fmt.Sprintf("%s.%d.%d", baseIP, ipC, ipD)
 
-	for _, seq := range globalSequences {
-		ipC := byte((seq >> 8) + 1)
-		ipD := byte(seq)
-		fullIP := fmt.Sprintf("%s.%d.%d", baseIP, ipC, ipD)
-		ips = append(ips, fullIP)
-	}
-
-	return ips
+	return fullIP
 }

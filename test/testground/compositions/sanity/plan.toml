@@ -4,17 +4,18 @@ author = "core-app"
 
 [global]
 plan = "celestia"
-case = "001-val-large-txs"
+case = "entrypoint"
 total_instances = 4
 builder = "docker:generic"
 runner = "local:docker"
 disable_metrics = false
 
 [global.run.test_params]
-execution-time = "10"
+timeout = "21m"
+halt_height = 100
 latency = "0"
 bandwidth = "420Mib"
-validator = "3"
+validators = "3"
 persistent-peers = "2"
 seed = "1"
 msg-size = "100000"

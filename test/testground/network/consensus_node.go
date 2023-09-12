@@ -38,6 +38,9 @@ type NodeConfig struct {
 	CmtConfig   *tmconfig.Config  `json:"cmt_config"`
 	AppConfig   *srvconfig.Config `json:"app_config"`
 	P2PID       string            `json:"p2p_id"`
+	// HaltHeight is the height at which all nodes will halt and finish the
+	// execution portion of the test.
+	HaltHeight int `json:"halt_height"`
 }
 
 type KeySet struct {
@@ -49,13 +52,19 @@ type KeySet struct {
 	AccountMnemonic string `json:"account_mnemonic"`
 }
 
-func (c *Config) ConsensusNode(ctx context.Context, name string) (ConsensusNode, error) {
-	cfg, ok := c.Nodes[name]
-	if !ok {
-		return ConsensusNode{}, fmt.Errorf("node %s not found", name)
+func (c *Config) ConsensusNode(groupSequence int) (*ConsensusNode, error) {
+	if len(c.Nodes) <= groupSequence {
+		return nil, fmt.Errorf("node %d not found", groupSequence)
 	}
+	cfg := c.Nodes[groupSequence]
 	cfg.ChainID = c.ChainID
-	return NewConsensusNode(ctx, c.Genesis, cfg)
+	return NewConsensusNode(c.Genesis, cfg)
+}
+
+// NodeID creates the ID for each node. This is currently just the global
+// sequence.
+func NodeID(globalSequence int) string {
+	return fmt.Sprintf("%d", globalSequence)
 }
 
 type ConsensusNode struct {
@@ -64,7 +73,6 @@ type ConsensusNode struct {
 	genesis   json.RawMessage
 	ecfg      encoding.Config
 	stopFuncs []func() error
-	ctx       context.Context
 	// AppOptions are the application options of the test node.
 	AppOptions *testnode.KVAppOptions
 	// AppCreator is used to create the application for the testnode.
@@ -74,21 +82,20 @@ type ConsensusNode struct {
 	cctx    testnode.Context
 }
 
-func NewConsensusNode(ctx context.Context, genesis json.RawMessage, cfg NodeConfig) (ConsensusNode, error) {
+func NewConsensusNode(genesis json.RawMessage, cfg NodeConfig) (*ConsensusNode, error) {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr := keyring.NewInMemory(ecfg.Codec)
 	kr, err := ImportKey(kr, cfg.Keys.AccountMnemonic, cfg.Name)
 	if err != nil {
-		return ConsensusNode{}, fmt.Errorf("failed to import key: %w", err)
+		return nil, fmt.Errorf("failed to import key: %w", err)
 	}
-	return ConsensusNode{
+	return &ConsensusNode{
 		genesis:    genesis,
 		NodeConfig: cfg,
 		AppCreator: cmd.NewAppServer,
 		AppOptions: testnode.DefaultAppOptions(),
 		ecfg:       ecfg,
 		kr:         kr,
-		ctx:        ctx,
 	}, nil
 }
 
@@ -175,8 +182,8 @@ func (c *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfig
 func (c *ConsensusNode) Stop() error {
 	var err error
 	for _, stop := range c.stopFuncs {
-		if err := stop(); err != nil {
-			err = err
+		if sterr := stop(); err != nil {
+			err = sterr
 		}
 	}
 	return err
