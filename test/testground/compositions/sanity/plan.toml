@@ -5,7 +5,7 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 2
+total_instances = 3
 builder = "docker:generic"
 runner = "local:docker"
 disable_metrics = false
@@ -15,17 +15,16 @@ timeout = "21m"
 halt_height = "100"
 latency = "0"
 bandwidth = "420Mib"
-validators = "2"
-persistent-peers = "2"
+validators = "3"
 
 [[groups]]
 id = "validators"
 builder = "docker:generic"
 [groups.resources]
 memory = "8Gi"
-cpu = "6"
+cpu = "4"
 [groups.instances]
-count = 2
+count = 3
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.0"
