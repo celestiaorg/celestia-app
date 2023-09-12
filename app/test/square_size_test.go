@@ -98,7 +98,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(100_000, 100, tt.pfbsPerBlock, 20*time.Second)
+			start, end := s.fillBlocks(100_000, 10, tt.pfbsPerBlock, 20*time.Second)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			actualMaxSize := 0
@@ -111,7 +111,8 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
 					actualMaxSize = int(block.Block.Data.SquareSize)
 				}
 			}
-			require.Greater(t, tt.expectedMaxSquareSize, actualMaxSize)
+
+			require.Equal(t, tt.expectedMaxSquareSize, actualMaxSize)
 		})
 	}
 }

@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM docker.io/golang:1.21.0-alpine3.17 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.21.0-alpine3.18 as builder
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
@@ -13,7 +13,7 @@ WORKDIR /celestia-app
 RUN make build
 
 # stage 2
-FROM docker.io/alpine:3.18.3
+FROM --platform=$BUILDPLATFORM docker.io/alpine:3.18.3
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
@@ -24,7 +24,8 @@ ENV CELESTIA_HOME=/home/${USER_NAME}
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \
-    # Creates a user with $UID and $GID=$UID
+    curl \
+    jq \
     && adduser ${USER_NAME} \
     -D \
     -g ${USER_NAME} \
