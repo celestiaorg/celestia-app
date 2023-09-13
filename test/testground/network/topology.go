@@ -9,10 +9,9 @@ import (
 )
 
 const (
-	TopologyParamKey            = "topologies"
+	TopologyParamKey            = "topology"
 	ConnectAllTopology          = "connect_all"
 	ConnectSubsetTopology       = "connect_subset"
-	TurnOffPexTopology          = "turn_off_pex"
 	PersistentPeerCountParamKey = "persistent-peer-count"
 )
 
@@ -23,20 +22,19 @@ func DefaultTopologies() []string {
 }
 
 func GetTopologyFns(runenv *runtime.RunEnv) ([]TopologyFn, error) {
-	topologies := runenv.StringArrayParam(TopologyParamKey)
-	if len(topologies) == 0 {
-		topologies = DefaultTopologies()
+	topology := runenv.StringParam(TopologyParamKey)
+	if topology == "" {
+		topology = ConnectAllTopology
 	}
-	tops := make([]TopologyFn, 0, len(topologies))
-	for _, topology := range topologies {
+	tops := make([]TopologyFn, 0)
+	// TODO: fix the toml parser so that it can handle string arrays
+	for _, topology := range []string{topology} {
 		switch topology {
 		case ConnectAllTopology:
 			tops = append(tops, ConnectAll)
 		case ConnectSubsetTopology:
 			numPeers := runenv.IntParam(PersistentPeerCountParamKey)
 			tops = append(tops, ConnectSubset(numPeers))
-		case TurnOffPexTopology:
-			tops = append(tops, TurnOffPex)
 		default:
 			return nil, fmt.Errorf("unknown topology func: %s", topology)
 		}
@@ -52,7 +50,6 @@ type TopologyFn func(nodes []NodeConfig) ([]NodeConfig, error)
 
 var _ = TopologyFn(ConnectAll)
 var _ = TopologyFn(ConnectSubset(10))
-var _ = TopologyFn(TurnOffPex)
 
 // ConnectAll is a TopologyFn that connects all nodes to each other via
 // persistent peers.
@@ -125,12 +122,4 @@ func ConnectSubset(numPeers int) TopologyFn {
 
 		return nodes, nil
 	}
-}
-
-// TurnOffPex is a TopologyFn that turns off PEX reactor for all nodes.
-func TurnOffPex(nodes []NodeConfig) ([]NodeConfig, error) {
-	for i := range nodes {
-		nodes[i].CmtConfig.P2P.PexReactor = false
-	}
-	return nodes, nil
 }

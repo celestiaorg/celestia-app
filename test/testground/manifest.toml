@@ -26,3 +26,5 @@ bandwidth = { type = "string", default = "420Mib" }
 validators = { type = "int", default = 2 }
 full_nodes = { type = "int", default = 0 }
 halt_height = { type = "int", default = 50 }
+pex = { type = "bool", default = true }
+topology = { type = "string", default = "connect_all" }

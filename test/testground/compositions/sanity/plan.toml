@@ -9,14 +9,15 @@ total_instances = 3
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
-halt_height = 10
 
 [global.run.test_params]
-timeout = "21m"
-halt_height = "100"
+timeout = "25m"
+halt_height = "10"
 latency = "0"
 bandwidth = "420Mib"
 validators = "3"
+topology = "connect_all"
+pex = "false"
 
 [[groups]]
 id = "validators"

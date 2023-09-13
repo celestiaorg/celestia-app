@@ -82,7 +82,12 @@ func (p *Params) GenerateConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	nodes := make([]NodeConfig, 0, p.NodeCount())
+	cmtcfg := app.DefaultConsensusConfig()
+	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
+	cmtcfg.Instrumentation.Prometheus = true
+	cmtcfg.P2P.PexReactor = p.Pex
+
+	nodes := make([]NodeConfig, p.NodeCount())
 	for i, val := range vals {
 		nodes[i] = NodeConfig{
 			Role:        "validator",
@@ -96,7 +101,7 @@ func (p *Params) GenerateConfig() (Config, error) {
 				ConsensusKey:    val.ConsensusKey,
 				AccountMnemonic: g.Accounts()[i].Mnemonic,
 			},
-			CmtConfig: app.DefaultConsensusConfig(),
+			CmtConfig: cmtcfg,
 			AppConfig: app.DefaultAppConfig(),
 			P2PID:     ValidatorP2PID(val, "192.168", i),
 		}

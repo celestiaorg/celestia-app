@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -82,6 +83,21 @@ func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx 
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(time.Second)
+
+	// TODO: download reports
+	res, err := f.cctx.Client.NetInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	realIp, err := initCtx.NetClient.GetDataNetworkIP()
+	if err != nil {
+		return err
+	}
+
+	runenv.RecordMessage(fmt.Sprintf("follower waiting for halt height %d chain id %s real ip %s", f.HaltHeight, f.ChainID, realIp.String()), res)
 	_, err = f.cctx.WaitForHeight(int64(f.ConsensusNode.HaltHeight))
 	return err
 }
@@ -144,7 +160,21 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	if err != nil {
 		return err
 	}
-	runenv.RecordMessage("leader waiting for halt height", l.ConsensusNode.HaltHeight)
+
+	time.Sleep(time.Second)
+
+	// TODO: download reports
+	res, err := l.cctx.Client.NetInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	realIp, err := initCtx.NetClient.GetDataNetworkIP()
+	if err != nil {
+		return err
+	}
+
+	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d chain id %s real ip %s", l.HaltHeight, l.ChainID, realIp.String()), res)
 	_, err = l.cctx.WaitForHeight(int64(l.ConsensusNode.HaltHeight))
 	return err
 }
