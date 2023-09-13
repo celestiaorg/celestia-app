@@ -10,7 +10,7 @@ KEY_NAME="validator"
 KEYRING_BACKEND="test"
 COINS="1000000000000000utia"
 DELEGATION_AMOUNT="5000000000utia"
-CELESTIA_APP_HOME="${HOME}/.celestia-appd"
+CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
 
 echo "celestia-app home: ${CELESTIA_APP_HOME}"
