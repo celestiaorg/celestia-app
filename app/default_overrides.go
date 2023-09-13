@@ -95,7 +95,7 @@ type slashingModule struct {
 // DefaultGenesis returns custom x/staking module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := slashingtypes.DefaultParams()
-	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 5%
+	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
 	params.SignedBlocksWindow = 5000
 	params.DowntimeJailDuration = time.Minute * 1
 	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
