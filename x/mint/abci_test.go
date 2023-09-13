@@ -101,7 +101,7 @@ func TestAnnualProvisions(t *testing.T) {
 
 		blockInterval := time.Second * 15
 
-		want := minttypes.InitialInflationRateAsDec.MulInt(initialSupply)
+		want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
 
 		type testCase struct {
 			height int64
