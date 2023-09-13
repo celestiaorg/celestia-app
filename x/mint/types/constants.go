@@ -16,7 +16,10 @@ const (
 
 	InitialInflationRate = 0.08
 	DisinflationRate     = 0.1
-	TargetInflationRate  = 0.015
+	// TargetInflationRate is the inflation rate that the network aims to
+	// stabalize at. In practice, TargetInflationRate acts as a minimum so that
+	// the inflation rate doesn't decrease after reaching it.
+	TargetInflationRate = 0.015
 )
 
 func InitialInflationRateAsDec() sdk.Dec {
