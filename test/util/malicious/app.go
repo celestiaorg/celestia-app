@@ -5,11 +5,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	dbm "github.com/tendermint/tm-db"
 )
 
 const (
@@ -92,6 +92,6 @@ func (a *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrep
 // proposal.
 func (a *App) ProcessProposal(_ abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
 	return abci.ResponseProcessProposal{
-		Result: abci.ResponseProcessProposal_ACCEPT,
+		Status: abci.ResponseProcessProposal_ACCEPT,
 	}
 }

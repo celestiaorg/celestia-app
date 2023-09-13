@@ -32,6 +32,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmrand "github.com/cometbft/cometbft/libs/rand"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/rpc/client/http"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -49,6 +50,7 @@ type IntegrationTestSuite struct {
 	ecfg     encoding.Config
 	accounts []string
 	cctx     testnode.Context
+	rpcAddr  string
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
@@ -62,9 +64,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
 
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	cctx, rpcAddr, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
+	s.rpcAddr = rpcAddr
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	require.NoError(t, cctx.WaitForNextBlock())
@@ -338,8 +341,11 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0, appconsts.LatestVersion)
 		require.NoError(t, err)
 
+		rpcClient, err := http.New(s.rpcAddr, "/websocket")
+		require.NoError(t, err)
+
 		// verify the blob shares proof
-		blobProof, err := node.ProveShares(
+		blobProof, err := rpcClient.ProveShares(
 			context.Background(),
 			uint64(txResp.Height),
 			uint64(shareRange.Start),

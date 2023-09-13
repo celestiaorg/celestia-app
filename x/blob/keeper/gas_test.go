@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	tmdb "github.com/cometbft/cometbft-db"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -13,7 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	typesparams "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func keeper(t *testing.T) (*Keeper, store.CommitMultiStore) {

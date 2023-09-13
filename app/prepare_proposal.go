@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	abci "github.com/cometbft/cometbft/abci/types"
-	core "github.com/cometbft/cometbft/proto/tendermint/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -15,10 +15,7 @@ import (
 // generates the data root for the proposal block and passes it back to
 // tendermint via the BlockData. Panics indicate a developer error and should
 // immediately halt the node for visibility and so they can be quickly resolved.
-func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	// create a context using a branch of the state and loaded using the
-	// proposal height and chain-id
-	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
+func (app *App) HandlePrepareProposal(ctx sdk.Context, req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
@@ -49,12 +46,12 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	if app.LastBlockHeight() == 0 {
 		txs = make([][]byte, 0)
 	} else {
-		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+		txs = FilterTxs(ctx, handler, app.txConfig, req.Txs)
 	}
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(), app.GovSquareSizeUpperBound(sdkCtx))
+	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(), app.GovSquareSizeUpperBound(ctx))
 	if err != nil {
 		panic(err)
 	}
@@ -84,13 +81,13 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
+	// Celestia differs from CometBFT in that the last transaction returned in PrepareProposal
+	// is set as the data hash in the header
+	txs = append(txs, dah.Hash())
+
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
 	return abci.ResponsePrepareProposal{
-		BlockData: &core.Data{
-			Txs:        txs,
-			SquareSize: uint64(dataSquare.Size()),
-			Hash:       dah.Hash(),
-		},
+		Txs: txs,
 	}
 }

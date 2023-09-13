@@ -9,8 +9,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmrand "github.com/cometbft/cometbft/libs/rand"
-	core "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )
@@ -116,32 +114,20 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					)
 					txs = append(txs, sendTxs...)
 					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-						BlockData: &core.Data{
-							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
-						},
-						ChainId: testutil.ChainID,
+						Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 					})
 
-					// check that the square size is smaller than or equal to
-					// the specified size
-					require.LessOrEqual(t, resp.BlockData.SquareSize, uint64(size.govMaxSquareSize))
-
 					res := testApp.ProcessProposal(abci.RequestProcessProposal{
-						BlockData: resp.BlockData,
-						Header: core.Header{
-							DataHash: resp.BlockData.Hash,
-							ChainID:  testutil.ChainID,
-							Version:  version.Consensus{App: appconsts.LatestVersion},
-							Height:   testApp.LastBlockHeight() + 1,
-						},
+						Txs:    resp.Txs,
+						Height: testApp.LastBlockHeight() + 1,
 					},
 					)
-					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
+					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status)
 					// At least all of the send transactions and one blob tx
 					// should make it into the block. This should be expected to
 					// change if PFB transactions are not separated and put into
 					// their own namespace
-					require.GreaterOrEqual(t, len(resp.BlockData.Txs), sendTxCount+1)
+					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
 				}
 			})
 		}

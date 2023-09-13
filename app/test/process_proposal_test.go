@@ -52,14 +52,12 @@ func TestProcessProposal(t *testing.T) {
 	)
 
 	// block with all blobs included
-	validData := func() *tmproto.Data {
-		return &tmproto.Data{
-			Txs: blobTxs[:3],
-		}
+	validData := func() [][]byte {
+		return blobTxs[:3]
 	}
 
 	mixedData := validData()
-	mixedData.Txs = append(coretypes.Txs(sendTxs).ToSliceOfBytes(), mixedData.Txs...)
+	mixedData = append(coretypes.Txs(sendTxs).ToSliceOfBytes(), mixedData...)
 
 	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
@@ -79,38 +77,39 @@ func TestProcessProposal(t *testing.T) {
 
 	type test struct {
 		name           string
-		input          *tmproto.Data
-		mutator        func(*tmproto.Data)
-		expectedResult abci.ResponseProcessProposal_Result
+		txs            [][]byte
+		mutator        func([][]byte)
+		expectedResult abci.ResponseProcessProposal_ProposalStatus
 	}
 
 	tests := []test{
 		{
 			name:           "valid untouched data",
-			input:          validData(),
-			mutator:        func(d *tmproto.Data) {},
+			txs:            validData(),
+			mutator:        func(txs [][]byte) {},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name:  "removed first blob tx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				d.Txs = d.Txs[1:]
+			name: "removed first blob tx",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
+				txs = txs[1:]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "added an extra blob tx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				d.Txs = append(d.Txs, blobTxs[3])
+			name: "added an extra blob tx",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
+				hash := txs[len(txs) - 1]
+				txs = append(txs[:len(txs)-1], blobTxs[3], hash)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "modified a blobTx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "modified a blobTx",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      ns1.ID,
@@ -119,14 +118,14 @@ func TestProcessProposal(t *testing.T) {
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
-				d.Txs[0] = blobTxBytes
+				txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid namespace TailPadding",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "invalid namespace TailPadding",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      appns.TailPaddingNamespace.ID,
@@ -135,14 +134,14 @@ func TestProcessProposal(t *testing.T) {
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
-				d.Txs[0] = blobTxBytes
+				txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid namespace TxNamespace",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "invalid namespace TxNamespace",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      appns.TxNamespace.ID,
@@ -151,14 +150,14 @@ func TestProcessProposal(t *testing.T) {
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
-				d.Txs[0] = blobTxBytes
+				txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid namespace ParityShares",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "invalid namespace ParityShares",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      appns.ParitySharesNamespace.ID,
@@ -167,14 +166,14 @@ func TestProcessProposal(t *testing.T) {
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
-				d.Txs[0] = blobTxBytes
+				txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid blob namespace",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "invalid blob namespace",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      invalidNamespace.ID,
@@ -183,99 +182,99 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceVersion: uint32(invalidNamespace.Version),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
-				d.Txs[0] = blobTxBytes
+				txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "pfb namespace version does not match blob",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "pfb namespace version does not match blob",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
 				blobTxBytes, _ := blobTx.Marshal()
-				d.Txs[0] = blobTxBytes
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				txs[0] = blobTxBytes
+				// the last transaction is the hash which we need to update
+				txs[len(txs) - 1] = calculateNewDataHash(t, txs[:len(txs)-1])
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid namespace in index wrapper tx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "invalid namespace in index wrapper tx",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				index := 4
 				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
 				blobTx, err := coretypes.MarshalBlobTx(tx, &blob)
 				require.NoError(t, err)
 
 				// Replace the data with new contents
-				d.Txs = [][]byte{blobTx}
+				txs = [][]byte{blobTx}
 
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				txs = append(txs, calculateNewDataHash(t, txs))
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "swap blobTxs",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "swap blobTxs",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				// swapping the order will cause the data root to be different
-				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
+				txs[0], txs[1], txs[2] = txs[1], txs[2], txs[0]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "PFB without blobTx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
+			name: "PFB without blobTx",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
 				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
-				d.Txs = append(d.Txs, btx.Tx)
+				txs[3] = btx.Tx
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "undecodable tx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				d.Txs = append(d.Txs, tmrand.Bytes(300))
+			name: "undecodable tx",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
+				dataHash := txs[len(txs)-1]
+				txs = append(txs[:len(txs)-1], tmrand.Bytes(300), dataHash)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "incorrectly sorted; send tx after pfb",
-			input: mixedData,
-			mutator: func(d *tmproto.Data) {
+			name: "incorrectly sorted; send tx after pfb",
+			txs:  mixedData,
+			mutator: func(txs [][]byte) {
 				// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
-				d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
+				txs[3], txs[2] = txs[2], txs[3]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "included pfb with bad signature",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				d.Txs = append(d.Txs, badSigBlobTx)
-				d.Hash = calculateNewDataHash(t, d.Txs)
+			name: "included pfb with bad signature",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
+				txs = append(txs[:len(txs)-1], badSigBlobTx)
+				txs = append(txs, calculateNewDataHash(t, txs))
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "included pfb with incorrect nonce",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
-				d.Hash = calculateNewDataHash(t, d.Txs)
+			name: "included pfb with incorrect nonce",
+			txs:  validData(),
+			mutator: func(txs [][]byte) {
+				txs = append(txs[:len(txs)-1], blobTxWithInvalidNonce)
+				txs = append(txs, calculateNewDataHash(t, txs))
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
 			name: "tampered sequence start",
-			input: &tmproto.Data{
-				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
-			},
-			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+			txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
+			mutator: func(txs [][]byte) {
+				dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
@@ -291,7 +290,7 @@ func TestProcessProposal(t *testing.T) {
 				require.NoError(t, err)
 				// replace the hash of the prepare proposal response with the hash of a data
 				// square with a tampered sequence start indicator
-				d.Hash = dah.Hash()
+				txs[len(txs)-1] = dah.Hash()
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -300,20 +299,15 @@ func TestProcessProposal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-				BlockData: tt.input,
-				ChainId:   testutil.ChainID,
+				Txs: tt.txs,
 			})
-			require.Equal(t, len(tt.input.Txs), len(resp.BlockData.Txs))
-			tt.mutator(resp.BlockData)
+			require.Equal(t, len(tt.txs), len(resp.Txs))
+			tt.mutator(resp.Txs)
 			res := testApp.ProcessProposal(abci.RequestProcessProposal{
-				BlockData: resp.BlockData,
-				Header: tmproto.Header{
-					Height:   1,
-					DataHash: resp.BlockData.Hash,
-					ChainID:  testutil.ChainID,
-				},
+				Txs: resp.Txs,
+				Height:   1,
 			})
-			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
+			assert.Equal(t, tt.expectedResult, res.Status, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Status))
 		})
 	}
 }

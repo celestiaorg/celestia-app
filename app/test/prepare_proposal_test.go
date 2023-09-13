@@ -57,13 +57,10 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
 	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: txs,
-		},
-		ChainId: testutil.ChainID,
+		Txs: txs,
 	})
-	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
-	for idx, txBytes := range resp.BlockData.Txs {
+	require.Len(t, resp.Txs, numBlobTxs+numNormalTxs)
+	for idx, txBytes := range resp.Txs {
 		_, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
 		if idx < numNormalTxs {
 			require.False(t, isBlobTx)
@@ -183,14 +180,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-				BlockData: &tmproto.Data{Txs: tt.txs()},
-				ChainId:   testutil.ChainID,
+				Txs: tt.txs(),
 			})
 			// check that we have the expected number of transactions
-			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
+			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.Txs))
 			// check the the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
-				require.NotContains(t, resp.BlockData.Txs, ptx)
+				require.NotContains(t, resp.Txs, ptx)
 			}
 		})
 	}

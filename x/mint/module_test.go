@@ -3,23 +3,26 @@ package mint_test
 import (
 	"testing"
 
+	dbm "github.com/cometbft/cometbft-db"
 	abcitypes "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/libs/log"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/mint/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 func TestItCreatesModuleAccountOnInitBlock(t *testing.T) {
 	db := dbm.NewMemDB()
-	encCdc := simapp.MakeTestEncodingConfig()
-	app := simapp.NewSimApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, simapp.DefaultNodeHome, 5, encCdc, simapp.EmptyAppOptions{})
+	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	app := app.New(log.NewNopLogger(), db, nil, true, map[int64]bool{}, app.DefaultNodeHome, 5, encCdc, nil)
 
-	genesisState := simapp.GenesisStateWithSingleValidator(t, app)
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(app)
 	stateBytes, err := tmjson.Marshal(genesisState)
 	require.NoError(t, err)
 
@@ -30,7 +33,15 @@ func TestItCreatesModuleAccountOnInitBlock(t *testing.T) {
 		},
 	)
 
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
-	acc := app.AccountKeeper.GetAccount(ctx, authtypes.NewModuleAddress(types.ModuleName))
-	require.NotNil(t, acc)
+	cfg := testnode.DefaultConfig()
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	// Check that the module account was created
+	accMsgSvr := authtypes.NewQueryClient(cctx.GRPCClient)
+
+	resp, err := accMsgSvr.Account(cctx.GoContext(), &authtypes.QueryAccountRequest{
+		Address: authtypes.NewModuleAddress(types.ModuleName).String(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp.Account)
 }

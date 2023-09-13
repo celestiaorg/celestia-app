@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 
+	dbm "github.com/cometbft/cometbft-db"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -31,11 +32,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tm-db"
 )
 
 const (
@@ -57,7 +56,7 @@ func NewRootCmd() *cobra.Command {
 		WithLegacyAmino(encodingConfig.Amino).
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
-		WithBroadcastMode(flags.BroadcastBlock).
+		WithBroadcastMode(flags.BroadcastSync).
 		WithHomeDir(app.DefaultNodeHome).
 		WithViper(EnvPrefix)
 
@@ -95,7 +94,7 @@ func NewRootCmd() *cobra.Command {
 				}
 			}
 
-			return setDefaultConsensusParams(cmd)
+			return nil
 		},
 		SilenceUsage: true,
 	}
@@ -124,29 +123,14 @@ func initAppConfig() (string, interface{}) {
 	return CelestiaAppTemplate, CelestiaAppCfg
 }
 
-// setDefaultConsensusParams sets the default consensus parameters for the
-// embedded server context.
-func setDefaultConsensusParams(command *cobra.Command) error {
-	ctx := server.GetServerContextFromCmd(command)
-	ctx.DefaultConsensusParams = app.DefaultConsensusParams()
-	return server.SetCmdServerContext(command, ctx)
-}
-
 func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
 
-	debugCmd := debug.Cmd()
-
 	rootCmd.AddCommand(
-		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
-		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
-		genutilcli.MigrateGenesisCmd(),
-		cmd.AddGenesisAccountCmd(app.DefaultNodeHome),
-		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
-		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
+		genutilcli.GenesisCoreCommand(encodingConfig.TxConfig, app.ModuleBasics, app.DefaultNodeHome),
 		tmcli.NewCompletionCmd(rootCmd, true),
-		debugCmd,
+		debug.Cmd(),
 		config.Cmd(),
 	)
 
@@ -236,7 +220,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 	// Add snapshots
 	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
 	//nolint: staticcheck
-	snapshotDB, err := sdk.NewLevelDB("metadata", snapshotDir)
+	snapshotDB, err := dbm.NewDB("metadata", server.GetAppDBBackend(appOpts), snapshotDir)
 	if err != nil {
 		panic(err)
 	}
@@ -269,7 +253,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 
 func createAppAndExport(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailWhiteList []string,
-	appOpts servertypes.AppOptions,
+	appOpts servertypes.AppOptions, modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...) // Ideally, we would reuse the one created by NewRootCmd.
 	encCfg.Codec = codec.NewProtoCodec(encCfg.InterfaceRegistry)
@@ -284,7 +268,7 @@ func createAppAndExport(
 		capp = app.New(logger, db, traceStore, true, map[int64]bool{}, "", uint(1), encCfg, appOpts)
 	}
 
-	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList, modulesToExport)
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag

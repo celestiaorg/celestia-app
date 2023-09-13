@@ -27,9 +27,9 @@ func TestGovDecorator(t *testing.T) {
 	)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	msgProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{msgSend}, coins, accounts[0], "")
+	msgProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{msgSend}, coins, accounts[0], "", "", "")
 	require.NoError(t, err)
-	msgEmptyProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{}, coins, accounts[0], "do nothing")
+	msgEmptyProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{}, coins, accounts[0], "do nothing", "", "")
 	require.NoError(t, err)
 
 	testCases := []struct {

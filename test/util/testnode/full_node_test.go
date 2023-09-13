@@ -1,7 +1,6 @@
 package testnode
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -13,8 +12,10 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmrand "github.com/cometbft/cometbft/libs/rand"
+	"github.com/cometbft/cometbft/rpc/client/http"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -27,6 +28,7 @@ type IntegrationTestSuite struct {
 
 	accounts []string
 	cctx     Context
+	rpc      *http.HTTP
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
@@ -48,8 +50,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		WithAccounts(accounts).
 		WithGenesisOptions(SetBlobParams(ecfg.Codec, blobGenState.Params))
 
-	cctx, _, _ := NewNetwork(t, cfg)
+	cctx, rpcAddr, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
+	var err error
+	s.rpc, err = http.New(rpcAddr, "/websocket")
+	require.NoError(t, err)
 	s.accounts = accounts
 }
 
@@ -63,7 +68,7 @@ func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to decrease flakiness
 	for i := 0; i < 40; i++ {
-		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
+		params, err = s.rpc.ConsensusParams(s.cctx.GoContext(), nil)
 		if err == nil && params != nil {
 			break
 		}
@@ -78,7 +83,7 @@ func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 
 func (s *IntegrationTestSuite) Test_PostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastSync, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 }
 

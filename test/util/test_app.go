@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -26,17 +27,11 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
-	dbm "github.com/tendermint/tm-db"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 const ChainID = testfactory.ChainID
-
-// Get flags every time the simulator is run
-func init() {
-	simapp.GetSimulatorFlags()
-}
 
 type emptyAppOptions struct{}
 
@@ -275,7 +270,7 @@ func genesisStateWithValSet(
 	})
 
 	// update total supply
-	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{})
+	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{}, banktypes.DefaultGenesisState().SendEnabled)
 	genesisState[banktypes.ModuleName] = a.AppCodec().MustMarshalJSON(bankGenesis)
 
 	return genesisState

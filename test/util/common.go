@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -42,7 +43,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
 )
 
 var (
@@ -138,7 +138,7 @@ func initEVMAddrs(count int) []gethcommon.Address {
 type TestInput struct {
 	QgbKeeper      keeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
-	StakingKeeper  stakingkeeper.Keeper
+	StakingKeeper  *stakingkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
 	DistKeeper     distrkeeper.Keeper
 	BankKeeper     bankkeeper.BaseKeeper
@@ -225,7 +225,6 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	accountKeeper := authkeeper.NewAccountKeeper(
 		marshaler,
 		keyAcc, // target store
-		getSubspace(paramsKeeper, authtypes.ModuleName),
 		authtypes.ProtoBaseAccount, // prototype
 		maccPerms,
 		app.Bech32PrefixAccAddr,
@@ -239,7 +238,6 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		marshaler,
 		keyBank,
 		accountKeeper,
-		getSubspace(paramsKeeper, banktypes.ModuleName),
 		blockedAddr,
 	)
 	bankKeeper.SetParams(

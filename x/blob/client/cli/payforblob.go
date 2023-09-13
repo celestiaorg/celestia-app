@@ -107,7 +107,12 @@ func broadcastPFB(cmd *cobra.Command, blob *types.Blob) error {
 		return err
 	}
 
-	txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
+	cli, err := sdktx.NewFactoryCLI(clientCtx, cmd.Flags())
+	if err != nil {
+		return err
+	}
+
+	txBytes, err := writeTx(clientCtx, cli, pfbMsg)
 	if err != nil {
 		return err
 	}

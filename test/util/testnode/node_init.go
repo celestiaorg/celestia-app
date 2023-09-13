@@ -45,6 +45,7 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 		initCfg,
 		*genDoc,
 		banktypes.GenesisBalancesIterator{},
+		genutiltypes.DefaultMessageValidator,
 	)
 	if err != nil {
 		return err

@@ -79,3 +79,7 @@ func (h Hooks) BeforeDelegationSharesModified(_ sdk.Context, _ sdk.AccAddress, _
 func (h Hooks) AfterDelegationModified(_ sdk.Context, _ sdk.AccAddress, _ sdk.ValAddress) error {
 	return nil
 }
+
+func (h Hooks) AfterUnbondingInitiated(ctx sdk.Context, id uint64) error {
+	return nil
+}
