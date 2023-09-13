@@ -18,7 +18,7 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 
 	// determine roles based only on the global sequence number. This allows for
 	// us to deterministically calculate the IP addresses of each node.
-	role, err := NewRole(initCtx.GlobalSeq)
+	role, err := NewRole(runenv, initCtx)
 	if err != nil {
 		runenv.RecordFailure(err)
 		initCtx.SyncClient.MustSignalAndWait(ctx, FailedState, runenv.TestInstanceCount)
@@ -55,6 +55,5 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 		return err
 	}
 
-	runenv.RecordSuccess()
 	return err
 }

@@ -7,8 +7,9 @@ plan = "core-app"
 case = "entrypoint"
 total_instances = 3
 builder = "docker:generic"
-runner = "local:docker"
+runner = "cluster:k8s"
 disable_metrics = false
+halt_height = 10
 
 [global.run.test_params]
 timeout = "21m"

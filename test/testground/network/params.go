@@ -90,6 +90,7 @@ func (p *Params) GenerateConfig() (Config, error) {
 			Seed:        false,
 			Name:        val.Name,
 			StartHeight: 0,
+			HaltHeight:  p.HaltHeight,
 			Keys: KeySet{
 				NetworkKey:      val.NetworkKey,
 				ConsensusKey:    val.ConsensusKey,

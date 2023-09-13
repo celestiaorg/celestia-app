@@ -62,6 +62,7 @@ func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *s
 			if err != nil {
 				return nil, err
 			}
+			return output, errors.New("subscription was closed before receiving the expected number of messages")
 		case o := <-ch:
 			output = append(output, o)
 		}

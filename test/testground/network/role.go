@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -35,12 +36,15 @@ var _ Role = (*Leader)(nil)
 var _ Role = (*Follower)(nil)
 
 // NewRole creates a new role based on the role name.
-func NewRole(seq int64) (Role, error) {
+func NewRole(runenv *runtime.RunEnv, initCtx *run.InitContext) (Role, error) {
+	seq := initCtx.GlobalSeq
 	switch seq {
 	// TODO: throw and error if there is more than a single leader
-	case 0:
+	case 1:
+		runenv.RecordMessage("red leader standing by")
 		return &Leader{}, nil
 	default:
+		runenv.RecordMessage(fmt.Sprintf("red %d standing by", seq))
 		return &Follower{}, nil
 	}
 }
@@ -93,8 +97,8 @@ func (f *Follower) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	if err != nil {
 		return err
 	}
-	runenv.RecordMessage("leader retro", res)
-
+	runenv.RecordMessage("follower retro", res)
+	runenv.RecordSuccess()
 	return nil
 }
 
@@ -140,6 +144,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	if err != nil {
 		return err
 	}
+	runenv.RecordMessage("leader waiting for halt height", l.ConsensusNode.HaltHeight)
 	_, err = l.cctx.WaitForHeight(int64(l.ConsensusNode.HaltHeight))
 	return err
 }
@@ -156,6 +161,6 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 		return err
 	}
 	runenv.RecordMessage("leader retro", res)
-
+	runenv.RecordSuccess()
 	return nil
 }
