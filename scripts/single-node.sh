@@ -2,7 +2,17 @@
 
 set -o errexit -o nounset
 
+<<<<<<< HEAD
 HOME_DIR=$(mktemp -d -t "celestia_app_XXXXXXXXXXXXX")
+=======
+CHAIN_ID="private"
+KEY_NAME="validator"
+KEYRING_BACKEND="test"
+COINS="1000000000000000utia"
+DELEGATION_AMOUNT="5000000000utia"
+CELESTIA_APP_HOME="${HOME}/.celestia-app"
+CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
+>>>>>>> ee2d952 (fix(scripts): single node celestia app home fix (#2467))
 
 echo "Home directory: ${HOME_DIR}"
 
