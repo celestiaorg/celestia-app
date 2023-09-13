@@ -51,7 +51,7 @@ are blocked by the `x/paramfilter` module.
 | staking.MaxEntries | 7 | Maximum number of entries in the redelegation queue. | True |
 | staking.HistoricalEntries | 10000 | Number of historical entries to persist in store. | True |
 | staking.BondDenom | utia | Bondable coin denomination. | False |
-| staking.MinCommissionRate | 0.05 (5%) | Minimum commission rate used by all validators. | True |
+| staking.MinCommissionRate | 0 (0%) | Minimum commission rate used by all validators. | True |
 | mint.BondDenom | utia | Denomination that is inflated and sent to the distribution module account. | True |
 | mint.InflationRateChange | 10.0% | The rate at which the annual provisions decrease each year. | False |
 | mint.InflationRate | 8.0% | Initial annual inflation rate used to calculate the annual provisions. | False |
