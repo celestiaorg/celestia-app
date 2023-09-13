@@ -125,7 +125,7 @@ var (
 )
 
 func init() {
-	contractAbi, err := abi.JSON(strings.NewReader(wrapper.QuantumGravityBridgeMetaData.ABI))
+	contractAbi, err := abi.JSON(strings.NewReader(wrapper.WrappersMetaData.ABI))
 	if err != nil {
 		log.Fatalln("bad ABI constant", err)
 	}

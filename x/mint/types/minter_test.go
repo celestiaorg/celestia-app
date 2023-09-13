@@ -90,6 +90,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 		current          time.Time
 		previous         time.Time
 		want             sdk.Coin
+		wantErr          bool
 	}
 
 	testCases := []testCase{
@@ -109,10 +110,22 @@ func TestCalculateBlockProvision(t *testing.T) {
 			// 80 billion utia (annual provisions) * 30 (seconds) / 31,556,952 (seconds per year) = 76052.97241635 which truncates to 76052 utia
 			want: sdk.NewCoin(DefaultBondDenom, sdk.NewInt(76052)),
 		},
+		{
+			name:             "want error when current time is before previous time",
+			annualProvisions: annualProvisions,
+			current:          current,
+			previous:         current.Add(blockInterval),
+			wantErr:          true,
+		},
 	}
 	for _, tc := range testCases {
 		minter.AnnualProvisions = tc.annualProvisions
-		got := minter.CalculateBlockProvision(tc.current, tc.previous)
+		got, err := minter.CalculateBlockProvision(tc.current, tc.previous)
+		if tc.wantErr {
+			assert.Error(t, err)
+			return
+		}
+		assert.NoError(t, err)
 		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}
 }
@@ -134,7 +147,8 @@ func TestCalculateBlockProvisionError(t *testing.T) {
 		blockInterval := randomBlockInterval()
 		previous := current
 		current = current.Add(blockInterval)
-		got := minter.CalculateBlockProvision(current, previous)
+		got, err := minter.CalculateBlockProvision(current, previous)
+		require.NoError(t, err)
 		totalBlockProvisions = totalBlockProvisions.Add(sdk.NewDecFromInt(got.Amount))
 	}
 
@@ -162,10 +176,11 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 	r1 := rand.New(s1)
 	minter.AnnualProvisions = sdk.NewDec(r1.Int63n(1000000))
 	current := time.Unix(r1.Int63n(1000000), 0)
-	previous := current.Add(time.Second * 15)
+	previous := current.Add(-time.Second * 15)
 
 	for n := 0; n < b.N; n++ {
-		minter.CalculateBlockProvision(current, previous)
+		_, err := minter.CalculateBlockProvision(current, previous)
+		require.NoError(b, err)
 	}
 }
 

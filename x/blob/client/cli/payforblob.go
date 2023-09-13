@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -31,19 +32,32 @@ const (
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
-		Short: "Pay for a data blob to be published to the Celestia blockchain",
-		Long: "Pay for a data blob to be published to the Celestia blockchain. " +
-			"[hexNamespaceID] must be a 10 byte hex encoded namespace ID, " +
-			"(for the namespace version 0). " +
-			"[hexBlob] can be an arbitrary length hex encoded data blob. " +
-			"Hex strings should not include a 0x prefix. " +
-			"This command only supports a single blob per invocation. ",
-		Args: cobra.ExactArgs(2),
+		Use: "PayForBlobs namespaceID blob",
+		// This example command can be run in a new terminal after running single-node.sh
+		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
+			"\t--chain-id private \\\n" +
+			"\t--from validator \\\n" +
+			"\t--keyring-backend test \\\n" +
+			"\t--fees 21000utia \\\n" +
+			"\t--yes",
+		Short: "Pay for a data blob to be published to Celestia.",
+		Long: "Pay for a data blob to be published to Celestia.\n" +
+			"namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n" +
+			"blob must be a hex encoded string of any length.\n" +
+			// TODO: allow for more than one blob to be sumbmitted via the CLI
+			"This command currently only supports a single blob per invocation.\n",
+		Aliases: []string{"PayForBlob"},
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 2 {
+				return fmt.Errorf("PayForBlobs requires two arguments: namespaceID and blob")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			namespaceID, err := hex.DecodeString(args[0])
+			arg0 := strings.TrimPrefix(args[0], "0x")
+			namespaceID, err := hex.DecodeString(arg0)
 			if err != nil {
-				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
+				return fmt.Errorf("failed to decode hex namespace ID: %w", err)
 			}
 			namespaceVersion, err := cmd.Flags().GetUint8(FlagNamespaceVersion)
 			if err != nil {
@@ -54,14 +68,13 @@ func CmdPayForBlob() *cobra.Command {
 				return err
 			}
 
-			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
-
-			rawblob, err := hex.DecodeString(args[1])
+			arg1 := strings.TrimPrefix(args[1], "0x")
+			rawblob, err := hex.DecodeString(arg1)
 			if err != nil {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
-			// TODO: allow for more than one blob to be sumbmitted via the cli
+			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
 			blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 			if err != nil {
 				return err
@@ -72,14 +85,18 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version")
-	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
+	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version (default 0)")
+	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version (default 0)")
+	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	return cmd
 }
 
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
 	switch namespaceVersion {
 	case appns.NamespaceVersionZero:
+		if len(namespaceID) != appns.NamespaceVersionZeroIDSize {
+			return appns.Namespace{}, fmt.Errorf("the user specifiable portion of the namespace ID must be %d bytes for namespace version 0", appns.NamespaceVersionZeroIDSize)
+		}
 		id := make([]byte, 0, appns.NamespaceIDSize)
 		id = append(id, appns.NamespaceVersionZeroPrefix...)
 		id = append(id, namespaceID...)
