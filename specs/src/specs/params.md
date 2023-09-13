@@ -42,9 +42,9 @@ are blocked by the `x/paramfilter` module.
 | ibc.Transfer.SendEnabled | true | Enable sending tokens via IBC. | True |
 | ibc.Transfer.ReceiveEnabled | true | Enable receiving tokens via IBC. | True |
 | slashing.SignedBlocksWindow | 5000 | The range of blocks used to count for downtime. | True |
-| slashing.MinSignedPerWindow | 5 | Minumum signatures in the block. | True |
-| slashing.DowntimeJailDuration | 10 mins | Duration of time a validator must stay jailed. | True |
-| slashing.SlashFractionDoubleSign | 5.0% | Percentage slashed after a validator is jailed for downtime. | True |
+| slashing.MinSignedPerWindow | 75.0% | The percentage of SignedBlocksWindow that must be signed not to get jailed. | True |
+| slashing.DowntimeJailDuration | 1 min | Duration of time a validator must stay jailed. | True |
+| slashing.SlashFractionDoubleSign | 5.0% | Percentage slashed after a validator is jailed for double signing. | True |
 | slashing.SlashFractionDowntime | 0.0% | Percentage slashed after a validator is jailed for downtime. | True |
 | staking.UnbondingTime | 1814400 (21 days) | Duration of time for unbonding in seconds. | False |
 | staking.MaxValidators | 100 | Maximum number of validators. | False |
