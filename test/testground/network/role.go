@@ -22,7 +22,7 @@ const (
 type Role interface {
 	// Plan is the first function called in a test by each node. It is responsible
 	// for creating the genesis block and distributing it to all nodes.
-	Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
+	Plan(ctx context.Context, statuses []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error
 	// Execute is the second function called in a test by each node. It is
 	// responsible for starting the node and/or running any tests.
 	Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
@@ -59,12 +59,7 @@ type Follower struct {
 
 // Plan is the method that downloads the genesis, configurations, and keys for
 // all of the other nodes in the network.
-func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	err := ConfigureNetwork(ctx, runenv, initCtx)
-	if err != nil {
-		return err
-	}
-
+func (f *Follower) Plan(ctx context.Context, _ []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	cfg, err := DownloadNetworkConfig(ctx, initCtx)
 	if err != nil {
 		return err
@@ -126,18 +121,13 @@ type Leader struct {
 
 // Plan is the method that creates and distributes the genesis, configurations,
 // and keys for all of the other nodes in the network.
-func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	err := ConfigureNetwork(ctx, runenv, initCtx)
-	if err != nil {
-		return err
-	}
-
+func (l *Leader) Plan(ctx context.Context, statuses []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	params, err := ParseParams(runenv)
 	if err != nil {
 		return err
 	}
 
-	cfg, err := params.GenerateConfig()
+	cfg, err := params.StandardConfig(statuses)
 	if err != nil {
 		return err
 	}

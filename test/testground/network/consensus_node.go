@@ -28,9 +28,7 @@ import (
 // and published by the Leader node and then downloaded by the other follower
 // nodes. It is used to create a consensus node that
 type NodeConfig struct {
-	Role        string            `json:"role"`
-	Validator   bool              `json:"validator"`
-	Seed        bool              `json:"seed"`
+	NodeType    string            `json:"node_type"`
 	Name        string            `json:"name"`
 	ChainID     string            `json:"chain_id,omitempty"`
 	StartHeight int64             `json:"start_height"`
@@ -52,11 +50,11 @@ type KeySet struct {
 	AccountMnemonic string `json:"account_mnemonic"`
 }
 
-func (c *Config) ConsensusNode(groupSequence int) (*ConsensusNode, error) {
-	if len(c.Nodes) <= groupSequence {
-		return nil, fmt.Errorf("node %d not found", groupSequence)
+func (c *Config) ConsensusNode(globalSequence int) (*ConsensusNode, error) {
+	if len(c.Nodes) <= globalSequence {
+		return nil, fmt.Errorf("node %d not found", globalSequence)
 	}
-	cfg := c.Nodes[groupSequence]
+	cfg := c.Nodes[globalSequence]
 	cfg.ChainID = c.ChainID
 	return NewConsensusNode(c.Genesis, cfg)
 }

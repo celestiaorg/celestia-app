@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	mrand "math/rand"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/genesis"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/testground/sdk-go/runtime"
@@ -58,19 +61,53 @@ func (p *Params) NodeCount() int {
 	return p.FullNodes + p.Validators
 }
 
-func (p *Params) GenerateConfig() (Config, error) {
-	// Create validators for each instance.
-	vals := make([]genesis.Validator, 0, p.Validators)
+func (p *Params) StandardConfig(statuses []Status) (Config, error) {
+	// set the global configs for each node
+	cmtcfg := app.DefaultConsensusConfig()
+	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
+	cmtcfg.Instrumentation.Prometheus = true
+	cmtcfg.P2P.PexReactor = p.Pex
 
-	// use the global sequence as the name for each validator or node
-	// note: the leader is always the first validator so "0".
-	for i := 0; i < p.Validators; i++ {
-		vals = append(vals, genesis.NewDefaultValidator(NodeID(i)))
+	vals := make([]genesis.Validator, 0)
+	accs := make([]genesis.Account, 0)
+	networkKeys := make([]ed25519.PrivKey, 0, len(statuses))
+	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+
+	nodes := make([]NodeConfig, p.NodeCount())
+	for i, status := range statuses {
+		networkKeys = append(networkKeys, genesis.GenerateEd25519(genesis.NewSeed(r)))
+		nodeName := fmt.Sprintf("%d", status.GlobalSequence)
+
+		consensusKey := ed25519.GenPrivKey()
+		switch status.NodeType {
+		case "validators":
+			val := genesis.NewDefaultValidator(nodeName)
+			consensusKey = val.ConsensusKey
+			vals = append(vals, val)
+		case "full_nodes":
+			accs = append(accs, genesis.NewAccounts(999999999999999999, nodeName)...)
+		}
+
+		nodes[i] = NodeConfig{
+			NodeType:    status.NodeType,
+			Name:        fmt.Sprintf("%d", status.GlobalSequence),
+			StartHeight: 0,
+			HaltHeight:  p.HaltHeight,
+			Keys: KeySet{
+				NetworkKey:   networkKeys[i],
+				ConsensusKey: consensusKey,
+			},
+			CmtConfig: cmtcfg,
+			AppConfig: app.DefaultAppConfig(),
+			P2PID:     peerID(status, networkKeys[i]),
+		}
 	}
 
 	g := genesis.NewDefaultGenesis().
 		WithValidators(vals...).
-		WithAccounts(genesis.NewAccounts(999999999999999999, TxSimAccountName)...)
+		WithAccounts()
+
+	nodes = setMnenomics(g.Accounts(), nodes)
 
 	gDoc, err := g.Export()
 	if err != nil {
@@ -80,31 +117,6 @@ func (p *Params) GenerateConfig() (Config, error) {
 	genDocBytes, err := cmtjson.MarshalIndent(gDoc, "", "  ")
 	if err != nil {
 		return Config{}, err
-	}
-
-	cmtcfg := app.DefaultConsensusConfig()
-	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
-	cmtcfg.Instrumentation.Prometheus = true
-	cmtcfg.P2P.PexReactor = p.Pex
-
-	nodes := make([]NodeConfig, p.NodeCount())
-	for i, val := range vals {
-		nodes[i] = NodeConfig{
-			Role:        "validator",
-			Validator:   true,
-			Seed:        false,
-			Name:        val.Name,
-			StartHeight: 0,
-			HaltHeight:  p.HaltHeight,
-			Keys: KeySet{
-				NetworkKey:      val.NetworkKey,
-				ConsensusKey:    val.ConsensusKey,
-				AccountMnemonic: g.Accounts()[i].Mnemonic,
-			},
-			CmtConfig: cmtcfg,
-			AppConfig: app.DefaultAppConfig(),
-			P2PID:     ValidatorP2PID(val, "192.168", i),
-		}
 	}
 
 	for _, top := range p.TopologyFns {
@@ -120,7 +132,20 @@ func (p *Params) GenerateConfig() (Config, error) {
 	return cfg, nil
 }
 
-func ValidatorP2PID(val genesis.Validator, baseID string, sequence int) string {
-	nodeID := string(p2p.PubKeyToID(val.NetworkKey.PubKey()))
-	return fmt.Sprintf("%s@%s:26656", nodeID, calculateIPAddresses(baseID, sequence))
+func peerID(status Status, networkKey ed25519.PrivKey) string {
+	nodeID := string(p2p.PubKeyToID(networkKey.PubKey()))
+	return fmt.Sprintf("%s@%s:26656", nodeID, status.IP)
+}
+
+// todo: have a better way to just generate the key here and set it in the account
+func setMnenomics(accs []genesis.Account, nodeCfgs []NodeConfig) []NodeConfig {
+	for i, cfg := range nodeCfgs {
+		for _, acc := range accs {
+			if acc.Name == cfg.Name {
+				cfg.Keys.AccountMnemonic = acc.Mnemonic
+				nodeCfgs[i] = cfg
+			}
+		}
+	}
+	return nodeCfgs
 }

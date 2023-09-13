@@ -16,6 +16,16 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	}
 	defer cancel()
 
+	// publish and download the ip addresses of all nodes
+	statuses, err := SyncStatus(ctx, runenv, initCtx)
+	if err != nil {
+		runenv.RecordFailure(err)
+		initCtx.SyncClient.MustSignalAndWait(ctx, FailedState, runenv.TestInstanceCount)
+		return err
+	}
+
+	runenv.RecordMessage("statuses: %v", statuses)
+
 	// determine roles based only on the global sequence number. This allows for
 	// us to deterministically calculate the IP addresses of each node.
 	role, err := NewRole(runenv, initCtx)
@@ -30,7 +40,7 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	// using the parameters defined in the manifest and plan toml files. The
 	// single "leader" role performs creation and publishing of the configs,
 	// while the "follower" roles download the configs from the leader.
-	err = role.Plan(ctx, runenv, initCtx)
+	err = role.Plan(ctx, statuses, runenv, initCtx)
 	if err != nil {
 		runenv.RecordFailure(err)
 		initCtx.SyncClient.MustSignalAndWait(ctx, FailedState, runenv.TestInstanceCount)
@@ -54,6 +64,8 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 		initCtx.SyncClient.MustSignalAndWait(ctx, FailedState, runenv.TestInstanceCount)
 		return err
 	}
+
+	// signal that the test has completed successfully
 
 	return err
 }
