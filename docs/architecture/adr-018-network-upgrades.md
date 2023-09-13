@@ -13,7 +13,7 @@ Proposed
 
 There are three requirements in Celestia's upgrading mechanism that diverges from how the standard Cosmos SDK currently operates:
 
-- Upholding a stance of minimal on-chain governance and a preference towards off-chain governance or social consensus. Using the option of exit as a tool to ensure that those with explicit power (validators, perhaps) are held accountable with those of implicit power i.e. the wider community of users that benefit from Celestia
+- The ability for non-validators to easily exit the system.
 - Minimal downtime. As a core piece of infrastructure that the rollup community depends on, Celestia needs to be highly available. This means reducing the downtime for upgrades through effective coordination and minimal migrations.
 - Full chain backwards compatibility. The latest software version should be able to correctly process all transactions of the chain since genesis.
 
@@ -54,13 +54,13 @@ The mechanism that dictates which versioned block to agree upon, begins with the
 
 ### Phase 1: Configured Upgrade Height
 
-The height of the upgrades will initially be coordinated via the `app.toml` config file under a seprate upgrades section. This will consist of a mapping between the height and the app version that will be loaded by the application into working memory whenever the node begins. The `upgrades` module will simply take in this map and a reference to the `ParamStore` which it can use to set the new app version at the appropriate height. For safety, users will not be able to specify an app version that is greater than what the binary supports (i.e. 10 for v8). There is no rule preventing users from specifying a downgrade to an older version or a version that skips values. For convenience to node operators, a default mapping can be included in the binary such that the node operators simply need to stop the node, download the appropriate binary and restart the node.
+The height of the upgrades will initially be coordinated via the `app.toml` config file under a seprate upgrades section. This will consist of a mapping from chain ID to height to app version that will be loaded by the application into working memory whenever the node begins. The `upgrades` module will simply take in this map and a reference to the `ParamStore` which it can use to set the new app version at the appropriate height. For safety, users will not be able to specify an app version that is greater than what the binary supports (i.e. 10 for v8). There is no rule preventing users from specifying a downgrade to an older version or a version that skips values. For convenience to node operators, a default mapping can be included in the binary such that the node operators simply need to stop the node, download the appropriate binary and restart the node.
 
 ### Phase 2: Signaled Upgrade Height
 
 Preconfigured upgrade paths are vulnerable to halts. There is no indication that a quorum has in fact upgraded and that when the proposer proposes the block with the latest version, that consensus will be reached. To mitigate this risk, the upgrade height can instead be signaled by validators. Vote Extensions may appear as a good tool for this but it is inefficient to continually signal every height. Validators should only need to signal once. There are two possible approaches:
 
-- **Off-chain**: A new p2p reactor is introduced whereby validators sign a message indicating they have are now running a new binary and are ready to switch. Once a proposer has received a quorum plus some predefined grace period, they will propose a block with the new version and the rest of the network will vote accordingly. This approach means that the application doesn't have control but rather has to listen for changes in the app version. This also requires a change to the `PrivValidator` interface to be able to sign the new message.
+- **Off-chain**: A new p2p reactor is introduced whereby validators sign a message indicating they are now running a new binary and are ready to switch. Once a proposer has received a quorum plus some predefined grace period, they will propose a block with the new version and the rest of the network will vote accordingly. This approach means that the application doesn't have control but rather has to listen for changes in the app version. This also requires a change to the `PrivValidator` interface to be able to sign the new message.
 - **On-chain**: Upon upgrading to a new binary, the node will submit a transaction signalling it's ability to switch version. Again after a quorum is reached and some grace period, the `upgrade` module would trigger the app version change in `EndBlock`. The drawback with this approach is that this would probably require gas to submit in order to avoid spamming the network and wouldn't necessarily be automatic i.e. nodes could upgrade and forget to signal.
 
 ## References
