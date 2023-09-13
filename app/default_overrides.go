@@ -96,10 +96,10 @@ type slashingModule struct {
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := slashingtypes.DefaultParams()
 	params.MinSignedPerWindow = sdk.NewDecWithPrec(5, 2) // 5%
-	params.SignedBlocksWindow = 15000
-	params.DowntimeJailDuration = time.Minute * 1
+	params.SignedBlocksWindow = 5000
+	params.DowntimeJailDuration = time.Minute * 10
 	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
-	params.SlashFractionDowntime = sdk.NewDecWithPrec(1, 2)   // 1%
+	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
 
 	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
 		Params: params,
@@ -130,9 +130,7 @@ func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs := ibctypes.DefaultGenesisState()
 	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
 	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
-	return cdc.MustMarshalJSON(&ibctypes.GenesisState{
-		ClientGenesis: ibctypes.DefaultGenesisState().ClientGenesis,
-	})
+	return cdc.MustMarshalJSON(gs)
 }
 
 type mintModule struct {
