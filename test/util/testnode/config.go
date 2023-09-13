@@ -101,7 +101,7 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
-// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+// WithTimeoutCommit sets the TimeoutCommit and returns the Config.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
 	return c
