@@ -63,7 +63,7 @@ defined sequences; recursive patterns between one or more accounts which will co
 transactions. You can use flags or environment variables (TXSIM_RPC, TXSIM_GRPC, TXSIM_SEED, 
 TXSIM_POLL, TXSIM_KEYPATH) to configure the client. The keyring provided should have at least one
 well funded account that can act as the master account. The command runs until all sequences error.`,
-		Example: "txsim --key-path /path/to/keyring --rpc-endpoints localhost:26657 --grpc-endpoints localhost:9090 --seed 1234 --poll-time 1s --blob 5",
+		Example: "txsim --key-path /path/to/keyring --grpc-endpoint localhost:9090 --seed 1234 --poll-time 1s --blob 5",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
 				keys keyring.Keyring
@@ -94,7 +94,7 @@ well funded account that can act as the master account. The command runs until a
 			if grpcEndpoint == "" {
 				grpcEndpoint = os.Getenv(TxsimGRPC)
 				if grpcEndpoint == "" {
-					return errors.New("grpc endpoints not specified. Use --grpc-endpoints or TXSIM_GRPC env var")
+					return errors.New("grpc endpoints not specified. Use --grpc-endpoint or TXSIM_GRPC env var")
 				}
 			}
 

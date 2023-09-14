@@ -148,10 +148,10 @@ var (
 		newGovModule(),
 		params.AppModuleBasic{},
 		crisisModule{},
-		slashing.AppModuleBasic{},
+		slashingModule{},
 		authzmodule.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
-		ibc.AppModuleBasic{},
+		ibcModule{},
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
@@ -723,15 +723,6 @@ func (*App) BlockedParams() [][2]string {
 		// consensus.validator.PubKeyTypes
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
 	}
-}
-
-// GetMaccPerms returns a copy of the module account permissions
-func GetMaccPerms() map[string][]string {
-	dupMaccPerms := make(map[string][]string)
-	for k, v := range maccPerms {
-		dupMaccPerms[k] = v
-	}
-	return dupMaccPerms
 }
 
 // initParamsKeeper init params keeper and its subspaces

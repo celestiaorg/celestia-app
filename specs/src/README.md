@@ -8,6 +8,7 @@
     - [CAT Pool](./specs/cat_pool.md)
   - [Block Proposer](./specs/block_proposer.md)
   - [Block Validity Rules](./specs/block_validity_rules.md)
+  - [AnteHandler](./specs/ante_handler.md)
   - [Fraud Proofs](./specs/fraud_proofs.md)
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
@@ -20,3 +21,4 @@
   - [paramfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md)
   - [upgrade](https://github.com/celestiaorg/celestia-app/blob/main/x/upgrade/README.md)
   - [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
+- [Mainnet Parameters](./specs/params.md)

@@ -5,7 +5,6 @@ import (
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 type TxOption func(builder sdkclient.TxBuilder) sdkclient.TxBuilder
@@ -66,42 +65,17 @@ func SetFeeGranter(feeGranter sdk.AccAddress) TxOption {
 	}
 }
 
-// InheritTxConfig sets all of the accessible configurations from a given tx
-// into a given client.TxBuilder
-func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.TxBuilder {
-	if gas := tx.GetGas(); gas != 0 {
-		builder.SetGasLimit(gas)
+// SetGasLimitAndFee sets the gas limit and fee using the provided gas price and
+// gas limit. Note that this could overwrite or be overwritten by other
+// conflicting TxOptions.
+func SetGasLimitAndFee(gasLimit uint64, gasPrice float64) TxOption {
+	return func(builder sdkclient.TxBuilder) sdkclient.TxBuilder {
+		builder.SetGasLimit(gasLimit)
+		builder.SetFeeAmount(
+			sdk.NewCoins(
+				sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(int64(gasPrice*float64(gasLimit)))),
+			),
+		)
+		return builder
 	}
-
-	if feeAmmount := tx.GetFee(); !feeAmmount.AmountOf("utia").Equal(sdk.NewInt(0)) {
-		builder.SetFeeAmount(tx.GetFee())
-	}
-
-	if memo := tx.GetMemo(); memo != "" {
-		builder.SetMemo(tx.GetMemo())
-	}
-
-	if tip := tx.GetTip(); tip != nil {
-		builder.SetTip(tip)
-	}
-
-	if timeoutHeight := tx.GetTimeoutHeight(); timeoutHeight != 0 {
-		builder.SetTimeoutHeight(timeoutHeight)
-	}
-
-	signers := tx.GetSigners()
-	// Note: if there are multiple signers in a PFB, then this could create an
-	// invalid signature. This is not an issue at this time because we currently
-	// ignore pfbs with multiple signers
-	if len(signers) == 1 {
-		if feePayer := tx.FeeGranter(); !feePayer.Equals(signers[0]) {
-			builder.SetFeeGranter(tx.FeeGranter())
-		}
-	}
-
-	if feeGranter := tx.FeeGranter(); !feeGranter.Empty() {
-		builder.SetFeeGranter(tx.FeeGranter())
-	}
-
-	return builder
 }
