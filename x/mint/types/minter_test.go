@@ -80,9 +80,8 @@ func TestCalculateBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
 	blockInterval := 15 * time.Second
-	initialInflationRate := InitialInflationRateAsDec()
-	totalSupply := sdk.NewDec(1_000_000_000_000)              // 1 trillion utia
-	annualProvisions := totalSupply.Mul(initialInflationRate) // 80 billion utia
+	totalSupply := sdk.NewDec(1_000_000_000_000)                     // 1 trillion utia
+	annualProvisions := totalSupply.Mul(InitialInflationRateAsDec()) // 80 billion utia
 
 	type testCase struct {
 		name             string
@@ -138,9 +137,8 @@ func TestCalculateBlockProvisionError(t *testing.T) {
 	oneYear := time.Duration(NanosecondsPerYear)
 	end := current.Add(oneYear)
 
-	initialInflationRate := InitialInflationRateAsDec()
-	totalSupply := sdk.NewDec(1_000_000_000_000)              // 1 trillion utia
-	annualProvisions := totalSupply.Mul(initialInflationRate) // 80 billion utia
+	totalSupply := sdk.NewDec(1_000_000_000_000)                     // 1 trillion utia
+	annualProvisions := totalSupply.Mul(InitialInflationRateAsDec()) // 80 billion utia
 	minter.AnnualProvisions = annualProvisions
 	totalBlockProvisions := sdk.NewDec(0)
 	for current.Before(end) {
