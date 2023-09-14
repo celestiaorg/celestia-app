@@ -73,7 +73,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	networkKeys := make([]ed25519.PrivKey, 0, len(statuses))
 	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 
-	nodes := make([]NodeConfig, 0, len(statuses))
+	nodes := []NodeConfig{}
 	for i, status := range statuses {
 		networkKeys = append(networkKeys, genesis.GenerateEd25519(genesis.NewSeed(r)))
 		nodeName := fmt.Sprintf("%d", status.GlobalSequence)
@@ -86,12 +86,14 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 			vals = append(vals, val)
 		case "full_nodes":
 			accs = append(accs, genesis.NewAccounts(999999999999999999, nodeName)...)
+		default:
+			return Config{}, fmt.Errorf("unknown node type %s", status.NodeType)
 		}
 
 		nodes = append(nodes, NodeConfig{
 			Status:      status,
 			NodeType:    status.NodeType,
-			Name:        fmt.Sprintf("%d", status.GlobalSequence),
+			Name:        nodeName,
 			StartHeight: 0,
 			HaltHeight:  p.HaltHeight,
 			Keys: KeySet{
@@ -118,14 +120,14 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 		return Config{}, err
 	}
 
-	nodes, err = setMnenomics(g.Accounts(), nodes)
+	nodes, err = setMnemomics(g.Accounts(), nodes)
 	if err != nil {
 		return Config{}, err
 	}
 
 	for _, node := range nodes {
 		if node.Keys.AccountMnemonic == "" {
-			return Config{}, fmt.Errorf("!!! mnemonic not found for account %s", node.Name)
+			return Config{}, fmt.Errorf("mnemonic not found for account %s", node.Name)
 		}
 	}
 
@@ -147,17 +149,27 @@ func peerID(status Status, networkKey ed25519.PrivKey) string {
 	return fmt.Sprintf("%s@%s:26656", nodeID, status.IP)
 }
 
-// todo: have a better way to just generate the key here and set it in the account
-func setMnenomics(accs []genesis.Account, nodeCfgs []NodeConfig) ([]NodeConfig, error) {
+func setMnemomics(accs []genesis.Account, nodeCfgs []NodeConfig) ([]NodeConfig, error) {
+	accountMap := make(map[string]genesis.Account)
+	for _, acc := range accs {
+		accountMap[acc.Name] = acc
+	}
+	if len(accountMap) != len(accs) {
+		return nil, fmt.Errorf("duplicate account names found")
+	}
+	if len(nodeCfgs) > len(accountMap) {
+
+		return nil, fmt.Errorf("node count and account count mismatch: accounts %d node configs %d", len(accountMap), len(nodeCfgs))
+	}
 	for i, cfg := range nodeCfgs {
-		for _, acc := range accs {
-			if acc.Name == cfg.Name {
-				if acc.Mnemonic == "" {
-					return nil, fmt.Errorf("mnemonic not found for account %s", acc.Name)
-				}
-				nodeCfgs[i].Keys.AccountMnemonic = acc.Mnemonic
+		if acc, ok := accountMap[cfg.Name]; ok {
+			if acc.Mnemonic == "" {
+				return nil, fmt.Errorf("mnemonic not found for account %s", acc.Name)
 			}
+			nodeCfgs[i].Keys.AccountMnemonic = acc.Mnemonic
+			continue
 		}
+		return nil, fmt.Errorf("account not found for node %s", cfg.Name)
 	}
 	return nodeCfgs, nil
 }

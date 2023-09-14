@@ -37,7 +37,7 @@ func TestSetMnemonics(t *testing.T) {
 	}
 
 	// Test setting mnemonics
-	modifiedConfigs, err := setMnenomics(accounts, nodeConfigs)
+	modifiedConfigs, err := setMnemomics(accounts, nodeConfigs)
 	require.NoError(t, err)
 
 	for _, cfg := range modifiedConfigs {

@@ -65,6 +65,7 @@ func SyncStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitCo
 		GlobalSequence: initCtx.GlobalSeq,
 		GroupSequence:  initCtx.GroupSeq,
 		Group:          runenv.TestGroupID,
+		NodeType:       runenv.TestGroupID,
 	}
 
 	err = publishStatus(ctx, runenv, initCtx, ns)

@@ -52,7 +52,7 @@ type KeySet struct {
 }
 
 func (c *Config) ConsensusNode(globalSequence int) (*ConsensusNode, error) {
-	if len(c.Nodes) <= globalSequence {
+	if len(c.Nodes) < globalSequence {
 		return nil, fmt.Errorf("node %d not found", globalSequence)
 	}
 	// find a node with the provided global sequence

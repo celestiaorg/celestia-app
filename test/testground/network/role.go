@@ -93,7 +93,7 @@ func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx 
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("follower waiting for halt height %d chain id %s real ip %s", f.HaltHeight, f.ChainID, realIp.String()), res)
-	_, err = f.cctx.WaitForHeight(int64(f.ConsensusNode.HaltHeight))
+	_, err = f.cctx.WaitForHeightWithTimeout(int64(f.ConsensusNode.HaltHeight), time.Minute*30)
 	return err
 }
 
@@ -174,7 +174,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d chain id %s real ip %s", l.HaltHeight, l.ChainID, realIp.String()), res)
-	_, err = l.cctx.WaitForHeight(int64(l.ConsensusNode.HaltHeight))
+	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.ConsensusNode.HaltHeight), time.Minute*30)
 	return err
 }
 

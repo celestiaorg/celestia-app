@@ -191,8 +191,8 @@ github.com/bytedance/sonic v1.8.0 h1:ea0Xadu+sHlu7x5O3gKhRpQ1IKiMrSiHttPF0ybECuA
 github.com/bytedance/sonic v1.8.0/go.mod h1:i736AoUSYt75HyZLoJW9ERYxcy6eaN6h4BZXU064P/U=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230914011451-d8e2fed06b25 h1:NGw2kOSpgVF3haqvlk6O93BvmazgwuO17ARti6hE42c=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230914011451-d8e2fed06b25/go.mod h1:XF50g3/pTqwnl+HKJWcl7xX1VPP6UdnXDqCS18DJ5Zk=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230914205146-cc6950eda78f h1:29lhBgG6HR8LJwfMAAANUaqpDyGD1Jd8VDB8D9If5oM=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230914205146-cc6950eda78f/go.mod h1:XF50g3/pTqwnl+HKJWcl7xX1VPP6UdnXDqCS18DJ5Zk=
 github.com/celestiaorg/celestia-core v1.26.2-tm-v0.34.28 h1:2efXQaggLFknz0wQufr4nUEz5G7pSVHS1j7NuJDsvII=
 github.com/celestiaorg/celestia-core v1.26.2-tm-v0.34.28/go.mod h1:++dNzzzjP9jYg+NopN9G8sg1HEZ58lv1TPtg71evZ0E=
 github.com/celestiaorg/cosmos-sdk v1.18.0-sdk-v0.46.14 h1:dDfoQJOlVNj4HufJ1lBLTo2k3/L/255MIiKmEQziDmw=
@@ -724,6 +724,7 @@ github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANyt
 github.com/inconshreveable/mousetrap v1.0.1 h1:U3uMjPSQEBMNp1lFxmllqCPM6P5u/Xq7Pgzkat/bFNc=
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/influxdata/flux v0.65.1/go.mod h1:J754/zds0vvpfwuq7Gc2wRdVwEodfpCFM7mYlOw2LqY=
+github.com/influxdata/influxdb v1.8.3 h1:WEypI1BQFTT4teLM+1qkEcvUi0dAvopAI/ir0vAiBg8=
 github.com/influxdata/influxdb v1.8.3/go.mod h1:JugdFhsvvI8gadxOI6noqNeeBHvWNTbfYGtiAn+2jhI=
 github.com/influxdata/influxdb-client-go/v2 v2.4.0/go.mod h1:vLNHdxTJkIf2mSLvGrpj8TCcISApPoXkaxP8g9uRlW8=
 github.com/influxdata/influxdb-client-go/v2 v2.12.2 h1:uYABKdrEKlYm+++qfKdbgaHKBPmoWR5wpbmj6MBB/2g=
