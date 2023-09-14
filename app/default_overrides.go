@@ -2,11 +2,14 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -23,11 +26,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
-<<<<<<< HEAD
-=======
 	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
 	tmcfg "github.com/tendermint/tendermint/config"
->>>>>>> 9fa9fbf (chore: update more default parameters (#2417))
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -196,8 +196,6 @@ func DefaultBlockParams() tmproto.BlockParams {
 		TimeIotaMs: 1, // 1ms
 	}
 }
-<<<<<<< HEAD
-=======
 
 // DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
 // determined using a goal block time.
@@ -243,4 +241,3 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
 	return cfg
 }
->>>>>>> 9fa9fbf (chore: update more default parameters (#2417))
