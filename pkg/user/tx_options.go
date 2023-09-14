@@ -5,7 +5,6 @@ import (
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 type TxOption func(builder sdkclient.TxBuilder) sdkclient.TxBuilder
@@ -79,44 +78,4 @@ func SetGasLimitAndFee(gasLimit uint64, gasPrice float64) TxOption {
 		)
 		return builder
 	}
-}
-
-// InheritTxConfig sets all of the accessible configurations from a given tx
-// into a given client.TxBuilder
-func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.TxBuilder {
-	if gas := tx.GetGas(); gas != 0 {
-		builder.SetGasLimit(gas)
-	}
-
-	if feeAmmount := tx.GetFee(); !feeAmmount.AmountOf("utia").Equal(sdk.NewInt(0)) {
-		builder.SetFeeAmount(tx.GetFee())
-	}
-
-	if memo := tx.GetMemo(); memo != "" {
-		builder.SetMemo(tx.GetMemo())
-	}
-
-	if tip := tx.GetTip(); tip != nil {
-		builder.SetTip(tip)
-	}
-
-	if timeoutHeight := tx.GetTimeoutHeight(); timeoutHeight != 0 {
-		builder.SetTimeoutHeight(timeoutHeight)
-	}
-
-	signers := tx.GetSigners()
-	// Note: if there are multiple signers in a PFB, then this could create an
-	// invalid signature. This is not an issue at this time because we currently
-	// ignore pfbs with multiple signers
-	if len(signers) == 1 {
-		if feePayer := tx.FeeGranter(); !feePayer.Equals(signers[0]) {
-			builder.SetFeeGranter(tx.FeeGranter())
-		}
-	}
-
-	if feeGranter := tx.FeeGranter(); !feeGranter.Empty() {
-		builder.SetFeeGranter(tx.FeeGranter())
-	}
-
-	return builder
 }
