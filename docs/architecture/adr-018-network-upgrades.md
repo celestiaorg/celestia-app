@@ -15,7 +15,7 @@ There are three requirements in Celestia's upgrading mechanism that diverges fro
 
 - The ability for non-validators to easily exit the system.
 - Minimal downtime. As a core piece of infrastructure that the rollup community depends on, Celestia needs to be highly available. This means reducing the downtime for upgrades through effective coordination and minimal migrations.
-- Full chain backwards compatibility. The latest software version should be able to correctly process all transactions of the chain since genesis.
+- Full chain backwards compatibility. The latest software version should be able to correctly process all transactions of the chain since genesis in accordance with the version of the app that was in use at the time of each transaction's block.
 
 ### Rolling vs Stopping Upgrades
 
