@@ -157,12 +157,12 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>consensus.block.MaxBytes</td><td>1.88MiB</td><td>Governance parameter for the maximum size of the protobuf encoded block.</td><td>True</td></tr>
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
-<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>100000</td><td>The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>120960</td><td>The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data.</td><td>True</td></tr>
 <tr><td>consensus.evidence.MaxAgeDuration</td><td>1814400000000000 (21 days)</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>True</td></tr>
 <tr><td>consensus.evidence.MaxBytes</td><td>1MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
 <tr><td>consensus.Version.AppVersion</td><td>1</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
-<tr><td>distribution.communitytax</td><td>2.0%</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
+<tr><td>distribution.CommunityTax</td><td>2.0%</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
 <tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
 <tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint demonination for proposing a block.</td><td>True</td></tr>
 <tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward in the mint denomination for proposers based on the voting power included in the commit.</td><td>True</td></tr>
@@ -177,17 +177,17 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>ibc.Transfer.SendEnabled</td><td>true</td><td>Enable sending tokens via IBC.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
 <tr><td>slashing.SignedBlocksWindow</td><td>5000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
-<tr><td>slashing.MinSignedPerWindow</td><td>5</td><td>Minumum signatures in the block.</td><td>True</td></tr>
-<tr><td>slashing.DowntimeJailDuration</td><td>10 mins</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
-<tr><td>slashing.SlashFractionDoubleSign</td><td>5.0%</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
-<tr><td>slashing.SlashFractionDowntime</td><td>1.0%</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
+<tr><td>slashing.MinSignedPerWindow</td><td>75.0%</td><td>The percentage of SignedBlocksWindow that must be signed not to get jailed.</td><td>True</td></tr>
+<tr><td>slashing.DowntimeJailDuration</td><td>1 min</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDoubleSign</td><td>5.0%</td><td>Percentage slashed after a validator is jailed for double signing.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDowntime</td><td>0.0%</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
 <tr><td>staking.UnbondingTime</td><td>1814400 (21 days)</td><td>Duration of time for unbonding in seconds.</td><td>False</td></tr>
 <tr><td>staking.MaxValidators</td><td>100</td><td>Maximum number of validators.</td><td>False</td></tr>
 <tr><td>staking.MaxEntries</td><td>7</td><td>Maximum number of entries in the redelegation queue.</td><td>True</td></tr>
 <tr><td>staking.HistoricalEntries</td><td>10000</td><td>Number of historical entries to persist in store.</td><td>True</td></tr>
 <tr><td>staking.BondDenom</td><td>utia</td><td>Bondable coin denomination.</td><td>False</td></tr>
 <tr><td>staking.MinCommissionRate</td><td>0.05 (5%)</td><td>Minimum commission rate used by all validators.</td><td>True</td></tr>
-<tr><td>mint.BondDenom</td><td>utia</td><td>Denomination that is inflated and sent to the distribution module account.</td><td>True</td></tr>
+<tr><td>mint.BondDenom</td><td>utia</td><td>Denomination that is inflated and sent to the distribution module account.</td><td>False</td></tr>
 <tr><td>mint.InflationRateChange</td><td>10.0%</td><td>The rate at which the annual provisions decrease each year.</td><td>False</td></tr>
 <tr><td>mint.InflationRate</td><td>8.0%</td><td>Initial annual inflation rate used to calculate the annual provisions.</td><td>False</td></tr>
 <tr><td>qgb.DataCommitmentWindow</td><td>400</td><td>Number of blocks that are included in a signed batch (DataCommitment).</td><td>True</td></tr>
