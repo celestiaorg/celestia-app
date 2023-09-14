@@ -3,13 +3,30 @@ package network
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/testground/compositions"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
 
 // EntryPoint is the universal entry point for all role based tests.
 func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	kr := keyring.NewInMemory(ecfg.Codec)
+	_, mn, err := kr.NewMnemonic("testground", keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+	if mn == "" {
+		runenv.RecordFailure(err)
+		return fmt.Errorf("mnemonic is empty")
+	}
+
+	runenv.RecordMessage("starting mnemonic: %d", len(mn))
+
 	initCtx, ctx, cancel, err := compositions.InitTest(runenv, initCtx)
 	if err != nil {
 		runenv.RecordFailure(err)

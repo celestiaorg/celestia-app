@@ -18,8 +18,8 @@ var (
 	GenesisTopic = sync.NewTopic("genesis", map[string]json.RawMessage{})
 	// NetworkConfigTopic is the topic used to exchange network configuration
 	// between test instances.
-	ConfigTopic        = sync.NewTopic("network-config", Config{})
-	NewBornStatusTopic = sync.NewTopic("new-born-status", Status{})
+	ConfigTopic = sync.NewTopic("network-config", Config{})
+	StatusTopic = sync.NewTopic("new-born-status", Status{})
 )
 
 type Config struct {
@@ -67,12 +67,12 @@ func SyncStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitCo
 		Group:          runenv.TestGroupID,
 	}
 
-	err = publishNewBornStatus(ctx, runenv, initCtx, ns)
+	err = publishStatus(ctx, runenv, initCtx, ns)
 	if err != nil {
 		return nil, err
 	}
 
-	stats, err := downloadNewBornStatuses(ctx, initCtx, runenv.TestInstanceCount)
+	stats, err := downloadStatuses(ctx, initCtx, runenv.TestInstanceCount)
 	if err != nil {
 		return nil, err
 	}
@@ -92,13 +92,13 @@ func SyncStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitCo
 	return uniqueStats, nil
 }
 
-func publishNewBornStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, ns Status) error {
-	_, err := initCtx.SyncClient.Publish(ctx, NewBornStatusTopic, ns)
+func publishStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, ns Status) error {
+	_, err := initCtx.SyncClient.Publish(ctx, StatusTopic, ns)
 	return err
 }
 
-func downloadNewBornStatuses(ctx context.Context, initCtx *run.InitContext, count int) ([]Status, error) {
-	return DownloadSync(ctx, initCtx, NewBornStatusTopic, Status{}, count)
+func downloadStatuses(ctx context.Context, initCtx *run.InitContext, count int) ([]Status, error) {
+	return DownloadSync(ctx, initCtx, StatusTopic, Status{}, count)
 }
 
 func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, t T, count int) ([]T, error) {

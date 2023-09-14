@@ -42,10 +42,10 @@ func NewRole(runenv *runtime.RunEnv, initCtx *run.InitContext) (Role, error) {
 	switch seq {
 	// TODO: throw and error if there is more than a single leader
 	case 1:
-		runenv.RecordMessage("red leader standing by")
+		runenv.RecordMessage("red leader sitting by")
 		return &Leader{}, nil
 	default:
-		runenv.RecordMessage(fmt.Sprintf("red %d standing by", seq))
+		runenv.RecordMessage(fmt.Sprintf("red %d sitting by", seq))
 		return &Follower{}, nil
 	}
 }
@@ -122,14 +122,21 @@ type Leader struct {
 // Plan is the method that creates and distributes the genesis, configurations,
 // and keys for all of the other nodes in the network.
 func (l *Leader) Plan(ctx context.Context, statuses []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	runenv.RecordMessage("leader plan")
 	params, err := ParseParams(runenv)
 	if err != nil {
 		return err
 	}
 
+	runenv.RecordMessage("params found: %v", params)
+
 	cfg, err := params.StandardConfig(statuses)
 	if err != nil {
 		return err
+	}
+
+	for _, node := range cfg.Nodes {
+		runenv.RecordMessage("node mnemonic: %v", node.Keys.AccountMnemonic == "")
 	}
 
 	err = PublishConfig(ctx, initCtx, cfg)

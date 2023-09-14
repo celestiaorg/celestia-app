@@ -113,10 +113,8 @@ func (g *Genesis) AddAccount(acc Account) error {
 	if err != nil {
 		return err
 	}
+
 	acc.Mnemonic = mn
-	if mn == "" {
-		return fmt.Errorf("generated mnemonic for account %s is empty", acc.Name)
-	}
 	g.accounts = append(g.accounts, acc)
 	return nil
 }

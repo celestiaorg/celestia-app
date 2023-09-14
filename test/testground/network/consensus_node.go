@@ -196,13 +196,13 @@ func (c *ConsensusNode) Stop() error {
 
 // ImportKey imports the provided mnemonic into the keyring with the provided name.
 func ImportKey(kr keyring.Keyring, accountMnemonic string, name string) (keyring.Keyring, error) {
+	if accountMnemonic == "" {
+		return kr, fmt.Errorf("account mnemonic cannot be empty")
+	}
 	_, err := kr.Key(name)
 	if err == nil {
 		return kr, fmt.Errorf("key %s already exists", name)
 	}
 	_, err = kr.NewAccount(name, accountMnemonic, "", "", hd.Secp256k1)
-	if err != nil {
-		return kr, fmt.Errorf("failed to import key: %w ; %s", err, accountMnemonic)
-	}
-	return kr, nil
+	return kr, err
 }

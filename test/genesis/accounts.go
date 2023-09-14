@@ -18,9 +18,8 @@ import (
 type Account struct {
 	Name          string
 	InitialTokens int64
-	// Mnemonic is the mnemonic used to generate the account key. This is used
-	// to make the account key more portable in a trusted test environment such
-	// as testground.
+	// Mnemonic is the armored private key of the account. It is used to
+	// export the key and send it over the wire in testground.
 	Mnemonic string
 }
 

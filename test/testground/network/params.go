@@ -73,7 +73,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	networkKeys := make([]ed25519.PrivKey, 0, len(statuses))
 	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 
-	nodes := make([]NodeConfig, len(statuses))
+	nodes := make([]NodeConfig, 0, len(statuses))
 	for i, status := range statuses {
 		networkKeys = append(networkKeys, genesis.GenerateEd25519(genesis.NewSeed(r)))
 		nodeName := fmt.Sprintf("%d", status.GlobalSequence)
@@ -88,7 +88,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 			accs = append(accs, genesis.NewAccounts(999999999999999999, nodeName)...)
 		}
 
-		nodes[i] = NodeConfig{
+		nodes = append(nodes, NodeConfig{
 			Status:      status,
 			NodeType:    status.NodeType,
 			Name:        fmt.Sprintf("%d", status.GlobalSequence),
@@ -101,7 +101,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 			CmtConfig: cmtcfg,
 			AppConfig: app.DefaultAppConfig(),
 			P2PID:     peerID(status, networkKeys[i]),
-		}
+		})
 	}
 
 	g := genesis.NewDefaultGenesis().
@@ -121,6 +121,12 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	nodes, err = setMnenomics(g.Accounts(), nodes)
 	if err != nil {
 		return Config{}, err
+	}
+
+	for _, node := range nodes {
+		if node.Keys.AccountMnemonic == "" {
+			return Config{}, fmt.Errorf("!!! mnemonic not found for account %s", node.Name)
+		}
 	}
 
 	for _, top := range p.TopologyFns {
@@ -147,13 +153,9 @@ func setMnenomics(accs []genesis.Account, nodeCfgs []NodeConfig) ([]NodeConfig, 
 		for _, acc := range accs {
 			if acc.Name == cfg.Name {
 				if acc.Mnemonic == "" {
-
-					cfg.Keys.AccountMnemonic = acc.Mnemonic
-					nodeCfgs[i] = cfg
+					return nil, fmt.Errorf("mnemonic not found for account %s", acc.Name)
 				}
-			}
-			if cfg.Keys.AccountMnemonic == "" {
-				return nil, fmt.Errorf("account mnemonic not found for node %s", cfg.Name)
+				nodeCfgs[i].Keys.AccountMnemonic = acc.Mnemonic
 			}
 		}
 	}
