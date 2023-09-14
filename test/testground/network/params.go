@@ -73,7 +73,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	networkKeys := make([]ed25519.PrivKey, 0, len(statuses))
 	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 
-	nodes := make([]NodeConfig, p.NodeCount())
+	nodes := make([]NodeConfig, len(statuses))
 	for i, status := range statuses {
 		networkKeys = append(networkKeys, genesis.GenerateEd25519(genesis.NewSeed(r)))
 		nodeName := fmt.Sprintf("%d", status.GlobalSequence)
@@ -89,6 +89,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 		}
 
 		nodes[i] = NodeConfig{
+			Status:      status,
 			NodeType:    status.NodeType,
 			Name:        fmt.Sprintf("%d", status.GlobalSequence),
 			StartHeight: 0,
@@ -105,9 +106,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 
 	g := genesis.NewDefaultGenesis().
 		WithValidators(vals...).
-		WithAccounts()
-
-	nodes = setMnenomics(g.Accounts(), nodes)
+		WithAccounts(accs...)
 
 	gDoc, err := g.Export()
 	if err != nil {
@@ -115,6 +114,11 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	}
 
 	genDocBytes, err := cmtjson.MarshalIndent(gDoc, "", "  ")
+	if err != nil {
+		return Config{}, err
+	}
+
+	nodes, err = setMnenomics(g.Accounts(), nodes)
 	if err != nil {
 		return Config{}, err
 	}
@@ -138,14 +142,20 @@ func peerID(status Status, networkKey ed25519.PrivKey) string {
 }
 
 // todo: have a better way to just generate the key here and set it in the account
-func setMnenomics(accs []genesis.Account, nodeCfgs []NodeConfig) []NodeConfig {
+func setMnenomics(accs []genesis.Account, nodeCfgs []NodeConfig) ([]NodeConfig, error) {
 	for i, cfg := range nodeCfgs {
 		for _, acc := range accs {
 			if acc.Name == cfg.Name {
-				cfg.Keys.AccountMnemonic = acc.Mnemonic
-				nodeCfgs[i] = cfg
+				if acc.Mnemonic == "" {
+
+					cfg.Keys.AccountMnemonic = acc.Mnemonic
+					nodeCfgs[i] = cfg
+				}
+			}
+			if cfg.Keys.AccountMnemonic == "" {
+				return nil, fmt.Errorf("account mnemonic not found for node %s", cfg.Name)
 			}
 		}
 	}
-	return nodeCfgs
+	return nodeCfgs, nil
 }

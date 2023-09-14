@@ -93,14 +93,3 @@ func parseBandwidth(s string) (uint64, error) {
 
 	return uint64(number * float64(multiplier)), nil
 }
-
-// Given the first two octets as a string (e.g., "192.168")
-// and a slice of GlobalSeq values,
-// this function returns a slice of full IP address strings.
-func calculateIPAddresses(baseIP string, globalSequence int) string {
-	ipC := byte((globalSequence >> 8) + 1)
-	ipD := byte(globalSequence)
-	fullIP := fmt.Sprintf("%s.%d.%d", baseIP, ipC, ipD)
-
-	return fullIP
-}

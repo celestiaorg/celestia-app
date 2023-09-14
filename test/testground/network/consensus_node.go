@@ -28,6 +28,7 @@ import (
 // and published by the Leader node and then downloaded by the other follower
 // nodes. It is used to create a consensus node that
 type NodeConfig struct {
+	Status      Status            `json:"status"`
 	NodeType    string            `json:"node_type"`
 	Name        string            `json:"name"`
 	ChainID     string            `json:"chain_id,omitempty"`
@@ -54,9 +55,16 @@ func (c *Config) ConsensusNode(globalSequence int) (*ConsensusNode, error) {
 	if len(c.Nodes) <= globalSequence {
 		return nil, fmt.Errorf("node %d not found", globalSequence)
 	}
-	cfg := c.Nodes[globalSequence]
-	cfg.ChainID = c.ChainID
-	return NewConsensusNode(c.Genesis, cfg)
+	// find a node with the provided global sequence
+	var ncfg NodeConfig
+	for _, cfg := range c.Nodes {
+		if cfg.Status.GlobalSequence == int64(globalSequence) {
+			ncfg = cfg
+			break
+		}
+	}
+	ncfg.ChainID = c.ChainID
+	return NewConsensusNode(c.Genesis, ncfg)
 }
 
 // NodeID creates the ID for each node. This is currently just the global
@@ -82,8 +90,7 @@ type ConsensusNode struct {
 
 func NewConsensusNode(genesis json.RawMessage, cfg NodeConfig) (*ConsensusNode, error) {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr := keyring.NewInMemory(ecfg.Codec)
-	kr, err := ImportKey(kr, cfg.Keys.AccountMnemonic, cfg.Name)
+	kr, err := ImportKey(keyring.NewInMemory(ecfg.Codec), cfg.Keys.AccountMnemonic, cfg.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to import key: %w", err)
 	}
@@ -189,14 +196,13 @@ func (c *ConsensusNode) Stop() error {
 
 // ImportKey imports the provided mnemonic into the keyring with the provided name.
 func ImportKey(kr keyring.Keyring, accountMnemonic string, name string) (keyring.Keyring, error) {
-	kr.Delete(name)
 	_, err := kr.Key(name)
 	if err == nil {
 		return kr, fmt.Errorf("key %s already exists", name)
 	}
 	_, err = kr.NewAccount(name, accountMnemonic, "", "", hd.Secp256k1)
 	if err != nil {
-		return kr, fmt.Errorf("failed to import key: %w", err)
+		return kr, fmt.Errorf("failed to import key: %w ; %s", err, accountMnemonic)
 	}
 	return kr, nil
 }

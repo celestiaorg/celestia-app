@@ -132,13 +132,15 @@ func (l *Leader) Plan(ctx context.Context, statuses []Status, runenv *runtime.Ru
 		return err
 	}
 
-	// set the local cosnensus node
-	l.ConsensusNode, err = cfg.ConsensusNode(int(initCtx.GlobalSeq))
+	err = PublishConfig(ctx, initCtx, cfg)
 	if err != nil {
 		return err
 	}
 
-	return PublishConfig(ctx, initCtx, cfg)
+	// set the local cosnensus node
+	l.ConsensusNode, err = cfg.ConsensusNode(int(initCtx.GlobalSeq))
+
+	return err
 }
 
 func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {

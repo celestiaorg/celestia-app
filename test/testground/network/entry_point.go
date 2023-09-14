@@ -1,6 +1,8 @@
 package network
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/test/testground/compositions"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -15,6 +17,8 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 		return err
 	}
 	defer cancel()
+
+	runenv.RecordMessage(fmt.Sprintf("testground entry point: seq %d", initCtx.GlobalSeq))
 
 	// publish and download the ip addresses of all nodes
 	statuses, err := SyncStatus(ctx, runenv, initCtx)

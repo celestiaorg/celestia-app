@@ -55,18 +55,9 @@ func DownloadNetworkConfig(ctx context.Context, initCtx *run.InitContext) (Confi
 }
 
 func SyncStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) ([]Status, error) {
-	err := publishNewBornStatus(ctx, runenv, initCtx)
-	if err != nil {
-		return nil, err
-	}
-
-	return downloadNewBornStatuses(ctx, initCtx, runenv.TestInstanceCount)
-}
-
-func publishNewBornStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	ip, err := initCtx.NetClient.GetDataNetworkIP()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ns := Status{
@@ -75,12 +66,39 @@ func publishNewBornStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *
 		GroupSequence:  initCtx.GroupSeq,
 		Group:          runenv.TestGroupID,
 	}
-	_, err = initCtx.SyncClient.Publish(ctx, NewBornStatusTopic, ns)
+
+	err = publishNewBornStatus(ctx, runenv, initCtx, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := downloadNewBornStatuses(ctx, initCtx, runenv.TestInstanceCount)
+	if err != nil {
+		return nil, err
+	}
+
+	stats = append(stats, ns)
+
+	// remove duplicate stats
+	seen := make(map[string]struct{})
+	uniqueStats := make([]Status, 0, runenv.TestInstanceCount)
+	for _, s := range stats {
+		if _, ok := seen[s.IP]; !ok {
+			seen[s.IP] = struct{}{}
+			uniqueStats = append(uniqueStats, s)
+		}
+	}
+
+	return uniqueStats, nil
+}
+
+func publishNewBornStatus(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, ns Status) error {
+	_, err := initCtx.SyncClient.Publish(ctx, NewBornStatusTopic, ns)
 	return err
 }
 
 func downloadNewBornStatuses(ctx context.Context, initCtx *run.InitContext, count int) ([]Status, error) {
-	return DownloadSync(ctx, initCtx, ConfigTopic, Status{}, count)
+	return DownloadSync(ctx, initCtx, NewBornStatusTopic, Status{}, count)
 }
 
 func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, t T, count int) ([]T, error) {
