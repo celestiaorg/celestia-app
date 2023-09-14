@@ -56,3 +56,12 @@ are blocked by the `x/paramfilter` module.
 | mint.InflationRateChange | 10.0% | The rate at which the annual provisions decrease each year. | False |
 | mint.InflationRate | 8.0% | Initial annual inflation rate used to calculate the annual provisions. | False |
 | qgb.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |
+
+## Modifying Paramters Through Governance
+
+Modifying changeable parameters can be accomplished through [submitting and
+passing Paramter Change
+proposals](https://docs.cosmos.network/v0.46/modules/gov/01_concepts.html#proposal-submission).
+This currently requires writing and running code that will craft, sign, and
+submit a `NewParameterChangeProposal` proposal. An example is provided
+[here](https://github.com/celestiaorg/celestia-app/blob/32d247971386c1944d44bec1faeb000b1ff1dd51/app/test/std_sdk_test.go#L260-L276).
