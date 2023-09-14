@@ -109,6 +109,8 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		ValidatorsHash:     valSet.Hash(),
 		NextValidatorsHash: valSet.Hash(),
 	}})
+	appVersion := testApp.GetBaseApp().AppVersion()
+	fmt.Printf("appVersion %v", appVersion)
 
 	return testApp, kr
 }

@@ -19,11 +19,13 @@ import (
 
 func TestParamFilter(t *testing.T) {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	require.Greater(t, len(testApp.BlockedParams()), 0)
+	blockedParams, err := testApp.BlockedParams()
+	require.NoError(t, err)
+	require.Greater(t, len(blockedParams), 0)
 
 	// check that all blocked parameters are in the filter keeper
-	pph := paramfilter.NewParamBlockList(testApp.BlockedParams()...)
-	for _, p := range testApp.BlockedParams() {
+	pph := paramfilter.NewParamBlockList(blockedParams...)
+	for _, p := range blockedParams {
 		require.True(t, pph.IsBlocked(p[0], p[1]))
 	}
 
@@ -31,37 +33,12 @@ func TestParamFilter(t *testing.T) {
 	ctx := sdk.NewContext(testApp.CommitMultiStore(), tmproto.Header{}, false, tmlog.NewNopLogger())
 
 	t.Run("test that a proposal with a blocked param is rejected", func(t *testing.T) {
-		for _, p := range testApp.BlockedParams() {
+		for _, p := range blockedParams {
 			p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
 			err := handler(ctx, p)
 			require.Error(t, err)
 			require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
 		}
-	})
-
-	t.Run("test that another proposal with a blocked param (evidence consensus params) is rejected", func(t *testing.T) {
-		defaults := coretypes.DefaultEvidenceParams()
-		// Ensure that the evidence params haven't been modified yet
-		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
-
-		updated := tmproto.EvidenceParams{
-			MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
-			MaxAgeDuration:  1,
-			MaxBytes:        defaults.MaxBytes,
-		}
-		require.NoError(t, baseapp.ValidateEvidenceParams(updated))
-
-		marshalled, err := testApp.AppCodec().MarshalJSON(&defaults)
-		require.NoError(t, err)
-
-		invalidChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), string(marshalled))
-		p := testProposal(invalidChange)
-		err = handler(ctx, p)
-		require.Error(t, err)
-		require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
-
-		// Ensure that the evidence params still haven't been modified
-		require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
 	})
 
 	t.Run("test that a proposal with an unblocked params is accepted", func(t *testing.T) {
@@ -78,7 +55,7 @@ func TestParamFilter(t *testing.T) {
 	})
 
 	t.Run("test that a proposal with a blocked param and an unblocked param is rejected", func(t *testing.T) {
-		for _, p := range testApp.BlockedParams() {
+		for _, p := range blockedParams {
 			ps := testApp.StakingKeeper.GetParams(ctx)
 			// Ensure that MaxEntries has not been modified
 			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
@@ -91,8 +68,60 @@ func TestParamFilter(t *testing.T) {
 			err := handler(ctx, p)
 			require.Error(t, err)
 			require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
+			// Ensure that MaxEntries has not been modified
 			require.Equal(t, stakingtypes.DefaultMaxEntries, ps.MaxEntries)
 		}
+	})
+
+	t.Run("test evidence params with different app versions", func(t *testing.T) {
+		t.Run("evidence params are unblocked in v1", func(t *testing.T) {
+			defaults := coretypes.DefaultEvidenceParams()
+			// Ensure that the evidence params haven't been modified yet
+			require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
+
+			updated := tmproto.EvidenceParams{
+				MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
+				MaxAgeDuration:  1,
+				MaxBytes:        defaults.MaxBytes,
+			}
+			require.NoError(t, baseapp.ValidateEvidenceParams(updated))
+
+			marshalled, err := testApp.AppCodec().MarshalJSON(&defaults)
+			require.NoError(t, err)
+
+			validChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), string(marshalled))
+			p := testProposal(validChange)
+			err = handler(ctx, p)
+			require.NoError(t, err) // TODO this should not be an error
+
+			// Ensure that the evidence params have been modified
+			require.Equal(t, updated, *testApp.GetConsensusParams(ctx).Evidence)
+		})
+
+		t.Run("evidence params are blocked in v2", func(t *testing.T) {
+			defaults := coretypes.DefaultEvidenceParams()
+			// Ensure that the evidence params haven't been modified yet
+			require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
+
+			updated := tmproto.EvidenceParams{
+				MaxAgeNumBlocks: defaults.MaxAgeNumBlocks + 1,
+				MaxAgeDuration:  1,
+				MaxBytes:        defaults.MaxBytes,
+			}
+			require.NoError(t, baseapp.ValidateEvidenceParams(updated))
+
+			marshalled, err := testApp.AppCodec().MarshalJSON(&defaults)
+			require.NoError(t, err)
+
+			invalidChange := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams), string(marshalled))
+			p := testProposal(invalidChange)
+			err = handler(ctx, p)
+			require.Error(t, err)
+			require.ErrorIs(t, err, paramfilter.ErrBlockedParameter)
+
+			// Ensure that the evidence params still haven't been modified
+			require.Equal(t, defaults, *testApp.GetConsensusParams(ctx).Evidence)
+		})
 	})
 }
 

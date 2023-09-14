@@ -87,6 +87,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -355,7 +356,11 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
-	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
+	blockedParams, err := app.BlockedParams()
+	if err != nil {
+		panic(err)
+	}
+	paramBlockList := paramfilter.NewParamBlockList(blockedParams...)
 
 	// register the proposal types
 	govRouter := oldgovtypes.NewRouter()
@@ -712,18 +717,13 @@ func (app *App) setPostHanders() {
 
 // BlockedParams are params that require a hardfork to change, and cannot be changed via
 // governance.
-func (*App) BlockedParams() [][2]string {
-	return [][2]string{
-		// bank.SendEnabled
-		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
-		// staking.UnbondingTime
-		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
-		// staking.BondDenom
-		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
-		// consensus.validator.ValidatorParams
-		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
-		// consensus.evidence.EvidenceParams
-		{baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams)},
+func (app *App) BlockedParams() ([][2]string, error) {
+	appVersion := app.AppVersion()
+	switch appVersion {
+	case v2.Version:
+		return BlockedParamsV2(), nil
+	default:
+		return BlockedParamsV1(), nil
 	}
 }
 
