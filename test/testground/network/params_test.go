@@ -1,9 +1,6 @@
 package network
 
 import (
-	"fmt"
-	"io"
-	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -125,74 +122,5 @@ func TestExportImportKey(t *testing.T) {
 	err = kr.ImportPrivKey("test-2", armor, "")
 	assert.NoError(t, err)
 	rec, err = kr.Key("test-2")
-	require.NoError(t, err)
-}
-
-func TestImportArmor(t *testing.T) {
-	armor := `
------BEGIN TENDERMINT PRIVATE KEY-----
-kdf: bcrypt
-salt: 18156479C183D89BFD7D6AC648719FB4
-type: secp256k1
-
-EsoSHTVeSmuv7r5jEeXy7a+iqgnLYkijUrSLJljQTWP9jG9U5YBjL4dUlcSxku36
-iigF+ApHTckpsrZNDcy12wgzsjIblDbPjs3nJHY=
-=LSQ2
------END TENDERMINT PRIVATE KEY-----
-`
-	// 	armor = `
-	// -----BEGIN TENDERMINT PRIVATE KEY-----
-	// kdf: bcrypt
-	// salt: 4978B7888973C9531B3E1DF1DA0AA1AA
-	// type: secp256k1
-
-	// cJ8CcBCA93SSbKiAUB7T0zCkHWjxPw7Aa3hnczZL5xmuP6LPOU9j0YTeov2PY5S1
-	// 8Rhk0604OAtJF2uJzK8aUOaJydsAcsS4H8BSbM4=
-	// =a8km
-	// -----END TENDERMINT PRIVATE KEY-----
-	// `
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr := keyring.NewInMemory(ecfg.Codec)
-	err := kr.ImportPrivKey("test-2", armor, "")
-	assert.NoError(t, err)
-	_, err = kr.Key("test-2")
-	require.NoError(t, err)
-
-}
-
-func TestImportMnenomic(t *testing.T) {
-	mn := "wife other cry crucial other clog bright seven husband ugly uncle sing layer glad silly keen hour custom firm review erosion lift mobile together"
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr := keyring.NewInMemory(ecfg.Codec)
-	_, err := kr.NewAccount("test", mn, "", "", hd.Secp256k1)
-	require.NoError(t, err)
-	_, err = kr.Key("test")
-	require.NoError(t, err)
-
-}
-
-func TestTTT(t *testing.T) {
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr := keyring.NewInMemory(ecfg.Codec)
-	_, mn, err := kr.NewMnemonic("test", keyring.English, "", "", hd.Secp256k1)
-	require.NoError(t, err)
-	rec, err := kr.Key("test")
-	require.NoError(t, err)
-
-	r := strings.NewReader(mn)
-	bz, err := io.ReadAll(r)
-	require.NoError(t, err)
-
-	kr2 := keyring.NewInMemory(ecfg.Codec)
-	rec, err = kr2.NewAccount("test", fmt.Sprintf("%s", string(bz)), "", "", hd.Secp256k1)
-	require.NoError(t, err)
-	_, err = rec.GetAddress()
-	require.NoError(t, err)
-
-	manual := "wife other cry crucial other clog bright seven husband ugly uncle sing layer glad silly keen hour custom firm review erosion lift mobile together"
-	kr3 := keyring.NewInMemory(ecfg.Codec)
-	rec, err = kr3.NewAccount("test", manual, "", "", hd.Secp256k1)
-	require.NoError(t, err)
-	_, err = rec.GetAddress()
 	require.NoError(t, err)
 }

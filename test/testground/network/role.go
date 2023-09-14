@@ -79,20 +79,7 @@ func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx 
 		return err
 	}
 
-	time.Sleep(time.Second)
-
-	// TODO: download reports
-	res, err := f.cctx.Client.NetInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	realIp, err := initCtx.NetClient.GetDataNetworkIP()
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("follower waiting for halt height %d chain id %s real ip %s", f.HaltHeight, f.ChainID, realIp.String()), res)
+	runenv.RecordMessage(fmt.Sprintf("follower waiting for halt height %d chain id %s", f.HaltHeight, f.ChainID))
 	_, err = f.cctx.WaitForHeightWithTimeout(int64(f.ConsensusNode.HaltHeight), time.Minute*30)
 	return err
 }
@@ -108,8 +95,7 @@ func (f *Follower) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	if err != nil {
 		return err
 	}
-	runenv.RecordMessage("follower retro", res)
-	runenv.RecordSuccess()
+	runenv.RecordMessage("follower retro", res.SyncInfo.LatestBlockHeight)
 	return nil
 }
 
@@ -160,20 +146,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 		return err
 	}
 
-	time.Sleep(time.Second)
-
-	// TODO: download reports
-	res, err := l.cctx.Client.NetInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	realIp, err := initCtx.NetClient.GetDataNetworkIP()
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d chain id %s real ip %s", l.HaltHeight, l.ChainID, realIp.String()), res)
+	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d chain id %s", l.HaltHeight, l.ChainID))
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.ConsensusNode.HaltHeight), time.Minute*30)
 	return err
 }
@@ -184,12 +157,11 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	defer l.ConsensusNode.Stop()
 
-	// TODO: download reports
 	res, err := l.cctx.Client.Status(ctx)
 	if err != nil {
 		return err
 	}
-	runenv.RecordMessage("leader retro", res)
-	runenv.RecordSuccess()
+
+	runenv.RecordMessage("leader retro", res.SyncInfo.LatestBlockHeight)
 	return nil
 }
