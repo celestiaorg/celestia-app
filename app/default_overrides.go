@@ -17,9 +17,17 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
+	"github.com/cosmos/cosmos-sdk/x/slashing"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
+<<<<<<< HEAD
+=======
+	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
+	tmcfg "github.com/tendermint/tendermint/config"
+>>>>>>> 9fa9fbf (chore: update more default parameters (#2417))
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -71,8 +79,29 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := stakingtypes.DefaultParams()
 	params.UnbondingTime = appconsts.DefaultUnbondingTime
 	params.BondDenom = BondDenom
+	params.MinCommissionRate = sdk.NewDecWithPrec(5, 2) // 5%
 
 	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
+		Params: params,
+	})
+}
+
+// stakingModule wraps the x/staking module in order to overwrite specific
+// ModuleManager APIs.
+type slashingModule struct {
+	slashing.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/staking module genesis state.
+func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	params := slashingtypes.DefaultParams()
+	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
+	params.SignedBlocksWindow = 5000
+	params.DowntimeJailDuration = time.Minute * 1
+	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
+
+	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
 		Params: params,
 	})
 }
@@ -86,6 +115,22 @@ func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
 	})
+}
+
+type ibcModule struct {
+	ibc.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/ibc module genesis state.
+func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	// per ibc documentation, this value should be 3-5 times the expected block
+	// time. The expected block time is 15 seconds, therefore this value is 75
+	// seconds.
+	maxBlockTime := appconsts.GoalBlockTime * 5
+	gs := ibctypes.DefaultGenesisState()
+	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
+	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
+	return cdc.MustMarshalJSON(gs)
 }
 
 type mintModule struct {
@@ -113,7 +158,7 @@ type govModule struct {
 // DefaultGenesis returns custom x/gov module genesis state.
 func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10000000)))
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(1_000_000_000))) // 1000 TIA
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -134,7 +179,7 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:     DefaultBlockParams(),
-		Evidence:  coretypes.DefaultEvidenceParams(),
+		Evidence:  DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
 			AppVersion: appconsts.LatestVersion,
@@ -151,3 +196,51 @@ func DefaultBlockParams() tmproto.BlockParams {
 		TimeIotaMs: 1, // 1ms
 	}
 }
+<<<<<<< HEAD
+=======
+
+// DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
+// determined using a goal block time.
+func DefaultEvidenceParams() tmproto.EvidenceParams {
+	evdParams := coretypes.DefaultEvidenceParams()
+	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
+	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
+	return evdParams
+}
+
+func DefaultConsensusConfig() *tmcfg.Config {
+	cfg := tmcfg.DefaultConfig()
+	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
+	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
+	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
+	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	cfg.Mempool.TTLNumBlocks = 10
+	// Given that there is a stateful transaction size check in CheckTx,
+	// We set a loose upper bound on what we expect the transaction to
+	// be based on the upper bound size of the entire block for the given
+	// version. This acts as a first line of DoS protection
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	cfg.Mempool.MaxTxBytes = upperBoundBytes
+
+	cfg.Mempool.Version = "v1" // prioritized mempool
+	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
+	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+	cfg.Consensus.SkipTimeoutCommit = false
+	cfg.TxIndex.Indexer = "null"
+	return cfg
+}
+
+func DefaultAppConfig() *serverconfig.Config {
+	cfg := serverconfig.DefaultConfig()
+	cfg.API.Enable = true
+
+	// the default snapshot interval was determined by picking a large enough
+	// value as to not dramatically increase resource requirements while also
+	// being greater than zero so that there are more nodes that will serve
+	// snapshots to nodes that state sync
+	cfg.StateSync.SnapshotInterval = 1500
+	cfg.StateSync.SnapshotKeepRecent = 2
+	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
+	return cfg
+}
+>>>>>>> 9fa9fbf (chore: update more default parameters (#2417))
