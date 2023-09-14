@@ -90,15 +90,13 @@ func TestConfigGeneration(t *testing.T) {
 		require.Equal(t, "validators", node.NodeType)
 
 		kr := keyring.NewInMemory(ecfg.Codec)
-		fmt.Println(node.Keys.AccountMnemonic)
 
 		kr, err = ImportKey(kr, node.Keys.AccountMnemonic, node.Name)
 		require.NoError(t, err)
 		rec, err := kr.Key(node.Name)
 		require.NoError(t, err)
-		addr, err := rec.GetAddress()
+		_, err = rec.GetAddress()
 		require.NoError(t, err)
-		fmt.Println(addr.String(), node.Keys.AccountMnemonic)
 	}
 }
 
@@ -109,23 +107,19 @@ func TestExportImportKey(t *testing.T) {
 	require.NoError(t, err)
 	rec, err := kr.Key("test")
 	require.NoError(t, err)
-	fmt.Println(mn)
 	err = kr.Delete("test")
 	require.NoError(t, err)
 	rec, err = kr.NewAccount("test", mn, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	addr, err := rec.GetAddress()
+	_, err = rec.GetAddress()
 	require.NoError(t, err)
-	fmt.Println("imported address", addr.String())
 
 	_, _, err = kr.NewMnemonic("test-2", keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	rec, err = kr.Key("test-2")
 	require.NoError(t, err)
-	fmt.Println(rec.GetAddress())
 	armor, err := kr.ExportPrivKeyArmor("test-2", "")
 	require.NoError(t, err)
-	fmt.Println(armor)
 	err = kr.Delete("test-2")
 	require.NoError(t, err)
 	err = kr.ImportPrivKey("test-2", armor, "")
@@ -161,9 +155,8 @@ iigF+ApHTckpsrZNDcy12wgzsjIblDbPjs3nJHY=
 	kr := keyring.NewInMemory(ecfg.Codec)
 	err := kr.ImportPrivKey("test-2", armor, "")
 	assert.NoError(t, err)
-	rec, err := kr.Key("test-2")
+	_, err = kr.Key("test-2")
 	require.NoError(t, err)
-	fmt.Println(rec.GetAddress())
 
 }
 
@@ -171,11 +164,10 @@ func TestImportMnenomic(t *testing.T) {
 	mn := "wife other cry crucial other clog bright seven husband ugly uncle sing layer glad silly keen hour custom firm review erosion lift mobile together"
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr := keyring.NewInMemory(ecfg.Codec)
-	rec, err := kr.NewAccount("test", mn, "", "", hd.Secp256k1)
+	_, err := kr.NewAccount("test", mn, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	rec, err = kr.Key("test")
+	_, err = kr.Key("test")
 	require.NoError(t, err)
-	fmt.Println(rec.GetAddress())
 
 }
 
@@ -183,7 +175,6 @@ func TestTTT(t *testing.T) {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr := keyring.NewInMemory(ecfg.Codec)
 	_, mn, err := kr.NewMnemonic("test", keyring.English, "", "", hd.Secp256k1)
-	fmt.Println(mn)
 	require.NoError(t, err)
 	rec, err := kr.Key("test")
 	require.NoError(t, err)
@@ -191,20 +182,17 @@ func TestTTT(t *testing.T) {
 	r := strings.NewReader(mn)
 	bz, err := io.ReadAll(r)
 	require.NoError(t, err)
-	fmt.Println(string(bz))
 
 	kr2 := keyring.NewInMemory(ecfg.Codec)
 	rec, err = kr2.NewAccount("test", fmt.Sprintf("%s", string(bz)), "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	addr, err := rec.GetAddress()
+	_, err = rec.GetAddress()
 	require.NoError(t, err)
-	fmt.Println("imported address", addr.String())
 
 	manual := "wife other cry crucial other clog bright seven husband ugly uncle sing layer glad silly keen hour custom firm review erosion lift mobile together"
 	kr3 := keyring.NewInMemory(ecfg.Codec)
 	rec, err = kr3.NewAccount("test", manual, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	addr, err = rec.GetAddress()
+	_, err = rec.GetAddress()
 	require.NoError(t, err)
-	fmt.Println("imported address", addr.String())
 }
