@@ -7,6 +7,8 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 )
 
+// GovProposalDecorator ensures that a tx with a MsgSubmitProposal has at least
+// one message in the proposal.
 type GovProposalDecorator struct{}
 
 func NewGovProposalDecorator() GovProposalDecorator {

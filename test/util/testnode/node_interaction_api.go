@@ -12,6 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -22,7 +24,6 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -214,14 +215,11 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
 func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
-	opts := []types.TxBuilderOption{
-		types.SetGasLimit(100000000000000),
+	rec, err := c.Keyring.Key(account)
+	if err != nil {
+		return nil, err
 	}
 
-	// use the key for accounts[i] to create a singer used for a single PFB
-	signer := types.NewKeyringSigner(c.Keyring, account, c.ChainID)
-
-	rec := signer.GetSignerInfo()
 	addr, err := rec.GetAddress()
 	if err != nil {
 		return nil, err
@@ -232,38 +230,27 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 		return nil, err
 	}
 
-	signer.SetAccountNumber(acc)
-	signer.SetSequence(seq)
+	// use the key for accounts[i] to create a singer used for a single PFB
+	signer, err := user.NewSigner(c.Keyring, c.GRPCClient, addr, c.TxConfig, c.ChainID, acc, seq)
+	if err != nil {
+		return nil, err
+	}
 
 	blob, err := types.NewBlob(ns, blobData, appconsts.ShareVersionZero)
 	if err != nil {
 		return nil, err
 	}
 
-	msg, err := types.NewMsgPayForBlobs(
-		addr.String(),
-		blob,
-	)
+	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
+	opts := blobfactory.FeeTxOpts(gas)
+
+	blobTx, err := signer.CreatePayForBlob([]*types.Blob{blob}, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	builder := signer.NewTxBuilder(opts...)
-	stx, err := signer.BuildSignedTx(builder, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	rawTx, err := signer.EncodeTx(stx)
-	if err != nil {
-		return nil, err
-	}
-
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
-	if err != nil {
-		return nil, err
-	}
-
+	// TODO: the signer is also capable of submitting the transaction via gRPC
+	// so this section could eventually be replaced
 	var res *sdk.TxResponse
 	switch broadcastMode {
 	case flags.BroadcastSync:
@@ -324,20 +311,4 @@ func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
 		}
 	}
 	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
-}
-
-// LatestBlock retrieves the latest block from the context.
-//
-// It returns a pointer to the latest block and an error if any.
-func (c *Context) LatestBlock() (*coretypes.Block, error) {
-	height, err := c.LatestHeight()
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := c.Client.Block(context.Background(), &height)
-	if err != nil {
-		return nil, err
-	}
-	return result.Block, nil
 }

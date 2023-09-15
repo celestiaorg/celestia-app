@@ -2,8 +2,7 @@
 
 CREATE_KEY=0
 KEY_PATH="/home/celestia"
-RPC_ENDPOINTS=""
-GRPC_ENDPOINTS=""
+GRPC_ENDPOINT=""
 POLL_TIME=""
 BLOB=0
 BLOB_AMOUNTS="1"
@@ -24,11 +23,8 @@ while getopts "k:p:r:g:t:b:a:s:m:d:e:i:v:u:w:" opt; do
     p )
       KEY_PATH=$OPTARG
       ;;
-    r )
-      RPC_ENDPOINTS=$OPTARG
-      ;;
     g )
-      GRPC_ENDPOINTS=$OPTARG
+      GRPC_ENDPOINT=$OPTARG
       ;;
     t )
       POLL_TIME=$OPTARG
@@ -83,8 +79,7 @@ fi
 
 # Running a tx simulator
 txsim --key-path $KEY_PATH \
- --rpc-endpoints $RPC_ENDPOINTS \
- --grpc-endpoints $GRPC_ENDPOINTS \
+ --grpc-endpoint $GRPC_ENDPOINT \
  --poll-time $POLL_TIME \
  --blob $BLOB \
  --blob-amounts $BLOB_AMOUNTS \

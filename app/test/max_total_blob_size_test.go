@@ -3,22 +3,21 @@ package app_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -93,15 +92,19 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		},
 	}
 
-	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
+	signer, err := testnode.NewSignerFromContext(s.cctx, s.accounts[0])
+	require.NoError(t, err)
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			blobTx := newBlobTx(t, signer, s.cctx.GRPCClient, tc.blob)
-			res, err := blobtypes.BroadcastTx(context.TODO(), s.cctx.GRPCClient, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
+			blobTx, err := signer.CreatePayForBlob([]*tmproto.Blob{tc.blob}, user.SetGasLimit(1e9))
+			require.NoError(t, err)
+			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+			defer cancel()
+			res, err := signer.BroadcastTx(subCtx, blobTx)
 			require.NoError(t, err)
 			require.NotNil(t, res)
-			require.Equal(t, tc.want, res.TxResponse.Code, res.TxResponse.Logs)
+			require.Equal(t, tc.want, res.Code, res.Logs)
 
 			sq, err := square.Construct([][]byte{blobTx}, appconsts.LatestVersion, squareSize)
 			if tc.want == abci.CodeTypeOK {
@@ -114,28 +117,4 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			}
 		})
 	}
-}
-
-func newBlobTx(t *testing.T, signer *blobtypes.KeyringSigner, conn *grpc.ClientConn, blob *tmproto.Blob) coretypes.Tx {
-	addr, err := signer.GetSignerInfo().GetAddress()
-	require.NoError(t, err)
-
-	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
-	require.NoError(t, err)
-
-	err = signer.QueryAccountNumber(context.TODO(), conn)
-	require.NoError(t, err)
-
-	options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1e9)} // set gas limit to 1 billion to avoid gas exhaustion
-	builder := signer.NewTxBuilder(options...)
-	stx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	rawTx, err := signer.EncodeTx(stx)
-	require.NoError(t, err)
-
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
-	require.NoError(t, err)
-
-	return blobTx
 }

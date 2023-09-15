@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -20,8 +21,8 @@ func TestGovDecorator(t *testing.T) {
 	coins := types.NewCoins(types.NewCoin("utia", types.NewInt(10)))
 
 	msgSend := banktypes.NewMsgSend(
-		testfactory.RandomAddress().(types.AccAddress),
-		testfactory.RandomAddress().(types.AccAddress),
+		testnode.RandomAddress().(types.AccAddress),
+		testnode.RandomAddress().(types.AccAddress),
 		coins,
 	)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)

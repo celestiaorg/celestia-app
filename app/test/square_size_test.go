@@ -9,7 +9,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -17,7 +20,6 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -96,7 +98,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(100_000, 100, tt.pfbsPerBlock, 20*time.Second)
+			start, end := s.fillBlocks(100_000, 10, tt.pfbsPerBlock, 20*time.Second)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			actualMaxSize := 0
@@ -109,7 +111,8 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
 					actualMaxSize = int(block.Block.Data.SquareSize)
 				}
 			}
-			require.Greater(t, tt.expectedMaxSquareSize, actualMaxSize)
+
+			require.Equal(t, tt.expectedMaxSquareSize, actualMaxSize)
 		})
 	}
 }
@@ -129,15 +132,15 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 	startBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
 
-	// disable the logger
-	zerolog.SetGlobalLevel(zerolog.Disabled)
 	_ = txsim.Run(
 		ctx,
-		[]string{s.rpcAddr},
-		[]string{s.grpcAddr},
+		s.grpcAddr,
 		s.cctx.Keyring,
-		rand.Int63(),
-		time.Second,
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
+		txsim.DefaultOptions().
+			WithSeed(rand.Int63()).
+			WithPollTime(time.Second).
+			SuppressLogs(),
 		seqs...,
 	)
 
@@ -175,7 +178,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 		"description",
 		[]proposal.ParamChange{change1, change2},
 	)
-	addr := getAddress(account, s.cctx.Keyring)
+	addr := testfactory.GetAddress(s.cctx.Keyring, account)
 
 	msg, err := oldgov.NewMsgSubmitProposal(
 		content,
@@ -185,12 +188,12 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	)
 	require.NoError(t, err)
 
-	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, msg)
+	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+	require.NoError(t, err)
+
+	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	require.NoError(t, err)
 	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
-	require.NoError(t, err)
-	resp, err := s.cctx.WaitForTx(res.TxHash, 10)
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
@@ -201,12 +204,10 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	require.Len(t, gresp.Proposals, 1)
 
 	// create and submit a new vote
-	vote := v1.NewMsgVote(getAddress(account, s.cctx.Keyring), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
-	res, err = testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, vote)
+	vote := v1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, account), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
+	res, err = signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
-	resp, err = s.cctx.WaitForTx(res.TxHash, 10)
-	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
+	require.Equal(t, abci.CodeTypeOK, res.Code)
 
 	// wait for the voting period to complete
 	time.Sleep(time.Second * 6)

@@ -17,9 +17,7 @@ import (
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	slashing "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/tendermint/tendermint/types"
@@ -61,7 +59,6 @@ func MakeGenesis(nodes []*Node, accounts []*GenesisAccount) (types.GenesisDoc, e
 		if err != nil {
 			return types.GenesisDoc{}, err
 		}
-		evmAddress := common.HexToAddress(crypto.CRandHex(common.AddressLength))
 
 		validators = append(validators, staking.Validator{
 			OperatorAddress: sdk.ValAddress(addr).String(),
@@ -75,7 +72,6 @@ func MakeGenesis(nodes []*Node, accounts []*GenesisAccount) (types.GenesisDoc, e
 			// 5% commission
 			Commission:        staking.NewCommission(sdk.NewDecWithPrec(5, 2), sdk.OneDec(), sdk.OneDec()),
 			MinSelfDelegation: sdk.ZeroInt(),
-			EvmAddress:        evmAddress.Hex(),
 		})
 		totalBonded += node.SelfDelegation
 		consensusAddr := pk.Address()

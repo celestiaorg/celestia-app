@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -20,19 +19,20 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 )
 
 func TestProcessProposal(t *testing.T) {
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
-	signer := types.GenerateKeyringSigner(t, accounts[0])
-
-	enc := encConf.TxConfig.TxEncoder()
+	addr := testfactory.GetAddress(kr, accounts[0])
+	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence)
+	require.NoError(t, err)
 
 	// create 4 single blob blobTxs that are signed with valid account numbers
 	// and sequences
@@ -203,9 +203,8 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace in index wrapper tx",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
-				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), signer, 0, 0, uint32(index))
+				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
 				blobTx, err := coretypes.MarshalBlobTx(tx, &blob)
 				require.NoError(t, err)
 

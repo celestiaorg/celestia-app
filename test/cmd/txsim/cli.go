@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -22,22 +23,24 @@ import (
 
 // A set of environment variables that can be used instead of flags
 const (
-	TxsimGRPC     = "TXSIM_GRPC"
-	TxsimRPC      = "TXSIM_RPC"
-	TxsimSeed     = "TXSIM_SEED"
-	TxsimPoll     = "TXSIM_POLL"
-	TxsimKeypath  = "TXSIM_KEYPATH"
-	TxsimMnemonic = "TXSIM_MNEMONIC"
+	TxsimGRPC          = "TXSIM_GRPC"
+	TxsimRPC           = "TXSIM_RPC"
+	TxsimSeed          = "TXSIM_SEED"
+	TxsimPoll          = "TXSIM_POLL"
+	TxsimKeypath       = "TXSIM_KEYPATH"
+	TxsimMasterAccName = "TXSIM_MASTER_ACC_NAME"
+	TxsimMnemonic      = "TXSIM_MNEMONIC"
 )
 
 // Values for all flags
 var (
-	keyPath, keyMnemonic, rpcEndpoints, grpcEndpoints string
+	keyPath, masterAccName, keyMnemonic, grpcEndpoint string
 	blobSizes, blobAmounts                            string
 	seed                                              int64
 	pollTime                                          time.Duration
 	send, sendIterations, sendAmount                  int
 	stake, stakeValue, blob                           int
+	useFeegrant, suppressLogs                         bool
 )
 
 func main() {
@@ -60,7 +63,7 @@ defined sequences; recursive patterns between one or more accounts which will co
 transactions. You can use flags or environment variables (TXSIM_RPC, TXSIM_GRPC, TXSIM_SEED, 
 TXSIM_POLL, TXSIM_KEYPATH) to configure the client. The keyring provided should have at least one
 well funded account that can act as the master account. The command runs until all sequences error.`,
-		Example: "txsim --key-path /path/to/keyring --rpc-endpoints localhost:26657 --grpc-endpoints localhost:9090 --seed 1234 --poll-time 1s --blob 5",
+		Example: "txsim --key-path /path/to/keyring --grpc-endpoint localhost:9090 --seed 1234 --poll-time 1s --blob 5",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
 				keys keyring.Keyring
@@ -88,17 +91,15 @@ well funded account that can act as the master account. The command runs until a
 			}
 
 			// get the rpc and grpc endpoints
-			if rpcEndpoints == "" {
-				rpcEndpoints = os.Getenv(TxsimRPC)
-				if rpcEndpoints == "" {
-					return errors.New("rpc endpoints not specified. Use --rpc-endpoints or TXSIM_RPC env var")
+			if grpcEndpoint == "" {
+				grpcEndpoint = os.Getenv(TxsimGRPC)
+				if grpcEndpoint == "" {
+					return errors.New("grpc endpoints not specified. Use --grpc-endpoint or TXSIM_GRPC env var")
 				}
 			}
-			if grpcEndpoints == "" {
-				grpcEndpoints = os.Getenv(TxsimGRPC)
-				if grpcEndpoints == "" {
-					return errors.New("grpc endpoints not specified. Use --grpc-endpoints or TXSIM_GRPC env var")
-				}
+
+			if masterAccName == "" {
+				masterAccName = os.Getenv(TxsimMasterAccName)
 			}
 
 			if stake == 0 && send == 0 && blob == 0 {
@@ -142,20 +143,32 @@ well funded account that can act as the master account. The command runs until a
 				}
 			}
 
-			if os.Getenv(TxsimPoll) != "" && pollTime != txsim.DefaultPollTime {
+			if os.Getenv(TxsimPoll) != "" && pollTime != user.DefaultPollTime {
 				pollTime, err = time.ParseDuration(os.Getenv(TxsimPoll))
 				if err != nil {
 					return fmt.Errorf("parsing poll time: %w", err)
 				}
 			}
 
+			opts := txsim.DefaultOptions().
+				SpecifyMasterAccount(masterAccName).
+				WithSeed(seed)
+
+			if useFeegrant {
+				opts.UseFeeGrant()
+			}
+
+			if suppressLogs {
+				opts.SuppressLogs()
+			}
+
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
-				strings.Split(rpcEndpoints, ","),
-				strings.Split(grpcEndpoints, ","),
+				grpcEndpoint,
 				keys,
-				seed,
-				pollTime,
+				encCfg,
+				opts,
 				sequences...,
 			)
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -172,11 +185,11 @@ well funded account that can act as the master account. The command runs until a
 func flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 	flags.StringVar(&keyPath, "key-path", "", "path to the keyring")
+	flags.StringVar(&masterAccName, "master", "", "the account name of the master account. Leaving empty will result in using the account with the most funds.")
 	flags.StringVar(&keyMnemonic, "key-mnemonic", "", "space separated mnemonic for the keyring. The hdpath used is an empty string")
-	flags.StringVar(&rpcEndpoints, "rpc-endpoints", "", "comma separated list of rpc endpoints")
-	flags.StringVar(&grpcEndpoints, "grpc-endpoints", "", "comma separated list of grpc endpoints")
+	flags.StringVar(&grpcEndpoint, "grpc-endpoint", "", "grpc endpoint to a running node")
 	flags.Int64Var(&seed, "seed", 0, "seed for the random number generator")
-	flags.DurationVar(&pollTime, "poll-time", txsim.DefaultPollTime, "poll time for the transaction client")
+	flags.DurationVar(&pollTime, "poll-time", user.DefaultPollTime, "poll time for the transaction client")
 	flags.IntVar(&send, "send", 0, "number of send sequences to run")
 	flags.IntVar(&sendIterations, "send-iterations", 1000, "number of send iterations to run per sequence")
 	flags.IntVar(&sendAmount, "send-amount", 1000, "amount to send from one account to another")
@@ -185,6 +198,8 @@ func flags() *flag.FlagSet {
 	flags.IntVar(&blob, "blob", 0, "number of blob sequences to run")
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs to send per PFB in a sequence")
+	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
+	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
 	return flags
 }
 

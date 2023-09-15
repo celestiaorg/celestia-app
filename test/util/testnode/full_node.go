@@ -28,7 +28,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
@@ -117,7 +116,7 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	state := app.ModuleBasics.DefaultGenesis(encCfg.Codec)
 	fundedAccounts = append(fundedAccounts, "validator")
-	kr, bankBals, authAccs := testfactory.FundKeyringAccounts(fundedAccounts...)
+	kr, bankBals, authAccs := FundKeyringAccounts(fundedAccounts...)
 
 	// set the accounts in the genesis state
 	var authGenState authtypes.GenesisState

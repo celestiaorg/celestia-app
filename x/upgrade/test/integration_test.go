@@ -1,12 +1,14 @@
 package test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -109,15 +110,14 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, acc, msg)
+	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
 	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, res.Code) // we're only submitting the tx, so we expect everything to work
-
-	// compare the result after the tx has been executed.
-	finalResult, err := s.cctx.WaitForTx(res.TxHash, 100)
-	require.NoError(t, err)
-	require.NotNil(t, finalResult)
-	assert.Contains(t, finalResult.TxResult.Log, "no handler exists for proposal type")
+	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
+	defer cancel()
+	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	require.Error(t, err)
+	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
+	assert.Contains(t, res.RawLog, "no handler exists for proposal type")
 }
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
@@ -139,16 +139,14 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, acc, msg)
+	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
 	require.NoError(t, err)
-	require.Equal(t, abci.CodeTypeOK, res.Code) // we're only submitting the tx, so we expect everything to work
-	require.NoError(t, s.cctx.WaitForNextBlock())
-
-	// compare the result after the tx has been executed.
-	finalResult, err := testnode.QueryTx(s.cctx.Context, res.TxHash, false)
-	require.NoError(t, err)
-	require.NotNil(t, finalResult)
-	require.Contains(t, finalResult.TxResult.Log, "proposal message not recognized by router")
+	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
+	defer cancel()
+	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	require.Error(t, err)
+	require.EqualValues(t, 10, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
+	require.Contains(t, res.RawLog, "proposal message not recognized by router")
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {

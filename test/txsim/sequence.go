@@ -21,7 +21,7 @@ type Sequence interface {
 	// Init allows the sequence to initialize itself. It may read the current state of
 	// the chain and provision accounts for usage throughout the sequence.
 	// For any randomness, use the rand source provided.
-	Init(ctx context.Context, querier grpc.ClientConn, accountAllocator AccountAllocator, rand *rand.Rand)
+	Init(ctx context.Context, querier grpc.ClientConn, accountAllocator AccountAllocator, rand *rand.Rand, useFeegrant bool)
 
 	// Next returns the next operation in the sequence. It returns EndOfSequence
 	// when the sequence has been exhausted. The sequence may make use of the
@@ -30,13 +30,13 @@ type Sequence interface {
 	Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error)
 }
 
-// An operation represents a series of messages and blobs that are to be bundled in a
-// single transaction. A delay (in heights) may also be set before the transaction is sent.
+// Operation represents a series of messages and blobs that are to be bundled
+// in a single transaction. A delay (in heights) may also be set before the transaction is sent.
 // The gas limit and price can also be set. If left at 0, the DefaultGasLimit will be used.
 type Operation struct {
 	Msgs     []types.Msg
 	Blobs    []*blob.Blob
-	Delay    int64
+	Delay    uint64
 	GasLimit uint64
 	GasPrice float64
 }
