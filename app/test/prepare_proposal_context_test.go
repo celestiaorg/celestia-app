@@ -36,7 +36,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	cfg := testnode.DefaultConfig().WithAccounts(accounts)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
+	vestAccName := "vesting"
 	type test struct {
 		name         string
 		msgFunc      func() (msgs []sdk.Msg, signer string)
@@ -46,7 +46,6 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 		{
 			name: "create continuous vesting account with a start time in the future",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				vestAccName := "vesting"
 				_, _, err := cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
 				require.NoError(t, err)
 				sendAcc := accounts[0]
@@ -67,7 +66,6 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 		{
 			name: "send funds from the vesting account after it has been created",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				vestAccName := "vesting"
 				sendAcc := accounts[1]
 				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAcc)
 				vestAccAddr := testfactory.GetAddress(cctx.Keyring, vestAccName)
