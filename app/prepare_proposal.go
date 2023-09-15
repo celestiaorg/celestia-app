@@ -1,6 +1,8 @@
 package app
 
 import (
+	"time"
+
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -18,7 +20,11 @@ import (
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
-	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
+	sdkCtx := app.NewProposalContext(core.Header{
+		ChainID: req.ChainId,
+		Height:  app.LastBlockHeight() + 1,
+		Time:    time.Now(),
+	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
