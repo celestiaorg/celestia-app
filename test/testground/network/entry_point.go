@@ -87,6 +87,6 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	}
 
 	// signal that the test has completed successfully
-
-	return err
+	runenv.RecordSuccess()
+	return nil
 }
