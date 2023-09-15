@@ -28,15 +28,15 @@ import (
 // and published by the Leader node and then downloaded by the other follower
 // nodes. It is used to create a consensus node that
 type NodeConfig struct {
-	Status      Status            `json:"status"`
-	NodeType    string            `json:"node_type"`
-	Name        string            `json:"name"`
-	ChainID     string            `json:"chain_id,omitempty"`
-	StartHeight int64             `json:"start_height"`
-	Keys        KeySet            `json:"keys"`
-	CmtConfig   *tmconfig.Config  `json:"cmt_config"`
-	AppConfig   *srvconfig.Config `json:"app_config"`
-	P2PID       string            `json:"p2p_id"`
+	Status      Status           `json:"status"`
+	NodeType    string           `json:"node_type"`
+	Name        string           `json:"name"`
+	ChainID     string           `json:"chain_id,omitempty"`
+	StartHeight int64            `json:"start_height"`
+	Keys        KeySet           `json:"keys"`
+	CmtConfig   tmconfig.Config  `json:"cmt_config"`
+	AppConfig   srvconfig.Config `json:"app_config"`
+	P2PID       string           `json:"p2p_id"`
 	// HaltHeight is the height at which all nodes will halt and finish the
 	// execution portion of the test.
 	HaltHeight int `json:"halt_height"`
@@ -175,8 +175,8 @@ func (c *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
 // UniversalTestingConfig returns the configuration used by the testnode package.
 func (c *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfig {
 	return testnode.UniversalTestingConfig{
-		TmConfig:    c.CmtConfig,
-		AppConfig:   c.AppConfig,
+		TmConfig:    &c.CmtConfig,
+		AppConfig:   &c.AppConfig,
 		AppOptions:  c.AppOptions,
 		AppCreator:  c.AppCreator,
 		SupressLogs: false,

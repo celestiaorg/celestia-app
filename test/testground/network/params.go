@@ -16,33 +16,71 @@ import (
 )
 
 const (
-	ValidatorsParam = "validators"
-	FullNodesParam  = "full_nodes"
-	HaltHeightParam = "halt_height"
-	PexParam        = "pex"
-	SeedNodeParam   = "seed_node"
+	ValidatorsParam     = "validators"
+	FullNodesParam      = "full_nodes"
+	HaltHeightParam     = "halt_height"
+	PexParam            = "pex"
+	SeedNodeParam       = "seed_node"
+	BlobSequencesParam  = "blob_sequences"
+	BlobSizesParam      = "blob_sizes"
+	BlobsPerSeqParam    = "blobs_per_sequence"
+	TimeoutCommitParam  = "timeout_commit"
+	TimeoutProposeParam = "timeout_propose"
 )
 
 type Params struct {
-	Validators  int
-	FullNodes   int
-	HaltHeight  int
-	Timeout     time.Duration
-	Pex         bool
-	TopologyFns []TopologyFn
+	Validators       int
+	FullNodes        int
+	HaltHeight       int
+	Timeout          time.Duration
+	Pex              bool
+	TopologyFns      []TopologyFn
+	PerPeerBandwidth int
+	BlobsPerSeq      int
+	BlobSequences    int
+	BlobSizes        int
+	TimeoutCommit    time.Duration
+	TimeoutPropose   time.Duration
 }
 
 func ParseParams(runenv *runtime.RunEnv) (*Params, error) {
 	var err error
 	p := &Params{}
+
 	p.Validators = runenv.IntParam(ValidatorsParam)
+
 	p.FullNodes = runenv.IntParam(FullNodesParam)
+
 	p.HaltHeight = runenv.IntParam(HaltHeightParam)
+
+	p.BlobSequences = runenv.IntParam(BlobSequencesParam)
+
+	p.BlobSizes = runenv.IntParam(BlobSizesParam)
+
+	p.BlobsPerSeq = runenv.IntParam(BlobsPerSeqParam)
+
+	p.Timeout, err = time.ParseDuration(runenv.StringParam(TimeoutCommitParam))
+	if err != nil {
+		return nil, err
+	}
+
+	p.TimeoutCommit, err = time.ParseDuration(runenv.StringParam(TimeoutCommitParam))
+	if err != nil {
+		return nil, err
+	}
+
+	p.TimeoutPropose, err = time.ParseDuration(runenv.StringParam(TimeoutProposeParam))
+	if err != nil {
+		return nil, err
+	}
+
 	p.TopologyFns, err = GetTopologyFns(runenv)
 	if err != nil {
 		return nil, err
 	}
+
 	p.Pex = runenv.BooleanParam(PexParam)
+
 	return p, p.ValidateBasic()
 }
 
@@ -67,6 +105,10 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
 	cmtcfg.Instrumentation.Prometheus = true
 	cmtcfg.P2P.PexReactor = p.Pex
+	cmtcfg.P2P.SendRate = int64(p.PerPeerBandwidth)
+	cmtcfg.P2P.RecvRate = int64(p.PerPeerBandwidth)
+	cmtcfg.Consensus.TimeoutCommit = p.TimeoutCommit
+	cmtcfg.Consensus.TimeoutPropose = p.TimeoutPropose
 
 	vals := make([]genesis.Validator, 0)
 	accs := make([]genesis.Account, 0)
@@ -100,8 +142,8 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 				NetworkKey:   networkKeys[i],
 				ConsensusKey: consensusKey,
 			},
-			CmtConfig: cmtcfg,
-			AppConfig: app.DefaultAppConfig(),
+			CmtConfig: *cmtcfg,
+			AppConfig: *app.DefaultAppConfig(),
 			P2PID:     peerID(status, networkKeys[i]),
 		})
 	}

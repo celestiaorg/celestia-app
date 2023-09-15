@@ -52,14 +52,18 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 		return err
 	}
 
+	seqs := runenv.IntParam(BlobSequencesParam)
+	size := runenv.IntParam(BlobSizesParam)
+	count := runenv.IntParam(BlobsPerSeqParam)
+
 	// issue a command to start txsim
 	cmd := NewRunTxSimCommand(
 		"txsim",
-		time.Minute*10,
+		time.Minute*1,
 		RunTxSimCommandArgs{
-			BlobSequences: 10,
-			BlobSize:      50_000,
-			BlobCount:     2,
+			BlobSequences: seqs,
+			BlobSize:      size,
+			BlobCount:     count,
 		},
 	)
 

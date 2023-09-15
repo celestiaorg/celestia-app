@@ -12,12 +12,19 @@ disable_metrics = false
 
 [global.run.test_params]
 timeout = "25m"
-halt_height = "10"
+halt_height = "18"
 latency = "0"
 bandwidth = "420Mib"
 validators = "3"
 topology = "connect_all"
 pex = "false"
+timeout_propose = "10s"
+timeout_commit = "11s"
+per_peer_bandwidth = "5Mib"
+blob_sequences = "10"
+blob_sizes = "100000"
+blobs_per_sequence = "1"
+
 
 [[groups]]
 id = "validators"

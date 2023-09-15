@@ -23,8 +23,14 @@ instances = { min = 1, max = 200, default = 3 }
 timeout = { type = "string", default = "21m" }
 latency = { type = "int", default = 0 }
 bandwidth = { type = "string", default = "420Mib" }
+per_peer_bandwidth = { type = "string", default = "5Mib" }
 validators = { type = "int", default = 2 }
 full_nodes = { type = "int", default = 0 }
+timeout_propose = { type = "string", default = "10s" }
+timeout_commit = { type = "string", default = "11s" }
 halt_height = { type = "int", default = 50 }
 pex = { type = "bool", default = true }
 topology = { type = "string", default = "connect_all" }
+blob_sequences = { type = "int", default = 10 }
+blob_sizes = { type = "int", default = 100000 }
+blobs_per_sequence = { type = "int", default = 1 }

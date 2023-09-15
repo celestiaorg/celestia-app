@@ -76,10 +76,12 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 			}
 			switch cmd.Name {
 			case TestEndName:
+				runenv.RecordMessage("test ended by leader")
 				return nil
 			case CancelIDName:
 				o.StopJob(cmd.ID)
 			default:
+				runenv.RecordMessage(fmt.Sprintf("received command %s %+v", cmd.Name, cmd.Args))
 				if cmd.TargetGroup != "all" {
 					if cmd.TargetGroup != o.groupID {
 						continue

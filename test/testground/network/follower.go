@@ -24,7 +24,8 @@ func NewFollower() *Follower {
 	op := NewOperator()
 	op.RegisterCommand(
 		RunTxSimCommandID,
-		func(ctx context.Context, _ *runtime.RunEnv, _ *run.InitContext, args interface{}) error {
+		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args interface{}) error {
+			runenv.RecordMessage("running txsim")
 			return f.RunTxSim(ctx, args.(RunTxSimCommandArgs))
 		})
 	f.op = op
