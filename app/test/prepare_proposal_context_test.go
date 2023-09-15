@@ -27,7 +27,7 @@ import (
 // accounts never being able to spend funds.
 func TestTimeInPrepareProposalContext(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping DebugVestingAccountsTime test in short mode.")
+		t.Skip("skipping TestTimeInPrepareProposalContext test in short mode.")
 	}
 	accounts := make([]string, 35)
 	for i := 0; i < len(accounts); i++ {
