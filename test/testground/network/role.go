@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -46,122 +45,6 @@ func NewRole(runenv *runtime.RunEnv, initCtx *run.InitContext) (Role, error) {
 		return &Leader{}, nil
 	default:
 		runenv.RecordMessage(fmt.Sprintf("red %d sitting by", seq))
-		return &Follower{}, nil
+		return NewFollower(), nil
 	}
-}
-
-// Follower is the role for all nodes in a test except for the leader. It is
-// responsible for downloading the genesis block and any other configuration
-// data from the leader node.
-type Follower struct {
-	*ConsensusNode
-}
-
-// Plan is the method that downloads the genesis, configurations, and keys for
-// all of the other nodes in the network.
-func (f *Follower) Plan(ctx context.Context, _ []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	cfg, err := DownloadNetworkConfig(ctx, initCtx)
-	if err != nil {
-		return err
-	}
-
-	f.ConsensusNode, err = cfg.ConsensusNode(int(initCtx.GlobalSeq))
-	return err
-}
-
-func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	baseDir, err := f.ConsensusNode.Init(homeDir)
-	if err != nil {
-		return err
-	}
-	err = f.ConsensusNode.StartNode(ctx, baseDir)
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("follower waiting for halt height %d chain id %s", f.HaltHeight, f.ChainID))
-	_, err = f.cctx.WaitForHeightWithTimeout(int64(f.ConsensusNode.HaltHeight), time.Minute*30)
-	return err
-}
-
-// Retro collects standard data from the follower node and saves it as a file.
-// This data includes the block times, rounds required to reach consensus, and
-// the block sizes.
-func (f *Follower) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	defer f.ConsensusNode.Stop()
-
-	// TODO: publish report
-	res, err := f.cctx.Client.Status(ctx)
-	if err != nil {
-		return err
-	}
-	runenv.RecordMessage("follower retro", res.SyncInfo.LatestBlockHeight)
-	return nil
-}
-
-// Leader is the role for the leader node in a test. It is responsible for
-// creating the genesis block and distributing it to all nodes.
-type Leader struct {
-	*ConsensusNode
-}
-
-// Plan is the method that creates and distributes the genesis, configurations,
-// and keys for all of the other nodes in the network.
-func (l *Leader) Plan(ctx context.Context, statuses []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	runenv.RecordMessage("leader plan")
-	params, err := ParseParams(runenv)
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage("params found: %v", params)
-
-	cfg, err := params.StandardConfig(statuses)
-	if err != nil {
-		return err
-	}
-
-	for _, node := range cfg.Nodes {
-		runenv.RecordMessage("node mnemonic: %v", node.Keys.AccountMnemonic == "")
-	}
-
-	err = PublishConfig(ctx, initCtx, cfg)
-	if err != nil {
-		return err
-	}
-
-	// set the local cosnensus node
-	l.ConsensusNode, err = cfg.ConsensusNode(int(initCtx.GlobalSeq))
-
-	return err
-}
-
-func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	baseDir, err := l.ConsensusNode.Init(homeDir)
-	if err != nil {
-		return err
-	}
-	err = l.ConsensusNode.StartNode(ctx, baseDir)
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d chain id %s", l.HaltHeight, l.ChainID))
-	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.ConsensusNode.HaltHeight), time.Minute*30)
-	return err
-}
-
-// Retro collects standard data from the leader node and saves it as a file.
-// This data includes the block times, rounds required to reach consensus, and
-// the block sizes.
-func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	defer l.ConsensusNode.Stop()
-
-	res, err := l.cctx.Client.Status(ctx)
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage("leader retro", res.SyncInfo.LatestBlockHeight)
-	return nil
 }
