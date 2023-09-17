@@ -21,8 +21,8 @@ pex = "false"
 timeout_propose = "10s"
 timeout_commit = "11s"
 per_peer_bandwidth = "5Mib"
-blob_sequences = "10"
-blob_sizes = "100000"
+blob_sequences = "1"
+blob_sizes = "100"
 blobs_per_sequence = "1"
 
 

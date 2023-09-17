@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -51,6 +52,10 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(time.Second * 20)
+
+	go l.subscribeAndRecordBlocks(ctx, runenv)
 
 	seqs := runenv.IntParam(BlobSequencesParam)
 	size := runenv.IntParam(BlobSizesParam)
@@ -109,4 +114,27 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 	runenv.RecordMessage(fmt.Sprintf("leader retro: height %d max block size bytes %d", blockRes.Block.Height, maxBlockSize))
 
 	return nil
+}
+
+// subscribeAndRecordBlocks subscribes to the block event stream and records
+// the block times and sizes.
+func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.RunEnv) error {
+	query := "tm.event = 'NewBlock'"
+	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 100)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case ev := <-events:
+			newBlock, ok := ev.Data.(types.EventDataNewBlock)
+			if !ok {
+				return fmt.Errorf("unexpected event type: %T", ev.Data)
+			}
+			runenv.RecordMessage(fmt.Sprintf("leader height %d max block size bytes %d", newBlock.Block.Height, newBlock.Block.Size()))
+		case <-ctx.Done():
+			return nil
+		}
+	}
 }

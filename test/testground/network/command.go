@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	// CancelIDName is the name of the command to cancel a command if it is
+	// CancelCommand is the name of the command to cancel a command if it is
 	// still running. This is a special command because it is not executed
 	// normally, instead the Operator executes it directly.
-	CancelIDName = "cancel"
+	CancelCommand = "cancel"
 	// TestEndName is the name of the command to signal the end of a test. This
 	// is a special command because it is not executed normally, instead the
 	// Operator executes it directly.
@@ -78,7 +78,7 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 			case TestEndName:
 				runenv.RecordMessage("test ended by leader")
 				return nil
-			case CancelIDName:
+			case CancelCommand:
 				o.StopJob(cmd.ID)
 			default:
 				runenv.RecordMessage(fmt.Sprintf("received command %s %+v", cmd.Name, cmd.Args))

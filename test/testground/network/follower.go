@@ -116,7 +116,7 @@ func (c *RunTxSimCommandArgs) Sequences() []txsim.Sequence {
 
 // RunTxSim runs the txsim tool on the follower node.
 func (f *Follower) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
-	grpcEndpoint := "localhost:9090"
+	grpcEndpoint := "127.0.0.1:9090"
 	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
 	return txsim.Run(ctx, grpcEndpoint, f.kr, f.ecfg, opts, c.Sequences()...)
 }
