@@ -1,8 +1,6 @@
 package app
 
 import (
-	"time"
-
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -22,8 +20,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// proposal height and chain-id
 	sdkCtx := app.NewProposalContext(core.Header{
 		ChainID: req.ChainId,
-		Height:  app.LastBlockHeight() + 1,
-		Time:    time.Now(),
+		Height:  req.Height,
+		Time:    req.Time,
 	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
