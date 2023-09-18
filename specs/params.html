@@ -162,25 +162,25 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>consensus.evidence.MaxBytes</td><td>1MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
 <tr><td>consensus.Version.AppVersion</td><td>1</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
-<tr><td>distribution.CommunityTax</td><td>2.0%</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
+<tr><td>distribution.CommunityTax</td><td>0.02 (2%)</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
 <tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
 <tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint demonination for proposing a block.</td><td>True</td></tr>
 <tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward in the mint denomination for proposers based on the voting power included in the commit.</td><td>True</td></tr>
 <tr><td>gov.DepositParams.MinDeposit</td><td>1000000000utia (1000 TIA)</td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
 <tr><td>gov.DepositParams.MaxDepositPeriod</td><td>172800 (2 days)</td><td>Maximum period for token holders to deposit on a proposal in seconds.</td><td>True</td></tr>
 <tr><td>gov.VotingParams.VotingPeriod</td><td>172800 (2 days)</td><td>Duration of the voting period in seconds.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.Quorum</td><td>33.4%</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.Threshold</td><td>50.0%</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
-<tr><td>gov.TallyParams.VetoThreshold</td><td>33.4%</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.Quorum</td><td>0.334 (33.4%)</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.Threshold</td><td>0.50 (50%)</td><td>Minimum proportion of Yes votes for proposal to pass.</td><td>True</td></tr>
+<tr><td>gov.TallyParams.VetoThreshold</td><td>0.334 (33.4%)</td><td>Minimum value of Veto votes to Total votes ratio for proposal to be vetoed.</td><td>True</td></tr>
 <tr><td>ibc.ClientGenesis.AllowedClients</td><td>[]string{&quot;06-solomachine&quot;, &quot;07-tendermint&quot;}</td><td>List of allowed IBC light clients.</td><td>True</td></tr>
 <tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>7500000000000 (75 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.SendEnabled</td><td>true</td><td>Enable sending tokens via IBC.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
 <tr><td>slashing.SignedBlocksWindow</td><td>5000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
-<tr><td>slashing.MinSignedPerWindow</td><td>75.0%</td><td>The percentage of SignedBlocksWindow that must be signed not to get jailed.</td><td>True</td></tr>
+<tr><td>slashing.MinSignedPerWindow</td><td>0.75 (75%)</td><td>The percentage of SignedBlocksWindow that must be signed not to get jailed.</td><td>True</td></tr>
 <tr><td>slashing.DowntimeJailDuration</td><td>1 min</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
-<tr><td>slashing.SlashFractionDoubleSign</td><td>5.0%</td><td>Percentage slashed after a validator is jailed for double signing.</td><td>True</td></tr>
-<tr><td>slashing.SlashFractionDowntime</td><td>0.0%</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDoubleSign</td><td>0.05 (5%)</td><td>Percentage slashed after a validator is jailed for double signing.</td><td>True</td></tr>
+<tr><td>slashing.SlashFractionDowntime</td><td>0.00 (0%)</td><td>Percentage slashed after a validator is jailed for downtime.</td><td>True</td></tr>
 <tr><td>staking.UnbondingTime</td><td>1814400 (21 days)</td><td>Duration of time for unbonding in seconds.</td><td>False</td></tr>
 <tr><td>staking.MaxValidators</td><td>100</td><td>Maximum number of validators.</td><td>False</td></tr>
 <tr><td>staking.MaxEntries</td><td>7</td><td>Maximum number of entries in the redelegation queue.</td><td>True</td></tr>
@@ -188,8 +188,8 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>staking.BondDenom</td><td>utia</td><td>Bondable coin denomination.</td><td>False</td></tr>
 <tr><td>staking.MinCommissionRate</td><td>0.05 (5%)</td><td>Minimum commission rate used by all validators.</td><td>True</td></tr>
 <tr><td>mint.BondDenom</td><td>utia</td><td>Denomination that is inflated and sent to the distribution module account.</td><td>False</td></tr>
-<tr><td>mint.InflationRateChange</td><td>10.0%</td><td>The rate at which the annual provisions decrease each year.</td><td>False</td></tr>
-<tr><td>mint.InflationRate</td><td>8.0%</td><td>Initial annual inflation rate used to calculate the annual provisions.</td><td>False</td></tr>
+<tr><td>mint.InflationRateChange</td><td>0.10 (10%)</td><td>The rate at which the annual provisions decrease each year.</td><td>False</td></tr>
+<tr><td>mint.InflationRate</td><td>0.08 (8%)</td><td>Initial annual inflation rate used to calculate the annual provisions.</td><td>False</td></tr>
 <tr><td>qgb.DataCommitmentWindow</td><td>400</td><td>Number of blocks that are included in a signed batch (DataCommitment).</td><td>True</td></tr>
 </tbody></table>
 </div>
