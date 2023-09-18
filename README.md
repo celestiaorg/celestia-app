@@ -134,7 +134,7 @@ build
     └── metadata.json
 ```
 
-For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files. 
+For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files.
 
 ### Docs
 
@@ -144,6 +144,10 @@ Package-specific READMEs aim to explain implementation details for developers th
 - [pkg/wrapper](./pkg/wrapper/README.md)
 - [x/blob](./x/blob/README.md)
 - [x/qgb](./x/qgb/README.md)
+
+## Audits
+
+[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [audit/informal-systems.pdf](audit/informal-systems.pdf) for the full report.
 
 ## Careers
 
