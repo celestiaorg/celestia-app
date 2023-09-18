@@ -7,14 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: proto-lint
         run: make proto-lint
   proto-gen:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Check protobuf generated code matches committed code"
         # yamllint disable
         run: |
@@ -36,6 +36,6 @@ jobs:
   # breakage:
   #   runs-on: ubuntu-latest
   #   steps:
-  #     - uses: actions/checkout@v3
+  #     - uses: actions/checkout@v4
   #     - name: check-breakage
   #       run: make proto-check-breaking

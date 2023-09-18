@@ -280,7 +280,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	}
 	defer ethClient.Close()
 
-	qgbWrapper, err := wrapper.NewQuantumGravityBridge(config.ContractAddr, ethClient)
+	qgbWrapper, err := wrapper.NewWrappers(config.ContractAddr, ethClient)
 	if err != nil {
 		return false, err
 	}
@@ -309,7 +309,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 func VerifyDataRootInclusion(
 	_ context.Context,
-	qgbWrapper *wrapper.QuantumGravityBridge,
+	qgbWrapper *wrapper.Wrappers,
 	nonce uint64,
 	height uint64,
 	dataRoot []byte,

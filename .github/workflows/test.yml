@@ -6,10 +6,23 @@ env:
   GO_VERSION: '1.21'
 
 jobs:
+  test-short:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests in short mode
+        run: make test-short
+        timeout-minutes: 10
+
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
@@ -21,7 +34,7 @@ jobs:
   test-coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:
@@ -30,7 +43,7 @@ jobs:
       - name: Generate coverage.txt
         run: make test-coverage
 
-      - name: Uploade coverage.txt
+      - name: Upload coverage.txt
         uses: codecov/codecov-action@v3.1.4
         with:
           file: ./coverage.txt
@@ -38,7 +51,7 @@ jobs:
   test-race:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v4
         with:

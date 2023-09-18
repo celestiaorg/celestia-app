@@ -14,10 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	latestVersion = "v1.0.0-rc9"
-	seed          = 42 // the meaning of life
-)
+const seed = 42
+
+var latestVersion = "v1.0.0-rc12"
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
@@ -25,6 +24,10 @@ const (
 func TestE2ESimple(t *testing.T) {
 	if os.Getenv("E2E") == "" {
 		t.Skip("skipping e2e test")
+	}
+
+	if os.Getenv("E2E_VERSION") != "" {
+		latestVersion = os.Getenv("E2E_VERSION")
 	}
 
 	testnet, err := New(t.Name(), seed)
