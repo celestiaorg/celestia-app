@@ -24,7 +24,7 @@ func GetQueryCmd() *cobra.Command {
 		RunE:                       client.ValidateCmd,
 	}
 
-	cmd.AddCommand(CmdQueryAttestationByNonce())
+	cmd.AddCommand(CmdQueryAttestationByNonce(), CmdQueryEVMAddress())
 
 	return cmd
 }
@@ -68,6 +68,35 @@ func CmdQueryAttestationByNonce() *cobra.Command {
 			default:
 				return types.ErrUnknownAttestationType
 			}
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
+}
+
+func CmdQueryEVMAddress() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "evm <validator_valoper_address>",
+		Short: "query the evm address corresponding to a validator bech32 valoper address",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx := client.GetClientContextFromCmd(cmd)
+			queryClient := types.NewQueryClient(clientCtx)
+
+			res, err := queryClient.EVMAddress(
+				cmd.Context(),
+				&types.QueryEVMAddressRequest{ValidatorAddress: args[0]},
+			)
+			if err != nil {
+				return err
+			}
+			if res.EvmAddress == "" {
+				return types.ErrEVMAddressNotFound
+			}
+			fmt.Println(res.EvmAddress)
+			return nil
 		},
 	}
 
