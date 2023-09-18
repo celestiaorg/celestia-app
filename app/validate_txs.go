@@ -37,14 +37,23 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 // function used to apply the ante handler.
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
-	var err error
 	for _, tx := range txs {
-		ctx, err = checkTxValidity(dec, ctx, handler, tx)
+		sdkTx, err := dec(tx)
+		if err != nil {
+			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
+		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
-			logger.Error("filtering already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			logger.Error(
+				"filtering already checked transaction",
+				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
+				"error", err,
+				"msgs", msgTypes(sdkTx),
+			)
 			continue
 		}
 		txs[n] = tx
@@ -60,14 +69,20 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // function used to apply the ante handler.
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
 	n := 0
-	var err error
 	for _, tx := range txs {
-		ctx, err = checkTxValidity(dec, ctx, handler, tx.Tx)
+		sdkTx, err := dec(tx.Tx)
+		if err != nil {
+			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			continue
+		}
+		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
-			logger.Error("filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			logger.Error(
+				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
+			)
 			continue
 		}
 		txs[n] = tx
@@ -78,13 +93,13 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 	return txs[:n], ctx
 }
 
-func checkTxValidity(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, tx []byte) (sdk.Context, error) {
-	sdkTx, err := dec(tx)
-	if err != nil {
-		return ctx, err
+func msgTypes(sdkTx sdk.Tx) []string {
+	msgs := sdkTx.GetMsgs()
+	msgNames := make([]string, len(msgs))
+	for i, msg := range msgs {
+		msgNames[i] = sdk.MsgTypeURL(msg)
 	}
-
-	return handler(ctx, sdkTx, false)
+	return msgNames
 }
 
 func encodeBlobTxs(blobTxs []tmproto.BlobTx) [][]byte {
