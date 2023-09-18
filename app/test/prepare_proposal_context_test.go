@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,10 @@ import (
 // needs to be included in the sdk.Context that is being used in the
 // antehandlers. If a time is not included in the context, then the second
 // transaction in this test will always be filtered out, result in vesting
-// accounts never being able to spend funds.
+// accounts never being able to spend funds. The test ensures that the time is
+// being used correctly by first sending fund to a vesting account, then
+// attempting to send an amount that is expected to pass, then sends an amount
+// over the spendable amount which is expected to fail.
 func TestTimeInPrepareProposalContext(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestTimeInPrepareProposalContext test in short mode.")
@@ -33,10 +37,13 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
-	cfg := testnode.DefaultConfig().WithAccounts(accounts)
+	// use a network with roughly 1 second blocks to allow for this test to query
+	cfg := testnode.DefaultConfig().WithAccounts(accounts).WithTimeoutCommit(time.Second)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	vestAccName := "vesting"
+
 	type test struct {
 		name         string
 		msgFunc      func() (msgs []sdk.Msg, signer string)
@@ -54,9 +61,9 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1_000_000_000))),
 					time.Now().Unix(),
-					time.Now().Add(time.Second*100).Unix(),
+					time.Now().Add(time.Second*30).Unix(),
 					false,
 				)
 				return []sdk.Msg{msg}, sendAcc
@@ -69,14 +76,46 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 				sendAcc := accounts[1]
 				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAcc)
 				vestAccAddr := testfactory.GetAddress(cctx.Keyring, vestAccName)
+
+				spendable := querySpendableBalance(t, cctx, vestAccAddr)
+				require.True(t, spendable.IsGTE(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))))
+
+				// send all of the spendable coins except for 1 utia for the
+				// fee. Combined with the below test case that should fail, this
+				// ensures that the correct time is being used.
+				sendAmount := spendable.SubAmount(sdk.NewInt(1))
+
 				msg := banktypes.NewMsgSend(
 					vestAccAddr,
 					sendingAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sendAmount),
 				)
 				return []sdk.Msg{msg}, vestAccName
 			},
 			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "attempt to send slightly too much funds from the vesting account",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				sendAcc := accounts[1]
+				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAcc)
+				vestAccAddr := testfactory.GetAddress(cctx.Keyring, vestAccName)
+
+				spendable := querySpendableBalance(t, cctx, vestAccAddr)
+				require.True(t, spendable.IsGTE(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))))
+
+				// attempt to spend more than the spendable amount, which should
+				// be expected to fail if the correct time is being used
+				sendAmount := spendable.AddAmount(sdk.NewInt(1_000_000_000))
+
+				msg := banktypes.NewMsgSend(
+					vestAccAddr,
+					sendingAccAddr,
+					sdk.NewCoins(sendAmount),
+				)
+				return []sdk.Msg{msg}, vestAccName
+			},
+			expectedCode: sdkerrors.ErrInsufficientFunds.ABCICode(),
 		},
 	}
 
@@ -97,4 +136,12 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
 		})
 	}
+}
+
+func querySpendableBalance(t *testing.T, cctx testnode.Context, address sdk.AccAddress) (c sdk.Coin) {
+	res, err := banktypes.NewQueryClient(cctx.GRPCClient).SpendableBalances(cctx.GoContext(), &banktypes.QuerySpendableBalancesRequest{
+		Address: address.String(),
+	})
+	require.NoError(t, err)
+	return res.Balances[0]
 }

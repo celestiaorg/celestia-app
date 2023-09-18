@@ -12,6 +12,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -134,12 +135,9 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						BlockData: resp.BlockData,
 						Header: core.Header{
 							DataHash: resp.BlockData.Hash,
-<<<<<<< HEAD
-=======
 							ChainID:  testutil.ChainID,
 							Version:  version.Consensus{App: appconsts.LatestVersion},
 							Height:   height,
->>>>>>> 9617549 (fix: add time to the sdk.Context used in PrepareProposal (#2515))
 						},
 					})
 					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
