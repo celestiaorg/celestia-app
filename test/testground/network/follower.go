@@ -2,6 +2,8 @@ package network
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,12 +24,22 @@ type Follower struct {
 func NewFollower() *Follower {
 	f := &Follower{}
 	op := NewOperator()
+
 	op.RegisterCommand(
 		RunTxSimCommandID,
-		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args interface{}) error {
+		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args json.RawMessage) error {
+			var a RunTxSimCommandArgs
+			err := json.Unmarshal(args, &a)
+			if err != nil {
+				return err
+			}
 			runenv.RecordMessage("running txsim")
-			return f.RunTxSim(ctx, args.(RunTxSimCommandArgs))
-		})
+			return f.RunTxSim(ctx, a)
+		},
+	)
+
+	op.RegisterCommand(RunSubmitRandomPFBs, f.SubmitRandomPFBsHandler)
+
 	f.op = op
 	return f
 }
@@ -86,14 +98,19 @@ func (f *Follower) ListenForCommands(ctx context.Context, runenv *runtime.RunEnv
 }
 
 const (
-	RunTxSimCommandID = "run_txsim"
+	RunTxSimCommandID   = "run_txsim"
+	RunSubmitRandomPFBs = "submit-random-pfbs"
 )
 
 func NewRunTxSimCommand(id string, timeout time.Duration, args RunTxSimCommandArgs) Command {
+	bz, err := json.Marshal(args)
+	if err != nil {
+		panic(err)
+	}
 	cmd := Command{
 		ID:          id,
 		Name:        RunTxSimCommandID,
-		Args:        args,
+		Args:        bz,
 		Timeout:     timeout,
 		TargetGroup: "all",
 	}
@@ -119,4 +136,51 @@ func (f *Follower) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
 	grpcEndpoint := "127.0.0.1:9090"
 	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
 	return txsim.Run(ctx, grpcEndpoint, f.kr, f.ecfg, opts, c.Sequences()...)
+}
+
+func NewSubmitRandomPFBsCommand(id string, timeout time.Duration, sizes ...int) Command {
+	bz, err := json.Marshal(sizes)
+	if err != nil {
+		panic(err)
+	}
+
+	return Command{
+		ID:          id,
+		Name:        RunSubmitRandomPFBs,
+		Args:        bz,
+		Timeout:     timeout,
+		TargetGroup: "all",
+	}
+}
+
+func (c *ConsensusNode) SubmitRandomPFBsHandler(
+	ctx context.Context,
+	runenv *runtime.RunEnv,
+	initCtx *run.InitContext,
+	args json.RawMessage,
+) error {
+	var sizes []int
+	err := json.Unmarshal(args, &sizes)
+	if err != nil {
+		return err
+	}
+	runenv.RecordMessage("called handler")
+	for {
+		select {
+		case <-ctx.Done():
+			runenv.RecordMessage("done with handler")
+			return nil
+		default:
+			runenv.RecordMessage("calling suvbmit")
+			resp, err := c.SubmitRandomPFB(ctx, runenv, sizes...)
+			if err != nil {
+				return err
+			}
+			runenv.RecordMessage("received a response")
+			if resp == nil {
+				return errors.New("nil response and nil error submitting PFB")
+			}
+			runenv.RecordMessage(fmt.Sprintf("follower submitted PFB code: %d %s", resp.Code, resp.Codespace))
+		}
+	}
 }

@@ -57,25 +57,43 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 
 	go l.subscribeAndRecordBlocks(ctx, runenv)
 
-	seqs := runenv.IntParam(BlobSequencesParam)
+	time.Sleep(time.Second * 20)
+
+	// seqs := runenv.IntParam(BlobSequencesParam)
 	size := runenv.IntParam(BlobSizesParam)
 	count := runenv.IntParam(BlobsPerSeqParam)
 
+	sizes := make([]int, count)
+	for i := 0; i < count; i++ {
+		sizes[i] = size
+	}
+
 	// issue a command to start txsim
-	cmd := NewRunTxSimCommand(
+	cmd := NewSubmitRandomPFBsCommand(
 		"txsim",
 		time.Minute*1,
-		RunTxSimCommandArgs{
-			BlobSequences: seqs,
-			BlobSize:      size,
-			BlobCount:     count,
-		},
+		sizes...,
 	)
 
 	_, err = initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
 	if err != nil {
 		return err
 	}
+
+	// runenv.RecordMessage(fmt.Sprintf("submitting PFB"))
+
+	// tctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	// defer cancel()
+
+	// resp, err := l.SubmitRandomPFB(tctx, 1000)
+	// if err != nil {
+	// 	return err
+	// }
+	// if resp == nil {
+	// 	return errors.New("submit pfb response was nil")
+	// }
+
+	// runenv.RecordMessage(fmt.Sprintf("leader submittedPFB code %d space %s", resp.Code, resp.Codespace))
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.HaltHeight))
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.ConsensusNode.HaltHeight), time.Minute*30)

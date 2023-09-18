@@ -16,31 +16,39 @@ import (
 )
 
 const (
-	ValidatorsParam     = "validators"
-	FullNodesParam      = "full_nodes"
-	HaltHeightParam     = "halt_height"
-	PexParam            = "pex"
-	SeedNodeParam       = "seed_node"
-	BlobSequencesParam  = "blob_sequences"
-	BlobSizesParam      = "blob_sizes"
-	BlobsPerSeqParam    = "blobs_per_sequence"
-	TimeoutCommitParam  = "timeout_commit"
-	TimeoutProposeParam = "timeout_propose"
+	ValidatorsParam        = "validators"
+	FullNodesParam         = "full_nodes"
+	HaltHeightParam        = "halt_height"
+	PexParam               = "pex"
+	SeedNodeParam          = "seed_node"
+	BlobSequencesParam     = "blob_sequences"
+	BlobSizesParam         = "blob_sizes"
+	BlobsPerSeqParam       = "blobs_per_sequence"
+	TimeoutCommitParam     = "timeout_commit"
+	TimeoutProposeParam    = "timeout_propose"
+	InboundPeerCountParam  = "inbound_peer_count"
+	OutboundPeerCountParam = "outbound_peer_count"
+	GovMaxSquareSizeParam  = "gov_max_square_size"
+	MaxBlockBytesParam     = "max_block_bytes"
 )
 
 type Params struct {
-	Validators       int
-	FullNodes        int
-	HaltHeight       int
-	Timeout          time.Duration
-	Pex              bool
-	TopologyFns      []TopologyFn
-	PerPeerBandwidth int
-	BlobsPerSeq      int
-	BlobSequences    int
-	BlobSizes        int
-	TimeoutCommit    time.Duration
-	TimeoutPropose   time.Duration
+	Validators        int
+	FullNodes         int
+	HaltHeight        int
+	Timeout           time.Duration
+	Pex               bool
+	TopologyFns       []TopologyFn
+	PerPeerBandwidth  int
+	BlobsPerSeq       int
+	BlobSequences     int
+	BlobSizes         int
+	InboundPeerCount  int
+	OutboundPeerCount int
+	GovMaxSquareSize  int
+	MaxBlockBytes     int
+	TimeoutCommit     time.Duration
+	TimeoutPropose    time.Duration
 }
 
 func ParseParams(runenv *runtime.RunEnv) (*Params, error) {
@@ -58,6 +66,14 @@ func ParseParams(runenv *runtime.RunEnv) (*Params, error) {
 	p.BlobSizes = runenv.IntParam(BlobSizesParam)
 
 	p.BlobsPerSeq = runenv.IntParam(BlobsPerSeqParam)
+
+	p.InboundPeerCount = runenv.IntParam(InboundPeerCountParam)
+
+	p.OutboundPeerCount = runenv.IntParam(OutboundPeerCountParam)
+
+	p.GovMaxSquareSize = runenv.IntParam(GovMaxSquareSizeParam)
+
+	p.MaxBlockBytes = runenv.IntParam(MaxBlockBytesParam)
 
 	p.Timeout, err = time.ParseDuration(runenv.StringParam(TimeoutCommitParam))
 	if err != nil {
@@ -109,6 +125,7 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	cmtcfg.P2P.RecvRate = int64(p.PerPeerBandwidth)
 	cmtcfg.Consensus.TimeoutCommit = p.TimeoutCommit
 	cmtcfg.Consensus.TimeoutPropose = p.TimeoutPropose
+	cmtcfg.TxIndex.Indexer = "kv"
 
 	vals := make([]genesis.Validator, 0)
 	accs := make([]genesis.Account, 0)

@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -22,7 +23,7 @@ const (
 )
 
 // CommandHandler type defines the signature for command handlers
-type CommandHandler func(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, args interface{}) error
+type CommandHandler func(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, args json.RawMessage) error
 
 func DefaultCommandRegistry() map[string]CommandHandler {
 	return make(map[string]CommandHandler)
@@ -31,11 +32,11 @@ func DefaultCommandRegistry() map[string]CommandHandler {
 // Command is a struct to represent commands from the leader. Each command has
 // an associated handler that describes the execution logic for the command.
 type Command struct {
-	ID          string        `json:"id"`
-	Name        string        `json:"name"`
-	Args        interface{}   `json:"args"`
-	Timeout     time.Duration `json:"timeout"`
-	TargetGroup string        `json:"target_group"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Args        json.RawMessage `json:"args"`
+	Timeout     time.Duration   `json:"timeout"`
+	TargetGroup string          `json:"target_group"`
 }
 
 // Operator is a struct to manage the execution of commands. This is used to
@@ -99,6 +100,8 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 					continue
 				}
 
+				runenv.RecordMessage("handler exists")
+
 				ctx, cancel := context.WithTimeout(ctx, cmd.Timeout)
 				o.jobs[cmd.ID] = cancel
 				o.wg.Add(1)
@@ -111,6 +114,8 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 						runenv.RecordMessage(fmt.Sprintf("job %s ID %s failed: %s", cmd.Name, cmd.ID, err))
 					}
 				}(cmd)
+
+				runenv.RecordMessage("goroutine started")
 			}
 		}
 	}

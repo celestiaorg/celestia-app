@@ -12,7 +12,7 @@ disable_metrics = false
 
 [global.run.test_params]
 timeout = "25m"
-halt_height = "18"
+halt_height = "28"
 latency = "0"
 bandwidth = "420Mib"
 validators = "3"
@@ -24,6 +24,10 @@ per_peer_bandwidth = "5Mib"
 blob_sequences = "1"
 blob_sizes = "100"
 blobs_per_sequence = "1"
+inbound_peer_count = "40"
+outbound_peer_count = "10"
+gov_max_square_size = "128"
+max_block_bytes = "8000000"
 
 
 [[groups]]
