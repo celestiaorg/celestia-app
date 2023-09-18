@@ -20,9 +20,13 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
+	"github.com/cosmos/cosmos-sdk/x/slashing"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
+	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -75,8 +79,29 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := stakingtypes.DefaultParams()
 	params.UnbondingTime = appconsts.DefaultUnbondingTime
 	params.BondDenom = BondDenom
+	params.MinCommissionRate = sdk.NewDecWithPrec(5, 2) // 5%
 
 	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
+		Params: params,
+	})
+}
+
+// stakingModule wraps the x/staking module in order to overwrite specific
+// ModuleManager APIs.
+type slashingModule struct {
+	slashing.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/staking module genesis state.
+func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	params := slashingtypes.DefaultParams()
+	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
+	params.SignedBlocksWindow = 5000
+	params.DowntimeJailDuration = time.Minute * 1
+	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
+
+	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
 		Params: params,
 	})
 }
@@ -90,6 +115,22 @@ func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
 	})
+}
+
+type ibcModule struct {
+	ibc.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/ibc module genesis state.
+func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	// per ibc documentation, this value should be 3-5 times the expected block
+	// time. The expected block time is 15 seconds, therefore this value is 75
+	// seconds.
+	maxBlockTime := appconsts.GoalBlockTime * 5
+	gs := ibctypes.DefaultGenesisState()
+	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
+	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
+	return cdc.MustMarshalJSON(gs)
 }
 
 type mintModule struct {
@@ -117,7 +158,7 @@ type govModule struct {
 // DefaultGenesis returns custom x/gov module genesis state.
 func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10000000)))
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(1_000_000_000))) // 1000 TIA
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -138,7 +179,7 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
 		Block:     DefaultBlockParams(),
-		Evidence:  coretypes.DefaultEvidenceParams(),
+		Evidence:  DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
 			AppVersion: appconsts.LatestVersion,
@@ -154,6 +195,15 @@ func DefaultBlockParams() tmproto.BlockParams {
 		MaxGas:     -1,
 		TimeIotaMs: 1, // 1ms
 	}
+}
+
+// DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
+// determined using a goal block time.
+func DefaultEvidenceParams() tmproto.EvidenceParams {
+	evdParams := coretypes.DefaultEvidenceParams()
+	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
+	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
+	return evdParams
 }
 
 func DefaultConsensusConfig() *tmcfg.Config {

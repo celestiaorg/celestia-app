@@ -52,10 +52,13 @@ func mintBlockProvision(ctx sdk.Context, k keeper.Keeper) {
 		return
 	}
 
-	toMintCoin := minter.CalculateBlockProvision(ctx.BlockTime(), *minter.PreviousBlockTime)
+	toMintCoin, err := minter.CalculateBlockProvision(ctx.BlockTime(), *minter.PreviousBlockTime)
+	if err != nil {
+		panic(err)
+	}
 	toMintCoins := sdk.NewCoins(toMintCoin)
 
-	err := k.MintCoins(ctx, toMintCoins)
+	err = k.MintCoins(ctx, toMintCoins)
 	if err != nil {
 		panic(err)
 	}
