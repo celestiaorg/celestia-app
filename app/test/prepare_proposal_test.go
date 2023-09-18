@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
@@ -56,11 +57,16 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	)
 	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
+	height := testApp.LastBlockHeight() + 1
+	blockTime := time.Now()
+
 	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
 			Txs: txs,
 		},
 		ChainId: testutil.ChainID,
+		Height:  height,
+		Time:    blockTime,
 	})
 	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.BlockData.Txs {
