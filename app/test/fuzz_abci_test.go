@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -112,11 +113,17 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						"",
 					)
 					txs = append(txs, sendTxs...)
+
+					blockTime := time.Now()
+					height := testApp.LastBlockHeight() + 1
+
 					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 						BlockData: &core.Data{
 							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 						},
 						ChainId: testutil.ChainID,
+						Time:    blockTime,
+						Height:  height,
 					})
 
 					// check that the square size is smaller than or equal to
@@ -127,6 +134,12 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						BlockData: resp.BlockData,
 						Header: core.Header{
 							DataHash: resp.BlockData.Hash,
+<<<<<<< HEAD
+=======
+							ChainID:  testutil.ChainID,
+							Version:  version.Consensus{App: appconsts.LatestVersion},
+							Height:   height,
+>>>>>>> 9617549 (fix: add time to the sdk.Context used in PrepareProposal (#2515))
 						},
 					})
 					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
