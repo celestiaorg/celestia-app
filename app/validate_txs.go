@@ -44,7 +44,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
-			logger.Error("filtering already checked transaction", "tx", tmbytes.FromBytes(tx), "error", err)
+			logger.Error("filtering already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
 		txs[n] = tx
@@ -67,7 +67,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
-			logger.Error("filtering already checked blob transaction", "tx", tmbytes.FromBytes(tx.Tx), "error", err)
+			logger.Error("filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
 		}
 		txs[n] = tx
