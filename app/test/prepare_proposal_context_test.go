@@ -44,7 +44,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	}
 	tests := []test{
 		{
-			name: "create continuous vesting account with a start time in the future",
+			name: "create continuous vesting account",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				_, _, err := cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
 				require.NoError(t, err)
