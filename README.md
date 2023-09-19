@@ -36,13 +36,17 @@ node            |  |                               |  |
 
 ## Install
 
-1. [Install Go](https://go.dev/doc/install) 1.21
+1. [Install Go](https://go.dev/doc/install) 1.21.1
 1. Clone this repo
 1. Install the celestia-app CLI
 
     ```shell
     make install
     ```
+
+### Ledger Support
+
+Ledger is not supported on Windows and OpenBSD.
 
 ## Usage
 
@@ -90,6 +94,7 @@ This repo attempts to conform to [conventional commits](https://www.conventional
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
 1. Install [markdown-link-check](https://github.com/tcort/markdown-link-check)
+1. Install [goreleaser](https://goreleaser.com/install/)
 
 ### Helpful Commands
 
@@ -105,7 +110,37 @@ make fmt
 
 # Regenerate Protobuf files (this assumes Docker is running)
 make proto-gen
+
+# Build binaries with goreleaser
+make goreleaser-build
 ```
+
+### Publishing a Release
+
+> **NOTE** Due to `goreleaser`'s CGO limitations, cross-compiling the binary does not work. So the binaries must be built on the target platform. This means that the release process must be done on a Linux amd64 machine.
+
+To generate the binaries for the Github release, you can run the following command:
+
+```sh
+make goreleaser-release
+```
+
+This will generate the binaries as defined in `.goreleaser.yaml` and put them in `build/goreleaser` like so:
+
+```sh
+build
+└── goreleaser
+    ├── CHANGELOG.md
+    ├── artifacts.json
+    ├── celestia-app_Linux_x86_64.tar.gz
+    ├── celestia-app_linux_amd64_v1
+    │   └── celestia-appd
+    ├── checksums.txt
+    ├── config.yaml
+    └── metadata.json
+```
+
+For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files.
 
 ### Docs
 
@@ -115,6 +150,10 @@ Package-specific READMEs aim to explain implementation details for developers th
 - [pkg/wrapper](./pkg/wrapper/README.md)
 - [x/blob](./x/blob/README.md)
 - [x/qgb](./x/qgb/README.md)
+
+## Audits
+
+[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [audit/informal-systems.pdf](audit/informal-systems.pdf) for the full report.
 
 ## Careers
 

@@ -4,7 +4,7 @@ import (
 	"log"
 	"strings"
 
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/v2/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 )
@@ -125,7 +125,7 @@ var (
 )
 
 func init() {
-	contractAbi, err := abi.JSON(strings.NewReader(wrapper.QuantumGravityBridgeMetaData.ABI))
+	contractAbi, err := abi.JSON(strings.NewReader(wrapper.WrappersMetaData.ABI))
 	if err != nil {
 		log.Fatalln("bad ABI constant", err)
 	}
