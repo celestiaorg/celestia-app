@@ -7,7 +7,7 @@ toolchain go1.21.0
 require (
 	github.com/celestiaorg/nmt v0.19.0
 	github.com/celestiaorg/quantum-gravity-bridge v2.1.0+incompatible
-	github.com/ethereum/go-ethereum v1.12.2
+	github.com/ethereum/go-ethereum v1.13.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0 // indirect
@@ -42,13 +42,19 @@ require (
 )
 
 require (
-	github.com/Microsoft/go-winio v0.6.0 // indirect
+	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/bits-and-blooms/bitset v1.5.0 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/gnark-crypto v0.10.0 // indirect
+	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/ethereum/c-kzg-4844 v0.3.1 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/onsi/gomega v1.27.4 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
@@ -57,6 +63,7 @@ require (
 	github.com/pyroscope-io/otel-profiling-go v0.4.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/supranational/blst v0.3.11 // indirect
 	go.opentelemetry.io/otel v1.15.1 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.15.1 // indirect
 	go.opentelemetry.io/otel/sdk v1.15.1 // indirect
@@ -64,7 +71,7 @@ require (
 	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230815205213-6bfd019c3878 // indirect
-	gotest.tools/v3 v3.5.0 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
 require (
@@ -110,7 +117,7 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
-	github.com/docker/docker v24.0.2+incompatible
+	github.com/docker/docker v24.0.5+incompatible
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
@@ -192,8 +199,8 @@ require (
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tidwall/btree v1.5.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.10 // indirect
-	github.com/tklauser/numcpus v0.4.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.12 // indirect
+	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/zondax/hid v0.9.1 // indirect
 	github.com/zondax/ledger-go v0.14.1 // indirect
@@ -207,7 +214,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
