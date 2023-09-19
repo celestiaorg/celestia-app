@@ -3,6 +3,8 @@ package app
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -23,25 +25,35 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []tmproto.BlobTx
 }
 
 // FilterTxs applies the antehandler to all proposed transactions and removes transactions that return an error.
-func FilterTxs(ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
+func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
 	normalTxs, blobTxs := separateTxs(txConfig, txs)
-	normalTxs, ctx = filterStdTxs(txConfig.TxDecoder(), ctx, handler, normalTxs)
-	blobTxs, _ = filterBlobTxs(txConfig.TxDecoder(), ctx, handler, blobTxs)
+	normalTxs, ctx = filterStdTxs(logger, txConfig.TxDecoder(), ctx, handler, normalTxs)
+	blobTxs, _ = filterBlobTxs(logger, txConfig.TxDecoder(), ctx, handler, blobTxs)
 	return append(normalTxs, encodeBlobTxs(blobTxs)...)
 }
 
 // filterStdTxs applies the provided antehandler to each transaction and removes
 // transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
-func filterStdTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
+func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
-	var err error
 	for _, tx := range txs {
-		ctx, err = checkTxValidity(dec, ctx, handler, tx)
+		sdkTx, err := dec(tx)
+		if err != nil {
+			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
+		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
+			logger.Error(
+				"filtering already checked transaction",
+				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
+				"error", err,
+				"msgs", msgTypes(sdkTx),
+			)
 			continue
 		}
 		txs[n] = tx
@@ -55,15 +67,22 @@ func filterStdTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, t
 // filterBlobTxs applies the provided antehandler to each transaction
 // and removes transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
-func filterBlobTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
+func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
 	n := 0
-	var err error
 	for _, tx := range txs {
-		ctx, err = checkTxValidity(dec, ctx, handler, tx.Tx)
+		sdkTx, err := dec(tx.Tx)
+		if err != nil {
+			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			continue
+		}
+		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
+			logger.Error(
+				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
+			)
 			continue
 		}
 		txs[n] = tx
@@ -74,13 +93,13 @@ func filterBlobTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, 
 	return txs[:n], ctx
 }
 
-func checkTxValidity(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, tx []byte) (sdk.Context, error) {
-	sdkTx, err := dec(tx)
-	if err != nil {
-		return ctx, err
+func msgTypes(sdkTx sdk.Tx) []string {
+	msgs := sdkTx.GetMsgs()
+	msgNames := make([]string, len(msgs))
+	for i, msg := range msgs {
+		msgNames[i] = sdk.MsgTypeURL(msg)
 	}
-
-	return handler(ctx, sdkTx, false)
+	return msgNames
 }
 
 func encodeBlobTxs(blobTxs []tmproto.BlobTx) [][]byte {

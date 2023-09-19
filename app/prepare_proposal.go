@@ -18,7 +18,11 @@ import (
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
-	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
+	sdkCtx := app.NewProposalContext(core.Header{
+		ChainID: req.ChainId,
+		Height:  req.Height,
+		Time:    req.Time,
+	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
@@ -49,7 +53,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	if app.LastBlockHeight() == 0 {
 		txs = make([][]byte, 0)
 	} else {
-		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 	}
 
 	// build the square from the set of valid and prioritised transactions.
