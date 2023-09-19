@@ -25,7 +25,6 @@ build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@go mod tidy
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
