@@ -11,7 +11,7 @@ import (
 )
 
 // Test_newGovModule verifies that the gov module's genesis state has defaults
-// overriden.
+// overridden.
 func Test_newGovModule(t *testing.T) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	day := time.Duration(time.Hour * 24)
