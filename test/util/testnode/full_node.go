@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/test/genesis"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/stretchr/testify/require"
