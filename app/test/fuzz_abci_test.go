@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -11,6 +12,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -112,11 +114,17 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						"",
 					)
 					txs = append(txs, sendTxs...)
+
+					blockTime := time.Now()
+					height := testApp.LastBlockHeight() + 1
+
 					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 						BlockData: &core.Data{
 							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 						},
 						ChainId: testutil.ChainID,
+						Time:    blockTime,
+						Height:  height,
 					})
 
 					// check that the square size is smaller than or equal to
@@ -127,6 +135,9 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						BlockData: resp.BlockData,
 						Header: core.Header{
 							DataHash: resp.BlockData.Hash,
+							ChainID:  testutil.ChainID,
+							Version:  version.Consensus{App: appconsts.LatestVersion},
+							Height:   height,
 						},
 					})
 					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
