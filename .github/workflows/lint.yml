@@ -41,4 +41,3 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.3
-
