@@ -4,7 +4,6 @@ go 1.21.1
 
 require (
 	github.com/celestiaorg/nmt v0.20.0
-	github.com/celestiaorg/quantum-gravity-bridge v2.1.0+incompatible
 	github.com/ethereum/go-ethereum v1.13.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
@@ -27,6 +26,7 @@ require (
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.1.2
+	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.1
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.14
