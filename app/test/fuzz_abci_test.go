@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -101,6 +102,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						true,
 						"",
 						accounts[:tt.count],
+						user.SetGasLimitAndFee(1_000_000_000, 0.1),
 					)
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
@@ -110,8 +112,14 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						kr,
 						1000,
 						accounts[0],
+<<<<<<< HEAD
 						accounts[len(accounts)-100:],
 						"",
+=======
+						accounts[len(accounts)-sendTxCount:],
+						testutil.ChainID,
+						user.SetGasLimitAndFee(1_000_000, 0.1),
+>>>>>>> dd50ae7 (chore: log filtered transactions and fix gas limits in tests (#2518))
 					)
 					txs = append(txs, sendTxs...)
 

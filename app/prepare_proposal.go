@@ -62,7 +62,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			)
 		}
 	} else {
-		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 	}
 
 	// build the square from the set of valid and prioritised transactions.
