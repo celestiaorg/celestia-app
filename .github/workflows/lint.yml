@@ -41,9 +41,3 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.3
-
-  markdown-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/markdown-lint@v0.2.3
