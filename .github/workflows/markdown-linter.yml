@@ -1,0 +1,35 @@
+name: "markdown-linter"
+on:
+  push:
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli@0.32.1
+        shell: bash
+
+      - name: Run markdownlint
+        run: markdownlint --config .markdownlint.yaml **/*.md
+        shell: bash
+
+  markdown-link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run markdown link check
+        uses: gaurav-nelson/github-action-markdown-link-check@1.0.15
+        with:
+          config-file: '.github/markdown-link-check-config.json'
+          folder-path: '.'
