@@ -5,7 +5,7 @@ on:
   workflow_call:
 
 env:
-  GO_VERSION: '1.21'
+  GO_VERSION: '1.21.1'
 
 jobs:
   golangci-lint:
@@ -27,7 +27,7 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@v3.6.0
         with:
-          version: v1.52.2
+          version: v1.54.2
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
@@ -41,9 +41,3 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.0
-
-  markdown-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/markdown-lint@v0.2.0
