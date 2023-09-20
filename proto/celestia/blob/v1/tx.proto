@@ -19,7 +19,7 @@ service Msg {
 
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
 message MsgPayForBlobs {
-  option (amino.name)           = "cosmos-sdk/MsgSend";
+  option (amino.name) = "celestia/MsgPayForBlobs";
 
   string signer = 1;
   // namespaces is a list of namespaces that the blobs are associated with. A

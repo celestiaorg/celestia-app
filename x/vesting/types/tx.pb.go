@@ -121,7 +121,8 @@ func (m *MsgCreateVestingAccount) GetStartTime() int64 {
 	return 0
 }
 
-// MsgCreateVestingAccountResponse defines the Msg/CreateVestingAccount response type.
+// MsgCreateVestingAccountResponse defines the Msg/CreateVestingAccount response
+// type.
 type MsgCreateVestingAccountResponse struct {
 }
 
@@ -158,8 +159,8 @@ func (m *MsgCreateVestingAccountResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgCreateVestingAccountResponse proto.InternalMessageInfo
 
-// MsgCreatePermanentLockedAccount defines a message that enables creating a permanent
-// locked account.
+// MsgCreatePermanentLockedAccount defines a message that enables creating a
+// permanent locked account.
 //
 // Since: cosmos-sdk 0.46
 type MsgCreatePermanentLockedAccount struct {
@@ -222,7 +223,8 @@ func (m *MsgCreatePermanentLockedAccount) GetAmount() github_com_cosmos_cosmos_s
 	return nil
 }
 
-// MsgCreatePermanentLockedAccountResponse defines the Msg/CreatePermanentLockedAccount response type.
+// MsgCreatePermanentLockedAccountResponse defines the
+// Msg/CreatePermanentLockedAccount response type.
 //
 // Since: cosmos-sdk 0.46
 type MsgCreatePermanentLockedAccountResponse struct {
@@ -530,8 +532,8 @@ type MsgClient interface {
 	// CreateVestingAccount defines a method that enables creating a vesting
 	// account.
 	CreateVestingAccount(ctx context.Context, in *MsgCreateVestingAccount, opts ...grpc.CallOption) (*MsgCreateVestingAccountResponse, error)
-	// CreatePermanentLockedAccount defines a method that enables creating a permanent
-	// locked account.
+	// CreatePermanentLockedAccount defines a method that enables creating a
+	// permanent locked account.
 	//
 	// Since: cosmos-sdk 0.46
 	CreatePermanentLockedAccount(ctx context.Context, in *MsgCreatePermanentLockedAccount, opts ...grpc.CallOption) (*MsgCreatePermanentLockedAccountResponse, error)
@@ -582,8 +584,8 @@ type MsgServer interface {
 	// CreateVestingAccount defines a method that enables creating a vesting
 	// account.
 	CreateVestingAccount(context.Context, *MsgCreateVestingAccount) (*MsgCreateVestingAccountResponse, error)
-	// CreatePermanentLockedAccount defines a method that enables creating a permanent
-	// locked account.
+	// CreatePermanentLockedAccount defines a method that enables creating a
+	// permanent locked account.
 	//
 	// Since: cosmos-sdk 0.46
 	CreatePermanentLockedAccount(context.Context, *MsgCreatePermanentLockedAccount) (*MsgCreatePermanentLockedAccountResponse, error)

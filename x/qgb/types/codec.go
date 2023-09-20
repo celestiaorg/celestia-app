@@ -4,7 +4,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/gogoproto/proto"
+	"github.com/gogo/protobuf/proto"
 )
 
 const URLMsgRegisterEVMAddress = "/celestia.blob.v1.MsgRegisterEVMAddress"
@@ -20,8 +20,10 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 
 	dataCommitment := &DataCommitment{}
 	valSet := &Valset{}
+	panic(dataCommitment.String())
 	proto.RegisterType(dataCommitment, dataCommitment.String())
 	proto.RegisterType(valSet, valSet.String())
+
 	registry.RegisterInterface(
 		"AttestationRequestI",
 		(*AttestationRequestI)(nil),
