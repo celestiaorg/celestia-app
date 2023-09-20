@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.21.1
 
 require (
-	github.com/celestiaorg/nmt v0.20.0
+	github.com/celestiaorg/nmt v0.19.0
 	github.com/ethereum/go-ethereum v1.13.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
@@ -25,7 +25,7 @@ require (
 
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
-	cosmossdk.io/math v1.1.2
+	cosmossdk.io/math v1.0.0-rc.0
 	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.1
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
