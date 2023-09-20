@@ -32,8 +32,8 @@ are blocked by the `x/paramfilter` module.
 | distribution.BaseProposerReward | 0 | Reward in the mint demonination for proposing a block. | True |
 | distribution.BonusProposerReward | 0 | Extra reward in the mint denomination for proposers based on the voting power included in the commit. | True |
 | gov.DepositParams.MinDeposit | 1000000000utia (1000 TIA) | Minimum deposit for a proposal to enter voting period. | True |
-| gov.DepositParams.MaxDepositPeriod | 172800 (2 days) | Maximum period for token holders to deposit on a proposal in seconds. | True |
-| gov.VotingParams.VotingPeriod | 172800 (2 days) | Duration of the voting period in seconds. | True |
+| gov.DepositParams.MaxDepositPeriod | 1209600000000000 (1 week) | Maximum period for token holders to deposit on a proposal in nanoseconds. | True |
+| gov.VotingParams.VotingPeriod | 604800000000000 (2 weeks) | Duration of the voting period in nanoseconds. | True |
 | gov.TallyParams.Quorum | 0.334 (33.4%) | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
 | gov.TallyParams.Threshold | 0.50 (50%) | Minimum proportion of Yes votes for proposal to pass. | True |
 | gov.TallyParams.VetoThreshold | 0.334 (33.4%) | Minimum value of Veto votes to Total votes ratio for proposal to be vetoed. | True |
