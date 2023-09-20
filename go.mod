@@ -44,7 +44,7 @@ require (
 	cosmossdk.io/api v0.3.1 // indirect
 	cosmossdk.io/core v0.5.1 // indirect
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
-	cosmossdk.io/log v1.2.0 // indirect
+	cosmossdk.io/log v1.2.1 // indirect
 	cosmossdk.io/tools/rosetta v0.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/cockroachdb/errors v1.10.0 // indirect
@@ -241,7 +241,6 @@ require (
 
 replace (
 	github.com/cometbft/cometbft => /Users/callum/Developer/go/src/github.com/celestiaorg/celestia-core
-	github.com/cosmos/cosmos-sdk => /Users/callum/Developer/go/src/github.com/cosmos/cosmos-sdk
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
