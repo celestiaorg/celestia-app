@@ -32,7 +32,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 		a.IBCKeeper,
 	)
 
-	txs := app.FilterTxs(sdkCtx, handler, a.GetTxConfig(), req.BlockData.Txs)
+	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.BlockData.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block

@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -101,6 +102,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						true,
 						"",
 						accounts[:tt.count],
+						blobtypes.SetGasLimit(1_000_000_000),
 					)
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
@@ -111,7 +113,8 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						1000,
 						accounts[0],
 						accounts[len(accounts)-100:],
-						"",
+						testutil.ChainID,
+						blobtypes.SetGasLimit(1_000_000_000),
 					)
 					txs = append(txs, sendTxs...)
 
