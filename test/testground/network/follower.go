@@ -47,6 +47,7 @@ func NewFollower() *Follower {
 // Plan is the method that downloads the genesis, configurations, and keys for
 // all of the other nodes in the network.
 func (f *Follower) Plan(ctx context.Context, _ []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+
 	cfg, err := DownloadNetworkConfig(ctx, initCtx)
 	if err != nil {
 		return err

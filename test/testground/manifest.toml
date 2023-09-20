@@ -20,6 +20,7 @@ enabled = true
 name = "entrypoint"
 instances = { min = 1, max = 200, default = 3 }
 [testcases.params]
+chain_id = { type = "string", default = "testground" }
 timeout = { type = "string", default = "21m" }
 latency = { type = "int", default = 0 }
 bandwidth = { type = "string", default = "420Mib" }

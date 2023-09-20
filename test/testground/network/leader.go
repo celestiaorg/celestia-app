@@ -2,10 +2,16 @@ package network
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/tendermint/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -13,33 +19,31 @@ import (
 // Leader is the role for the leader node in a test. It is responsible for
 // creating the genesis block and distributing it to all nodes.
 type Leader struct {
-	*ConsensusNode
+	*FullNode
 }
 
 // Plan is the method that creates and distributes the genesis, configurations,
 // and keys for all of the other nodes in the network.
 func (l *Leader) Plan(ctx context.Context, statuses []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	params, err := ParseParams(runenv)
+	packets, err := l.BootstrapPeers(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
 
-	runenv.RecordMessage("params found: %v", params)
-
-	cfg, err := params.StandardConfig(statuses)
+	// create Genesis and distribute it to all nodes
+	genesis, tgCfg, err := l.GenesisEvent(ctx, runenv, initCtx, packets)
 	if err != nil {
 		return err
 	}
 
-	err = PublishConfig(ctx, initCtx, cfg)
+	baseDir, err := l.Init(homeDir, genesis, tgCfg[l.Name])
 	if err != nil {
 		return err
 	}
 
-	// set the local cosnensus node
-	l.ConsensusNode, err = cfg.ConsensusNode(int(initCtx.GlobalSeq))
+	l.baseDir = baseDir
 
-	return err
+	return nil
 }
 
 func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
@@ -132,6 +136,41 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 	runenv.RecordMessage(fmt.Sprintf("leader retro: height %d max block size bytes %d", blockRes.Block.Height, maxBlockSize))
 
 	return nil
+}
+
+func (l *Leader) GenesisEvent(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
+	pubKeys := make([]cryptotypes.PubKey, 0)
+	addrs := make([]string, 0)
+	gentxs := make([]json.RawMessage, 0, len(packets))
+	for _, packet := range packets {
+		pks, err := packet.GetPubKeys()
+		if err != nil {
+			return nil, err
+		}
+		pubKeys = append(pubKeys, pks...)
+		addrs = append(addrs, packet.GenesisAccounts...)
+		gentxs = append(gentxs, packet.GenTx)
+	}
+
+	// save and gossip the genesis doc and configs to all of nodes and then we done
+	doc, err := GenesisDoc(l.ecfg, l.params.ChainID, gentxs, addrs, pubKeys)
+}
+
+func SerializePublicKey(pubKey cryptotypes.PubKey) string {
+	return hex.EncodeToString(pubKey.Bytes())
+}
+
+func DeserializeAccountPublicKey(hexPubKey string) (cryptotypes.PubKey, error) {
+	bz, err := hex.DecodeString(hexPubKey)
+	if err != nil {
+		return nil, err
+	}
+	var pubKey secp256k1.PubKey
+	if len(bz) != secp256k1.PubKeySize {
+		return nil, errors.New("incorrect pubkey size")
+	}
+	pubKey.Key = bz
+	return &pubKey, nil
 }
 
 // subscribeAndRecordBlocks subscribes to the block event stream and records

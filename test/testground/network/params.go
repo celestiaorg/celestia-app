@@ -8,7 +8,7 @@ import (
 	mrand "math/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/test/genesis"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/p2p"
@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	ChainIDParam           = "chain_id"
 	ValidatorsParam        = "validators"
 	FullNodesParam         = "full_nodes"
 	HaltHeightParam        = "halt_height"
@@ -33,6 +34,7 @@ const (
 )
 
 type Params struct {
+	ChainID           string
 	Validators        int
 	FullNodes         int
 	HaltHeight        int
@@ -54,6 +56,8 @@ type Params struct {
 func ParseParams(runenv *runtime.RunEnv) (*Params, error) {
 	var err error
 	p := &Params{}
+
+	p.ChainID = runenv.StringParam(ChainIDParam)
 
 	p.Validators = runenv.IntParam(ValidatorsParam)
 
@@ -203,9 +207,9 @@ func (p *Params) StandardConfig(statuses []Status) (Config, error) {
 	return cfg, nil
 }
 
-func peerID(status Status, networkKey ed25519.PrivKey) string {
+func peerID(ip string, networkKey ed25519.PrivKey) string {
 	nodeID := string(p2p.PubKeyToID(networkKey.PubKey()))
-	return fmt.Sprintf("%s@%s:26656", nodeID, status.IP)
+	return fmt.Sprintf("%s@%s:26656", nodeID, ip)
 }
 
 func setMnemomics(accs []genesis.Account, nodeCfgs []NodeConfig) ([]NodeConfig, error) {

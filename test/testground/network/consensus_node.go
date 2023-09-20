@@ -77,7 +77,7 @@ func (c *Config) ConsensusNode(globalSequence int) (*ConsensusNode, error) {
 
 // NodeID creates the ID for each node. This is currently just the global
 // sequence.
-func NodeID(globalSequence int) string {
+func NodeID(globalSequence int64) string {
 	return fmt.Sprintf("%d", globalSequence)
 }
 

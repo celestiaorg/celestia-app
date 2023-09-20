@@ -18,9 +18,9 @@ var (
 	GenesisTopic = sync.NewTopic("genesis", map[string]json.RawMessage{})
 	// NetworkConfigTopic is the topic used to exchange network configuration
 	// between test instances.
-	ConfigTopic  = sync.NewTopic("network-config", Config{})
-	StatusTopic  = sync.NewTopic("new-born-status", Status{})
-	CommandTopic = sync.NewTopic("command", Command{})
+	ConfigTopic     = sync.NewTopic("network-config", Config{})
+	PeerPacketTopic = sync.NewTopic("peer_packet", PeerPacket{})
+	CommandTopic    = sync.NewTopic("command", Command{})
 )
 
 type Config struct {
