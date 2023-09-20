@@ -4,11 +4,15 @@ package celestia.qgb.v1;
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/api/annotations.proto";
+import "cosmos/msg/v1/msg.proto";
+import "amino/amino.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Msg is the message server for receiving qgb transactions
 service Msg {
+  option (cosmos.msg.v1.service) = true;
+
   // RegisterEVMAddress records an evm address for the validator which is used
   // by the relayer to aggregate signatures. A validator can only register a
   // single EVM address. The EVM address can be overridden by a later message.
@@ -22,6 +26,8 @@ service Msg {
 
 // MsgRegisterEVMAddress registers an evm address to a validator.
 message MsgRegisterEVMAddress {
+  option (amino.name)           = "celestia/MsgRegisterEVMAddress";
+
   // The operating address of the validator.
   string validator_address = 1
       [ (cosmos_proto.scalar) = "cosmos.AddressString" ];

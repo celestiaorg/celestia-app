@@ -79,11 +79,13 @@ func initGenFiles(
 		return err
 	}
 
+	params := types.ConsensusParamsFromProto(*cparams)
+
 	genDoc := types.GenesisDoc{
 		GenesisTime:     genTime,
 		ChainID:         chainID,
 		AppState:        appGenStateJSON,
-		ConsensusParams: cparams,
+		ConsensusParams: &params,
 		Validators:      nil,
 	}
 

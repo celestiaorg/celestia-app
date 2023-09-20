@@ -144,10 +144,9 @@ func DefaultAppOptions() *KVAppOptions {
 }
 
 func DefaultParams() *tmproto.ConsensusParams {
-	cparams := types.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
+	cparams := types.DefaultConsensusParams().ToProto()
 	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	return cparams
+	return &cparams
 }
 
 func DefaultTendermintConfig() *tmconfig.Config {

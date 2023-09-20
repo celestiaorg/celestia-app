@@ -122,11 +122,13 @@ func MakeGenesis(nodes []*Node, accounts []*GenesisAccount) (types.GenesisDoc, e
 		return types.GenesisDoc{}, fmt.Errorf("marshaling app state: %w", err)
 	}
 
+	cparams := types.ConsensusParamsFromProto(*app.DefaultConsensusParams())
+
 	// Validator set and app hash are set in InitChain
 	return types.GenesisDoc{
 		ChainID:         "testnet",
 		GenesisTime:     time.Now().UTC(),
-		ConsensusParams: app.DefaultConsensusParams(),
+		ConsensusParams: &cparams,
 		AppState:        appState,
 		// AppHash is not provided but computed after InitChain
 	}, nil

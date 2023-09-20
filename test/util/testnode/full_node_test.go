@@ -76,7 +76,6 @@ func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 	}
 	require.NoError(err)
 	require.NotNil(params)
-	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
 	_, err = s.cctx.WaitForHeight(20)
 	require.NoError(err)
 }

@@ -225,7 +225,7 @@ func (k Keeper) GetEVMAddress(ctx sdk.Context, valAddress sdk.ValAddress) (gethc
 func (k Keeper) IsEVMAddressUnique(ctx sdk.Context, evmAddress gethcommon.Address) bool {
 	store := ctx.KVStore(k.storeKey)
 	addrBytes := evmAddress.Bytes()
-	iterator := sdk.KVStorePrefixIterator(store, []byte(types.EVMAddress))
+	iterator := sdk.KVStorePrefixIterator(store, []byte(types.EVMAddressKey))
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
 		if bytes.Equal(iterator.Value(), addrBytes) {

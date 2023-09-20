@@ -70,15 +70,15 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		panic(err)
 	}
 
-	abciParams := &abci.ConsensusParams{
-		Block: &abci.BlockParams{
+	abciParams := &tmproto.ConsensusParams{
+		Block: &tmproto.BlockParams{
 			// choose some value large enough to not bottleneck the max square
 			// size
 			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
 			MaxGas:   cparams.Block.MaxGas,
 		},
-		Evidence:  &cparams.Evidence,
-		Validator: &cparams.Validator,
+		Evidence:  cparams.Evidence,
+		Validator: cparams.Validator,
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()

@@ -17,6 +17,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/rand"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -158,7 +159,7 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize, maxBytes int) {
 	account := "validator"
 
-	bparams := &abci.BlockParams{
+	bparams := &tmproto.BlockParams{
 		MaxBytes: int64(maxBytes),
 		MaxGas:   -1,
 	}

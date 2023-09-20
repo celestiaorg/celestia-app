@@ -33,6 +33,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/distribution"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -222,12 +223,15 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		qgbtypes.ModuleName:            {authtypes.Minter, authtypes.Burner},
 	}
 
+	govAddrs := authtypes.NewModuleAddress(govtypes.ModuleName).String()
+
 	accountKeeper := authkeeper.NewAccountKeeper(
 		marshaler,
-		keyAcc, // target store
+		keyAcc,                     // target store
 		authtypes.ProtoBaseAccount, // prototype
 		maccPerms,
 		app.Bech32PrefixAccAddr,
+		govAddrs,
 	)
 
 	blockedAddr := make(map[string]bool, len(maccPerms))
@@ -239,6 +243,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		keyBank,
 		accountKeeper,
 		blockedAddr,
+		govAddrs,
 	)
 	bankKeeper.SetParams(
 		ctx,
@@ -248,10 +253,10 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		},
 	)
 
-	stakingKeeper := stakingkeeper.NewKeeper(marshaler, keyStaking, accountKeeper, bankKeeper, getSubspace(paramsKeeper, stakingtypes.ModuleName))
+	stakingKeeper := stakingkeeper.NewKeeper(marshaler, keyStaking, accountKeeper, bankKeeper, govAddrs)
 	stakingKeeper.SetParams(ctx, TestingStakeParams)
 
-	distKeeper := distrkeeper.NewKeeper(marshaler, keyDistro, getSubspace(paramsKeeper, distrtypes.ModuleName), accountKeeper, bankKeeper, stakingKeeper, authtypes.FeeCollectorName)
+	distKeeper := distrkeeper.NewKeeper(marshaler, keyDistro, accountKeeper, bankKeeper, stakingKeeper, authtypes.FeeCollectorName, govAddrs)
 	distKeeper.SetParams(ctx, distrtypes.DefaultParams())
 
 	// set genesis items required for distribution
@@ -285,16 +290,17 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 
 	slashingKeeper := slashingkeeper.NewKeeper(
 		marshaler,
+		cdc,
 		keySlashing,
-		&stakingKeeper,
-		getSubspace(paramsKeeper, slashingtypes.ModuleName).WithKeyTable(slashingtypes.ParamKeyTable()),
+		stakingKeeper,
+		govAddrs,
 	)
 
-	k := keeper.NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, qgbtypes.DefaultParamspace), &stakingKeeper)
+	k := keeper.NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, qgbtypes.DefaultParamspace), stakingKeeper)
 	testQGBParams := qgbtypes.DefaultGenesis().Params
 	k.SetParams(ctx, *testQGBParams)
 
-	stakingKeeper = *stakingKeeper.SetHooks(
+	stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
 			distKeeper.Hooks(),
 			slashingKeeper.Hooks(),

@@ -175,33 +175,37 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 // DefaultConsensusParams returns a ConsensusParams with a MaxBytes
 // determined using a goal square size.
 func DefaultConsensusParams() *tmproto.ConsensusParams {
+	valParams := coretypes.DefaultValidatorParams()
 	return &tmproto.ConsensusParams{
-		Block:     DefaultBlockParams(),
-		Evidence:  DefaultEvidenceParams(),
-		Validator: coretypes.DefaultValidatorParams(),
-		Version: tmproto.VersionParams{
-			AppVersion: appconsts.LatestVersion,
+		Block:    DefaultBlockParams(),
+		Evidence: DefaultEvidenceParams(),
+		Validator: &tmproto.ValidatorParams{
+			PubKeyTypes: valParams.PubKeyTypes,
+		},
+		Version: &tmproto.VersionParams{
+			App: appconsts.LatestVersion,
 		},
 	}
 }
 
 // DefaultBlockParams returns a default BlockParams with a MaxBytes determined
 // using a goal square size.
-func DefaultBlockParams() tmproto.BlockParams {
-	return tmproto.BlockParams{
-		MaxBytes:   appconsts.DefaultMaxBytes,
-		MaxGas:     -1,
-		TimeIotaMs: 1, // 1ms
+func DefaultBlockParams() *tmproto.BlockParams {
+	return &tmproto.BlockParams{
+		MaxBytes: appconsts.DefaultMaxBytes,
+		MaxGas:   -1,
 	}
 }
 
 // DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
 // determined using a goal block time.
-func DefaultEvidenceParams() tmproto.EvidenceParams {
+func DefaultEvidenceParams() *tmproto.EvidenceParams {
 	evdParams := coretypes.DefaultEvidenceParams()
-	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
-	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
-	return evdParams
+	return &tmproto.EvidenceParams{
+		MaxAgeDuration:  appconsts.DefaultUnbondingTime,
+		MaxAgeNumBlocks: int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1,
+		MaxBytes:        evdParams.MaxBytes,
+	}
 }
 
 func DefaultConsensusConfig() *tmcfg.Config {

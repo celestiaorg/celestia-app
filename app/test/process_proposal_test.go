@@ -101,7 +101,7 @@ func TestProcessProposal(t *testing.T) {
 			name: "added an extra blob tx",
 			txs:  validData(),
 			mutator: func(txs [][]byte) {
-				hash := txs[len(txs) - 1]
+				hash := txs[len(txs)-1]
 				txs = append(txs[:len(txs)-1], blobTxs[3], hash)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -195,7 +195,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				txs[0] = blobTxBytes
 				// the last transaction is the hash which we need to update
-				txs[len(txs) - 1] = calculateNewDataHash(t, txs[:len(txs)-1])
+				txs[len(txs)-1] = calculateNewDataHash(t, txs[:len(txs)-1])
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -272,7 +272,7 @@ func TestProcessProposal(t *testing.T) {
 		},
 		{
 			name: "tampered sequence start",
-			txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
+			txs:  coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			mutator: func(txs [][]byte) {
 				dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
@@ -304,8 +304,8 @@ func TestProcessProposal(t *testing.T) {
 			require.Equal(t, len(tt.txs), len(resp.Txs))
 			tt.mutator(resp.Txs)
 			res := testApp.ProcessProposal(abci.RequestProcessProposal{
-				Txs: resp.Txs,
-				Height:   1,
+				Txs:    resp.Txs,
+				Height: 1,
 			})
 			assert.Equal(t, tt.expectedResult, res.Status, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Status))
 		})
