@@ -64,6 +64,13 @@ If you'd rather not install from source, you can download a pre-built binary fro
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
+1. Import the celestia-app maintainer's public key
+
+    ```shell
+    curl -X GET https://raw.githubusercontent.com/celestiaorg/celestia-app/main/public-key.asc > public-key.asc
+    gpg --import public-key.asc
+    ```
+
 1. Verify the signature
 
     ```shell
