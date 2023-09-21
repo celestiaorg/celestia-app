@@ -232,10 +232,10 @@ func (s Square) IsEmpty() bool {
 
 // EmptySquare returns a 1x1 square with a single tail padding share
 func EmptySquare() Square {
-	// MinshareCount is the minimum number of shares allowed in the original
+	// minshareCount is the minimum number of shares allowed in the original
 	// data square.
-	MinShareCount := appconsts.MinSquareSize
-	return shares.TailPaddingShares(MinShareCount * MinShareCount)
+	minShareCount := appconsts.MinSquareSize*appconsts.MinSquareSize
+	return shares.TailPaddingShares(minShareCount)
 }
 
 func WriteSquare(
