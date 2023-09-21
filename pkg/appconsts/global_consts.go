@@ -65,10 +65,6 @@ const (
 	// MinSquareSize is the smallest original square width.
 	MinSquareSize = 1
 
-	// MinshareCount is the minimum number of shares allowed in the original
-	// data square.
-	MinShareCount = MinSquareSize * MinSquareSize
-
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
 
