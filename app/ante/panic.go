@@ -24,7 +24,7 @@ func (d HandlePanicDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 }
 
 func FormatTx(tx sdk.Tx) string {
-	output := fmt.Sprintf("\ncaused by transaction:\n")
+	output := "\ncaused by transaction:\n"
 	for _, msg := range tx.GetMsgs() {
 		output += fmt.Sprintf("%T{%s}\n", msg, msg)
 	}

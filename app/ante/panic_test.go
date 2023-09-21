@@ -19,7 +19,8 @@ func TestPanicHandlerDecorator(t *testing.T) {
 	ctx := sdk.Context{}
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	builder := encCfg.TxConfig.NewTxBuilder()
-	builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10))))
+	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10))))
+	require.NoError(t, err)
 	tx := builder.GetTx()
 	defer func() {
 		r := recover()
