@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
@@ -54,6 +55,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 				"error", err,
 				"msgs", msgTypes(sdkTx),
 			)
+			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			continue
 		}
 		txs[n] = tx
@@ -83,6 +85,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 			logger.Error(
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
 			)
+			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			continue
 		}
 		txs[n] = tx
