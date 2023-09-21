@@ -30,3 +30,5 @@ build
 ```
 
 For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files.
+
+> **NOTE** Since you built the binaries manually, the checksums.txt won't automatically be signed with the GPG key associated with celestia-app-maintainers so there won't be a `checksums.txt.sig` to upload.
