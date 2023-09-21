@@ -3,12 +3,14 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -19,11 +21,13 @@ import (
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+	defer telemetry.MeasureSince(time.Now(), "process_proposal")
 	// In the case of a panic from an unexpected condition, it is better for the liveness of the
 	// network that we catch it, log an error and vote nil than to crash the node.
 	defer func() {
 		if err := recover(); err != nil {
-			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("%v", err))
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("caught panic: %v", err))
+			telemetry.IncrCounter(1, "process_proposal", "panics")
 			resp = reject()
 		}
 	}()
