@@ -77,12 +77,3 @@ func getTotal(sizes []uint32) (sum int) {
 	}
 	return sum
 }
-
-// min returns the minimum of two ints. This function can be removed once we
-// upgrade to Go 1.21.
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

@@ -158,7 +158,13 @@ type govModule struct {
 // DefaultGenesis returns custom x/gov module genesis state.
 func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
+	day := time.Duration(time.Hour * 24)
+	oneWeek := day * 7
+	twoWeeks := oneWeek * 2
+
 	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(1_000_000_000))) // 1000 TIA
+	genState.DepositParams.MaxDepositPeriod = &oneWeek
+	genState.VotingParams.VotingPeriod = &twoWeeks
 
 	return cdc.MustMarshalJSON(genState)
 }

@@ -26,4 +26,5 @@ var (
 	ErrUnknownAttestationType                    = errors.Register(ModuleName, 35, "unknown attestation type")
 	ErrEVMAddressNotHex                          = errors.Register(ModuleName, 36, "the provided evm address is not a valid hex address")
 	ErrEVMAddressAlreadyExists                   = errors.Register(ModuleName, 37, "the provided evm address already exists")
+	ErrEVMAddressNotFound                        = errors.Register(ModuleName, 38, "EVM address not found")
 )

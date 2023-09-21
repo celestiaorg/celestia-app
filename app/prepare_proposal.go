@@ -1,10 +1,13 @@
 package app
 
 import (
+	"time"
+
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -16,9 +19,14 @@ import (
 // tendermint via the BlockData. Panics indicate a developer error and should
 // immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
-	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
+	sdkCtx := app.NewProposalContext(core.Header{
+		ChainID: req.ChainId,
+		Height:  req.Height,
+		Time:    req.Time,
+	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
@@ -49,7 +57,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	if app.LastBlockHeight() == 0 {
 		txs = make([][]byte, 0)
 	} else {
-		txs = FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 	}
 
 	// build the square from the set of valid and prioritised transactions.
