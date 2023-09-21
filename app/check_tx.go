@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -13,39 +11,34 @@ import (
 // method wraps the default Baseapp's method so that it can parse and check
 // transactions that contain blobs.
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
-	tx := req.Tx
 	// check if the transaction contains blobs
-	btx, isBlob := coretypes.UnmarshalBlobTx(tx)
+	btx, isBlob := coretypes.UnmarshalBlobTx(req.Tx)
 
-	if !isBlob {
-		// reject transactions that can't be decoded
-		sdkTx, err := app.txConfig.TxDecoder()(tx)
-		if err != nil {
-			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
-		}
-		// reject transactions that have a MsgPFB but no blobs attached to the tx
-		for _, msg := range sdkTx.GetMsgs() {
-			if _, ok := msg.(*blobtypes.MsgPayForBlobs); !ok {
-				continue
-			}
-			return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false)
-		}
-		// don't do anything special if we have a normal transaction
-		return app.BaseApp.CheckTx(req)
-	}
-
-	switch req.Type {
 	// new transactions must be checked in their entirety
-	case abci.CheckTxType_New:
-		err := blobtypes.ValidateBlobTx(app.txConfig, btx)
-		if err != nil {
-			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
+	if req.Type == abci.CheckTxType_New {
+		if isBlob {
+			// if the transaction contains blobs, validate the blob tx
+			err := blobtypes.ValidateBlobTx(app.txConfig, btx)
+			if err != nil {
+				return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
+			}
+			// set the blobs tx to pass through the normal check tx
+			req.Tx = btx.Tx
+		} else {
+			// reject transactions that can't be decoded
+			sdkTx, err := app.txConfig.TxDecoder()(req.Tx)
+			if err != nil {
+				return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
+			}
+			// reject transactions that have a MsgPFB but no blobs attached to the tx
+			for _, msg := range sdkTx.GetMsgs() {
+				if _, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
+					return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false)
+				}
+			}
 		}
-	case abci.CheckTxType_Recheck:
-	default:
-		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
 	}
+	// rechecked transactions don't need any added validity checks
 
-	req.Tx = btx.Tx
 	return app.BaseApp.CheckTx(req)
 }
