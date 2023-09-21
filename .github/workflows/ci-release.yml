@@ -31,13 +31,16 @@ jobs:
   lint:
     uses: ./.github/workflows/lint.yml
 
+  markdown-linter:
+    uses: ./.github/workflows/markdown-linter.yml
+
   test:
     uses: ./.github/workflows/test.yml
 
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [lint, test]
+    needs: [lint, markdown-linter, test]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
