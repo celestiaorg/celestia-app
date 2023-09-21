@@ -1,5 +1,3 @@
-# lint runs all linters in this repository. This workflow is run on every pull
-# request and push to main.
 name: lint
 on:
   workflow_call:
