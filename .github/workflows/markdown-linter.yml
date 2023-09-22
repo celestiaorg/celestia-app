@@ -1,6 +1,6 @@
-name: "markdown-linter"
+name: markdown-linter
 on:
-  push:
+  workflow_call:
 
 jobs:
   markdown-lint:
