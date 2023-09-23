@@ -22,9 +22,8 @@ type Follower struct {
 
 // NewFollower creates a new follower role.
 func NewFollower() *Follower {
-	f := &Follower{}
 	op := NewOperator()
-
+	f := &Follower{&ConsensusNode{}, nil}
 	op.RegisterCommand(
 		RunTxSimCommandID,
 		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args json.RawMessage) error {
@@ -39,35 +38,43 @@ func NewFollower() *Follower {
 	)
 
 	op.RegisterCommand(RunSubmitRandomPFBs, f.SubmitRandomPFBsHandler)
-
 	f.op = op
 	return f
 }
 
 // Plan is the method that downloads the genesis, configurations, and keys for
 // all of the other nodes in the network.
-func (f *Follower) Plan(ctx context.Context, _ []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-
-	cfg, err := DownloadNetworkConfig(ctx, initCtx)
+func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	_, err := f.Bootstrap(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
 
-	f.ConsensusNode, err = cfg.ConsensusNode(int(initCtx.GlobalSeq))
+	tcfg, err := DownloadTestgroundConfig(ctx, initCtx)
+	if err != nil {
+		return err
+	}
+
+	err = f.Init(homeDir, tcfg.Genesis, tcfg.ConsensusNodeConfigs[f.Name])
+	if err != nil {
+		return err
+	}
+
+	err = f.ConsensusNode.StartNode(ctx, f.baseDir)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.cctx.WaitForHeightWithTimeout(int64(2), time.Minute*5)
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
 func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	baseDir, err := f.ConsensusNode.Init(homeDir)
-	if err != nil {
-		return err
-	}
-	err = f.ConsensusNode.StartNode(ctx, baseDir)
-	if err != nil {
-		return err
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("follower %d waiting for commands", f.Status.GlobalSequence))
+	runenv.RecordMessage(fmt.Sprintf("follower %d waiting for commands"))
 	return f.ListenForCommands(ctx, runenv, initCtx)
 }
 

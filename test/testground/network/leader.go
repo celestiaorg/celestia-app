@@ -10,7 +10,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -19,47 +18,65 @@ import (
 // Leader is the role for the leader node in a test. It is responsible for
 // creating the genesis block and distributing it to all nodes.
 type Leader struct {
-	*FullNode
+	*ConsensusNode
 }
 
 // Plan is the method that creates and distributes the genesis, configurations,
 // and keys for all of the other nodes in the network.
-func (l *Leader) Plan(ctx context.Context, statuses []Status, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	packets, err := l.BootstrapPeers(ctx, runenv, initCtx)
+func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	packets, err := l.Bootstrap(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
 
 	// create Genesis and distribute it to all nodes
-	genesis, tgCfg, err := l.GenesisEvent(ctx, runenv, initCtx, packets)
+	genesis, err := l.GenesisEvent(ctx, runenv, initCtx, packets)
 	if err != nil {
 		return err
 	}
 
-	baseDir, err := l.Init(homeDir, genesis, tgCfg[l.Name])
+	// create all of the configs using the delivered packets
+	tcfg, err := NewTestgroundConfig(l.params, genesis, packets)
 	if err != nil {
 		return err
 	}
 
-	l.baseDir = baseDir
+	// apply the topology functions to the configs to create a specific network.
+	for _, configurator := range l.params.Configurators {
+		tcfg, err = configurator(tcfg)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = PublishTestgroundConfig(ctx, initCtx, tcfg)
+	if err != nil {
+		return err
+	}
+
+	err = l.Init(homeDir, tcfg.Genesis, tcfg.ConsensusNodeConfigs[l.Name])
+	if err != nil {
+		return err
+	}
+
+	err = l.ConsensusNode.StartNode(ctx, l.baseDir)
+	if err != nil {
+		return err
+	}
+
+	_, err = l.cctx.WaitForHeightWithTimeout(int64(2), time.Minute*5)
+	if err != nil {
+		return err
+	}
+
+	// this is a helpful sanity check that logs the blocks from the POV of the
+	// leader in a testground viewable way.
+	go l.subscribeAndRecordBlocks(ctx, runenv)
 
 	return nil
 }
 
 func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	baseDir, err := l.ConsensusNode.Init(homeDir)
-	if err != nil {
-		return err
-	}
-
-	err = l.ConsensusNode.StartNode(ctx, baseDir)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(time.Second * 20)
-
-	go l.subscribeAndRecordBlocks(ctx, runenv)
 
 	time.Sleep(time.Second * 20)
 
@@ -79,7 +96,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 		sizes...,
 	)
 
-	_, err = initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
+	_, err := initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
 	if err != nil {
 		return err
 	}
@@ -99,8 +116,8 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 
 	// runenv.RecordMessage(fmt.Sprintf("leader submittedPFB code %d space %s", resp.Code, resp.Codespace))
 
-	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.HaltHeight))
-	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.ConsensusNode.HaltHeight), time.Minute*30)
+	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.params.HaltHeight))
+	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*30)
 	if err != nil {
 		return err
 	}
@@ -152,8 +169,7 @@ func (l *Leader) GenesisEvent(ctx context.Context, runenv *runtime.RunEnv, initC
 		gentxs = append(gentxs, packet.GenTx)
 	}
 
-	// save and gossip the genesis doc and configs to all of nodes and then we done
-	doc, err := GenesisDoc(l.ecfg, l.params.ChainID, gentxs, addrs, pubKeys)
+	return GenesisDoc(l.ecfg, l.params.ChainID, gentxs, addrs, pubKeys)
 }
 
 func SerializePublicKey(pubKey cryptotypes.PubKey) string {
@@ -185,7 +201,7 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 	for {
 		select {
 		case ev := <-events:
-			newBlock, ok := ev.Data.(types.EventDataNewBlock)
+			newBlock, ok := ev.Data.(coretypes.EventDataNewBlock)
 			if !ok {
 				return fmt.Errorf("unexpected event type: %T", ev.Data)
 			}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -14,9 +13,9 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -29,63 +28,31 @@ import (
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
+	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
 
-// NodeConfig is a portable configuration for a node. This is originally created
-// and published by the Leader node and then downloaded by the other follower
-// nodes. It is used to create a consensus node that
-type NodeConfig struct {
-	Status      Status           `json:"status"`
-	NodeType    string           `json:"node_type"`
-	Name        string           `json:"name"`
-	ChainID     string           `json:"chain_id,omitempty"`
-	StartHeight int64            `json:"start_height"`
-	Keys        KeySet           `json:"keys"`
-	CmtConfig   tmconfig.Config  `json:"cmt_config"`
-	AppConfig   srvconfig.Config `json:"app_config"`
-	P2PID       string           `json:"p2p_id"`
-	// HaltHeight is the height at which all nodes will halt and finish the
-	// execution portion of the test.
-	HaltHeight int `json:"halt_height"`
-}
-
-type KeySet struct {
-	// NetworkKey is the key used for signing gossiped messages.
-	NetworkKey ed25519.PrivKey `json:"network_key"`
-	// ConsensusKey is the key used for signing votes.
-	ConsensusKey ed25519.PrivKey `json:"consensus_key"`
-	// AccountKey is the key used for signing transactions.
-	AccountMnemonic string `json:"account_mnemonic"`
-}
-
-func (c *Config) ConsensusNode(globalSequence int) (*ConsensusNode, error) {
-	if len(c.Nodes) < globalSequence {
-		return nil, fmt.Errorf("node %d not found", globalSequence)
-	}
-	// find a node with the provided global sequence
-	var ncfg NodeConfig
-	for _, cfg := range c.Nodes {
-		if cfg.Status.GlobalSequence == int64(globalSequence) {
-			ncfg = cfg
-			break
-		}
-	}
-	ncfg.ChainID = c.ChainID
-	return NewConsensusNode(c.Genesis, ncfg)
-}
-
-// NodeID creates the ID for each node. This is currently just the global
-// sequence.
-func NodeID(globalSequence int64) string {
-	return fmt.Sprintf("%d", globalSequence)
-}
-
+// ConsensusNode is the node type used by testground instances to run a
+// celestia-app full node. It can optionally be configured to be a validator,
+// and has methods to boostrap a network, initialize itself, start, and stop.
 type ConsensusNode struct {
-	NodeConfig
-	kr        keyring.Keyring
-	genesis   json.RawMessage
-	ecfg      encoding.Config
+	Name string
+	// NetworkKey is the key used for signing gossiped messages.
+	networkKey ed25519.PrivKey
+	// ConsensusKey is the key used for signing votes.
+	consensusKey ed25519.PrivKey
+
+	kr   keyring.Keyring
+	ecfg encoding.Config
+
+	params    *Params
+	CmtNode   *node.Node
+	CmtConfig *tmconfig.Config
+	AppConfig *srvconfig.Config
+	baseDir   string
+
+	cctx testnode.Context
+
 	stopFuncs []func() error
 	// AppOptions are the application options of the test node.
 	AppOptions *testnode.KVAppOptions
@@ -93,113 +60,165 @@ type ConsensusNode struct {
 	AppCreator srvtypes.AppCreator
 
 	cmtNode *node.Node
-	cctx    testnode.Context
 }
 
-func NewConsensusNode(genesis json.RawMessage, cfg NodeConfig) (*ConsensusNode, error) {
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr, err := ImportKey(keyring.NewInMemory(ecfg.Codec), cfg.Keys.AccountMnemonic, cfg.Name)
+// Bootstrap is the first function called in a test by each node. It is
+// responsible for initializing the node and creating a gentx if this node is a
+// validator.
+func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) ([]PeerPacket, error) {
+	cn.ecfg = encoding.MakeConfig(app.ModuleBasics)
+
+	ip, err := initCtx.NetClient.GetDataNetworkIP()
 	if err != nil {
-		return nil, fmt.Errorf("failed to import key: %w", err)
+		return nil, err
 	}
-	return &ConsensusNode{
-		genesis:    genesis,
-		NodeConfig: cfg,
-		AppCreator: cmd.NewAppServer,
-		AppOptions: testnode.DefaultAppOptions(),
-		ecfg:       ecfg,
-		kr:         kr,
-	}, nil
+
+	params, err := ParseParams(runenv)
+	if err != nil {
+		return nil, err
+	}
+	cn.params = params
+
+	nodeID := NodeID(initCtx.GlobalSeq)
+	cn.Name = nodeID
+
+	kr, addrs := testnode.NewKeyring(nodeID, TxSimAccountName)
+	cn.kr = kr
+
+	val := genesis.NewDefaultValidator(nodeID)
+	cn.consensusKey = val.ConsensusKey
+	cn.networkKey = val.NetworkKey
+
+	var bz []byte
+	if runenv.TestGroupID == ValidatorGroupID {
+		gentx, err := val.GenTx(cn.ecfg, cn.kr, cn.params.ChainID)
+		if err != nil {
+			return nil, err
+		}
+		bz, err = cn.ecfg.TxConfig.TxJSONEncoder()(gentx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	pubKs, err := getPublicKeys(cn.kr, nodeID, TxSimAccountName)
+	if err != nil {
+		return nil, err
+	}
+
+	pp := PeerPacket{
+		PeerID:          peerID(ip.String(), cn.networkKey),
+		IP:              ip.String(),
+		GroupID:         runenv.TestGroupID,
+		GlobalSequence:  initCtx.GlobalSeq,
+		GenesisAccounts: addrsToStrings(addrs...),
+		GenesisPubKeys:  pubKs,
+		GenTx:           json.RawMessage(bz),
+	}
+
+	_, err = initCtx.SyncClient.Publish(ctx, PeerPacketTopic, pp)
+	if err != nil {
+		return nil, err
+	}
+
+	return DownloadSync(ctx, initCtx, PeerPacketTopic, PeerPacket{}, runenv.TestInstanceCount)
 }
 
 // Init creates the files required by tendermint and celestia-app using the data
 // downloaded from the Leader node.
-func (c *ConsensusNode) Init(baseDir string) (string, error) {
-	basePath := filepath.Join(baseDir, ".celestia-app")
-	c.CmtConfig.SetRoot(basePath)
+func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg ConsensusNodeMetaConfig) error {
+	cn.CmtConfig = mcfg.CmtConfig
+	cn.AppConfig = mcfg.AppConfig
+	cn.AppCreator = cmd.NewAppServer
+	cn.AppOptions = testnode.DefaultAppOptions()
+
+	baseDir = filepath.Join(baseDir, ".celestia-app")
+	cn.baseDir = baseDir
+
+	cn.CmtConfig.SetRoot(baseDir)
 
 	// save the genesis file
-	configPath := filepath.Join(basePath, "config")
+	configPath := filepath.Join(baseDir, "config")
 	err := os.MkdirAll(configPath, os.ModePerm)
 	if err != nil {
-		return "", err
+		return err
 	}
 	// save the genesis file as configured
-	err = cmtos.WriteFile(c.CmtConfig.GenesisFile(), c.genesis, 0o644)
+	err = cmtos.WriteFile(cn.CmtConfig.GenesisFile(), genesis, 0o644)
 	if err != nil {
-		return "", err
+		return err
 	}
-	pvStateFile := c.CmtConfig.PrivValidatorStateFile()
+	pvStateFile := cn.CmtConfig.PrivValidatorStateFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
-		return "", err
+		return err
 	}
-	pvKeyFile := c.CmtConfig.PrivValidatorKeyFile()
+	pvKeyFile := cn.CmtConfig.PrivValidatorKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
-		return "", err
+		return err
 	}
-	filePV := privval.NewFilePV(c.Keys.ConsensusKey, pvKeyFile, pvStateFile)
+	filePV := privval.NewFilePV(cn.consensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 
-	nodeKeyFile := c.CmtConfig.NodeKeyFile()
+	nodeKeyFile := cn.CmtConfig.NodeKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
-		return "", err
+		return err
 	}
 	nodeKey := &p2p.NodeKey{
-		PrivKey: c.Keys.NetworkKey,
+		PrivKey: cn.networkKey,
 	}
 	if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
-		return "", err
+		return err
 	}
 
-	return basePath, nil
+	return nil
 }
 
 // StartNode uses the testnode package to start a tendermint node with
 // celestia-app and the provided configuration.
-func (c *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
-	ucfg := c.UniversalTestingConfig()
+func (cn *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
+	ucfg := cn.UniversalTestingConfig()
 	tmNode, app, err := testnode.NewCometNode(baseDir, &ucfg)
 	if err != nil {
 		return err
 	}
 
-	c.cmtNode = tmNode
-	cctx := testnode.NewContext(ctx, c.kr, ucfg.TmConfig, c.ChainID)
+	cn.cmtNode = tmNode
+	cctx := testnode.NewContext(ctx, cn.kr, ucfg.TmConfig, cn.params.ChainID)
 
 	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
-	c.stopFuncs = append(c.stopFuncs, stopNode)
+	cn.stopFuncs = append(cn.stopFuncs, stopNode)
 	if err != nil {
 		return err
 	}
 
 	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, ucfg.AppConfig, cctx)
-	c.stopFuncs = append(c.stopFuncs, cleanupGRPC)
+	cn.stopFuncs = append(cn.stopFuncs, cleanupGRPC)
 
-	c.cctx = cctx
+	cn.cctx = cctx
 
 	return err
 }
 
-// UniversalTestingConfig returns the configuration used by the testnode package.
-func (c *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfig {
-	return testnode.UniversalTestingConfig{
-		TmConfig:    &c.CmtConfig,
-		AppConfig:   &c.AppConfig,
-		AppOptions:  c.AppOptions,
-		AppCreator:  c.AppCreator,
-		SupressLogs: false,
-	}
-}
-
 // Stop stops the node and cleans up the data directory.
-func (c *ConsensusNode) Stop() error {
+func (cn *ConsensusNode) Stop() error {
 	var err error
-	for _, stop := range c.stopFuncs {
+	for _, stop := range cn.stopFuncs {
 		if sterr := stop(); err != nil {
 			err = sterr
 		}
 	}
 	return err
+}
+
+// UniversalTestingConfig returns the configuration used by the testnode package.
+func (cn *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfig {
+	return testnode.UniversalTestingConfig{
+		TmConfig:    cn.CmtConfig,
+		AppConfig:   cn.AppConfig,
+		AppOptions:  cn.AppOptions,
+		AppCreator:  cn.AppCreator,
+		SupressLogs: false,
+	}
 }
 
 // SubmitRandomPFB will submit a single PFB using the consensus node's tx
@@ -241,15 +260,26 @@ func (c *ConsensusNode) SubmitRandomPFB(ctx context.Context, runenv *runtime.Run
 	return signer.SubmitPayForBlob(ctx, blobs, user.SetGasLimitAndFee(limit, 0.1))
 }
 
-// ImportKey imports the provided mnemonic into the keyring with the provided name.
-func ImportKey(kr keyring.Keyring, accountMnemonic string, name string) (keyring.Keyring, error) {
-	if accountMnemonic == "" {
-		return kr, fmt.Errorf("account mnemonic cannot be empty")
+func addrsToStrings(addrs ...sdk.AccAddress) []string {
+	strs := make([]string, len(addrs))
+	for i, addr := range addrs {
+		strs[i] = addr.String()
 	}
-	_, err := kr.Key(name)
-	if err == nil {
-		return kr, fmt.Errorf("key %s already exists", name)
+	return strs
+}
+
+func getPublicKeys(kr keyring.Keyring, accounts ...string) ([]string, error) {
+	keys := make([]string, 0, len(accounts))
+	for _, acc := range accounts {
+		rec, err := kr.Key(acc)
+		if err != nil {
+			return nil, err
+		}
+		pubK, err := rec.GetPubKey()
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, SerializePublicKey(pubK))
 	}
-	_, err = kr.NewAccount(name, accountMnemonic, "", "", hd.Secp256k1)
-	return kr, err
+	return keys, nil
 }
