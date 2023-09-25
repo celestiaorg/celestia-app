@@ -21,8 +21,10 @@ func NewAnteHandler(
 	channelKeeper *ibckeeper.Keeper,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// Wraps the panic with the string format of the transaction
+		NewHandlePanicDecorator(),
 		// Set up the context with a gas meter.
-		// Contract: must be called first.
+		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
