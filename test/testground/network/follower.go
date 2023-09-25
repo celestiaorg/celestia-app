@@ -50,17 +50,22 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 
-	tcfg, err := DownloadTestgroundConfig(ctx, initCtx)
+	genBz, err := DownloadGenesis(ctx, initCtx)
 	if err != nil {
 		return err
 	}
 
-	metaCfg, has := tcfg.ConsensusNodeConfigs[f.Name]
-	if !has {
-		return fmt.Errorf("no config for this node: %s", f.Name)
+	nodes, err := DownloadNodeConfigs(ctx, runenv, initCtx)
+	if err != nil {
+		return err
 	}
 
-	err = f.Init(homeDir, tcfg.Genesis, metaCfg)
+	node, has := searchNodes(nodes, initCtx.GlobalSeq)
+	if !has {
+		return errors.New("node not found")
+	}
+
+	err = f.Init(homeDir, genBz, node)
 	if err != nil {
 		return err
 	}
@@ -79,7 +84,7 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 }
 
 func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	runenv.RecordMessage(fmt.Sprintf("follower %d waiting for commands"))
+	runenv.RecordMessage("follower waiting for commands")
 	return f.ListenForCommands(ctx, runenv, initCtx)
 }
 
@@ -89,7 +94,6 @@ func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx 
 func (f *Follower) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	defer f.ConsensusNode.Stop()
 
-	// TODO: publish report
 	res, err := f.cctx.Client.Status(ctx)
 	if err != nil {
 		return err

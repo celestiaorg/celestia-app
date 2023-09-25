@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,20 +14,27 @@ import (
 	cmtjson "github.com/tendermint/tendermint/libs/json"
 	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
+	"github.com/testground/sdk-go/runtime"
 	"github.com/testground/sdk-go/sync"
 )
 
 const (
 	FinishedConfigState = sync.State("finished-config")
+	wrapperParts        = 10
 )
 
 var (
-	GenesisTopic = sync.NewTopic("genesis", map[string]json.RawMessage{})
-	// NetworkConfigTopic is the topic used to exchange network configuration
-	// between test instances.
-	TestgroundConfigTopic = sync.NewTopic("testground_config", TestgroundConfig{})
-	PeerPacketTopic       = sync.NewTopic("peer_packet", PeerPacket{})
-	CommandTopic          = sync.NewTopic("command", Command{})
+	// PeerPacketTopic is the topic that the peer packets are published to. This
+	// is the first piece of information that is published.
+	PeerPacketTopic = sync.NewTopic("peer_packet", PeerPacket{})
+	// GenesisTopic is the topic that the genesis is published to.
+	GenesisTopic = sync.NewTopic("genesis", GenesisWrapper{})
+	// MetaConfigTopic is the topic where each node's app and tendermint configs
+	// are puslished to. These are published before the any node starts.
+	MetaConfigTopic = sync.NewTopic("meta_config", ConsensusNodeMetaConfig{})
+	// CommandTopic is the topic that commands are published to. These commands
+	// are published by the leader and subscribed to by all followers.
+	CommandTopic = sync.NewTopic("command", Command{})
 )
 
 // PeerPacket is the message that is sent to other nodes upon network
@@ -34,7 +42,6 @@ var (
 // network.
 type PeerPacket struct {
 	PeerID          string          `json:"peer_id"`
-	IP              string          `json:"ip"`
 	GroupID         string          `json:"group_id"`
 	GlobalSequence  int64           `json:"global_sequence"`
 	GenesisAccounts []string        `json:"genesis_accounts"`
@@ -66,81 +73,122 @@ func (pp *PeerPacket) GetPubKeys() ([]cryptotypes.PubKey, error) {
 	return pks, nil
 }
 
-func NewTestgroundConfig(params *Params, genesis *coretypes.GenesisDoc, pps []PeerPacket) (TestgroundConfig, error) {
-	genBytes, err := cmtjson.MarshalIndent(genesis, "", "  ")
-	if err != nil {
-		return TestgroundConfig{}, err
-	}
+func NewConfigSet(params *Params, pps []PeerPacket) []ConsensusNodeMetaConfig {
+	nodeConfigs := make([]ConsensusNodeMetaConfig, 0, len(pps))
 
-	cfg := TestgroundConfig{
-		Genesis:              genBytes,
-		ConsensusNodeConfigs: make(map[string]ConsensusNodeMetaConfig),
-	}
 	for _, pp := range pps {
-		cfg.ConsensusNodeConfigs[pp.Name()] = ConsensusNodeMetaConfig{
-			CmtConfig:  StandardCometConfig(params),
-			AppConfig:  StandardAppConfig(params),
-			PeerPacket: pp,
-		}
+		nodeConfigs = append(nodeConfigs, ConsensusNodeMetaConfig{
+			CmtConfig:      StandardCometConfig(params),
+			AppConfig:      StandardAppConfig(params),
+			PeerID:         pp.PeerID,
+			GroupID:        pp.GroupID,
+			GlobalSequence: pp.GlobalSequence,
+		})
 	}
-	return cfg, nil
-}
 
-// TestgroundConfig is the first message sent by the Leader to the rest of the
-// Follower nodes after the network has been configured.
-type TestgroundConfig struct {
-	Genesis              json.RawMessage `json:"genesis"`
-	ConsensusNodeConfigs map[string]ConsensusNodeMetaConfig
+	return nodeConfigs
 }
 
 type ConsensusNodeMetaConfig struct {
-	PeerPacket PeerPacket        `json:"peer_packet"`
-	CmtConfig  *tmconfig.Config  `json:"cmt_config"`
-	AppConfig  *srvconfig.Config `json:"app_config"`
-}
-
-// Nodes returns the list of nodes in the network sorted by global sequence.
-func (tcfg *TestgroundConfig) Nodes() []ConsensusNodeMetaConfig {
-	nodes := make([]ConsensusNodeMetaConfig, 0, len(tcfg.ConsensusNodeConfigs))
-	for _, n := range tcfg.ConsensusNodeConfigs {
-		nodes = append(nodes, n)
-	}
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].PeerPacket.GlobalSequence < nodes[j].PeerPacket.GlobalSequence
-	})
-	return nodes
+	PeerID         string            `json:"peer_id"`
+	GroupID        string            `json:"group_id"`
+	GlobalSequence int64             `json:"global_sequence"`
+	CmtConfig      *tmconfig.Config  `json:"cmt_config"`
+	AppConfig      *srvconfig.Config `json:"app_config"`
 }
 
 func peerIDs(nodes []ConsensusNodeMetaConfig) []string {
 	peerIDs := make([]string, 0, len(nodes))
 	for _, nodeCfg := range nodes {
-		peerIDs = append(peerIDs, nodeCfg.PeerPacket.PeerID)
+		peerIDs = append(peerIDs, nodeCfg.PeerID)
 	}
 	return peerIDs
 }
 
-func mapNodes(nodes []ConsensusNodeMetaConfig) map[string]ConsensusNodeMetaConfig {
-	m := make(map[string]ConsensusNodeMetaConfig)
+func searchNodes(nodes []ConsensusNodeMetaConfig, globalSeq int64) (ConsensusNodeMetaConfig, bool) {
 	for _, node := range nodes {
-		m[node.PeerPacket.Name()] = node
+		if node.GlobalSequence == globalSeq {
+			return node, true
+		}
 	}
-	return m
+	return ConsensusNodeMetaConfig{}, false
 }
 
-func PublishTestgroundConfig(ctx context.Context, initCtx *run.InitContext, cfg TestgroundConfig) error {
-	_, err := initCtx.SyncClient.Publish(ctx, TestgroundConfigTopic, cfg)
-	return err
+func PublishNodeConfigs(ctx context.Context, initCtx *run.InitContext, nodes []ConsensusNodeMetaConfig) error {
+	for _, node := range nodes {
+		_, err := initCtx.SyncClient.Publish(ctx, MetaConfigTopic, node)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func DownloadTestgroundConfig(ctx context.Context, initCtx *run.InitContext) (TestgroundConfig, error) {
-	cfgs, err := DownloadSync(ctx, initCtx, TestgroundConfigTopic, TestgroundConfig{}, 1)
+func DownloadNodeConfigs(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) ([]ConsensusNodeMetaConfig, error) {
+	return DownloadSync(ctx, initCtx, MetaConfigTopic, ConsensusNodeMetaConfig{}, runenv.TestInstanceCount)
+}
+
+// GenesisWrapper is a simple struct wrapper that makes it easier testground to
+// properly serialize and distribute the genesis file.
+type GenesisWrapper struct {
+	Part    int    `json:"part"`
+	Genesis string `json:"genesis"`
+}
+
+// PublishGenesis publishes the genesis to the sync service. It splits the
+// genesis into 10 parts and publishes each part separately. This gets around the
+// 32Kb limit the underlying websocket has
+func PublishGenesis(ctx context.Context, initCtx *run.InitContext, gen *coretypes.GenesisDoc) error {
+	genBytes, err := cmtjson.Marshal(gen)
 	if err != nil {
-		return TestgroundConfig{}, err
+		return err
 	}
-	if len(cfgs) != 1 {
-		return TestgroundConfig{}, errors.New("no network config was downloaded despite there not being an error")
+
+	wrappers := make([]GenesisWrapper, 0, wrapperParts)
+	partSize := len(genBytes) / wrapperParts
+
+	for i := 0; i < wrapperParts; i++ {
+		start := i * partSize
+		end := start + partSize
+		if i == wrapperParts-1 {
+			end = len(genBytes)
+		}
+
+		wrappers = append(wrappers, GenesisWrapper{
+			Part:    i,
+			Genesis: hex.EncodeToString(genBytes[start:end]),
+		})
 	}
-	return cfgs[0], nil
+
+	for _, wrapper := range wrappers {
+		_, err = initCtx.SyncClient.Publish(ctx, GenesisTopic, wrapper)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMessage, error) {
+	rawGens, err := DownloadSync(ctx, initCtx, GenesisTopic, GenesisWrapper{}, wrapperParts)
+	if err != nil {
+		return nil, err
+	}
+	// sort the genesis parts by their part number
+	sort.Slice(rawGens, func(i, j int) bool {
+		return rawGens[i].Part < rawGens[j].Part
+	})
+	var genesis []byte
+	for _, rawGen := range rawGens {
+		bz, err := hex.DecodeString(rawGen.Genesis)
+		if err != nil {
+			return nil, err
+		}
+		genesis = append(genesis, bz...)
+	}
+	return genesis, nil
 }
 
 func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, t T, count int) ([]T, error) {

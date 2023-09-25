@@ -10,6 +10,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	cmtjson "github.com/tendermint/tendermint/libs/json"
 	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -24,10 +25,13 @@ type Leader struct {
 // Plan is the method that creates and distributes the genesis, configurations,
 // and keys for all of the other nodes in the network.
 func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	runenv.RecordMessage("Bootstrapping")
 	packets, err := l.Bootstrap(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
+
+	runenv.RecordMessage("got packets, using parts for the genesis")
 
 	// create Genesis and distribute it to all nodes
 	genesis, err := l.GenesisEvent(ctx, l.params, packets)
@@ -35,31 +39,43 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
-	// create all of the configs using the delivered packets
-	tcfg, err := NewTestgroundConfig(l.params, genesis, packets)
+	err = PublishGenesis(ctx, initCtx, genesis)
 	if err != nil {
+		runenv.RecordMessage("it is the genesis publications")
 		return err
 	}
 
-	// apply the configurator functions to the testground config. This step is responsible for hardcoding any topolgy
+	runenv.RecordMessage("published genesis")
+
+	nodes := NewConfigSet(l.params, packets)
+
+	// apply the configurator functions to the testground config. This step is
+	// responsible for hardcoding any topolgy
 	for _, configurator := range l.params.Configurators {
-		tcfg, err = configurator(tcfg)
+		nodes, err = configurator(nodes)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = PublishTestgroundConfig(ctx, initCtx, tcfg)
+	runenv.RecordMessage("applied configurators")
+
+	err = PublishNodeConfigs(ctx, initCtx, nodes)
 	if err != nil {
 		return err
 	}
 
-	metaCfg, has := tcfg.ConsensusNodeConfigs[l.Name]
+	node, has := searchNodes(nodes, initCtx.GlobalSeq)
 	if !has {
-		return fmt.Errorf("no config for this node: %s", l.Name)
+		return errors.New("node not found")
 	}
 
-	err = l.Init(homeDir, tcfg.Genesis, metaCfg)
+	genBytes, err := cmtjson.MarshalIndent(genesis, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = l.Init(homeDir, genBytes, node)
 	if err != nil {
 		return err
 	}
@@ -68,6 +84,8 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 	if err != nil {
 		return err
 	}
+
+	runenv.RecordMessage("waiting for initial height")
 
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(2), time.Minute*5)
 	if err != nil {
@@ -193,6 +211,7 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 			}
 			blockTime := lastBlockTime.Sub(newBlock.Block.Time)
 			runenv.RecordMessage(fmt.Sprintf("leader height %d time %v size bytes %d", newBlock.Block.Height, blockTime, newBlock.Block.Size()))
+			lastBlockTime = newBlock.Block.Time
 		case <-ctx.Done():
 			return nil
 		}

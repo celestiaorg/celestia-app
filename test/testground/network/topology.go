@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/testground/sdk-go/runtime"
@@ -43,7 +44,7 @@ func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
 // configurations. It is used to generate the topology (which nodes are
 // connected to which) of the network, along with making other arbitrary changes
 // to the configs.
-type Configurator func(nodes TestgroundConfig) (TestgroundConfig, error)
+type Configurator func(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error)
 
 var _ = Configurator(ConnectAll)
 
@@ -51,15 +52,17 @@ var _ = Configurator(ConnectAll)
 
 // ConnectAll is a Configurator that connects all nodes to each other via
 // persistent peers.
-func ConnectAll(tcfg TestgroundConfig) (TestgroundConfig, error) {
-	nodes := tcfg.Nodes()
+func ConnectAll(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error) {
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].GlobalSequence < nodes[j].GlobalSequence
+	})
 	peerIDs := peerIDs(nodes)
 
 	// For each node, generate the string that excludes its own P2PID
 	for i, nodeConfig := range nodes {
 		var filteredP2PIDs []string
 		for _, pid := range peerIDs {
-			if pid != nodeConfig.PeerPacket.PeerID {
+			if pid != nodeConfig.PeerID {
 				filteredP2PIDs = append(filteredP2PIDs, pid)
 			}
 		}
@@ -70,9 +73,7 @@ func ConnectAll(tcfg TestgroundConfig) (TestgroundConfig, error) {
 		nodes[i] = nodeConfig
 	}
 
-	tcfg.ConsensusNodeConfigs = mapNodes(nodes)
-
-	return tcfg, nil
+	return nodes, nil
 }
 
 // // ConnectSubset is a Configurator that connects each node to a subset of other

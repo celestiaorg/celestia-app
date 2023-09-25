@@ -46,7 +46,6 @@ type ConsensusNode struct {
 	ecfg encoding.Config
 
 	params    *Params
-	CmtNode   *node.Node
 	CmtConfig *tmconfig.Config
 	AppConfig *srvconfig.Config
 	baseDir   string
@@ -108,7 +107,6 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 
 	pp := PeerPacket{
 		PeerID:          peerID(ip.String(), cn.networkKey),
-		IP:              ip.String(),
 		GroupID:         runenv.TestGroupID,
 		GlobalSequence:  initCtx.GlobalSeq,
 		GenesisAccounts: addrsToStrings(addrs...),
