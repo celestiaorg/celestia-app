@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	testgroundconsts "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -33,6 +34,7 @@ const (
 	OutboundPeerCountParam = "outbound_peer_count"
 	GovMaxSquareSizeParam  = "gov_max_square_size"
 	MaxBlockBytesParam     = "max_block_bytes"
+	MempoolParam           = "mempool"
 )
 
 type Params struct {
@@ -54,6 +56,7 @@ type Params struct {
 	MaxBlockBytes     int
 	TimeoutCommit     time.Duration
 	TimeoutPropose    time.Duration
+	Mempool           string
 }
 
 func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) {
@@ -106,6 +109,8 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 
 	p.Pex = runenv.BooleanParam(PexParam)
 
+	p.Mempool = runenv.StringParam(MempoolParam)
+
 	return p, p.ValidateBasic()
 }
 
@@ -134,6 +139,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Consensus.TimeoutCommit = params.TimeoutCommit
 	cmtcfg.Consensus.TimeoutPropose = params.TimeoutPropose
 	cmtcfg.TxIndex.Indexer = "kv"
+	cmtcfg.Mempool.Version = params.Mempool
 	return cmtcfg
 }
 
@@ -144,6 +150,7 @@ func StandardAppConfig(_ *Params) *srvconfig.Config {
 func StandardConsensusParams(params *Params) *tmproto.ConsensusParams {
 	cp := app.DefaultConsensusParams()
 	cp.Block.MaxBytes = int64(params.MaxBlockBytes)
+	cp.Version.AppVersion = testgroundconsts.Version
 	return cp
 }
 

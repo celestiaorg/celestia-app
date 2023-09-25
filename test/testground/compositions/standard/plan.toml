@@ -29,6 +29,7 @@ inbound_peer_count = "40"
 outbound_peer_count = "10"
 gov_max_square_size = "128"
 max_block_bytes = "8000000"
+mempool = "v1"
 
 
 [[groups]]

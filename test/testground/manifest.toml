@@ -39,3 +39,4 @@ inbound_peer_count = { type = "int", default = 40 }
 outbound_peer_count = { type = "int", default = 10 }
 gov_max_square_size = { type = "int", default = 128 }
 max_block_bytes = { type = "int", deafult = 8000000 }
+mempool = { type = "string", default = "v1" }
