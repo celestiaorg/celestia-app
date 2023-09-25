@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	ConfiguratorParam           = "configurator"
+	TopologyParam               = "topology"
 	ConnectAllTopology          = "connect_all"
 	ConnectSubsetTopology       = "connect_subset"
 	PersistentPeerCountParamKey = "persistent-peer-count"
@@ -20,23 +20,21 @@ func DefaultTopologies() []string {
 	}
 }
 
+// GetConfigurators
 func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
-	topology := runenv.StringParam(ConfiguratorParam)
+	topology := runenv.StringParam(TopologyParam)
 	if topology == "" {
 		topology = ConnectAllTopology
 	}
 	ops := make([]Configurator, 0)
-	// TODO: fix the toml parser so that it can handle string arrays
-	for _, topology := range []string{topology} {
-		switch topology {
-		case ConnectAllTopology:
-			ops = append(ops, ConnectAll)
-		// case ConnectSubsetTopology:
-		// 	numPeers := runenv.IntParam(PersistentPeerCountParamKey)
-		// 	ops = append(ops, ConnectSubset(numPeers))
-		default:
-			return nil, fmt.Errorf("unknown topology func: %s", topology)
-		}
+	switch topology {
+	case ConnectAllTopology:
+		ops = append(ops, ConnectAll)
+	// case ConnectSubsetTopology:
+	// 	numPeers := runenv.IntParam(PersistentPeerCountParamKey)
+	// 	ops = append(ops, ConnectSubset(numPeers))
+	default:
+		return nil, fmt.Errorf("unknown topology func: %s", topology)
 	}
 	return ops, nil
 }

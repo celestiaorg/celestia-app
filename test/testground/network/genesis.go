@@ -20,7 +20,7 @@ import (
 // Genesis will create a valid genesis doc with funded addresses.
 func GenesisDoc(
 	ecfg encoding.Config,
-	chainID string,
+	params *Params,
 	gentxs []json.RawMessage,
 	addrs []string,
 	pubkeys []cryptotypes.PubKey,
@@ -72,9 +72,9 @@ func GenesisDoc(
 
 	// Create the genesis doc
 	genesisDoc := &coretypes.GenesisDoc{
-		ChainID:         chainID,
+		ChainID:         params.ChainID,
 		GenesisTime:     time.Now(),
-		ConsensusParams: app.DefaultConsensusParams(),
+		ConsensusParams: StandardConsensusParams(params),
 		AppState:        stateBz,
 	}
 

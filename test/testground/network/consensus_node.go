@@ -73,7 +73,7 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 		return nil, err
 	}
 
-	params, err := ParseParams(runenv)
+	params, err := ParseParams(cn.ecfg, runenv)
 	if err != nil {
 		return nil, err
 	}

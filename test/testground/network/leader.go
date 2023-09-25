@@ -30,7 +30,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 	}
 
 	// create Genesis and distribute it to all nodes
-	genesis, err := l.GenesisEvent(ctx, runenv, initCtx, packets)
+	genesis, err := l.GenesisEvent(ctx, l.params, packets)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
-	// apply the topology functions to the configs to create a specific network.
+	// apply the configurator functions to the testground config. This step is responsible for hardcoding any topolgy
 	for _, configurator := range l.params.Configurators {
 		tcfg, err = configurator(tcfg)
 		if err != nil {
@@ -54,7 +54,12 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
-	err = l.Init(homeDir, tcfg.Genesis, tcfg.ConsensusNodeConfigs[l.Name])
+	metaCfg, has := tcfg.ConsensusNodeConfigs[l.Name]
+	if !has {
+		return fmt.Errorf("no config for this node: %s", l.Name)
+	}
+
+	err = l.Init(homeDir, tcfg.Genesis, metaCfg)
 	if err != nil {
 		return err
 	}
@@ -80,41 +85,20 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 
 	time.Sleep(time.Second * 20)
 
-	// seqs := runenv.IntParam(BlobSequencesParam)
+	seqs := runenv.IntParam(BlobSequencesParam)
 	size := runenv.IntParam(BlobSizesParam)
 	count := runenv.IntParam(BlobsPerSeqParam)
 
-	sizes := make([]int, count)
-	for i := 0; i < count; i++ {
-		sizes[i] = size
-	}
-
-	// issue a command to start txsim
-	cmd := NewSubmitRandomPFBsCommand(
-		"txsim",
-		time.Minute*1,
-		sizes...,
-	)
+	cmd := NewRunTxSimCommand("txsim-0", time.Minute*5, RunTxSimCommandArgs{
+		BlobSequences: seqs,
+		BlobSize:      size,
+		BlobCount:     count,
+	})
 
 	_, err := initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
 	if err != nil {
 		return err
 	}
-
-	// runenv.RecordMessage(fmt.Sprintf("submitting PFB"))
-
-	// tctx, cancel := context.WithTimeout(ctx, time.Second*60)
-	// defer cancel()
-
-	// resp, err := l.SubmitRandomPFB(tctx, 1000)
-	// if err != nil {
-	// 	return err
-	// }
-	// if resp == nil {
-	// 	return errors.New("submit pfb response was nil")
-	// }
-
-	// runenv.RecordMessage(fmt.Sprintf("leader submittedPFB code %d space %s", resp.Code, resp.Codespace))
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.params.HaltHeight))
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*30)
@@ -155,7 +139,7 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 	return nil
 }
 
-func (l *Leader) GenesisEvent(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
+func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
 	pubKeys := make([]cryptotypes.PubKey, 0)
 	addrs := make([]string, 0)
 	gentxs := make([]json.RawMessage, 0, len(packets))
@@ -169,7 +153,7 @@ func (l *Leader) GenesisEvent(ctx context.Context, runenv *runtime.RunEnv, initC
 		gentxs = append(gentxs, packet.GenTx)
 	}
 
-	return GenesisDoc(l.ecfg, l.params.ChainID, gentxs, addrs, pubKeys)
+	return GenesisDoc(l.ecfg, l.params, gentxs, addrs, pubKeys, params.GenesisModifiers...)
 }
 
 func SerializePublicKey(pubKey cryptotypes.PubKey) string {
@@ -198,6 +182,8 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 		return err
 	}
 
+	lastBlockTime := time.Now()
+
 	for {
 		select {
 		case ev := <-events:
@@ -205,7 +191,8 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 			if !ok {
 				return fmt.Errorf("unexpected event type: %T", ev.Data)
 			}
-			runenv.RecordMessage(fmt.Sprintf("leader height %d max block size bytes %d", newBlock.Block.Height, newBlock.Block.Size()))
+			blockTime := lastBlockTime.Sub(newBlock.Block.Time)
+			runenv.RecordMessage(fmt.Sprintf("leader height %d time %v size bytes %d", newBlock.Block.Height, blockTime, newBlock.Block.Size()))
 		case <-ctx.Done():
 			return nil
 		}

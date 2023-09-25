@@ -55,7 +55,12 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 
-	err = f.Init(homeDir, tcfg.Genesis, tcfg.ConsensusNodeConfigs[f.Name])
+	metaCfg, has := tcfg.ConsensusNodeConfigs[f.Name]
+	if !has {
+		return fmt.Errorf("no config for this node: %s", f.Name)
+	}
+
+	err = f.Init(homeDir, tcfg.Genesis, metaCfg)
 	if err != nil {
 		return err
 	}

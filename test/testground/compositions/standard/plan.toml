@@ -1,11 +1,11 @@
 [metadata]
-name = "sanity"
+name = "standard"
 author = "core-app"
 
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 3
+total_instances = 5
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
@@ -16,15 +16,15 @@ timeout = "25m"
 halt_height = "28"
 latency = "0"
 bandwidth = "420Mib"
-validators = "3"
+validators = "5"
 topology = "connect_all"
 pex = "false"
 timeout_propose = "10s"
 timeout_commit = "11s"
 per_peer_bandwidth = "5Mib"
 blob_sequences = "1"
-blob_sizes = "100"
-blobs_per_sequence = "1"
+blob_sizes = "100000"
+blobs_per_sequence = "10"
 inbound_peer_count = "40"
 outbound_peer_count = "10"
 gov_max_square_size = "128"
@@ -38,7 +38,7 @@ builder = "docker:generic"
 memory = "8Gi"
 cpu = "4"
 [groups.instances]
-count = 3
+count = 5
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.0"

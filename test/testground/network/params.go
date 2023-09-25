@@ -6,10 +6,14 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/p2p"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
 )
 
@@ -39,6 +43,7 @@ type Params struct {
 	Timeout           time.Duration
 	Pex               bool
 	Configurators     []Configurator
+	GenesisModifiers  []genesis.Modifier
 	PerPeerBandwidth  int
 	BlobsPerSeq       int
 	BlobSequences     int
@@ -51,7 +56,7 @@ type Params struct {
 	TimeoutPropose    time.Duration
 }
 
-func ParseParams(runenv *runtime.RunEnv) (*Params, error) {
+func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) {
 	var err error
 	p := &Params{}
 
@@ -97,6 +102,8 @@ func ParseParams(runenv *runtime.RunEnv) (*Params, error) {
 		return nil, err
 	}
 
+	p.GenesisModifiers = p.getGenesisModifiers(ecfg)
+
 	p.Pex = runenv.BooleanParam(PexParam)
 
 	return p, p.ValidateBasic()
@@ -130,11 +137,25 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	return cmtcfg
 }
 
-func StandardAppConfig() *srvconfig.Config {
+func StandardAppConfig(_ *Params) *srvconfig.Config {
 	return app.DefaultAppConfig()
+}
+
+func StandardConsensusParams(params *Params) *tmproto.ConsensusParams {
+	cp := app.DefaultConsensusParams()
+	cp.Block.MaxBytes = int64(params.MaxBlockBytes)
+	return cp
 }
 
 func peerID(ip string, networkKey ed25519.PrivKey) string {
 	nodeID := string(p2p.PubKeyToID(networkKey.PubKey()))
 	return fmt.Sprintf("%s@%s:26656", nodeID, ip)
+}
+
+func (p *Params) getGenesisModifiers(ecfg encoding.Config) []genesis.Modifier {
+	var modifiers []genesis.Modifier
+	blobParams := blobtypes.DefaultParams()
+	blobParams.GovMaxSquareSize = uint64(p.GovMaxSquareSize)
+	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
+	return modifiers
 }

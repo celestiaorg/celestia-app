@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/app"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	tmconfig "github.com/tendermint/tendermint/config"
@@ -79,8 +78,9 @@ func NewTestgroundConfig(params *Params, genesis *coretypes.GenesisDoc, pps []Pe
 	}
 	for _, pp := range pps {
 		cfg.ConsensusNodeConfigs[pp.Name()] = ConsensusNodeMetaConfig{
-			CmtConfig: StandardCometConfig(params),
-			AppConfig: app.DefaultAppConfig(),
+			CmtConfig:  StandardCometConfig(params),
+			AppConfig:  StandardAppConfig(params),
+			PeerPacket: pp,
 		}
 	}
 	return cfg, nil

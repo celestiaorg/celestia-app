@@ -3,10 +3,8 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.21.1
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230919215657-e2d325755a40
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230923010153-bc943c049dd1
 	github.com/cosmos/cosmos-sdk v0.46.14
-	github.com/influxdata/influxdb v1.8.3
-	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.34.28
 	github.com/testground/sdk-go v0.3.0
 )
@@ -164,6 +162,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.14.0 // indirect
+	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/supranational/blst v0.3.11 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
