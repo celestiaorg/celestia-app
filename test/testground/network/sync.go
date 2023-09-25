@@ -20,7 +20,7 @@ import (
 
 const (
 	FinishedConfigState = sync.State("finished-config")
-	wrapperParts        = 10
+	wrapperParts        = 20
 )
 
 var (
