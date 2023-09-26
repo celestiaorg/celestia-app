@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -38,7 +37,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*tmproto.Blob{
 			{
-				NamespaceId:  appns.RandomBlobNamespace().ID,
+				NamespaceId:  testfactory.RandomBlobNamespace().ID,
 				Data:         []byte{1},
 				ShareVersion: uint32(appconsts.DefaultShareVersion),
 			},
@@ -96,7 +95,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)

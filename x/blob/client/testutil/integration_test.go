@@ -18,8 +18,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/network"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -63,7 +63,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
-	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
+	hexNamespace := hex.EncodeToString(testfactory.RandomBlobNamespaceID())
 	invalidNamespaceID := hex.EncodeToString(bytes.Repeat([]byte{0}, 8)) // invalid because ID is expected to be 10 bytes
 
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"

@@ -80,7 +80,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 			blobfactory.ManyBlobs(
 				t,
 				s.rand,
-				[]namespace.Namespace{namespace.RandomBlobNamespace()},
+				[]namespace.Namespace{testfactory.RandomBlobNamespace()},
 				[]int{100}),
 			user.SetGasLimitAndFee(gasLimit, gasPrice),
 		)

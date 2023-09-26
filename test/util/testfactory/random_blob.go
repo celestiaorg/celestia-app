@@ -1,6 +1,7 @@
-package namespace
+package testfactory
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"golang.org/x/exp/slices"
 )
@@ -11,25 +12,25 @@ func RandomBlobNamespaceID() []byte {
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).
 func RandomBlobNamespaceIDWithPRG(prg *tmrand.Rand) []byte {
-	return prg.Bytes(NamespaceVersionZeroIDSize)
+	return prg.Bytes(namespace.NamespaceVersionZeroIDSize)
 }
 
-func RandomBlobNamespace() Namespace {
+func RandomBlobNamespace() namespace.Namespace {
 	return RandomBlobNamespaceWithPRG(tmrand.NewRand())
 }
 
 // RandomBlobNamespaceWithPRG generates and returns a random blob namespace using the supplied Pseudo-Random number Generator (PRG).
-func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) Namespace {
+func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) namespace.Namespace {
 	for {
 		id := RandomBlobNamespaceIDWithPRG(prg)
-		namespace := MustNewV0(id)
+		namespace := namespace.MustNewV0(id)
 		if isBlobNamespace(namespace) {
 			return namespace
 		}
 	}
 }
 
-func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []Namespace) {
+func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []namespace.Namespace) {
 	for i := 0; i < count; i++ {
 		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}
@@ -38,12 +39,12 @@ func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []Namespace)
 
 // isBlobNamespace returns an true if this namespace is a valid user-specifiable
 // blob namespace.
-func isBlobNamespace(ns Namespace) bool {
+func isBlobNamespace(ns namespace.Namespace) bool {
 	if ns.IsReserved() {
 		return false
 	}
 
-	if !slices.Contains(SupportedBlobNamespaceVersions, ns.Version) {
+	if !slices.Contains(namespace.SupportedBlobNamespaceVersions, ns.Version) {
 		return false
 	}
 

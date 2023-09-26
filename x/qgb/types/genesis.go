@@ -3,10 +3,9 @@ package types
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-
 	"cosmossdk.io/errors"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // DefaultParamspace defines the default qgb module parameter subspace
@@ -65,11 +64,11 @@ func validateDataCommitmentWindow(i interface{}) error {
 			MinimumDataCommitmentWindow,
 		))
 	}
-	if val > uint64(appconsts.DataCommitmentBlocksLimit) {
+	if val > uint64(consts.DataCommitmentBlocksLimit) {
 		return errors.Wrap(ErrInvalidDataCommitmentWindow, fmt.Sprintf(
 			"data commitment window %v must be <= data commitment blocks limit %v",
 			val,
-			appconsts.DataCommitmentBlocksLimit,
+			consts.DataCommitmentBlocksLimit,
 		))
 	}
 	return nil

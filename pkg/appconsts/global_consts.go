@@ -1,10 +1,10 @@
 package appconsts
 
 import (
+	"crypto/sha256"
 	"math"
 
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // These constants were originally sourced from:
@@ -77,12 +77,12 @@ const (
 )
 
 var (
-	// DataCommitmentBlocksLimit is the maximnum number of blocks that a data commitment can span
-	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
-
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
-	// if another hash.Hash should be used as a base hasher in the NMT.
-	NewBaseHashFunc = consts.NewBaseHashFunc
+	// if another hash.Hash should be used as a base hasher in the NMT. NOTE:
+	// this should always match the hash function defined in
+	// celestia-core/pkg/consts. It is not imported here to avoid forcing users
+	// of this module to also import celestia-core.
+	NewBaseHashFunc = sha256.New
 
 	// hashLength is the length of a hash in bytes.
 	hashLength = NewBaseHashFunc().Size()
@@ -94,7 +94,6 @@ var (
 	SupportedShareVersions = []uint8{ShareVersionZero}
 )
 
-// HashLength returns the length of a hash in bytes.
 func HashLength() int {
 	return hashLength
 }

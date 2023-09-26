@@ -452,7 +452,7 @@ func TestValidateBlobs(t *testing.T) {
 			name: "valid blob",
 			blob: &types.Blob{
 				Data:             []byte{1},
-				NamespaceId:      appns.RandomBlobNamespace().ID,
+				NamespaceId:      testfactory.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),
 				NamespaceVersion: uint32(appns.NamespaceVersionZero),
 			},
@@ -462,7 +462,7 @@ func TestValidateBlobs(t *testing.T) {
 			name: "invalid share version",
 			blob: &types.Blob{
 				Data:             []byte{1},
-				NamespaceId:      appns.RandomBlobNamespace().ID,
+				NamespaceId:      testfactory.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(10000),
 				NamespaceVersion: uint32(appns.NamespaceVersionZero),
 			},
@@ -472,7 +472,7 @@ func TestValidateBlobs(t *testing.T) {
 			name: "empty blob",
 			blob: &types.Blob{
 				Data:             []byte{},
-				NamespaceId:      appns.RandomBlobNamespace().ID,
+				NamespaceId:      testfactory.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),
 				NamespaceVersion: uint32(appns.NamespaceVersionZero),
 			},

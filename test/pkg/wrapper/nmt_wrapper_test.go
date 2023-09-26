@@ -14,6 +14,7 @@ import (
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -173,7 +174,7 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 			} else {
 				namespaceID = appns.ParitySharesNamespace.Bytes()
 			}
-			verfied := proof.VerifyInclusion(appconsts.NewBaseHashFunc(), namespaceID, [][]byte{data[i]}, root)
+			verfied := proof.VerifyInclusion(consts.NewBaseHashFunc(), namespaceID, [][]byte{data[i]}, root)
 			assert.True(t, verfied)
 		}
 	}

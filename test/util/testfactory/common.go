@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -36,7 +35,7 @@ func Repeat[T any](s T, count int) []T {
 func GenerateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
 		rawData := tmrand.Bytes(appconsts.ShareSize)
-		namespace := namespace.RandomBlobNamespace().Bytes()
+		namespace := RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)
 	}

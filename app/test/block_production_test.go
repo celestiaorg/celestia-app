@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
@@ -47,7 +47,7 @@ func (s *BlockProductionTestSuite) SetupSuite() {
 // Test_BlockOneTransactionNonInclusion tests that no transactions can be included in the first block.
 func (s *BlockProductionTestSuite) Test_BlockOneTransactionNonInclusion() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, testfactory.RandomBlobNamespace(), tmrand.Bytes(100000))
 
 	// since the block production is delayed by 10 seconds, the transactions
 	// posted arrive when the node is still at height 0 (not started height 1
@@ -65,7 +65,7 @@ func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
 	// otherwise tx submission will fail
 	time.Sleep(1 * s.timeoutCommit)
 	// send some transactions, these should be included in the second block
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, testfactory.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 
 	// wait for 2*s.timeoutCommit+1*time.Second to ensure that the node is

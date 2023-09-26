@@ -3,9 +3,8 @@ package types_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +35,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		"invalid params: long block time": {
 			src: &types.GenesisState{
 				Params: &types.Params{
-					DataCommitmentWindow: uint64(appconsts.DataCommitmentBlocksLimit + 1),
+					DataCommitmentWindow: uint64(consts.DataCommitmentBlocksLimit + 1),
 				},
 			},
 			expErr: true,
@@ -44,7 +43,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		"valid params: data commitments blocks limit": {
 			src: &types.GenesisState{
 				Params: &types.Params{
-					DataCommitmentWindow: uint64(appconsts.DataCommitmentBlocksLimit),
+					DataCommitmentWindow: uint64(consts.DataCommitmentBlocksLimit),
 				},
 			},
 			expErr: false,

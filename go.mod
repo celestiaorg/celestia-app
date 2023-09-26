@@ -3,6 +3,18 @@ module github.com/celestiaorg/celestia-app
 go 1.21.1
 
 require (
+	github.com/celestiaorg/celestia-app/pkg/appconsts v0.0.0
+	github.com/celestiaorg/celestia-app/pkg/wrapper v0.0.0
+	github.com/celestiaorg/celestia-app/pkg/namespace v0.0.0
+)
+
+replace (
+	github.com/celestiaorg/celestia-app/pkg/appconsts => ./pkg/appconsts
+	github.com/celestiaorg/celestia-app/pkg/wrapper => ./pkg/wrapper
+	github.com/celestiaorg/celestia-app/pkg/namespace => ./pkg/namespace
+)
+
+require (
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/ethereum/go-ethereum v1.13.1
 	github.com/gogo/protobuf v1.3.3

@@ -83,7 +83,7 @@ func TestCheckTx(t *testing.T) {
 				)[0]
 
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				dtx.Blobs[0].NamespaceId = appns.RandomBlobNamespace().ID
+				dtx.Blobs[0].NamespaceId = testfactory.RandomBlobNamespace().ID
 				bbtx, err := coretypes.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
