@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
@@ -37,7 +36,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	tmcfg "github.com/tendermint/tendermint/config"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -84,19 +82,7 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			// Override the default tendermint config for celestia-app
-			tmCfg := tmcfg.DefaultConfig()
-
-			// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
-			// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
-			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
-			tmCfg.Mempool.TTLNumBlocks = 10
-			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
-			tmCfg.Mempool.Version = "v1"               // prioritized mempool
-			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
-			tmCfg.Consensus.SkipTimeoutCommit = false
-
+			tmCfg := app.DefaultConsensusConfig()
 			customAppTemplate, customAppConfig := initAppConfig()
 
 			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
