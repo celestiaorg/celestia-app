@@ -24,7 +24,7 @@ func GenesisDoc(
 	gentxs []json.RawMessage,
 	addrs []string,
 	pubkeys []cryptotypes.PubKey,
-	opts ...genesis.Modifier,
+	mods ...genesis.Modifier,
 ) (*coretypes.GenesisDoc, error) {
 	genutilGenState := genutiltypes.DefaultGenesisState()
 	genutilGenState.GenTxs = gentxs
@@ -61,8 +61,8 @@ func GenesisDoc(
 	state[banktypes.ModuleName] = ecfg.Codec.MustMarshalJSON(bankGenState)
 	state[genutiltypes.ModuleName] = ecfg.Codec.MustMarshalJSON(genutilGenState)
 
-	for _, option := range opts {
-		state = option(state)
+	for _, modifer := range mods {
+		state = modifer(state)
 	}
 
 	stateBz, err := json.MarshalIndent(state, "", "  ")

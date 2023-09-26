@@ -3,11 +3,10 @@ package appconsts
 import (
 	testground "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 )
 
 const (
-	LatestVersion = v2.Version
+	LatestVersion = testground.Version
 )
 
 // SubtreeRootThreshold works as a target upper bound for the number of subtree

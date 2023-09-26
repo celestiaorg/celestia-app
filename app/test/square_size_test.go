@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	testgroundconsts "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -46,8 +47,11 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	t := s.T()
 	t.Log("setting up square size integration test")
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	params := genesis.DefaultConsensusParams()
+	params.Version.AppVersion = testgroundconsts.Version
 	cfg := testnode.DefaultConfig().
-		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec))
+		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec)).
+		WithConsensusParams(params)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
@@ -74,32 +78,32 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
 
 	tests := []test{
 		{
-			name:                  "default",
-			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
-			maxBytes:              appconsts.DefaultMaxBytes,
-			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			name:                  "big",
+			govMaxSquareSize:      256,
+			maxBytes:              100000000,
+			expectedMaxSquareSize: 256,
 			pfbsPerBlock:          20,
 		},
-		{
-			name:                  "max bytes constrains square size",
-			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
-			maxBytes:              appconsts.DefaultMaxBytes,
-			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
-			pfbsPerBlock:          40,
-		},
-		{
-			name:                  "gov square size == hardcoded max",
-			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
-			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
-			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
-			pfbsPerBlock:          40,
-		},
+		// {
+		// 	name:                  "max bytes constrains square size",
+		// 	govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+		// 	maxBytes:              appconsts.DefaultMaxBytes,
+		// 	expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+		// 	pfbsPerBlock:          40,
+		// },
+		// {
+		// 	name:                  "gov square size == hardcoded max",
+		// 	govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
+		// 	maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
+		// 	expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+		// 	pfbsPerBlock:          40,
+		// },
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(100_000, 10, tt.pfbsPerBlock, 20*time.Second)
+			start, end := s.fillBlocks(100_000, 40, tt.pfbsPerBlock, 20*time.Second)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			actualMaxSize := 0

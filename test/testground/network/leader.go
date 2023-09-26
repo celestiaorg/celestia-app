@@ -209,7 +209,7 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 			if !ok {
 				return fmt.Errorf("unexpected event type: %T", ev.Data)
 			}
-			blockTime := lastBlockTime.Sub(newBlock.Block.Time)
+			blockTime := newBlock.Block.Time.Sub(lastBlockTime)
 			runenv.RecordMessage(fmt.Sprintf("leader height %d time %v size bytes %d", newBlock.Block.Height, blockTime, newBlock.Block.Size()))
 			lastBlockTime = newBlock.Block.Time
 		case <-ctx.Done():

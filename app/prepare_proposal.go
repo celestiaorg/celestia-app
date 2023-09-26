@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -16,6 +18,7 @@ import (
 // tendermint via the BlockData. Panics indicate a developer error and should
 // immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	fmt.Println("prepare proposal", len(req.BlockData.Txs))
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
 	sdkCtx := app.NewProposalContext(core.Header{
