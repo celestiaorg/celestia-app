@@ -80,7 +80,7 @@ The genesis state is defined in [./types/genesis.go](./types/genesis.go).
 
 ## Params
 
-All params have been removed from this module because they should not be modifiable via governance.
+All params have been removed from this module because they should not be modifiable via governance. The constants used in this module are defined in [./types/constants.go](./types/constants.go) and they are subject to change via hardforks.
 
 ## Tests
 
