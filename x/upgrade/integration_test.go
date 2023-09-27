@@ -1,4 +1,4 @@
-package test
+package upgrade_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -21,14 +22,24 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-func TestUpgrade(t *testing.T) {
+func TestLegacyUpgrade(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping x/upgrade SDK integration test in short mode.")
 	}
-	suite.Run(t, new(UpgradeTestSuite))
+	suite.Run(t, new(LegacyUpgradeTestSuite))
 }
 
-type UpgradeTestSuite struct {
+// TestRemoval verifies that no handler exists for msg-based software upgrade
+// proposals.
+func TestRemoval(t *testing.T) {
+	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	sftwrUpgrd := types.MsgSoftwareUpgrade{}
+	router := app.MsgServiceRouter()
+	handler := router.Handler(&sftwrUpgrd)
+	require.Nil(t, handler)
+}
+
+type LegacyUpgradeTestSuite struct {
 	suite.Suite
 
 	accounts []string
@@ -43,7 +54,7 @@ type UpgradeTestSuite struct {
 
 // SetupSuite inits a standard chain, with the only exception being a
 // dramatically lowered quorum and threshold to pass proposals
-func (s *UpgradeTestSuite) SetupSuite() {
+func (s *LegacyUpgradeTestSuite) SetupSuite() {
 	t := s.T()
 
 	s.ecfg = encoding.MakeConfig(app.ModuleBasics)
@@ -82,7 +93,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	s.govModuleAddress = acc.GetAddress().String()
 }
 
-func (s *UpgradeTestSuite) unusedAccount() string {
+func (s *LegacyUpgradeTestSuite) unusedAccount() string {
 	s.mut.Lock()
 	acc := s.accounts[s.accountCounter]
 	s.accountCounter++
@@ -92,7 +103,7 @@ func (s *UpgradeTestSuite) unusedAccount() string {
 
 // TestLegacyGovUpgradeFailure verifies that a transaction with a legacy
 // software upgrade proposal fails to execute.
-func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
+func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	t := s.T()
 
 	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000)))
@@ -121,7 +132,7 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
 // MsgSoftwareUpgrade fails to execute.
-func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
+func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	t := s.T()
 	sss := types.MsgSoftwareUpgrade{
 		Authority: s.govModuleAddress,
