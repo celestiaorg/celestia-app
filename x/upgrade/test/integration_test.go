@@ -16,7 +16,6 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -116,8 +115,8 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
-	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
-	assert.Contains(t, res.RawLog, "no handler exists for proposal type")
+	// As the type is not registered, the message will fail with unable to resolve type URL
+	require.EqualValues(t, 2, res.Code, res.RawLog)
 }
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
@@ -145,8 +144,8 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
-	require.EqualValues(t, 10, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
-	require.Contains(t, res.RawLog, "proposal message not recognized by router")
+	// As the type is not registered, the message will fail with unable to resolve type URL
+	require.EqualValues(t, 2, res.Code, res.RawLog)
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
