@@ -221,7 +221,7 @@
 </div>
 <p>Abstraction over transaction fees.</p>
 <h3 id="address"><a class="header" href="#address">Address</a></h3>
-<p>Celestia supports <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a> keys where <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#addresses">addresses</a> are 20 bytes in length.</p>
+<p>Celestia supports <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a> keys where <a href="https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-028-public-key-addresses.md">addresses</a> are 20 bytes in length.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>AccAddress</code></td><td><code>[20]byte</code></td><td>AccAddress a wrapper around bytes meant to represent an account address</td></tr>
 </tbody></table>
@@ -424,7 +424,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </tbody></table>
 </div>
 <h4 id="transaction"><a class="header" href="#transaction">Transaction</a></h4>
-<p>Celestia transactions are Cosmos SDK <a href="https://docs.cosmos.network/v0.46/core/transactions.html">transactions</a>.</p>
+<p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>
 <h3 id="payforblobdata"><a class="header" href="#payforblobdata">PayForBlobData</a></h3>
 <h3 id="intermediatestaterootdata"><a class="header" href="#intermediatestaterootdata">IntermediateStateRootData</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
@@ -454,7 +454,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </tbody></table>
 </div>
 <h2 id="state"><a class="header" href="#state">State</a></h2>
-<p>The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. Similar to other Cosmos SDK based chains, the state of the Celestia chain is maintained in a <a href="https://docs.cosmos.network/main/core/store#multistore">multistore</a>. The root of the application state is committed to in the <a href="#header">block header</a> via the <code>AppHash</code>.</p>
+<p>The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. Similar to other Cosmos SDK based chains, the state of the Celestia chain is maintained in a <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/store.md#multistore">multistore</a>. The root of the application state is committed to in the <a href="#header">block header</a> via the <code>AppHash</code>.</p>
 <h2 id="consensus-parameters"><a class="header" href="#consensus-parameters">Consensus Parameters</a></h2>
 <p>Various <a href="consensus.html#system-parameters">consensus parameters</a> are committed to in the block header, such as limits and constants.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
