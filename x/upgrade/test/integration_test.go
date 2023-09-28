@@ -16,6 +16,8 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
+	ibctmtypes "github.com/cosmos/ibc-go/v6/modules/light-clients/07-tendermint/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -147,6 +149,35 @@ func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	require.Error(t, err)
 	require.EqualValues(t, 10, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
 	require.Contains(t, res.RawLog, "proposal message not recognized by router")
+}
+
+func (s *UpgradeTestSuite) TestIBCUpgradeFailure() {
+	t := s.T()
+	plan := types.Plan{
+		Name:   "v2",
+		Height: 20,
+		Info:   "this should not pass",
+	}
+	upgradedClientState := &ibctmtypes.ClientState{}
+
+	upgradeMsg, err := ibctypes.NewUpgradeProposal("Upgrade to v2!", "Upgrade to v2!", plan, upgradedClientState)
+	require.NoError(t, err)
+
+	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000)))
+	acc := s.unusedAccount()
+	accAddr := getAddress(acc, s.cctx.Keyring)
+	msg, err := v1beta1.NewMsgSubmitProposal(upgradeMsg, dep, accAddr)
+	require.NoError(t, err)
+
+	// submit the transaction and wait a block for it to be included
+	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
+	require.NoError(t, err)
+	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
+	defer cancel()
+	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	require.Error(t, err)
+	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
+	assert.Contains(t, res.RawLog, "ibc upgrade proposal not supported")
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
