@@ -2,12 +2,6 @@
 
 ## Abstract
 
-<<<<<<< HEAD
-The upgrade module removes the entrypoints to the standard upgrade module by not
-registering a message server. It registers the standard upgrade module types to
-preserve the ability to marshal them. Note that the keeper of the standard
-upgrade module is still added to the application.
-=======
 This upgrade module is a fork of the cosmos-sdk's
 [x/upgrade](https://github.com/cosmos/cosmos-sdk/tree/main/x/upgrade) module
 that removes the entrypoints to the standard upgrade module by not registering a
@@ -27,4 +21,3 @@ added to the application.
 1. <https://github.com/celestiaorg/celestia-app/pull/1491>
 1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/upgrade/README.md>
 1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/gov/README.md>
->>>>>>> d4737b4 (fix: dead link (#2593))
