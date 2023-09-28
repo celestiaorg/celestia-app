@@ -35,6 +35,7 @@ const (
 	GovMaxSquareSizeParam  = "gov_max_square_size"
 	MaxBlockBytesParam     = "max_block_bytes"
 	MempoolParam           = "mempool"
+	BroadcastTxsParam      = "broadcast_txs"
 )
 
 type Params struct {
@@ -57,6 +58,7 @@ type Params struct {
 	TimeoutCommit     time.Duration
 	TimeoutPropose    time.Duration
 	Mempool           string
+	BroadcastTxs      bool
 }
 
 func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) {
@@ -111,6 +113,8 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 
 	p.Mempool = runenv.StringParam(MempoolParam)
 
+	p.BroadcastTxs = runenv.BooleanParam(BroadcastTxsParam)
+
 	return p, p.ValidateBasic()
 }
 
@@ -140,6 +144,8 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Consensus.TimeoutPropose = params.TimeoutPropose
 	cmtcfg.TxIndex.Indexer = "kv"
 	cmtcfg.Mempool.Version = params.Mempool
+	cmtcfg.Mempool.MaxTxsBytes = 1_000_000_000
+	cmtcfg.Mempool.MaxTxBytes = 100_000_000
 	return cmtcfg
 }
 
@@ -161,8 +167,12 @@ func peerID(ip string, networkKey ed25519.PrivKey) string {
 
 func (p *Params) getGenesisModifiers(ecfg encoding.Config) []genesis.Modifier {
 	var modifiers []genesis.Modifier
+
 	blobParams := blobtypes.DefaultParams()
 	blobParams.GovMaxSquareSize = uint64(p.GovMaxSquareSize)
 	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
+
+	modifiers = append(modifiers, genesis.ImmediateProposals(ecfg.Codec))
+
 	return modifiers
 }

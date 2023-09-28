@@ -13,7 +13,7 @@ disable_metrics = false
 [global.run.test_params]
 chain_id = "testground"
 timeout = "25m"
-halt_height = "28"
+halt_height = "40"
 latency = "0"
 bandwidth = "1Gib"
 validators = "18"
@@ -22,22 +22,23 @@ pex = "false"
 timeout_propose = "30s"
 timeout_commit = "3s"
 per_peer_bandwidth = "100Mib"
-blob_sequences = "8"
+blob_sequences = "20"
 blob_sizes = "100000"
-blobs_per_sequence = "10"
+blobs_per_sequence = "100"
 inbound_peer_count = "40"
 outbound_peer_count = "10"
 gov_max_square_size = "512"
 max_block_bytes = "134000000"
 mempool = "v1"
+broadcast_txs = "false"
 
 
 [[groups]]
 id = "validators"
 builder = "docker:generic"
 [groups.resources]
-memory = "8Gi"
-cpu = "4"
+memory = "12Gi"
+cpu = "12"
 [groups.instances]
 count = 18
 percentage = 0.0

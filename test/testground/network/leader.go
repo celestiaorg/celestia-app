@@ -168,7 +168,10 @@ func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []Pee
 		}
 		pubKeys = append(pubKeys, pks...)
 		addrs = append(addrs, packet.GenesisAccounts...)
-		gentxs = append(gentxs, packet.GenTx)
+		if packet.GenTx != nil {
+			gentxs = append(gentxs, packet.GenTx)
+		}
+
 	}
 
 	return GenesisDoc(l.ecfg, l.params, gentxs, addrs, pubKeys, params.GenesisModifiers...)

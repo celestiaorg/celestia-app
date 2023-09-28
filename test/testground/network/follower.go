@@ -45,15 +45,20 @@ func NewFollower() *Follower {
 // Plan is the method that downloads the genesis, configurations, and keys for
 // all of the other nodes in the network.
 func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+	runenv.RecordMessage("follower bootstrapping")
 	_, err := f.Bootstrap(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
 
+	runenv.RecordMessage("follower Downloading Genesis")
+
 	genBz, err := DownloadGenesis(ctx, initCtx)
 	if err != nil {
 		return err
 	}
+
+	runenv.RecordMessage("follower downloading node configs")
 
 	nodes, err := DownloadNodeConfigs(ctx, runenv, initCtx)
 	if err != nil {
@@ -74,6 +79,8 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 	if err != nil {
 		return err
 	}
+
+	runenv.RecordMessage("follower waiting for start height")
 
 	_, err = f.cctx.WaitForHeightWithTimeout(int64(2), time.Minute*5)
 	if err != nil {

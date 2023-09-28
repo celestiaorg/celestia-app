@@ -43,10 +43,10 @@ func NewRole(runenv *runtime.RunEnv, initCtx *run.InitContext) (Role, error) {
 	switch seq {
 	// TODO: throw and error if there is more than a single leader
 	case 1:
-		runenv.RecordMessage("red leader sitting by")
+		runenv.RecordMessage("leader standing by: group %s", runenv.TestGroupID)
 		return &Leader{ConsensusNode: &ConsensusNode{}}, nil
 	default:
-		runenv.RecordMessage(fmt.Sprintf("red %d sitting by", seq))
+		runenv.RecordMessage(fmt.Sprintf("follower %d standing by: group %s", seq, runenv.TestGroupID))
 		return NewFollower(), nil
 	}
 }
