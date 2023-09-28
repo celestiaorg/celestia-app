@@ -110,7 +110,7 @@ Abstraction over transaction fees.
 
 ### Address
 
-Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://docs.cosmos.network/v0.46/basics/accounts.html#addresses) are 20 bytes in length.
+Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-028-public-key-addresses.md) are 20 bytes in length.
 
 | name         | type       | description                                                             |
 |--------------|------------|-------------------------------------------------------------------------|
@@ -388,7 +388,7 @@ Wrapped transactions include additional metadata by the block proposer that is c
 
 #### Transaction
 
-Celestia transactions are Cosmos SDK [transactions](https://docs.cosmos.network/v0.46/core/transactions.html).
+Celestia transactions are Cosmos SDK [transactions](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md).
 
 ### PayForBlobData
 
@@ -426,7 +426,7 @@ Celestia transactions are Cosmos SDK [transactions](https://docs.cosmos.network/
 
 ## State
 
-The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. Similar to other Cosmos SDK based chains, the state of the Celestia chain is maintained in a [multistore](https://docs.cosmos.network/main/core/store#multistore). The root of the application state is committed to in the [block header](#header) via the `AppHash`.
+The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. Similar to other Cosmos SDK based chains, the state of the Celestia chain is maintained in a [multistore](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/store.md#multistore). The root of the application state is committed to in the [block header](#header) via the `AppHash`.
 
 ## Consensus Parameters
 
