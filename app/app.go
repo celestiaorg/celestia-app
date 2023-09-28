@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -86,6 +87,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -171,7 +174,19 @@ var (
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	}
+
+	// versions that the current state machine supports
+	supportedVersions = []uint64{v1.Version, v2.Version}
 )
+
+func IsSupported(version uint64) bool {
+	for _, v := range supportedVersions {
+		if v == version {
+			return true
+		}
+	}
+	return false
+}
 
 var _ servertypes.Application = (*App)(nil)
 
@@ -560,6 +575,13 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	if req.Header.Version.App != app.GetBaseApp().AppVersion() {
+		if !IsSupported(req.Header.Version.App) {
+			panic(fmt.Sprintf("network has upgraded to a version (%d) which is not supported by the node. Please upgrade the binary and restart the node", req.Header.Version.App))
+		}
+		// update the app version
+		app.SetProtocolVersion(req.Header.Version.App)
+	}
 	return app.mm.BeginBlock(ctx, req)
 }
 
