@@ -53,6 +53,7 @@ are blocked by the `x/paramfilter` module.
 | staking.BondDenom | utia | Bondable coin denomination. | False |
 | staking.MinCommissionRate | 0.05 (5%) | Minimum commission rate used by all validators. | True |
 | mint.BondDenom | utia | Denomination that is inflated and sent to the distribution module account. | False |
-| mint.InflationRateChange | 0.10 (10%) | The rate at which the annual provisions decrease each year. | False |
-| mint.InflationRate | 0.08 (8%) | Initial annual inflation rate used to calculate the annual provisions. | False |
+| mint.InitialInflationRate | 0.08 (8%) | The inflation rate the network starts at. | False |
+| mint.DisinflationRate | 0.10 (10%) | The rate at which the inflation rate decreases each year. | False |
+| mint.TargetInflationRate | 0.015 (1.5%) | The inflation rate that the network aims to stabalize at. | False |
 | qgb.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |
