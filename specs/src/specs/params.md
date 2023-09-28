@@ -32,8 +32,8 @@ are blocked by the `x/paramfilter` module.
 | distribution.BaseProposerReward | 0 | Reward in the mint demonination for proposing a block. | True |
 | distribution.BonusProposerReward | 0 | Extra reward in the mint denomination for proposers based on the voting power included in the commit. | True |
 | gov.DepositParams.MinDeposit | 1000000000utia (1000 TIA) | Minimum deposit for a proposal to enter voting period. | True |
-| gov.DepositParams.MaxDepositPeriod | 172800 (2 days) | Maximum period for token holders to deposit on a proposal in seconds. | True |
-| gov.VotingParams.VotingPeriod | 172800 (2 days) | Duration of the voting period in seconds. | True |
+| gov.DepositParams.MaxDepositPeriod | 1209600000000000 (1 week) | Maximum period for token holders to deposit on a proposal in nanoseconds. | True |
+| gov.VotingParams.VotingPeriod | 604800000000000 (2 weeks) | Duration of the voting period in nanoseconds. | True |
 | gov.TallyParams.Quorum | 0.334 (33.4%) | Minimum percentage of total stake needed to vote for a result to be considered valid. | True |
 | gov.TallyParams.Threshold | 0.50 (50%) | Minimum proportion of Yes votes for proposal to pass. | True |
 | gov.TallyParams.VetoThreshold | 0.334 (33.4%) | Minimum value of Veto votes to Total votes ratio for proposal to be vetoed. | True |
@@ -53,6 +53,7 @@ are blocked by the `x/paramfilter` module.
 | staking.BondDenom | utia | Bondable coin denomination. | False |
 | staking.MinCommissionRate | 0.05 (5%) | Minimum commission rate used by all validators. | True |
 | mint.BondDenom | utia | Denomination that is inflated and sent to the distribution module account. | False |
-| mint.InflationRateChange | 0.10 (10%) | The rate at which the annual provisions decrease each year. | False |
-| mint.InflationRate | 0.08 (8%) | Initial annual inflation rate used to calculate the annual provisions. | False |
+| mint.InitialInflationRate | 0.08 (8%) | The inflation rate the network starts at. | False |
+| mint.DisinflationRate | 0.10 (10%) | The rate at which the inflation rate decreases each year. | False |
+| mint.TargetInflationRate | 0.015 (1.5%) | The inflation rate that the network aims to stabalize at. | False |
 | qgb.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |

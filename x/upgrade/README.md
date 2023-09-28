@@ -19,5 +19,5 @@ added to the application.
 ## Resources
 
 1. <https://github.com/celestiaorg/celestia-app/pull/1491>
-1. <https://docs.cosmos.network/v0.46/modules/upgrade/>
-1. <https://docs.cosmos.network/v0.46/modules/gov/>
+1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/upgrade/README.md>
+1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/gov/README.md>

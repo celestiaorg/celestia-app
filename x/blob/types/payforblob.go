@@ -44,7 +44,7 @@ const (
 )
 
 // MsgPayForBlobs implements the `LegacyMsg` interface.
-// See: https://docs.cosmos.network/v0.46/building-modules/messages-and-queries.html#legacy-amino-legacymsgs
+// See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
 func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {

@@ -158,7 +158,13 @@ type govModule struct {
 // DefaultGenesis returns custom x/gov module genesis state.
 func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
+	day := time.Duration(time.Hour * 24)
+	oneWeek := day * 7
+	twoWeeks := oneWeek * 2
+
 	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(1_000_000_000))) // 1000 TIA
+	genState.DepositParams.MaxDepositPeriod = &oneWeek
+	genState.VotingParams.VotingPeriod = &twoWeeks
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -212,7 +218,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
-	cfg.Mempool.TTLNumBlocks = 10
+	cfg.Mempool.TTLNumBlocks = 5
+	cfg.Mempool.TTLDuration = time.Duration(cfg.Mempool.TTLNumBlocks) * appconsts.GoalBlockTime
 	// Given that there is a stateful transaction size check in CheckTx,
 	// We set a loose upper bound on what we expect the transaction to
 	// be based on the upper bound size of the entire block for the given
