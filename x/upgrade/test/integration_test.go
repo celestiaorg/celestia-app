@@ -169,14 +169,16 @@ func (s *UpgradeTestSuite) TestIBCUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
+	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, acc, msg)
 	require.NoError(t, err)
-	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
-	defer cancel()
-	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.Error(t, err)
-	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
-	assert.Contains(t, res.RawLog, "ibc upgrade proposal not supported")
+	require.Equal(t, abci.CodeTypeOK, res.Code) // we're only submitting the tx, so we expect everything to work
+	require.NoError(t, s.cctx.WaitForNextBlock())
+
+	// compare the result after the tx has been executed.
+	finalResult, err := testnode.QueryTx(s.cctx.Context, res.TxHash, false)
+	require.NoError(t, err)
+	require.NotNil(t, finalResult)
+	require.Contains(t, finalResult.TxResult.Log, "ibc upgrade proposal not supported")
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
