@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -82,10 +81,13 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			// Override the default tendermint config for celestia-app
-			tmCfg := app.DefaultConsensusConfig()
-			customAppTemplate, customAppConfig := initAppConfig()
+			var (
+				tmCfg       = app.DefaultConsensusConfig()
+				appConfig   = app.DefaultAppConfig()
+				appTemplate = serverconfig.DefaultConfigTemplate
+			)
 
-			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			err = server.InterceptConfigsPreRunHandler(cmd, appTemplate, appConfig, tmCfg)
 			if err != nil {
 				return err
 			}
@@ -107,33 +109,6 @@ func NewRootCmd() *cobra.Command {
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
-}
-
-// initAppConfig helps to override default appConfig template and configs.
-// return "", nil if no custom configuration is required for the application.
-func initAppConfig() (string, interface{}) {
-	type CustomAppConfig struct {
-		serverconfig.Config
-	}
-
-	// Optionally allow the chain developer to overwrite the SDK's default
-	// server config.
-	srvCfg := serverconfig.DefaultConfig()
-	srvCfg.API.Enable = true
-
-	// the default snapshot interval was determined by picking a large enough
-	// value as to not dramatically increase resource requirements while also
-	// being greater than zero so that there are more nodes that will serve
-	// snapshots to nodes that state sync
-	srvCfg.StateSync.SnapshotInterval = 1500
-	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom)
-
-	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
-
-	CelestiaAppTemplate := serverconfig.DefaultConfigTemplate
-
-	return CelestiaAppTemplate, CelestiaAppCfg
 }
 
 func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
