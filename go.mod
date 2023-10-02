@@ -4,7 +4,7 @@ go 1.21.1
 
 require (
 	github.com/celestiaorg/nmt v0.20.0
-	github.com/ethereum/go-ethereum v1.13.1
+	github.com/ethereum/go-ethereum v1.13.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0 // indirect
