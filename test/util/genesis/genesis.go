@@ -176,7 +176,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		gentxs = append(gentxs, json.RawMessage(bz))
 	}
 
-	return GenesisDoc(
+	return Document(
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,

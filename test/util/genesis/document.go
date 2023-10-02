@@ -17,8 +17,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// Genesis will create a valid genesis doc with funded addresses.
-func GenesisDoc(
+// Document will create a valid genesis doc with funded addresses.
+func Document(
 	ecfg encoding.Config,
 	params *tmproto.ConsensusParams,
 	chainID string,
