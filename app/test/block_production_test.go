@@ -66,7 +66,7 @@ func (s *BlockProductionTestSuite) Test_FirstBlockIsEmpty() {
 	_, err := s.cctx.WaitForHeightWithTimeout(1, s.timeoutCommit)
 	require.NoError(err)
 	// send a transaction, it should be included in the second block
-	_, err = s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err = s.cctx.PostData(s.accounts[0], flags.BroadcastAsync, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 
 	// wait for height 2
