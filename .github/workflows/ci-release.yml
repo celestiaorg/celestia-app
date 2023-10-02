@@ -31,13 +31,16 @@ jobs:
   lint:
     uses: ./.github/workflows/lint.yml
 
+  markdown-linter:
+    uses: ./.github/workflows/markdown-linter.yml
+
   test:
     uses: ./.github/workflows/test.yml
 
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [lint, test]
+    needs: [lint, markdown-linter, test]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -67,7 +70,7 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v4
         with:
-          go-version: 1.21
+          go-version: 1.21.1
       # Generate the binaries and release
       - uses: goreleaser/goreleaser-action@v5
         with:

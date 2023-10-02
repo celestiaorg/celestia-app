@@ -2,10 +2,12 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -102,6 +104,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						true,
 						testutil.ChainID,
 						accounts[:tt.count],
+						user.SetGasLimitAndFee(1_000_000_000, 0.1),
 					)
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
@@ -113,13 +116,20 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[0],
 						accounts[len(accounts)-sendTxCount:],
 						testutil.ChainID,
+						user.SetGasLimitAndFee(1_000_000, 0.1),
 					)
 					txs = append(txs, sendTxs...)
+
+					blockTime := time.Now()
+					height := testApp.LastBlockHeight() + 1
+
 					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 						BlockData: &core.Data{
 							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 						},
 						ChainId: testutil.ChainID,
+						Time:    blockTime,
+						Height:  height,
 					})
 
 					// check that the square size is smaller than or equal to
@@ -132,7 +142,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 							DataHash: resp.BlockData.Hash,
 							ChainID:  testutil.ChainID,
 							Version:  version.Consensus{App: appconsts.LatestVersion},
-							Height:   testApp.LastBlockHeight() + 1,
+							Height:   height,
 						},
 					},
 					)

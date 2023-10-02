@@ -1,6 +1,6 @@
 # AnteHandler
 
-Celestia makes use of a Cosmos SDK [AnteHandler](https://docs.cosmos.network/v0.46/modules/auth/03_antehandlers.html#antehandlers) in order to reject decodable sdk.Txs that do not meet certain criteria. The AnteHandler is defined in [app/ante/ante.go](https://github.com/celestiaorg/celestia-app/blob/7f97788a64af7fe0fce00959753d6dd81663e98f/app/ante/ante.go) and is invoked at multiple times during the transaction lifecycle:
+Celestia makes use of a Cosmos SDK [AnteHandler](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/auth/spec/03_antehandlers.md) in order to reject decodable sdk.Txs that do not meet certain criteria. The AnteHandler is defined in [app/ante/ante.go](https://github.com/celestiaorg/celestia-app/blob/7f97788a64af7fe0fce00959753d6dd81663e98f/app/ante/ante.go) and is invoked at multiple times during the transaction lifecycle:
 
 1. `CheckTx` prior to the transaction entering the mempool
 1. `PrepareProposal` when the block proposer includes the transaction in a block proposal
@@ -14,7 +14,7 @@ The AnteHandler chains together several decorators to ensure the following crite
 - The tx's [timeout_height](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117) has not been reached if one is specified.
 - The tx's [memo](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L110-L113) is <= the max memo characters where [`MaxMemoCharacters = 256`](<https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L230>).
 - The tx's [gas_limit](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213) is > the gas consumed based on the tx's size where [`TxSizeCostPerByte = 10`](https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L232).
-- The tx's feepayer has enough funds to pay fees for the tx. The tx's feepayer is the feegranter (if specified) or the tx's first signer. Note the [feegrant](https://docs.cosmos.network/v0.46/) module is enabled.
+- The tx's feepayer has enough funds to pay fees for the tx. The tx's feepayer is the feegranter (if specified) or the tx's first signer. Note the [feegrant](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/feegrant/README.md) module is enabled.
 - The tx's count of signatures <= the max number of signatures. The max number of signatures is [`TxSigLimit = 7`](https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L231).
 - The tx's [gas_limit](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213) is > the gas consumed based on the tx's signatures.
 - The tx's [signatures](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/types/tx/signing/signature.go#L10-L26) are valid. For each signature, ensure that the signature's sequence number (a.k.a nonce) matches the account sequence number of the signer.
