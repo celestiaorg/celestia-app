@@ -25,13 +25,8 @@ require (
 
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
-<<<<<<< HEAD
 	cosmossdk.io/math v1.0.0-rc.0
-	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.1
-=======
-	cosmossdk.io/math v1.1.2
 	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2
->>>>>>> f78b945 (chore(deps): bump qgb contracts version to v2.1.2 (#2598))
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.14
