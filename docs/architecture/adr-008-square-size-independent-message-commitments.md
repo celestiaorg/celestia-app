@@ -81,7 +81,7 @@ Therefore the height of the tree over the subtree roots is in this implementatio
 ### Positive Rollmint changes
 
 1. A Rollup can include the commitment in the block header *before* posting to Celestia because it is size-independent and does not have to wait for Celestia to confirm the square size. In general, the roll-up needs access to this commitment in some form to verify a message inclusion proof guaranteeing data availability, which Rollmint currently does not have access to.
-2. In turn, this would serve as an alternative to [rollmint/adr-007](https://github.com/celestiaorg/optimint/blob/main/docs/lazy-adr/adr-007-header-commit-to-shares.md)
+2. In turn, this would serve as an alternative to [rollmint/adr-007](https://github.com/rollkit/rollkit/blob/f85b994e81bcacf33d187b2dcf2d40657f152408/specs/lazy-adr/adr-007-header-commit-to-shares.md)
 3. Here is one scheme on how a Rollup might use this new commitment in the block header. Let's assume a Rollup that looks like this:
   BH1 <-- BH2 <-- BH3 <-- BH4
   The Messages that are submitted to Celestia could look like this:
