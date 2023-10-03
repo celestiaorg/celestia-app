@@ -190,8 +190,8 @@ github.com/bytedance/sonic v1.8.0 h1:ea0Xadu+sHlu7x5O3gKhRpQ1IKiMrSiHttPF0ybECuA
 github.com/bytedance/sonic v1.8.0/go.mod h1:i736AoUSYt75HyZLoJW9ERYxcy6eaN6h4BZXU064P/U=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230926032711-2a5185ac9fbf h1:kjP+QDwkX2qVa0dsV1hYimoky9ecbflApjNXEtV9/iY=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20230926032711-2a5185ac9fbf/go.mod h1:H0HGX+pZsW+5MPF128tfDCmbG2PODfVCXE5YJFNf1gs=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20231003014120-b53e9b76b107 h1:r5I7OuQKiCWeS4x3eTU++J7cgX/wx2eqtUt/zFryEIM=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20231003014120-b53e9b76b107/go.mod h1:/cOZaKSyinDI1OIRolWr+6WVaF6Dum7scSlUiRFf3uY=
 github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231003013051-7bc0686c6c94 h1:7NijNzh7hgSg2KHq8h5u/QW8BxAcovYXSuMa714NmyU=
 github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231003013051-7bc0686c6c94/go.mod h1:1GT0RfdNqOXvyR3Hq4ROcNBknQNz9E6K5l3Cla9eFFk=
 github.com/celestiaorg/cosmos-sdk v1.18.0-sdk-v0.46.14 h1:dDfoQJOlVNj4HufJ1lBLTo2k3/L/255MIiKmEQziDmw=
