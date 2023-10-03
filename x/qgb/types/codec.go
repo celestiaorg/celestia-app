@@ -4,6 +4,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
 )
 
 const URLMsgRegisterEVMAddress = "/celestia.blob.v1.MsgRegisterEVMAddress"
@@ -23,4 +24,6 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&DataCommitment{},
 		&Valset{},
 	)
+
+	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
