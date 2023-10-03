@@ -45,9 +45,8 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 		// If this happens either a) a user has crafted an invalid packet, b) a
 		// software developer has connected the middleware to a stack that does
 		// not have a transfer module, or c) the transfer module has been modified
-		// to accept other Packets. The best thing we can do here is pass the packet
-		// on down the stack.
-		return m.IBCModule.OnRecvPacket(ctx, packet, relayer)
+		// to accept other Packets. Short-circuits and returns the error.
+		return channeltypes.NewErrorAcknowledgement(err)
 	}
 
 	// This checks the first channel and port in the denomination path. If it matches
