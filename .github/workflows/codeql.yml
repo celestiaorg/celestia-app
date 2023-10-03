@@ -13,7 +13,7 @@ name: "CodeQL"
 
 on:
   push:
-    branches: ["main","v[0-9].[0-9].x","v[0-9].[0-9][0-9].x","v[0-9].x"]
+    branches: ["main", "v[0-9].[0-9].x", "v[0-9].[0-9][0-9].x", "v[0-9].x"]
   schedule:
     - cron: '24 20 * * 4'
 
@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['go',]
+        language: ['go']
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
     steps:
