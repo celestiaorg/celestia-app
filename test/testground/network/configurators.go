@@ -36,6 +36,9 @@ func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
 	default:
 		return nil, fmt.Errorf("unknown topology func: %s", topology)
 	}
+
+	ops = append(ops, TracingConfigurator(ParseTracingParams(runenv)))
+
 	return ops, nil
 }
 
@@ -93,9 +96,29 @@ func SeedConfigurator(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfi
 	// add the seed node to all of the peers
 	for i, node := range nodes {
 		if node.GroupID != SeedGroupID {
-			node.CmtConfig.P2P.Seeds = strings.Join([]string{seedNode.PeerID}, ",")
-			nodes[i] = node
+			nodes[i].CmtConfig.P2P.Seeds = strings.Join([]string{seedNode.PeerID}, ",")
 		}
 	}
 	return nodes, nil
+}
+
+func TracingConfigurator(tparams TracingParams) Configurator {
+	return func(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error) {
+		// nodeCount keeps track of our place in the list of nodes
+		nodeCount := 0
+		for i := 0; i < tparams.Nodes; i++ {
+			for ; nodeCount < len(nodes); nodeCount++ {
+				// don't trace seed nodes
+				if nodes[nodeCount].GroupID == SeedGroupID {
+					continue
+				}
+				nodes[nodeCount].CmtConfig.Instrumentation.InfluxOrg = "celestia"
+				nodes[nodeCount].CmtConfig.Instrumentation.InfluxBucket = "testground"
+				nodes[nodeCount].CmtConfig.Instrumentation.InfluxBatchSize = 50
+				nodes[nodeCount].CmtConfig.Instrumentation.InfluxURL = tparams.Url
+				nodes[nodeCount].CmtConfig.Instrumentation.InfluxToken = tparams.Token
+			}
+		}
+		return nodes, nil
+	}
 }

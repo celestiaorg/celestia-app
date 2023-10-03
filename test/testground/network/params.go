@@ -36,6 +36,9 @@ const (
 	MaxBlockBytesParam     = "max_block_bytes"
 	MempoolParam           = "mempool"
 	BroadcastTxsParam      = "broadcast_txs"
+	TracingTokenParam      = "tracing_token"
+	TracingUrlParam        = "tracing_url"
+	TracingNodesParam      = "tracing_nodes"
 )
 
 type Params struct {
@@ -59,6 +62,21 @@ type Params struct {
 	TimeoutPropose    time.Duration
 	Mempool           string
 	BroadcastTxs      bool
+	TracingParams
+}
+
+type TracingParams struct {
+	Nodes int
+	Url   string
+	Token string
+}
+
+func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
+	return TracingParams{
+		Nodes: runenv.IntParam(TracingNodesParam),
+		Url:   runenv.StringParam(TracingUrlParam),
+		Token: runenv.StringParam(TracingTokenParam),
+	}
 }
 
 func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) {
@@ -114,6 +132,8 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 	p.Mempool = runenv.StringParam(MempoolParam)
 
 	p.BroadcastTxs = runenv.BooleanParam(BroadcastTxsParam)
+
+	p.TracingParams = ParseTracingParams(runenv)
 
 	return p, p.ValidateBasic()
 }

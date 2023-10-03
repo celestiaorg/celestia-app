@@ -5,20 +5,20 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 18
+total_instances = 6
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "testground"
+chain_id = "testground-1"
 timeout = "25m"
 halt_height = "40"
 latency = "0"
 bandwidth = "1Gib"
-validators = "18"
-topology = "connect_all"
-pex = "false"
+validators = "5"
+topology = "seed"
+pex = "true"
 timeout_propose = "30s"
 timeout_commit = "3s"
 per_peer_bandwidth = "100Mib"
@@ -32,15 +32,36 @@ max_block_bytes = "134000000"
 mempool = "v1"
 broadcast_txs = "false"
 
+tracing_nodes = "2"
+tracing_url = "http://167.99.237.127:8086/"
+tracing_token = "mduhuxWr4Wnp5PdSHafqBhEIsLnDT9mE8ZX90n6SEw2tflpzjsYni5OwqvHm3fNDSJd-jXY89jqpJ2kC2Y8HpQ=="
 
 [[groups]]
 id = "validators"
 builder = "docker:generic"
 [groups.resources]
-memory = "12Gi"
-cpu = "12"
+memory = "8Gi"
+cpu = "6"
 [groups.instances]
-count = 18
+count = 5
+percentage = 0.0
+[groups.build_config]
+build_base_image = "golang:1.21.0"
+enable_go_build_cache = true
+enabled = true
+go_version = "1.21"
+[groups.build]
+[groups.run]
+artifact = ""
+
+[[groups]]
+id = "seeds"
+builder = "docker:generic"
+[groups.resources]
+memory = "8Gi"
+cpu = "6"
+[groups.instances]
+count = 1
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.0"
