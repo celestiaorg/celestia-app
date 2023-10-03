@@ -225,5 +225,5 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231003013051-7bc0686c6c94 //v1.27.0-tm-v0.34.28
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231003022132-68e0c3d7bf9e //v1.27.0-tm-v0.34.28
 )

@@ -157,6 +157,8 @@ github.com/bufbuild/connect-go v1.0.0/go.mod h1:9iNvh/NOsfhNBUH5CtvXeVUskQO1xsrE
 github.com/butuzov/ireturn v0.1.1/go.mod h1:Wh6Zl3IMtTpaIKbmwzqi6olnM9ptYQxxVacMsOEFPoc=
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/celestia-app v1.0.0-rc13/go.mod h1:JYu6i1NxJw26TVZ+XSllUdnw0Fw3nGNk5f3wm6RIcys=
+github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231003022132-68e0c3d7bf9e h1:S/dn4RRj5BHsMvOb/Xifpd9ieW8Ajv2brDcWbwZj8Vg=
+github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231003022132-68e0c3d7bf9e/go.mod h1:1GT0RfdNqOXvyR3Hq4ROcNBknQNz9E6K5l3Cla9eFFk=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
 github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/charithe/durationcheck v0.0.9/go.mod h1:SSbRIBVfMjCi/kEB6K65XEA83D6prSM8ap1UCpNKtgg=
