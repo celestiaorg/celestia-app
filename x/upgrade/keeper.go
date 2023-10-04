@@ -16,13 +16,13 @@ type Keeper struct {
 
 	// in memory copy of the upgrade schedule if any. This is local per node
 	// and configured from the config.
-	upgradeSchedule Schedule
+	upgradeSchedule map[string]Schedule
 }
 
 type VersionSetter func(version uint64)
 
 // NewKeeper constructs an upgrade keeper
-func NewKeeper(storeKey storetypes.StoreKey, upgradeSchedule Schedule) Keeper {
+func NewKeeper(storeKey storetypes.StoreKey, upgradeSchedule map[string]Schedule) Keeper {
 	return Keeper{
 		storeKey:        storeKey,
 		upgradeSchedule: upgradeSchedule,

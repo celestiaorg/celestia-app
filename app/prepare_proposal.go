@@ -63,8 +63,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		// TODO: this would be improved if we only attempted the upgrade in the first round of the
 		// height to still allow transactions to pass through without being delayed from trying
 		// to coordinate the upgrade height
-		if app.UpgradeKeeper.ShouldUpgradeNextHeight(req.ChainId, req.Height) {
-			newVersion := app.UpgradeKeeper.GetAppVersionForNextHeight(req.ChainId, req.Height)
+		if newVersion, ok := app.UpgradeKeeper.ShouldProposeUpgrade(req.ChainId, req.Height); ok && newVersion > app.GetBaseApp().AppVersion() {
 			upgradeTx, err := upgrade.NewMsgVersionChange(app.txConfig, newVersion)
 			if err != nil {
 				panic(err)

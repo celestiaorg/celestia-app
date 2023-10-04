@@ -20,10 +20,8 @@ func TestUpgradeAppVersion(t *testing.T) {
 	db := dbm.NewMemDB()
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeSchedule := make(map[string]map[int64]uint64)
-	upgradeSchedule[chainID] = map[int64]uint64{
-		3: 2,
-	}
+	upgradeSchedule := make(map[string]upgrade.Schedule)
+	upgradeSchedule[chainID] = upgrade.NewSchedule(upgrade.NewPlan(3, 5, 2))
 	testApp := app.New(log.NewNopLogger(), db, nil, true, 0, encCfg, upgradeSchedule, util.EmptyAppOptions{})
 
 	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp)
@@ -62,9 +60,10 @@ func TestUpgradeAppVersion(t *testing.T) {
 	_ = testApp.Commit()
 
 	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-		Height:    2,
-		ChainId:   chainID,
-		BlockData: &tmproto.Data{},
+		Height:        2,
+		ChainId:       chainID,
+		BlockData:     &tmproto.Data{},
+		BlockDataSize: 1e6,
 	})
 
 	require.Len(t, resp.BlockData.Txs, 1)

@@ -80,7 +80,6 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
@@ -260,7 +259,7 @@ func New(
 	loadLatest bool,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeSchedule upgrade.Schedule,
+	upgradeSchedule map[string]upgrade.Schedule,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -581,20 +580,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	res := app.mm.EndBlock(ctx, req)
-	if app.UpgradeKeeper.ShouldUpgradeNextHeight(app.GetChainID(), req.Height) {
-		vParams := &tmproto.VersionParams{
-			AppVersion: app.UpgradeKeeper.GetAppVersionForNextHeight(app.GetChainID(), req.Height),
-		}
-		if res.ConsensusParamUpdates == nil {
-			res.ConsensusParamUpdates = &abci.ConsensusParams{
-				Version: vParams,
-			}
-		} else {
-			res.ConsensusParamUpdates.Version = vParams
-		}
-	}
-	return res
+	return app.mm.EndBlock(ctx, req)
 }
 
 // InitChainer application update at chain initialization
