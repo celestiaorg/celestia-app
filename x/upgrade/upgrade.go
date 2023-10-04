@@ -38,6 +38,8 @@ func (s Schedule) ValidateBasic() error {
 		if plan.Version <= lastVersion {
 			return fmt.Errorf("plan %d: version must be greater than %d, got %d", idx, lastVersion, plan.Version)
 		}
+		lastHeight = int(plan.End)
+		lastVersion = plan.Version
 	}
 	return nil
 }
