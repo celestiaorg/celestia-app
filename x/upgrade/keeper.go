@@ -19,6 +19,8 @@ type Keeper struct {
 	upgradeSchedule Schedule
 }
 
+type VersionSetter func(version uint64)
+
 // NewKeeper constructs an upgrade keeper
 func NewKeeper(storeKey storetypes.StoreKey, upgradeSchedule Schedule) Keeper {
 	return Keeper{

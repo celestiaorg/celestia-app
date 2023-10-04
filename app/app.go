@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -82,6 +81,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
@@ -177,6 +177,8 @@ var (
 
 	// versions that the current state machine supports
 	supportedVersions = []uint64{v1.Version, v2.Version}
+
+	DefaultInitialVersion = v1.Version
 )
 
 func IsSupported(version uint64) bool {
@@ -575,13 +577,6 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	if req.Header.Version.App != app.GetBaseApp().AppVersion() {
-		if !IsSupported(req.Header.Version.App) {
-			panic(fmt.Sprintf("network has upgraded to a version (%d) which is not supported by the node. Please upgrade the binary and restart the node", req.Header.Version.App))
-		}
-		// update the app version
-		app.SetProtocolVersion(req.Header.Version.App)
-	}
 	return app.mm.BeginBlock(ctx, req)
 }
 
@@ -589,7 +584,16 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	if app.UpgradeKeeper.ShouldUpgradeNextHeight(app.GetChainID(), req.Height) {
-		res.ConsensusParamUpdates.Version.AppVersion = app.UpgradeKeeper.GetAppVersionForNextHeight(app.GetChainID(), req.Height)
+		vParams := &tmproto.VersionParams{
+			AppVersion: app.UpgradeKeeper.GetAppVersionForNextHeight(app.GetChainID(), req.Height),
+		}
+		if res.ConsensusParamUpdates == nil {
+			res.ConsensusParamUpdates = &abci.ConsensusParams{
+				Version: vParams,
+			}
+		} else {
+			res.ConsensusParamUpdates.Version = vParams
+		}
 	}
 	return res
 }
@@ -600,6 +604,7 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
+	app.SetProtocolVersion(req.ConsensusParams.Version.AppVersion)
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 

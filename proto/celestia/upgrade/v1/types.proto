@@ -1,0 +1,10 @@
+syntax = "proto3";
+package celestia.upgrade.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade";
+
+// MsgPayForBlobs pays for the inclusion of a blob in the block.
+message MsgVersionChange {
+  // the new version to propose the change to
+  uint64 version = 1;
+}

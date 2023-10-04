@@ -38,10 +38,10 @@ func init() {
 	simapp.GetSimulatorFlags()
 }
 
-type emptyAppOptions struct{}
+type EmptyAppOptions struct{}
 
 // Get implements AppOptions
-func (ao emptyAppOptions) Get(_ string) interface{} {
+func (ao EmptyAppOptions) Get(_ string) interface{} {
 	return nil
 }
 
@@ -52,7 +52,7 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
-	emptyOpts := emptyAppOptions{}
+	emptyOpts := EmptyAppOptions{}
 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
 
@@ -65,7 +65,6 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		nil,
 		emptyOpts,
 	)
-	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
@@ -83,6 +82,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		},
 		Evidence:  &cparams.Evidence,
 		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
