@@ -10,7 +10,7 @@ The binaries for the Github release are generated using [GoReleaser](https://gor
 
 1. Due to `goreleaser`'s CGO limitations, cross-compiling the binary does not work. So the binaries must be built on the target platform. This means that the release process must be done on a Linux amd64 machine.
 
-1. Since you are generating and signing the release binaries locally, your public key must be added to the list of available keys for verification. Follow the steps in [scripts/verify-signature/README.md](./scripts/verify-signature/README.md).
+1. Since you are generating and signing the release binaries locally, your public key must be added to the list of available keys for verification. Follow the steps in [scripts/signing/README.md](./scripts/signing/README.md).
 
 ### Steps
 
