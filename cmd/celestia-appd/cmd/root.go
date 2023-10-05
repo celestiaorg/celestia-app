@@ -80,11 +80,14 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			// Override the default tendermint config for celestia-app
-			tmCfg := app.DefaultConsensusConfig()
-			customAppTemplate, customAppConfig := initAppConfig()
+			// Override the default tendermint config and app config for celestia-app
+			var (
+				tmCfg       = app.DefaultConsensusConfig()
+				appConfig   = app.DefaultAppConfig()
+				appTemplate = serverconfig.DefaultConfigTemplate
+			)
 
-			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			err = server.InterceptConfigsPreRunHandler(cmd, appTemplate, appConfig, tmCfg)
 			if err != nil {
 				return err
 			}
@@ -106,24 +109,6 @@ func NewRootCmd() *cobra.Command {
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
-}
-
-// initAppConfig helps to override default appConfig template and configs.
-// return "", nil if no custom configuration is required for the application.
-func initAppConfig() (string, interface{}) {
-	type CustomAppConfig struct {
-		serverconfig.Config
-	}
-
-	// Optionally allow the chain developer to overwrite the SDK's default
-	// server config.
-	srvCfg := app.DefaultAppConfig()
-
-	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
-
-	CelestiaAppTemplate := serverconfig.DefaultConfigTemplate
-
-	return CelestiaAppTemplate, CelestiaAppCfg
 }
 
 // setDefaultConsensusParams sets the default consensus parameters for the

@@ -1,7 +1,7 @@
 # Resource Pricing
 
 For all standard cosmos-sdk transactions (staking, IBC, etc), Celestia utilizes
-the [default cosmos-sdk mechanisms](https://docs.cosmos.network/v0.46/basics/gas-fees.html) for pricing resources. This involves
+the [default cosmos-sdk mechanisms](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basics/gas-fees.md) for pricing resources. This involves
 incrementing a gas counter during transaction execution each time the state is
 read from/written to, or when specific costly operations occur such as signature
 verification or inclusion of data.

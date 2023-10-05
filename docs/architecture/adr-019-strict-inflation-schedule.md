@@ -12,7 +12,7 @@ Implemented in <https://github.com/celestiaorg/celestia-app/pull/1578>
 
 ## Context
 
-Cosmos SDK chains that use the [x/mint](https://docs.cosmos.network/v0.46/modules/mint/) module have a flexible inflation rate that increases/decreases so that the total % of tokens bonded target some value.
+Cosmos SDK chains that use the [x/mint](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/mint/spec/README.md) module have a flexible inflation rate that increases/decreases so that the total % of tokens bonded target some value.
 
 In contrast to a flexible inflation rate, Celestia intends on having a predictable inflation rate with the following constants:
 
