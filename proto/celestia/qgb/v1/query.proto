@@ -67,6 +67,12 @@ service Query {
   rpc EVMAddress(QueryEVMAddressRequest) returns (QueryEVMAddressResponse) {
     option (google.api.http).get = "/qgb/v1/evm_address";
   }
+
+  // HasAttestation returns whether the attestation is in store or not.
+  rpc HasAttestation(QueryHasAttestationRequest)
+      returns (QueryHasAttestationResponse) {
+    option (google.api.http).get = "/qgb/v1/has_attestation/{nonce}";
+  }
 }
 
 // QueryParamsRequest
@@ -128,3 +134,9 @@ message QueryEVMAddressRequest { string validator_address = 1; }
 
 // QueryEVMAddressResponse
 message QueryEVMAddressResponse { string evm_address = 1; }
+
+// QueryHasAttestationRequest
+message QueryHasAttestationRequest { uint64 nonce = 1; }
+
+// QueryHasAttestationResponse
+message QueryHasAttestationResponse { bool exists = 1; }

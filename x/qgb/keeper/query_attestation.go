@@ -48,3 +48,16 @@ func (k Keeper) LatestAttestationNonce(
 		Nonce: k.GetLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)),
 	}, nil
 }
+
+func (k Keeper) HasAttestation(
+	ctx context.Context,
+	request *types.QueryHasAttestationRequest,
+) (*types.QueryHasAttestationResponse, error) {
+	_, exists, err := k.GetAttestationByNonce(sdk.UnwrapSDKContext(ctx), request.Nonce)
+	if err != nil {
+		return nil, err
+	}
+	return &types.QueryHasAttestationResponse{
+		Exists: exists,
+	}, nil
+}
