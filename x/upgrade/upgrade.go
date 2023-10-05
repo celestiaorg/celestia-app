@@ -1,7 +1,5 @@
 package upgrade
 
-import fmt "fmt"
-
 type Schedule []Plan
 
 type Plan struct {
@@ -25,58 +23,18 @@ func (k Keeper) ShouldProposeUpgrade(chainID string, height int64) (uint64, bool
 	return 0, false
 }
 
-func (s Schedule) ValidateBasic() error {
-	lastHeight := 0
-	lastVersion := uint64(0)
-	for idx, plan := range s {
-		if err := plan.ValidateBasic(); err != nil {
-			return fmt.Errorf("plan %d: %w", idx, err)
-		}
-		if plan.Start <= int64(lastHeight) {
-			return fmt.Errorf("plan %d: start height must be greater than %d, got %d", idx, lastHeight, plan.Start)
-		}
-		if plan.Version <= lastVersion {
-			return fmt.Errorf("plan %d: version must be greater than %d, got %d", idx, lastVersion, plan.Version)
-		}
-		lastHeight = int(plan.End)
-		lastVersion = plan.Version
-	}
-	return nil
+func (k *Keeper) PrepareUpgradeAtEndBlock(version uint64) {
+	k.pendingAppVersion = version
 }
 
-func (s Schedule) ShouldProposeUpgrade(height int64) (uint64, bool) {
-	for _, plan := range s {
-		if height >= plan.Start-1 && height < plan.End {
-			return plan.Version, true
-		}
-	}
-	return 0, false
+func (k *Keeper) ShouldUpgrade() bool {
+	return k.pendingAppVersion != 0
 }
 
-func (p Plan) ValidateBasic() error {
-	if p.Start < 1 {
-		return fmt.Errorf("plan start height cannot be negative or zero: %d", p.Start)
-	}
-	if p.End < 1 {
-		return fmt.Errorf("plan end height cannot be negative or zero: %d", p.End)
-	}
-	if p.Start >= p.End {
-		return fmt.Errorf("plan end height must be greater than start height: %d >= %d", p.Start, p.End)
-	}
-	if p.Version == 0 {
-		return fmt.Errorf("plan version cannot be zero")
-	}
-	return nil
+func (k Keeper) GetNextAppVersion() uint64 {
+	return k.pendingAppVersion
 }
 
-func NewSchedule(plans ...Plan) Schedule {
-	return plans
-}
-
-func NewPlan(startHeight, endHeight int64, version uint64) Plan {
-	return Plan{
-		Start:   startHeight,
-		End:     endHeight,
-		Version: version,
-	}
+func (k *Keeper) MarkUpgradeComplete() {
+	k.pendingAppVersion = 0
 }

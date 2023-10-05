@@ -1,6 +1,8 @@
 package upgrade
 
 import (
+	fmt "fmt"
+
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -17,12 +19,20 @@ type Keeper struct {
 	// in memory copy of the upgrade schedule if any. This is local per node
 	// and configured from the config.
 	upgradeSchedule map[string]Schedule
+
+	// the app version that should be set in end blocker
+	pendingAppVersion uint64
 }
 
 type VersionSetter func(version uint64)
 
 // NewKeeper constructs an upgrade keeper
 func NewKeeper(storeKey storetypes.StoreKey, upgradeSchedule map[string]Schedule) Keeper {
+	for chainID, schedule := range upgradeSchedule {
+		if err := schedule.ValidateBasic(); err != nil {
+			panic(fmt.Sprintf("invalid schedule %s: %v", chainID, err))
+		}
+	}
 	return Keeper{
 		storeKey:        storeKey,
 		upgradeSchedule: upgradeSchedule,

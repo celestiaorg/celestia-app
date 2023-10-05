@@ -14,7 +14,7 @@ func (app *App) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
 			if !IsSupported(appVersion) {
 				panic(fmt.Sprintf("network has upgraded to version %d which is not supported by this node. Please upgrade and restart", appVersion))
 			}
-			app.SetProtocolVersion(appVersion)
+			app.UpgradeKeeper.PrepareUpgradeAtEndBlock(appVersion)
 			// TODO: we may want to emit an event for this
 			return abci.ResponseDeliverTx{Code: abci.CodeTypeOK}
 		}

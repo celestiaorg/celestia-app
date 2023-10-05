@@ -66,8 +66,9 @@ func TestUpgradeAppVersion(t *testing.T) {
 		BlockDataSize: 1e6,
 	})
 
+	// At the height before the first height in the upgrade plan, the
+	// node should prepend a signal upgrade message.
 	require.Len(t, resp.BlockData.Txs, 1)
-
 	tx, err := encCfg.TxConfig.TxDecoder()(resp.BlockData.Txs[0])
 	require.NoError(t, err)
 	require.Len(t, tx.GetMsgs(), 1)
@@ -87,6 +88,39 @@ func TestUpgradeAppVersion(t *testing.T) {
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: 2}})
 	respDeliverTx := testApp.DeliverTx(abci.RequestDeliverTx{Tx: resp.BlockData.Txs[0]})
 	require.EqualValues(t, 0, respDeliverTx.Code, respDeliverTx.Log)
+	// app version should not have changed yet
+	require.EqualValues(t, 1, testApp.AppVersion())
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	// now the app version changes
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
+	require.EqualValues(t, 2, testApp.AppVersion())
+
+	_ = testApp.Commit()
+
+	// If another node proposes a block with a version change that is
+	// not supported by the nodes own state machine then the node
+	// rejects the proposed block
+	upgradeTx, err := upgrade.NewMsgVersionChange(encCfg.TxConfig, 3)
+	require.NoError(t, err)
+	respProcessProposal := testApp.ProcessProposal(abci.RequestProcessProposal{
+		Header: tmproto.Header{
+			Height: 3,
+		},
+		BlockData: &tmproto.Data{
+			Txs: [][]byte{upgradeTx},
+		},
+	})
+	require.True(t, respProcessProposal.IsRejected())
+
+	// if we ask the application to prepare another proposal
+	// it will not add the upgrade signal message even though
+	// its within the range of the plan because the application
+	// has already upgraded to that height
+	respPrepareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
+		Height:        3,
+		ChainId:       chainID,
+		BlockData:     &tmproto.Data{},
+		BlockDataSize: 1e6,
+	})
+	require.Len(t, respPrepareProposal.BlockData.Txs, 0)
 }

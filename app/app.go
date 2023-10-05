@@ -85,8 +85,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -172,21 +170,7 @@ var (
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	}
-
-	// versions that the current state machine supports
-	supportedVersions = []uint64{v1.Version, v2.Version}
-
-	DefaultInitialVersion = v1.Version
 )
-
-func IsSupported(version uint64) bool {
-	for _, v := range supportedVersions {
-		if v == version {
-			return true
-		}
-	}
-	return false
-}
 
 var _ servertypes.Application = (*App)(nil)
 
@@ -249,6 +233,9 @@ type App struct {
 
 	// the module manager
 	mm *module.Manager
+
+	// module configurator
+	configurator module.Configurator
 }
 
 // New returns a reference to an initialized celestia app.
@@ -263,6 +250,12 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	for _, schedule := range upgradeSchedule {
+		if err := schedule.ValidateVersions(supportedVersions); err != nil {
+			panic(err)
+		}
+	}
+
 	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
@@ -535,8 +528,8 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
-	configurator := module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.mm.RegisterServices(configurator)
+	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	app.mm.RegisterServices(app.configurator)
 
 	// initialize stores
 	app.MountKVStores(keys)
@@ -580,7 +573,17 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	res := app.mm.EndBlock(ctx, req)
+	if app.UpgradeKeeper.ShouldUpgrade() {
+		newAppVersion := app.UpgradeKeeper.GetNextAppVersion()
+		app.SetProtocolVersion(newAppVersion)
+		_, err := app.mm.RunMigrations(ctx, app.configurator, GetModuleVersion(newAppVersion))
+		if err != nil {
+			panic(err)
+		}
+		app.UpgradeKeeper.MarkUpgradeComplete()
+	}
+	return res
 }
 
 // InitChainer application update at chain initialization
@@ -589,7 +592,9 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	app.SetProtocolVersion(req.ConsensusParams.Version.AppVersion)
+	if req.ConsensusParams != nil && req.ConsensusParams.Version != nil {
+		app.SetProtocolVersion(req.ConsensusParams.Version.AppVersion)
+	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
