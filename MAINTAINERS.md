@@ -4,7 +4,7 @@ This page includes information for maintainers of this repo.
 
 ## How to manually generate the binaries for a Github release
 
-The binaries for the Github release are generated using [GoReleaser](https://goreleaser.com/). The Github workflow [ci-release.yml](./.github/workflows/ci-release.yml) should automatically create pre-build binaries and attach them to the release.
+The binaries for the Github release are generated using [GoReleaser](https://goreleaser.com/). The Github workflow [ci-release.yml](./.github/workflows/ci-release.yml) should automatically create pre-built binaries and attach them to the release.
 
 > **NOTE** Due to `goreleaser`'s CGO limitations, cross-compiling the binary does not work. So the binaries must be built on the target platform. This means that the release process must be done on a Linux amd64 machine.
 
