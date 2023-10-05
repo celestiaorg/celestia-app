@@ -1,6 +1,9 @@
 #!/bin/bash
 
-KEYS_DIR="./keys"
+# DIR is the directory of this script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# KEYS_DIR is the directory of the keys
+KEYS_DIR="$DIR/keys"
 
 echo "Importing the public keys in $KEYS_DIR"
 
@@ -11,6 +14,7 @@ for key in "$KEYS_DIR"/*; do
         # Import the key
         echo "Importing $key"
         gpg --import "$key"
+        echo "Imported $key"
     fi
 done
 
