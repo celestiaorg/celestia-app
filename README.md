@@ -48,10 +48,28 @@ node            |  |                               |  |
 
 ### Pre-built binary
 
-If you'd rather not install from source, you can download a pre-built binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page. Note that if you use a pre-built binary, you should verify the checksums and signatures.
+If you'd rather not install from source, you can download a pre-built binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
-1. Download `checksums.txt`, `checksums.txt.sig`, and the binary (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section.
+1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section.
+1. Extract the archive
+
+    ```shell
+    tar -xvf celestia-app_Linux_x86_64.tar.gz
+    ```
+
+1. Verify the extracted binary works
+
+    ```shell
+    ./celestia-appd --help
+    ```
+
+#### Optional: Verify the pre-built binary checksums and signatures
+
+If you use a pre-built binary, you may also want to verify the checksums and signatures.
+
+1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
+1. Download `checksums.txt`, `checksums.txt.sig`, and the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section.
 1. Verify the checksums
 
     ```shell
@@ -64,17 +82,11 @@ If you'd rather not install from source, you can download a pre-built binary fro
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-1. Import the celestia-app maintainer's public key
+1. Clone this repo
+1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
 
     ```shell
-    curl -X GET https://raw.githubusercontent.com/celestiaorg/celestia-app/main/public-key.asc > public-key.asc
-    gpg --import public-key.asc
-    ```
-
-1. Verify the signature
-
-    ```shell
-    gpg --verify checksums.txt.sig checksums.txt
+    ./scripts/signing/verify-signature.sh checksums.txt.sig checksums.txt
     ```
 
     You should see output like this:
