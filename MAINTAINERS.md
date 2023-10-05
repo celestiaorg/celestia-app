@@ -29,6 +29,10 @@ build
     └── metadata.json
 ```
 
-For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files.
+For the Github release, you need to upload the following files:
 
-> **NOTE** Since you built the binaries manually, the checksums.txt won't automatically be signed with the GPG key associated with celestia-app-maintainers so there won't be a `checksums.txt.sig` to upload.
+- `checksums.txt`
+- `checksums.txt.sig`
+- `celestia-app_Linux_x86_64.tar.gz`
+
+> **NOTE** If you are generating and signing the release binaries locally, your public key must be one of the available keys for verification. Add your key to the list of keys in <TODO>
