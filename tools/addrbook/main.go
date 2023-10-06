@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 type Address struct {
@@ -15,8 +16,14 @@ type Address struct {
 }
 
 type Entry struct {
-	Addr Address `json:"addr"`
-	Src  Address `json:"src"`
+	Addr        Address   `json:"addr"`
+	Src         Address   `json:"src"`
+	Buckets     []int     `json:"buckets"`
+	Attempts    int32     `json:"attempts"`
+	BucketType  byte      `json:"bucket_type"`
+	LastAttempt time.Time `json:"last_attempt"`
+	LastSuccess time.Time `json:"last_success"`
+	LastBanTime time.Time `json:"last_ban_time"`
 }
 
 type Output struct {
