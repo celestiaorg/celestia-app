@@ -12,7 +12,7 @@
 				"ip": "64.227.18.169",
 				"port": 26656
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -30,7 +30,7 @@
 				"ip": "141.94.73.39",
 				"port": 43656
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -48,7 +48,7 @@
 				"ip": "88.99.219.120",
 				"port": 43656
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -66,7 +66,7 @@
 				"ip": "65.109.92.79",
 				"port": 11656
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -84,7 +84,7 @@
 				"ip": "65.108.66.220",
 				"port": 26656
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -102,7 +102,7 @@
 				"ip": "173.249.24.244",
 				"port": 20279
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -120,7 +120,7 @@
 				"ip": "65.108.231.124",
 				"port": 11656
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",
@@ -138,7 +138,7 @@
 				"ip": "185.225.232.196",
 				"port": 443
 			},
-			"buckets": null,
+			"buckets": [],
 			"attempts": 0,
 			"bucket_type": 0,
 			"last_attempt": "0001-01-01T00:00:00Z",

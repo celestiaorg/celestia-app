@@ -62,8 +62,9 @@ func main() {
 		}
 
 		entry := Entry{
-			Addr: addr,
-			Src:  addr,
+			Addr:    addr,
+			Src:     addr,
+			Buckets: []int{},
 		}
 
 		addrs = append(addrs, entry)
