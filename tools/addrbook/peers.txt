@@ -1,0 +1,4 @@
+34499b1ac473fbb03894c883178ecc83f0d6eaf6@64.227.18.169:26656
+43e9da043318a4ea0141259c17fcb06ecff816af@rpc-1.celestia.nodes.guru:43656
+f9e950870eccdb40e2386896d7b6a7687a103c99@rpc-2.celestia.nodes.guru:43656
+daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656
