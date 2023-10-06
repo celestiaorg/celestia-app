@@ -105,7 +105,7 @@ test:
 ## test-short: Run unit tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
-	@go test ./... -short
+	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
 ## test-race: Run unit tests in race mode.
