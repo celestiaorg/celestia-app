@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 )
@@ -39,8 +40,13 @@ func main() {
 		parts := strings.Split(line, "@")
 		id := parts[0]
 		ipPort := strings.Split(parts[1], ":")
-		ip := ipPort[0]
+		domain := ipPort[0]
 		port := ipPort[1]
+
+		ip, err := resolveDomain(domain)
+		if err != nil {
+			panic(err)
+		}
 
 		addr := Address{
 			ID:   id,
@@ -71,6 +77,17 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("Conversion completed. Check addrbook.json.")
+}
+
+func resolveDomain(domain string) (string, error) {
+	addresses, err := net.LookupHost(domain)
+	if err != nil {
+		return "", err
+	}
+	if len(addresses) == 0 {
+		return "", fmt.Errorf("no IP found for domain: %s", domain)
+	}
+	return addresses[0], nil // use the first IP found
 }
 
 func stringToInt(s string) int {
