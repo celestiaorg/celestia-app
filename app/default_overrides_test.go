@@ -1,8 +1,8 @@
 package app
 
 import (
-	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -10,24 +10,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Test_newGovModule tests that the default genesis state for the gov module
-// uses the utia denominiation.
+// Test_newGovModule verifies that the gov module's genesis state has defaults
+// overridden.
 func Test_newGovModule(t *testing.T) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
+	day := time.Duration(time.Hour * 24)
+	oneWeek := day * 7
+	twoWeeks := oneWeek * 2
 
 	govModule := newGovModule()
 	raw := govModule.DefaultGenesis(encCfg.Codec)
 	govGenesisState := govtypes.GenesisState{}
 
-	// HACKHACK explicitly ignore the error returned from json.Unmarshal because
-	// the error is a failure to unmarshal the string StartingProposalId as a
-	// uint which is unrelated to the test here.
-	_ = json.Unmarshal(raw, &govGenesisState)
+	encCfg.Codec.MustUnmarshalJSON(raw, &govGenesisState)
 
 	want := []types.Coin{{
 		Denom:  BondDenom,
-		Amount: types.NewInt(10000000),
+		Amount: types.NewInt(1000000000),
 	}}
 
 	assert.Equal(t, want, govGenesisState.DepositParams.MinDeposit)
+	assert.Equal(t, oneWeek, *govGenesisState.DepositParams.MaxDepositPeriod)
+	assert.Equal(t, twoWeeks, *govGenesisState.VotingParams.VotingPeriod)
 }

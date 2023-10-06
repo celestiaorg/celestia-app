@@ -11,10 +11,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
-ldflags += $(LDFLAGS)
 
-BUILD_FLAGS := -ldflags '$(ldflags)'
+BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -27,7 +25,6 @@ build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@go mod tidy
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
@@ -114,7 +111,7 @@ test-short:
 ## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
-	@VERSION=$(VERSION) go test -race -short ./...
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -134,3 +131,20 @@ adr-gen:
 	@echo "--> Downloading ADR template"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
+
+## goreleaser: List Goreleaser commands and checks if GoReleaser is installed.
+goreleaser: Makefile
+	@echo " Choose a goreleaser command to run:"
+	@sed -n 's/^## goreleaser/goreleaser/p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@goreleaser --version
+.PHONY: goreleaser
+
+## goreleaser-build: Builds the celestia-appd binary using GoReleaser for your local OS.
+goreleaser-build:
+	goreleaser build --snapshot --clean --single-target
+.PHONY: goreleaser-build
+
+## goreleaser-release: Builds the release celestia-appd binary as defined in .goreleaser.yaml. This requires there be a git tag for the release in the local git history.
+goreleaser-release:
+	goreleaser release --clean --fail-fast --skip-publish
+.PHONY: goreleaser-release

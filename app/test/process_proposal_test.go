@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
@@ -300,9 +301,14 @@ func TestProcessProposal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			height := testApp.LastBlockHeight() + 1
+			blockTime := time.Now()
+
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: tt.input,
 				ChainId:   testutil.ChainID,
+				Height:    height,
+				Time:      blockTime,
 			})
 			require.Equal(t, len(tt.input.Txs), len(resp.BlockData.Txs))
 			tt.mutator(resp.BlockData)

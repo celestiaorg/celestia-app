@@ -1,10 +1,13 @@
 package app
 
 import (
+	"time"
+
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -16,9 +19,14 @@ import (
 // tendermint via the BlockData. Panics indicate a developer error and should
 // immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
-	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
+	sdkCtx := app.NewProposalContext(core.Header{
+		ChainID: req.ChainId,
+		Height:  req.Height,
+		Time:    req.Time,
+	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
@@ -32,7 +40,34 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 	)
-	txs := FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+
+	var txs [][]byte
+	// This if statement verifies whether the preparation of the proposal
+	// pertains to the first block. If it does, the block is constructed using
+	// an empty set of transactions. However, even without this validation,
+	// the initial block is anticipated to be devoid of transactions, as
+	// established by the findings presented in
+	// https://github.com/celestiaorg/celestia-app/issues/1899;
+	// The inclusion of this check is out of an abundance of caution.
+	// The rationale behind having an empty first block revolves around the fact
+	// that no transactions can enter the mempool since no committed state exists
+	// until after the first block is committed (at which point the Genesis state
+	// gets committed too). Consequently, the prepare proposal request for the
+	// first block is expected to contain no transaction, so is the first block.
+	if app.LastBlockHeight() == 0 {
+		txs = make([][]byte, 0)
+		if len(req.BlockData.Txs) != 0 {
+			// if the consensus layer sends non-empty set of transactions for
+			// block height 1, log it
+			app.Logger().Info(
+				"non-empty txs received from the consensus layer for block height 1",
+				"numberOfTransactions",
+				len(req.BlockData.Txs),
+			)
+		}
+	} else {
+		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	}
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block

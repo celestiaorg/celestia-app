@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
@@ -15,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	"github.com/tendermint/tendermint/cmd/cometbft/commands"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -36,7 +35,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	tmcfg "github.com/tendermint/tendermint/config"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -83,22 +81,13 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			// Override the default tendermint config for celestia-app
-			tmCfg := tmcfg.DefaultConfig()
+			var (
+				tmCfg       = app.DefaultConsensusConfig()
+				appConfig   = app.DefaultAppConfig()
+				appTemplate = serverconfig.DefaultConfigTemplate
+			)
 
-			// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
-			// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
-			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
-			tmCfg.Mempool.TTLNumBlocks = 10
-			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
-			tmCfg.Mempool.Version = "v1"               // prioritized mempool
-			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
-			tmCfg.Consensus.SkipTimeoutCommit = false
-
-			customAppTemplate, customAppConfig := initAppConfig()
-
-			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			err = server.InterceptConfigsPreRunHandler(cmd, appTemplate, appConfig, tmCfg)
 			if err != nil {
 				return err
 			}
@@ -122,33 +111,6 @@ func NewRootCmd() *cobra.Command {
 	return rootCmd
 }
 
-// initAppConfig helps to override default appConfig template and configs.
-// return "", nil if no custom configuration is required for the application.
-func initAppConfig() (string, interface{}) {
-	type CustomAppConfig struct {
-		serverconfig.Config
-	}
-
-	// Optionally allow the chain developer to overwrite the SDK's default
-	// server config.
-	srvCfg := serverconfig.DefaultConfig()
-	srvCfg.API.Enable = true
-
-	// the default snapshot interval was determined by picking a large enough
-	// value as to not dramatically increase resource requirements while also
-	// being greater than zero so that there are more nodes that will serve
-	// snapshots to nodes that state sync
-	srvCfg.StateSync.SnapshotInterval = 1500
-	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom)
-
-	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
-
-	CelestiaAppTemplate := serverconfig.DefaultConfigTemplate
-
-	return CelestiaAppTemplate, CelestiaAppCfg
-}
-
 func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
@@ -165,6 +127,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		tmcli.NewCompletionCmd(rootCmd, true),
 		debugCmd,
 		config.Cmd(),
+		commands.CompactGoLevelDBCmd,
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)

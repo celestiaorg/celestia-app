@@ -12,7 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/v2/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -280,7 +280,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	}
 	defer ethClient.Close()
 
-	qgbWrapper, err := wrapper.NewQuantumGravityBridge(config.ContractAddr, ethClient)
+	qgbWrapper, err := wrapper.NewWrappers(config.ContractAddr, ethClient)
 	if err != nil {
 		return false, err
 	}
@@ -309,7 +309,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 func VerifyDataRootInclusion(
 	_ context.Context,
-	qgbWrapper *wrapper.QuantumGravityBridge,
+	qgbWrapper *wrapper.Wrappers,
 	nonce uint64,
 	height uint64,
 	dataRoot []byte,
