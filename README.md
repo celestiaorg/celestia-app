@@ -82,11 +82,11 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-1. Clone this repo
-1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
+1. Download the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
+1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script
 
     ```shell
-    ./scripts/signing/verify-signature.sh checksums.txt.sig checksums.txt
+    ./verify-signature.sh checksums.txt.sig checksums.txt
     ```
 
     You should see output like this:
