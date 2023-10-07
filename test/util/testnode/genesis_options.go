@@ -34,7 +34,7 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) GenesisOption {
 func ImmediateProposals(codec codec.Codec) GenesisOption {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		gs := v1.DefaultGenesisState()
-		gs.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
+		gs.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))
 		gs.TallyParams.Quorum = "0.000001"
 		gs.TallyParams.Threshold = "0.000001"
 		vp := time.Second * 5
