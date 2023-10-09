@@ -23,7 +23,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// Params represent the Quantum Gravity Bridge genesis and store parameters.
+// Params represent the BlobStream genesis and store parameters.
 type Params struct {
 	DataCommitmentWindow uint64 `protobuf:"varint,1,opt,name=data_commitment_window,json=dataCommitmentWindow,proto3" json:"data_commitment_window,omitempty"`
 }
