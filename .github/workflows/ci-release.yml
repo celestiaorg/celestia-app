@@ -71,11 +71,19 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: 1.21.1
-      # Generate the binaries and release
-      - uses: goreleaser/goreleaser-action@v5
+      # Import the GPG key from Github secrets to sign the binaries
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: ${{ secrets.GPG_SIGNING_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      # Generate the binaries, release, and sign the checksum
+      - uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
           version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
