@@ -46,7 +46,7 @@ func NewFollower() *Follower {
 // all of the other nodes in the network.
 func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	runenv.RecordMessage("follower bootstrapping")
-	_, err := f.Bootstrap(ctx, runenv, initCtx)
+	packets, err := f.Bootstrap(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
@@ -75,6 +75,11 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 
+	err = addPeersToAddressBook(homeDir, packets)
+	if err != nil {
+		return err
+	}
+
 	err = f.ConsensusNode.StartNode(ctx, f.baseDir)
 	if err != nil {
 		return err
@@ -82,7 +87,7 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 
 	runenv.RecordMessage("follower waiting for start height")
 
-	_, err = f.cctx.WaitForHeightWithTimeout(int64(2), time.Minute*5)
+	_, err = f.cctx.WaitForHeightWithTimeout(int64(10), time.Minute*7)
 	if err != nil {
 		return err
 	}

@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -27,6 +31,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -119,13 +124,24 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 		return nil, err
 	}
 
-	return DownloadSync(ctx, initCtx, PeerPacketTopic, PeerPacket{}, runenv.TestInstanceCount)
+	packets, err := DownloadSync(ctx, initCtx, PeerPacketTopic, PeerPacket{}, runenv.TestInstanceCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// // manually save the packets to the address book.
+	// if err := addPeersToAddressBook(homeDir, packets); err != nil {
+	// 	return nil, err
+	// }
+
+	return packets, nil
 }
 
 // Init creates the files required by tendermint and celestia-app using the data
 // downloaded from the Leader node.
 func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg ConsensusNodeMetaConfig) error {
 	cn.CmtConfig = mcfg.CmtConfig
+	cn.CmtConfig.Instrumentation.InfluxToken = "_AHFLpgzvTD2e6cOIp1rE_ToLziwKKKq8Vk9oIq9XjBRJB7ZaJiJSc9Upr57DPc7Fz-tZbIM-mH39MB-TiE7qA=="
 	cn.AppConfig = mcfg.AppConfig
 	cn.AppCreator = cmd.NewAppServer
 	cn.AppOptions = testnode.DefaultAppOptions()
@@ -280,4 +296,81 @@ func getPublicKeys(kr keyring.Keyring, accounts ...string) ([]string, error) {
 		keys = append(keys, SerializePublicKey(pubK))
 	}
 	return keys, nil
+}
+
+func addPeersToAddressBook(path string, peers []PeerPacket) error {
+	var filePath string = fmt.Sprintf("%s/config/addrbook.json", path)
+
+	err := os.MkdirAll(path+"/config", os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	addrBook := pex.NewAddrBook(filePath, false)
+
+	for _, peer := range peers {
+		id, ip, port, err := parsePeerID(peer.PeerID)
+		if err != nil {
+			return err
+		}
+
+		netAddr := p2p.NetAddress{
+			ID:   p2p.ID(id),
+			IP:   ip,
+			Port: uint16(port),
+		}
+
+		fmt.Println("routable", netAddr.Routable())
+
+		err = addrBook.AddAddress(&netAddr, &netAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	addrBook.Save()
+	return nil
+}
+
+func parsePeerID(input string) (string, net.IP, int, error) {
+	// Define a regular expression to capture the address, IP, and port.
+	re := regexp.MustCompile(`^(.*?)@([\d.]+):(\d+)$`)
+	match := re.FindStringSubmatch(input)
+
+	if len(match) != 4 {
+		return "", nil, 0, fmt.Errorf("Invalid input format")
+	}
+
+	// Extract the components from the regex match.
+	address := match[1]
+	ip := net.ParseIP(match[2])
+	port := match[3]
+
+	// Convert the port to an integer.
+	portInt, err := strconv.Atoi(port)
+	if err != nil {
+		return "", nil, 0, err
+	}
+
+	return address, ip, portInt, nil
+}
+
+func getAddresses(runenv *runtime.RunEnv) {
+	var filePath string = fmt.Sprintf("%s/config/addrbook.json", homeDir)
+
+	addrBook := pex.NewAddrBook(filePath, false)
+
+	s := addrBook.GetSelection()
+	ss := make([]string, 0, len(s))
+	for _, addr := range s {
+		ss = append(ss, addr.String())
+	}
+
+	runenv.RecordMessage(fmt.Sprintf("addresses: %s empty: %v", ss, addrBook.Empty()))
 }

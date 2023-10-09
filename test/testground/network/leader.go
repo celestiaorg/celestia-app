@@ -80,6 +80,13 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
+	err = addPeersToAddressBook(homeDir, packets)
+	if err != nil {
+		return err
+	}
+
+	getAddresses(runenv)
+
 	err = l.ConsensusNode.StartNode(ctx, l.baseDir)
 	if err != nil {
 		return err
@@ -87,7 +94,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	runenv.RecordMessage("waiting for initial height")
 
-	_, err = l.cctx.WaitForHeightWithTimeout(int64(2), time.Minute*5)
+	_, err = l.cctx.WaitForHeightWithTimeout(int64(10), time.Minute*7)
 	if err != nil {
 		return err
 	}
@@ -107,7 +114,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	size := runenv.IntParam(BlobSizesParam)
 	count := runenv.IntParam(BlobsPerSeqParam)
 
-	cmd := NewRunTxSimCommand("txsim-0", time.Minute*5, RunTxSimCommandArgs{
+	cmd := NewRunTxSimCommand("txsim-0", time.Minute*10, RunTxSimCommandArgs{
 		BlobSequences: seqs,
 		BlobSize:      size,
 		BlobCount:     count,
@@ -168,7 +175,7 @@ func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []Pee
 		}
 		pubKeys = append(pubKeys, pks...)
 		addrs = append(addrs, packet.GenesisAccounts...)
-		if packet.GenTx != nil {
+		if packet.GroupID == ValidatorGroupID {
 			gentxs = append(gentxs, packet.GenTx)
 		}
 

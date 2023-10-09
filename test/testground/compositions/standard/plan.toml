@@ -5,36 +5,35 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 6
+total_instances = 40
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "testground-1"
+chain_id = "testground-1GB-10MB-Square256-random-10"
 timeout = "25m"
 halt_height = "40"
 latency = "0"
 bandwidth = "1Gib"
-validators = "5"
-topology = "seed"
+validators = "40"
+topology = "connect_random"
 pex = "true"
-timeout_propose = "30s"
+timeout_propose = "120s"
 timeout_commit = "3s"
-per_peer_bandwidth = "100Mib"
-blob_sequences = "20"
+per_peer_bandwidth = "10Mib"
+blob_sequences = "8"
 blob_sizes = "100000"
-blobs_per_sequence = "100"
-inbound_peer_count = "40"
+blobs_per_sequence = "4"
+inbound_peer_count = "20"
 outbound_peer_count = "10"
 gov_max_square_size = "512"
-max_block_bytes = "134000000"
+max_block_bytes = "64000000"
 mempool = "v1"
-broadcast_txs = "false"
-
-tracing_nodes = "2"
-tracing_url = "http://167.99.237.127:8086/"
-tracing_token = "mduhuxWr4Wnp5PdSHafqBhEIsLnDT9mE8ZX90n6SEw2tflpzjsYni5OwqvHm3fNDSJd-jXY89jqpJ2kC2Y8HpQ=="
+broadcast_txs = "true"
+tracing_nodes = "4"
+tracing_token = ""
+tracing_url = ""
 
 [[groups]]
 id = "validators"
@@ -43,25 +42,7 @@ builder = "docker:generic"
 memory = "8Gi"
 cpu = "6"
 [groups.instances]
-count = 5
-percentage = 0.0
-[groups.build_config]
-build_base_image = "golang:1.21.0"
-enable_go_build_cache = true
-enabled = true
-go_version = "1.21"
-[groups.build]
-[groups.run]
-artifact = ""
-
-[[groups]]
-id = "seeds"
-builder = "docker:generic"
-[groups.resources]
-memory = "8Gi"
-cpu = "6"
-[groups.instances]
-count = 1
+count = 40
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.0"

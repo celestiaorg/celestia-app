@@ -3,10 +3,12 @@ package network
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -78,4 +80,26 @@ func TestOperator_Stop(t *testing.T) {
 	if len(op.jobs) != 0 {
 		t.Errorf("All jobs should be canceled")
 	}
+}
+
+func TestAddrBookLoading(t *testing.T) {
+	peerPacket := PeerPacket{
+		GroupID:        "seeds",
+		GlobalSequence: 4,
+		PeerID:         "ad54e978933b00105c3615e65e6a27c5d27bdb29@192.168.0.15:26656",
+	}
+	temp := t.TempDir()
+
+	err := addPeersToAddressBook(temp, []PeerPacket{peerPacket})
+	require.NoError(t, err)
+
+	addrBook := pex.NewAddrBook(temp+"/addrbook.json", false)
+	addrBook.OnStart()
+	s := addrBook.GetSelection()
+	ss := make([]string, 0, len(s))
+	for _, addr := range s {
+		ss = append(ss, addr.String())
+	}
+
+	fmt.Println(ss, addrBook.Empty())
 }

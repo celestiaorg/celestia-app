@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -72,10 +73,36 @@ type TracingParams struct {
 }
 
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
+	strnodes, ok := runenv.TestInstanceParams[TracingNodesParam]
+	if !ok {
+		runenv.RecordMessage("tracing nodes param not set")
+		strnodes = "2"
+	}
+	nodes, err := strconv.Atoi(strnodes)
+	if err != nil {
+		runenv.RecordMessage("failure to convert a string")
+		nodes = 2
+	}
+	url, ok := runenv.TestInstanceParams[TracingUrlParam]
+	if !ok {
+		runenv.RecordMessage("tracing url param not set")
+		url = "http://167.99.237.127:8086/"
+	}
+	token, ok := runenv.TestInstanceParams[TracingTokenParam]
+	if !ok {
+		runenv.RecordMessage("tracing token param not set")
+		token = "m_AHFLpgzvTD2e6cOIp1rE_ToLziwKKKq8Vk9oIq9XjBRJB7ZaJiJSc9Upr57DPc7Fz-tZbIM-mH39MB-TiE7qA==" //nolint:lll
+	}
+
+	// return TracingParams{
+	// 	Nodes: runenv.IntParam(TracingNodesParam),
+	// 	Url:   runenv.StringParam(TracingUrlParam),
+	// 	Token: runenv.StringParam(TracingTokenParam),
+	// }
 	return TracingParams{
-		Nodes: runenv.IntParam(TracingNodesParam),
-		Url:   runenv.StringParam(TracingUrlParam),
-		Token: runenv.StringParam(TracingTokenParam),
+		Nodes: nodes,
+		Url:   url,
+		Token: token,
 	}
 }
 
@@ -160,6 +187,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.P2P.PexReactor = params.Pex
 	cmtcfg.P2P.SendRate = int64(params.PerPeerBandwidth)
 	cmtcfg.P2P.RecvRate = int64(params.PerPeerBandwidth)
+	cmtcfg.P2P.AddrBookStrict = false
 	cmtcfg.Consensus.TimeoutCommit = params.TimeoutCommit
 	cmtcfg.Consensus.TimeoutPropose = params.TimeoutPropose
 	cmtcfg.TxIndex.Indexer = "kv"
