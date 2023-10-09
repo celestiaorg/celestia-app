@@ -60,7 +60,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts[i] = tmrand.Str(20)
 	}
 
-	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
@@ -249,7 +249,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			"medium random with timeout height",
 			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
 			[]user.TxOption{
-				user.SetTimeoutHeight(1000),
+				user.SetTimeoutHeight(10000),
 				user.SetGasLimit(1_000_000_000),
 			},
 		},

@@ -16,7 +16,7 @@ import (
 type Testnet struct {
 	seed            int64
 	nodes           []*Node
-	genesisAccounts []*GenesisAccount
+	genesisAccounts []*Account
 	keygen          *keyGenerator
 }
 
@@ -29,7 +29,7 @@ func New(name string, seed int64) (*Testnet, error) {
 	return &Testnet{
 		seed:            seed,
 		nodes:           make([]*Node, 0),
-		genesisAccounts: make([]*GenesisAccount, 0),
+		genesisAccounts: make([]*Account, 0),
 		keygen:          newKeyGenerator(seed),
 	}, nil
 }
@@ -67,7 +67,7 @@ func (t *Testnet) CreateNode(version string, startHeight int64) error {
 	return nil
 }
 
-func (t *Testnet) CreateGenesisAccount(name string, tokens int64) (keyring.Keyring, error) {
+func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, error) {
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kr := keyring.NewInMemory(cdc)
 	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
@@ -78,7 +78,7 @@ func (t *Testnet) CreateGenesisAccount(name string, tokens int64) (keyring.Keyri
 	if err != nil {
 		return nil, err
 	}
-	t.genesisAccounts = append(t.genesisAccounts, &GenesisAccount{
+	t.genesisAccounts = append(t.genesisAccounts, &Account{
 		PubKey:        pk,
 		InitialTokens: tokens,
 	})

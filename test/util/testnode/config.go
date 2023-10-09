@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -15,33 +16,27 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+const (
+	DefaultValidatorAccountName = "validator"
+)
+
 // Config is the configuration of a test node.
 type Config struct {
-	// ChainID is the chain ID of the network.
-	ChainID string
-	// GenesisTime is the genesis block time of the network.
-	GenesisTime time.Time
+	Genesis *genesis.Genesis
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
 	AppConfig *srvconfig.Config
-	// ConsensusParams are the consensus parameters of the test node.
-	ConsensusParams *tmproto.ConsensusParams
 	// AppOptions are the application options of the test node.
 	AppOptions *KVAppOptions
-	// GenesisOptions are the genesis options of the test node.
-	GenesisOptions []GenesisOption
-	// Accounts are the accounts of the test node.
-	Accounts []string
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
 	// SupressLogs
 	SupressLogs bool
 }
 
-// WithChainID sets the ChainID and returns the Config.
-func (c *Config) WithChainID(s string) *Config {
-	c.ChainID = s
+func (c *Config) WithGenesis(g *genesis.Genesis) *Config {
+	c.Genesis = g
 	return c
 }
 
@@ -57,27 +52,9 @@ func (c *Config) WithAppConfig(conf *srvconfig.Config) *Config {
 	return c
 }
 
-// WithConsensusParams sets the ConsensusParams and returns the Config.
-func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
-	c.ConsensusParams = params
-	return c
-}
-
 // WithAppOptions sets the AppOptions and returns the Config.
 func (c *Config) WithAppOptions(opts *KVAppOptions) *Config {
 	c.AppOptions = opts
-	return c
-}
-
-// WithGenesisOptions sets the GenesisOptions and returns the Config.
-func (c *Config) WithGenesisOptions(opts ...GenesisOption) *Config {
-	c.GenesisOptions = opts
-	return c
-}
-
-// WithAccounts sets the Accounts and returns the Config.
-func (c *Config) WithAccounts(accs []string) *Config {
-	c.Accounts = accs
 	return c
 }
 
@@ -93,15 +70,41 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
-// WithGensisTime sets the GenesisTime and returns the Config.
-func (c *Config) WithGensisTime(t time.Time) *Config {
-	c.GenesisTime = t
-	return c
-}
-
 // WithTimeoutCommit sets the CommitTimeout and returns the Config.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
+// WithFundedAccounts sets the genesis accounts and returns the Config.
+func (c *Config) WithFundedAccounts(accounts ...string) *Config {
+	c.Genesis = c.Genesis.WithAccounts(
+		genesis.NewAccounts(999999999999999999, accounts...)...,
+	)
+	return c
+}
+
+// WithModifiers sets the genesis options and returns the Config.
+func (c *Config) WithModifiers(ops ...genesis.Modifier) *Config {
+	c.Genesis = c.Genesis.WithModifiers(ops...)
+	return c
+}
+
+// WithGenesisTime sets the genesis time and returns the Config.
+func (c *Config) WithGenesisTime(t time.Time) *Config {
+	c.Genesis = c.Genesis.WithGenesisTime(t)
+	return c
+}
+
+// WithChainID sets the chain ID and returns the Config.
+func (c *Config) WithChainID(id string) *Config {
+	c.Genesis = c.Genesis.WithChainID(id)
+	return c
+}
+
+// WithConsensusParams sets the consensus params and returns the Config.
+func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
+	c.Genesis = c.Genesis.WithConsensusParams(params)
 	return c
 }
 
@@ -110,14 +113,17 @@ func DefaultConfig() *Config {
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
-		WithGensisTime(time.Now()).
-		WithAccounts([]string{}).
-		WithChainID(tmrand.Str(6)).
+		WithGenesis(
+			genesis.NewDefaultGenesis().
+				WithChainID(tmrand.Str(6)).
+				WithGenesisTime(time.Now()).
+				WithConsensusParams(DefaultParams()).
+				WithModifiers().
+				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
+		).
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).
-		WithConsensusParams(DefaultParams()).
 		WithAppOptions(DefaultAppOptions()).
-		WithGenesisOptions().
 		WithAppCreator(cmd.NewAppServer).
 		WithSupressLogs(true)
 }
@@ -156,8 +162,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// before starting the next height. This duration influences the time
 	// interval between blocks. A smaller TimeoutCommit value could lead to
 	// less time between blocks (i.e. shorter block intervals).
-	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
-	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
