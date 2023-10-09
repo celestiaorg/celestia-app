@@ -153,7 +153,7 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 ## Audits
 
-[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [audit/informal-systems.pdf](audit/informal-systems.pdf) for the full report.
+[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [docs/audit/informal-systems.pdf](docs/audit/informal-systems.pdf) for the full report.
 
 ## Careers
 
