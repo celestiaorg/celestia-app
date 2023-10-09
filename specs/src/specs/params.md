@@ -56,4 +56,4 @@ are blocked by the `x/paramfilter` module.
 | mint.InitialInflationRate | 0.08 (8%) | The inflation rate the network starts at. | False |
 | mint.DisinflationRate | 0.10 (10%) | The rate at which the inflation rate decreases each year. | False |
 | mint.TargetInflationRate | 0.015 (1.5%) | The inflation rate that the network aims to stabalize at. | False |
-| qgb.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |
+| blobstream.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |

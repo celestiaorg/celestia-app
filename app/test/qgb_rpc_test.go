@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestQGBRPCQueries(t *testing.T) {
+func TestBlobStreamRPCQueries(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping QGB integration test in short mode.")
+		t.Skip("skipping blob stream integration test in short mode.")
 	}
 	cfg := testnode.DefaultConfig()
 
