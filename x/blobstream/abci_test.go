@@ -1,9 +1,10 @@
 package blobstream_test
 
 import (
-	"github.com/celestiaorg/celestia-app/x/blobstream"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/x/blobstream"
 
 	"github.com/celestiaorg/celestia-app/x/blobstream/keeper"
 	"github.com/celestiaorg/celestia-app/x/blobstream/types"

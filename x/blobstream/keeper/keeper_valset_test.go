@@ -3,8 +3,9 @@ package keeper_test
 import (
 	"bytes"
 	"errors"
-	"github.com/celestiaorg/celestia-app/x/blobstream"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/x/blobstream"
 
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/blobstream/types"

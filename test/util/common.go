@@ -2,9 +2,10 @@ package util
 
 import (
 	"bytes"
-	"github.com/celestiaorg/celestia-app/x/blobstream"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/x/blobstream"
 
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
