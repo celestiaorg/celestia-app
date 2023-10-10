@@ -81,7 +81,7 @@ func (k Keeper) SetUpgradedConsensusState(ctx sdk.Context, planHeight int64, bz 
 	return nil
 }
 
-// GetUpgradedConsensusState set the expected upgraded consensus state for the next version of this chain
+// GetUpgradedConsensusState get the expected upgraded consensus state for the next version of this chain
 func (k Keeper) GetUpgradedConsensusState(ctx sdk.Context, lastHeight int64) ([]byte, bool) {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get(types.UpgradedConsStateKey(lastHeight))
