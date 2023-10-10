@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+const (
+	// bucketTypeNew is the byte value CometBFT uses to represent a new bucket.
+	//
+	// Ref: https://github.com/celestiaorg/celestia-core/blob/f7635ef65de901906b4f63aa9cc7ac9fbd7d5223/p2p/pex/addrbook.go#L29
+	bucketTypeNew = 0x01
+
+	// inputFile is the filename of the input file containing the list of peers.
+	inputFile = "peers.txt"
+
+	// outputFile is the filename of the output file that will be generated.
+	outputFile = "addrbook.json"
+
+	// key is a hard-coded key for the address book.
+	key = "075f251a11c6b2cef94f3d61"
+)
+
 type Address struct {
 	ID   string `json:"id"`
 	IP   string `json:"ip"`
@@ -27,34 +43,30 @@ type Entry struct {
 	LastBanTime time.Time `json:"last_ban_time"`
 }
 
-// BucketTypeNew is the byte value CometBFT uses to represent a new bucket.
-//
-// Ref: https://github.com/celestiaorg/celestia-core/blob/f7635ef65de901906b4f63aa9cc7ac9fbd7d5223/p2p/pex/addrbook.go#L29
-const BucketTypeNew = 0x01
-
 type Output struct {
 	Key   string  `json:"key"`
 	Addrs []Entry `json:"addrs"`
 }
 
 func main() {
-	data, err := os.ReadFile("peers.txt")
+	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		panic(err)
 	}
 
 	lines := strings.Split(string(data), "\n")
 
-	var addrs []Entry
+	// var addrs []Entry
+	addrs := make([]Entry, 0, len(lines))
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
 		parts := strings.Split(line, "@")
 		id := parts[0]
-		ipPort := strings.Split(parts[1], ":")
-		domain := ipPort[0]
-		port := ipPort[1]
+		domainAndPort := strings.Split(parts[1], ":")
+		domain := domainAndPort[0]
+		port := domainAndPort[1]
 
 		ip, err := resolveDomain(domain)
 		if err != nil {
@@ -71,14 +83,14 @@ func main() {
 			Addr:       addr,
 			Src:        addr,
 			Buckets:    []int{randBucketIndex()},
-			BucketType: BucketTypeNew,
+			BucketType: bucketTypeNew,
 		}
 
 		addrs = append(addrs, entry)
 	}
 
 	output := Output{
-		Key:   "075f251a11c6b2cef94f3d61", // This is hard-coded, change as needed
+		Key:   key,
 		Addrs: addrs,
 	}
 
@@ -87,13 +99,14 @@ func main() {
 		panic(err)
 	}
 
-	// Save the output to addrbook.json
-	if err := os.WriteFile("addrbook.json", jsonData, 0644); err != nil {
+	if err := os.WriteFile(outputFile, jsonData, 0o644); err != nil {
 		panic(err)
 	}
-	fmt.Println("Conversion completed. Check addrbook.json.")
+
+	fmt.Printf("Converted %s into %s\n", inputFile, outputFile)
 }
 
+// resolveDomain returns the first IP address found for the given domain.
 func resolveDomain(domain string) (string, error) {
 	addresses, err := net.LookupHost(domain)
 	if err != nil {
