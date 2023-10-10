@@ -26,7 +26,7 @@ func Test_newGovModule(t *testing.T) {
 
 	want := []types.Coin{{
 		Denom:  BondDenom,
-		Amount: types.NewInt(10000000000),
+		Amount: types.NewInt(10_000_000_000),
 	}}
 
 	assert.Equal(t, want, govGenesisState.DepositParams.MinDeposit)
