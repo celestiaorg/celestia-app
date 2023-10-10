@@ -14,7 +14,8 @@ name: "CodeQL"
 on:
   push:
     branches: ["main", "v[0-9].[0-9].x", "v[0-9].[0-9][0-9].x", "v[0-9].x"]
-  pull_request:
+  schedule:
+    - cron: '24 20 * * 4'
 
 env:
   GO_VERSION: '1.21.1'
@@ -55,7 +56,6 @@ jobs:
 
           # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
           # queries: security-extended,security-and-quality
-
 
       - uses: actions/setup-go@v4
         with:
