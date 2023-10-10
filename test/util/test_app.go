@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -39,10 +38,10 @@ func init() {
 	simapp.GetSimulatorFlags()
 }
 
-type emptyAppOptions struct{}
+type EmptyAppOptions struct{}
 
 // Get implements AppOptions
-func (ao emptyAppOptions) Get(_ string) interface{} {
+func (ao EmptyAppOptions) Get(_ string) interface{} {
 	return nil
 }
 
@@ -53,21 +52,19 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
-	emptyOpts := emptyAppOptions{}
+	emptyOpts := EmptyAppOptions{}
 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
-	skipUpgradeHeights := make(map[int64]bool)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := app.New(
-		log.NewNopLogger(), db, nil, true, skipUpgradeHeights,
-		cast.ToString(emptyOpts.Get(flags.FlagHome)),
+		log.NewNopLogger(), db, nil, true,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
+		nil,
 		emptyOpts,
 	)
-	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
@@ -85,6 +82,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		},
 		Evidence:  &cparams.Evidence,
 		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
