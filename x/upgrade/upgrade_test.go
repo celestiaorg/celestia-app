@@ -11,8 +11,13 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/x/upgrade"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/types"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -21,7 +26,15 @@ import (
 )
 
 func TestUpgradeAppVersion(t *testing.T) {
-	testApp := setupTestApp(t, upgrade.NewSchedule(upgrade.NewPlan(3, 5, 2)))
+	testApp, kr := setupTestApp(t, upgrade.NewSchedule(upgrade.NewPlan(3, 5, 2)))
+	addr := testfactory.GetAddress(kr, "account")
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testApp.GetChainID(), 1, 0)
+	require.NoError(t, err)
+	coins := types.NewCoins(types.NewCoin("utia", types.NewInt(10)))
+	sendMsg := bank.NewMsgSend(addr, addr, coins)
+	sendTx, err := signer.CreateTx([]types.Msg{sendMsg}, user.SetGasLimitAndFee(1e6, 1))
+	require.NoError(t, err)
 
 	upgradeTx, err := upgrade.NewMsgVersionChange(testApp.GetTxConfig(), 3)
 	require.NoError(t, err)
@@ -57,6 +70,25 @@ func TestUpgradeAppVersion(t *testing.T) {
 			BlockDataSize: 1e6,
 		})
 
+		require.Len(t, resp.BlockData.Txs, 1)
+		tx, err := testApp.GetTxConfig().TxDecoder()(resp.BlockData.Txs[0])
+		require.NoError(t, err)
+		require.Len(t, tx.GetMsgs(), 1)
+		msg, ok := tx.GetMsgs()[0].(*upgrade.MsgVersionChange)
+		require.True(t, ok)
+		require.EqualValues(t, 2, msg.Version)
+	}
+
+	{
+		// we send the same proposal but now with an existing message and a
+		// smaller BlockDataSize. It should kick out the tx in place of the
+		// upgrade tx
+		resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+			Height:        2,
+			ChainId:       testApp.GetChainID(),
+			BlockData:     &tmproto.Data{Txs: [][]byte{sendTx}},
+			BlockDataSize: 1e2,
+		})
 		require.Len(t, resp.BlockData.Txs, 1)
 		tx, err := testApp.GetTxConfig().TxDecoder()(resp.BlockData.Txs[0])
 		require.NoError(t, err)
@@ -153,7 +185,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	require.Len(t, respPrepareProposal.BlockData.Txs, 0)
 }
 
-func setupTestApp(t *testing.T, schedule upgrade.Schedule) *app.App {
+func setupTestApp(t *testing.T, schedule upgrade.Schedule) (*app.App, keyring.Keyring) {
 	t.Helper()
 
 	db := dbm.NewMemDB()
@@ -163,7 +195,7 @@ func setupTestApp(t *testing.T, schedule upgrade.Schedule) *app.App {
 	upgradeSchedule[chainID] = schedule
 	testApp := app.New(log.NewNopLogger(), db, nil, true, 0, encCfg, upgradeSchedule, util.EmptyAppOptions{})
 
-	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp)
+	genesisState, _, kr := util.GenesisStateWithSingleValidator(testApp, "account")
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
@@ -194,5 +226,5 @@ func setupTestApp(t *testing.T, schedule upgrade.Schedule) *app.App {
 	require.EqualValues(t, app.DefaultConsensusParams().Version.AppVersion, testApp.GetBaseApp().AppVersion())
 
 	_ = testApp.Commit()
-	return testApp
+	return testApp, kr
 }
