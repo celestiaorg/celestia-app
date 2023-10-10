@@ -34,7 +34,7 @@ type SignerTestSuite struct {
 
 func (s *SignerTestSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithAccounts([]string{"a"}))
+	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a"))
 	_, err := s.ctx.WaitForHeight(1)
 	s.Require().NoError(err)
 	rec, err := s.ctx.Keyring.Key("a")

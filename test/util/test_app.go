@@ -113,10 +113,10 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	return testApp, kr
 }
 
-// AddGenesisAccount mimics the cli addGenesisAccount command, providing an
+// AddAccount mimics the cli addAccount command, providing an
 // account with an allocation of to "token" and "tia" tokens in the genesis
 // state
-func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec) (map[string]json.RawMessage, error) {
+func AddAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec) (map[string]json.RawMessage, error) {
 	// create concrete account type based on input parameters
 	var genAccount authtypes.GenesisAccount
 

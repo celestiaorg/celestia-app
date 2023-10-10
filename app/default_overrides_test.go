@@ -16,7 +16,6 @@ func Test_newGovModule(t *testing.T) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	day := time.Duration(time.Hour * 24)
 	oneWeek := day * 7
-	twoWeeks := oneWeek * 2
 
 	govModule := newGovModule()
 	raw := govModule.DefaultGenesis(encCfg.Codec)
@@ -31,5 +30,5 @@ func Test_newGovModule(t *testing.T) {
 
 	assert.Equal(t, want, govGenesisState.DepositParams.MinDeposit)
 	assert.Equal(t, oneWeek, *govGenesisState.DepositParams.MaxDepositPeriod)
-	assert.Equal(t, twoWeeks, *govGenesisState.VotingParams.VotingPeriod)
+	assert.Equal(t, oneWeek, *govGenesisState.VotingParams.VotingPeriod)
 }

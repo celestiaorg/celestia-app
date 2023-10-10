@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
@@ -35,8 +36,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	}
 	t := s.T()
 
-	accounts := make([]string, 40)
-	for i := 0; i < 40; i++ {
+	accounts := make([]string, 10)
+	for i := 0; i < 10; i++ {
 		accounts[i] = tmrand.Str(10)
 	}
 
@@ -45,8 +46,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 
 	cfg := DefaultConfig().
-		WithAccounts(accounts).
-		WithGenesisOptions(SetBlobParams(ecfg.Codec, blobGenState.Params))
+		WithFundedAccounts(accounts...).
+		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
