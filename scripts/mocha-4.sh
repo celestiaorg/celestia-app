@@ -33,7 +33,7 @@ SEEDS="3314051954fc072a0678ec0cbac690ad8676ab98@65.108.66.220:26656,258f523c96ef
 sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" ${CELESTIA_APP_HOME}/config/config.toml
 
 echo "Setting persistent peers"
-PERSISTENT_PEERS="34499b1ac473fbb03894c883178ecc83f0d6eaf6@64.227.18.169:26656,43e9da043318a4ea0141259c17fcb06ecff816af@rpc-1.celestia.nodes.guru:43656,f9e950870eccdb40e2386896d7b6a7687a103c99@rpc-2.celestia.nodes.guru:43656,daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656"
+PERSISTENT_PEERS="34499b1ac473fbb03894c883178ecc83f0d6eaf6@64.227.18.169:26656,43e9da043318a4ea0141259c17fcb06ecff816af@rpc-1.celestia.nodes.guru:43656,f9e950870eccdb40e2386896d7b6a7687a103c99@rpc-2.celestia.nodes.guru:43656,daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656,f0c7ef0af1c3557dc05509ba6dff2a22bdc705e9@65.108.238.61:13656"
 sed -i.bak -e "s/^persistent_peers *=.*/persistent_peers = \"$PERSISTENT_PEERS\"/" ${CELESTIA_APP_HOME}/config/config.toml
 
 echo "Starting celestia-appd"
