@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -65,8 +66,10 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 
 	cfg := testnode.DefaultConfig().
 		WithConsensusParams(cparams).
-		WithAccounts([]string{testfactory.TestAccName}).
-		WithGenesisOptions(testnode.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))))
+		WithFundedAccounts(testfactory.TestAccName).
+		WithModifiers(
+			genesis.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))),
+		)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 

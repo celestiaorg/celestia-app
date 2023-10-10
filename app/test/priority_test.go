@@ -43,7 +43,7 @@ func (s *PriorityTestSuite) SetupSuite() {
 	t := s.T()
 
 	cfg := testnode.DefaultConfig().
-		WithAccounts(testfactory.GenerateAccounts(10)).
+		WithFundedAccounts(testfactory.GenerateAccounts(10)...).
 		// use a long block time to guarantee that some transactions are included in the same block
 		WithTimeoutCommit(time.Second)
 
@@ -54,8 +54,8 @@ func (s *PriorityTestSuite) SetupSuite() {
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	for _, acc := range cfg.Accounts {
-		addr := testfactory.GetAddress(s.cctx.Keyring, acc)
+	for _, acc := range cfg.Genesis.Accounts() {
+		addr := testfactory.GetAddress(s.cctx.Keyring, acc.Name)
 		signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 		signer.SetPollTime(time.Millisecond * 300)
 		require.NoError(t, err)

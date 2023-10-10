@@ -39,7 +39,7 @@ func (s *QGBIntegrationSuite) SetupSuite() {
 
 	s.accounts = []string{"jimmy"}
 
-	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
