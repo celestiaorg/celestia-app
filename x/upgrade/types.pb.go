@@ -22,9 +22,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgPayForBlobs pays for the inclusion of a blob in the block.
+// MsgVersionChange is a message that signals an app version change
 type MsgVersionChange struct {
-	// the new version to propose the change to
+	// the app version this message proposes upgrading to
 	Version uint64 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 }
 
