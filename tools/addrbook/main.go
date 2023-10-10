@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -25,6 +26,11 @@ type Entry struct {
 	LastSuccess time.Time `json:"last_success"`
 	LastBanTime time.Time `json:"last_ban_time"`
 }
+
+// BucketTypeNew is the byte value CometBFT uses to represent a new bucket.
+//
+// Ref: https://github.com/celestiaorg/celestia-core/blob/f7635ef65de901906b4f63aa9cc7ac9fbd7d5223/p2p/pex/addrbook.go#L29
+const BucketTypeNew = 0x01
 
 type Output struct {
 	Key   string  `json:"key"`
@@ -62,9 +68,10 @@ func main() {
 		}
 
 		entry := Entry{
-			Addr:    addr,
-			Src:     addr,
-			Buckets: []int{},
+			Addr:       addr,
+			Src:        addr,
+			Buckets:    []int{randBucketIndex()},
+			BucketType: BucketTypeNew,
 		}
 
 		addrs = append(addrs, entry)
@@ -102,4 +109,14 @@ func stringToInt(s string) int {
 	var result int
 	fmt.Sscanf(s, "%d", &result)
 	return result
+}
+
+// randBucketIndex generates a random bucket index between 0 and 255 (inclusive).
+func randBucketIndex() int {
+	// CometBFT's addressbook doesn't appear to enforce a range for bucket
+	// indexes but this Cosmos Hub address book has bucket indexes between 0
+	// and 255.
+	//
+	// Ref: https://dl2.quicksync.io/json/addrbook.cosmos.json
+	return rand.Intn(256)
 }
