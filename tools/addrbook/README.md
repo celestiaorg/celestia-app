@@ -11,4 +11,4 @@ This directory contains a small tool to convert a peer address txt file into an 
     go run main.go
     ```
 
-This should generate a file called `addrbook.json` in the current directory. Next, manually verify the contents of `output.json` and if everything looks good, publish it.
+This should generate a file called `addrbook.json` in the current directory. Next, manually verify the contents of `addrbook.json` and if everything looks good, publish it.
