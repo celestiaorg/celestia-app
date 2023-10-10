@@ -16,6 +16,9 @@ on:
     branches: ["main", "v[0-9].[0-9].x", "v[0-9].[0-9][0-9].x", "v[0-9].x"]
   pull_request:
 
+env:
+  GO_VERSION: '1.21.1'
+
 jobs:
   analyze:
     name: Analyze
@@ -54,9 +57,11 @@ jobs:
           # queries: security-extended,security-and-quality
 
 
-      # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift).
-      # If this step fails, then you should remove it and run the build manually (see below)
-      - name: Autobuild
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
         run: |
           make build
 
