@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -58,6 +59,27 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		txs = make([][]byte, 0)
 	} else {
 		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+
+		// TODO: this would be improved if we only attempted the upgrade in the first round of the
+		// height to still allow transactions to pass through without being delayed from trying
+		// to coordinate the upgrade height
+		if newVersion, ok := app.UpgradeKeeper.ShouldProposeUpgrade(req.ChainId, req.Height); ok && newVersion > app.GetBaseApp().AppVersion() {
+			upgradeTx, err := upgrade.NewMsgVersionChange(app.txConfig, newVersion)
+			if err != nil {
+				panic(err)
+			}
+			// the upgrade transaction must be the first transaction in the block
+			txs = append([][]byte{upgradeTx}, txs...)
+
+			// because we are adding bytes, we need to check that we are not going over the limit
+			// if we are, we continually prune the last tx (the lowest paying blobTx).
+			size := sizeOf(txs)
+			for size > int(req.BlockDataSize) {
+				lastTx := txs[len(txs)-1]
+				txs = txs[:len(txs)-1]
+				size -= len(lastTx)
+			}
+		}
 	}
 
 	// build the square from the set of valid and prioritised transactions.
@@ -101,4 +123,12 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			Hash:       dah.Hash(),
 		},
 	}
+}
+
+func sizeOf(txs [][]byte) int {
+	size := 0
+	for _, tx := range txs {
+		size += len(tx)
+	}
+	return size
 }
