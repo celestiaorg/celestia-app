@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Check if issue or PR was created by external contributor
         if: env.IS_HUMAN == 'true' && github.repository_owner == 'celestiaorg'
-        uses: tspascoal/get-user-teams-membership@v2
+        uses: tspascoal/get-user-teams-membership@v3
         id: teamCheck
         with:
           username: ${{ github.actor }}
