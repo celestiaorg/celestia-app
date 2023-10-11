@@ -51,14 +51,14 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
 
-	accounts := make([]string, 300)
+	accounts := make([]string, 35)
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
 
-	cfg := testnode.DefaultConfig().WithAccounts(accounts)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	s.accounts = cfg.Accounts
+	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
 }
@@ -108,7 +108,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		{
 			name: "delegate 1 TIA",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				valopAddr := sdk.ValAddress(testfactory.GetAddress(s.cctx.Keyring, "validator"))
+				valopAddr := sdk.ValAddress(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName))
 				account1 := s.unusedAccount()
 				account1Addr := testfactory.GetAddress(s.cctx.Keyring, account1)
 				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
@@ -119,10 +119,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		{
 			name: "undelegate 1 TIA",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				valAccAddr := testfactory.GetAddress(s.cctx.Keyring, "validator")
+				valAccAddr := testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName)
 				valopAddr := sdk.ValAddress(valAccAddr)
 				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
-				return []sdk.Msg{msg}, "validator"
+				return []sdk.Msg{msg}, testnode.DefaultValidatorAccountName
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
@@ -136,10 +136,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := stakingtypes.NewMsgCreateValidator(
 					valopAddr,
 					pv.PrivKey.PubKey(),
-					sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)),
+					sdk.NewCoin(app.BondDenom, sdk.NewInt(1)),
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
 					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
-					sdk.NewInt(1000000),
+					sdk.NewInt(1),
 				)
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account

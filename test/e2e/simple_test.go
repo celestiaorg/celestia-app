@@ -35,7 +35,7 @@ func TestE2ESimple(t *testing.T) {
 	t.Cleanup(testnet.Cleanup)
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000))
 
-	kr, err := testnet.CreateGenesisAccount("alice", 1e12)
+	kr, err := testnet.CreateAccount("alice", 1e12)
 	require.NoError(t, err)
 
 	require.NoError(t, testnet.Setup())
