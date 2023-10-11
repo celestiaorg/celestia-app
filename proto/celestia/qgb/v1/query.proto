@@ -1,8 +1,8 @@
 syntax = "proto3";
-package celestia.blobstream.v1;
+package celestia.qgb.v1;
 
-import "celestia/blobstream/v1/genesis.proto";
-import "celestia/blobstream/v1/types.proto";
+import "celestia/qgb/v1/genesis.proto";
+import "celestia/qgb/v1/types.proto";
 import "google/api/annotations.proto";
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
@@ -14,7 +14,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 service Query {
   // Params queries the current parameters for the blobstream module
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
-    option (google.api.http).get = "/blobstream/v1/params";
+    option (google.api.http).get = "/qgb/v1/params";
   }
 
   // queries for attestations requests waiting to be signed by an orchestrator
@@ -23,12 +23,12 @@ service Query {
   // Returns nil if not found.
   rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
       returns (QueryAttestationRequestByNonceResponse) {
-    option (google.api.http).get = "/blobstream/v1/attestations/requests/{nonce}";
+    option (google.api.http).get = "/qgb/v1/attestations/requests/{nonce}";
   }
   // LatestAttestationNonce queries latest attestation nonce.
   rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
       returns (QueryLatestAttestationNonceResponse) {
-    option (google.api.http).get = "/blobstream/v1/attestations/nonce/latest";
+    option (google.api.http).get = "/qgb/v1/attestations/nonce/latest";
   }
   // LatestValsetRequestBeforeNonce Queries latest Valset request before nonce.
   // And, even if the current nonce is a valset, it will return the previous
@@ -37,7 +37,7 @@ service Query {
   // no valset before nonce 1.
   rpc LatestValsetRequestBeforeNonce(QueryLatestValsetRequestBeforeNonceRequest)
       returns (QueryLatestValsetRequestBeforeNonceResponse) {
-    option (google.api.http).get = "/blobstream/v1/valset/request/before/{nonce}";
+    option (google.api.http).get = "/qgb/v1/valset/request/before/{nonce}";
   }
 
   // misc
@@ -45,26 +45,26 @@ service Query {
   // LatestUnbondingHeight returns the latest unbonding height
   rpc LatestUnbondingHeight(QueryLatestUnbondingHeightRequest)
       returns (QueryLatestUnbondingHeightResponse) {
-    option (google.api.http).get = "/blobstream/v1/unbonding";
+    option (google.api.http).get = "/qgb/v1/unbonding";
   }
 
   // DataCommitmentRangeForHeight returns the data commitment window
   // that includes the provided height
   rpc DataCommitmentRangeForHeight(QueryDataCommitmentRangeForHeightRequest)
       returns (QueryDataCommitmentRangeForHeightResponse) {
-    option (google.api.http).get = "/blobstream/v1/data_commitment/range/height";
+    option (google.api.http).get = "/qgb/v1/data_commitment/range/height";
   }
 
   // LatestDataCommitment returns the latest data commitment in store
   rpc LatestDataCommitment(QueryLatestDataCommitmentRequest)
       returns (QueryLatestDataCommitmentResponse) {
-    option (google.api.http).get = "/blobstream/v1/data_commitment/latest";
+    option (google.api.http).get = "/qgb/v1/data_commitment/latest";
   }
 
   // EVMAddress returns the evm address associated with a supplied
   // validator address
   rpc EVMAddress(QueryEVMAddressRequest) returns (QueryEVMAddressResponse) {
-    option (google.api.http).get = "/blobstream/v1/evm_address";
+    option (google.api.http).get = "/qgb/v1/evm_address";
   }
 }
 

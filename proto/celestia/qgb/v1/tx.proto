@@ -1,5 +1,5 @@
 syntax = "proto3";
-package celestia.blobstream.v1;
+package celestia.qgb.v1;
 
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
@@ -16,7 +16,7 @@ service Msg {
   // state machine.
   rpc RegisterEVMAddress(MsgRegisterEVMAddress)
       returns (MsgRegisterEVMAddressResponse) {
-    option (google.api.http).get = "/blobstream/v1/register_evm_address";
+    option (google.api.http).get = "/qgb/v1/register_evm_address";
   }
 }
 
