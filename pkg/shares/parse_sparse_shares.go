@@ -4,18 +4,18 @@ import (
 	"bytes"
 	"fmt"
 
-	coretypes "github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 )
 
 type sequence struct {
-	blob        coretypes.Blob
+	blob        *blob.Blob
 	sequenceLen uint32
 }
 
 // parseSparseShares iterates through rawShares and parses out individual
 // blobs. It returns an error if a rawShare contains a share version that
 // isn't present in supportedShareVersions.
-func parseSparseShares(shares []Share, supportedShareVersions []uint8) (blobs []coretypes.Blob, err error) {
+func parseSparseShares(shares []Share, supportedShareVersions []uint8) (blobs []*blob.Blob, err error) {
 	if len(shares) == 0 {
 		return nil, nil
 	}
@@ -56,12 +56,7 @@ func parseSparseShares(shares []Share, supportedShareVersions []uint8) (blobs []
 			if err != nil {
 				return nil, err
 			}
-			blob := coretypes.Blob{
-				NamespaceID:      ns.ID,
-				Data:             data,
-				ShareVersion:     version,
-				NamespaceVersion: ns.Version,
-			}
+			blob := blob.New(ns, data, version)
 			sequences = append(sequences, sequence{
 				blob:        blob,
 				sequenceLen: sequenceLen,

@@ -47,7 +47,7 @@ func (s *SignerTestSuite) SetupSuite() {
 
 func (s *SignerTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
-	blobs := blobfactory.ManyRandBlobs(t, rand.NewRand(), 1e3, 1e4)
+	blobs := blobfactory.ManyRandBlobs(rand.NewRand(), 1e3, 1e4)
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
 	subCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

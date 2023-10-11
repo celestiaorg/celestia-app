@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -17,7 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/input"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -108,7 +108,7 @@ func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, 
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
 // this private func is used in CmdPayForBlob
-func broadcastPFB(cmd *cobra.Command, blob *types.Blob) error {
+func broadcastPFB(cmd *cobra.Command, b *blob.Blob) error {
 	clientCtx, err := client.GetClientTxContext(cmd)
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func broadcastPFB(cmd *cobra.Command, blob *types.Blob) error {
 
 	// TODO: allow the user to override the share version via a new flag
 	// See https://github.com/celestiaorg/celestia-app/issues/1041
-	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), blob)
+	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), b)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func broadcastPFB(cmd *cobra.Command, blob *types.Blob) error {
 		return err
 	}
 
-	blobTx, err := coretypes.MarshalBlobTx(txBytes, blob)
+	blobTx, err := blob.MarshalBlobTx(txBytes, b)
 	if err != nil {
 		return err
 	}

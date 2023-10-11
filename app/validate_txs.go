@@ -1,21 +1,21 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // separateTxs decodes raw tendermint txs into normal and blob txs.
-func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []tmproto.BlobTx) {
+func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []blob.BlobTx) {
 	normalTxs := make([][]byte, 0, len(rawTxs))
-	blobTxs := make([]tmproto.BlobTx, 0, len(rawTxs))
+	blobTxs := make([]blob.BlobTx, 0, len(rawTxs))
 	for _, rawTx := range rawTxs {
-		bTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
+		bTx, isBlob := blob.UnmarshalBlobTx(rawTx)
 		if isBlob {
 			blobTxs = append(blobTxs, bTx)
 		} else {
@@ -69,7 +69,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // filterBlobTxs applies the provided antehandler to each transaction
 // and removes transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
-func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
+func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []blob.BlobTx) ([]blob.BlobTx, sdk.Context) {
 	n := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx.Tx)
@@ -105,11 +105,11 @@ func msgTypes(sdkTx sdk.Tx) []string {
 	return msgNames
 }
 
-func encodeBlobTxs(blobTxs []tmproto.BlobTx) [][]byte {
+func encodeBlobTxs(blobTxs []blob.BlobTx) [][]byte {
 	txs := make([][]byte, len(blobTxs))
 	var err error
 	for i, tx := range blobTxs {
-		txs[i], err = coretypes.MarshalBlobTx(tx.Tx, tx.Blobs...)
+		txs[i], err = blob.MarshalBlobTx(tx.Tx, tx.Blobs...)
 		if err != nil {
 			panic(err)
 		}
