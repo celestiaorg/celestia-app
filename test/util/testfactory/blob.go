@@ -50,7 +50,7 @@ func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) []t
 }
 
 func GenerateRandomBlob(dataSize int) *blob.Blob {
-	ns := appns.MustNewV0(append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize)...))
+	ns := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
 	return blob.New(ns, tmrand.Bytes(dataSize), appconsts.ShareVersionZero)
 }
 
