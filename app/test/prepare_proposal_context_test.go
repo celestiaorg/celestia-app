@@ -33,7 +33,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
-	cfg := testnode.DefaultConfig().WithAccounts(accounts)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	vestAccName := "vesting"

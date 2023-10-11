@@ -36,12 +36,65 @@ node            |  |                               |  |
 
 ## Install
 
+### Source
+
 1. [Install Go](https://go.dev/doc/install) 1.21.1
 1. Clone this repo
 1. Install the celestia-app CLI
 
     ```shell
     make install
+    ```
+
+### Pre-built binary
+
+If you'd rather not install from source, you can download a pre-built binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
+
+1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
+1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
+1. Extract the archive
+
+    ```shell
+    tar -xvf celestia-app_Linux_x86_64.tar.gz
+    ```
+
+1. Verify the extracted binary works
+
+    ```shell
+    ./celestia-appd --help
+    ```
+
+#### Optional: Verify the pre-built binary checksums and signatures
+
+If you use a pre-built binary, you may also want to verify the checksums and signatures.
+
+1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
+1. Download `checksums.txt`, `checksums.txt.sig`, and the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
+1. Verify the checksums
+
+    ```shell
+    sha256sum --ignore-missing --check checksums.txt
+    ```
+
+    You should see output like this:
+
+    ```shell
+    celestia-app_Linux_x86_64.tar.gz: OK
+    ```
+
+1. Download the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
+1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script
+
+    ```shell
+    ./verify-signature.sh checksums.txt.sig checksums.txt
+    ```
+
+    You should see output like this:
+
+    ```shell
+    gpg: Signature made Thu Sep 21 14:39:26 2023 EDT
+    gpg:                using EDDSA key BF02F32CC36864560B90B764D469F859693DC3FA
+    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [ultimate]
     ```
 
 ### Ledger Support
@@ -115,33 +168,6 @@ make proto-gen
 make goreleaser-build
 ```
 
-### Publishing a Release
-
-> **NOTE** Due to `goreleaser`'s CGO limitations, cross-compiling the binary does not work. So the binaries must be built on the target platform. This means that the release process must be done on a Linux amd64 machine.
-
-To generate the binaries for the Github release, you can run the following command:
-
-```sh
-make goreleaser-release
-```
-
-This will generate the binaries as defined in `.goreleaser.yaml` and put them in `build/goreleaser` like so:
-
-```sh
-build
-└── goreleaser
-    ├── CHANGELOG.md
-    ├── artifacts.json
-    ├── celestia-app_Linux_x86_64.tar.gz
-    ├── celestia-app_linux_amd64_v1
-    │   └── celestia-appd
-    ├── checksums.txt
-    ├── config.yaml
-    └── metadata.json
-```
-
-For the Github release, you just need to upload the `checksums.txt` and `celestia-app_Linux_x86_64.tar.gz` files.
-
 ### Docs
 
 Package-specific READMEs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
@@ -153,7 +179,7 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 ## Audits
 
-[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [audit/informal-systems.pdf](audit/informal-systems.pdf) for the full report.
+[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [docs/audit/informal-systems.pdf](docs/audit/informal-systems.pdf) for the full report.
 
 ## Careers
 

@@ -19,7 +19,9 @@ builds:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
     goarch:
       - amd64
+      - arm64
     goos:
+      - darwin
       - linux
     tags:
       - ledger
@@ -47,6 +49,18 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 checksum:
   name_template: "checksums.txt"
+signs:
+  - artifacts: checksum
+    args:
+      [
+        "--batch",
+        "-u",
+        "{{ .Env.GPG_FINGERPRINT }}",
+        "--output",
+        "${signature}",
+        "--detach-sign",
+        "${artifact}",
+      ]
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:

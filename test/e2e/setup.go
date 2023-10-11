@@ -23,12 +23,12 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type GenesisAccount struct {
+type Account struct {
 	PubKey        cryptotypes.PubKey
 	InitialTokens int64
 }
 
-func MakeGenesis(nodes []*Node, accounts []*GenesisAccount) (types.GenesisDoc, error) {
+func MakeGenesis(nodes []*Node, accounts []*Account) (types.GenesisDoc, error) {
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	appGenState := app.ModuleBasics.DefaultGenesis(encCdc.Codec)
 	bankGenesis := bank.DefaultGenesisState()
