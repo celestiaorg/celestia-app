@@ -44,7 +44,7 @@ are blocked by the `x/paramfilter` module.
 | slashing.SignedBlocksWindow | 5000 | The range of blocks used to count for downtime. | True |
 | slashing.MinSignedPerWindow | 0.75 (75%) | The percentage of SignedBlocksWindow that must be signed not to get jailed. | True |
 | slashing.DowntimeJailDuration | 1 min | Duration of time a validator must stay jailed. | True |
-| slashing.SlashFractionDoubleSign | 0.05 (5%) | Percentage slashed after a validator is jailed for double signing. | True |
+| slashing.SlashFractionDoubleSign | 0.02 (2%) | Percentage slashed after a validator is jailed for double signing. | True |
 | slashing.SlashFractionDowntime | 0.00 (0%) | Percentage slashed after a validator is jailed for downtime. | True |
 | staking.UnbondingTime | 1814400 (21 days) | Duration of time for unbonding in seconds. | False |
 | staking.MaxValidators | 100 | Maximum number of validators. | False |

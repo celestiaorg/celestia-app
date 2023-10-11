@@ -98,7 +98,7 @@ func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
 	params.SignedBlocksWindow = 5000
 	params.DowntimeJailDuration = time.Minute * 1
-	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(2, 2) // 2%
 	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
 
 	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
