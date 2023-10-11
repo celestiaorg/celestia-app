@@ -19,7 +19,9 @@ builds:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
     goarch:
       - amd64
+      - arm64
     goos:
+      - darwin
       - linux
     tags:
       - ledger
