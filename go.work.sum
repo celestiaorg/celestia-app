@@ -170,8 +170,8 @@ github.com/butuzov/ireturn v0.1.1/go.mod h1:Wh6Zl3IMtTpaIKbmwzqi6olnM9ptYQxxVacM
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/celestia-app v1.0.0-rc13/go.mod h1:JYu6i1NxJw26TVZ+XSllUdnw0Fw3nGNk5f3wm6RIcys=
 github.com/celestiaorg/celestia-app v1.0.0-rc18/go.mod h1:Q375ijriqMv8PjKmMujNs2WzMAsgxjpbeUoQt+AZre0=
-github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231011213248-3e28d961ce22 h1:eGBuDnn11t59UxYpO2lOQaLEUdeNvqeDT4dvQ4nBJg0=
-github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231011213248-3e28d961ce22/go.mod h1:1GT0RfdNqOXvyR3Hq4ROcNBknQNz9E6K5l3Cla9eFFk=
+github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231011220705-9d42a9b9efbb h1:Ps2gqsQY8WwYLRZgknfb8TKjp19hObk1vQcUB9ruE1c=
+github.com/celestiaorg/celestia-core v1.27.0-tm-v0.34.28.0.20231011220705-9d42a9b9efbb/go.mod h1:1GT0RfdNqOXvyR3Hq4ROcNBknQNz9E6K5l3Cla9eFFk=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 h1:Q8nr5SAtDW5gocrBwqwDJcSS/JedqU58WwQA2SP+nXw=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2/go.mod h1:s/LzLUw0WeYPJ6qdk4q46jKLOq7rc9Z5Mdrxtfpcigw=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
