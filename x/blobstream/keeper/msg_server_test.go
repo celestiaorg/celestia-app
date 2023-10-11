@@ -12,7 +12,7 @@ import (
 
 func TestRegisterEVMAddress(t *testing.T) {
 	input, sdkCtx := testutil.SetupFiveValChain(t)
-	k := input.BStreamKeeper
+	k := input.BstreamKeeper
 	vals := input.StakingKeeper.GetValidators(sdkCtx, 100)
 	require.GreaterOrEqual(t, len(vals), 1)
 	val := vals[0]

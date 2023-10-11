@@ -6,13 +6,13 @@ import "celestia/qgb/v1/types.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 
-// Params represent the BlobStream genesis and store parameters.
+// Params represent Blobstream genesis and store parameters.
 message Params {
   option (gogoproto.stringer) = false;
 
   uint64 data_commitment_window = 1;
 }
 
-// GenesisState struct, containing all persistent data required by BlobStream
+// GenesisState struct, containing all persistent data required by Blobstream
 // module
 message GenesisState { Params params = 1; }

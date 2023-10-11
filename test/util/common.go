@@ -135,9 +135,9 @@ func initEVMAddrs(count int) []gethcommon.Address {
 	return addresses
 }
 
-// TestInput stores the various keepers required to test BlobStream
+// TestInput stores the various keepers required to test Blobstream
 type TestInput struct {
-	BStreamKeeper  keeper.Keeper
+	BstreamKeeper  keeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
 	StakingKeeper  stakingkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
@@ -148,8 +148,8 @@ type TestInput struct {
 	LegacyAmino    *codec.LegacyAmino
 }
 
-// CreateTestEnvWithoutBlobStreamKeysInit creates the keeper testing environment for BlobStream
-func CreateTestEnvWithoutBlobStreamKeysInit(t *testing.T) TestInput {
+// CreateTestEnvWithoutBlobstreamKeysInit creates the keeper testing environment for Blobstream
+func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	t.Helper()
 
 	// Initialize store keys
@@ -294,8 +294,8 @@ func CreateTestEnvWithoutBlobStreamKeysInit(t *testing.T) TestInput {
 	)
 
 	k := keeper.NewKeeper(marshaler, bsKey, getSubspace(paramsKeeper, bstypes.DefaultParamspace), &stakingKeeper)
-	testBlobStreamParams := bstypes.DefaultGenesis().Params
-	k.SetParams(ctx, *testBlobStreamParams)
+	testBlobstreamParams := bstypes.DefaultGenesis().Params
+	k.SetParams(ctx, *testBlobstreamParams)
 
 	stakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
@@ -305,7 +305,7 @@ func CreateTestEnvWithoutBlobStreamKeysInit(t *testing.T) TestInput {
 		),
 	)
 	return TestInput{
-		BStreamKeeper:  *k,
+		BstreamKeeper:  *k,
 		AccountKeeper:  accountKeeper,
 		BankKeeper:     bankKeeper,
 		StakingKeeper:  stakingKeeper,
@@ -317,11 +317,11 @@ func CreateTestEnvWithoutBlobStreamKeysInit(t *testing.T) TestInput {
 	}
 }
 
-// CreateTestEnv creates the keeper testing environment for BlobStream
+// CreateTestEnv creates the keeper testing environment for Blobstream
 func CreateTestEnv(t *testing.T) TestInput {
-	input := CreateTestEnvWithoutBlobStreamKeysInit(t)
-	input.BStreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
-	input.BStreamKeeper.SetEarliestAvailableAttestationNonce(input.Context, blobstream.InitialEarliestAvailableAttestationNonce)
+	input := CreateTestEnvWithoutBlobstreamKeysInit(t)
+	input.BstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
+	input.BstreamKeeper.SetEarliestAvailableAttestationNonce(input.Context, blobstream.InitialEarliestAvailableAttestationNonce)
 	return input
 }
 
@@ -412,7 +412,7 @@ func RegisterEVMAddress(
 	valAddr sdk.ValAddress,
 	evmAddr gethcommon.Address,
 ) {
-	bsMsgServer := keeper.NewMsgServerImpl(input.BStreamKeeper)
+	bsMsgServer := keeper.NewMsgServerImpl(input.BstreamKeeper)
 	registerMsg := bstypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
 	_, err := bsMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 	require.NoError(t, err)
@@ -451,7 +451,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 	// Initialize each of the validators
 	stakingMsgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	bsMsgServer := keeper.NewMsgServerImpl(input.BStreamKeeper)
+	bsMsgServer := keeper.NewMsgServerImpl(input.BstreamKeeper)
 	for i, weight := range weights {
 		consPrivKey := ed25519.GenPrivKey()
 		consPubKey := consPrivKey.PubKey()
@@ -504,10 +504,10 @@ func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt cosmosmath.Int) *
 	return msg
 }
 
-// ExecuteBlobStreamHeights executes the end exclusive range of heights specified by beginHeight and endHeight
-// along with the BlobStream abci.EndBlocker on each one of them.
+// ExecuteBlobstreamHeights executes the end exclusive range of heights specified by beginHeight and endHeight
+// along with the Blobstream abci.EndBlocker on each one of them.
 // Returns the updated context with block height advanced to endHeight.
-func ExecuteBlobStreamHeights(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeight int64, endHeight int64) sdk.Context {
+func ExecuteBlobstreamHeights(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeight int64, endHeight int64) sdk.Context {
 	for i := beginHeight; i < endHeight; i++ {
 		ctx = ctx.WithBlockHeight(i)
 		blobstream.EndBlocker(ctx, bsKeeper)
@@ -515,10 +515,10 @@ func ExecuteBlobStreamHeights(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeig
 	return ctx
 }
 
-// ExecuteBlobStreamHeightsWithTime executes the end exclusive range of heights specified by beginHeight and endHeight
-// along with the BlobStream abci.EndBlocker on each one of them.
+// ExecuteBlobstreamHeightsWithTime executes the end exclusive range of heights specified by beginHeight and endHeight
+// along with the Blobstream abci.EndBlocker on each one of them.
 // Uses the interval to calculate the block header time.
-func ExecuteBlobStreamHeightsWithTime(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeight int64, endHeight int64, blockInterval time.Duration) sdk.Context {
+func ExecuteBlobstreamHeightsWithTime(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeight int64, endHeight int64, blockInterval time.Duration) sdk.Context {
 	blockTime := ctx.BlockTime()
 	for i := beginHeight; i < endHeight; i++ {
 		ctx = ctx.WithBlockHeight(i).WithBlockTime(blockTime)

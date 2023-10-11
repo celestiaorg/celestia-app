@@ -11,12 +11,12 @@ type Hooks struct {
 	k Keeper
 }
 
-// Create new BlobStream hooks
+// Hooks Create new Blobstream hooks
 func (k Keeper) Hooks() Hooks {
 	// if startup is mis-ordered in app.go this hook will halt the chain when
 	// called. Keep this check to make such a mistake obvious
 	if k.storeKey == nil {
-		panic("hooks initialized before BlobStreamKeeper")
+		panic("hooks initialized before BlobstreamKeeper")
 	}
 	return Hooks{k}
 }

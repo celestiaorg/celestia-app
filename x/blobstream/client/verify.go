@@ -24,7 +24,7 @@ import (
 func VerifyCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "verify",
-		Short: "Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the BlobStream contract",
+		Short: "Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the Blobstream contract",
 	}
 	command.AddCommand(
 		txCmd(),
@@ -38,7 +38,7 @@ func txCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "tx <tx_hash>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Verifies that a transaction hash, in hex format, has been committed to by the BlobStream contract",
+		Short: "Verifies that a transaction hash, in hex format, has been committed to by the Blobstream contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			txHash, err := hex.DecodeString(args[0])
 			if err != nil {
@@ -72,7 +72,7 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			logger.Info("verifying that the transaction was committed to by the BlobStream", "tx_hash", args[0], "height", tx.Height)
+			logger.Info("verifying that the transaction was committed to by the Blobstream", "tx_hash", args[0], "height", tx.Height)
 
 			blockRes, err := trpc.Block(cmd.Context(), &tx.Height)
 			if err != nil {
@@ -95,7 +95,7 @@ func blobCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "blob <tx_hash> <blob_index>",
 		Args:  cobra.ExactArgs(2),
-		Short: "Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the BlobStream contract",
+		Short: "Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the Blobstream contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			txHash, err := hex.DecodeString(args[0])
 			if err != nil {
@@ -134,7 +134,7 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			logger.Info("verifying that the blob was committed to by the BlobStream", "tx_hash", args[0], "height", tx.Height)
+			logger.Info("verifying that the blob was committed to by the Blobstream", "tx_hash", args[0], "height", tx.Height)
 
 			blockRes, err := trpc.Block(cmd.Context(), &tx.Height)
 			if err != nil {
@@ -157,7 +157,7 @@ func sharesCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "shares <height> <start_share> <end_share>",
 		Args:  cobra.ExactArgs(3),
-		Short: "Verifies that a range of shares has been committed to by the BlobStream contract. The range should be end exclusive.",
+		Short: "Verifies that a range of shares has been committed to by the Blobstream contract. The range should be end exclusive.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			height, err := strconv.ParseUint(args[0], 10, 0)
 			if err != nil {
@@ -251,7 +251,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	}
 
 	logger.Info(
-		"proving that the data root was committed to in the BlobStream contract",
+		"proving that the data root was committed to in the Blobstream contract",
 		"contract_address",
 		config.ContractAddr,
 		"fist_block",
@@ -285,7 +285,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		return false, err
 	}
 
-	logger.Info("verifying that the data root was committed to in the BlobStream contract")
+	logger.Info("verifying that the data root was committed to in the Blobstream contract")
 	isCommittedTo, err = VerifyDataRootInclusion(
 		ctx,
 		bsWrapper,
@@ -299,9 +299,9 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	}
 
 	if isCommittedTo {
-		logger.Info("the BlobStream contract has committed to the provided shares")
+		logger.Info("the Blobstream contract has committed to the provided shares")
 	} else {
-		logger.Info("the BlobStream contract didn't commit to the provided shares")
+		logger.Info("the Blobstream contract didn't commit to the provided shares")
 	}
 
 	return isCommittedTo, nil

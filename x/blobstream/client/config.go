@@ -21,7 +21,7 @@ func addVerifyFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "The EVM chain ID")
 	cmd.Flags().StringP(flags.FlagNode, "t", "http://localhost:26657", "<host>:<port> to Tendermint RPC interface for this chain")
 	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "The EVM RPC address")
-	cmd.Flags().StringP(contractAddressFlag, "a", "", "The contract address at which the BlobStream is deployed")
+	cmd.Flags().StringP(contractAddressFlag, "a", "", "The contract address at which Blobstream is deployed")
 	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "<host>:<port> To Celestia GRPC address")
 
 	return cmd

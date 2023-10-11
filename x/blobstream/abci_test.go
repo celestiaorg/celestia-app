@@ -19,7 +19,7 @@ import (
 
 func TestFirstAttestationIsValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BStreamKeeper
+	pk := input.BstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 	expectedTime := ctx.BlockTime()
@@ -42,7 +42,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 
 func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BStreamKeeper
+	pk := input.BstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
@@ -68,7 +68,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 
 func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BStreamKeeper
+	pk := input.BstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 
@@ -81,7 +81,7 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-	msgServer := keeper.NewMsgServerImpl(input.BStreamKeeper)
+	msgServer := keeper.NewMsgServerImpl(input.BstreamKeeper)
 
 	newEVMAddr := testfactory.RandomEVMAddress()
 	registerMsg := types.NewMsgRegisterEVMAddress(
@@ -99,7 +99,7 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 
 func TestSetValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BStreamKeeper
+	pk := input.BstreamKeeper
 
 	vs, err := pk.GetCurrentValset(ctx)
 	require.Nil(t, err)
@@ -111,7 +111,7 @@ func TestSetValset(t *testing.T) {
 
 func TestSetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BStreamKeeper
+	qk := input.BstreamKeeper
 
 	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
 	expectedTime := ctx.BlockTime()
@@ -149,7 +149,7 @@ func TestSetDataCommitment(t *testing.T) {
 // table structure is to make it easy to understand the test flow.
 func TestGetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BStreamKeeper
+	qk := input.BstreamKeeper
 
 	tests := []struct {
 		name       string
@@ -224,7 +224,7 @@ func TestGetDataCommitment(t *testing.T) {
 
 func TestDataCommitmentCreation(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BStreamKeeper
+	qk := input.BstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 
@@ -248,7 +248,7 @@ func TestDataCommitmentCreation(t *testing.T) {
 
 func TestDataCommitmentRange(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BStreamKeeper
+	qk := input.BstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
@@ -294,7 +294,7 @@ func TestDataCommitmentRange(t *testing.T) {
 
 func TestHasDataCommitmentInStore(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BStreamKeeper
+	qk := input.BstreamKeeper
 	// set the data commitment window
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
 	require.Equal(t, uint64(400), qk.GetDataCommitmentWindowParam(ctx))
@@ -357,24 +357,24 @@ func TestHasDataCommitmentInStore(t *testing.T) {
 // end of the test, the data commitments cover all the needed ranges.
 func TestDataCommitmentCreationCatchup(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BStreamKeeper
+	qk := input.BstreamKeeper
 	ctx = ctx.WithBlockHeight(1)
 
 	// from height 1 to 1500 with a window of 400
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
-	ctx = testutil.ExecuteBlobStreamHeights(ctx, qk, 1, 1501)
+	ctx = testutil.ExecuteBlobstreamHeights(ctx, qk, 1, 1501)
 
 	// change window to 100 and execute up to 1920
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 100})
-	ctx = testutil.ExecuteBlobStreamHeights(ctx, qk, 1501, 1921)
+	ctx = testutil.ExecuteBlobstreamHeights(ctx, qk, 1501, 1921)
 
 	// change window to 1000 and execute up to 3500
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 1000})
-	ctx = testutil.ExecuteBlobStreamHeights(ctx, qk, 1921, 3501)
+	ctx = testutil.ExecuteBlobstreamHeights(ctx, qk, 1921, 3501)
 
 	// change window to 111 and execute up to 3800
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 111})
-	ctx = testutil.ExecuteBlobStreamHeights(ctx, qk, 3501, 3801)
+	ctx = testutil.ExecuteBlobstreamHeights(ctx, qk, 3501, 3801)
 
 	// check if a data commitment was created
 	hasDataCommitment, err := qk.HasDataCommitmentInStore(ctx)
@@ -517,17 +517,17 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 }
 
 // TestPruning tests the pruning mechanism by: 1. Generating a set of
-// attestations 2. Running the BlobStream EndBlocker 3. Verifying that the expired
+// attestations 2. Running the Blobstream EndBlocker 3. Verifying that the expired
 // attestations are pruned
 func TestPruning(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	bsKeeper := input.BStreamKeeper
+	bsKeeper := input.BstreamKeeper
 	// set the data commitment window
 	window := uint64(101)
 	bsKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 	initialBlockTime := ctx.BlockTime()
 	blockInterval := 10 * time.Minute
-	ctx = testutil.ExecuteBlobStreamHeightsWithTime(ctx, bsKeeper, 1, 1626, blockInterval)
+	ctx = testutil.ExecuteBlobstreamHeightsWithTime(ctx, bsKeeper, 1, 1626, blockInterval)
 
 	// check that we created a number of attestations
 	assert.Equal(t, uint64(17), bsKeeper.GetLatestAttestationNonce(ctx))
@@ -540,7 +540,7 @@ func TestPruning(t *testing.T) {
 	}
 
 	// continue executing heights
-	ctx = testutil.ExecuteBlobStreamHeightsWithTime(ctx, bsKeeper, 1626, 5000, blockInterval)
+	ctx = testutil.ExecuteBlobstreamHeightsWithTime(ctx, bsKeeper, 1626, 5000, blockInterval)
 
 	earliestAttestationNonce := bsKeeper.GetEarliestAvailableAttestationNonce(ctx)
 	assert.Equal(t, uint64(21), earliestAttestationNonce)
@@ -577,5 +577,5 @@ func TestPruning(t *testing.T) {
 
 	// continue running the chain for a few more blocks to be sure no
 	// inconsistency happens after pruning
-	testutil.ExecuteBlobStreamHeightsWithTime(ctx, bsKeeper, 5000, 6000, blockInterval)
+	testutil.ExecuteBlobstreamHeightsWithTime(ctx, bsKeeper, 5000, 6000, blockInterval)
 }

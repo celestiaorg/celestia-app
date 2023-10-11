@@ -13,7 +13,7 @@ import (
 
 func TestGetDataCommitmentForHeight(t *testing.T) {
 	input, sdkCtx := testutil.SetupFiveValChain(t)
-	k := input.BStreamKeeper
+	k := input.BstreamKeeper
 
 	initialValset, err := k.GetCurrentValset(sdkCtx)
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 
 func TestLatestDataCommitment(t *testing.T) {
 	input, sdkCtx := testutil.SetupFiveValChain(t)
-	k := input.BStreamKeeper
+	k := input.BstreamKeeper
 
 	initialValset, err := k.GetCurrentValset(sdkCtx)
 	require.NoError(t, err)
@@ -148,8 +148,8 @@ func TestLatestDataCommitment(t *testing.T) {
 }
 
 func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
-	input := testutil.CreateTestEnvWithoutBlobStreamKeysInit(t)
-	k := input.BStreamKeeper
+	input := testutil.CreateTestEnvWithoutBlobstreamKeysInit(t)
+	k := input.BstreamKeeper
 
 	tests := []struct {
 		name          string
@@ -190,11 +190,11 @@ func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
 }
 
 func TestCheckingEarliestAvailableAttestationNonceInDataCommitments(t *testing.T) {
-	input := testutil.CreateTestEnvWithoutBlobStreamKeysInit(t)
-	k := input.BStreamKeeper
+	input := testutil.CreateTestEnvWithoutBlobstreamKeysInit(t)
+	k := input.BstreamKeeper
 
 	// init the latest attestation nonce
-	input.BStreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
+	input.BstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
 
 	tests := []struct {
 		name          string

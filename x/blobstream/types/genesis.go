@@ -14,7 +14,7 @@ const (
 	DefaultParamspace = ModuleName
 
 	// MinimumDataCommitmentWindow is a constant that defines the minimum
-	// allowable window for the BlobStream data commitments.
+	// allowable window for the Blobstream data commitments.
 	MinimumDataCommitmentWindow = 100
 )
 

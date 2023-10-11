@@ -2,9 +2,9 @@
 
 ## Concepts
 
-This module contains the [BlobStream](https://blog.celestia.org/celestiums/) state machine implementation.
+This module contains the [Blobstream](https://blog.celestia.org/celestiums/) state machine implementation.
 
-The BlobStream state machine is responsible for creating attestations which are signed by [orchestrators](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md), and submitted to EVM chains by [relayers](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md).
+The Blobstream state machine is responsible for creating attestations which are signed by [orchestrators](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md), and submitted to EVM chains by [relayers](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md).
 
 ### Attestations types
 
@@ -16,7 +16,7 @@ There are two types of attestations, [valsets](https://github.com/celestiaorg/ce
 
 A valset is an attestation type representing a validator set change. It allows for the validator set to change over heights which in turn defines which orchestrator should sign the attestations.
 
-When an orchestrator sees a newly generated valset published by the Celestia state machine, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new valset and submits that signature to the [BlobStream P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
+When an orchestrator sees a newly generated valset published by the Celestia state machine, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new valset and submits that signature to the [Blobstream P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
 
 A valset is comprised of the following fields:
 
@@ -51,16 +51,16 @@ message BridgeValidator {
 }
 ```
 
-1. `nonce`: is the universal nonce of the attestation. It is used to prevent front running attacks in the BlobStream smart contract. More details can be found in [ADR-004](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-004-qgb-relayer-security.md).
+1. `nonce`: is the universal nonce of the attestation. It is used to prevent front running attacks in the Blobstream smart contract. More details can be found in [ADR-004](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-004-qgb-relayer-security.md).
 2. `members`: contains the current validator set.
 3. `height`: is the height at which the valset was created.
 4. `time`: is the timestamp of the height at which the valset was created.
 
 #### Validator power normalization
 
-The [BlobStream bridge power](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/proto/celestia/qgb/v1/types.proto#L12-L13) is obtained by [normalizing](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/keeper/keeper_valset.go#L125-L150) the validators' voting power using the [min-max normalization](https://en.wikipedia.org/wiki/Feature_scaling) formula. This formula takes into account the ratio of each validator's voting power to the total voting power in the block and scales it to a value between `0` and `2^32`.
+The [Blobstream bridge power](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/proto/celestia/qgb/v1/types.proto#L12-L13) is obtained by [normalizing](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/keeper/keeper_valset.go#L125-L150) the validators' voting power using the [min-max normalization](https://en.wikipedia.org/wiki/Feature_scaling) formula. This formula takes into account the ratio of each validator's voting power to the total voting power in the block and scales it to a value between `0` and `2^32`.
 
-By normalizing the voting power, we can significantly reduce the frequency of generating new validator set updates. For example, if there is a small increase in the total on-chain voting power due to inflation, there is no need to create a new validator set. This is because the relative proportions of the validators remain the same, and the normalized BlobStream power doesn't show any significant difference.
+By normalizing the voting power, we can significantly reduce the frequency of generating new validator set updates. For example, if there is a small increase in the total on-chain voting power due to inflation, there is no need to create a new validator set. This is because the relative proportions of the validators remain the same, and the normalized Blobstream power doesn't show any significant difference.
 
 To ensure that the normalization process doesn't encounter overflow errors, the function normalizeValidatorPower uses [`BigInt`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/keeper/keeper_valset.go#LL142C1-L142C1) operations. It scales the raw power value with respect to the total validator power, making sure the result falls within the range of 0 to `2^32`.
 
@@ -68,13 +68,13 @@ This mechanism allows to increase/decrease the frequency at which validator set 
 
 #### Power diff
 
-[`PowerDiff(...)`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/types/validator.go#L100-L141) is a function that calculates the difference in power between two sets of bridge validators. It's important to note that the power being compared is not the regular voting power in the Celestia consensus network, but a specific type called BlobStream bridge power (explained above).
+[`PowerDiff(...)`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/types/validator.go#L100-L141) is a function that calculates the difference in power between two sets of bridge validators. It's important to note that the power being compared is not the regular voting power in the Celestia consensus network, but a specific type called Blobstream bridge power (explained above).
 
 ### Data commitments
 
-A data commitment is an attestation type representing a request to commit over a set of blocks. It provides an end exclusive range of blocks for orchestrators to sign over and propagate in the BlobStream P2P network. The range is defined by the param [`DataCommitmentWindow`](https://github.com/celestiaorg/celestia-app/blob/fc83b04c3a5638ac8d415770e38a4046b84fa128/x/qgb/keeper/keeper_data_commitment.go#L44-L50), more on this below.
+A data commitment is an attestation type representing a request to commit over a set of blocks. It provides an end exclusive range of blocks for orchestrators to sign over and propagate in the Blobstream P2P network. The range is defined by the param [`DataCommitmentWindow`](https://github.com/celestiaorg/celestia-app/blob/fc83b04c3a5638ac8d415770e38a4046b84fa128/x/qgb/keeper/keeper_data_commitment.go#L44-L50), more on this below.
 
-When an orchestrator sees a newly generated data commitment, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new data commitment and submits that signature to the [BlobStream P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
+When an orchestrator sees a newly generated data commitment, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new data commitment and submits that signature to the [Blobstream P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
 
 A data commitment is comprised of the following fields:
 
@@ -102,7 +102,7 @@ message DataCommitment {
 }
 ```
 
-1. `nonce`: is the universal nonce of the attestation. It is used to prevent front running attacks in the BlobStream smart contract. More details can be found in [ADR-004](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-004-qgb-relayer-security.md).
+1. `nonce`: is the universal nonce of the attestation. It is used to prevent front running attacks in the Blobstream smart contract. More details can be found in [ADR-004](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-004-qgb-relayer-security.md).
 2. `begin_block`: the data commitment range first block.
 3. `end_block`: the data commitment range last block. The range is end exclusive. Thus, the commitment will be over the set of blocks defined by `[begin_block, end_block)`.
 4. `time`: is the timestamp of the height at which the data commitment was created.
@@ -132,7 +132,7 @@ struct DataRootTuple {
 2. `dataRoot`: the data root, aka data hash, of the block.
 3. `squareSize`: the [square](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#arranging-available-data-into-shares) size of the block.
 
-These commitments are queried by orchestrators from [Celestia-core](https://github.com/celestiaorg/celestia-core/blob/d280f37a8376ed54ae03b10896fa25a4cbbc6d5b/rpc/core/blocks.go#L178-L195), signed, then submitted to the BlobStream P2P network as described [here](https://github.com/celestiaorg/orchestrator-relayer/blob/35b5df94c1602eb5e93a32d1bc6e5c8a4b5861e5/orchestrator/orchestrator.go#L331-L357).
+These commitments are queried by orchestrators from [Celestia-core](https://github.com/celestiaorg/celestia-core/blob/d280f37a8376ed54ae03b10896fa25a4cbbc6d5b/rpc/core/blocks.go#L178-L195), signed, then submitted to the Blobstream P2P network as described [here](https://github.com/celestiaorg/orchestrator-relayer/blob/35b5df94c1602eb5e93a32d1bc6e5c8a4b5861e5/orchestrator/orchestrator.go#L331-L357).
 
 ## State
 
@@ -147,13 +147,13 @@ Both types of attestations are set using the [`SetAttestationRequest(...)`](http
 
 ### Latest attestation nonce
 
-The latest attestation nonce represents the most recently generated nonce in the BlobStream state machine store. It is [initialized to 0](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/genesis.go#L12) in genesis, and gets incremented at block 1.
+The latest attestation nonce represents the most recently generated nonce in the Blobstream state machine store. It is [initialized to 0](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/genesis.go#L12) in genesis, and gets incremented at block 1.
 
 | Name                   | Key                                                                                                                                                       |
 |------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | LatestAttestationNonce | [`[LatestAttestationNonce]`](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/types/keys.go#L32-L33)       |
 
-The latest attestation nonce can be set to the BlobStream state machine store using the [`SetLatestAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/keeper/keeper_attestation.go#L44-L57) method and retrieved using the [`GetLatestAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/keeper/keeper_attestation.go#L67-L79).
+The latest attestation nonce can be set to the Blobstream state machine store using the [`SetLatestAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/keeper/keeper_attestation.go#L44-L57) method and retrieved using the [`GetLatestAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/keeper/keeper_attestation.go#L67-L79).
 
 To check if the latest attestation nonce is defined in store, use the [`CheckLatestAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/keeper/keeper_attestation.go#L59-L65) method.
 
@@ -166,17 +166,17 @@ The latest unbonding height indicates the most recent height at which some valid
 |------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | LatestUnBondingBlockHeight | [`[LatestUnBondingBlockHeight]`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/types/keys.go#L28-L30)  |
 
-The latest unbonding height can be set to the BlobStream state machine store using the [`SetLatestUnBondingBlockHeight(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_valset.go#L58-L64) method, and it is called in a `hook` when a validator starts unbonding. More details on hooks are below.
+The latest unbonding height can be set to the Blobstream state machine store using the [`SetLatestUnBondingBlockHeight(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_valset.go#L58-L64) method, and it is called in a `hook` when a validator starts unbonding. More details on hooks are below.
 
 ### Earliest attestation nonce
 
-The earliest attestation nonce corresponds to the nonce of the earliest generated attestation in the BlobStream state machine store. It is [initialized to 1](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/genesis.go#L13-L17) in genesis, and gets incremented updated when [pruning](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/abci.go#L184-L185).
+The earliest attestation nonce corresponds to the nonce of the earliest generated attestation in the Blobstream state machine store. It is [initialized to 1](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/genesis.go#L13-L17) in genesis, and gets incremented updated when [pruning](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/abci.go#L184-L185).
 
 | Name                   | Key                                                                                                                                                             |
 |------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | EarliestAvailableAttestationNonce | [`[EarliestAvailableAttestationNonce]`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/types/keys.go#L35-L37)  |
 
-The earliest attestation nonce can be set to the BlobStream state machine store using the [`SetEarliestAvailableAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_attestation.go#L104-L110) method, and retrieved using the [`GetEarliestAvailableAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_attestation.go#L89-L102).
+The earliest attestation nonce can be set to the Blobstream state machine store using the [`SetEarliestAvailableAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_attestation.go#L104-L110) method, and retrieved using the [`GetEarliestAvailableAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_attestation.go#L89-L102).
 
 To check if the earliest attestation nonce is defined in store, use the [`CheckEarliestAvailableAttestationNonce(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_attestation.go#L81-L87) method.
 
@@ -216,13 +216,13 @@ After a range update, the [`handler`](https://github.com/celestiaorg/celestia-ap
 
 ### Pruning
 
-The third action done during the BlobStream [`EndBlock`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/abci.go#L28-L35) step is pruning.
+The third action done during the Blobstream [`EndBlock`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/abci.go#L28-L35) step is pruning.
 
-The BlobStream state machine prunes old attestations up to the specified [`AttestationExpiryTime`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25), which is currently set to 3 weeks, matching the consensus unbonding time.
+The Blobstream state machine prunes old attestations up to the specified [`AttestationExpiryTime`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25), which is currently set to 3 weeks, matching the consensus unbonding time.
 
 So, on every block height, the state machine [checks](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L140-L157) whether there are any [`expired`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25) attestations. Then, it starts [pruning](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161-L182) via calling the [`DeleteAttestation(...)`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/keeper_attestation.go#L128-L139) method. Then, it [`prints`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L186-L194) a log message specifying the number of pruned attestations.
 
-If the all the attestations in store are expired, which is an edge case that should never occur, the BlobStream state machine [doesn't prune](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161) the latest attestation.
+If the all the attestations in store are expired, which is an edge case that should never occur, the Blobstream state machine [doesn't prune](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161) the latest attestation.
 
 ### Hooks
 
@@ -234,13 +234,13 @@ When a validator starts unbonding, a [hook](https://github.com/celestiaorg/celes
 
 ### New attestation event
 
-After creating a new attestation, and adding it to the BlobStream store, an event is [emitted](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/keeper_attestation.go#L16-L22) containing its nonce.
+After creating a new attestation, and adding it to the Blobstream store, an event is [emitted](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/keeper_attestation.go#L16-L22) containing its nonce.
 
 ## Client
 
 ### Query attestation command
 
-The BlobStream query attestation command is part of the `celestia-appd` binary. It allows the user to query specific attestations by their corresponding nonce.
+The Blobstream query attestation command is part of the `celestia-appd` binary. It allows the user to query specific attestations by their corresponding nonce.
 
 ```shell
 $ celestia-appd query blobstream attestation --help
@@ -255,20 +255,20 @@ Aliases:
 
 ### Verification command
 
-The BlobStream verification command is part of the `celestia-appd` binary. It allows the user to verify that a set of shares has been posted to a specific BlobStream contract.
+The Blobstream verification command is part of the `celestia-appd` binary. It allows the user to verify that a set of shares has been posted to a specific Blobstream contract.
 
 ```shell
 $ celestia-appd verify --help
 
-Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the BlobStream contract
+Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the Blobstream contract
 
 Usage:
   celestia-appd verify [command]
 
 Available Commands:
-  blob        Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the BlobStream contract.
-  shares      Verifies that a range of shares has been committed to by the BlobStream contract
-  tx          Verifies that a transaction hash, in hex format, has been committed to by the BlobStream contract
+  blob        Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the Blobstream contract.
+  shares      Verifies that a range of shares has been committed to by the Blobstream contract
+  tx          Verifies that a transaction hash, in hex format, has been committed to by the Blobstream contract
 
 Flags:
   -h, --help   help for verify
@@ -278,9 +278,9 @@ Use "celestia-appd verify [command] --help" for more information about a command
 
 It currently supports three sub-commands:
 
-- `blob`: Takes a transaction hash, in hex format, and verifies that the blob paid for by the transaction has been committed to by the BlobStream contract. It only supports one blob for now.
-- `shares`: Takes a range of shares and a height, and verifies that these shares have been committed to by the BlobStream contract.
-- `tx`: Takes a transaction hash, in hex format, and verifies that it has been committed to by the BlobStream contract.
+- `blob`: Takes a transaction hash, in hex format, and verifies that the blob paid for by the transaction has been committed to by the Blobstream contract. It only supports one blob for now.
+- `shares`: Takes a range of shares and a height, and verifies that these shares have been committed to by the Blobstream contract.
+- `tx`: Takes a transaction hash, in hex format, and verifies that it has been committed to by the Blobstream contract.
 
 ## Params
 
@@ -370,13 +370,13 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != n
 
 ### Hooks initialization panic
 
-When initializing the BlobStream hooks, if the BlobStream store key is not setup correctly, the state machine will [panic](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/hooks.go#L14-L19):
+When initializing the Blobstream hooks, if the Blobstream store key is not setup correctly, the state machine will [panic](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/hooks.go#L14-L19):
 
 ```golang
 // if startup is mis-ordered in app.go this hook will halt the chain when
 // called. Keep this check to make such a mistake obvious
 if k.storeKey == nil {
-   panic("hooks initialized before BlobStreamKeeper")
+   panic("hooks initialized before BlobstreamKeeper")
 }
 ```
 
@@ -386,4 +386,4 @@ The smart contract implementation is in [quantum-gravity-bridge](https://github.
 
 The orchestrator and relayer implementations are in the [orchestrator-relayer](https://github.com/celestiaorg/orchestrator-relayer) repo.
 
-BlobStream ADRs are in the [docs](https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture).
+Blobstream ADRs are in the [docs](https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture).

@@ -15,7 +15,7 @@ import (
 
 // GetQueryCmd returns the CLI query commands for this module
 func GetQueryCmd() *cobra.Command {
-	// Group BlobStream queries under a subcommand
+	// Group Blobstream queries under a subcommand
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
 		Short:                      fmt.Sprintf("Querying commands for the %s module", types.ModuleName),
@@ -115,7 +115,7 @@ func unmarshallAttestation(attestation *codectypes.Any) (types.AttestationReques
 	return unmarshalledAttestation, nil
 }
 
-// makeInterfaceRegistry creates the interface registry containing the BlobStream interfaces
+// makeInterfaceRegistry creates the interface registry containing the Blobstream interfaces
 func makeInterfaceRegistry() codectypes.InterfaceRegistry {
 	// create the codec
 	interfaceRegistry := codectypes.NewInterfaceRegistry()

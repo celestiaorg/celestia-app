@@ -20,9 +20,9 @@ type CLITestSuite struct {
 
 func (s *CLITestSuite) SetupSuite() {
 	if testing.Short() {
-		s.T().Skip("skipping BlobStream CLI tests in short mode.")
+		s.T().Skip("skipping Blobstream CLI tests in short mode.")
 	}
-	s.T().Log("setting up BlobStream CLI test suite")
+	s.T().Log("setting up Blobstream CLI test suite")
 
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
@@ -46,10 +46,10 @@ func (s *CLITestSuite) SetupSuite() {
 }
 
 func (s *CLITestSuite) TearDownSuite() {
-	s.T().Log("tearing down BlobStream CLI test suite")
+	s.T().Log("tearing down Blobstream CLI test suite")
 	s.network.Cleanup()
 }
 
-func TestBlobStreamCLI(t *testing.T) {
+func TestBlobstreamCLI(t *testing.T) {
 	suite.Run(t, new(CLITestSuite))
 }

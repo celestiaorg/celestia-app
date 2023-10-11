@@ -23,7 +23,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// Params represent the BlobStream genesis and store parameters.
+// Params represent Blobstream genesis and store parameters.
 type Params struct {
 	DataCommitmentWindow uint64 `protobuf:"varint,1,opt,name=data_commitment_window,json=dataCommitmentWindow,proto3" json:"data_commitment_window,omitempty"`
 }
@@ -68,7 +68,7 @@ func (m *Params) GetDataCommitmentWindow() uint64 {
 	return 0
 }
 
-// GenesisState struct, containing all persistent data required by BlobStream
+// GenesisState struct, containing all persistent data required by Blobstream
 // module
 type GenesisState struct {
 	Params *Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params,omitempty"`

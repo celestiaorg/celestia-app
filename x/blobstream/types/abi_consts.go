@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	// InternalBlobStreamABIJSON is the json encoded abi for private functions in the
-	// BlobStream contract. This is needed to encode data that is signed over in a way
+	// InternalBlobstreamABIJSON is the json encoded abi for private functions in the
+	// Blobstream contract. This is needed to encode data that is signed over in a way
 	// that the contracts can easily verify.
-	InternalBlobStreamABIJSON = `[
+	InternalBlobstreamABIJSON = `[
 			{
 			"inputs": [
 				{
@@ -116,8 +116,8 @@ const (
 )
 
 var (
-	ExternalBlobStreamABI abi.ABI
-	InternalBlobStreamABI abi.ABI
+	ExternalBlobstreamABI abi.ABI
+	InternalBlobstreamABI abi.ABI
 	BridgeValidatorAbi    abi.Arguments
 
 	VsDomainSeparator ethcmn.Hash
@@ -129,13 +129,13 @@ func init() {
 	if err != nil {
 		log.Fatalln("bad ABI constant", err)
 	}
-	ExternalBlobStreamABI = contractAbi
+	ExternalBlobstreamABI = contractAbi
 
-	internalABI, err := abi.JSON(strings.NewReader(InternalBlobStreamABIJSON))
+	internalABI, err := abi.JSON(strings.NewReader(InternalBlobstreamABIJSON))
 	if err != nil {
 		log.Fatalln("bad internal ABI constant", err)
 	}
-	InternalBlobStreamABI = internalABI
+	InternalBlobstreamABI = internalABI
 
 	solValidatorType, err := abi.NewType("tuple", "validator", []abi.ArgumentMarshaling{
 		{Name: "Addr", Type: "address"},

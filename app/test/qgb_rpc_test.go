@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBlobStreamRPCQueries(t *testing.T) {
+func TestBlobstreamRPCQueries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping blob stream integration test in short mode.")
 	}

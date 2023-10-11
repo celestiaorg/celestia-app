@@ -30,7 +30,7 @@ func CmdRegisterEVMAddress() *cobra.Command {
 		Use:   "register [valAddress] [evmAddress]",
 		Short: "Register an EVM address for a validator",
 		Long: `Registers an EVM address for a validator. This address will be used to
-sign attestations as part of the BlobStream protocol. Only the validator, as the signer,
+sign attestations as part of Blobstream protocol. Only the validator, as the signer,
 can register an EVM address. To change the EVM address, the validator can simply
 send a new message overriding the previous one.
 `,

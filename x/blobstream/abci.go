@@ -184,7 +184,7 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 		// some attestations were pruned and we need to update the state for it
 		k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
 		ctx.Logger().Debug(
-			"pruned attestations from BlobStream store",
+			"pruned attestations from Blobstream store",
 			"count",
 			newEarliestAvailableNonce-earliestAttestation.GetNonce(),
 			"new_earliest_available_nonce",

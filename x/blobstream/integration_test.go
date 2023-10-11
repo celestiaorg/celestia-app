@@ -18,14 +18,14 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-func TestBlobStreamIntegrationSuite(t *testing.T) {
+func TestBlobstreamIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping blob stream integration test in short mode.")
 	}
-	suite.Run(t, new(BlobStreamIntegrationSuite))
+	suite.Run(t, new(BlobstreamIntegrationSuite))
 }
 
-type BlobStreamIntegrationSuite struct {
+type BlobstreamIntegrationSuite struct {
 	suite.Suite
 
 	accounts []string
@@ -33,7 +33,7 @@ type BlobStreamIntegrationSuite struct {
 	ecfg     encoding.Config
 }
 
-func (s *BlobStreamIntegrationSuite) SetupSuite() {
+func (s *BlobstreamIntegrationSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
 
@@ -45,7 +45,7 @@ func (s *BlobStreamIntegrationSuite) SetupSuite() {
 	s.cctx = cctx
 }
 
-func (s *BlobStreamIntegrationSuite) TestBlobStream() {
+func (s *BlobstreamIntegrationSuite) TestBlobstream() {
 	t := s.T()
 	type test struct {
 		name           string

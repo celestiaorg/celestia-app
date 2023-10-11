@@ -39,7 +39,7 @@ func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 	// checkpointAbiJson but other than that it's a constant that has no impact
 	// on the output. This is because it gets encoded as a function name which
 	// we must then discard.
-	bytes, err := InternalBlobStreamABI.Pack(
+	bytes, err := InternalBlobstreamABI.Pack(
 		"domainSeparateValidatorSetHash",
 		VsDomainSeparator,
 		big.NewInt(int64(v.Nonce)),
@@ -67,7 +67,7 @@ func (v *Valset) Hash() (ethcmn.Hash, error) {
 		}
 	}
 
-	encodedVals, err := InternalBlobStreamABI.Pack("computeValidatorSetHash", ethVals)
+	encodedVals, err := InternalBlobstreamABI.Pack("computeValidatorSetHash", ethVals)
 	if err != nil {
 		return ethcmn.Hash{}, err
 	}
