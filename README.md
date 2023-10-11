@@ -92,9 +92,12 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     You should see output like this:
 
     ```shell
-    gpg: Signature made Thu Sep 21 14:39:26 2023 EDT
+    gpg: Signature made Tue Oct 10 13:25:06 2023 UTC
     gpg:                using EDDSA key BF02F32CC36864560B90B764D469F859693DC3FA
-    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [ultimate]
+    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [unknown]
+    gpg: WARNING: This key is not certified with a trusted signature!
+    gpg:          There is no indication that the signature belongs to the owner.
+    Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
     ```
 
 ### Ledger Support
