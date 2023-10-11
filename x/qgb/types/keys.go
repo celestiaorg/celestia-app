@@ -31,8 +31,8 @@ const (
 	// height
 	LatestUnBondingBlockHeight = "LatestUnBondingBlockHeight"
 
-	// LatestAttestationtNonce indexes the latest attestation request nonce
-	LatestAttestationtNonce = "LatestAttestationNonce"
+	// LatestAttestationNonce indexes the latest attestation request nonce
+	LatestAttestationNonce = "LatestAttestationNonce"
 
 	// EarliestAvailableAttestationNonce indexes the earliest available
 	// attestation nonce
