@@ -1,5 +1,6 @@
 name: nightly
 on:
+  workflow_dispatch:
   schedule:
     # runs every day at 6am UTC
     - cron: "0 6 * * *"
@@ -26,3 +27,26 @@ jobs:
 
       - name: Run e2e tests
         run: make test-e2e
+
+  race-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Run tests in race mode
+        run: make test-race
+
+  fuzz_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: jidicula/go-fuzz-action@v1.1.0
+        with:
+          packages: './...'
+          fuzz-time: 2m
+          go-version: ${{ env.GO_VERSION }}
