@@ -5,6 +5,7 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
+HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -55,6 +56,11 @@ proto-gen:
 proto-lint:
 	@echo "--> Linting Protobuf files"
 	@$(DOCKER_BUF) lint --error-format=json
+.PHONY: proto-lint
+
+## proto-check-breakage checks if their is any breaking change to the protos
+proto-check-breakage:
+	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=v1.x
 .PHONY: proto-lint
 
 ## proto-format: Format protobuf files. Requires docker.
