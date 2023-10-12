@@ -3,6 +3,7 @@ on:
   schedule:
     # runs every day at 6am UTC
     - cron: "0 6 * * *"
+  workflow_dispatch:
 
 env:
   GO_VERSION: '1.21.1'
