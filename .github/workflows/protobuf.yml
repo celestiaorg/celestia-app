@@ -32,10 +32,9 @@ jobs:
           fi
         # yamllint enable
 
-  # add this back when we start using versioning
-  # breakage:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: check-breakage
-  #       run: make proto-check-breaking
+  breakage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: check-breakage
+        run: make proto-check-breaking
