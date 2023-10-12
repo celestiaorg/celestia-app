@@ -98,7 +98,7 @@ func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
 	params.SignedBlocksWindow = 5000
 	params.DowntimeJailDuration = time.Minute * 1
-	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(2, 2) // 2%
 	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
 
 	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
@@ -161,7 +161,7 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	day := time.Duration(time.Hour * 24)
 	oneWeek := day * 7
 
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(1_000_000_000))) // 1000 TIA
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10_000_000_000))) // 10,000 TIA
 	genState.DepositParams.MaxDepositPeriod = &oneWeek
 	genState.VotingParams.VotingPeriod = &oneWeek
 
@@ -187,7 +187,7 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Evidence:  DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
-			AppVersion: appconsts.LatestVersion,
+			AppVersion: DefaultInitialVersion,
 		},
 	}
 }

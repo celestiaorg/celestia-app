@@ -153,6 +153,7 @@ func DefaultParams() *tmproto.ConsensusParams {
 	cparams := types.DefaultConsensusParams()
 	cparams.Block.TimeIotaMs = 1
 	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
+	cparams.Version.AppVersion = appconsts.LatestVersion
 	return cparams
 }
 

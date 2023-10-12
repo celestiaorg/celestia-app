@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -66,8 +67,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	sdkupgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
-	sdkupgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v6/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
@@ -92,7 +91,6 @@ import (
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
-	appupgrade "github.com/celestiaorg/celestia-app/x/upgrade"
 
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -160,7 +158,7 @@ var (
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
 	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = extractRegisters(ModuleBasics, appupgrade.TypeRegister{})
+	ModuleEncodingRegisters = extractRegisters(ModuleBasics, upgrade.TypeRegister{})
 
 	// module account permissions
 	maccPerms = map[string][]string{
@@ -219,7 +217,7 @@ type App struct {
 	DistrKeeper      distrkeeper.Keeper
 	GovKeeper        govkeeper.Keeper
 	CrisisKeeper     crisiskeeper.Keeper
-	UpgradeKeeper    sdkupgradekeeper.Keeper
+	UpgradeKeeper    upgrade.Keeper
 	ParamsKeeper     paramskeeper.Keeper
 	IBCKeeper        *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper   evidencekeeper.Keeper
@@ -235,6 +233,9 @@ type App struct {
 
 	// the module manager
 	mm *module.Manager
+
+	// module configurator
+	configurator module.Configurator
 }
 
 // New returns a reference to an initialized celestia app.
@@ -243,13 +244,18 @@ func New(
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
-	skipUpgradeHeights map[int64]bool,
-	homePath string,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
+	upgradeSchedule map[string]upgrade.Schedule,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	for _, schedule := range upgradeSchedule {
+		if err := schedule.ValidateVersions(supportedVersions); err != nil {
+			panic(err)
+		}
+	}
+
 	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
@@ -262,7 +268,7 @@ func New(
 	keys := sdk.NewKVStoreKeys(
 		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, sdkupgradetypes.StoreKey, feegrant.StoreKey,
+		govtypes.StoreKey, paramstypes.StoreKey, upgrade.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
 		blobmoduletypes.StoreKey,
 		qgbmoduletypes.StoreKey,
@@ -328,7 +334,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = sdkupgradekeeper.NewKeeper(skipUpgradeHeights, keys[sdkupgradetypes.StoreKey], appCodec, homePath, app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeSchedule)
 
 	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
 		appCodec,
@@ -463,6 +469,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
+		upgrade.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -485,6 +492,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
+		upgrade.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -512,7 +520,7 @@ func New(
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
-		sdkupgradetypes.ModuleName,
+		upgrade.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -520,8 +528,8 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
-	configurator := module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.mm.RegisterServices(configurator)
+	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	app.mm.RegisterServices(app.configurator)
 
 	// initialize stores
 	app.MountKVStores(keys)
@@ -565,7 +573,17 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	res := app.mm.EndBlock(ctx, req)
+	if app.UpgradeKeeper.ShouldUpgrade() {
+		newAppVersion := app.UpgradeKeeper.GetNextAppVersion()
+		app.SetProtocolVersion(newAppVersion)
+		_, err := app.mm.RunMigrations(ctx, app.configurator, GetModuleVersion(newAppVersion))
+		if err != nil {
+			panic(err)
+		}
+		app.UpgradeKeeper.MarkUpgradeComplete()
+	}
+	return res
 }
 
 // InitChainer application update at chain initialization
@@ -574,7 +592,9 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap())
+	if req.ConsensusParams != nil && req.ConsensusParams.Version != nil {
+		app.SetProtocolVersion(req.ConsensusParams.Version.AppVersion)
+	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
