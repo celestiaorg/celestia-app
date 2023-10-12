@@ -153,7 +153,7 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 			runenv.RecordMessage(fmt.Sprintf("tracing node %+v", nodes[i]))
 			nodes[i].CmtConfig.Instrumentation.InfluxOrg = "celestia"
 			nodes[i].CmtConfig.Instrumentation.InfluxBucket = "testground"
-			nodes[i].CmtConfig.Instrumentation.InfluxBatchSize = 50
+			nodes[i].CmtConfig.Instrumentation.InfluxBatchSize = 500
 			nodes[i].CmtConfig.Instrumentation.InfluxURL = tparams.Url
 			nodes[i].CmtConfig.Instrumentation.InfluxToken = tparams.Token
 			tracedNodes++
