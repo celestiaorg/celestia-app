@@ -58,8 +58,8 @@ proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
 
-## proto-check-breakage checks if their is any breaking change to the protos
-proto-check-breakage:
+## proto-check-breaking checks if their is any breaking change to the protos
+proto-check-breaking:
 	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=v1.x
 .PHONY: proto-lint
 
