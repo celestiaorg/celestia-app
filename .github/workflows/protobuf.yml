@@ -1,4 +1,3 @@
-# protobuf runs `make proto-lint` and `make proto-gen`.
 name: protobuf
 on:
   pull_request:
