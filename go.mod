@@ -4,7 +4,7 @@ go 1.21.1
 
 require (
 	github.com/celestiaorg/nmt v0.20.0
-	github.com/ethereum/go-ethereum v1.13.2
+	github.com/ethereum/go-ethereum v1.13.3
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0 // indirect
@@ -34,7 +34,7 @@ require (
 	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/rs/zerolog v1.31.0
 	github.com/tendermint/tendermint v0.34.28
-	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	google.golang.org/genproto/googleapis/api v0.0.0-20230920204549-e6e6cdab5c13
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -79,9 +79,9 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.15.1 // indirect
 	go.opentelemetry.io/otel/sdk v1.15.1 // indirect
 	go.opentelemetry.io/otel/trace v1.15.1 // indirect
-	golang.org/x/mod v0.11.0 // indirect
+	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231009173412-8bfb1ae86b6c // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.27.3 // indirect
