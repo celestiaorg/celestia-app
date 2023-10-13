@@ -58,10 +58,11 @@ proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
 
-## proto-check-breaking checks if their is any breaking change to the protos
+## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
 proto-check-breaking:
+	@echo "--> Checking if Protobuf definitions have any breaking changes"
 	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=v1.x
-.PHONY: proto-lint
+.PHONY: proto-check-breaking
 
 ## proto-format: Format protobuf files. Requires docker.
 proto-format:

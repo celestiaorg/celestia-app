@@ -32,9 +32,9 @@ jobs:
           fi
         # yamllint enable
 
-  breakage:
+  proto-check-breaking:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: check-breakage
+      - name: proto-check-breaking
         run: make proto-check-breaking
