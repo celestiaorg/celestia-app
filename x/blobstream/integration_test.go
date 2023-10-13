@@ -20,7 +20,7 @@ import (
 
 func TestBlobstreamIntegrationSuite(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping blob stream integration test in short mode.")
+		t.Skip("skipping Blobstream integration test in short mode.")
 	}
 	suite.Run(t, new(BlobstreamIntegrationSuite))
 }
