@@ -56,7 +56,7 @@ func (k Keeper) DeserializeValidatorIterator(vals []byte) stakingtypes.ValAddres
 	return validators
 }
 
-// StakingKeeper restricts the functionality of the bank keeper used in the Blobstream
+// StakingKeeper restricts the functionality of the bank keeper used in the blobstream
 // keeper
 type StakingKeeper interface {
 	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
