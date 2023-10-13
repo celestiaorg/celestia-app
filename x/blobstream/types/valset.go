@@ -56,7 +56,7 @@ func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 	return hash, nil
 }
 
-// Hash mimics the 'computeValsetHash' function used by the blobstream contracts by
+// Hash mimics the 'computeValsetHash' function used by the Blobstream contracts by
 // using a Valset to compute the hash of the abi encoded validator set.
 func (v *Valset) Hash() (ethcmn.Hash, error) {
 	ethVals := make([]wrapper.Validator, len(v.Members))
