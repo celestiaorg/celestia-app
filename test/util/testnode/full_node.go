@@ -23,7 +23,7 @@ import (
 // NewCometNode creates a ready to use comet node that operates a single
 // validator celestia-app network. It expects that all configuration files are
 // already initialized and saved to the baseDir.
-func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtypes.Application, error) {
+func NewCometNode(baseDir string, cfg *Config) (*node.Node, srvtypes.Application, error) {
 	var logger log.Logger
 	if cfg.SupressLogs {
 		logger = log.NewNopLogger()
@@ -34,7 +34,9 @@ func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtyp
 
 	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
 	db, err := dbm.NewGoLevelDB("application", dbPath)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	cfg.AppOptions.Set(flags.FlagHome, baseDir)
 
@@ -78,7 +80,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	baseDir, err := genesis.InitFiles(t.TempDir(), tmCfg, cfg.Genesis, 0)
 	require.NoError(t, err)
 
-	tmNode, app, err := NewCometNode(t, baseDir, cfg)
+	tmNode, app, err := NewCometNode(baseDir, cfg)
 	require.NoError(t, err)
 
 	cctx = NewContext(context.TODO(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
@@ -100,6 +102,54 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	})
 
 	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
+}
+
+// CINetwork starts a single valiator celestia-app network using the provided
+// configurations. Configured accounts will be funded and their keys can be
+// accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
+// in the provided configs are overwritten to use open ports. The node can be
+// accessed via the returned client.Context or via the returned rpc and grpc
+// addresses. Configured genesis options will be applied after all accounts have
+// been initialized.
+func CINetwork(tempDir string, cfg *Config) (Context, func(), error) {
+	tmCfg := cfg.TmConfig
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+
+	// initialize the genesis file and validator files for the first validator.
+	baseDir, err := genesis.InitFiles(tempDir, tmCfg, cfg.Genesis, 0)
+	if err != nil {
+		return Context{}, nil, err
+	}
+
+	tmNode, app, err := NewCometNode(baseDir, cfg)
+	if err != nil {
+		return Context{}, nil, err
+	}
+
+	cctx := NewContext(context.TODO(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
+
+	cctx, stopNode, err := StartNode(tmNode, cctx)
+	if err != nil {
+		return Context{}, nil, err
+	}
+
+	appCfg := cfg.AppConfig
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+
+	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
+	if err != nil {
+		return Context{}, nil, err
+	}
+
+	cleanup := func() {
+		stopNode()
+		cleanupGRPC()
+	}
+
+	return cctx, cleanup, nil
 }
 
 func GetFreePort() int {

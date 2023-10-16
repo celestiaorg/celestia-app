@@ -99,6 +99,11 @@ func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
 	return g
 }
 
+func (g *Genesis) WithGenTx(gentxs ...sdk.Tx) *Genesis {
+	g.genTxs = append(g.genTxs, gentxs...)
+	return g
+}
+
 func (g *Genesis) AddAccount(acc Account) error {
 	_, err := g.kr.Key(acc.Name)
 	if err == nil {
