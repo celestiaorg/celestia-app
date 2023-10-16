@@ -20,6 +20,12 @@ type Account struct {
 	InitialTokens int64
 }
 
+var (
+	Utia = sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
+	// Tia is 1e6 utia (a.k.a one million utia)
+	Tia = sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1e6)))
+)
+
 func NewAccounts(initBal int64, names ...string) []Account {
 	accounts := make([]Account, len(names))
 	for i, name := range names {
@@ -115,7 +121,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
+	fee := Utia
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)
 	if err != nil {

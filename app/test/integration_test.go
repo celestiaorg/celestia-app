@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/assert"
@@ -227,7 +228,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			"small random typical",
 			mustNewBlob(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
 			[]user.TxOption{
-				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
+				user.SetFeeAmount(genesis.Utia),
 				user.SetGasLimit(1_000_000_000),
 			},
 		},

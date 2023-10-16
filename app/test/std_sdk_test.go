@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -86,7 +87,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					genesis.Utia,
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
@@ -158,7 +159,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					genesis.Tia,
 					time.Now().Add(time.Hour).Unix(),
 					time.Now().Add(time.Hour*2).Unix(),
 					false,
@@ -176,7 +177,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				// to inflation so if 1 coin is not present in the community
 				// pool, consider expanding the block interval or waiting for
 				// more blocks to be produced prior to executing this test case.
-				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
+				coins := genesis.Utia
 				content := disttypes.NewCommunityPoolSpendProposal(
 					"title",
 					"description",
@@ -222,13 +223,13 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend1 := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					genesis.Utia,
 				)
 				account3 := s.unusedAccount()
 				msgSend2 := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account3),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					genesis.Utia,
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
 			},

@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -54,7 +55,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					genesis.Tia,
 					time.Now().Unix(),
 					time.Now().Add(time.Second*100).Unix(),
 					false,
@@ -72,7 +73,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 				msg := banktypes.NewMsgSend(
 					vestAccAddr,
 					sendingAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					genesis.Utia,
 				)
 				return []sdk.Msg{msg}, vestAccName
 			},
