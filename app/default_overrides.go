@@ -225,6 +225,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// version. This acts as a first line of DoS protection
 	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
 	cfg.Mempool.MaxTxBytes = upperBoundBytes
+	cfg.Mempool.MaxTxsBytes = int64(upperBoundBytes) * cfg.Mempool.TTLNumBlocks
 
 	cfg.Mempool.Version = "v1" // prioritized mempool
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
