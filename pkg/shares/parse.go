@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -26,10 +27,10 @@ func ParseTxs(shares []Share) (coretypes.Txs, error) {
 }
 
 // ParseBlobs collects all blobs from the shares provided
-func ParseBlobs(shares []Share) ([]coretypes.Blob, error) {
+func ParseBlobs(shares []Share) ([]*blob.Blob, error) {
 	blobList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	if err != nil {
-		return []coretypes.Blob{}, err
+		return []*blob.Blob{}, err
 	}
 
 	return blobList, nil

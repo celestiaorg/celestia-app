@@ -6,6 +6,7 @@ import (
 
 	sdkerrors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func Test_MerkleMountainRangeHeights(t *testing.T) {
@@ -96,7 +96,7 @@ func TestCreateCommitment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blob := &types.Blob{
+			blob := &blob.Blob{
 				NamespaceId:      tt.namespace.ID,
 				Data:             tt.blob,
 				ShareVersion:     uint32(tt.shareVersion),
@@ -263,10 +263,10 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
-	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
+	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
 
-	pblob := &tmproto.Blob{
-		Data:             blob,
+	pblob := &blob.Blob{
+		Data:             data,
 		NamespaceId:      ns1,
 		NamespaceVersion: uint32(appns.NamespaceVersionZero),
 		ShareVersion:     uint32(appconsts.ShareVersionZero),
@@ -283,16 +283,16 @@ func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
-	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
+	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
 
-	pblob := &tmproto.Blob{
-		Data:             blob,
+	pblob := &blob.Blob{
+		Data:             data,
 		NamespaceId:      ns1,
 		NamespaceVersion: uint32(255),
 		ShareVersion:     uint32(appconsts.ShareVersionZero),
 	}
 
-	blobs := []*types.Blob{pblob}
+	blobs := []*blob.Blob{pblob}
 
 	commitments, err := types.CreateCommitments(blobs)
 	require.NoError(t, err)
@@ -326,7 +326,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 	type testCase struct {
 		name        string
 		signer      string
-		blobs       []*tmproto.Blob
+		blobs       []*blob.Blob
 		expectedErr bool
 	}
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -336,7 +336,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "valid msg PFB with small blob",
 			signer: testfactory.TestAccAddr,
-			blobs: []*tmproto.Blob{
+			blobs: []*blob.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
 					NamespaceId:      ns1.ID,
@@ -349,7 +349,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "valid msg PFB with large blob",
 			signer: testfactory.TestAccAddr,
-			blobs: []*tmproto.Blob{
+			blobs: []*blob.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
 					NamespaceId:      ns1.ID,
@@ -362,7 +362,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "valid msg PFB with two blobs",
 			signer: testfactory.TestAccAddr,
-			blobs: []*tmproto.Blob{
+			blobs: []*blob.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
 					NamespaceId:      ns1.ID,
@@ -380,7 +380,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "unsupported share version returns an error",
 			signer: testfactory.TestAccAddr,
-			blobs: []*tmproto.Blob{
+			blobs: []*blob.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
 					NamespaceId:      ns1.ID,
@@ -393,7 +393,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "msg PFB with tx namespace returns an error",
 			signer: testfactory.TestAccAddr,
-			blobs: []*tmproto.Blob{
+			blobs: []*blob.Blob{
 				{
 					NamespaceVersion: uint32(appns.TxNamespace.Version),
 					NamespaceId:      appns.TxNamespace.ID,
@@ -406,7 +406,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "msg PFB with invalid signer returns an error",
 			signer: testfactory.TestAccAddr[:10],
-			blobs: []*tmproto.Blob{
+			blobs: []*blob.Blob{
 				{
 					NamespaceVersion: uint32(ns1.Version),
 					NamespaceId:      ns1.ID,
@@ -443,14 +443,14 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 func TestValidateBlobs(t *testing.T) {
 	type test struct {
 		name        string
-		blob        *types.Blob
+		blob        *blob.Blob
 		expectError bool
 	}
 
 	tests := []test{
 		{
 			name: "valid blob",
-			blob: &types.Blob{
+			blob: &blob.Blob{
 				Data:             []byte{1},
 				NamespaceId:      appns.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),
@@ -460,7 +460,7 @@ func TestValidateBlobs(t *testing.T) {
 		},
 		{
 			name: "invalid share version",
-			blob: &types.Blob{
+			blob: &blob.Blob{
 				Data:             []byte{1},
 				NamespaceId:      appns.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(10000),
@@ -470,7 +470,7 @@ func TestValidateBlobs(t *testing.T) {
 		},
 		{
 			name: "empty blob",
-			blob: &types.Blob{
+			blob: &blob.Blob{
 				Data:             []byte{},
 				NamespaceId:      appns.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),
@@ -480,7 +480,7 @@ func TestValidateBlobs(t *testing.T) {
 		},
 		{
 			name: "invalid namespace",
-			blob: &types.Blob{
+			blob: &blob.Blob{
 				Data:             []byte{1},
 				NamespaceId:      appns.TxNamespace.ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),

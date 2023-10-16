@@ -5,8 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	coretypes "github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"golang.org/x/exp/slices"
 )
 
@@ -23,19 +22,20 @@ func NewSparseShareSplitter() *SparseShareSplitter {
 
 // Write writes the provided blob to this sparse share splitter. It returns an
 // error or nil if no error is encountered.
-func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
-	if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion) {
+func (sss *SparseShareSplitter) Write(blob *blob.Blob) error {
+	if err := blob.Validate(); err != nil {
+		return err
+	}
+
+	if !slices.Contains(appconsts.SupportedShareVersions, uint8(blob.ShareVersion)) {
 		return fmt.Errorf("unsupported share version: %d", blob.ShareVersion)
 	}
 
 	rawData := blob.Data
-	blobNamespace, err := appns.New(blob.NamespaceVersion, blob.NamespaceID)
-	if err != nil {
-		return err
-	}
+	blobNamespace := blob.Namespace()
 
-	// First share
-	b, err := NewBuilder(blobNamespace, blob.ShareVersion, true)
+	// First share (note by validating the blob we can safely cast the share version to uint8)
+	b, err := NewBuilder(blobNamespace, uint8(blob.ShareVersion), true)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 		}
 		sss.shares = append(sss.shares, *share)
 
-		b, err = NewBuilder(blobNamespace, blob.ShareVersion, false)
+		b, err = NewBuilder(blobNamespace, uint8(blob.ShareVersion), false)
 		if err != nil {
 			return err
 		}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -44,7 +45,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (types.ShareP
 }
 
 func getTxNamespace(tx []byte) (ns appns.Namespace) {
-	_, isBlobTx := types.UnmarshalBlobTx(tx)
+	_, isBlobTx := blob.UnmarshalBlobTx(tx)
 	if isBlobTx {
 		return appns.PayForBlobNamespace
 	}

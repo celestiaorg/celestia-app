@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -191,7 +192,7 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 			require.NoError(t, err)
 			txs := generateBlobTxsWithNamespaces(t, ns1.Repeat(len(tc.blobSize)), [][]int{tc.blobSize})
 			require.Len(t, txs, 1)
-			blobTx, isBlobTx := coretypes.UnmarshalBlobTx(txs[0])
+			blobTx, isBlobTx := blob.UnmarshalBlobTx(txs[0])
 			require.True(t, isBlobTx)
 			require.Equal(t, tc.added, builder.AppendBlobTx(blobTx))
 		})
@@ -227,7 +228,7 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 
 	var lastEnd int
 	for idx, tx := range blockTxs {
-		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}
@@ -420,7 +421,7 @@ func TestSquareBlobPostions(t *testing.T) {
 			builder, err := square.NewBuilder(tt.squareSize, appconsts.LatestVersion)
 			require.NoError(t, err)
 			for _, tx := range tt.blobTxs {
-				blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
+				blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
 				require.True(t, isBlobTx)
 				_ = builder.AppendBlobTx(blobTx)
 			}

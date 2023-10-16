@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math/rand"
 
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gogo/protobuf/grpc"
 )
