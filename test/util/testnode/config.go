@@ -124,7 +124,7 @@ func DefaultConfig() *Config {
 				WithModifiers().
 				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
 		).
-		WithTendermintConfig(DefaultTendermintConfig()).
+		WithTendermintConfig(tmcfg).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(cmd.NewAppServer).

@@ -37,6 +37,10 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	testAccounts := genesis.NewAccounts(999999999999999999, accounts...)
 	// this validator has enough stake to overwrite all other validators
 	validator := genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)
+	// 2B utia guarantees that our validator will have enough power to take over
+	// the network while not being too much to reduce the validators with single
+	// digit TIA to 0 resulting in a consensus failure.
+	validator.Stake = 2_000_000_000_000_000
 
 	// this will load a testnet genesis from an existing genesis file.
 	g, err := genesis.FromDocument(existingGenesis)
@@ -45,8 +49,8 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	}
 
 	g = g.WithAccounts(testAccounts...).
-		WithValidators(validator)
-		// WithGenTx(genTxs...)
+		WithValidators(validator).
+		WithGenTx(genTxs...)
 
 	gDoc, err := g.Export()
 	if err != nil {

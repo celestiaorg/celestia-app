@@ -20,7 +20,7 @@ func TestGenTxTestBasic(t *testing.T) {
 	val := genesis.NewDefaultValidator("test")
 	// create a validator that doesn't have enough stake to require a signature
 	// to produce a block for testing purposes
-	val.Stake = 1_000_000
+	val.Stake = 9_000_000
 
 	// we purposefully don't add the validator above yet as a validator. Adding
 	// only the account will generate a tx key for the validator account and
