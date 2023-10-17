@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -45,8 +46,7 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 
 	g = g.WithAccounts(testAccounts...).
 		WithValidators(validator)
-
-	delegatorAddr := testfactory.GetAddress(g.Keyring(), accounts[0])
+		// WithGenTx(genTxs...)
 
 	gDoc, err := g.Export()
 	if err != nil {
@@ -57,6 +57,8 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	if err != nil {
 		return err
 	}
+
+	delegatorAddr := testfactory.GetAddress(g.Keyring(), accounts[0])
 
 	delegateTxBuilder, err := CreateMultiDelegateTx(
 		ecfg,
@@ -77,6 +79,12 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 		return err
 	}
 	defer cleanup()
+
+	// wait for the nework to start, with ~300ms blocks, 5 seconds should be plenty
+	_, err = cctx.WaitForHeightWithTimeout(2, time.Second*10)
+	if err != nil {
+		return err
+	}
 
 	addr := testfactory.GetAddress(cctx.Keyring, accounts[0])
 
@@ -109,12 +117,7 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 		return fmt.Errorf("transaction failed with code %d, %v %v %v", resp.Code, resp.Codespace, resp.Logs, resp.RawLog)
 	}
 
-	err = cctx.WaitForBlocks(4)
-	if err != nil {
-		return err
-	}
-
-	result, err := testnode.QueryWithoutProof(cctx.Context, resp.TxHash)
+	result, err := signer.ConfirmTx(cctx.GoContext(), resp.TxHash)
 	if err != nil {
 		return err
 	}
@@ -124,14 +127,8 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	// the gentxs were correctly created and are valid. If a single gentx is
 	// invalid, the network will not be able to start, and they will not exist
 	// in the state.
-	if abci.CodeTypeOK != result.TxResult.Code {
-		return fmt.Errorf("transaction failed with code %d", result.TxResult.Code)
-	}
-
-	// wait another 5 blocks for funsies
-	err = cctx.WaitForBlocks(5)
-	if err != nil {
-		return err
+	if abci.CodeTypeOK != result.Code {
+		return fmt.Errorf("transaction failed with code %d", result.Code)
 	}
 
 	return nil

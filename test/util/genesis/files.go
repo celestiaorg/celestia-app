@@ -51,6 +51,7 @@ func InitFiles(
 	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
 		return "", err
 	}
+
 	filePV := privval.NewFilePV(val.ConsensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 

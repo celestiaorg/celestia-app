@@ -111,6 +111,9 @@ func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
+	// if we don't set fast sync to false, the node won't start unless we are
+	// the only validator
+	tmcfg.FastSyncMode = false
 	cfg := &Config{}
 	return cfg.
 		WithGenesis(
@@ -164,6 +167,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// interval between blocks. A smaller TimeoutCommit value could lead to
 	// less time between blocks (i.e. shorter block intervals).
 	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
+	tmCfg.Consensus.TimeoutPropose = 3 * time.Second
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger

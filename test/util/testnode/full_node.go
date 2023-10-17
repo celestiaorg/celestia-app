@@ -29,7 +29,6 @@ func NewCometNode(baseDir string, cfg *Config) (*node.Node, srvtypes.Application
 		logger = log.NewNopLogger()
 	} else {
 		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-		logger = log.NewFilter(logger, log.AllowError())
 	}
 
 	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
@@ -47,9 +46,10 @@ func NewCometNode(baseDir string, cfg *Config) (*node.Node, srvtypes.Application
 		return nil, nil, err
 	}
 
+	prival := privval.LoadOrGenFilePV(cfg.TmConfig.PrivValidatorKeyFile(), cfg.TmConfig.PrivValidatorStateFile())
 	tmNode, err := node.NewNode(
 		cfg.TmConfig,
-		privval.LoadOrGenFilePV(cfg.TmConfig.PrivValidatorKeyFile(), cfg.TmConfig.PrivValidatorStateFile()),
+		prival,
 		nodeKey,
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg.TmConfig),
