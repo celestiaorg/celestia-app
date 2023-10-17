@@ -137,15 +137,15 @@ func initEVMAddrs(count int) []gethcommon.Address {
 
 // TestInput stores the various keepers required to test Blobstream
 type TestInput struct {
-	BstreamKeeper  keeper.Keeper
-	AccountKeeper  authkeeper.AccountKeeper
-	StakingKeeper  stakingkeeper.Keeper
-	SlashingKeeper slashingkeeper.Keeper
-	DistKeeper     distrkeeper.Keeper
-	BankKeeper     bankkeeper.BaseKeeper
-	Context        sdk.Context
-	Marshaler      codec.Codec
-	LegacyAmino    *codec.LegacyAmino
+	BlobstreamKeeper keeper.Keeper
+	AccountKeeper    authkeeper.AccountKeeper
+	StakingKeeper    stakingkeeper.Keeper
+	SlashingKeeper   slashingkeeper.Keeper
+	DistKeeper       distrkeeper.Keeper
+	BankKeeper       bankkeeper.BaseKeeper
+	Context          sdk.Context
+	Marshaler        codec.Codec
+	LegacyAmino      *codec.LegacyAmino
 }
 
 // CreateTestEnvWithoutBlobstreamKeysInit creates the keeper testing environment for Blobstream
@@ -305,23 +305,23 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 		),
 	)
 	return TestInput{
-		BstreamKeeper:  *k,
-		AccountKeeper:  accountKeeper,
-		BankKeeper:     bankKeeper,
-		StakingKeeper:  stakingKeeper,
-		SlashingKeeper: slashingKeeper,
-		DistKeeper:     distKeeper,
-		Context:        ctx,
-		Marshaler:      marshaler,
-		LegacyAmino:    cdc,
+		BlobstreamKeeper: *k,
+		AccountKeeper:    accountKeeper,
+		BankKeeper:       bankKeeper,
+		StakingKeeper:    stakingKeeper,
+		SlashingKeeper:   slashingKeeper,
+		DistKeeper:       distKeeper,
+		Context:          ctx,
+		Marshaler:        marshaler,
+		LegacyAmino:      cdc,
 	}
 }
 
 // CreateTestEnv creates the keeper testing environment for Blobstream
 func CreateTestEnv(t *testing.T) TestInput {
 	input := CreateTestEnvWithoutBlobstreamKeysInit(t)
-	input.BstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
-	input.BstreamKeeper.SetEarliestAvailableAttestationNonce(input.Context, blobstream.InitialEarliestAvailableAttestationNonce)
+	input.BlobstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
+	input.BlobstreamKeeper.SetEarliestAvailableAttestationNonce(input.Context, blobstream.InitialEarliestAvailableAttestationNonce)
 	return input
 }
 
@@ -412,7 +412,7 @@ func RegisterEVMAddress(
 	valAddr sdk.ValAddress,
 	evmAddr gethcommon.Address,
 ) {
-	bsMsgServer := keeper.NewMsgServerImpl(input.BstreamKeeper)
+	bsMsgServer := keeper.NewMsgServerImpl(input.BlobstreamKeeper)
 	registerMsg := bstypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
 	_, err := bsMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 	require.NoError(t, err)
@@ -451,7 +451,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 	// Initialize each of the validators
 	stakingMsgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	bsMsgServer := keeper.NewMsgServerImpl(input.BstreamKeeper)
+	bsMsgServer := keeper.NewMsgServerImpl(input.BlobstreamKeeper)
 	for i, weight := range weights {
 		consPrivKey := ed25519.GenPrivKey()
 		consPubKey := consPrivKey.PubKey()

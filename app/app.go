@@ -228,8 +228,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper    blobmodulekeeper.Keeper
-	BStreamKeeper bsmodulekeeper.Keeper
+	BlobKeeper       blobmodulekeeper.Keeper
+	BlobstreamKeeper bsmodulekeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -336,20 +336,20 @@ func New(
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
 	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeSchedule)
 
-	app.BStreamKeeper = *bsmodulekeeper.NewKeeper(
+	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
 		keys[bsmoduletypes.StoreKey],
 		app.GetSubspace(bsmoduletypes.ModuleName),
 		&stakingKeeper,
 	)
-	bsmod := bsmodule.NewAppModule(appCodec, app.BStreamKeeper)
+	bsmod := bsmodule.NewAppModule(appCodec, app.BlobstreamKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.StakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
-			app.BStreamKeeper.Hooks(),
+			app.BlobstreamKeeper.Hooks(),
 		),
 	)
 

@@ -19,7 +19,7 @@ import (
 
 func TestFirstAttestationIsValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BstreamKeeper
+	pk := input.BlobstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 	expectedTime := ctx.BlockTime()
@@ -42,7 +42,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 
 func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BstreamKeeper
+	pk := input.BlobstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
@@ -68,7 +68,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 
 func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BstreamKeeper
+	pk := input.BlobstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 
@@ -81,7 +81,7 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-	msgServer := keeper.NewMsgServerImpl(input.BstreamKeeper)
+	msgServer := keeper.NewMsgServerImpl(input.BlobstreamKeeper)
 
 	newEVMAddr := testfactory.RandomEVMAddress()
 	registerMsg := types.NewMsgRegisterEVMAddress(
@@ -99,7 +99,7 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 
 func TestSetValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.BstreamKeeper
+	pk := input.BlobstreamKeeper
 
 	vs, err := pk.GetCurrentValset(ctx)
 	require.Nil(t, err)
@@ -111,7 +111,7 @@ func TestSetValset(t *testing.T) {
 
 func TestSetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BstreamKeeper
+	qk := input.BlobstreamKeeper
 
 	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
 	expectedTime := ctx.BlockTime()
@@ -149,7 +149,7 @@ func TestSetDataCommitment(t *testing.T) {
 // table structure is to make it easy to understand the test flow.
 func TestGetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BstreamKeeper
+	qk := input.BlobstreamKeeper
 
 	tests := []struct {
 		name       string
@@ -224,7 +224,7 @@ func TestGetDataCommitment(t *testing.T) {
 
 func TestDataCommitmentCreation(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BstreamKeeper
+	qk := input.BlobstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 
@@ -248,7 +248,7 @@ func TestDataCommitmentCreation(t *testing.T) {
 
 func TestDataCommitmentRange(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BstreamKeeper
+	qk := input.BlobstreamKeeper
 
 	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
@@ -294,7 +294,7 @@ func TestDataCommitmentRange(t *testing.T) {
 
 func TestHasDataCommitmentInStore(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BstreamKeeper
+	qk := input.BlobstreamKeeper
 	// set the data commitment window
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
 	require.Equal(t, uint64(400), qk.GetDataCommitmentWindowParam(ctx))
@@ -357,7 +357,7 @@ func TestHasDataCommitmentInStore(t *testing.T) {
 // end of the test, the data commitments cover all the needed ranges.
 func TestDataCommitmentCreationCatchup(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	qk := input.BstreamKeeper
+	qk := input.BlobstreamKeeper
 	ctx = ctx.WithBlockHeight(1)
 
 	// from height 1 to 1500 with a window of 400
@@ -521,7 +521,7 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 // attestations are pruned
 func TestPruning(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
-	bsKeeper := input.BstreamKeeper
+	bsKeeper := input.BlobstreamKeeper
 	// set the data commitment window
 	window := uint64(101)
 	bsKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})

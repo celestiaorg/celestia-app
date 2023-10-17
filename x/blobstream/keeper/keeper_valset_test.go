@@ -60,7 +60,7 @@ func TestCurrentValsetNormalization(t *testing.T) {
 		spec := spec
 		t.Run(msg, func(t *testing.T) {
 			input, ctx := testutil.SetupTestChain(t, spec.srcPowers)
-			r, err := input.BstreamKeeper.GetCurrentValset(ctx)
+			r, err := input.BlobstreamKeeper.GetCurrentValset(ctx)
 			require.NoError(t, err)
 			rMembers, err := types.BridgeValidators(r.Members).ToInternal()
 			require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestCurrentValsetNormalization(t *testing.T) {
 
 func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
 	input := testutil.CreateTestEnvWithoutBlobstreamKeysInit(t)
-	k := input.BstreamKeeper
+	k := input.BlobstreamKeeper
 	// create a validator to have a realistic scenario
 	testutil.CreateValidator(
 		t,
@@ -87,7 +87,7 @@ func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
 	staking.EndBlocker(input.Context, input.StakingKeeper)
 
 	// init the latest attestation nonce
-	input.BstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
+	input.BlobstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
 
 	tests := []struct {
 		name          string
@@ -121,7 +121,7 @@ func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
 
 func TestCheckingAttestationNonceInValsets(t *testing.T) {
 	input := testutil.CreateTestEnvWithoutBlobstreamKeysInit(t)
-	k := input.BstreamKeeper
+	k := input.BlobstreamKeeper
 	// create a validator to have a  realistic scenario
 	testutil.CreateValidator(
 		t,
@@ -175,7 +175,7 @@ func TestCheckingAttestationNonceInValsets(t *testing.T) {
 
 func TestEVMAddresses(t *testing.T) {
 	input := testutil.CreateTestEnvWithoutBlobstreamKeysInit(t)
-	k := input.BstreamKeeper
+	k := input.BlobstreamKeeper
 
 	_, exists := k.GetEVMAddress(input.Context, testutil.ValAddrs[0])
 	require.False(t, exists)
