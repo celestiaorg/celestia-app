@@ -3,10 +3,10 @@ package app
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // CheckTx implements the ABCI interface and executes a tx in CheckTx mode. This
@@ -15,7 +15,7 @@ import (
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
 	// check if the transaction contains blobs
-	btx, isBlob := coretypes.UnmarshalBlobTx(tx)
+	btx, isBlob := blob.UnmarshalBlobTx(tx)
 
 	if !isBlob {
 		// reject transactions that can't be decoded

@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestSparseShareContainsInfoByte(t *testing.T) {
@@ -53,7 +53,7 @@ func TestSparseShareContainsInfoByte(t *testing.T) {
 func TestSparseShareSplitterCount(t *testing.T) {
 	type testCase struct {
 		name     string
-		blob     coretypes.Blob
+		blob     *blob.Blob
 		expected int
 	}
 	testCases := []testCase{

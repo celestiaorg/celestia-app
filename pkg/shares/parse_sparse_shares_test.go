@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func Test_parseSparseShares(t *testing.T) {
@@ -53,12 +53,12 @@ func Test_parseSparseShares(t *testing.T) {
 	for _, tc := range tests {
 		// run the tests with identically sized blobs
 		t.Run(fmt.Sprintf("%s identically sized ", tc.name), func(t *testing.T) {
-			blobs := make([]coretypes.Blob, tc.blobCount)
+			blobs := make([]*blob.Blob, tc.blobCount)
 			for i := 0; i < tc.blobCount; i++ {
 				blobs[i] = testfactory.GenerateRandomBlob(tc.blobSize)
 			}
 
-			blobs = testfactory.SortBlobs(blobs)
+			blob.Sort(blobs)
 
 			shares, err := SplitBlobs(blobs...)
 			require.NoError(t, err)
@@ -69,7 +69,7 @@ func Test_parseSparseShares(t *testing.T) {
 
 			// check that the namespaces and data are the same
 			for i := 0; i < len(blobs); i++ {
-				assert.Equal(t, blobs[i].NamespaceID, parsedBlobs[i].NamespaceID, "parsed blob namespace does not match")
+				assert.Equal(t, blobs[i].NamespaceId, parsedBlobs[i].NamespaceId, "parsed blob namespace does not match")
 				assert.Equal(t, blobs[i].Data, parsedBlobs[i].Data, "parsed blob data does not match")
 			}
 		})
@@ -86,7 +86,7 @@ func Test_parseSparseShares(t *testing.T) {
 
 			// check that the namespaces and data are the same
 			for i := 0; i < len(blobs); i++ {
-				assert.Equal(t, blobs[i].NamespaceID, parsedBlobs[i].NamespaceID)
+				assert.Equal(t, blobs[i].NamespaceId, parsedBlobs[i].NamespaceId)
 				assert.Equal(t, blobs[i].Data, parsedBlobs[i].Data)
 			}
 		})
@@ -130,11 +130,11 @@ func Test_parseSparseSharesWithNamespacedPadding(t *testing.T) {
 	sss := NewSparseShareSplitter()
 	randomSmallBlob := testfactory.GenerateRandomBlob(appconsts.ContinuationSparseShareContentSize / 2)
 	randomLargeBlob := testfactory.GenerateRandomBlob(appconsts.ContinuationSparseShareContentSize * 4)
-	blobs := []coretypes.Blob{
+	blobs := []*blob.Blob{
 		randomSmallBlob,
 		randomLargeBlob,
 	}
-	blobs = testfactory.SortBlobs(blobs)
+	blob.Sort(blobs)
 
 	err := sss.Write(blobs[0])
 	require.NoError(t, err)

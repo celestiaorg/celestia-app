@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
+	daproto "github.com/celestiaorg/celestia-app/proto/celestia/core/v1/da"
 )
 
 var (

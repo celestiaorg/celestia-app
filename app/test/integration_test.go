@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -32,7 +33,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -210,15 +210,13 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blobtypes.Blob {
-		b, err := blobtypes.NewBlob(ns, data, shareVersion)
-		require.NoError(t, err)
-		return b
+	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blob.Blob {
+		return blob.New(ns, data, shareVersion)
 	}
 
 	type test struct {
 		name string
-		blob *blobtypes.Blob
+		blob *blob.Blob
 		opts []user.TxOption
 	}
 
@@ -265,7 +263,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
-			res, err := signer.SubmitPayForBlob(context.TODO(), []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
+			res, err := signer.SubmitPayForBlob(context.TODO(), []*blob.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
@@ -391,34 +389,34 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	type testCase struct {
 		name string
-		blob *tmproto.Blob
+		blob *blob.Blob
 		// txResponseCode is the expected tx response ABCI code.
 		txResponseCode uint32
 	}
 	testCases := []testCase{
 		{
 			name:           "1,000 byte blob",
-			blob:           mustNewBlob(t, 1_000),
+			blob:           mustNewBlob(1_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "10,000 byte blob",
-			blob:           mustNewBlob(t, 10_000),
+			blob:           mustNewBlob(10_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "100,000 byte blob",
-			blob:           mustNewBlob(t, 100_000),
+			blob:           mustNewBlob(100_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "1,000,000 byte blob",
-			blob:           mustNewBlob(t, 1_000_000),
+			blob:           mustNewBlob(1_000_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "10,000,000 byte blob returns err tx too large",
-			blob:           mustNewBlob(t, 10_000_000),
+			blob:           mustNewBlob(10_000_000),
 			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
 		},
 	}
@@ -427,7 +425,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 		s.Run(tc.name, func() {
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()
-			res, err := signer.SubmitPayForBlob(subCtx, []*blobtypes.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
+			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
 			if tc.txResponseCode == abci.CodeTypeOK {
 				require.NoError(t, err)
 			} else {
@@ -439,10 +437,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	}
 }
 
-func mustNewBlob(t *testing.T, blobSize int) *tmproto.Blob {
+func mustNewBlob(blobSize int) *blob.Blob {
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	data := tmrand.Bytes(blobSize)
-	result, err := blobtypes.NewBlob(ns1, data, appconsts.ShareVersionZero)
-	require.NoError(t, err)
-	return result
+	return blob.New(ns1, data, appconsts.ShareVersionZero)
 }

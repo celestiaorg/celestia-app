@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
@@ -59,7 +60,7 @@ func DecodeBlockData(data types.Data) ([]sdk.Msg, error) {
 	decoder := encCfg.TxConfig.TxDecoder()
 	msgs := make([]sdk.Msg, 0)
 	for _, txBytes := range data.Txs {
-		blobTx, isBlobTx := types.UnmarshalBlobTx(txBytes)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
 		if isBlobTx {
 			txBytes = blobTx.Tx
 		}

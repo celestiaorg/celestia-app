@@ -3,16 +3,16 @@ package testfactory
 import (
 	"bytes"
 	"encoding/binary"
-	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
 
-func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
-	blobs := make([]types.Blob, count)
+func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*blob.Blob {
+	blobs := make([]*blob.Blob, count)
 	for i := 0; i < count; i++ {
 		blobs[i] = GenerateRandomBlob(tmrand.Intn(maxBlobSize))
 		if len(blobs[i].Data) == 0 {
@@ -25,7 +25,7 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
 		blobs = nil
 	}
 
-	blobs = SortBlobs(blobs)
+	blob.Sort(blobs)
 	return blobs
 }
 
@@ -49,19 +49,14 @@ func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) []t
 	return blobs
 }
 
-func GenerateRandomBlob(dataSize int) types.Blob {
-	blob := types.Blob{
-		NamespaceVersion: appns.NamespaceVersionZero,
-		NamespaceID:      append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize)...),
-		Data:             tmrand.Bytes(dataSize),
-		ShareVersion:     appconsts.ShareVersionZero,
-	}
-	return blob
+func GenerateRandomBlob(dataSize int) *blob.Blob {
+	ns := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
+	return blob.New(ns, tmrand.Bytes(dataSize), appconsts.ShareVersionZero)
 }
 
 // GenerateRandomBlobOfShareCount returns a blob that spans the given
 // number of shares
-func GenerateRandomBlobOfShareCount(count int) types.Blob {
+func GenerateRandomBlobOfShareCount(count int) *blob.Blob {
 	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
 	return GenerateRandomBlob(size)
 }
@@ -77,9 +72,4 @@ func rawBlobSize(totalSize int) int {
 func DelimLen(size uint64) int {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(lenBuf, size)
-}
-
-func SortBlobs(blobs []types.Blob) []types.Blob {
-	sort.SliceStable(blobs, func(i, j int) bool { return bytes.Compare(blobs[i].Namespace(), blobs[j].Namespace()) < 0 })
-	return blobs
 }
