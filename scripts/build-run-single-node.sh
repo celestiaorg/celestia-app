@@ -37,7 +37,7 @@ sed -i'.bak' 's#"null"#"kv"#g' ${HOME_DIR}/config/config.toml
   sleep 20
 
   # private key: da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
-  ${BIN_PATH} tx blobstream register \
+  ${BIN_PATH} tx qgb register \
     "$(${BIN_PATH} keys show validator --home "${HOME_DIR}" --bech val -a)" \
     0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 \
     --from validator \
