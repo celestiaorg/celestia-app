@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -28,7 +29,7 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 
 	// create the genesis file
-	accounts := make([]string, 3)
+	accounts := make([]string, 1)
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
@@ -37,7 +38,7 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	validator := genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)
 
 	// this will load a testnet genesis from an existing genesis file.
-	g, err := genesis.FromDocument(&coretypes.GenesisDoc{})
+	g, err := genesis.FromDocument(existingGenesis)
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 		return err
 	}
 
-	delegateTx, err := CreateMultiDelegateTx(
+	delegateTxBuilder, err := CreateMultiDelegateTx(
 		ecfg,
 		delegatorAddr,
 		vals,
@@ -77,17 +78,38 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	}
 	defer cleanup()
 
-	txBz, err := ecfg.TxConfig.TxEncoder()(delegateTx)
+	addr := testfactory.GetAddress(cctx.Keyring, accounts[0])
+
+	signer, err := user.NewSigner(cctx.Keyring, cctx.GRPCClient, addr, ecfg.TxConfig, g.ChainID, 0, 0)
 	if err != nil {
 		return err
 	}
 
-	resp, err := cctx.BroadcastTx(txBz)
+	err = signer.SignTransaction(delegateTxBuilder)
 	if err != nil {
 		return err
 	}
 
-	err = cctx.WaitForBlocks(2)
+	txBz, err := ecfg.TxConfig.TxEncoder()(delegateTxBuilder.GetTx())
+	if err != nil {
+		return err
+	}
+
+	resp, err := signer.BroadcastTx(cctx.GoContext(), txBz)
+	if err != nil {
+		return err
+	}
+
+	// when this transaction passes, that means that the delegate transaction
+	// for all the validators in the genesis was successful, which means that
+	// the gentxs were correctly created and are valid. If a single gentx is
+	// invalid, the network will not be able to start, and they will not exist
+	// in the state.
+	if abci.CodeTypeOK != resp.Code {
+		return fmt.Errorf("transaction failed with code %d, %v %v %v", resp.Code, resp.Codespace, resp.Logs, resp.RawLog)
+	}
+
+	err = cctx.WaitForBlocks(4)
 	if err != nil {
 		return err
 	}
@@ -123,7 +145,7 @@ func CreateMultiDelegateTx(
 	validatorAddrs []sdk.ValAddress,
 	amount sdk.Coin,
 	opts ...user.TxOption, // use this to specify a gas limit
-) (sdk.Tx, error) {
+) (client.TxBuilder, error) {
 	msgs := make([]sdk.Msg, len(validatorAddrs))
 	for i, valAddr := range validatorAddrs {
 		msgDelegate := stakingtypes.NewMsgDelegate(delAddr, valAddr, amount)
@@ -134,7 +156,7 @@ func CreateMultiDelegateTx(
 		builder = opt(builder)
 	}
 	builder.SetMsgs(msgs...)
-	return builder.GetTx(), nil
+	return builder, nil
 }
 
 // ReadGenesisValidators reads the genesis validators that have included their

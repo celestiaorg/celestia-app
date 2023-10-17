@@ -144,6 +144,8 @@ func CINetwork(tempDir string, cfg *Config) (Context, func(), error) {
 		return Context{}, nil, err
 	}
 
+	cctx.BroadcastMode = flags.BroadcastSync
+
 	cleanup := func() {
 		stopNode()
 		cleanupGRPC()

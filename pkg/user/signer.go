@@ -168,7 +168,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 		return nil, err
 	}
 
-	if err := s.signTransaction(txBuilder); err != nil {
+	if err := s.SignTransaction(txBuilder); err != nil {
 		return nil, err
 	}
 
@@ -285,7 +285,7 @@ func (s *Signer) ForceSetSequence(seq uint64) {
 	s.lastSignedSequence = seq
 }
 
-func (s *Signer) signTransaction(builder client.TxBuilder) error {
+func (s *Signer) SignTransaction(builder client.TxBuilder) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
 		return fmt.Errorf("expected 1 signer, got %d", len(signers))
