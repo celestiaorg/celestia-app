@@ -118,7 +118,7 @@ func (ibv InternalBridgeValidators) PowerDiff(
 	powers := map[string]int64{}
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
-		powers[bv.EVMAddress.Hex()] = int64(bv.Power)
+		powers[bv.EVMAddress.Hex()] = int64(bv.Power) // TODO: overflow?
 	}
 
 	// subtract c powers from powers in the map, initializing
