@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	math "math"
 	"sort"
 
@@ -112,7 +113,8 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 // increases by 1% due to inflation, we shouldn't have to generate a new
 // validator set, after all the validators retained their relative percentages
 // during inflation and normalized Blobstream power shows no difference.
-func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 {
+func (ibv InternalBridgeValidators) PowerDiff(
+	c InternalBridgeValidators) sdk.Dec {
 	powers := map[string]int64{}
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
@@ -135,7 +137,10 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float6
 		delta += math.Abs(float64(v))
 	}
 
-	return math.Abs(delta / float64(math.MaxUint32))
+	decDelta := sdk.NewDec(int64(delta))
+	decMaxUint32 := sdk.NewDec(math.MaxUint32)
+	q := decDelta.Quo(decMaxUint32)
+	return q
 }
 
 // TotalPower returns the total power in the bridge validator set.

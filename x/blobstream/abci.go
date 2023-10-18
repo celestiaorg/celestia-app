@@ -119,7 +119,8 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 			panic(sdkerrors.Wrap(err, "invalid latest valset members"))
 		}
 
-		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > SignificantPowerDifferenceThreshold
+		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers).GT(SignificantPowerDifferenceThreshold)
+			
 	}
 
 	if (latestValset == nil) || (latestUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
