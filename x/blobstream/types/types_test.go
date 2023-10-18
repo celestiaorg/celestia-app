@@ -2,9 +2,10 @@ package types_test
 
 import (
 	"bytes"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	mrand "math/rand"
 	"testing"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
