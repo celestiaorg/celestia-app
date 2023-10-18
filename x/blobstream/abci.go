@@ -12,17 +12,19 @@ import (
 )
 
 const (
-	// SignificantPowerDifferenceThreshold is the threshold of change in the
-	// validator set power that would trigger the creation of a new valset
-	// request.
-	SignificantPowerDifferenceThreshold = 0.05
-
 	oneDay  = 24 * time.Hour
 	oneWeek = 7 * oneDay
 	// AttestationExpiryTime is the expiration time of an attestation. When this
 	// much time has passed after an attestation has been published, it will be
 	// pruned from state.
 	AttestationExpiryTime = 3 * oneWeek // 3 weeks
+)
+
+var (
+	// SignificantPowerDifferenceThreshold is the threshold of change in the
+	// validator set power that would trigger the creation of a new valset
+	// request.
+	SignificantPowerDifferenceThreshold = sdk.NewDecWithPrec(5, 2) // 0.05
 )
 
 // EndBlocker is called at the end of every block.
