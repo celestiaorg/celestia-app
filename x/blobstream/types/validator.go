@@ -2,9 +2,10 @@ package types
 
 import (
 	"bytes"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	math "math"
+	"math"
 	"sort"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/common"
 
