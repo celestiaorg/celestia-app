@@ -92,9 +92,9 @@ import (
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
 
-	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
-	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
-	qgbmoduletypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	bsmodule "github.com/celestiaorg/celestia-app/x/blobstream"
+	bsmodulekeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
+	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
@@ -153,7 +153,7 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		blobmodule.AppModuleBasic{},
-		qgbmodule.AppModuleBasic{},
+		bsmodule.AppModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -228,8 +228,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper blobmodulekeeper.Keeper
-	QgbKeeper  qgbmodulekeeper.Keeper
+	BlobKeeper       blobmodulekeeper.Keeper
+	BlobstreamKeeper bsmodulekeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -271,7 +271,7 @@ func New(
 		govtypes.StoreKey, paramstypes.StoreKey, upgrade.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
 		blobmoduletypes.StoreKey,
-		qgbmoduletypes.StoreKey,
+		bsmoduletypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
 	)
@@ -336,20 +336,20 @@ func New(
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
 	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeSchedule)
 
-	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
+	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
-		keys[qgbmoduletypes.StoreKey],
-		app.GetSubspace(qgbmoduletypes.ModuleName),
+		keys[bsmoduletypes.StoreKey],
+		app.GetSubspace(bsmoduletypes.ModuleName),
 		&stakingKeeper,
 	)
-	qgbmod := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+	bsmod := bsmodule.NewAppModule(appCodec, app.BlobstreamKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.StakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
-			app.QgbKeeper.Hooks(),
+			app.BlobstreamKeeper.Hooks(),
 		),
 	)
 
@@ -442,7 +442,7 @@ func New(
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
 		blobmod,
-		qgbmod,
+		bsmod,
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -465,7 +465,7 @@ func New(
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobmoduletypes.ModuleName,
-		qgbmoduletypes.ModuleName,
+		bsmoduletypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -488,7 +488,7 @@ func New(
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobmoduletypes.ModuleName,
-		qgbmoduletypes.ModuleName,
+		bsmoduletypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -515,7 +515,7 @@ func New(
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		blobmoduletypes.ModuleName,
-		qgbmoduletypes.ModuleName,
+		bsmoduletypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
@@ -759,7 +759,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(blobmoduletypes.ModuleName)
-	paramsKeeper.Subspace(qgbmoduletypes.ModuleName)
+	paramsKeeper.Subspace(bsmoduletypes.ModuleName)
 
 	return paramsKeeper
 }

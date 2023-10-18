@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
+	bscmd "github.com/celestiaorg/celestia-app/x/blobstream/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -145,7 +145,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
-		qgbcmd.VerifyCmd(),
+		bscmd.VerifyCmd(),
 	)
 }
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	bstypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -49,9 +49,9 @@ func ImmediateProposals(codec codec.Codec) Modifier {
 // qgb module's genesis state.
 func SetDataCommitmentWindow(codec codec.Codec, window uint64) Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
-		qgbGenState := qgbtypes.DefaultGenesis()
+		qgbGenState := bstypes.DefaultGenesis()
 		qgbGenState.Params.DataCommitmentWindow = window
-		state[qgbtypes.ModuleName] = codec.MustMarshalJSON(qgbGenState)
+		state[bstypes.ModuleName] = codec.MustMarshalJSON(qgbGenState)
 		return state
 	}
 }
