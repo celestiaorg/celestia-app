@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func Test_newGovModule(t *testing.T) {
 }
 
 // TestDefaultGenesis verifies that the distribution module's genesis state has
-// defaults overriden.
+// defaults overridden.
 func TestDefaultGenesis(t *testing.T) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	dm := distributionModule{}
@@ -44,11 +43,11 @@ func TestDefaultGenesis(t *testing.T) {
 	distributionGenesisState := distributiontypes.GenesisState{}
 	encCfg.Codec.MustUnmarshalJSON(raw, &distributionGenesisState)
 
-	// Verify that BaseProposerReward and BonusProposerReward were overriden to 0%.
-	assert.Equal(t, sdk.ZeroDec(), distributionGenesisState.Params.BaseProposerReward)
-	assert.Equal(t, sdk.ZeroDec(), distributionGenesisState.Params.BonusProposerReward)
+	// Verify that BaseProposerReward and BonusProposerReward were overridden to 0%.
+	assert.Equal(t, types.ZeroDec(), distributionGenesisState.Params.BaseProposerReward)
+	assert.Equal(t, types.ZeroDec(), distributionGenesisState.Params.BonusProposerReward)
 
-	// Verify that other params weren't overriden.
+	// Verify that other params weren't overridden.
 	assert.Equal(t, distributiontypes.DefaultParams().WithdrawAddrEnabled, distributionGenesisState.Params.WithdrawAddrEnabled)
 	assert.Equal(t, distributiontypes.DefaultParams().CommunityTax, distributionGenesisState.Params.CommunityTax)
 }

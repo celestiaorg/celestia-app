@@ -128,9 +128,7 @@ func (distributionModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := distributiontypes.DefaultParams()
 	params.BaseProposerReward = sdk.ZeroDec()  // 0%
 	params.BonusProposerReward = sdk.ZeroDec() // 0%
-	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{
-		Params: params,
-	})
+	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{})
 }
 
 type ibcModule struct {
