@@ -61,7 +61,7 @@ proto-lint:
 ## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
 proto-check-breaking:
 	@echo "--> Checking if Protobuf definitions have any breaking changes"
-	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=v1.x
+	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
 .PHONY: proto-check-breaking
 
 ## proto-format: Format protobuf files. Requires docker.
