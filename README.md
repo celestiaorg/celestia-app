@@ -178,7 +178,7 @@ Package-specific READMEs aim to explain implementation details for developers th
 - [pkg/shares](./pkg/shares/README.md)
 - [pkg/wrapper](./pkg/wrapper/README.md)
 - [x/blob](./x/blob/README.md)
-- [x/qgb](./x/qgb/README.md)
+- [x/blobstream](./x/blobstream/README.md)
 
 ## Audits
 

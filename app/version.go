@@ -6,8 +6,8 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blobstream"
 	"github.com/celestiaorg/celestia-app/x/mint"
-	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
@@ -48,7 +48,7 @@ var (
 		"genutil":      genutil.AppModule{}.ConsensusVersion(),
 		"capability":   capability.AppModule{}.ConsensusVersion(),
 		"blob":         blob.AppModule{}.ConsensusVersion(),
-		"qgb":          qgb.AppModule{}.ConsensusVersion(),
+		"qgb":          blobstream.AppModule{}.ConsensusVersion(),
 		"ibc":          ibc.AppModule{}.ConsensusVersion(),
 		"transfer":     transfer.AppModule{}.ConsensusVersion(),
 	}

@@ -8,11 +8,11 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // Params queries the current parameters for the qgb module
+  // Params queries the current parameters for the blobstream module
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/qgb/v1/params";
   }

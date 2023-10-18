@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/blobstream"
+
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/x/qgb"
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
-	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/keeper"
+	bstypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -134,25 +135,25 @@ func initEVMAddrs(count int) []gethcommon.Address {
 	return addresses
 }
 
-// TestInput stores the various keepers required to test the QGB
+// TestInput stores the various keepers required to test Blobstream
 type TestInput struct {
-	QgbKeeper      keeper.Keeper
-	AccountKeeper  authkeeper.AccountKeeper
-	StakingKeeper  stakingkeeper.Keeper
-	SlashingKeeper slashingkeeper.Keeper
-	DistKeeper     distrkeeper.Keeper
-	BankKeeper     bankkeeper.BaseKeeper
-	Context        sdk.Context
-	Marshaler      codec.Codec
-	LegacyAmino    *codec.LegacyAmino
+	BlobstreamKeeper keeper.Keeper
+	AccountKeeper    authkeeper.AccountKeeper
+	StakingKeeper    stakingkeeper.Keeper
+	SlashingKeeper   slashingkeeper.Keeper
+	DistKeeper       distrkeeper.Keeper
+	BankKeeper       bankkeeper.BaseKeeper
+	Context          sdk.Context
+	Marshaler        codec.Codec
+	LegacyAmino      *codec.LegacyAmino
 }
 
-// CreateTestEnvWithoutQGBKeysInit creates the keeper testing environment for the QGB
-func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
+// CreateTestEnvWithoutBlobstreamKeysInit creates the keeper testing environment for Blobstream
+func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	t.Helper()
 
 	// Initialize store keys
-	qgbKey := sdk.NewKVStoreKey(qgbtypes.StoreKey)
+	bsKey := sdk.NewKVStoreKey(bstypes.StoreKey)
 	keyAcc := sdk.NewKVStoreKey(authtypes.StoreKey)
 	keyStaking := sdk.NewKVStoreKey(stakingtypes.StoreKey)
 	keyBank := sdk.NewKVStoreKey(banktypes.StoreKey)
@@ -164,7 +165,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	// Initialize memory database and mount stores on it
 	db := dbm.NewMemDB()
 	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(qgbKey, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(bsKey, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyAcc, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyParams, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyStaking, storetypes.StoreTypeIAVL, db)
@@ -210,7 +211,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	paramsKeeper.Subspace(banktypes.ModuleName)
 	paramsKeeper.Subspace(stakingtypes.ModuleName)
 	paramsKeeper.Subspace(distrtypes.ModuleName)
-	paramsKeeper.Subspace(qgbtypes.DefaultParamspace)
+	paramsKeeper.Subspace(bstypes.DefaultParamspace)
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
 
 	// this is also used to initialize module accounts for all the map keys
@@ -219,7 +220,7 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		distrtypes.ModuleName:          nil,
 		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		qgbtypes.ModuleName:            {authtypes.Minter, authtypes.Burner},
+		bstypes.ModuleName:             {authtypes.Minter, authtypes.Burner},
 	}
 
 	accountKeeper := authkeeper.NewAccountKeeper(
@@ -266,16 +267,16 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	for name, perms := range maccPerms {
 		mod := authtypes.NewEmptyModuleAccount(name, perms...)
 		if name == stakingtypes.NotBondedPoolName {
-			err = bankKeeper.MintCoins(ctx, qgbtypes.ModuleName, totalSupply)
+			err = bankKeeper.MintCoins(ctx, bstypes.ModuleName, totalSupply)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, qgbtypes.ModuleName, mod.Name, totalSupply)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, bstypes.ModuleName, mod.Name, totalSupply)
 			require.NoError(t, err)
 		} else if name == distrtypes.ModuleName {
 			// some big pot to pay out
 			amt := sdk.NewCoins(sdk.NewInt64Coin("stake", 500000))
-			err = bankKeeper.MintCoins(ctx, qgbtypes.ModuleName, amt)
+			err = bankKeeper.MintCoins(ctx, bstypes.ModuleName, amt)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, qgbtypes.ModuleName, mod.Name, amt)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, bstypes.ModuleName, mod.Name, amt)
 			require.NoError(t, err)
 		}
 		accountKeeper.SetModuleAccount(ctx, mod)
@@ -292,9 +293,9 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		getSubspace(paramsKeeper, slashingtypes.ModuleName).WithKeyTable(slashingtypes.ParamKeyTable()),
 	)
 
-	k := keeper.NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, qgbtypes.DefaultParamspace), &stakingKeeper)
-	testQGBParams := qgbtypes.DefaultGenesis().Params
-	k.SetParams(ctx, *testQGBParams)
+	k := keeper.NewKeeper(marshaler, bsKey, getSubspace(paramsKeeper, bstypes.DefaultParamspace), &stakingKeeper)
+	testBlobstreamParams := bstypes.DefaultGenesis().Params
+	k.SetParams(ctx, *testBlobstreamParams)
 
 	stakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
@@ -304,23 +305,23 @@ func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 		),
 	)
 	return TestInput{
-		QgbKeeper:      *k,
-		AccountKeeper:  accountKeeper,
-		BankKeeper:     bankKeeper,
-		StakingKeeper:  stakingKeeper,
-		SlashingKeeper: slashingKeeper,
-		DistKeeper:     distKeeper,
-		Context:        ctx,
-		Marshaler:      marshaler,
-		LegacyAmino:    cdc,
+		BlobstreamKeeper: *k,
+		AccountKeeper:    accountKeeper,
+		BankKeeper:       bankKeeper,
+		StakingKeeper:    stakingKeeper,
+		SlashingKeeper:   slashingKeeper,
+		DistKeeper:       distKeeper,
+		Context:          ctx,
+		Marshaler:        marshaler,
+		LegacyAmino:      cdc,
 	}
 }
 
-// CreateTestEnv creates the keeper testing environment for QGB
+// CreateTestEnv creates the keeper testing environment for Blobstream
 func CreateTestEnv(t *testing.T) TestInput {
-	input := CreateTestEnvWithoutQGBKeysInit(t)
-	input.QgbKeeper.SetLatestAttestationNonce(input.Context, qgb.InitialLatestAttestationNonce)
-	input.QgbKeeper.SetEarliestAvailableAttestationNonce(input.Context, qgb.InitialEarliestAvailableAttestationNonce)
+	input := CreateTestEnvWithoutBlobstreamKeysInit(t)
+	input.BlobstreamKeeper.SetLatestAttestationNonce(input.Context, blobstream.InitialLatestAttestationNonce)
+	input.BlobstreamKeeper.SetEarliestAvailableAttestationNonce(input.Context, blobstream.InitialEarliestAvailableAttestationNonce)
 	return input
 }
 
@@ -334,7 +335,7 @@ func MakeTestCodec() *codec.LegacyAmino {
 	sdk.RegisterLegacyAminoCodec(cdc)
 	ccodec.RegisterCrypto(cdc)
 	params.AppModuleBasic{}.RegisterLegacyAminoCodec(cdc)
-	qgbtypes.RegisterLegacyAminoCodec(cdc)
+	bstypes.RegisterLegacyAminoCodec(cdc)
 	return cdc
 }
 
@@ -349,7 +350,7 @@ func MakeTestMarshaler() codec.Codec {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	std.RegisterInterfaces(interfaceRegistry)
 	ModuleBasics.RegisterInterfaces(interfaceRegistry)
-	qgbtypes.RegisterInterfaces(interfaceRegistry)
+	bstypes.RegisterInterfaces(interfaceRegistry)
 	return codec.NewProtoCodec(interfaceRegistry)
 }
 
@@ -391,8 +392,8 @@ func CreateValidator(
 	)
 
 	// Set the balance for the account
-	require.NoError(t, input.BankKeeper.MintCoins(input.Context, qgbtypes.ModuleName, InitCoins))
-	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, qgbtypes.ModuleName, acc.GetAddress(), InitCoins)
+	require.NoError(t, input.BankKeeper.MintCoins(input.Context, bstypes.ModuleName, InitCoins))
+	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, bstypes.ModuleName, acc.GetAddress(), InitCoins)
 	require.NoError(t, err)
 
 	// Set the account in state
@@ -411,9 +412,9 @@ func RegisterEVMAddress(
 	valAddr sdk.ValAddress,
 	evmAddr gethcommon.Address,
 ) {
-	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
-	registerMsg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
-	_, err := qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
+	bsMsgServer := keeper.NewMsgServerImpl(input.BlobstreamKeeper)
+	registerMsg := bstypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
+	_, err := bsMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 	require.NoError(t, err)
 }
 
@@ -450,7 +451,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 	// Initialize each of the validators
 	stakingMsgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	qgbMsgServer := keeper.NewMsgServerImpl(input.QgbKeeper)
+	bsMsgServer := keeper.NewMsgServerImpl(input.BlobstreamKeeper)
 	for i, weight := range weights {
 		consPrivKey := ed25519.GenPrivKey()
 		consPubKey := consPrivKey.PubKey()
@@ -467,8 +468,8 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 		// Set the balance for the account
 		weightCoins := sdk.NewCoins(sdk.NewInt64Coin(TestingStakeParams.BondDenom, int64(weight)))
-		require.NoError(t, input.BankKeeper.MintCoins(input.Context, qgbtypes.ModuleName, weightCoins))
-		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, qgbtypes.ModuleName, accAddr, weightCoins))
+		require.NoError(t, input.BankKeeper.MintCoins(input.Context, bstypes.ModuleName, weightCoins))
+		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, bstypes.ModuleName, accAddr, weightCoins))
 
 		// Set the account in state
 		input.AccountKeeper.SetAccount(input.Context, acc)
@@ -481,8 +482,8 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		)
 		require.NoError(t, err)
 
-		registerMsg := qgbtypes.NewMsgRegisterEVMAddress(valAddr, EVMAddrs[i])
-		_, err = qgbMsgServer.RegisterEVMAddress(input.Context, registerMsg)
+		registerMsg := bstypes.NewMsgRegisterEVMAddress(valAddr, EVMAddrs[i])
+		_, err = bsMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 		require.NoError(t, err)
 
 		// Run the staking endblocker to ensure valset is correct in state
@@ -503,25 +504,25 @@ func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt cosmosmath.Int) *
 	return msg
 }
 
-// ExecuteQGBHeights executes the end exclusive range of heights specified by beginHeight and endHeight
-// along with the QGB abci.EndBlocker on each one of them.
+// ExecuteBlobstreamHeights executes the end exclusive range of heights specified by beginHeight and endHeight
+// along with the Blobstream abci.EndBlocker on each one of them.
 // Returns the updated context with block height advanced to endHeight.
-func ExecuteQGBHeights(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int64, endHeight int64) sdk.Context {
+func ExecuteBlobstreamHeights(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeight int64, endHeight int64) sdk.Context {
 	for i := beginHeight; i < endHeight; i++ {
 		ctx = ctx.WithBlockHeight(i)
-		qgb.EndBlocker(ctx, qgbKeeper)
+		blobstream.EndBlocker(ctx, bsKeeper)
 	}
 	return ctx
 }
 
-// ExecuteQGBHeightsWithTime executes the end exclusive range of heights specified by beginHeight and endHeight
-// along with the QGB abci.EndBlocker on each one of them.
+// ExecuteBlobstreamHeightsWithTime executes the end exclusive range of heights specified by beginHeight and endHeight
+// along with the Blobstream abci.EndBlocker on each one of them.
 // Uses the interval to calculate the block header time.
-func ExecuteQGBHeightsWithTime(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int64, endHeight int64, blockInterval time.Duration) sdk.Context {
+func ExecuteBlobstreamHeightsWithTime(ctx sdk.Context, bsKeeper keeper.Keeper, beginHeight int64, endHeight int64, blockInterval time.Duration) sdk.Context {
 	blockTime := ctx.BlockTime()
 	for i := beginHeight; i < endHeight; i++ {
 		ctx = ctx.WithBlockHeight(i).WithBlockTime(blockTime)
-		qgb.EndBlocker(ctx, qgbKeeper)
+		blobstream.EndBlocker(ctx, bsKeeper)
 		blockTime = blockTime.Add(blockInterval)
 	}
 	return ctx

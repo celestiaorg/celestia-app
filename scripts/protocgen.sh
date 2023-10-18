@@ -26,7 +26,7 @@ cd ..
 # temporary import hack to use cosmos-sdk implementation of Any type.
 # check https://github.com/celestiaorg/celestia-app/issues/507 for more information.
 sed -i 's/types "github.com\/celestiaorg\/celestia-app\/codec\/types"/types "github.com\/cosmos\/cosmos-sdk\/codec\/types"/g' \
- github.com/celestiaorg/celestia-app/x/qgb/types/query.pb.go
+ github.com/celestiaorg/celestia-app/x/blobstream/types/query.pb.go
 
 # move proto files to the right places
 cp -r github.com/celestiaorg/celestia-app/* ./
