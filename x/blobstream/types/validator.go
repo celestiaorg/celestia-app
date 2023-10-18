@@ -33,7 +33,7 @@ func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
 	return &ret, nil
 }
 
-// Bridge Validator but with validated EVMAddress.
+// InternalBridgeValidator bridges Validator but with validated EVMAddress.
 type InternalBridgeValidator struct {
 	Power      uint64
 	EVMAddress common.Address
