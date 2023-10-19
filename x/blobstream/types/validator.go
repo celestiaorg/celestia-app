@@ -125,7 +125,7 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.De
 	// subtract c powers from powers in the map, initializing
 	// uninitialized keys with negative numbers
 	for _, bv := range c {
-		bvPower := sdk.NewDec(int64(bv.Power))
+		bvPower := sdk.NewDecFromBigInt(new(big.Int).SetUint64(bv.Power))
 		if val, ok := powers[bv.EVMAddress.Hex()]; ok {
 			powers[bv.EVMAddress.Hex()] = val.Sub(bvPower)
 		} else {
