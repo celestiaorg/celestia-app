@@ -1,5 +1,5 @@
 {
-	"key": "b2d2a799a4a029ce15d0ed27",
+	"key": "259cb9ff04003abb6905135f",
 	"addrs": [
 		{
 			"addr": {
@@ -13,11 +13,11 @@
 				"port": 26656
 			},
 			"buckets": [
-				22
+				1
 			],
 			"attempts": 0,
 			"bucket_type": 1,
-			"last_attempt": "2023-10-19T11:36:16.996293-04:00",
+			"last_attempt": "2023-10-19T15:20:28.503483-04:00",
 			"last_success": "0001-01-01T00:00:00Z",
 			"last_ban_time": "0001-01-01T00:00:00Z"
 		},
@@ -33,11 +33,11 @@
 				"port": 26656
 			},
 			"buckets": [
-				22
+				1
 			],
 			"attempts": 0,
 			"bucket_type": 1,
-			"last_attempt": "2023-10-19T11:36:16.844033-04:00",
+			"last_attempt": "2023-10-19T15:20:28.444543-04:00",
 			"last_success": "0001-01-01T00:00:00Z",
 			"last_ban_time": "0001-01-01T00:00:00Z"
 		}
