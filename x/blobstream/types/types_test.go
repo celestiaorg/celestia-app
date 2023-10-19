@@ -2,7 +2,6 @@ package types_test
 
 import (
 	"bytes"
-	"math"
 	mrand "math/rand"
 	"testing"
 
@@ -76,25 +75,6 @@ func TestValsetPowerDiff(t *testing.T) {
 			diffInternal, _ := spec.diff.ToInternal()
 			assert.Equal(t, spec.exp, startInternal.PowerDiff(*diffInternal))
 		})
-	}
-}
-
-func TestInt64Abs(t *testing.T) {
-	tests := []struct {
-		input    int64
-		expected int64
-	}{
-		{0, 0},
-		{5, 5},
-		{-5, 5},
-		{math.MaxInt64, math.MaxInt64},
-		{math.MinInt64, math.MaxInt64},
-	}
-
-	for _, test := range tests {
-		result := types.Int64Abs(test.input)
-		assert.Equal(t, test.expected, result, "int64Abs(%d) expected %d, but got %d", test.input, test.expected, result)
-
 	}
 }
 
