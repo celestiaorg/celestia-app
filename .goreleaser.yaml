@@ -16,6 +16,8 @@ builds:
   - main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
+      # Enable CGO for Ledger support
+      - CGO_ENABLED=1
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
     goarch:
       - amd64
