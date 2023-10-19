@@ -115,34 +115,32 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 // validator set, after all the validators retained their relative percentages
 // during inflation and normalized Blobstream power shows no difference.
 func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.Dec {
-	powers := map[string]int64{}
+	powers := map[string]sdk.Dec{}
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
-		powers[bv.EVMAddress.Hex()] = int64(bv.Power)
+		powers[bv.EVMAddress.Hex()] = sdk.NewDec(int64(bv.Power)) // TODO: overflow?
 	}
 
 	// subtract c powers from powers in the map, initializing
 	// uninitialized keys with negative numbers
 	for _, bv := range c {
+		bvPower := sdk.NewDec(int64(bv.Power))
 		if val, ok := powers[bv.EVMAddress.Hex()]; ok {
-			powers[bv.EVMAddress.Hex()] = val - int64(bv.Power)
+			powers[bv.EVMAddress.Hex()] = val.Sub(bvPower)
 		} else {
-			powers[bv.EVMAddress.Hex()] = -int64(bv.Power)
+			powers[bv.EVMAddress.Hex()] = bvPower.Neg() // -int64(bv.Power)
 		}
 	}
 
-	var delta int64
+	var delta = sdk.NewDec(0)
 	for _, v := range powers {
 		// NOTE: we care about the absolute value of the changes
-		if v < 0 {
-			v = -v
-		}
-		delta += v
+		v = v.Abs()
+		delta = delta.Add(v)
 	}
 
-	decDelta := sdk.NewDec(int64(delta))
 	decMaxUint32 := sdk.NewDec(math.MaxUint32)
-	q := decDelta.Quo(decMaxUint32)
+	q := delta.Quo(decMaxUint32)
 
 	return q.Abs()
 }
