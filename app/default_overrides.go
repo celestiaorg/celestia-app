@@ -15,7 +15,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -114,6 +116,20 @@ type crisisModule struct {
 func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
+	})
+}
+
+type distributionModule struct {
+	distribution.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/distribution module genesis state.
+func (distributionModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	params := distributiontypes.DefaultParams()
+	params.BaseProposerReward = sdk.ZeroDec()  // 0%
+	params.BonusProposerReward = sdk.ZeroDec() // 0%
+	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{
+		Params: params,
 	})
 }
 

@@ -141,7 +141,7 @@ var (
 		capability.AppModuleBasic{},
 		stakingModule{},
 		mintModule{},
-		distr.AppModuleBasic{},
+		distributionModule{},
 		newGovModule(),
 		params.AppModuleBasic{},
 		crisisModule{},
