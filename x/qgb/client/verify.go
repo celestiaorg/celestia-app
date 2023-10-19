@@ -10,9 +10,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/tendermint/tendermint/crypto/merkle"
 
+	wrapper "github.com/celestiaorg/blobstream-contracts/v3/wrappers/Blobstream.sol"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+<<<<<<< HEAD:x/qgb/client/verify.go
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/v2/wrappers/QuantumGravityBridge.sol"
+=======
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+>>>>>>> c517bd2 (chore(deps): replace old qgb contracts repo with blobstream repo (#2709)):x/blobstream/client/verify.go
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
