@@ -73,7 +73,8 @@ func TestValsetPowerDiff(t *testing.T) {
 		t.Run(msg, func(t *testing.T) {
 			startInternal, _ := spec.start.ToInternal()
 			diffInternal, _ := spec.diff.ToInternal()
-			assert.Equal(t, spec.exp, startInternal.PowerDiff(*diffInternal))
+			obtained := startInternal.PowerDiff(*diffInternal)
+			assert.True(t, spec.exp.Equal(obtained))
 		})
 	}
 }
