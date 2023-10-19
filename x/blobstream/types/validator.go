@@ -147,6 +147,21 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.De
 	return q.Abs()
 }
 
+// Int64Abs returns the absolute value of an int64.
+// For math.MinInt64, it returns math.MaxInt64.
+// This is because the absolute value of math.inInt64 is
+// 1 greater than math.MaxInt64. So, we return math.MaxInt64 as the closest
+// approximation which has 1 bit of error.
+func Int64Abs(v int64) int64 {
+	if v < 0 {
+		if v == math.MinInt64 { // avoid overflow
+			return -(v + 1) // i.e., math.MaxInt64
+		}
+		return -v
+	}
+	return v
+}
+
 // TotalPower returns the total power in the bridge validator set.
 func (ibv InternalBridgeValidators) TotalPower() (out uint64) {
 	for _, v := range ibv {
