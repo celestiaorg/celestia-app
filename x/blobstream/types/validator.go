@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"math"
+	"math/big"
 	"sort"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -118,7 +119,7 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.De
 	powers := map[string]sdk.Dec{}
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
-		powers[bv.EVMAddress.Hex()] = sdk.NewDec(int64(bv.Power))
+		powers[bv.EVMAddress.Hex()] = sdk.NewDecFromBigInt(new(big.Int).SetUint64(bv.Power))
 	}
 
 	// subtract c powers from powers in the map, initializing
