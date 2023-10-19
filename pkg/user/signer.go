@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -19,8 +20,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
 
@@ -143,7 +142,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	txBytes, err := s.CreatePayForBlob(blobs, opts...)
 	if err != nil {
 		return nil, err
@@ -175,8 +174,8 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 	return s.enc.TxEncoder()(txBuilder.GetTx())
 }
 
-func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]byte, error) {
-	msg, err := blob.NewMsgPayForBlobs(s.address.String(), blobs...)
+func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte, error) {
+	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +185,7 @@ func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]by
 		return nil, err
 	}
 
-	return tmtypes.MarshalBlobTx(txBytes, blobs...)
+	return blob.MarshalBlobTx(txBytes, blobs...)
 }
 
 // BroadcastTx submits the provided transaction bytes to the chain and returns the response.

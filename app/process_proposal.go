@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
@@ -51,7 +52,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(rawTx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}
@@ -66,11 +67,34 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 		// handle non-blob transactions first
 		if !isBlobTx {
-			_, has := hasPFB(sdkTx.GetMsgs())
+			msgs := sdkTx.GetMsgs()
+
+			_, has := hasPFB(msgs)
 			if has {
 				// A non blob tx has a PFB, which is invalid
 				logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
 				return reject()
+			}
+
+			if appVersion, ok := upgrade.IsUpgradeMsg(msgs); ok {
+				if idx != 0 {
+					logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("upgrade message %d is not the first transaction", idx))
+					return reject()
+				}
+
+				if !IsSupported(appVersion) {
+					logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("block proposes an unsupported app version %d", appVersion))
+					return reject()
+				}
+
+				// app version must always increase
+				if appVersion <= app.GetBaseApp().AppVersion() {
+					logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("block proposes an app version %d that is not greater than the current app version %d", appVersion, app.GetBaseApp().AppVersion()))
+					return reject()
+				}
+
+				// we don't need to pass this message through the ante handler
+				continue
 			}
 
 			// we need to increment the sequence for every transaction so that
@@ -78,7 +102,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			// if the account in question doens't exist.
 			sdkCtx, err = handler(sdkCtx, sdkTx, false)
 			if err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
+				logInvalidPropBlockError(app.Logger(), req.Header, "failure to increment sequence", err)
 				return reject()
 			}
 

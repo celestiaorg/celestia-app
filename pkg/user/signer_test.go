@@ -34,7 +34,7 @@ type SignerTestSuite struct {
 
 func (s *SignerTestSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithAccounts([]string{"a"}))
+	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a"))
 	_, err := s.ctx.WaitForHeight(1)
 	s.Require().NoError(err)
 	rec, err := s.ctx.Keyring.Key("a")
@@ -47,7 +47,7 @@ func (s *SignerTestSuite) SetupSuite() {
 
 func (s *SignerTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
-	blobs := blobfactory.ManyRandBlobs(t, rand.NewRand(), 1e3, 1e4)
+	blobs := blobfactory.ManyRandBlobs(rand.NewRand(), 1e3, 1e4)
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
 	subCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

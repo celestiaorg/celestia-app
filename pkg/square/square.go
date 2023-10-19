@@ -6,11 +6,11 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/types"
-	coreproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 )
 
@@ -27,7 +27,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, [][]byte
 	normalTxs := make([][]byte, 0, len(txs))
 	blobTxs := make([][]byte, 0, len(txs))
 	for _, tx := range txs {
-		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
@@ -122,7 +122,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 		if len(pfbMsgs) != 1 {
 			return nil, fmt.Errorf("expected PFB to have 1 message, but got %d", len(pfbMsgs))
 		}
-		pfb, isPfb := pfbMsgs[0].(*blob.MsgPayForBlobs)
+		pfb, isPfb := pfbMsgs[0].(*blobtypes.MsgPayForBlobs)
 		if !isPfb {
 			return nil, fmt.Errorf("expected PFB message, but got %T", pfbMsgs[0])
 		}
@@ -130,7 +130,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 			return nil, fmt.Errorf("expected PFB to have %d blob sizes, but got %d", len(wpfb.ShareIndexes), len(pfb.BlobSizes))
 		}
 
-		blobs := make([]*coreproto.Blob, len(wpfb.ShareIndexes))
+		blobs := make([]*blob.Blob, len(wpfb.ShareIndexes))
 		for j, shareIndex := range wpfb.ShareIndexes {
 			end := int(shareIndex) + shares.SparseSharesNeeded(pfb.BlobSizes[j])
 			parsedBlobs, err := shares.ParseBlobs(s[shareIndex:end])
@@ -141,15 +141,10 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 				return nil, fmt.Errorf("expected to parse a single blob, but got %d", len(blobs))
 			}
 
-			blobs[j] = &coreproto.Blob{
-				NamespaceId:      parsedBlobs[0].NamespaceID,
-				Data:             parsedBlobs[0].Data,
-				ShareVersion:     uint32(parsedBlobs[0].ShareVersion),
-				NamespaceVersion: uint32(parsedBlobs[0].NamespaceVersion),
-			}
+			blobs[j] = parsedBlobs[0]
 		}
 
-		tx, err := core.MarshalBlobTx(wpfb.Tx, blobs...)
+		tx, err := blob.MarshalBlobTx(wpfb.Tx, blobs...)
 		if err != nil {
 			return nil, err
 		}

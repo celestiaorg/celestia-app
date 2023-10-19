@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
@@ -14,8 +15,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/slices"
 )
 
@@ -47,7 +46,7 @@ const (
 // See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
@@ -215,19 +214,13 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 //
 // [data square layout rationale]: ../../specs/src/specs/data_square_layout.md
 // [blob share commitment rules]: ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
-func CreateCommitment(blob *Blob) ([]byte, error) {
-	coreblob := coretypes.Blob{
-		NamespaceID:      blob.NamespaceId,
-		Data:             blob.Data,
-		ShareVersion:     uint8(blob.ShareVersion),
-		NamespaceVersion: uint8(blob.NamespaceVersion),
-	}
-	namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
-	if err != nil {
+func CreateCommitment(blob *blob.Blob) ([]byte, error) {
+	if err := blob.Validate(); err != nil {
 		return nil, err
 	}
+	namespace := blob.Namespace()
 
-	shares, err := appshares.SplitBlobs(coreblob)
+	shares, err := appshares.SplitBlobs(blob)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +272,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-func CreateCommitments(blobs []*Blob) ([][]byte, error) {
+func CreateCommitments(blobs []*blob.Blob) ([][]byte, error) {
 	commitments := make([][]byte, len(blobs))
 	for i, blob := range blobs {
 		commitment, err := CreateCommitment(blob)
@@ -292,7 +285,7 @@ func CreateCommitments(blobs []*Blob) ([][]byte, error) {
 }
 
 // ValidateBlobs performs basic checks over the components of one or more PFBs.
-func ValidateBlobs(blobs ...*Blob) error {
+func ValidateBlobs(blobs ...*blob.Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
@@ -324,7 +317,7 @@ func ValidateBlobs(blobs ...*Blob) error {
 
 // ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func ExtractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*blob.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
 	namespaceIds = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))

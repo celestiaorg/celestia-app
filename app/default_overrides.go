@@ -15,7 +15,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -98,7 +100,7 @@ func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
 	params.SignedBlocksWindow = 5000
 	params.DowntimeJailDuration = time.Minute * 1
-	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(5, 2) // 5%
+	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(2, 2) // 2%
 	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
 
 	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
@@ -114,6 +116,20 @@ type crisisModule struct {
 func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
+	})
+}
+
+type distributionModule struct {
+	distribution.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/distribution module genesis state.
+func (distributionModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	params := distributiontypes.DefaultParams()
+	params.BaseProposerReward = sdk.ZeroDec()  // 0%
+	params.BonusProposerReward = sdk.ZeroDec() // 0%
+	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{
+		Params: params,
 	})
 }
 
@@ -160,11 +176,10 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := govtypes.DefaultGenesisState()
 	day := time.Duration(time.Hour * 24)
 	oneWeek := day * 7
-	twoWeeks := oneWeek * 2
 
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(1_000_000_000))) // 1000 TIA
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10_000_000_000))) // 10,000 TIA
 	genState.DepositParams.MaxDepositPeriod = &oneWeek
-	genState.VotingParams.VotingPeriod = &twoWeeks
+	genState.VotingParams.VotingPeriod = &oneWeek
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -188,7 +203,7 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Evidence:  DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
-			AppVersion: appconsts.LatestVersion,
+			AppVersion: DefaultInitialVersion,
 		},
 	}
 }
@@ -226,6 +241,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// version. This acts as a first line of DoS protection
 	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
 	cfg.Mempool.MaxTxBytes = upperBoundBytes
+	cfg.Mempool.MaxTxsBytes = int64(upperBoundBytes) * cfg.Mempool.TTLNumBlocks
 
 	cfg.Mempool.Version = "v1" // prioritized mempool
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose

@@ -5,17 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestQGBRPCQueries(t *testing.T) {
+func TestBlobstreamRPCQueries(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping QGB integration test in short mode.")
+		t.Skip("skipping blobstream integration test in short mode.")
 	}
-	cfg := testnode.DefaultConfig()
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	cfg := testnode.DefaultConfig().WithModifiers(genesis.SetDataCommitmentWindow(ecfg.Codec, 100))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
