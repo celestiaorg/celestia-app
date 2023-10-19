@@ -925,7 +925,7 @@ type QueryClient interface {
 	AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error)
 	// LatestAttestationNonce queries latest attestation nonce.
 	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
-	// LatestAttestationNonce queries latest attestation nonce.
+	// EarliestAttestationNonce queries the earliest attestation nonce.
 	EarliestAttestationNonce(ctx context.Context, in *QueryEarliestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryEarliestAttestationNonceResponse, error)
 	// LatestValsetRequestBeforeNonce Queries latest Valset request before nonce.
 	// And, even if the current nonce is a valset, it will return the previous
@@ -1043,7 +1043,7 @@ type QueryServer interface {
 	AttestationRequestByNonce(context.Context, *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error)
 	// LatestAttestationNonce queries latest attestation nonce.
 	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
-	// LatestAttestationNonce queries latest attestation nonce.
+	// EarliestAttestationNonce queries the earliest attestation nonce.
 	EarliestAttestationNonce(context.Context, *QueryEarliestAttestationNonceRequest) (*QueryEarliestAttestationNonceResponse, error)
 	// LatestValsetRequestBeforeNonce Queries latest Valset request before nonce.
 	// And, even if the current nonce is a valset, it will return the previous
