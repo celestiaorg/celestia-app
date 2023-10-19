@@ -131,10 +131,13 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.De
 		}
 	}
 
-	var delta float64
+	var delta int64
 	for _, v := range powers {
 		// NOTE: we care about the absolute value of the changes
-		delta += math.Abs(float64(v))
+		if v < 0 {
+			v = -v
+		}
+		delta += v
 	}
 
 	decDelta := sdk.NewDec(int64(delta))
