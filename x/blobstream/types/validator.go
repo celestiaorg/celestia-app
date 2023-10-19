@@ -132,7 +132,7 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.De
 		}
 	}
 
-	var delta = sdk.NewDec(0)
+	delta := sdk.NewDec(0)
 	for _, v := range powers {
 		// NOTE: we care about the absolute value of the changes
 		v = v.Abs()
