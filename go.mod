@@ -26,12 +26,8 @@ require (
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.1.2
-<<<<<<< HEAD
 	github.com/BurntSushi/toml v1.2.1
-	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2
-=======
 	github.com/celestiaorg/blobstream-contracts/v3 v3.0.0
->>>>>>> c517bd2 (chore(deps): replace old qgb contracts repo with blobstream repo (#2709))
 	github.com/celestiaorg/rsmt2d v0.11.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.14
