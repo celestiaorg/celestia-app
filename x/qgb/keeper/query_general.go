@@ -17,6 +17,16 @@ func (k Keeper) LatestUnbondingHeight(
 	}, nil
 }
 
+// EarliestAttestationNonce queries the earliest attestation nonce.
+func (k Keeper) EarliestAttestationNonce(
+	c context.Context,
+	_ *types.QueryEarliestAttestationNonceRequest,
+) (*types.QueryEarliestAttestationNonceResponse, error) {
+	return &types.QueryEarliestAttestationNonceResponse{
+		Nonce: k.GetEarliestAvailableAttestationNonce(sdk.UnwrapSDKContext(c)),
+	}, nil
+}
+
 func (k Keeper) Params(c context.Context, _ *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	params := k.GetParams(sdk.UnwrapSDKContext(c))
 	return &types.QueryParamsResponse{
