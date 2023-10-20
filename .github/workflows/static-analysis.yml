@@ -9,7 +9,7 @@
 # the `language` matrix defined below to confirm you have the correct set of
 # supported CodeQL languages.
 #
-name: "CodeQL"
+name: "static-analysis"
 
 on:
   push:
@@ -69,3 +69,7 @@ jobs:
         uses: github/codeql-action/analyze@v2
         with:
           category: "/language:${{matrix.language}}"
+
+  govulnech:
+    name: Golang Vulncheck
+    uses: Templum/govulncheck-action@v1.0.0
