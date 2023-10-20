@@ -114,15 +114,9 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 // validator set updates. For example if the total on chain voting power
 // increases by 1% due to inflation, we shouldn't have to generate a new
 // validator set, after all the validators retained their relative percentages
-<<<<<<< HEAD:x/qgb/types/validator.go
 // during inflation and normalized QGB power shows no difference.
-func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 {
-	powers := map[string]int64{}
-=======
-// during inflation and normalized Blobstream power shows no difference.
 func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.Dec {
 	powers := map[string]sdk.Dec{}
->>>>>>> 6192a5a (feat(blobstream): utilizes sdk.Dec type for power difference calculation  (#2719)):x/blobstream/types/validator.go
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
 		powers[bv.EVMAddress.Hex()] = sdk.NewDecFromBigInt(new(big.Int).SetUint64(bv.Power))
