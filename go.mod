@@ -44,13 +44,8 @@ require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
-<<<<<<< HEAD
-	github.com/consensys/gnark-crypto v0.12.0 // indirect
-	github.com/cosmos/ledger-cosmos-go v0.13.1 // indirect
-=======
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.2 // indirect
->>>>>>> 6bac86d (fix: restore Ledger support for MacOS 14 (#2740))
 	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
