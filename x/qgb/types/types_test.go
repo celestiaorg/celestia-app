@@ -5,13 +5,9 @@ import (
 	mrand "math/rand"
 	"testing"
 
-<<<<<<< HEAD:x/qgb/types/types_test.go
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-=======
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/x/blobstream/types"
->>>>>>> 6192a5a (feat(blobstream): utilizes sdk.Dec type for power difference calculation  (#2719)):x/blobstream/types/types_test.go
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
