@@ -44,7 +44,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
-	github.com/cosmos/ledger-cosmos-go v0.13.1 // indirect
+	github.com/cosmos/ledger-cosmos-go v0.13.2 // indirect
 	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -221,8 +221,8 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
-	github.com/zondax/hid v0.9.1 // indirect
-	github.com/zondax/ledger-go v0.14.2 // indirect
+	github.com/zondax/hid v0.9.2 // indirect
+	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
@@ -239,7 +239,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.18.2-sdk-v0.46.14
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
