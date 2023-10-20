@@ -30,6 +30,11 @@ service Query {
       returns (QueryLatestAttestationNonceResponse) {
     option (google.api.http).get = "/qgb/v1/attestations/nonce/latest";
   }
+  // EarliestAttestationNonce queries the earliest attestation nonce.
+  rpc EarliestAttestationNonce(QueryEarliestAttestationNonceRequest)
+      returns (QueryEarliestAttestationNonceResponse) {
+    option (google.api.http).get = "/qgb/v1/attestations/nonce/earliest";
+  }
   // LatestValsetRequestBeforeNonce Queries latest Valset request before nonce.
   // And, even if the current nonce is a valset, it will return the previous
   // one.
@@ -91,6 +96,11 @@ message QueryAttestationRequestByNonceResponse {
 message QueryLatestAttestationNonceRequest {}
 // QueryLatestAttestationNonceResponse latest attestation nonce response
 message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
+
+// QueryEarliestAttestationNonceRequest earliest attestation nonce request
+message QueryEarliestAttestationNonceRequest {}
+// QueryEarliestAttestationNonceResponse earliest attestation nonce response
+message QueryEarliestAttestationNonceResponse { uint64 nonce = 1; }
 
 // QueryLatestValsetRequestBeforeNonceRequest latest Valset request before
 // universal nonce request
