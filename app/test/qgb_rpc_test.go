@@ -51,6 +51,16 @@ func TestQGBRPCQueries(t *testing.T) {
 			},
 		},
 		{
+			name: "earliest attestation nonce",
+			req: func() error {
+				_, err := queryClient.EarliestAttestationNonce(
+					context.Background(),
+					&types.QueryEarliestAttestationNonceRequest{},
+				)
+				return err
+			},
+		},
+		{
 			name: "data commitment range for height",
 			req: func() error {
 				_, err := queryClient.DataCommitmentRangeForHeight(
