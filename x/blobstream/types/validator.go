@@ -2,8 +2,11 @@ package types
 
 import (
 	"bytes"
-	math "math"
+	"math"
+	"math/big"
 	"sort"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -32,7 +35,7 @@ func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
 	return &ret, nil
 }
 
-// Bridge Validator but with validated EVMAddress.
+// InternalBridgeValidator bridges Validator but with validated EVMAddress.
 type InternalBridgeValidator struct {
 	Power      uint64
 	EVMAddress common.Address
@@ -112,30 +115,35 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 // increases by 1% due to inflation, we shouldn't have to generate a new
 // validator set, after all the validators retained their relative percentages
 // during inflation and normalized Blobstream power shows no difference.
-func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 {
-	powers := map[string]int64{}
+func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.Dec {
+	powers := map[string]sdk.Dec{}
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
-		powers[bv.EVMAddress.Hex()] = int64(bv.Power)
+		powers[bv.EVMAddress.Hex()] = sdk.NewDecFromBigInt(new(big.Int).SetUint64(bv.Power))
 	}
 
 	// subtract c powers from powers in the map, initializing
 	// uninitialized keys with negative numbers
 	for _, bv := range c {
+		bvPower := sdk.NewDecFromBigInt(new(big.Int).SetUint64(bv.Power))
 		if val, ok := powers[bv.EVMAddress.Hex()]; ok {
-			powers[bv.EVMAddress.Hex()] = val - int64(bv.Power)
+			powers[bv.EVMAddress.Hex()] = val.Sub(bvPower)
 		} else {
-			powers[bv.EVMAddress.Hex()] = -int64(bv.Power)
+			powers[bv.EVMAddress.Hex()] = bvPower.Neg() // -int64(bv.Power)
 		}
 	}
 
-	var delta float64
+	delta := sdk.NewDec(0)
 	for _, v := range powers {
 		// NOTE: we care about the absolute value of the changes
-		delta += math.Abs(float64(v))
+		v = v.Abs()
+		delta = delta.Add(v)
 	}
 
-	return math.Abs(delta / float64(math.MaxUint32))
+	decMaxUint32 := sdk.NewDec(math.MaxUint32)
+	q := delta.Quo(decMaxUint32)
+
+	return q.Abs()
 }
 
 // TotalPower returns the total power in the bridge validator set.
