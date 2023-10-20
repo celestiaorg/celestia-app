@@ -22,7 +22,7 @@ func addrbookCommand() *cobra.Command {
 		Short: "Convert a list of peers into an address book",
 		Long: "Convert a list of peers into an address book.\n" +
 			"The first argument (peers.txt) should contain a new line separated list of peers. The format for a peer is `id@ip:port` or `id@domain:port`.\n" +
-			"The second argument (addrbook.json) should be the output filename. The address book is saved to the output file in JSON format.\n",
+			"The second argument (addrbook.json) should contain the complete file path, including both the directory path and the desired output file name, in the following format: `path/to/filename`. The address book is saved to the output file in JSON format.\n",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inputFile := args[0]
