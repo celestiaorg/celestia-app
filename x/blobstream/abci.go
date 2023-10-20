@@ -12,11 +12,6 @@ import (
 )
 
 const (
-	// SignificantPowerDifferenceThreshold is the threshold of change in the
-	// validator set power that would trigger the creation of a new valset
-	// request.
-	SignificantPowerDifferenceThreshold = 0.05
-
 	oneDay  = 24 * time.Hour
 	oneWeek = 7 * oneDay
 	// AttestationExpiryTime is the expiration time of an attestation. When this
@@ -24,6 +19,11 @@ const (
 	// pruned from state.
 	AttestationExpiryTime = 3 * oneWeek // 3 weeks
 )
+
+// SignificantPowerDifferenceThreshold is the threshold of change in the
+// validator set power that would trigger the creation of a new valset
+// request.
+var SignificantPowerDifferenceThreshold = sdk.NewDecWithPrec(5, 2) // 0.05
 
 // EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
@@ -117,7 +117,8 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 			panic(sdkerrors.Wrap(err, "invalid latest valset members"))
 		}
 
-		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > SignificantPowerDifferenceThreshold
+		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers).GT(SignificantPowerDifferenceThreshold)
+
 	}
 
 	if (latestValset == nil) || (latestUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
