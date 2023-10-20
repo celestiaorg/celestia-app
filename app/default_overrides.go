@@ -43,7 +43,7 @@ type bankModule struct {
 // DefaultGenesis returns custom x/bank module genesis state.
 func (bankModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	metadata := banktypes.Metadata{
-		Description: "The native staking token of the Celestia network.",
+		Description: "The native token of the Celestia network.",
 		Base:        BondDenom,
 		Name:        DisplayDenom,
 		Display:     DisplayDenom,
