@@ -5,15 +5,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
-)
-
-const (
-	// routabilityStrict is a hard-coded config value for the address book.
-	// See https://github.com/celestiaorg/celestia-core/blob/793ece9bbd732aec3e09018e37dc31f4bfe122d9/config/config.go#L540-L542
-	routabilityStrict = true
 )
 
 func addrbookCommand() *cobra.Command {
@@ -34,6 +29,7 @@ func addrbookCommand() *cobra.Command {
 			}
 			lines := strings.Split(string(data), "\n")
 
+			routabilityStrict := app.DefaultConsensusConfig().P2P.AddrBookStrict
 			book := pex.NewAddrBook(outputFile, routabilityStrict)
 			for _, line := range lines {
 				if line == "" {
