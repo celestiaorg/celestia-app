@@ -17,7 +17,6 @@ builds:
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      - CGO_ENABLED=0
     goarch:
       - amd64
       - arm64
