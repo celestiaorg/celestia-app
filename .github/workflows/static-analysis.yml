@@ -83,4 +83,6 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - uses: Templum/govulncheck-action@v1.0.0
+      - name: Run go vulncheck
+        uses: Templum/govulncheck-action@v1.0.0
+        go-version: ${{ env.GO_VERSION }}
