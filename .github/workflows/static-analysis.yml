@@ -74,4 +74,6 @@ jobs:
 
   govulnech:
     name: Golang Vulncheck
-    uses: Templum/govulncheck-action@v1.0.0
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: Templum/govulncheck-action@v1.0.0
