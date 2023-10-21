@@ -12,6 +12,7 @@
 name: "static-analysis"
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches: ["main", "v[0-9].[0-9].x", "v[0-9].[0-9][0-9].x", "v[0-9].x"]
