@@ -70,7 +70,7 @@ jobs:
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
     needs: version_bump
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
