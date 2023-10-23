@@ -28,7 +28,7 @@ This decision led to the creation of `celestia-node`, a new repository, responsi
 
 Having duplication requires both a broader knowledge base and more maintenance load for engineers. There is a larger surface area for bugs and gains from optimizations are not captured as efficiently as they could.
 
-Outside of the aforementioned tech debt, there is untapped potential in taking the benefits of LibP2P and porting it across to the Tendermint consensus algorithm. LibP2P has a more sophisticated and efficient gossiping protocols than Tendermint's. It also has a more robust peer discovery and peer management system.
+Outside of the aforementioned tech debt, there is untapped potential in taking the benefits of LibP2P and porting it across to the Tendermint consensus algorithm. LibP2P has a more sophisticated and efficient gossiping protocol than Tendermint's. It also has a more robust peer discovery and peer management system.
 
 ## Decision
 
@@ -60,4 +60,4 @@ This is a project of considerable duration (roughly 18 months) and thus will coi
 
 ### Risk Mitigation
 
-Replacing the networking layer is a significant undertaking and vulnerable to a number of risks. Each component will need to be benchmared to ensure no performance degradation and be sufficiently stress tested. Having both versions present, while adding complexity, has the advantage of enabling the option to fallback in case of unexpected failure.
+Replacing the networking layer is a significant undertaking and vulnerable to a number of risks. Each component will need to be benchmarked to ensure no performance degradation and be sufficiently stress tested. Having both versions present, while adding complexity, has the advantage of enabling the option to fallback in case of unexpected failure.
