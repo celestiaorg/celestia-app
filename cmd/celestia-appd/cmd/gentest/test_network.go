@@ -84,8 +84,10 @@ func GenTxTest(tempDir string, existingGenesis *coretypes.GenesisDoc, genTxs []s
 	}
 	defer cleanup()
 
-	// wait for the nework to start, with ~300ms blocks, 5 seconds should be plenty
-	_, err = cctx.WaitForHeightWithTimeout(2, time.Second*10)
+	// wait for the network to start, with ~300ms blocks, 100 seconds should be plenty
+	// even with slow CI and a really large genesis file.
+	fmt.Println("Wait up to 100 seconds for the network to start...")
+	_, err = cctx.WaitForHeightWithTimeout(2, time.Second*100)
 	if err != nil {
 		return err
 	}
