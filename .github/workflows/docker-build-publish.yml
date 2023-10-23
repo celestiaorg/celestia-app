@@ -4,7 +4,10 @@ name: docker-build-publish
 on:
   push:
     branches:
-      - "**"
+      - "main"
+      - "v[0-9].[0-9].x"
+      - "v[0-9].[0-9][0-9].x"
+      - "v[0-9].x"
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
@@ -17,7 +20,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.3 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.8 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
 
@@ -25,7 +28,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.3
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.8
     with:
       dockerfile: docker/Dockerfile_txsim
       packageName: txsim

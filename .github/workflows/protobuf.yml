@@ -1,4 +1,3 @@
-# protobuf runs `make proto-lint` and `make proto-gen`.
 name: protobuf
 on:
   pull_request:
@@ -32,10 +31,9 @@ jobs:
           fi
         # yamllint enable
 
-  # add this back when we start using versioning
-  # breakage:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: check-breakage
-  #       run: make proto-check-breaking
+  proto-check-breaking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: proto-check-breaking
+        run: make proto-check-breaking
