@@ -180,9 +180,9 @@ Note: to verify the number of SHA256 compression invocations, we analyzed the nu
             1. Reconstruct all shares from the erasure coding
             1. Reconstruct the NMT
 
-1. Is it possible to preserve backwards compatability if we increase namespace ID size in the future?
-    1. One challenge with backwards compatability is that the NMT proof verification logic for old clients will not be able to verify the new larger namespace ID. Since the namespace ID is prefixed to each NMT data leaf and two namespace IDs are prefixed to each NMT inner node, an NMT constructed with two different size namespace IDs will result in different size nodes. An NMT proof contains the field [`nodes`](https://github.com/celestiaorg/nmt/blob/1bc0bb0099e01b30e37ddb56642734ae875917cd/proof.go#L20-L25) which would have different size nodes for different namespace ID sizes. An old client would not be able to split the namespace IDs from the hash digest unless the old client was written in a brittle way.
-    1. Another challenge with backwards compatability is how to determine the min/max namespace ID for a parent node with one child of namespace ID size 16 and one child of namespace ID size 32. The naive approach of padding the 16 byte namespace ID to 32 bytes with leading or trailing zeroes does not work because the hash of the unpadded namespace ID != the hash of the padded namespace ID.
+1. Is it possible to preserve backwards compatibility if we increase namespace ID size in the future?
+    1. One challenge with backwards compatibility is that the NMT proof verification logic for old clients will not be able to verify the new larger namespace ID. Since the namespace ID is prefixed to each NMT data leaf and two namespace IDs are prefixed to each NMT inner node, an NMT constructed with two different size namespace IDs will result in different size nodes. An NMT proof contains the field [`nodes`](https://github.com/celestiaorg/nmt/blob/1bc0bb0099e01b30e37ddb56642734ae875917cd/proof.go#L20-L25) which would have different size nodes for different namespace ID sizes. An old client would not be able to split the namespace IDs from the hash digest unless the old client was written in a brittle way.
+    1. Another challenge with backwards compatibility is how to determine the min/max namespace ID for a parent node with one child of namespace ID size 16 and one child of namespace ID size 32. The naive approach of padding the 16 byte namespace ID to 32 bytes with leading or trailing zeroes does not work because the hash of the unpadded namespace ID != the hash of the padded namespace ID.
 1. If we start with a namespace ID size of 32 bytes, is it possible to mitigate the tradeoffs in subsequent namespace versions?
     - No for share size because all 32 bytes of the namespace ID would need to be present in the share in order to not break share commitments.
     - Potentially for NMT proof size via an in-protocol compression mechanism. From the NMT's perspective, all data pushed to the NMT would have namespace ID size 32 bytes. But we may introduce a new share version that enables clients to specify a namespace ID with fewer than 32 bytes (e.g. 8 bytes). One could view this optimization as a run-length encoding scheme where `namespaceVersion=1` is a run of 24 bytes of 0s followed by 8 bytes of significant namespace ID. In other words:
@@ -213,7 +213,7 @@ Note: to verify the number of SHA256 compression invocations, we analyzed the nu
   - Assumes that a block height may have a different namespace ID
 - There are talks in the Ethereum community about a potential address range increase.
   - Address space extension is on the Ethereum roadmap under "The Purge" phase.[^14] There doesn't appear to be alignment on how to implement such an address space extension but the discussion is leaning towards increasing from 20 bytes to 32 bytes.[^15]
-- 20 bytes gives us Ethereum address compatability so Ethereum addresses could be mapped to a Celestia namespace ID.
+- 20 bytes gives us Ethereum address compatibility so Ethereum addresses could be mapped to a Celestia namespace ID.
 - Other option: increase size to 32 bytes with an optimization that reserves the first N bytes. The first N bytes wouldn't be sent over the wire.
 - Solution to woods attack
   - Rollups can't assume that all blobs in a namespace are honest
