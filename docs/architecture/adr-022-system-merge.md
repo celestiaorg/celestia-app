@@ -36,7 +36,7 @@ The decision is to converge to a LibP2P based network and to shape out reusable 
 
 ### Phase 1: Removal of the bridge node
 
-The first step involves porting `Init` and `Start` methods from `celestia-app` and allowing consensus nodes to be initialized and run through the `celestia` binary. This will allow for a arguemnt to be passed in `Start` that enables the consensus nodes to directly push the extended data square (EDS) that is finalized in `FinalizeBlock` to the LibP2P based networks. Thus consensus nodes will temporarily be a hybrid of both networking systems and replace the need for a separate bridge node. Having a single binary will greatly simplify both the release process and end-to-end testing.
+The first step involves porting `Init` and `Start` methods from `celestia-app` and allowing consensus nodes to be initialized and run through the `celestia` binary. This will allow for a argument to be passed in `Start` that enables the consensus nodes to directly push the extended data square (EDS) that is finalized in `FinalizeBlock` to the LibP2P based networks. Thus consensus nodes will temporarily be a hybrid of both networking systems and replace the need for a separate bridge node. Having a single binary will greatly simplify both the release process and end-to-end testing.
 
 ### Phase 2: Migration of storage, syncing and fraud
 
