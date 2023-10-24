@@ -233,6 +233,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+
 	cfg.Mempool.TTLNumBlocks = 5
 	cfg.Mempool.TTLDuration = time.Duration(cfg.Mempool.TTLNumBlocks) * appconsts.GoalBlockTime
 	// Given that there is a stateful transaction size check in CheckTx,
@@ -242,12 +243,15 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
 	cfg.Mempool.MaxTxBytes = upperBoundBytes
 	cfg.Mempool.MaxTxsBytes = int64(upperBoundBytes) * cfg.Mempool.TTLNumBlocks
-
 	cfg.Mempool.Version = "v1" // prioritized mempool
+
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
+
 	cfg.TxIndex.Indexer = "null"
+	cfg.Storage.DiscardABCIResponses = true
+
 	return cfg
 }
 
