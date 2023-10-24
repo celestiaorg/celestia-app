@@ -166,7 +166,7 @@ message WantTx {
 }
 </code></pre>
 <p>Both <code>SeenTx</code> and <code>WantTx</code> contain the sha256 hash of the raw transaction bytes. <code>SeenTx</code> also contains an optional <code>p2p.ID</code> that corresponds to the peer that the node recieved the tx from. The only validation for both is that the byte slice of the <code>tx_key</code> MUST have a length of 32.</p>
-<p>Both messages are sent across a new channel with the ID: <code>byte(0x31)</code>. This enables cross compatability as discussed in greater detail below.</p>
+<p>Both messages are sent across a new channel with the ID: <code>byte(0x31)</code>. This enables cross compatibility as discussed in greater detail below.</p>
 <blockquote>
 <p><strong>Note:</strong>
 The term <code>SeenTx</code> is used over the more common <code>HasTx</code> because the transaction pool contains sophisticated eviction logic. TTL's, higher priority transactions and reCheckTx may mean that a transaction pool <em>had</em> a transaction but does not have it any more. Semantically it's more appropriate to use <code>SeenTx</code> to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.</p>
