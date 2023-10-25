@@ -7,29 +7,6 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-// FitsInSquare uses the non interactive default rules to see if blobs of some
-// lengths will fit in a square of squareSize starting at share index cursor.
-// Returns whether the blobs fit in the square and the number of shares used by
-// blobs. See ADR-013 and the blob share commitment rules.
-//
-// ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
-func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (bool, int) {
-	if len(blobShareLens) == 0 {
-		if cursor <= squareSize*squareSize {
-			return true, 0
-		}
-		return false, 0
-	}
-	firstBlobLen := 1
-	if len(blobShareLens) > 0 {
-		firstBlobLen = blobShareLens[0]
-	}
-	// here we account for padding between the compact and sparse shares
-	cursor = NextShareIndex(cursor, firstBlobLen, subtreeRootThreshold)
-	sharesUsed, _ := BlobSharesUsedNonInteractiveDefaults(cursor, subtreeRootThreshold, blobShareLens...)
-	return cursor+sharesUsed <= squareSize*squareSize, sharesUsed
-}
-
 // BlobSharesUsedNonInteractiveDefaults returns the number of shares used by a given set
 // of blobs share lengths. It follows the blob share commitment rules and
 // returns the share indexes for each blob.
