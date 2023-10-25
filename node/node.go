@@ -2,12 +2,11 @@ package node
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
-	"time"
-
-	"io"
 	"path/filepath"
+	"time"
 
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -49,7 +48,6 @@ type Node struct {
 	consensus *node.Node
 	app       servertypes.Application
 	config    *Filesystem
-	publishFn app.PublishFn
 	closers   []Closer
 	logger    log.Logger
 }
@@ -80,6 +78,9 @@ func New(fs *Filesystem, publish app.PublishFn) (*Node, error) {
 		node.DefaultMetricsProvider(fs.Consensus.Instrumentation),
 		logger,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	rpcClient := local.New(tmNode)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -122,18 +123,21 @@ func New(fs *Filesystem, publish app.PublishFn) (*Node, error) {
 }
 
 func (n *Node) Start() error {
-	var err error
-	if err = n.consensus.Start(); err != nil {
+	if err := n.consensus.Start(); err != nil {
 		return err
 	}
 	n.addToCloser(func() error { return n.consensus.Stop() })
 
 	if n.config.App.GRPC.Enable {
-		n.startGRPCServer()
+		if err := n.startGRPCServer(); err != nil {
+			return err
+		}
 	}
 
 	if n.config.App.API.Enable {
-		n.startAPIServer()
+		if err := n.startAPIServer(); err != nil {
+			return err
+		}
 	}
 
 	// TODO: add the rosetta server
@@ -255,6 +259,7 @@ func NewApp(fs *Filesystem, logger log.Logger, publishFn app.PublishFn) (servert
 	appOpts := app.NewKVAppOptions()
 	appOpts.SetFromAppConfig(fs.App)
 	appOpts.Set(flags.FlagHome, fs.Consensus.RootDir)
+	appOpts.Set(app.PublishFnLabel, publishFn)
 
 	return NewAppServer(logger, db, nil, appOpts), nil
 }
