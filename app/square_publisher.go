@@ -13,13 +13,12 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type PublishFn func(context.Context, *types.Header, *da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare)
+type PublishFn func(context.Context, *types.Header, *rsmt2d.ExtendedDataSquare)
 
 const PublishFnLabel = "PublishFn"
 
 type squarePublisher struct {
 	square          *rsmt2d.ExtendedDataSquare
-	dah             *da.DataAvailabilityHeader
 	header          *types.Header
 	publish         PublishFn
 	txs             [][]byte
@@ -33,13 +32,12 @@ func newSquarePublisher(publishFn PublishFn, maxSquareSizeFn func(sdk.Context) i
 	}
 }
 
-func (p *squarePublisher) cacheSquare(header *types.Header, dah da.DataAvailabilityHeader, square *rsmt2d.ExtendedDataSquare) {
+func (p *squarePublisher) cacheSquare(header *types.Header, square *rsmt2d.ExtendedDataSquare) {
 	if p.publish == nil {
 		return
 	}
 	p.header = header
 	p.square = square
-	p.dah = &dah
 }
 
 func (p *squarePublisher) confirmHeader(h *types.Header) bool {
@@ -63,7 +61,7 @@ func (p *squarePublisher) publishSquare(ctx sdk.Context) {
 	}
 
 	// don't block on publishing
-	go p.publish(context.TODO(), p.header, p.dah, p.square)
+	go p.publish(context.TODO(), p.header, p.square)
 
 	// reset all values
 	p.square = nil
@@ -96,6 +94,8 @@ func (p *squarePublisher) reconstructSquare(ctx sdk.Context) error {
 	if !bytes.Equal(dah.Hash(), p.header.DataHash) {
 		return fmt.Errorf("data availability header hash does not match the one in the header (%X != %X)", dah.Hash(), p.header.DataHash)
 	}
+
+	p.square = eds
 
 	return nil
 }

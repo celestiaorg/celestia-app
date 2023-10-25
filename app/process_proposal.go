@@ -145,7 +145,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	if err != nil {
 		panic(fmt.Sprintf("invalid header from consensus: %v", err))
 	}
-	app.squarePublisher.cacheSquare(&h, dah, eds)
+	app.squarePublisher.cacheSquare(&h, eds)
 
 	return accept()
 }
