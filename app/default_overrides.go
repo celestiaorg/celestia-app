@@ -257,7 +257,9 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 func DefaultAppConfig() *serverconfig.Config {
 	cfg := serverconfig.DefaultConfig()
-	cfg.API.Enable = true
+	cfg.API.Enable = false
+	cfg.GRPC.Enable = false
+	cfg.GRPCWeb.Enable = false
 
 	// the default snapshot interval was determined by picking a large enough
 	// value as to not dramatically increase resource requirements while also
