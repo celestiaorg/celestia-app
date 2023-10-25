@@ -557,6 +557,9 @@ func New(
 	app.ScopedIBCKeeper = scopedIBCKeeper
 	app.ScopedTransferKeeper = scopedTransferKeeper
 
+	publishFn, _ := appOpts.Get(PublishFnLabel).(PublishFn)
+	app.squarePublisher = newSquarePublisher(publishFn, app.GovSquareSizeUpperBound)
+
 	return app
 }
 
@@ -583,6 +586,7 @@ func (app *App) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	// if we have not already published the square we do it now.
 	app.squarePublisher.publishSquare(ctx)
 	return app.mm.EndBlock(ctx, req)
 }

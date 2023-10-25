@@ -60,7 +60,7 @@ func New(fs *Filesystem, publish app.PublishFn) (*Node, error) {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	logger = log.NewFilter(logger, log.AllowError())
 
-	appServer, err := NewApp(fs, logger)
+	appServer, err := NewApp(fs, logger, publish)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (n *Node) addToCloser(closer Closer) {
 	n.closers = append(n.closers, closer)
 }
 
-func NewApp(fs *Filesystem, logger log.Logger) (servertypes.Application, error) {
+func NewApp(fs *Filesystem, logger log.Logger, publishFn app.PublishFn) (servertypes.Application, error) {
 	db, err := dbm.NewGoLevelDB("application", fs.Consensus.DBDir())
 	if err != nil {
 		return nil, err

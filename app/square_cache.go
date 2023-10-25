@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -12,37 +13,46 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type PublishFn func(*types.Header, da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare)
+type PublishFn func(context.Context, *types.Header, *da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare)
+
+const PublishFnLabel = "PublishFn"
 
 type squarePublisher struct {
 	square          *rsmt2d.ExtendedDataSquare
-	dah             da.DataAvailabilityHeader
+	dah             *da.DataAvailabilityHeader
 	header          *types.Header
 	publish         PublishFn
 	txs             [][]byte
 	maxSquareSizeFn func(sdk.Context) int
 }
 
-func newSquarePublisher(publishFn PublishFn) squarePublisher {
+func newSquarePublisher(publishFn PublishFn, maxSquareSizeFn func(sdk.Context) int) squarePublisher {
 	return squarePublisher{
-		publish: publishFn,
+		publish:         publishFn,
+		maxSquareSizeFn: maxSquareSizeFn,
 	}
 }
 
 func (p *squarePublisher) cacheSquare(header *types.Header, dah da.DataAvailabilityHeader, square *rsmt2d.ExtendedDataSquare) {
+	if p.publish == nil {
+		return
+	}
 	p.header = header
 	p.square = square
-	p.dah = dah
+	p.dah = &dah
 }
 
 func (p *squarePublisher) confirmHeader(h *types.Header) bool {
-	has := bytes.Equal(h.DataHash, p.header.DataHash)
+	has := false
+	if p.header != nil {
+		has = bytes.Equal(h.DataHash, p.header.DataHash)
+	}
 	p.header = h
 	return has
 }
 
 func (p *squarePublisher) publishSquare(ctx sdk.Context) {
-	if p.header == nil {
+	if p.header == nil || p.publish == nil {
 		return
 	}
 
@@ -53,7 +63,7 @@ func (p *squarePublisher) publishSquare(ctx sdk.Context) {
 	}
 
 	// don't block on publishing
-	go p.publish(p.header, p.dah, p.square)
+	go p.publish(context.TODO(), p.header, p.dah, p.square)
 
 	// reset all values
 	p.square = nil
@@ -62,7 +72,7 @@ func (p *squarePublisher) publishSquare(ctx sdk.Context) {
 }
 
 func (p *squarePublisher) addTx(tx []byte) {
-	if p.header != nil {
+	if p.header != nil && p.publish != nil {
 		p.txs = append(p.txs, tx)
 	}
 }
