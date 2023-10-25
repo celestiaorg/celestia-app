@@ -51,3 +51,15 @@ func TestDefaultGenesis(t *testing.T) {
 	assert.Equal(t, distributiontypes.DefaultParams().WithdrawAddrEnabled, distributionGenesisState.Params.WithdrawAddrEnabled)
 	assert.Equal(t, distributiontypes.DefaultParams().CommunityTax, distributionGenesisState.Params.CommunityTax)
 }
+
+func TestDefaultAppConfig(t *testing.T) {
+	cfg := DefaultAppConfig()
+
+	assert.False(t, cfg.API.Enable)
+	assert.False(t, cfg.GRPC.Enable)
+	assert.False(t, cfg.GRPCWeb.Enable)
+
+	assert.Equal(t, uint64(1500), cfg.StateSync.SnapshotInterval)
+	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
+	assert.Equal(t, "0.1utia", cfg.MinGasPrices)
+}
