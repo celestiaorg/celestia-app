@@ -3,9 +3,8 @@ package cmd
 import (
 	"io"
 	"os"
-	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/node"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -15,7 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/tendermint/tendermint/cmd/cometbft/commands"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/debug"
@@ -25,15 +23,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/snapshots"
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
@@ -130,7 +124,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		commands.CompactGoLevelDBCmd,
 	)
 
-	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, app.DefaultNodeHome, node.NewAppServer, createAppAndExport, addModuleInitFlags)
 
 	// add status, query, tx, and keys subcommands
 	rootCmd.AddCommand(
@@ -194,56 +188,6 @@ func txCommand() *cobra.Command {
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")
 
 	return cmd
-}
-
-func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
-	var cache sdk.MultiStorePersistentCache
-
-	if cast.ToBool(appOpts.Get(server.FlagInterBlockCache)) {
-		cache = store.NewCommitKVStoreCacheManager()
-	}
-
-	skipUpgradeHeights := make(map[int64]bool)
-	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
-		skipUpgradeHeights[int64(h)] = true
-	}
-
-	pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
-	if err != nil {
-		panic(err)
-	}
-
-	// Add snapshots
-	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
-	//nolint: staticcheck
-	snapshotDB, err := sdk.NewLevelDB("metadata", snapshotDir)
-	if err != nil {
-		panic(err)
-	}
-	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
-	if err != nil {
-		panic(err)
-	}
-
-	return app.New(
-		logger, db, traceStore, true, skipUpgradeHeights,
-		cast.ToString(appOpts.Get(flags.FlagHome)),
-		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
-		appOpts,
-		baseapp.SetPruning(pruningOpts),
-		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
-		baseapp.SetMinRetainBlocks(cast.ToUint64(appOpts.Get(server.FlagMinRetainBlocks))),
-		baseapp.SetHaltHeight(cast.ToUint64(appOpts.Get(server.FlagHaltHeight))),
-		baseapp.SetHaltTime(cast.ToUint64(appOpts.Get(server.FlagHaltTime))),
-		baseapp.SetInterBlockCache(cache),
-		baseapp.SetTrace(cast.ToBool(appOpts.Get(server.FlagTrace))),
-		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
-		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)))),
-		func(b *baseapp.BaseApp) {
-			b.SetProtocolVersion(appconsts.LatestVersion)
-		},
-	)
 }
 
 func createAppAndExport(
