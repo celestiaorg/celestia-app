@@ -15,6 +15,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -138,6 +139,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
 		return reject()
 	}
+
+	// cache the square so we don't have to recompute it when we need to broadcast it
+	// out to the DA network
+	h, err := types.HeaderFromProto(&req.Header)
+	if err != nil {
+		panic(fmt.Sprintf("invalid header from consensus: %v", err))
+	}
+	app.squarePublisher.cacheSquare(&h, dah, eds)
 
 	return accept()
 }

@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -10,14 +9,12 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	rpc "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/rpc/client/local"
-	"github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -52,16 +49,14 @@ type Node struct {
 	consensus *node.Node
 	app       servertypes.Application
 	config    *Filesystem
-	publishFn PublishFn
+	publishFn app.PublishFn
 	closers   []Closer
 	logger    log.Logger
 }
 
-type PublishFn func(context.Context, *types.Header, *types.Commit, *types.ValidatorSet, *rsmt2d.ExtendedDataSquare) error
-
 type Closer func() error
 
-func New(fs *Filesystem, publish PublishFn) (*Node, error) {
+func New(fs *Filesystem, publish app.PublishFn) (*Node, error) {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	logger = log.NewFilter(logger, log.AllowError())
 
@@ -313,5 +308,3 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		},
 	)
 }
-
-func StartGRPCServer()

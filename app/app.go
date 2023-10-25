@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -81,6 +82,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
@@ -235,6 +237,9 @@ type App struct {
 
 	// the module manager
 	mm *module.Manager
+
+	// for publishing squares to the da network
+	squarePublisher squarePublisher
 }
 
 // New returns a reference to an initialized celestia app.
@@ -560,11 +565,25 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	h, err := tmtypes.HeaderFromProto(&req.Header)
+	if err != nil {
+		panic(fmt.Sprintf("consensus provided invalid header: %v", err))
+	}
+	hasSquare := app.squarePublisher.confirmHeader(&h)
+	if hasSquare {
+		app.squarePublisher.publishSquare()
+	}
 	return app.mm.BeginBlock(ctx, req)
+}
+
+func (app *App) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+	app.squarePublisher.addTx(req.Tx)
+	return app.BaseApp.DeliverTx(req)
 }
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	app.squarePublisher.publishSquare()
 	return app.mm.EndBlock(ctx, req)
 }
 
