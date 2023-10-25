@@ -571,7 +571,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 	}
 	hasSquare := app.squarePublisher.confirmHeader(&h)
 	if hasSquare {
-		app.squarePublisher.publishSquare()
+		app.squarePublisher.publishSquare(ctx)
 	}
 	return app.mm.BeginBlock(ctx, req)
 }
@@ -583,7 +583,7 @@ func (app *App) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	app.squarePublisher.publishSquare()
+	app.squarePublisher.publishSquare(ctx)
 	return app.mm.EndBlock(ctx, req)
 }
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -11,11 +12,11 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type PublishFn func(*types.Header, da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare) error
+type PublishFn func(*types.Header, da.DataAvailabilityHeader, *rsmt2d.ExtendedDataSquare)
 
 type squarePublisher struct {
 	square          *rsmt2d.ExtendedDataSquare
-	dah				da.DataAvailabilityHeader
+	dah             da.DataAvailabilityHeader
 	header          *types.Header
 	publish         PublishFn
 	txs             [][]byte
@@ -40,18 +41,19 @@ func (p *squarePublisher) confirmHeader(h *types.Header) bool {
 	return has
 }
 
-func (p *squarePublisher) publishSquare() {
+func (p *squarePublisher) publishSquare(ctx sdk.Context) {
 	if p.header == nil {
 		return
 	}
 
 	if len(p.txs) > 0 {
-
+		if err := p.reconstructSquare(ctx); err != nil {
+			panic(err)
+		}
 	}
 
-	if err := p.publish(p.header, p.square); err != nil {
-		return
-	}
+	// don't block on publishing
+	go p.publish(p.header, p.dah, p.square)
 
 	// reset all values
 	p.square = nil
@@ -76,5 +78,14 @@ func (p *squarePublisher) reconstructSquare(ctx sdk.Context) error {
 		return err
 	}
 
-	dah, 
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(dah.Hash(), p.header.DataHash) {
+		return fmt.Errorf("data availability header hash does not match the one in the header (%X != %X)", dah.Hash(), p.header.DataHash)
+	}
+
+	return nil
 }
