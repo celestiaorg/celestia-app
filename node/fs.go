@@ -1,13 +1,25 @@
 package node
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	slashing "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/spf13/viper"
 	tmconfig "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -141,8 +153,94 @@ func LoadAppConfig(dir string) (*serverconfig.Config, error) {
 	return cfg, nil
 }
 
-func TestGenesis() *types.GenesisDoc {
-	return &types.GenesisDoc{}
+func MakeSingleValidatorGenesis(accountKey, validatorKey crypto.PubKey) (*types.GenesisDoc, error) {
+	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	appGenState := app.ModuleBasics.DefaultGenesis(encCdc.Codec)
+	bankGenesis := bank.DefaultGenesisState()
+	stakingGenesis := staking.DefaultGenesisState()
+	slashingGenesis := slashing.DefaultGenesisState()
+	genAccs := []auth.GenesisAccount{}
+	stakingGenesis.Params.BondDenom = app.BondDenom
+
+	// setup the validator information on the state machine
+	addr := accountKey.Address()
+	pk, err := cryptocodec.FromTmPubKeyInterface(validatorKey)
+	if err != nil {
+		return &types.GenesisDoc{}, fmt.Errorf("converting public key for node: %w", err)
+	}
+	pkAny, err := codectypes.NewAnyWithValue(pk)
+	if err != nil {
+		return &types.GenesisDoc{}, err
+	}
+
+	validators := []staking.Validator{{
+		OperatorAddress: sdk.ValAddress(addr).String(),
+		ConsensusPubkey: pkAny,
+		Description: staking.Description{
+			Moniker: "node",
+		},
+		Status:          staking.Bonded,
+		Tokens:          sdk.NewInt(1_000_000_000),
+		DelegatorShares: sdk.OneDec(),
+		// 5% commission
+		Commission:        staking.NewCommission(sdk.NewDecWithPrec(5, 2), sdk.OneDec(), sdk.OneDec()),
+		MinSelfDelegation: sdk.ZeroInt(),
+	}}
+	consensusAddr := pk.Address()
+	delegations := staking.NewDelegation(sdk.AccAddress(addr), sdk.ValAddress(addr), sdk.OneDec())
+	valInfo := []slashing.SigningInfo{{
+		Address:              sdk.ConsAddress(consensusAddr).String(),
+		ValidatorSigningInfo: slashing.NewValidatorSigningInfo(sdk.ConsAddress(consensusAddr), 1, 0, time.Unix(0, 0), false, 0),
+	}}
+	stakingGenesis.Delegations = []staking.Delegation{delegations}
+	stakingGenesis.Validators = validators
+	slashingGenesis.SigningInfos = valInfo
+
+	accountPk, err := cryptocodec.FromTmPubKeyInterface(accountKey)
+	if err != nil {
+		return &types.GenesisDoc{}, fmt.Errorf("converting public key for account: %w", err)
+	}
+
+	acc := auth.NewBaseAccount(addr.Bytes(), accountPk, 0, 0)
+	genAccs = append(genAccs, acc)
+	// add bonded amount to bonded pool module account
+	balances := []bank.Balance{
+		{
+			Address: auth.NewModuleAddress(staking.BondedPoolName).String(),
+			Coins:   sdk.Coins{sdk.NewCoin(app.BondDenom, validators[0].Tokens)},
+		},
+		{
+			Address: sdk.AccAddress(addr).String(),
+			Coins: sdk.NewCoins(
+				sdk.NewCoin(app.BondDenom, sdk.NewInt(1_000_000_000)),
+			),
+		},
+	}
+	bankGenesis.Balances = bank.SanitizeGenesisBalances(balances)
+	authGenesis := auth.NewGenesisState(auth.DefaultParams(), genAccs)
+
+	// update the original genesis state
+	appGenState[bank.ModuleName] = encCdc.Codec.MustMarshalJSON(bankGenesis)
+	appGenState[auth.ModuleName] = encCdc.Codec.MustMarshalJSON(authGenesis)
+	appGenState[staking.ModuleName] = encCdc.Codec.MustMarshalJSON(stakingGenesis)
+	appGenState[slashing.ModuleName] = encCdc.Codec.MustMarshalJSON(slashingGenesis)
+
+	if err := app.ModuleBasics.ValidateGenesis(encCdc.Codec, encCdc.TxConfig, appGenState); err != nil {
+		return &types.GenesisDoc{}, fmt.Errorf("validating genesis: %w", err)
+	}
+
+	appState, err := json.MarshalIndent(appGenState, "", " ")
+	if err != nil {
+		return &types.GenesisDoc{}, fmt.Errorf("marshaling app state: %w", err)
+	}
+
+	// Validator set and app hash are set in InitChain
+	return &types.GenesisDoc{
+		ChainID:         "private",
+		GenesisTime:     time.Now().UTC(),
+		ConsensusParams: types.DefaultConsensusParams(),
+		AppState:        appState,
+	}, nil
 }
 
 func fileExists(file string) bool {
