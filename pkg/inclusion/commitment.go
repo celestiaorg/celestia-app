@@ -5,7 +5,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -20,26 +22,35 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 	if err := blob.Validate(); err != nil {
 		return nil, err
 	}
-	namespace := blob.Namespace()
 
 	shares, err := appshares.SplitBlobs(blob)
 	if err != nil {
 		return nil, err
 	}
 
+	subTreeRoots, err := SubtreeRoots(blob.Namespace(), shares)
+	if err != nil {
+		return nil, err
+	}
+
+	return merkle.HashFromByteSlices(subTreeRoots), nil
+}
+
+// SubtreeRoots returns the subtree roots given a set of shares and a namespace.
+func SubtreeRoots(ns namespace.Namespace, shrs []shares.Share) ([][]byte, error) {
 	// the commitment is the root of a merkle mountain range with max tree size
 	// determined by the number of roots required to create a share commitment
 	// over that blob. The size of the tree is only increased if the number of
 	// subtree roots surpasses a constant threshold.
-	subTreeWidth := SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
-	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
+	subTreeWidth := SubTreeWidth(len(shrs), appconsts.DefaultSubtreeRootThreshold)
+	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shrs)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
 	}
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {
-		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+treeSize])
+		leafSets[i] = appshares.ToBytes(shrs[cursor : cursor+treeSize])
 		cursor = cursor + treeSize
 	}
 
@@ -56,7 +67,7 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 			// also allowing for the manual addition of the parity namespace to
 			// the parity data.
 			nsLeaf := make([]byte, 0)
-			nsLeaf = append(nsLeaf, namespace.Bytes()...)
+			nsLeaf = append(nsLeaf, ns.Bytes()...)
 			nsLeaf = append(nsLeaf, leaf...)
 
 			err = tree.Push(nsLeaf)
@@ -71,9 +82,12 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 		}
 		subTreeRoots[i] = root
 	}
-	return merkle.HashFromByteSlices(subTreeRoots), nil
+
+	return subTreeRoots, nil
 }
 
+// CreateCommitments is a helper function that creates a blob share commitment
+// for each blob provided.
 func CreateCommitments(blobs []*blob.Blob) ([][]byte, error) {
 	commitments := make([][]byte, len(blobs))
 	for i, blob := range blobs {
