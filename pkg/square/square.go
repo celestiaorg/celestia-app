@@ -3,7 +3,6 @@ package square
 import (
 	"bytes"
 	"fmt"
-	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
@@ -201,7 +200,7 @@ func (s Square) Size() int {
 // avoid breaking the api. In future versions there will not be a copy of this
 // code here.
 func Size(len int) int {
-	return da.SquareSize(int(math.Ceil(math.Sqrt(float64(len)))))
+	return da.SquareSize(len)
 }
 
 // Equals returns true if two squares are equal
