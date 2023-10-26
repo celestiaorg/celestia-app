@@ -50,7 +50,7 @@ jobs:
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [lint, markdown-linter, test]
+    needs: [lint, markdown-linter, test, goreleaser-check]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -69,7 +69,7 @@ jobs:
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    needs: [goreleaser-check, version_bump]
+    needs: version_bump
     runs-on: ubuntu-20.04
     if: |
       github.event_name == 'workflow_dispatch' ||
