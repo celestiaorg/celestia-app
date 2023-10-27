@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -125,7 +126,7 @@ func (b *Builder) Export() (Square, error) {
 	// calculate the square size.
 	// NOTE: A future optimization could be to recalculate the currentSize based on the actual
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
-	ss := shares.BlobMinSquareSize(b.currentSize)
+	ss := inclusion.BlobMinSquareSize(b.currentSize)
 
 	// Sort the blobs by namespace. This uses SliceStable to preserve the order
 	// of blobs within a namespace because b.Blobs are already ordered by tx
@@ -150,7 +151,7 @@ func (b *Builder) Export() (Square, error) {
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor = shares.NextShareIndex(cursor, element.NumShares, b.subtreeRootThreshold)
+		cursor = inclusion.NextShareIndex(cursor, element.NumShares, b.subtreeRootThreshold)
 		if i == 0 {
 			nonReservedStart = cursor
 		}
@@ -400,7 +401,7 @@ func newElement(blob *blob.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) 
 		//
 		// Note that the padding would actually belong to the namespace of the transaction before it, but
 		// this makes no difference to the total share size.
-		MaxPadding: shares.SubTreeWidth(numShares, subtreeRootThreshold) - 1,
+		MaxPadding: inclusion.SubTreeWidth(numShares, subtreeRootThreshold) - 1,
 	}
 }
 

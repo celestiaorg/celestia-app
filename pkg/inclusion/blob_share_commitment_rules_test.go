@@ -1,10 +1,11 @@
-package shares
+package inclusion
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -232,7 +233,7 @@ func TestNextShareIndex(t *testing.T) {
 			name:          "at threshold",
 			cursor:        11,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold,
-			squareSize:    RoundUpPowerOfTwo(appconsts.DefaultSubtreeRootThreshold),
+			squareSize:    da.RoundUpPowerOfTwo(appconsts.DefaultSubtreeRootThreshold),
 			expectedIndex: 11,
 		},
 		{

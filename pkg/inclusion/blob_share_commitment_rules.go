@@ -1,8 +1,9 @@
-package shares
+package inclusion
 
 import (
 	"math"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"golang.org/x/exp/constraints"
 )
 
@@ -73,7 +74,7 @@ func roundUpByMultipleOf(cursor, v int) int {
 // BlobMinSquareSize returns the minimum square size that can contain shareCount
 // number of shares.
 func BlobMinSquareSize(shareCount int) int {
-	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(shareCount)))))
+	return da.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(shareCount)))))
 }
 
 // SubTreeWidth determines the maximum number of leaves per subtree in the share
@@ -93,7 +94,7 @@ func SubTreeWidth(shareCount, subtreeRootThreshold int) int {
 
 	// use a power of two equal to or larger than the multiple of the subtree
 	// root threshold
-	s = RoundUpPowerOfTwo(s)
+	s = da.RoundUpPowerOfTwo(s)
 
 	// use the minimum of the subtree width and the min square size, this
 	// gurarantees that a valid value is returned
