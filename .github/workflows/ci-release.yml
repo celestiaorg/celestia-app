@@ -61,7 +61,7 @@ jobs:
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [lint, test, branch_name]
+    needs: [lint, test, branch_name, goreleaser-check]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
