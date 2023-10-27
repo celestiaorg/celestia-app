@@ -6,10 +6,8 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/shares"
 )
 
 type ExportFn func(builder *square.Builder) (square.Square, error)
@@ -27,7 +25,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (sq
 	normalTxs := make([][]byte, 0, len(txs))
 	blobTxs := make([][]byte, 0, len(txs))
 	for _, tx := range txs {
-		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := shares.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
@@ -87,7 +85,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	}
 
 	// write all the regular transactions into compact shares
-	txWriter := shares.NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
+	txWriter := shares.NewCompactShareSplitter(shares.TxNamespace, appconsts.ShareVersionZero)
 	for _, tx := range b.Txs {
 		if err := txWriter.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("writing tx into compact shares: %w", err)
@@ -133,7 +131,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 
 	// write all the pay for blob transactions into compact shares. We need to do this after allocating the blobs to their
 	// appropriate shares as the starting index of each blob needs to be included in the PFB transaction
-	pfbWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
+	pfbWriter := shares.NewCompactShareSplitter(shares.PayForBlobNamespace, appconsts.ShareVersionZero)
 	for _, iw := range b.Pfbs {
 		iwBytes, err := iw.Marshal()
 		if err != nil {

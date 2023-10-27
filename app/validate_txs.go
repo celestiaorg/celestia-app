@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -11,11 +11,11 @@ import (
 )
 
 // separateTxs decodes raw tendermint txs into normal and blob txs.
-func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []blob.BlobTx) {
+func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []shares.BlobTx) {
 	normalTxs := make([][]byte, 0, len(rawTxs))
-	blobTxs := make([]blob.BlobTx, 0, len(rawTxs))
+	blobTxs := make([]shares.BlobTx, 0, len(rawTxs))
 	for _, rawTx := range rawTxs {
-		bTx, isBlob := blob.UnmarshalBlobTx(rawTx)
+		bTx, isBlob := shares.UnmarshalBlobTx(rawTx)
 		if isBlob {
 			blobTxs = append(blobTxs, bTx)
 		} else {
@@ -69,7 +69,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // filterBlobTxs applies the provided antehandler to each transaction
 // and removes transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
-func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []blob.BlobTx) ([]blob.BlobTx, sdk.Context) {
+func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []shares.BlobTx) ([]shares.BlobTx, sdk.Context) {
 	n := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx.Tx)
@@ -105,11 +105,11 @@ func msgTypes(sdkTx sdk.Tx) []string {
 	return msgNames
 }
 
-func encodeBlobTxs(blobTxs []blob.BlobTx) [][]byte {
+func encodeBlobTxs(blobTxs []shares.BlobTx) [][]byte {
 	txs := make([][]byte, len(blobTxs))
 	var err error
 	for i, tx := range blobTxs {
-		txs[i], err = blob.MarshalBlobTx(tx.Tx, tx.Blobs...)
+		txs[i], err = shares.MarshalBlobTx(tx.Tx, tx.Blobs...)
 		if err != nil {
 			panic(err)
 		}

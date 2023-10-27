@@ -7,9 +7,7 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/nmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
@@ -46,7 +44,7 @@ const (
 // See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, blobs ...*shares.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
@@ -57,9 +55,9 @@ func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, err
 	}
 
 	namespaceVersions, namespaceIds, sizes, shareVersions := ExtractBlobComponents(blobs)
-	namespaces := []appns.Namespace{}
+	namespaces := []shares.Namespace{}
 	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		namespace, err := shares.NewNamespace(uint8(namespaceVersions[i]), namespaceIds[i])
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +75,7 @@ func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, err
 	return msg, msg.ValidateBasic()
 }
 
-func namespacesToBytes(namespaces []appns.Namespace) (result [][]byte) {
+func namespacesToBytes(namespaces []shares.Namespace) (result [][]byte) {
 	for _, namespace := range namespaces {
 		result = append(result, namespace.Bytes())
 	}
@@ -119,7 +117,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, namespace := range msg.Namespaces {
-		ns, err := appns.From(namespace)
+		ns, err := shares.From(namespace)
 		if err != nil {
 			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
@@ -159,7 +157,7 @@ func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
 func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 	var totalSharesUsed uint64
 	for _, size := range blobSizes {
-		totalSharesUsed += uint64(appshares.SparseSharesNeeded(size))
+		totalSharesUsed += uint64(shares.SparseSharesNeeded(size))
 	}
 
 	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
@@ -182,12 +180,12 @@ func DefaultEstimateGas(blobSizes []uint32) uint64 {
 // ValidateBlobNamespace returns an error if the provided namespace is an
 // invalid user-specifiable blob namespace (e.g. reserved, parity shares, or
 // tail padding).
-func ValidateBlobNamespace(ns appns.Namespace) error {
+func ValidateBlobNamespace(ns shares.Namespace) error {
 	if ns.IsReserved() {
 		return ErrReservedNamespace
 	}
 
-	if !slices.Contains(appns.SupportedBlobNamespaceVersions, ns.Version) {
+	if !slices.Contains(shares.SupportedBlobNamespaceVersions, ns.Version) {
 		return ErrInvalidNamespaceVersion
 	}
 
@@ -214,13 +212,13 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 //
 // [data square layout rationale]: ../../specs/src/specs/data_square_layout.md
 // [blob share commitment rules]: ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
-func CreateCommitment(blob *blob.Blob) ([]byte, error) {
+func CreateCommitment(blob *shares.Blob) ([]byte, error) {
 	if err := blob.Validate(); err != nil {
 		return nil, err
 	}
 	namespace := blob.Namespace()
 
-	shares, err := appshares.SplitBlobs(blob)
+	s, err := shares.SplitBlobs(blob)
 	if err != nil {
 		return nil, err
 	}
@@ -229,15 +227,15 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 	// determined by the number of roots required to create a share commitment
 	// over that blob. The size of the tree is only increased if the number of
 	// subtree roots surpasses a constant threshold.
-	subTreeWidth := appshares.SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
-	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
+	subTreeWidth := shares.SubTreeWidth(len(s), appconsts.DefaultSubtreeRootThreshold)
+	treeSizes, err := MerkleMountainRangeSizes(uint64(len(s)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
 	}
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {
-		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+treeSize])
+		leafSets[i] = shares.ToBytes(s[cursor : cursor+treeSize])
 		cursor = cursor + treeSize
 	}
 
@@ -245,7 +243,7 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt todo(evan) use nmt wrapper
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
+		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(shares.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
 			// the namespace must be added again here even though it is already
 			// included in the leaf to ensure that the hash will match that of
@@ -272,7 +270,7 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-func CreateCommitments(blobs []*blob.Blob) ([][]byte, error) {
+func CreateCommitments(blobs []*shares.Blob) ([][]byte, error) {
 	commitments := make([][]byte, len(blobs))
 	for i, blob := range blobs {
 		commitment, err := CreateCommitment(blob)
@@ -285,7 +283,7 @@ func CreateCommitments(blobs []*blob.Blob) ([][]byte, error) {
 }
 
 // ValidateBlobs performs basic checks over the components of one or more PFBs.
-func ValidateBlobs(blobs ...*blob.Blob) error {
+func ValidateBlobs(blobs ...*shares.Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
@@ -294,7 +292,7 @@ func ValidateBlobs(blobs ...*blob.Blob) error {
 		if blob.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
 			return fmt.Errorf("namespace version %d is too large", blob.NamespaceVersion)
 		}
-		ns, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
+		ns, err := shares.NewNamespace(uint8(blob.NamespaceVersion), blob.NamespaceId)
 		if err != nil {
 			return err
 		}
@@ -317,7 +315,7 @@ func ValidateBlobs(blobs ...*blob.Blob) error {
 
 // ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func ExtractBlobComponents(pblobs []*blob.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*shares.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
 	namespaceIds = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
@@ -348,7 +346,7 @@ func MerkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 			treeSizes = append(treeSizes, maxTreeSize)
 			totalSize = totalSize - maxTreeSize
 		case totalSize < maxTreeSize:
-			treeSize, err := appshares.RoundDownPowerOfTwo(totalSize)
+			treeSize, err := shares.RoundDownPowerOfTwo(totalSize)
 			if err != nil {
 				return treeSizes, err
 			}

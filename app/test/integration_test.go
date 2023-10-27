@@ -23,11 +23,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -208,15 +207,15 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	ns1 := shares.MustNewV0Namespace(bytes.Repeat([]byte{1}, shares.NamespaceVersionZeroIDSize))
 
-	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blob.Blob {
-		return blob.New(ns, data, shareVersion)
+	mustNewBlob := func(ns shares.Namespace, data []byte, shareVersion uint8) *shares.Blob {
+		return shares.NewBlob(ns, data, shareVersion)
 	}
 
 	type test struct {
 		name string
-		blob *blob.Blob
+		blob *shares.Blob
 		opts []user.TxOption
 	}
 
@@ -263,7 +262,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
 			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 			require.NoError(t, err)
-			res, err := signer.SubmitPayForBlob(context.TODO(), []*blob.Blob{tc.blob, tc.blob}, tc.opts...)
+			res, err := signer.SubmitPayForBlob(context.TODO(), []*shares.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
@@ -389,7 +388,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	type testCase struct {
 		name string
-		blob *blob.Blob
+		blob *shares.Blob
 		// txResponseCode is the expected tx response ABCI code.
 		txResponseCode uint32
 	}
@@ -425,7 +424,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 		s.Run(tc.name, func() {
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()
-			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
+			res, err := signer.SubmitPayForBlob(subCtx, []*shares.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
 			if tc.txResponseCode == abci.CodeTypeOK {
 				require.NoError(t, err)
 			} else {
@@ -437,8 +436,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	}
 }
 
-func mustNewBlob(blobSize int) *blob.Blob {
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+func mustNewBlob(blobSize int) *shares.Blob {
+	ns1 := shares.MustNewV0Namespace(bytes.Repeat([]byte{1}, shares.NamespaceVersionZeroIDSize))
 	data := tmrand.Bytes(blobSize)
-	return blob.New(ns1, data, appconsts.ShareVersionZero)
+	return shares.NewBlob(ns1, data, appconsts.ShareVersionZero)
 }

@@ -3,7 +3,7 @@ package appconsts
 import (
 	"math"
 
-	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
 )
@@ -14,16 +14,16 @@ import (
 // They can not change throughout the lifetime of a network.
 const (
 	// NamespaceVersionSize is the size of a namespace version in bytes.
-	NamespaceVersionSize = ns.NamespaceVersionSize
+	NamespaceVersionSize = shares.NamespaceVersionSize
 	// NamespaceVersionMaxValue is the maximum value a namespace version can be.
 	// This const must be updated if NamespaceVersionSize is changed.
 	NamespaceVersionMaxValue = math.MaxUint8
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
-	NamespaceIDSize = ns.NamespaceIDSize
+	NamespaceIDSize = shares.NamespaceIDSize
 
 	// NamespaceSize is the size of a namespace (version + ID) in bytes.
-	NamespaceSize = ns.NamespaceSize
+	NamespaceSize = shares.NamespaceSize
 
 	// ShareSize is the size of a share in bytes.
 	ShareSize = 512

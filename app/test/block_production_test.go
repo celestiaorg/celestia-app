@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	appns "github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"

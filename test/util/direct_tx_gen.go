@@ -7,8 +7,8 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -142,7 +142,7 @@ func RandBlobTxsWithManualSequence(
 			tx, err = cfg.TxEncoder()(builder.GetTx())
 			require.NoError(t, err)
 		}
-		cTx, err := blob.MarshalBlobTx(tx, blobs...)
+		cTx, err := shares.MarshalBlobTx(tx, blobs...)
 		if err != nil {
 			panic(err)
 		}

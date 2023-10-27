@@ -3,16 +3,14 @@ package types
 import (
 	"bytes"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, error) {
+func NewBlob(ns shares.Namespace, data []byte, shareVersion uint8) (*shares.Blob, error) {
 	err := ValidateBlobNamespace(ns)
 	if err != nil {
 		return nil, err
@@ -22,7 +20,7 @@ func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, e
 		return nil, ErrZeroBlobSize
 	}
 
-	return &blob.Blob{
+	return &shares.Blob{
 		NamespaceId:      ns.ID,
 		Data:             data,
 		ShareVersion:     uint32(shareVersion),
@@ -32,7 +30,7 @@ func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, e
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx blob.BlobTx) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx shares.BlobTx) error {
 	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
 	if err != nil {
 		return err
@@ -70,14 +68,14 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx blob.BlobTx) error {
 	}
 
 	for i, ns := range msgPFB.Namespaces {
-		msgPFBNamespace, err := appns.From(ns)
+		msgPFBNamespace, err := shares.From(ns)
 		if err != nil {
 			return err
 		}
 
 		// this not only checks that the pfb namespaces match the ones in the blobs
 		// but that the namespace version and namespace id are valid
-		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
+		blobNamespace, err := shares.NewNamespace(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
 		if err != nil {
 			return err
 		}

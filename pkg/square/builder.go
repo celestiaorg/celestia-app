@@ -7,9 +7,7 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -53,7 +51,7 @@ func NewBuilder(maxSquareSize int, appVersion uint64, txs ...[]byte) (*Builder, 
 	}
 	seenFirstBlobTx := false
 	for idx, tx := range txs {
-		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := shares.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			seenFirstBlobTx = true
 			if !builder.AppendBlobTx(blobTx) {
@@ -87,7 +85,7 @@ func (b *Builder) AppendTx(tx []byte) bool {
 
 // AppendBlobTx attempts to allocate the blob transaction to the square. It returns false if there is not
 // enough space in the square to fit the transaction.
-func (b *Builder) AppendBlobTx(blobTx blob.BlobTx) bool {
+func (b *Builder) AppendBlobTx(blobTx shares.BlobTx) bool {
 	iw := &coretypes.IndexWrapper{
 		Tx:           blobTx.Tx,
 		TypeId:       consts.ProtoIndexWrapperTypeID,
@@ -135,7 +133,7 @@ func (b *Builder) Export() (Square, error) {
 	})
 
 	// write all the regular transactions into compact shares
-	txWriter := shares.NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
+	txWriter := shares.NewCompactShareSplitter(shares.TxNamespace, appconsts.ShareVersionZero)
 	for _, tx := range b.Txs {
 		if err := txWriter.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("writing tx into compact shares: %w", err)
@@ -181,7 +179,7 @@ func (b *Builder) Export() (Square, error) {
 
 	// write all the pay for blob transactions into compact shares. We need to do this after allocating the blobs to their
 	// appropriate shares as the starting index of each blob needs to be included in the PFB transaction
-	pfbWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
+	pfbWriter := shares.NewCompactShareSplitter(shares.PayForBlobNamespace, shares.ShareVersionZero)
 	for _, iw := range b.Pfbs {
 		iwBytes, err := iw.Marshal()
 		if err != nil {
@@ -363,14 +361,14 @@ func (b *Builder) IsEmpty() bool {
 }
 
 type Element struct {
-	Blob       *blob.Blob
+	Blob       *shares.Blob
 	PfbIndex   int
 	BlobIndex  int
 	NumShares  int
 	MaxPadding int
 }
 
-func newElement(blob *blob.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) *Element {
+func newElement(blob *shares.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) *Element {
 	numShares := shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	return &Element{
 		Blob:      blob,

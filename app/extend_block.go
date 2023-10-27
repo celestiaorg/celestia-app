@@ -3,8 +3,8 @@ package app
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/rsmt2d"
 	coretypes "github.com/tendermint/tendermint/types"
 )

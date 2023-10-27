@@ -8,9 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -70,7 +70,7 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 
 	type testCase struct {
 		name string
-		blob *blob.Blob
+		blob *shares.Blob
 		// want is the expected tx response ABCI code.
 		want uint32
 	}
@@ -97,7 +97,7 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			blobTx, err := signer.CreatePayForBlob([]*blob.Blob{tc.blob}, user.SetGasLimit(1e9))
+			blobTx, err := signer.CreatePayForBlob([]*shares.Blob{tc.blob}, user.SetGasLimit(1e9))
 			require.NoError(t, err)
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()

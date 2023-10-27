@@ -6,12 +6,10 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -44,12 +42,12 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (types.ShareP
 	return NewShareInclusionProof(dataSquare, namespace, shareRange)
 }
 
-func getTxNamespace(tx []byte) (ns appns.Namespace) {
-	_, isBlobTx := blob.UnmarshalBlobTx(tx)
+func getTxNamespace(tx []byte) (ns shares.Namespace) {
+	_, isBlobTx := shares.UnmarshalBlobTx(tx)
 	if isBlobTx {
-		return appns.PayForBlobNamespace
+		return shares.PayForBlobNamespace
 	}
-	return appns.TxNamespace
+	return shares.TxNamespace
 }
 
 // NewShareInclusionProof returns an NMT inclusion proof for a set of shares
@@ -57,7 +55,7 @@ func getTxNamespace(tx []byte) (ns appns.Namespace) {
 // Expects the share range to be pre-validated.
 func NewShareInclusionProof(
 	dataSquare square.Square,
-	namespace appns.Namespace,
+	namespace shares.Namespace,
 	shareRange shares.Range,
 ) (types.ShareProof, error) {
 	squareSize := dataSquare.Size()

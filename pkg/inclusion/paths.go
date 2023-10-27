@@ -3,7 +3,7 @@ package inclusion
 import (
 	"math"
 
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/shares"
 )
 
 type path struct {

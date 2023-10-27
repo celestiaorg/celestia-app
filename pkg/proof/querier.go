@@ -6,10 +6,9 @@ import (
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/shares"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -120,35 +119,35 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
-func ParseNamespace(rawShares []shares.Share, startShare, endShare int) (appns.Namespace, error) {
+func ParseNamespace(rawShares []shares.Share, startShare, endShare int) (shares.Namespace, error) {
 	if startShare < 0 {
-		return appns.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
+		return shares.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
 	}
 
 	if endShare < 0 {
-		return appns.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
+		return shares.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
 	}
 
 	if endShare < startShare {
-		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
+		return shares.Namespace{}, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
 	}
 
 	if endShare > len(rawShares) {
-		return appns.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
+		return shares.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
 	}
 
 	startShareNs, err := rawShares[startShare].Namespace()
 	if err != nil {
-		return appns.Namespace{}, err
+		return shares.Namespace{}, err
 	}
 
 	for i, share := range rawShares[startShare:endShare] {
 		ns, err := share.Namespace()
 		if err != nil {
-			return appns.Namespace{}, err
+			return shares.Namespace{}, err
 		}
 		if !bytes.Equal(startShareNs.Bytes(), ns.Bytes()) {
-			return appns.Namespace{}, fmt.Errorf("shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns)
+			return shares.Namespace{}, fmt.Errorf("shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns)
 		}
 	}
 	return startShareNs, nil

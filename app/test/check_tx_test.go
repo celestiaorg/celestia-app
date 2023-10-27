@@ -10,9 +10,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -27,7 +26,7 @@ import (
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	ns1 := shares.MustNewV0Namespace(bytes.Repeat([]byte{1}, shares.NamespaceVersionZeroIDSize))
 
 	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
 
@@ -51,7 +50,7 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[0], encCfg.TxConfig, 1)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]shares.Namespace{ns1},
 					[]int{100},
 				)[0]
 				return btx
@@ -65,7 +64,7 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[1], encCfg.TxConfig, 2)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]shares.Namespace{ns1},
 					[]int{100},
 				)[0]
 				return btx
@@ -79,13 +78,13 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[2], encCfg.TxConfig, 3)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]shares.Namespace{ns1},
 					[]int{100},
 				)[0]
 
-				dtx, _ := blob.UnmarshalBlobTx(btx)
-				dtx.Blobs[0].NamespaceId = appns.RandomBlobNamespace().ID
-				bbtx, err := blob.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
+				dtx, _ := shares.UnmarshalBlobTx(btx)
+				dtx.Blobs[0].NamespaceId = shares.RandomBlobNamespace().ID
+				bbtx, err := shares.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
 			},
@@ -98,7 +97,7 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[3], encCfg.TxConfig, 4)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]shares.Namespace{ns1},
 					[]int{100},
 				)[0]
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)

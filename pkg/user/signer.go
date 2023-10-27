@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -142,7 +142,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*shares.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	txBytes, err := s.CreatePayForBlob(blobs, opts...)
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 	return s.enc.TxEncoder()(txBuilder.GetTx())
 }
 
-func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte, error) {
+func (s *Signer) CreatePayForBlob(blobs []*shares.Blob, opts ...TxOption) ([]byte, error) {
 	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), blobs...)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte,
 		return nil, err
 	}
 
-	return blob.MarshalBlobTx(txBytes, blobs...)
+	return shares.MarshalBlobTx(txBytes, blobs...)
 }
 
 // BroadcastTx submits the provided transaction bytes to the chain and returns the response.

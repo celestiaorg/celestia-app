@@ -5,14 +5,13 @@ import (
 	"encoding/binary"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/shares"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
 
-func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*blob.Blob {
-	blobs := make([]*blob.Blob, count)
+func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*shares.Blob {
+	blobs := make([]*shares.Blob, count)
 	for i := 0; i < count; i++ {
 		blobs[i] = GenerateRandomBlob(tmrand.Intn(maxBlobSize))
 		if len(blobs[i].Data) == 0 {
@@ -25,12 +24,12 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*blob.Blob {
 		blobs = nil
 	}
 
-	blob.Sort(blobs)
+	shares.SortBlobs(blobs)
 	return blobs
 }
 
 // GenerateBlobsWithNamespace generates blobs with namespace ns.
-func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) []types.Blob {
+func GenerateBlobsWithNamespace(count int, blobSize int, ns shares.Namespace) []types.Blob {
 	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
 		blobs[i] = types.Blob{
@@ -49,14 +48,14 @@ func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) []t
 	return blobs
 }
 
-func GenerateRandomBlob(dataSize int) *blob.Blob {
-	ns := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
-	return blob.New(ns, tmrand.Bytes(dataSize), appconsts.ShareVersionZero)
+func GenerateRandomBlob(dataSize int) *shares.Blob {
+	ns := shares.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, shares.NamespaceVersionZeroIDSize))
+	return shares.NewBlob(ns, tmrand.Bytes(dataSize), appconsts.ShareVersionZero)
 }
 
 // GenerateRandomBlobOfShareCount returns a blob that spans the given
 // number of shares
-func GenerateRandomBlobOfShareCount(count int) *blob.Blob {
+func GenerateRandomBlobOfShareCount(count int) *shares.Blob {
 	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
 	return GenerateRandomBlob(size)
 }

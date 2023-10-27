@@ -8,8 +8,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
@@ -79,7 +79,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		btx, err := signer.CreatePayForBlob(
 			blobfactory.ManyBlobs(
 				s.rand,
-				[]namespace.Namespace{namespace.RandomBlobNamespace()},
+				[]shares.Namespace{shares.RandomBlobNamespace()},
 				[]int{100}),
 			user.SetGasLimitAndFee(gasLimit, gasPrice),
 		)

@@ -6,9 +6,7 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	core "github.com/tendermint/tendermint/types"
@@ -27,7 +25,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, [][]byte
 	normalTxs := make([][]byte, 0, len(txs))
 	blobTxs := make([][]byte, 0, len(txs))
 	for _, tx := range txs {
-		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := shares.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
@@ -69,7 +67,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 
 	// Work out which range of shares are non-pfb transactions
 	// and which ones are pfb transactions
-	txShareRange, err := shares.GetShareRangeForNamespace(s, namespace.TxNamespace)
+	txShareRange, err := shares.GetShareRangeForNamespace(s, shares.TxNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +75,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 		return nil, fmt.Errorf("expected txs to start at index 0, but got %d", txShareRange.Start)
 	}
 
-	wpfbShareRange, err := shares.GetShareRangeForNamespace(s[txShareRange.End:], namespace.PayForBlobNamespace)
+	wpfbShareRange, err := shares.GetShareRangeForNamespace(s[txShareRange.End:], shares.PayForBlobNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +128,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 			return nil, fmt.Errorf("expected PFB to have %d blob sizes, but got %d", len(wpfb.ShareIndexes), len(pfb.BlobSizes))
 		}
 
-		blobs := make([]*blob.Blob, len(wpfb.ShareIndexes))
+		blobs := make([]*shares.Blob, len(wpfb.ShareIndexes))
 		for j, shareIndex := range wpfb.ShareIndexes {
 			end := int(shareIndex) + shares.SparseSharesNeeded(pfb.BlobSizes[j])
 			parsedBlobs, err := shares.ParseBlobs(s[shareIndex:end])
@@ -144,7 +142,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 			blobs[j] = parsedBlobs[0]
 		}
 
-		tx, err := blob.MarshalBlobTx(wpfb.Tx, blobs...)
+		tx, err := shares.MarshalBlobTx(wpfb.Tx, blobs...)
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +212,7 @@ func (s Square) Equals(other Square) bool {
 
 // WrappedPFBs returns the wrapped PFBs in a square
 func (s Square) WrappedPFBs() (core.Txs, error) {
-	wpfbShareRange, err := shares.GetShareRangeForNamespace(s, namespace.PayForBlobNamespace)
+	wpfbShareRange, err := shares.GetShareRangeForNamespace(s, shares.PayForBlobNamespace)
 	if err != nil {
 		return core.Txs{}, nil
 	}

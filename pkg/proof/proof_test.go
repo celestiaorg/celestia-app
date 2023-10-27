@@ -15,8 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/square"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,13 +92,13 @@ func TestNewTxInclusionProof(t *testing.T) {
 }
 
 func TestNewShareInclusionProof(t *testing.T) {
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	ns2 := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
-	ns3 := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
+	ns1 := shares.MustNewV0Namespace(bytes.Repeat([]byte{1}, shares.NamespaceVersionZeroIDSize))
+	ns2 := shares.MustNewV0Namespace(bytes.Repeat([]byte{2}, shares.NamespaceVersionZeroIDSize))
+	ns3 := shares.MustNewV0Namespace(bytes.Repeat([]byte{3}, shares.NamespaceVersionZeroIDSize))
 
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []appns.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
+	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []shares.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
@@ -122,7 +121,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 		name          string
 		startingShare int
 		endingShare   int
-		namespaceID   appns.Namespace
+		namespaceID   shares.Namespace
 		expectErr     bool
 	}
 	tests := []test{
@@ -130,63 +129,63 @@ func TestNewShareInclusionProof(t *testing.T) {
 			name:          "negative starting share",
 			startingShare: -1,
 			endingShare:   99,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "negative ending share",
 			startingShare: 0,
 			endingShare:   -99,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share lower than starting share",
 			startingShare: 1,
 			endingShare:   0,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share higher than number of shares available in square size of 32",
 			startingShare: 0,
 			endingShare:   4097,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "1 transaction share",
 			startingShare: 0,
 			endingShare:   1,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "10 transaction shares",
 			startingShare: 0,
 			endingShare:   10,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "53 transaction shares",
 			startingShare: 0,
 			endingShare:   53,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "shares from different namespaces",
 			startingShare: 48,
 			endingShare:   55,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   shares.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "shares from PFB namespace",
 			startingShare: 53,
 			endingShare:   56,
-			namespaceID:   appns.PayForBlobNamespace,
+			namespaceID:   shares.PayForBlobNamespace,
 			expectErr:     false,
 		},
 		{
@@ -247,10 +246,10 @@ func TestAllSharesInclusionProof(t *testing.T) {
 
 	actualNamespace, err := proof.ParseNamespace(dataSquare, 0, 256)
 	require.NoError(t, err)
-	require.Equal(t, appns.TxNamespace, actualNamespace)
+	require.Equal(t, shares.TxNamespace, actualNamespace)
 	proof, err := proof.NewShareInclusionProof(
 		dataSquare,
-		appns.TxNamespace,
+		shares.TxNamespace,
 		shares.NewRange(0, 256),
 	)
 	require.NoError(t, err)

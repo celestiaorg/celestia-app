@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -15,7 +15,7 @@ import (
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
 	// check if the transaction contains blobs
-	btx, isBlob := blob.UnmarshalBlobTx(tx)
+	btx, isBlob := shares.UnmarshalBlobTx(tx)
 
 	if !isBlob {
 		// reject transactions that can't be decoded

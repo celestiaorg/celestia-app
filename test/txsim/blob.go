@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -20,7 +20,7 @@ const fundsForGas int = 1e9 // 1000 TIA
 // BlobSequence defines a pattern whereby a single user repeatedly sends a pay for blob
 // message roughly every height. The PFB may consist of several blobs
 type BlobSequence struct {
-	namespace   ns.Namespace
+	namespace   shares.Namespace
 	sizes       Range
 	blobsPerPFB Range
 
@@ -37,7 +37,7 @@ func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
 
 // WithNamespace provides the option of fixing a predefined namespace for
 // all blobs.
-func (s *BlobSequence) WithNamespace(namespace ns.Namespace) *BlobSequence {
+func (s *BlobSequence) WithNamespace(namespace shares.Namespace) *BlobSequence {
 	s.namespace = namespace
 	return s
 }
@@ -66,18 +66,18 @@ func (s *BlobSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccoun
 func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Rand) (Operation, error) {
 	numBlobs := s.blobsPerPFB.Rand(rand)
 	sizes := make([]int, numBlobs)
-	namespaces := make([]ns.Namespace, numBlobs)
+	namespaces := make([]shares.Namespace, numBlobs)
 	for i := range sizes {
 		if s.namespace.ID != nil {
 			namespaces[i] = s.namespace
 		} else {
 			// generate a random namespace for the blob
-			namespace := make([]byte, ns.NamespaceVersionZeroIDSize)
+			namespace := make([]byte, shares.NamespaceVersionZeroIDSize)
 			_, err := rand.Read(namespace)
 			if err != nil {
 				return Operation{}, fmt.Errorf("generating random namespace: %w", err)
 			}
-			namespaces[i] = ns.MustNewV0(namespace)
+			namespaces[i] = shares.MustNewV0Namespace(namespace)
 		}
 		sizes[i] = s.sizes.Rand(rand)
 	}

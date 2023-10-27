@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -52,7 +51,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		blobTx, isBlobTx := blob.UnmarshalBlobTx(rawTx)
+		blobTx, isBlobTx := shares.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}

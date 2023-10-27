@@ -7,8 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -21,14 +20,14 @@ import (
 
 func TestNewBlob(t *testing.T) {
 	rawBlob := []byte{1}
-	validBlob, err := types.NewBlob(namespace.RandomBlobNamespace(), rawBlob, appconsts.ShareVersionZero)
+	validBlob, err := types.NewBlob(shares.RandomBlobNamespace(), rawBlob, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	require.Equal(t, validBlob.Data, rawBlob)
 
-	_, err = types.NewBlob(namespace.TxNamespace, rawBlob, appconsts.ShareVersionZero)
+	_, err = types.NewBlob(shares.TxNamespace, rawBlob, appconsts.ShareVersionZero)
 	require.Error(t, err)
 
-	_, err = types.NewBlob(namespace.RandomBlobNamespace(), []byte{}, appconsts.ShareVersionZero)
+	_, err = types.NewBlob(shares.RandomBlobNamespace(), []byte{}, appconsts.ShareVersionZero)
 	require.Error(t, err)
 }
 
@@ -36,19 +35,19 @@ func TestValidateBlobTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	ns1 := namespace.MustNewV0(bytes.Repeat([]byte{0x01}, namespace.NamespaceVersionZeroIDSize))
+	ns1 := shares.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, shares.NamespaceVersionZeroIDSize))
 	addr := signer.Address()
 
 	type test struct {
 		name        string
-		getTx       func() blob.BlobTx
+		getTx       func() shares.BlobTx
 		expectedErr error
 	}
 
 	validRawBtx := func() []byte {
 		btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 			signer,
-			[]namespace.Namespace{ns1},
+			[]shares.Namespace{ns1},
 			[]int{10},
 		)[0]
 		return btx
@@ -57,42 +56,42 @@ func TestValidateBlobTx(t *testing.T) {
 	tests := []test{
 		{
 			name: "normal transaction",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				rawBtx := validRawBtx()
-				btx, _ := blob.UnmarshalBlobTx(rawBtx)
+				btx, _ := shares.UnmarshalBlobTx(rawBtx)
 				return btx
 			},
 			expectedErr: nil,
 		},
 		{
 			name: "invalid transaction, mismatched namespace",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				rawBtx := validRawBtx()
-				btx, _ := blob.UnmarshalBlobTx(rawBtx)
-				btx.Blobs[0].NamespaceId = namespace.RandomBlobNamespace().ID
+				btx, _ := shares.UnmarshalBlobTx(rawBtx)
+				btx.Blobs[0].NamespaceId = shares.RandomBlobNamespace().ID
 				return btx
 			},
 			expectedErr: types.ErrNamespaceMismatch,
 		},
 		{
 			name: "invalid transaction, no pfb",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(signer, 1)
-				b, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
+				b, err := types.NewBlob(shares.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
-				return blob.BlobTx{
+				return shares.BlobTx{
 					Tx:    sendTx[0],
-					Blobs: []*blob.Blob{b},
+					Blobs: []*shares.Blob{b},
 				}
 			},
 			expectedErr: types.ErrNoPFB,
 		},
 		{
 			name: "mismatched number of pfbs and blobs",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				rawBtx := validRawBtx()
-				btx, _ := blob.UnmarshalBlobTx(rawBtx)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
+				btx, _ := shares.UnmarshalBlobTx(rawBtx)
+				blob, err := types.NewBlob(shares.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
@@ -101,8 +100,8 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "invalid share commitment",
-			getTx: func() blob.BlobTx {
-				b, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
+			getTx: func() shares.BlobTx {
+				b, err := types.NewBlob(shares.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					addr.String(),
@@ -111,9 +110,9 @@ func TestValidateBlobTx(t *testing.T) {
 				require.NoError(t, err)
 
 				badCommit, err := types.CreateCommitment(
-					&blob.Blob{
-						NamespaceVersion: uint32(namespace.RandomBlobNamespace().Version),
-						NamespaceId:      namespace.RandomBlobNamespace().ID,
+					&shares.Blob{
+						NamespaceVersion: uint32(shares.RandomBlobNamespace().Version),
+						NamespaceId:      shares.RandomBlobNamespace().ID,
 						Data:             tmrand.Bytes(99),
 						ShareVersion:     uint32(appconsts.ShareVersionZero),
 					})
@@ -124,9 +123,9 @@ func TestValidateBlobTx(t *testing.T) {
 				rawTx, err := signer.CreateTx([]sdk.Msg{msg})
 				require.NoError(t, err)
 
-				btx := blob.BlobTx{
+				btx := shares.BlobTx{
 					Tx:    rawTx,
-					Blobs: []*blob.Blob{b},
+					Blobs: []*shares.Blob{b},
 				}
 				return btx
 			},
@@ -134,7 +133,7 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "complex transaction with one send and one pfb",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				signerAddr := signer.Address()
 
 				sendMsg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
@@ -144,7 +143,7 @@ func TestValidateBlobTx(t *testing.T) {
 					signer,
 					sendMsg,
 				)
-				btx, isBlob := blob.UnmarshalBlobTx(tx)
+				btx, isBlob := shares.UnmarshalBlobTx(tx)
 				require.True(t, isBlob)
 				return btx
 			},
@@ -152,9 +151,9 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "only send tx",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				sendtx := blobfactory.GenerateManyRawSendTxs(signer, 1)[0]
-				return blob.BlobTx{
+				return shares.BlobTx{
 					Tx: sendtx,
 				}
 			},
@@ -162,14 +161,14 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with two blobs w/ different namespaces",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
-						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]shares.Namespace{shares.RandomBlobNamespace(), shares.RandomBlobNamespace()},
 						[]int{100, 100}),
 				)
 				require.NoError(t, err)
-				btx, isBlobTx := blob.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx := shares.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
 			},
@@ -177,14 +176,14 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with two large blobs w/ different namespaces",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
-						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]shares.Namespace{shares.RandomBlobNamespace(), shares.RandomBlobNamespace()},
 						[]int{100000, 1000000}),
 				)
 				require.NoError(t, err)
-				btx, isBlobTx := blob.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx := shares.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
 			},
@@ -192,15 +191,15 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with two blobs w/ same namespace",
-			getTx: func() blob.BlobTx {
-				ns := namespace.RandomBlobNamespace()
+			getTx: func() shares.BlobTx {
+				ns := shares.RandomBlobNamespace()
 				rawBtx, err := signer.CreatePayForBlob(
 					blobfactory.RandBlobsWithNamespace(
-						[]namespace.Namespace{ns, ns},
+						[]shares.Namespace{ns, ns},
 						[]int{100, 100}),
 				)
 				require.NoError(t, err)
-				btx, isBlobTx := blob.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx := shares.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
 			},
@@ -208,11 +207,11 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with one hundred blobs of the same namespace",
-			getTx: func() blob.BlobTx {
+			getTx: func() shares.BlobTx {
 				count := 100
-				ns := namespace.RandomBlobNamespace()
+				ns := shares.RandomBlobNamespace()
 				sizes := make([]int, count)
-				namespaces := make([]namespace.Namespace, count)
+				namespaces := make([]shares.Namespace, count)
 				for i := 0; i < count; i++ {
 					sizes[i] = 100
 					namespaces[i] = ns
@@ -223,7 +222,7 @@ func TestValidateBlobTx(t *testing.T) {
 						sizes,
 					))
 				require.NoError(t, err)
-				btx, isBlobTx := blob.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx := shares.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx
 			},

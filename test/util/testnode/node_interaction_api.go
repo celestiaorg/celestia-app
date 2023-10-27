@@ -10,10 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -215,7 +213,7 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 // PostData will create and submit PFB transaction containing the namespace and
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
-func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
+func (c *Context) PostData(account, broadcastMode string, ns shares.Namespace, blobData []byte) (*sdk.TxResponse, error) {
 	rec, err := c.Keyring.Key(account)
 	if err != nil {
 		return nil, err
@@ -245,7 +243,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
 	opts := blobfactory.FeeTxOpts(gas)
 
-	blobTx, err := signer.CreatePayForBlob([]*blob.Blob{b}, opts...)
+	blobTx, err := signer.CreatePayForBlob([]*shares.Blob{b}, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +289,7 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
 	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
-	return c.PostData(accounts[0], broadcastMode, appns.RandomBlobNamespace(), tmrand.Bytes(blobSize))
+	return c.PostData(accounts[0], broadcastMode, shares.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }
 
 // HeightForTimestamp returns the block height for the first block after a

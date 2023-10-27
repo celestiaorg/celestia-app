@@ -5,7 +5,7 @@ import (
 	"errors"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gogo/protobuf/grpc"
 )
@@ -35,7 +35,7 @@ type Sequence interface {
 // The gas limit and price can also be set. If left at 0, the DefaultGasLimit will be used.
 type Operation struct {
 	Msgs     []types.Msg
-	Blobs    []*blob.Blob
+	Blobs    []*shares.Blob
 	Delay    uint64
 	GasLimit uint64
 	GasPrice float64

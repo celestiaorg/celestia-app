@@ -7,8 +7,8 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -47,7 +47,7 @@ func TestPFBGasEstimation(t *testing.T) {
 			fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
 			tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
 			require.NoError(t, err)
-			blobTx, ok := blob.UnmarshalBlobTx(tx)
+			blobTx, ok := shares.UnmarshalBlobTx(tx)
 			require.True(t, ok)
 			resp := testApp.DeliverTx(abci.RequestDeliverTx{
 				Tx: blobTx.Tx,
@@ -92,7 +92,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
 		tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
 		require.NoError(t, err)
-		blobTx, ok := blob.UnmarshalBlobTx(tx)
+		blobTx, ok := shares.UnmarshalBlobTx(tx)
 		require.True(t, ok)
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{
 			Tx: blobTx.Tx,

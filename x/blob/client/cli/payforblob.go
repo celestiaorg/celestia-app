@@ -10,8 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -22,11 +21,11 @@ import (
 
 const (
 	// FlagShareVersion allows the user to override the share version when
-	// submitting a PayForBlob.
+	// submitting a PayForShares.
 	FlagShareVersion = "share-version"
 
 	// FlagNamespaceVersion allows the user to override the namespace version when
-	// submitting a PayForBlob.
+	// submitting a PayForShares.
 	FlagNamespaceVersion = "namespace-version"
 )
 
@@ -91,24 +90,24 @@ func CmdPayForBlob() *cobra.Command {
 	return cmd
 }
 
-func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
+func getNamespace(namespaceID []byte, namespaceVersion uint8) (shares.Namespace, error) {
 	switch namespaceVersion {
-	case appns.NamespaceVersionZero:
-		if len(namespaceID) != appns.NamespaceVersionZeroIDSize {
-			return appns.Namespace{}, fmt.Errorf("the user specifiable portion of the namespace ID must be %d bytes for namespace version 0", appns.NamespaceVersionZeroIDSize)
+	case shares.NamespaceVersionZero:
+		if len(namespaceID) != shares.NamespaceVersionZeroIDSize {
+			return shares.Namespace{}, fmt.Errorf("the user specifiable portion of the namespace ID must be %d bytes for namespace version 0", shares.NamespaceVersionZeroIDSize)
 		}
-		id := make([]byte, 0, appns.NamespaceIDSize)
-		id = append(id, appns.NamespaceVersionZeroPrefix...)
+		id := make([]byte, 0, shares.NamespaceIDSize)
+		id = append(id, shares.NamespaceVersionZeroPrefix...)
 		id = append(id, namespaceID...)
-		return appns.New(namespaceVersion, id)
+		return shares.NewNamespace(namespaceVersion, id)
 	default:
-		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
+		return shares.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
 	}
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
 // this private func is used in CmdPayForBlob
-func broadcastPFB(cmd *cobra.Command, b *blob.Blob) error {
+func broadcastPFB(cmd *cobra.Command, b *shares.Blob) error {
 	clientCtx, err := client.GetClientTxContext(cmd)
 	if err != nil {
 		return err
@@ -131,7 +130,7 @@ func broadcastPFB(cmd *cobra.Command, b *blob.Blob) error {
 		return err
 	}
 
-	blobTx, err := blob.MarshalBlobTx(txBytes, b)
+	blobTx, err := shares.MarshalBlobTx(txBytes, b)
 	if err != nil {
 		return err
 	}

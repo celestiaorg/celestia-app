@@ -10,12 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -119,7 +117,7 @@ func TestSquareTxShareRange(t *testing.T) {
 // len(blobSizes[i]) number of blobs per BlobTx. Note: not suitable for using in
 // prepare or process proposal, as the signatures will be invalid since this
 // does not query for relevant account numbers or sequences.
-func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blobSizes [][]int) [][]byte {
+func generateBlobTxsWithNamespaces(t *testing.T, namespaces []shares.Namespace, blobSizes [][]int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	const acc = "signer"
 	kr, _ := testnode.NewKeyring(acc)
@@ -148,7 +146,7 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 	require.NoError(t, err)
 
 	for pfbIdx, tx := range txs {
-		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := shares.UnmarshalBlobTx(tx)
 		require.True(t, isBlobTx)
 		for blobIdx := range blobTx.Blobs {
 			shareRange, err := square.BlobShareRange(txs, pfbIdx, blobIdx, appconsts.LatestVersion)

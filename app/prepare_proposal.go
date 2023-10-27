@@ -5,8 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/shares"
 	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"

@@ -16,12 +16,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -42,7 +40,7 @@ func TestProcessProposal(t *testing.T) {
 		t, enc, kr, testutil.ChainID, accounts[:4], infos[:4],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(tmrand.NewRand(), 4),
+			shares.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
 	)
@@ -73,8 +71,8 @@ func TestProcessProposal(t *testing.T) {
 		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
 	)[0]
 
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	ns1 := shares.MustNewV0Namespace(bytes.Repeat([]byte{1}, shares.NamespaceVersionZeroIDSize))
+	invalidNamespace, err := shares.NewNamespace(shares.NamespaceVersionZero, bytes.Repeat([]byte{1}, shares.NamespaceVersionZeroIDSize))
 	// expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
 	assert.Error(t, err)
 	data := bytes.Repeat([]byte{1}, 13)
@@ -113,8 +111,8 @@ func TestProcessProposal(t *testing.T) {
 			name:  "modified a blobTx",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &blob.Blob{
+				blobTx, _ := shares.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &shares.Blob{
 					NamespaceId:      ns1.ID,
 					Data:             data,
 					NamespaceVersion: uint32(ns1.Version),
@@ -129,11 +127,11 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TailPadding",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &blob.Blob{
-					NamespaceId:      appns.TailPaddingNamespace.ID,
+				blobTx, _ := shares.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &shares.Blob{
+					NamespaceId:      shares.TailPaddingNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
+					NamespaceVersion: uint32(shares.TailPaddingNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
@@ -145,11 +143,11 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &blob.Blob{
-					NamespaceId:      appns.TxNamespace.ID,
+				blobTx, _ := shares.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &shares.Blob{
+					NamespaceId:      shares.TxNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(appns.TxNamespace.Version),
+					NamespaceVersion: uint32(shares.TxNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
@@ -161,11 +159,11 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace ParityShares",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &blob.Blob{
-					NamespaceId:      appns.ParitySharesNamespace.ID,
+				blobTx, _ := shares.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &shares.Blob{
+					NamespaceId:      shares.ParitySharesNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
+					NamespaceVersion: uint32(shares.ParitySharesNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 				blobTxBytes, _ := blobTx.Marshal()
@@ -177,8 +175,8 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid blob namespace",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &blob.Blob{
+				blobTx, _ := shares.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &shares.Blob{
 					NamespaceId:      invalidNamespace.ID,
 					Data:             data,
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
@@ -193,8 +191,8 @@ func TestProcessProposal(t *testing.T) {
 			name:  "pfb namespace version does not match blob",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
+				blobTx, _ := shares.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0].NamespaceVersion = shares.NamespaceVersionMax
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 				d.Hash = calculateNewDataHash(t, d.Txs)
@@ -207,7 +205,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				index := 4
 				tx, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
-				blobTx, err := blob.MarshalBlobTx(tx, &b)
+				blobTx, err := shares.MarshalBlobTx(tx, &b)
 				require.NoError(t, err)
 
 				// Replace the data with new contents

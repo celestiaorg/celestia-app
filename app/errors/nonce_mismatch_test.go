@@ -8,8 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/shares"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -35,7 +35,7 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), 2)
 	require.NoError(t, err)
 
-	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
+	b, err := blob.NewBlob(shares.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
 	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), b)
