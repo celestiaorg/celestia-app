@@ -21,7 +21,7 @@ The simplest way we can imagine arranging block data is to simply serialize it a
 First, we impose some ground rules:
 
 1. Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.
-1. Since non-blob data are not naturally intended for particular namespaces, we assign [reserved namespaces](./consensus.md#Reserved-Namespaces) for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.
+1. Since non-blob data are not naturally intended for particular namespaces, we assign [reserved namespaces](./namespace.md#Reserved-Namespaces) for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.
 1. By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.
 1. Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.
 
