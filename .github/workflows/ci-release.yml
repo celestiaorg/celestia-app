@@ -47,10 +47,21 @@ jobs:
           version: latest
           args: check
 
+  # branch_name trims ref/heads/ from github.ref to access a clean branch name
+  branch_name:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.trim_ref.outputs.branch }}
+    steps:
+      - name: Trim branch name
+        id: trim_ref
+        run: |
+          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [lint, test, goreleaser-check]
+    needs: [lint, test, branch_name, goreleaser-check]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -66,6 +77,9 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
+          # Setting the branch name so that release branch other than
+          # master/main doesn't impact tag name
+          release_branches: ${{ needs.branch_name.outputs.branch }}
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
