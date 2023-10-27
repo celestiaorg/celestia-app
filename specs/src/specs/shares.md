@@ -112,7 +112,7 @@ Share splitting is the process of converting a blob into a share sequence. The p
 
 ## Implementation
 
-See [pkg/shares](../../../pkg/shares).
+See [shares](../../../shares).
 
 ## References
 

@@ -89,7 +89,7 @@ Applications MUST refrain from using the [reserved namespaces](#reserved-namespa
 
 ## Implementation
 
-See [pkg/namespace](../../../pkg/namespace).
+See [shares](../../../shares).
 
 ## Protobuf Definition
 
