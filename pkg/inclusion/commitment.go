@@ -28,6 +28,11 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 		return nil, err
 	}
 
+	// the commitment is the root of a merkle mountain range with max tree size
+	// determined by the number of roots required to create a share commitment
+	// over that blob. The size of the tree is only increased if the number of
+	// subtree roots surpasses a constant threshold.
+
 	subTreeRoots, err := SubtreeRoots(blob.Namespace(), shares)
 	if err != nil {
 		return nil, err
@@ -38,26 +43,14 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 
 // SubtreeRoots returns the subtree roots given a set of shares and a namespace.
 func SubtreeRoots(ns namespace.Namespace, shrs []shares.Share) ([][]byte, error) {
-	// the commitment is the root of a merkle mountain range with max tree size
-	// determined by the number of roots required to create a share commitment
-	// over that blob. The size of the tree is only increased if the number of
-	// subtree roots surpasses a constant threshold.
-	subTreeWidth := SubTreeWidth(len(shrs), appconsts.DefaultSubtreeRootThreshold)
-	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shrs)), uint64(subTreeWidth))
+	leafSets, err := subTreeLeafSets(shrs)
 	if err != nil {
 		return nil, err
-	}
-	leafSets := make([][][]byte, len(treeSizes))
-	cursor := uint64(0)
-	for i, treeSize := range treeSizes {
-		leafSets[i] = appshares.ToBytes(shrs[cursor : cursor+treeSize])
-		cursor = cursor + treeSize
 	}
 
 	// create the commitments by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
-		// create the nmt todo(evan) use nmt wrapper
 		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
 			// the namespace must be added again here even though it is already
@@ -84,6 +77,23 @@ func SubtreeRoots(ns namespace.Namespace, shrs []shares.Share) ([][]byte, error)
 	}
 
 	return subTreeRoots, nil
+}
+
+// subTreeLeafSets will break the shares into nested slices of shares depending on
+// the subtree width. These chunks can be used as leaves to subtreeroots.
+func subTreeLeafSets(shrs []shares.Share) ([][][]byte, error) {
+	subTreeWidth := SubTreeWidth(len(shrs), appconsts.DefaultSubtreeRootThreshold)
+	treeSizes, err := MerkleMountainRangeSizes(uint64(len(shrs)), uint64(subTreeWidth))
+	if err != nil {
+		return nil, err
+	}
+	leafSets := make([][][]byte, len(treeSizes))
+	cursor := uint64(0)
+	for i, treeSize := range treeSizes {
+		leafSets[i] = appshares.ToBytes(shrs[cursor : cursor+treeSize])
+		cursor = cursor + treeSize
+	}
+	return leafSets, nil
 }
 
 // CreateCommitments is a helper function that creates a blob share commitment

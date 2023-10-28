@@ -92,3 +92,17 @@ func AvailableBytesFromSparseShares(n int) int {
 	}
 	return (n-1)*appconsts.ContinuationSparseShareContentSize + appconsts.FirstSparseShareContentSize
 }
+
+// ShareIndex returns the index of the share that contians the byte in the blob at
+// blobIndex after splitting.
+//
+// e.g. if blobIndex is 100, we will always get back 0, as that byte will always
+// be in the first share. If blobIndex is 1000, we will get back 1 as the 1000th
+// byte is in the second share.
+func ShareIndex(blobSize, blobIndex int) int {
+	if blobIndex < appconsts.FirstSparseShareContentSize {
+		return 0
+	}
+	adjustedIndex := blobIndex - appconsts.FirstSparseShareContentSize
+	return 1 + adjustedIndex/appconsts.ContinuationSparseShareContentSize
+}
