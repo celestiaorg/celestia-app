@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -67,7 +68,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	// calculate the square size.
 	// NOTE: A future optimization could be to recalculate the currentSize based on the actual
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
-	ss := shares.BlobMinSquareSize(b.CurrentSize())
+	ss := inclusion.BlobMinSquareSize(b.CurrentSize())
 
 	// sort the blobs in order of namespace. We use slice stable here to respect the
 	// order of multiple blobs within a namespace as per the priority of the PFB
@@ -102,7 +103,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor = shares.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
+		cursor = inclusion.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
 		if i == 0 {
 			nonReservedStart = cursor
 		}

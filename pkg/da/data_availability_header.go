@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/constraints"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/core/v1/da"
 )
@@ -66,7 +67,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	if !shares.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-	squareSize := square.Size(len(s))
+	squareSize := SquareSize(len(s))
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
@@ -190,5 +191,26 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // MinShares returns one tail-padded share.
 func MinShares() [][]byte {
-	return shares.ToBytes(square.EmptySquare())
+	return shares.ToBytes(EmptySquareShares())
+}
+
+// EmptySquare is a copy of the function defined in the square package to avoid
+// a circular dependency. TODO deduplicate
+func EmptySquareShares() []shares.Share {
+	return shares.TailPaddingShares(appconsts.MinShareCount)
+}
+
+// SquareSize is a copy of the function defined in the square package to avoid
+// a circular dependency. TODO deduplicate
+func SquareSize(len int) int {
+	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(len)))))
+}
+
+// RoundUpPowerOfTwo returns the next power of two greater than or equal to input.
+func RoundUpPowerOfTwo[I constraints.Integer](input I) I {
+	var result I = 1
+	for result < input {
+		result = result << 1
+	}
+	return result
 }
