@@ -1319,7 +1319,7 @@ message WantTx {
   bytes tx_key = 1;
 }
 </code></pre>
-<p>Both <code>SeenTx</code> and <code>WantTx</code> contain the sha256 hash of the raw transaction bytes. <code>SeenTx</code> also contains an optional <code>p2p.ID</code> that corresponds to the peer that the node recieved the tx from. The only validation for both is that the byte slice of the <code>tx_key</code> MUST have a length of 32.</p>
+<p>Both <code>SeenTx</code> and <code>WantTx</code> contain the sha256 hash of the raw transaction bytes. <code>SeenTx</code> also contains an optional <code>p2p.ID</code> that corresponds to the peer that the node received the tx from. The only validation for both is that the byte slice of the <code>tx_key</code> MUST have a length of 32.</p>
 <p>Both messages are sent across a new channel with the ID: <code>byte(0x31)</code>. This enables cross compatibility as discussed in greater detail below.</p>
 <blockquote>
 <p><strong>Note:</strong>
@@ -1350,7 +1350,7 @@ Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> 
 <p>Transaction pools are solely run in-memory; thus when a node stops, all transactions are discarded. To avoid the scenario where a node restarts and does not receive transactions because other nodes recorded a <code>SeenTx</code> message from their previous run, each transaction pool should track peer state based <strong>per connection</strong> and not per <code>NodeID</code>.</p>
 <p>Upon receiving a <code>Txs</code> message:</p>
 <ul>
-<li>Check whether it is in reponse to a request or simply an unsolicited broadcast</li>
+<li>Check whether it is in response to a request or simply an unsolicited broadcast</li>
 <li>Validate the tx against current resources and the applications <code>CheckTx</code></li>
 <li>If rejected or evicted, mark accordingly</li>
 <li>If successful, send a <code>SeenTx</code> message to all connected peers excluding the original sender. If it was from an initial broadcast, the <code>SeenTx</code> should populate the <code>From</code> field with the <code>p2p.ID</code> of the recipient else if it is in response to a request <code>From</code> should remain empty.</li>
@@ -1404,7 +1404,7 @@ stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when a subset of these validity
 rules have not been followed in order to avoid making an honest majority
-assumption on the consensus network. This has a significant impact on thier
+assumption on the consensus network. This has a significant impact on their
 design. More information on how light clients can check the invalidity of a
 block can be foud in the <a href="specs/./fraud_proofs.html">Fraud Proofs</a> spec.</p>
 <blockquote>
@@ -1678,7 +1678,7 @@ message StateFraudProof {
 <p>First, we impose some ground rules:</p>
 <ol>
 <li>Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.</li>
-<li>Since non-blob data are not naturally intended for particular namespaces, we assign <a href="specs/./consensus.html#Reservered-Namespaces">reserved namespaces</a> for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
+<li>Since non-blob data are not naturally intended for particular namespaces, we assign <a href="specs/./namespace.html#Reserved-Namespaces">reserved namespaces</a> for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
 <li>By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.</li>
 <li>Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.</li>
 </ol>
@@ -1686,7 +1686,7 @@ message StateFraudProof {
 <p><img src="specs/./figures/square_layout.svg" alt="square_layout" /></p>
 <p>Padding is addressed in the <a href="specs/data_square_layout.html#padding">padding section</a>. Namespace C contains two blobs of two shares each while Namespace D contains one blob of three shares.</p>
 <h3 id="ordering"><a class="header" href="#ordering">Ordering</a></h3>
-<p>The order of blobs in a namespace is dictated by the priority of the PFBs that payed for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the <code>gas-price</code> of the transaction (<code>fee</code>/<code>gas</code>).</p>
+<p>The order of blobs in a namespace is dictated by the priority of the PFBs that paid for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the <code>gas-price</code> of the transaction (<code>fee</code>/<code>gas</code>).</p>
 <h2 id="blob-share-commitment-rules"><a class="header" href="#blob-share-commitment-rules">Blob Share Commitment Rules</a></h2>
 <p>Transactions can pay fees for a blob to be included in the same block as the transaction itself. It may seem natural to bundle the <code>MsgPayForBlobs</code> transaction that pays for a number of blobs with these blobs (which is the case in other blockchains with native execution, e.g. calldata in Ethereum transactions or OP_RETURN data in Bitcoin transactions), however this would mean that processes validating the state of the Celestia network would need to download all blob data. PayForBlob transactions must therefore only include a commitment to (i.e. some hash of) the blob they pay fees for. If implemented naively (e.g. with a simple hash of the blob, or a simple binary Merkle tree root of the blob), this can lead to a data availability problem, as there are no guarantees that the data behind these commitments is actually part of the block data.</p>
 <p>To that end, we impose some additional rules onto <em>blobs only</em>: blobs must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>
@@ -1905,7 +1905,7 @@ indicates what the cause of the gas consumption was.</p>
 <p>This PFB transaction contains two single share blobs. Notice the gas cost for
 <code>pay for blob</code> is double what it is above due to two shares being used, and
 there is also additional cost from <code>txSize</code> since the transaction itself is
-larger to accomodate the second set of metadata in the PFB.</p>
+larger to accommodate the second set of metadata in the PFB.</p>
 <p><img src="specs/./figures/gas_consumption/pfb_with_two_single_share_blobs_trace.png" alt="MsgPayForBlobs with Two Blobs" /></p>
 <h3 id="100kib-single-blob-pfb"><a class="header" href="#100kib-single-blob-pfb">100KiB Single Blob PFB</a></h3>
 <p>Here we can see how the cost of a PFB with a large blob (100KiB) is quickly dominated by
@@ -1949,7 +1949,7 @@ the cost of the blob.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="tokenfilter"><a class="header" href="#tokenfilter">tokenfilter</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="celestia-governance-params"><a class="header" href="#celestia-governance-params">Celestia Governance Params</a></h1>
 <p>These are the parameters for mainnet. Note that not all of these parameters are
-changable via governance. This list also includes parameter that require a
+changeable via governance. This list also includes parameter that require a
 hardfork to change due to being manually hardcoded in the application or they
 are blocked by the <code>x/paramfilter</code> module.</p>
 <h2 id="parameters-1"><a class="header" href="#parameters-1">Parameters</a></h2>
@@ -1974,7 +1974,7 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>consensus.Version.AppVersion</td><td>1</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>False</td></tr>
 <tr><td>distribution.CommunityTax</td><td>0.02 (2%)</td><td>Percentage of the inflation sent to the community pool.</td><td>True</td></tr>
 <tr><td>distribution.WithdrawAddrEnabled</td><td>true</td><td>Enables delegators to withdraw funds to a different address.</td><td>True</td></tr>
-<tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint demonination for proposing a block.</td><td>True</td></tr>
+<tr><td>distribution.BaseProposerReward</td><td>0</td><td>Reward in the mint denomination for proposing a block.</td><td>True</td></tr>
 <tr><td>distribution.BonusProposerReward</td><td>0</td><td>Extra reward in the mint denomination for proposers based on the voting power included in the commit.</td><td>True</td></tr>
 <tr><td>gov.DepositParams.MinDeposit</td><td>10_000_000_000 utia (10,000 TIA)</td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
 <tr><td>gov.DepositParams.MaxDepositPeriod</td><td>604800000000000 (1 week)</td><td>Maximum period for token holders to deposit on a proposal in nanoseconds.</td><td>True</td></tr>

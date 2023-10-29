@@ -156,7 +156,7 @@
 <p>First, we impose some ground rules:</p>
 <ol>
 <li>Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.</li>
-<li>Since non-blob data are not naturally intended for particular namespaces, we assign <a href="./consensus.html#Reservered-Namespaces">reserved namespaces</a> for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
+<li>Since non-blob data are not naturally intended for particular namespaces, we assign <a href="./namespace.html#Reserved-Namespaces">reserved namespaces</a> for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
 <li>By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.</li>
 <li>Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.</li>
 </ol>
@@ -164,7 +164,7 @@
 <p><img src="./figures/square_layout.svg" alt="square_layout" /></p>
 <p>Padding is addressed in the <a href="#padding">padding section</a>. Namespace C contains two blobs of two shares each while Namespace D contains one blob of three shares.</p>
 <h3 id="ordering"><a class="header" href="#ordering">Ordering</a></h3>
-<p>The order of blobs in a namespace is dictated by the priority of the PFBs that payed for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the <code>gas-price</code> of the transaction (<code>fee</code>/<code>gas</code>).</p>
+<p>The order of blobs in a namespace is dictated by the priority of the PFBs that paid for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the <code>gas-price</code> of the transaction (<code>fee</code>/<code>gas</code>).</p>
 <h2 id="blob-share-commitment-rules"><a class="header" href="#blob-share-commitment-rules">Blob Share Commitment Rules</a></h2>
 <p>Transactions can pay fees for a blob to be included in the same block as the transaction itself. It may seem natural to bundle the <code>MsgPayForBlobs</code> transaction that pays for a number of blobs with these blobs (which is the case in other blockchains with native execution, e.g. calldata in Ethereum transactions or OP_RETURN data in Bitcoin transactions), however this would mean that processes validating the state of the Celestia network would need to download all blob data. PayForBlob transactions must therefore only include a commitment to (i.e. some hash of) the blob they pay fees for. If implemented naively (e.g. with a simple hash of the blob, or a simple binary Merkle tree root of the blob), this can lead to a data availability problem, as there are no guarantees that the data behind these commitments is actually part of the block data.</p>
 <p>To that end, we impose some additional rules onto <em>blobs only</em>: blobs must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>

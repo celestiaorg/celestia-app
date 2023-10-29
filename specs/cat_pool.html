@@ -165,7 +165,7 @@ message WantTx {
   bytes tx_key = 1;
 }
 </code></pre>
-<p>Both <code>SeenTx</code> and <code>WantTx</code> contain the sha256 hash of the raw transaction bytes. <code>SeenTx</code> also contains an optional <code>p2p.ID</code> that corresponds to the peer that the node recieved the tx from. The only validation for both is that the byte slice of the <code>tx_key</code> MUST have a length of 32.</p>
+<p>Both <code>SeenTx</code> and <code>WantTx</code> contain the sha256 hash of the raw transaction bytes. <code>SeenTx</code> also contains an optional <code>p2p.ID</code> that corresponds to the peer that the node received the tx from. The only validation for both is that the byte slice of the <code>tx_key</code> MUST have a length of 32.</p>
 <p>Both messages are sent across a new channel with the ID: <code>byte(0x31)</code>. This enables cross compatibility as discussed in greater detail below.</p>
 <blockquote>
 <p><strong>Note:</strong>
@@ -196,7 +196,7 @@ Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> 
 <p>Transaction pools are solely run in-memory; thus when a node stops, all transactions are discarded. To avoid the scenario where a node restarts and does not receive transactions because other nodes recorded a <code>SeenTx</code> message from their previous run, each transaction pool should track peer state based <strong>per connection</strong> and not per <code>NodeID</code>.</p>
 <p>Upon receiving a <code>Txs</code> message:</p>
 <ul>
-<li>Check whether it is in reponse to a request or simply an unsolicited broadcast</li>
+<li>Check whether it is in response to a request or simply an unsolicited broadcast</li>
 <li>Validate the tx against current resources and the applications <code>CheckTx</code></li>
 <li>If rejected or evicted, mark accordingly</li>
 <li>If successful, send a <code>SeenTx</code> message to all connected peers excluding the original sender. If it was from an initial broadcast, the <code>SeenTx</code> should populate the <code>From</code> field with the <code>p2p.ID</code> of the recipient else if it is in response to a request <code>From</code> should remain empty.</li>
