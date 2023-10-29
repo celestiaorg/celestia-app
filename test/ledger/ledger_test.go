@@ -11,6 +11,10 @@ import (
 )
 
 func TestLedgerSupport(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping ledger support test in short mode.")
+	}
+
 	type testCase struct {
 		name   string
 		ledger bool
