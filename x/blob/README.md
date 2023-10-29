@@ -101,7 +101,7 @@ following fields:
   details on how this effects the share encoding and when it is updated.
 
 Note that while the shares version in each protobuf encoded PFB are uint32s, the
-internal represantation of shares versions is always uint8s. This is because
+internal representation of shares versions is always uint8s. This is because
 protobuf doesn't support uint8s.
 
 ### Generating the `ShareCommitment`

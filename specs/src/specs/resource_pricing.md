@@ -236,7 +236,7 @@ Share](./figures/gas_consumption/single_share_pfb_trace.png)
 This PFB transaction contains two single share blobs. Notice the gas cost for
 `pay for blob` is double what it is above due to two shares being used, and
 there is also additional cost from `txSize` since the transaction itself is
-larger to accomodate the second set of metadata in the PFB.
+larger to accommodate the second set of metadata in the PFB.
 
 ![MsgPayForBlobs with Two
 Blobs](./figures/gas_consumption/pfb_with_two_single_share_blobs_trace.png)

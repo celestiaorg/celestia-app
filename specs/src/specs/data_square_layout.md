@@ -21,7 +21,7 @@ The simplest way we can imagine arranging block data is to simply serialize it a
 First, we impose some ground rules:
 
 1. Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.
-1. Since non-blob data are not naturally intended for particular namespaces, we assign [reserved namespaces](./consensus.md#Reservered-Namespaces) for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.
+1. Since non-blob data are not naturally intended for particular namespaces, we assign [reserved namespaces](./namespace.md#Reserved-Namespaces) for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.
 1. By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.
 1. Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.
 
@@ -33,7 +33,7 @@ Padding is addressed in the [padding section](#padding). Namespace C contains tw
 
 ### Ordering
 
-The order of blobs in a namespace is dictated by the priority of the PFBs that payed for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the `gas-price` of the transaction (`fee`/`gas`).
+The order of blobs in a namespace is dictated by the priority of the PFBs that paid for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the `gas-price` of the transaction (`fee`/`gas`).
 
 ## Blob Share Commitment Rules
 
