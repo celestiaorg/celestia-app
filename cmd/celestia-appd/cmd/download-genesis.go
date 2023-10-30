@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +11,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
+
+var chainIdToSha256 = map[string]string{
+	"celestia":   "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
+	"mocha-4":    "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
+	"arabica-10": "fad0a187669f7a2c11bb07f9dc27140d66d2448b7193e186312713856f28e3e1",
+}
 
 func downloadGenesisCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -30,6 +38,25 @@ func downloadGenesisCommand() *cobra.Command {
 				return fmt.Errorf("error downloading genesis file: %s", err)
 			}
 			fmt.Printf("Downloaded genesis file for %s to %s\n", chainID, outputFile)
+
+			// Compute SHA-256 hash of the downloaded file
+			hash, err := computeSha256(outputFile)
+			if err != nil {
+				return fmt.Errorf("error computing sha256 hash: %s", err)
+			}
+
+			// Compare computed hash against known hash
+			knownHash, ok := chainIdToSha256[chainID]
+			if !ok {
+				return fmt.Errorf("unknown chain-id: %s", chainID)
+			}
+
+			if hash != knownHash {
+				return fmt.Errorf("sha256 hash mismatch: got %s, expected %s", hash, knownHash)
+			}
+
+			fmt.Printf("SHA-256 hash verified for %s\n", chainID)
+
 			return nil
 		},
 	}
@@ -73,4 +100,20 @@ func downloadFile(filepath string, url string) error {
 
 	_, err = io.Copy(out, resp.Body)
 	return err
+}
+
+// computeSha256 computes the SHA-256 hash of a file.
+func computeSha256(filepath string) (string, error) {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
