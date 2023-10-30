@@ -12,6 +12,8 @@ COINS="1000000000000000utia"
 DELEGATION_AMOUNT="5000000000utia"
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
+NAMESPACE_ID=01010101010101010101
+DATA=FF
 
 echo "celestia-app home: ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
@@ -85,6 +87,23 @@ sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${CELESTIA_APP
     &> /dev/null # Hide output to reduce terminal noise
 
   echo "Registered EVM address."
+} &
+
+# Send a PayForBlobs tx
+{
+  # Wait for block 1
+  sleep 20
+
+  echo "Submitting a PayForBlobs tx..."
+  celestia-appd tx blob PayForBlobs $NAMESPACE_ID $DATA \
+    --from ${KEY_NAME} \
+    --keyring-backend=${KEYRING_BACKEND} \
+    --fees 21000utia \
+    --yes \
+    --chain-id ${CHAIN_ID} \
+    &> /dev/null # Hide output to reduce terminal noise
+
+  echo "Submitted PayForBlobs tx"
 } &
 
 # Start celestia-app
