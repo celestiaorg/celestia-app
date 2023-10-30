@@ -141,6 +141,10 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
+test-fuzz:
+	bash -x scripts/test_fuzz.sh
+.PHONY: test-fuzz
+
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
