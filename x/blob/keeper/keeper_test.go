@@ -16,6 +16,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
+// TestPayForBlobs verifies the attributes on the emitted event.
 func TestPayForBlobs(t *testing.T) {
 	k, stateStore := keeper(t)
 	ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
@@ -36,9 +37,9 @@ func TestPayForBlobs(t *testing.T) {
 	// verify that an event was emitted
 	events = ctx.EventManager().Events().ToABCIEvents()
 	assert.Len(t, events, 1)
-	parsedEvent, err := sdk.ParseTypedEvent(events[0])
+	protoEvent, err := sdk.ParseTypedEvent(events[0])
 	require.NoError(t, err)
-	event, err := ConvertToEventPayForBlobs(parsedEvent)
+	event, err := convertToEventPayForBlobs(protoEvent)
 	require.NoError(t, err)
 
 	// verify the attributes of the event
@@ -47,8 +48,7 @@ func TestPayForBlobs(t *testing.T) {
 	assert.Equal(t, blobSizes, event.BlobSizes)
 }
 
-func ConvertToEventPayForBlobs(message proto.Message) (*types.EventPayForBlobs, error) {
-	// Type assertion to convert proto.Message to *EventPayForBlobs
+func convertToEventPayForBlobs(message proto.Message) (*types.EventPayForBlobs, error) {
 	if event, ok := message.(*types.EventPayForBlobs); ok {
 		return event, nil
 	}
