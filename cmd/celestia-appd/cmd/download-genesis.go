@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var chainIdToSha256 = map[string]string{
+var chainIDToSha256 = map[string]string{
 	"celestia":   "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
 	"mocha-4":    "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
 	"arabica-10": "fad0a187669f7a2c11bb07f9dc27140d66d2448b7193e186312713856f28e3e1",
@@ -28,7 +28,7 @@ func downloadGenesisCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			chainID := args[0]
 			if !isKnownChainID(chainID) {
-				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10.", chainID)
+				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10", chainID)
 			}
 			outputFile := server.GetServerContextFromCmd(cmd).Config.GenesisFile()
 			fmt.Printf("Downloading genesis file for %s to %s\n", chainID, outputFile)
@@ -46,7 +46,7 @@ func downloadGenesisCommand() *cobra.Command {
 			}
 
 			// Compare computed hash against known hash
-			knownHash, ok := chainIdToSha256[chainID]
+			knownHash, ok := chainIDToSha256[chainID]
 			if !ok {
 				return fmt.Errorf("unknown chain-id: %s", chainID)
 			}
