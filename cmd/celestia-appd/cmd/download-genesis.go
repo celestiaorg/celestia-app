@@ -56,7 +56,6 @@ func downloadGenesisCommand() *cobra.Command {
 			}
 
 			fmt.Printf("SHA-256 hash verified for %s\n", chainID)
-
 			return nil
 		},
 	}
@@ -64,6 +63,7 @@ func downloadGenesisCommand() *cobra.Command {
 	return cmd
 }
 
+// isKnownChainID returns true if the chainID is known.
 func isKnownChainID(chainID string) bool {
 	knownChainIDs := []string{
 		"arabica-10", // testnet
@@ -83,8 +83,7 @@ func contains(slice []string, s string) bool {
 	return false
 }
 
-// downloadFile will download a URL to a local file. It's efficient because it will
-// write as it downloads and not load the whole file into memory.
+// downloadFile will download a URL to a local file.
 func downloadFile(filepath string, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
