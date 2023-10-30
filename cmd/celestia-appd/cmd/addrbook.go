@@ -37,11 +37,13 @@ func addrbookCommand() *cobra.Command {
 				}
 				address, err := p2p.NewNetAddressString(line)
 				if err != nil {
-					return err
+					fmt.Printf("Error parsing %s: %s\n", line, err)
+					continue
 				}
 				err = book.AddAddress(address, address)
 				if err != nil {
-					return err
+					fmt.Printf("Error adding %s: %s\n", address, err)
+					continue
 				}
 			}
 
