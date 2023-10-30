@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/user"
@@ -236,7 +237,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 		return nil, err
 	}
 
-	blob, err := types.NewBlob(ns, blobData, appconsts.ShareVersionZero)
+	b, err := types.NewBlob(ns, blobData, appconsts.ShareVersionZero)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +245,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
 	opts := blobfactory.FeeTxOpts(gas)
 
-	blobTx, err := signer.CreatePayForBlob([]*types.Blob{blob}, opts...)
+	blobTx, err := signer.CreatePayForBlob([]*blob.Blob{b}, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -8,11 +8,11 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // Params queries the current parameters for the qgb module
+  // Params queries the current parameters for the blobstream module
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/qgb/v1/params";
   }
@@ -29,6 +29,11 @@ service Query {
   rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
       returns (QueryLatestAttestationNonceResponse) {
     option (google.api.http).get = "/qgb/v1/attestations/nonce/latest";
+  }
+  // EarliestAttestationNonce queries the earliest attestation nonce.
+  rpc EarliestAttestationNonce(QueryEarliestAttestationNonceRequest)
+      returns (QueryEarliestAttestationNonceResponse) {
+    option (google.api.http).get = "/qgb/v1/attestations/nonce/earliest";
   }
   // LatestValsetRequestBeforeNonce Queries latest Valset request before nonce.
   // And, even if the current nonce is a valset, it will return the previous
@@ -91,6 +96,11 @@ message QueryAttestationRequestByNonceResponse {
 message QueryLatestAttestationNonceRequest {}
 // QueryLatestAttestationNonceResponse latest attestation nonce response
 message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
+
+// QueryEarliestAttestationNonceRequest earliest attestation nonce request
+message QueryEarliestAttestationNonceRequest {}
+// QueryEarliestAttestationNonceResponse earliest attestation nonce response
+message QueryEarliestAttestationNonceResponse { uint64 nonce = 1; }
 
 // QueryLatestValsetRequestBeforeNonceRequest latest Valset request before
 // universal nonce request

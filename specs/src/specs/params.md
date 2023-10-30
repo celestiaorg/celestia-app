@@ -1,7 +1,7 @@
 # Celestia Governance Params
 
 These are the parameters for mainnet. Note that not all of these parameters are
-changable via governance. This list also includes parameter that require a
+changeable via governance. This list also includes parameter that require a
 hardfork to change due to being manually hardcoded in the application or they
 are blocked by the `x/paramfilter` module.
 
@@ -29,7 +29,7 @@ are blocked by the `x/paramfilter` module.
 | consensus.Version.AppVersion | 1 | Determines protocol rules used for a given height. Incremented by the application upon an upgrade. | False |
 | distribution.CommunityTax | 0.02 (2%) | Percentage of the inflation sent to the community pool. | True |
 | distribution.WithdrawAddrEnabled | true | Enables delegators to withdraw funds to a different address. | True |
-| distribution.BaseProposerReward | 0 | Reward in the mint demonination for proposing a block. | True |
+| distribution.BaseProposerReward | 0 | Reward in the mint denomination for proposing a block. | True |
 | distribution.BonusProposerReward | 0 | Extra reward in the mint denomination for proposers based on the voting power included in the commit. | True |
 | gov.DepositParams.MinDeposit | 10_000_000_000 utia (10,000 TIA) | Minimum deposit for a proposal to enter voting period. | True |
 | gov.DepositParams.MaxDepositPeriod | 604800000000000 (1 week) | Maximum period for token holders to deposit on a proposal in nanoseconds. | True |
@@ -56,4 +56,4 @@ are blocked by the `x/paramfilter` module.
 | mint.InitialInflationRate | 0.08 (8%) | The inflation rate the network starts at. | False |
 | mint.DisinflationRate | 0.10 (10%) | The rate at which the inflation rate decreases each year. | False |
 | mint.TargetInflationRate | 0.015 (1.5%) | The inflation rate that the network aims to stabalize at. | False |
-| qgb.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |
+| blobstream.DataCommitmentWindow | 400 | Number of blocks that are included in a signed batch (DataCommitment). | True |

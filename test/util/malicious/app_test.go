@@ -80,7 +80,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	// malicious square builder.
 	signer, err := testnode.NewSignerFromContext(cctx, accounts[0])
 	require.NoError(t, err)
-	blobs := blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
+	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
 	txres, err := signer.SubmitPayForBlob(cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)

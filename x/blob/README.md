@@ -101,7 +101,7 @@ following fields:
   details on how this effects the share encoding and when it is updated.
 
 Note that while the shares version in each protobuf encoded PFB are uint32s, the
-internal represantation of shares versions is always uint8s. This is because
+internal representation of shares versions is always uint8s. This is because
 protobuf doesn't support uint8s.
 
 ### Generating the `ShareCommitment`
@@ -203,7 +203,7 @@ celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [fla
 ```
 
 For submitting PFB transaction via a light client's rpc, see [celestia-node's
-documention](https://docs.celestia.org/developers/node-tutorial/#submitting-data ).
+documention](https://docs.celestia.org/developers/node-tutorial#submitting-data).
 
 The steps in the
 [`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)

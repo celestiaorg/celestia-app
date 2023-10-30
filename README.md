@@ -92,9 +92,12 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     You should see output like this:
 
     ```shell
-    gpg: Signature made Thu Sep 21 14:39:26 2023 EDT
+    gpg: Signature made Tue Oct 10 13:25:06 2023 UTC
     gpg:                using EDDSA key BF02F32CC36864560B90B764D469F859693DC3FA
-    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [ultimate]
+    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [unknown]
+    gpg: WARNING: This key is not certified with a trusted signature!
+    gpg:          There is no indication that the signature belongs to the owner.
+    Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
     ```
 
 ### Ledger Support
@@ -175,11 +178,14 @@ Package-specific READMEs aim to explain implementation details for developers th
 - [pkg/shares](./pkg/shares/README.md)
 - [pkg/wrapper](./pkg/wrapper/README.md)
 - [x/blob](./x/blob/README.md)
-- [x/qgb](./x/qgb/README.md)
+- [x/blobstream](./x/blobstream/README.md)
 
 ## Audits
 
-[Informal Systems](https://informal.systems/) audited celestia-app [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6) in Q3 of 2023. See [docs/audit/informal-systems.pdf](docs/audit/informal-systems.pdf) for the full report.
+Date       | Auditor                                       | Version                                                                             | Report
+-----------|-----------------------------------------------|-------------------------------------------------------------------------------------|--------------------------------------------------------
+2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf)
+2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)
 
 ## Careers
 

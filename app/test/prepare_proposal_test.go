@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -36,12 +37,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		testutil.ChainID,
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
-		testfactory.Repeat([]*tmproto.Blob{
-			{
-				NamespaceId:  appns.RandomBlobNamespace().ID,
-				Data:         []byte{1},
-				ShareVersion: uint32(appconsts.DefaultShareVersion),
-			},
+		testfactory.Repeat([]*blob.Blob{
+			blob.New(appns.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion),
 		}, numBlobTxs),
 	)
 

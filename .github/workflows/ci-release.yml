@@ -37,10 +37,31 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
 
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: check
+
+  # branch_name trims ref/heads/ from github.ref to access a clean branch name
+  branch_name:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.trim_ref.outputs.branch }}
+    steps:
+      - name: Trim branch name
+        id: trim_ref
+        run: |
+          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
+
   # If this was a workflow dispatch event, we need to generate and push a tag
   # for goreleaser to grab
   version_bump:
-    needs: [lint, markdown-linter, test]
+    needs: [lint, test, branch_name, goreleaser-check]
     runs-on: ubuntu-latest
     permissions: "write-all"
     steps:
@@ -56,11 +77,14 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: ${{ inputs.version }}
+          # Setting the branch name so that release branch other than
+          # master/main doesn't impact tag name
+          release_branches: ${{ needs.branch_name.outputs.branch }}
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
     needs: version_bump
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))

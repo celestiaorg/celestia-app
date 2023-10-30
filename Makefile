@@ -5,6 +5,7 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
+HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -56,6 +57,12 @@ proto-lint:
 	@echo "--> Linting Protobuf files"
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
+
+## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
+proto-check-breaking:
+	@echo "--> Checking if Protobuf definitions have any breaking changes"
+	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
+.PHONY: proto-check-breaking
 
 ## proto-format: Format protobuf files. Requires docker.
 proto-format:
@@ -119,7 +126,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.

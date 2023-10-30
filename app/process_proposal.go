@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -16,7 +17,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
@@ -52,7 +52,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(rawTx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}

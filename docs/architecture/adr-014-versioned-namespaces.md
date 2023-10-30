@@ -8,10 +8,11 @@ Implemented in <https://github.com/celestiaorg/celestia-app/pull/1557>
 
 - 2023/2/14: Initial draft
 - 2023/5/30: Update status
+- 2023/10/10: Remove reference to deleted git branch
 
 ## Context
 
-The specs-staging branch contains the current schema for a [sparse share](https://github.com/celestiaorg/celestia-app/blob/0dc7d17636efa535efca42af58229ee0c3c21261/specs/src/specs/data_structures.md#sparse-share). A brief reminder of the schema for the first blob share in a sequence:
+A brief reminder of the schema for the first blob share in a sequence:
 
 ![first-sparse-share](./assets/adr014/first-sparse-share.svg)
 

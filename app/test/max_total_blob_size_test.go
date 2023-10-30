@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -17,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 const (
@@ -70,24 +70,24 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 
 	type testCase struct {
 		name string
-		blob *tmproto.Blob
+		blob *blob.Blob
 		// want is the expected tx response ABCI code.
 		want uint32
 	}
 	testCases := []testCase{
 		{
 			name: "1 byte blob",
-			blob: mustNewBlob(t, 1),
+			blob: mustNewBlob(1),
 			want: abci.CodeTypeOK,
 		},
 		{
 			name: "1 mebibyte blob",
-			blob: mustNewBlob(t, mebibyte),
+			blob: mustNewBlob(mebibyte),
 			want: abci.CodeTypeOK,
 		},
 		{
 			name: "2 mebibyte blob",
-			blob: mustNewBlob(t, 2*mebibyte),
+			blob: mustNewBlob(2 * mebibyte),
 			want: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
 		},
 	}
@@ -97,7 +97,7 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			blobTx, err := signer.CreatePayForBlob([]*tmproto.Blob{tc.blob}, user.SetGasLimit(1e9))
+			blobTx, err := signer.CreatePayForBlob([]*blob.Blob{tc.blob}, user.SetGasLimit(1e9))
 			require.NoError(t, err)
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()

@@ -50,6 +50,7 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 		nmt.NamespaceIDSize(appconsts.NamespaceSize),
 		nmt.IgnoreMaxNamespace(true),
 	}
+	copts = append(copts, c.opts...)
 	nmtTree := nmt.New(appconsts.NewBaseHashFunc(), copts...)
 	maliciousTree := &BlindTree{nmtTree}
 	newTree := wrapper.NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, copts...)

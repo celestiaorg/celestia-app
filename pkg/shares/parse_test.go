@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -244,12 +245,6 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomBlobWithNamespace(namespace appns.Namespace, size int) types.Blob {
-	blob := types.Blob{
-		NamespaceVersion: namespace.Version,
-		NamespaceID:      namespace.ID,
-		Data:             tmrand.Bytes(size),
-		ShareVersion:     appconsts.ShareVersionZero,
-	}
-	return blob
+func generateRandomBlobWithNamespace(namespace appns.Namespace, size int) *blob.Blob {
+	return blob.New(namespace, tmrand.Bytes(size), appconsts.ShareVersionZero)
 }

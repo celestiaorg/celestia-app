@@ -5,9 +5,9 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 
-// Msg is the message server for receiving qgb transactions
+// Msg is the message server for receiving Blobstream transactions
 service Msg {
   // RegisterEVMAddress records an evm address for the validator which is used
   // by the relayer to aggregate signatures. A validator can only register a

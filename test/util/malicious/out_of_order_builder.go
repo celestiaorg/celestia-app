@@ -6,10 +6,11 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	core "github.com/tendermint/tendermint/types"
 )
 
 type ExportFn func(builder *square.Builder) (square.Square, error)
@@ -27,7 +28,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (sq
 	normalTxs := make([][]byte, 0, len(txs))
 	blobTxs := make([][]byte, 0, len(txs))
 	for _, tx := range txs {
-		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
@@ -67,19 +68,19 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	// calculate the square size.
 	// NOTE: A future optimization could be to recalculate the currentSize based on the actual
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
-	ss := shares.BlobMinSquareSize(b.CurrentSize())
+	ss := inclusion.BlobMinSquareSize(b.CurrentSize())
 
 	// sort the blobs in order of namespace. We use slice stable here to respect the
 	// order of multiple blobs within a namespace as per the priority of the PFB
 	sort.SliceStable(b.Blobs, func(i, j int) bool {
-		return bytes.Compare(b.Blobs[i].Blob.Namespace(), b.Blobs[j].Blob.Namespace()) < 0
+		return bytes.Compare(b.Blobs[i].Blob.Namespace().Bytes(), b.Blobs[j].Blob.Namespace().Bytes()) < 0
 	})
 
 	if len(b.Blobs) > 1 {
 		// iterate through each blob and find the first two that have different
 		// namespaces and swap them.
 		for i := 0; i < len(b.Blobs)-1; i++ {
-			if !bytes.Equal(b.Blobs[i].Blob.Namespace(), b.Blobs[i+1].Blob.Namespace()) {
+			if !bytes.Equal(b.Blobs[i].Blob.Namespace().Bytes(), b.Blobs[i+1].Blob.Namespace().Bytes()) {
 				b.Blobs[i], b.Blobs[i+1] = b.Blobs[i+1], b.Blobs[i]
 				break
 			}
@@ -102,7 +103,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor = shares.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
+		cursor = inclusion.NextShareIndex(cursor, element.NumShares, b.SubtreeRootThreshold())
 		if i == 0 {
 			nonReservedStart = cursor
 		}
