@@ -136,6 +136,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		config.Cmd(),
 		commands.CompactGoLevelDBCmd,
 		addrbookCommand(),
+		downloadGenesisCommand(),
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
