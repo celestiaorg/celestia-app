@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -57,7 +56,8 @@ func convertToEventPayForBlobs(message proto.Message) (*types.EventPayForBlobs, 
 }
 
 func createMsgPayForBlob(t *testing.T, signer string, namespace appns.Namespace, blobData []byte) *types.MsgPayForBlobs {
-	blob := blob.New(namespace, blobData, appconsts.ShareVersionZero)
+	blob, err := types.NewBlob(namespace, blobData, appconsts.ShareVersionZero)
+	require.NoError(t, err)
 	msg, err := types.NewMsgPayForBlobs(signer, blob)
 	require.NoError(t, err)
 	return msg
