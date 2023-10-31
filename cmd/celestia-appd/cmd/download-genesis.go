@@ -27,7 +27,7 @@ func downloadGenesisCommand() *cobra.Command {
 			"If no argument is provided, defaults to celestia.\n",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			chainID := getChainIdOrDefault(args)
+			chainID := getChainIDOrDefault(args)
 			if !isKnownChainID(chainID) {
 				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10", chainID)
 			}
@@ -64,9 +64,9 @@ func downloadGenesisCommand() *cobra.Command {
 	return cmd
 }
 
-// getChainIdOrDefault returns the chainID from the command line arguments. If
+// getChainIDOrDefault returns the chainID from the command line arguments. If
 // none is provided, defaults to celestia (mainnet).
-func getChainIdOrDefault(args []string) string {
+func getChainIDOrDefault(args []string) string {
 	if len(args) == 1 {
 		return args[0]
 	}
