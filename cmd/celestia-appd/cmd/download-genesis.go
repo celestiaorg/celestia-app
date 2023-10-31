@@ -35,7 +35,7 @@ func downloadGenesisCommand() *cobra.Command {
 
 			url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
 			if err := downloadFile(outputFile, url); err != nil {
-				return fmt.Errorf("error downloading genesis file: %s", err)
+				return fmt.Errorf("error downloading / persisting the genesis file: %s", err)
 			}
 			fmt.Printf("Downloaded genesis file for %s to %s\n", chainID, outputFile)
 
