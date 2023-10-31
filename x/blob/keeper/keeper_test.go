@@ -32,7 +32,8 @@ func TestPayForBlobs(t *testing.T) {
 
 	// emit an event by submitting a PayForBlob
 	msg := createMsgPayForBlob(t, signer, namespace, blobData)
-	k.PayForBlobs(ctx, msg)
+	_, err := k.PayForBlobs(ctx, msg)
+	require.NoError(t, err)
 
 	// verify that an event was emitted
 	events = ctx.EventManager().Events().ToABCIEvents()
