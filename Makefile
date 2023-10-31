@@ -117,8 +117,9 @@ test-short:
 
 ## test-e2e: Run end to end tests via knuu.
 test-e2e:
-	@echo "--> Running e2e tests on version: $(shell git rev-parse --short HEAD)"
-	@KNUU_NAMESPACE=test E2E_VERSION=$(shell git rev-parse --short HEAD) E2E=true go test ./test/e2e/... -timeout 10m -v
+	@export E2E_VERSION=$(git tag -l)
+	@echo "--> Running end to end tests"
+	@KNUU_NAMESPACE=test E2E=true go test ./test/e2e/... -timeout 10m -v
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.

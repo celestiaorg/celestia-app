@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -27,8 +28,12 @@ func TestE2ESimple(t *testing.T) {
 	}
 
 	if os.Getenv("E2E_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_VERSION")
+		versionsStr := os.Getenv("E2E_VERSION")
+		versions := ParseVersions(versionsStr)
+		fmt.Println(versions.String())
+		latestVersion = versions.GetLatest().String()
 	}
+	t.Log("Running simple e2e test", "version", latestVersion)
 
 	testnet, err := New(t.Name(), seed)
 	require.NoError(t, err)
