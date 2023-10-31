@@ -20,13 +20,14 @@ var chainIDToSha256 = map[string]string{
 
 func downloadGenesisCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "download-genesis chain-id",
+		Use:   "download-genesis [chain-id]",
 		Short: "Download genesis file from https://github.com/celestiaorg/networks",
 		Long: "Download genesis file from https://github.com/celestiaorg/networks.\n" +
-			"The first argument must be a known chain-id. Ex. celestia, mocha-4, or arabica-10.\n",
-		Args: cobra.ExactArgs(1),
+			"The first argument should be a known chain-id. Ex. celestia, mocha-4, or arabica-10.\n" +
+			"If no argument is provided, defaults to celestia.\n",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			chainID := args[0]
+			chainID := getChainIdOrDefault(args)
 			if !isKnownChainID(chainID) {
 				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10", chainID)
 			}
@@ -61,6 +62,15 @@ func downloadGenesisCommand() *cobra.Command {
 	}
 
 	return cmd
+}
+
+// getChainIdOrDefault returns the chainID from the command line arguments. If
+// none is provided, defaults to celestia (mainnet).
+func getChainIdOrDefault(args []string) string {
+	if len(args) == 1 {
+		return args[0]
+	}
+	return "celestia"
 }
 
 // isKnownChainID returns true if the chainID is known.
