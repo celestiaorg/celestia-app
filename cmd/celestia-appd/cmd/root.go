@@ -128,6 +128,11 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		debugCmd,
 		config.Cmd(),
 		commands.CompactGoLevelDBCmd,
+<<<<<<< HEAD
+=======
+		addrbookCommand(),
+		downloadGenesisCommand(),
+>>>>>>> c34a93d (feat: `download-genesis` command (#2791))
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
