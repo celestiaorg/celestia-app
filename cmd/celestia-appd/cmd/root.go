@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	bscmd "github.com/celestiaorg/celestia-app/x/blobstream/client"
 
@@ -44,6 +45,8 @@ const (
 
 	// FlagLogToFile specifies whether to log to file or not.
 	FlagLogToFile = "log-to-file"
+
+	UpgradeHeightFlag = "upgrade-height"
 )
 
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
@@ -152,6 +155,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
+	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch to v2. Must be coordinated amongst all validators")
 }
 
 func queryCommand() *cobra.Command {
@@ -228,11 +232,20 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		panic(err)
 	}
 
+	var upgradeHeight int64
+	upgradeHeightStr, ok := appOpts.Get(UpgradeHeightFlag).(string)
+	if ok {
+		upgradeHeight, err = strconv.ParseInt(upgradeHeightStr, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return app.New(
 		logger, db, traceStore, true,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
-		nil,
+		upgradeHeight,
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
@@ -255,13 +268,13 @@ func createAppAndExport(
 	encCfg.Codec = codec.NewProtoCodec(encCfg.InterfaceRegistry)
 	var capp *app.App
 	if height != -1 {
-		capp = app.New(logger, db, traceStore, false, uint(1), encCfg, nil, appOpts)
+		capp = app.New(logger, db, traceStore, false, uint(1), encCfg, 0, appOpts)
 
 		if err := capp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		capp = app.New(logger, db, traceStore, true, uint(1), encCfg, nil, appOpts)
+		capp = app.New(logger, db, traceStore, true, uint(1), encCfg, 0, appOpts)
 	}
 
 	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
