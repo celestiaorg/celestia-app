@@ -128,6 +128,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		debugCmd,
 		config.Cmd(),
 		commands.CompactGoLevelDBCmd,
+		addrbookCommand(),
 		downloadGenesisCommand(),
 	)
 
