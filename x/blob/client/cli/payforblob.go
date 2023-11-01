@@ -32,7 +32,7 @@ const (
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs namespaceID blob",
+		Use: "PayForBlobs namespaceID blobs",
 		// This example command can be run in a new terminal after running single-node.sh
 		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
 			"\t--chain-id private \\\n" +
@@ -40,16 +40,14 @@ func CmdPayForBlob() *cobra.Command {
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
 			"\t--yes",
-		Short: "Pay for a data blob to be published to Celestia.",
-		Long: "Pay for a data blob to be published to Celestia.\n" +
+		Short: "Pay for a data blobs to be published to Celestia.",
+		Long: "Pay for a data blobs to be published to Celestia.\n" +
 			"namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n" +
-			"blob must be a hex encoded string of any length.\n" +
-			// TODO: allow for more than one blob to be sumbmitted via the CLI
-			"This command currently only supports a single blob per invocation.\n",
+			"blob must be a hex encoded string of any length.\n",
 		Aliases: []string{"PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
-				return fmt.Errorf("PayForBlobs requires two arguments: namespaceID and blob")
+				return fmt.Errorf("PayForBlobs requires two arguments or more: namespaceID and blobs")
 			}
 			return nil
 		},
@@ -68,19 +66,27 @@ func CmdPayForBlob() *cobra.Command {
 				return err
 			}
 
-			arg1 := strings.TrimPrefix(args[1], "0x")
-			rawblob, err := hex.DecodeString(arg1)
-			if err != nil {
-				return fmt.Errorf("failure to decode hex blob: %w", err)
+			var blobs []*blob.Blob
+			// Skip the first argument as it's the namespaceID
+			blobArgs := args[1:]
+			for i := range blobArgs {
+				arg := strings.TrimPrefix(blobArgs[i], "0x")
+				rawblob, err := hex.DecodeString(arg)
+				if err != nil {
+					fmt.Printf("failure to decode hex blob, argument value %s: %s", blobArgs[i], err.Error())
+					continue
+				}
+
+				shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
+				blob, err := types.NewBlob(namespace, rawblob, shareVersion)
+				if err != nil {
+					fmt.Printf("failure to create blob from raw blob, argument value %s: %s", blobArgs[i], err.Error())
+					continue
+				}
+				blobs = append(blobs, blob)
 			}
 
-			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
-			blob, err := types.NewBlob(namespace, rawblob, shareVersion)
-			if err != nil {
-				return err
-			}
-
-			return broadcastPFB(cmd, blob)
+			return broadcastPFB(cmd, blobs...)
 		},
 	}
 
@@ -108,7 +114,7 @@ func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, 
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
 // this private func is used in CmdPayForBlob
-func broadcastPFB(cmd *cobra.Command, b *blob.Blob) error {
+func broadcastPFB(cmd *cobra.Command, b ...*blob.Blob) error {
 	clientCtx, err := client.GetClientTxContext(cmd)
 	if err != nil {
 		return err
@@ -116,7 +122,7 @@ func broadcastPFB(cmd *cobra.Command, b *blob.Blob) error {
 
 	// TODO: allow the user to override the share version via a new flag
 	// See https://github.com/celestiaorg/celestia-app/issues/1041
-	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), b)
+	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), b...)
 	if err != nil {
 		return err
 	}
@@ -131,7 +137,7 @@ func broadcastPFB(cmd *cobra.Command, b *blob.Blob) error {
 		return err
 	}
 
-	blobTx, err := blob.MarshalBlobTx(txBytes, b)
+	blobTx, err := blob.MarshalBlobTx(txBytes, b...)
 	if err != nil {
 		return err
 	}
