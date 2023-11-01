@@ -143,23 +143,17 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return
 	}
-	earliestAttestation, found, err := k.GetAttestationByNonce(ctx, k.GetEarliestAvailableAttestationNonce(ctx))
-	if err != nil {
-		ctx.Logger().Error("error getting earliest attestation for pruning", "err", err.Error())
-		return
-	}
+	found := k.CheckEarliestAvailableAttestationNonce(ctx)
 	if !found {
 		ctx.Logger().Error("couldn't find earliest attestation for pruning")
 		return
 	}
-	if earliestAttestation == nil {
-		ctx.Logger().Error("nil earliest attestation")
-		return
-	}
+
 	currentBlockTime := ctx.BlockTime()
 	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
+	earliestNounce := k.GetEarliestAvailableAttestationNonce(ctx)
 	var newEarliestAvailableNonce uint64
-	for newEarliestAvailableNonce = earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
+	for newEarliestAvailableNonce = earliestNounce; newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
 		newEarliestAttestation, found, err := k.GetAttestationByNonce(ctx, newEarliestAvailableNonce)
 		if err != nil {
 			ctx.Logger().Error("error getting attestation for pruning", "nonce", newEarliestAvailableNonce, "err", err.Error())
@@ -181,13 +175,13 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 		}
 		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
 	}
-	if newEarliestAvailableNonce > earliestAttestation.GetNonce() {
+	if newEarliestAvailableNonce > earliestNounce {
 		// some attestations were pruned and we need to update the state for it
 		k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
 		ctx.Logger().Debug(
 			"pruned attestations from Blobstream store",
 			"count",
-			newEarliestAvailableNonce-earliestAttestation.GetNonce(),
+			newEarliestAvailableNonce-earliestNounce,
 			"new_earliest_available_nonce",
 			newEarliestAvailableNonce,
 			"latest_attestation_nonce",
