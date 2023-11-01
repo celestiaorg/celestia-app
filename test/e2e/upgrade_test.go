@@ -19,15 +19,15 @@ import (
 const MajorVersion = 1
 
 func TestMinorVersionCompatibility(t *testing.T) {
-	if os.Getenv("E2E") == "" {
+	if os.Getenv("E2E") != "true" {
 		t.Skip("skipping e2e test")
 	}
 
-	if os.Getenv("E2E_VERSION") == "" {
+	if os.Getenv("E2E_VERSIONS") == "" {
 		t.Skip("skipping e2e test: E2E_VERSION not set")
 	}
 
-	versionStr := os.Getenv("E2E_VERSION")
+	versionStr := os.Getenv("E2E_VERSIONS")
 	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))

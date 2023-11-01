@@ -41,6 +41,12 @@ func (v Version) IsGreater(v2 Version) bool {
 	if v.Patch < v2.Patch {
 		return false
 	}
+	if !v.IsRC && v2.IsRC {
+		return true
+	}
+	if v.IsRC && !v2.IsRC {
+		return false
+	}
 	if v.RC > v2.RC {
 		return true
 	}
