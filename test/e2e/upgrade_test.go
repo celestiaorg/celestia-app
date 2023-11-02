@@ -50,7 +50,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		t.Log("Starting node", "node", i, "version", v)
-		require.NoError(t, testnet.CreateGenesisNode(v, 10000000))
+		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
@@ -87,4 +87,14 @@ func TestMinorVersionCompatibility(t *testing.T) {
 
 	err = <-errCh
 	require.True(t, errors.Is(err, context.Canceled), err.Error())
+}
+
+func MajorUpgradeToV2(t *testing.T) {
+	if os.Getenv("E2E") == "" {
+		t.Skip("skipping e2e test")
+	}
+
+	if os.Getenv("E2E_VERSIONS") == "" {
+		t.Skip("skipping e2e test: E2E_VERSION not set")
+	}
 }
