@@ -12,6 +12,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// chainIDToSha256 is a map of chainID to the SHA-256 hash of the genesis file for that chain ID.
+// To add a new chain-id, download the genesis file from the networks repo and compute the SHA-256 hash.
+// Add the chain-id and hash to this map.
 var chainIDToSha256 = map[string]string{
 	"celestia":   "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
 	"mocha-4":    "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
@@ -75,11 +78,7 @@ func getChainIDOrDefault(args []string) string {
 
 // isKnownChainID returns true if the chainID is known.
 func isKnownChainID(chainID string) bool {
-	knownChainIDs := []string{
-		"arabica-10", // testnet
-		"mocha-4",    // testnet
-		"celestia",   // mainnet
-	}
+	knownChainIDs := getKeys(chainIDToSha256)
 	return contains(knownChainIDs, chainID)
 }
 
@@ -125,4 +124,11 @@ func computeSha256(filepath string) (string, error) {
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+func getKeys(m map[string]string) (result []string) {
+	for key := range m {
+		result = append(result, key)
+	}
+	return result
 }
