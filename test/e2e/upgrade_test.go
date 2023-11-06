@@ -64,6 +64,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	require.NoError(t, testnet.Setup())
 	require.NoError(t, testnet.Start())
 
+	// TODO: with upgrade tests we should simulate a far broader range of transactions
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
 	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
@@ -116,7 +117,6 @@ func TestMinorVersionCompatibility(t *testing.T) {
 
 	// end the tx sim
 	cancel()
-
 	err = <-errCh
 	require.True(t, errors.Is(err, context.Canceled), err.Error())
 }
@@ -137,6 +137,8 @@ func MajorUpgradeToV2(t *testing.T) {
 	r := rand.New(rand.NewSource(seed))
 	upgradeHeight := int64(10)
 	startingVersion := versions.Random(r).String()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	preloader, err := knuu.NewPreloader()
 	require.NoError(t, err)
@@ -155,6 +157,30 @@ func MajorUpgradeToV2(t *testing.T) {
 		t.Log("Starting node", "node", i, "version", v)
 		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, upgradeHeight))
 	}
+
+	kr, err := testnet.CreateAccount("alice", 1e12)
+	require.NoError(t, err)
+
+	errCh := make(chan error)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
+	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	go func() {
+		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
+	}()
+
+	// wait for all nodes to move pass the upgrade height
+	for i := 0; i < numNodes; i++ {
+		client, err := testnet.Node(i).Client()
+		require.NoError(t, err)
+		require.NoError(t, waitForHeight(ctx, client, upgradeHeight+2, 30*time.Second))
+	}
+
+	// end txsim
+	cancel()
+	err = <-errCh
+	require.True(t, errors.Is(err, context.Canceled), err.Error())
 }
 
 func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (int64, error) {
