@@ -54,7 +54,7 @@ func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(
-		types.NewPayForBlobsEvent(sdk.AccAddress(msg.Signer).String(), msg.BlobSizes, msg.Namespaces),
+		types.NewPayForBlobsEvent(msg.Signer, msg.BlobSizes, msg.Namespaces),
 	)
 	if err != nil {
 		return &types.MsgPayForBlobsResponse{}, err
