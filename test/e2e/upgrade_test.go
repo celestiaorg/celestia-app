@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"testing"
@@ -13,21 +14,22 @@ import (
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 // This will only run tests within the v1 major release cycle
 const MajorVersion = 1
 
 func TestMinorVersionCompatibility(t *testing.T) {
-	if os.Getenv("E2E") == "" {
+	if os.Getenv("E2E") != "true" {
 		t.Skip("skipping e2e test")
 	}
 
-	if os.Getenv("E2E_VERSION") == "" {
+	if os.Getenv("E2E_VERSIONS") == "" {
 		t.Skip("skipping e2e test: E2E_VERSION not set")
 	}
 
-	versionStr := os.Getenv("E2E_VERSION")
+	versionStr := os.Getenv("E2E_VERSIONS")
 	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))
@@ -77,12 +79,38 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		if i%numNodes == 0 {
 			continue
 		}
+		client, err := testnet.Node(i % numNodes).Client()
+		require.NoError(t, err)
+		heightBefore, err := getHeight(ctx, client, time.Second)
+		require.NoError(t, err)
 		newVersion := versions.Random(r).String()
 		t.Log("Upgrading node", "node", i%numNodes, "version", newVersion)
-		err := testnet.Node(i % numNodes).Upgrade(newVersion)
+		err = testnet.Node(i % numNodes).Upgrade(newVersion)
 		require.NoError(t, err)
-		time.Sleep(2 * time.Second)
+		// wait for the node to reach two more heights
+		err = waitForHeight(ctx, client, heightBefore+2, 30*time.Second)
+		require.NoError(t, err)
 	}
+
+	heights := make([]int64, 4)
+	for i := 0; i < numNodes; i++ {
+		client, err := testnet.Node(i).Client()
+		require.NoError(t, err)
+		heights[i], err = getHeight(ctx, client, time.Second)
+		require.NoError(t, err)
+	}
+
+	const maxPermissableDiff = 2
+	for i := 0; i < len(heights); i++ {
+		for j := i + 1; j < len(heights); j++ {
+			diff := heights[i] - heights[j]
+			if diff > maxPermissableDiff {
+				t.Fatalf("node %d is behind node %d by %d blocks", j, i, diff)
+			}
+		}
+	}
+
+	// end the tx sim
 	cancel()
 
 	err = <-errCh
@@ -96,5 +124,43 @@ func MajorUpgradeToV2(t *testing.T) {
 
 	if os.Getenv("E2E_VERSIONS") == "" {
 		t.Skip("skipping e2e test: E2E_VERSION not set")
+	}
+}
+
+func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (int64, error) {
+	timer := time.NewTimer(period)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-timer.C:
+			return 0, fmt.Errorf("failed to get height after %.2f seconds", period.Seconds())
+		case <-ticker.C:
+			status, err := client.Status(ctx)
+			if err == nil {
+				return status.SyncInfo.LatestBlockHeight, nil
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return 0, err
+			}
+		}
+	}
+}
+
+func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
+	timer := time.NewTimer(period)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-timer.C:
+			return fmt.Errorf("failed to reach height %d in %.2f seconds", height, period.Seconds())
+		case <-ticker.C:
+			status, err := client.Status(ctx)
+			if err != nil {
+				return err
+			}
+			if status.SyncInfo.LatestBlockHeight >= height {
+				return nil
+			}
+		}
 	}
 }
