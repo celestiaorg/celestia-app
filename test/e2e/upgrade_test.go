@@ -31,6 +31,9 @@ func TestMinorVersionCompatibility(t *testing.T) {
 
 	versionStr := os.Getenv("E2E_VERSIONS")
 	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+	if len(versions) == 0 {
+		t.Skip("skipping e2e test: no versions to test")
+	}
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))
 	t.Log("Running minor version compatibility test", "versions", versions)

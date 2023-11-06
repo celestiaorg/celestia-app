@@ -41,7 +41,7 @@ func (v Version) IsGreater(v2 Version) bool {
 type VersionSet []Version
 
 func ParseVersions(versionStr string) VersionSet {
-	versions := strings.Split(versionStr, "\n")
+	versions := strings.Split(versionStr, " ")
 	output := make(VersionSet, 0, len(versions))
 	for _, v := range versions {
 		var major, minor, patch, rc uint64
@@ -101,6 +101,9 @@ func (v VersionSet) Order() {
 }
 
 func (v VersionSet) Random(r *rand.Rand) Version {
+	if len(v) == 0 {
+		panic("there are no versions to pick from")
+	}
 	return v[r.Intn(len(v))]
 }
 
