@@ -103,6 +103,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	t.Log("checking that all nodes are at the same height")
 	const maxPermissableDiff = 2
 	for i := 0; i < len(heights); i++ {
 		for j := i + 1; j < len(heights); j++ {
