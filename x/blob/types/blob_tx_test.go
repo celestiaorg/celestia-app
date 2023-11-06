@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
@@ -110,7 +111,7 @@ func TestValidateBlobTx(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				badCommit, err := types.CreateCommitment(
+				badCommit, err := inclusion.CreateCommitment(
 					&blob.Blob{
 						NamespaceVersion: uint32(namespace.RandomBlobNamespace().Version),
 						NamespaceId:      namespace.RandomBlobNamespace().ID,

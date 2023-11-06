@@ -3,10 +3,10 @@ package square
 import (
 	"bytes"
 	"fmt"
-	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -195,8 +195,12 @@ func (s Square) Size() int {
 	return Size(len(s))
 }
 
+// Size returns the size of the row or column in shares of a square. This
+// function is currently a wrapper around the da packages equivalent function to
+// avoid breaking the api. In future versions there will not be a copy of this
+// code here.
 func Size(len int) int {
-	return shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(len)))))
+	return da.SquareSize(len)
 }
 
 // Equals returns true if two squares are equal
@@ -227,7 +231,7 @@ func (s Square) IsEmpty() bool {
 
 // EmptySquare returns a 1x1 square with a single tail padding share
 func EmptySquare() Square {
-	return shares.TailPaddingShares(appconsts.MinShareCount)
+	return da.EmptySquareShares()
 }
 
 func WriteSquare(

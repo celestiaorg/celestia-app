@@ -91,4 +91,6 @@ sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${CELESTIA_APP
 echo "Starting celestia-app..."
 celestia-appd start \
   --home ${CELESTIA_APP_HOME} \
-  --api.enable
+  --api.enable \
+  --grpc.enable \
+  --grpc-web.enable

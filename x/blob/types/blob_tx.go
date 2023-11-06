@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -89,7 +90,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx blob.BlobTx) error {
 
 	// verify that the commitment of the blob matches that of the msgPFB
 	for i, commitment := range msgPFB.ShareCommitments {
-		calculatedCommit, err := CreateCommitment(bTx.Blobs[i])
+		calculatedCommit, err := inclusion.CreateCommitment(bTx.Blobs[i])
 		if err != nil {
 			return ErrCalculateCommitment
 		}

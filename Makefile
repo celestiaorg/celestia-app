@@ -5,6 +5,7 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
+HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -56,6 +57,12 @@ proto-lint:
 	@echo "--> Linting Protobuf files"
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
+
+## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
+proto-check-breaking:
+	@echo "--> Checking if Protobuf definitions have any breaking changes"
+	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
+.PHONY: proto-check-breaking
 
 ## proto-format: Format protobuf files. Requires docker.
 proto-format:
@@ -110,9 +117,8 @@ test-short:
 
 ## test-e2e: Run end to end tests via knuu.
 test-e2e:
-	@version=$(git rev-parse --short HEAD)
-	@echo "--> Running e2e tests on version: $version"
-	@KNUU_NAMESPACE=test E2E_VERSION=$version E2E=true go test ./test/e2e/... -timeout 30m
+	@echo "--> Running e2e tests on version: $(shell git rev-parse --short HEAD)"
+	@KNUU_NAMESPACE=test E2E_VERSION=$(shell git rev-parse --short HEAD) E2E=true go test ./test/e2e/... -timeout 10m -v
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
@@ -134,6 +140,10 @@ test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
+
+test-fuzz:
+	bash -x scripts/test_fuzz.sh
+.PHONY: test-fuzz
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
