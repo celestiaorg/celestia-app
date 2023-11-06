@@ -26,7 +26,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
-		t.Skip("skipping e2e test: E2E_VERSION not set")
+		t.Skip("skipping e2e test: E2E_VERSIONS not set")
 	}
 
 	versionStr := os.Getenv("E2E_VERSIONS")
