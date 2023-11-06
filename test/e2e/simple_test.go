@@ -29,7 +29,9 @@ func TestE2ESimple(t *testing.T) {
 	if os.Getenv("E2E_VERSIONS") != "" {
 		versionsStr := os.Getenv("E2E_VERSIONS")
 		versions := ParseVersions(versionsStr)
-		latestVersion = versions.GetLatest().String()
+		if len(versions) > 0 {
+			latestVersion = versions.GetLatest().String()
+		}
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 

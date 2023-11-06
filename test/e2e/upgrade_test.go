@@ -26,11 +26,14 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
-		t.Skip("skipping e2e test: E2E_VERSION not set")
+		t.Skip("skipping e2e test: E2E_VERSIONS not set")
 	}
 
 	versionStr := os.Getenv("E2E_VERSIONS")
 	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+	if len(versions) == 0 {
+		t.Skip("skipping e2e test: no versions to test")
+	}
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))
 	t.Log("Running minor version compatibility test", "versions", versions)
@@ -100,6 +103,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	t.Log("checking that all nodes are at the same height")
 	const maxPermissableDiff = 2
 	for i := 0; i < len(heights); i++ {
 		for j := i + 1; j < len(heights); j++ {
