@@ -23,28 +23,19 @@ func (v Version) String() string {
 }
 
 func (v Version) IsGreater(v2 Version) bool {
-	if v.Major > v2.Major {
-		return true
+	if v.Major != v2.Major {
+		return v.Major > v2.Major
 	}
-	if v.Major < v2.Major {
-		return false
+	if v.Minor != v2.Minor {
+		return v.Minor > v2.Minor
 	}
-	if v.Minor > v2.Minor {
-		return true
+	if v.Patch != v2.Patch {
+		return v.Patch > v2.Patch
 	}
-	if v.Minor < v2.Minor {
-		return false
+	if v.IsRC != v2.IsRC {
+		return !v.IsRC
 	}
-	if v.Patch > v2.Patch {
-		return true
-	}
-	if v.Patch < v2.Patch {
-		return false
-	}
-	if v.RC > v2.RC {
-		return true
-	}
-	return false
+	return v.RC > v2.RC
 }
 
 type VersionSet []Version

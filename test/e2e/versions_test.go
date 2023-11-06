@@ -38,3 +38,12 @@ func TestOrder(t *testing.T) {
 		require.True(t, versions[i].IsGreater(versions[i-1]))
 	}
 }
+
+func TestOrderOfReleaseCandidates(t *testing.T) {
+	versionsStr := "v1.0.0\nv1.0.0-rc0\nv1.0.0-rc1\n"
+	versions := e2e.ParseVersions(versionsStr)
+	versions.Order()
+	require.Equal(t, versions[0], e2e.Version{1, 0, 0, true, 0})
+	require.Equal(t, versions[1], e2e.Version{1, 0, 0, true, 1})
+	require.Equal(t, versions[2], e2e.Version{1, 0, 0, false, 0})
+}

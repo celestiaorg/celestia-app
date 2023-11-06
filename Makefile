@@ -115,9 +115,10 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu.
+## test-e2e: Run end to end tests via knuu. This requires a kube/config file to configure the kubernetes. Without
+## this, the test will not work
 test-e2e:
-	@export E2E_VERSION=$(git tag -l)
+	@export E2E_VERSIONS=$(git tag -l)
 	@echo "--> Running end to end tests"
 	@KNUU_NAMESPACE=test E2E=true go test ./test/e2e/... -timeout 10m -v
 .PHONY: test-e2e
