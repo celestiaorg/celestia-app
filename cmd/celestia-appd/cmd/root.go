@@ -46,7 +46,7 @@ const (
 	// FlagLogToFile specifies whether to log to file or not.
 	FlagLogToFile = "log-to-file"
 
-	UpgradeHeightFlag = "upgrade-height"
+	UpgradeHeightFlag = "v2-upgrade-height"
 )
 
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
@@ -156,7 +156,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
-	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch to v2. Must be coordinated amongst all validators")
+	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
 }
 
 func queryCommand() *cobra.Command {

@@ -8,7 +8,7 @@ require (
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.1 // indirect
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cast v1.5.0
@@ -31,7 +31,7 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/cosmos/gogoproto v1.4.11
-	github.com/cosmos/ibc-go/v6 v6.2.0
+	github.com/cosmos/ibc-go/v6 v6.2.1
 	github.com/rs/zerolog v1.31.0
 	github.com/tendermint/tendermint v0.34.28
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9

@@ -29,7 +29,9 @@ func TestE2ESimple(t *testing.T) {
 	if os.Getenv("E2E_VERSIONS") != "" {
 		versionsStr := os.Getenv("E2E_VERSIONS")
 		versions := ParseVersions(versionsStr)
-		latestVersion = versions.GetLatest().String()
+		if len(versions) > 0 {
+			latestVersion = versions.GetLatest().String()
+		}
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 
@@ -50,7 +52,7 @@ func TestE2ESimple(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	opts := txsim.DefaultOptions().WithSeed(seed)
+	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
