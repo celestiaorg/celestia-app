@@ -12,4 +12,4 @@ E2E=true KNUU_NAMESPACE=test go test ./test/e2e/... -timeout 30m
 
 ## Observation
 
-Logs of each of the nodes are posted to Grafana and can be accessed through Celestia's dashboard (using the `celestia-app` namespace).
+Logs of each of the nodes are posted to Grafana and can be accessed through Celestia's dashboard (using the `test` namespace).

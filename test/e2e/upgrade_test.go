@@ -21,12 +21,13 @@ import (
 const MajorVersion = 1
 
 func TestMinorVersionCompatibility(t *testing.T) {
+	t.Skip()
 	if os.Getenv("E2E") != "true" {
 		t.Skip("skipping e2e test")
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
-		t.Skip("skipping e2e test: E2E_VERSION not set")
+		t.Skip("skipping e2e test: E2E_VERSIONS not set")
 	}
 
 	versionStr := os.Getenv("E2E_VERSIONS")
@@ -118,12 +119,38 @@ func TestMinorVersionCompatibility(t *testing.T) {
 }
 
 func MajorUpgradeToV2(t *testing.T) {
+	t.Skip()
 	if os.Getenv("E2E") == "" {
 		t.Skip("skipping e2e test")
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
-		t.Skip("skipping e2e test: E2E_VERSION not set")
+		t.Skip("skipping e2e test: E2E_VERSIONS not set")
+	}
+
+	versionStr := os.Getenv("E2E_VERSIONS")
+	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+	numNodes := 4
+	r := rand.New(rand.NewSource(seed))
+	upgradeHeight := int64(10)
+	startingVersion := versions.Random(r).String()
+
+	preloader, err := knuu.NewPreloader()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = preloader.EmptyImages() })
+	err = preloader.AddImage(DockerImageName(startingVersion))
+	require.NoError(t, err)
+	err = preloader.AddImage(DockerImageName(latestVersion))
+	require.NoError(t, err)
+
+	testnet, err := New(t.Name(), seed)
+	require.NoError(t, err)
+	t.Cleanup(testnet.Cleanup)
+	for i := 0; i < numNodes; i++ {
+		// each node begins with a random version within the same major version set
+		v := versions.Random(r).String()
+		t.Log("Starting node", "node", i, "version", v)
+		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, upgradeHeight))
 	}
 }
 

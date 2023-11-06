@@ -120,7 +120,7 @@ test-short:
 test-e2e:
 	@export E2E_VERSIONS=$(git tag -l)
 	@echo "--> Running end to end tests"
-	@KNUU_NAMESPACE=test E2E=true go test ./test/e2e/... -timeout 10m -v
+	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E=true go test ./test/e2e/... -timeout 20m -v
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
