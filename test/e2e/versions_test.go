@@ -40,7 +40,7 @@ func TestOrder(t *testing.T) {
 }
 
 func TestOrderOfReleaseCandidates(t *testing.T) {
-	versionsStr := "v1.0.0 v1.0.0-rc0 v1.0.0-rc1 "
+	versionsStr := "v1.0.0 v1.0.0-rc0 v1.0.0-rc1"
 	versions := e2e.ParseVersions(versionsStr)
 	versions.Order()
 	require.Equal(t, versions[0], e2e.Version{1, 0, 0, true, 0})
