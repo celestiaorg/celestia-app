@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
@@ -9,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -19,6 +21,8 @@ import (
 // tendermint via the BlockData. Panics indicate a developer error and should
 // immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	fmt.Println("preparing proposal block height:", req.Height)
+
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
@@ -99,6 +103,14 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			err.Error(),
 		)
 		panic(err)
+	}
+
+	dr := dah.Hash()
+
+	if tmbytes.HexBytes(dr).String() == "257760461993F8F197B421EC7435F3C36C3734923E3DA9A42DC73B05F07B3D08" {
+		fmt.Println("txs", len(req.BlockData.Txs))
+		fmt.Println(dataSquare)
+		panic("bad data root")
 	}
 
 	// tendermint doesn't need to use any of the erasure data, as only the
