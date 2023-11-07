@@ -73,14 +73,14 @@ func CmdPayForBlob() *cobra.Command {
 				arg := strings.TrimPrefix(blobArgs[i], "0x")
 				rawblob, err := hex.DecodeString(arg)
 				if err != nil {
-					fmt.Printf("failure to decode hex blob, argument value %s: %s", blobArgs[i], err.Error())
+					fmt.Printf("failure to decode hex blob value %s: %s", blobArgs[i], err.Error())
 					continue
 				}
 
 				shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
 				blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 				if err != nil {
-					fmt.Printf("failure to create blob from raw blob, argument value %s: %s", blobArgs[i], err.Error())
+					fmt.Printf("failure to create blob with hex blob value %s: %s", blobArgs[i], err.Error())
 					continue
 				}
 				blobs = append(blobs, blob)
