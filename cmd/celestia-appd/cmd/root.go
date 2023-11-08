@@ -22,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -141,6 +142,9 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
 		qgbcmd.VerifyCmd(),
+	)
+	rootCmd.AddCommand(
+		snapshot.Cmd(NewAppServer),
 	)
 }
 
