@@ -159,7 +159,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
+		logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.Header.DataHash, dah.Hash()))
 		return reject()
 	}
 

@@ -1,0 +1,160 @@
+package e2e
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/rpc/client/http"
+)
+
+// This will only run tests within the v1 major release cycle
+const MajorVersion = 1
+
+func TestMinorVersionCompatibility(t *testing.T) {
+	if os.Getenv("E2E") != "true" {
+		t.Skip("skipping e2e test")
+	}
+
+	if os.Getenv("E2E_VERSIONS") == "" {
+		t.Skip("skipping e2e test: E2E_VERSIONS not set")
+	}
+
+	versionStr := os.Getenv("E2E_VERSIONS")
+	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+	if len(versions) == 0 {
+		t.Skip("skipping e2e test: no versions to test")
+	}
+	numNodes := 4
+	r := rand.New(rand.NewSource(seed))
+	t.Log("Running minor version compatibility test", "versions", versions)
+
+	testnet, err := New(t.Name(), seed)
+	require.NoError(t, err)
+	t.Cleanup(testnet.Cleanup)
+
+	// preload all docker images
+	preloader, err := knuu.NewPreloader()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = preloader.EmptyImages() })
+	for _, v := range versions {
+		err := preloader.AddImage(DockerImageName(v.String()))
+		require.NoError(t, err)
+	}
+
+	for i := 0; i < numNodes; i++ {
+		// each node begins with a random version within the same major version set
+		v := versions.Random(r).String()
+		t.Log("Starting node", "node", i, "version", v)
+		require.NoError(t, testnet.CreateGenesisNode(v, 10000000))
+	}
+
+	kr, err := testnet.CreateAccount("alice", 1e12)
+	require.NoError(t, err)
+
+	require.NoError(t, testnet.Setup())
+	require.NoError(t, testnet.Start())
+
+	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+
+	errCh := make(chan error)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	opts := txsim.DefaultOptions().WithSeed(seed)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
+	}()
+
+	for i := 0; i < len(versions)*2; i++ {
+		// FIXME: skip the first node because we need them available to
+		// submit txs
+		if i%numNodes == 0 {
+			continue
+		}
+		client, err := testnet.Node(i % numNodes).Client()
+		require.NoError(t, err)
+		heightBefore, err := getHeight(ctx, client, time.Second)
+		require.NoError(t, err)
+		newVersion := versions.Random(r).String()
+		t.Log("Upgrading node", "node", i%numNodes, "version", newVersion)
+		err = testnet.Node(i % numNodes).Upgrade(newVersion)
+		require.NoError(t, err)
+		// wait for the node to reach two more heights
+		err = waitForHeight(ctx, client, heightBefore+2, 30*time.Second)
+		require.NoError(t, err)
+	}
+
+	heights := make([]int64, 4)
+	for i := 0; i < numNodes; i++ {
+		client, err := testnet.Node(i).Client()
+		require.NoError(t, err)
+		heights[i], err = getHeight(ctx, client, time.Second)
+		require.NoError(t, err)
+	}
+
+	t.Log("checking that all nodes are at the same height")
+	const maxPermissableDiff = 2
+	for i := 0; i < len(heights); i++ {
+		for j := i + 1; j < len(heights); j++ {
+			diff := heights[i] - heights[j]
+			if diff > maxPermissableDiff {
+				t.Fatalf("node %d is behind node %d by %d blocks", j, i, diff)
+			}
+		}
+	}
+
+	// end the tx sim
+	cancel()
+
+	err = <-errCh
+	require.True(t, errors.Is(err, context.Canceled), err.Error())
+}
+
+func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (int64, error) {
+	timer := time.NewTimer(period)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-timer.C:
+			return 0, fmt.Errorf("failed to get height after %.2f seconds", period.Seconds())
+		case <-ticker.C:
+			status, err := client.Status(ctx)
+			if err == nil {
+				return status.SyncInfo.LatestBlockHeight, nil
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return 0, err
+			}
+		}
+	}
+}
+
+func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
+	timer := time.NewTimer(period)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	for {
+		select {
+		case <-timer.C:
+			return fmt.Errorf("failed to reach height %d in %.2f seconds", height, period.Seconds())
+		case <-ticker.C:
+			status, err := client.Status(ctx)
+			if err != nil {
+				return err
+			}
+			if status.SyncInfo.LatestBlockHeight >= height {
+				return nil
+			}
+		}
+	}
+}

@@ -22,13 +22,18 @@ var latestVersion = "latest"
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func TestE2ESimple(t *testing.T) {
-	if os.Getenv("E2E") == "" {
+	if os.Getenv("E2E") != "true" {
 		t.Skip("skipping e2e test")
 	}
 
-	if os.Getenv("E2E_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_VERSION")
+	if os.Getenv("E2E_VERSIONS") != "" {
+		versionsStr := os.Getenv("E2E_VERSIONS")
+		versions := ParseVersions(versionsStr)
+		if len(versions) > 0 {
+			latestVersion = versions.GetLatest().String()
+		}
 	}
+	t.Log("Running simple e2e test", "version", latestVersion)
 
 	testnet, err := New(t.Name(), seed)
 	require.NoError(t, err)
