@@ -1,14 +1,17 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -101,6 +104,12 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
+	// NOTE - this is a temporary check to try catch an unusual case where an
+	// empty tx set returns a different data root than the one we expect.
+	if len(txs) == 0 {
+		checkInvalidDataRoot(dah.Hash(), req.Height, eds)
+	}
+
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
 	return abci.ResponsePrepareProposal{
@@ -109,5 +118,19 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			SquareSize: uint64(dataSquare.Size()),
 			Hash:       dah.Hash(),
 		},
+	}
+}
+
+// for blocks with no txs, we expect a data root of
+// 3D96B7D238E7E0456F6AF8E7CDF0A67BD6CF9C2089ECB559C659DCAA1F880353
+// however we have noticed an edge case where the data root is as follows:
+const invalidDataRoot = "257760461993F8F197B421EC7435F3C36C3734923E3DA9A42DC73B05F07B3D08"
+
+func checkInvalidDataRoot(hash []byte, height int64, eds *rsmt2d.ExtendedDataSquare) {
+	if tmbytes.HexBytes(hash).String() == invalidDataRoot {
+		// dump the entire square
+		fmt.Println("square at height", height)
+		fmt.Println(eds.Flattened())
+		panic("invalid data root calculated from empty tx set")
 	}
 }
