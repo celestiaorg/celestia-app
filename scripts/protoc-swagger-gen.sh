@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Run from the project root directory
+# This script generates the swagger.yaml documentation for the rest API on port 1317
+#
+# Prior to running this script, please install the following::
+# - Install Node v18.12.0 (LTS)  
+# - Install Go 1.21+  
+
 set -eo pipefail
 
 work_dir="$(dirname "$(dirname "$(realpath "$0")")")"
@@ -22,14 +29,12 @@ gogo_proto_dir=$(go list -f '{{ .Dir }}' -m github.com/gogo/protobuf)
 google_api_dir=$(go list -f '{{ .Dir }}' -m github.com/grpc-ecosystem/grpc-gateway)
 cosmos_sdk_dir=$(go list -f '{{ .Dir }}' -m github.com/cosmos/cosmos-sdk)
 cosmos_proto_dir=$(go list -f '{{ .Dir }}' -m github.com/cosmos/cosmos-proto)
-ibc_dir=$(go list -f '{{ .Dir }}' -m github.com/cosmos/ibc-go/v6)
 
 proto_dirs=$(find \
     $cosmos_sdk_dir/proto \
     $cosmos_proto_dir/proto \
     $work_dir/proto \
     -path -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq
-    #$ibc_dir/proto \
 )
 
 cd $google_api_dir
@@ -44,7 +49,6 @@ for dir in $proto_dirs; do
   query_file=$(find "${dir}" -maxdepth 1 \( -name 'query.proto' -o -name 'service.proto' \))
   
   if [[ ! -z "$query_file" ]]; then
-    #-I "$ibc_dir/proto" \
     protoc  \
     -I "$gogo_proto_dir" \
     -I "$gogo_proto_dir/protobuf" \
