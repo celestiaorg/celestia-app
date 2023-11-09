@@ -3,22 +3,22 @@ package celestia.upgrade.v1;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/upgrade";
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
 
 // Msg defines the upgrade Msg service.
 service Msg {
-  // SignalUpgrade allows the validator to signal for an upgrade
-  rpc SignalUpgrade(MsgSignalUpgrade) returns (MsgSignalUpgradeResponse) {
+  // SignalVersion allows the validator to signal for an upgrade
+  rpc SignalVersion(MsgSignalVersion) returns (MsgSignalVersionResponse) {
     option (google.api.http).get = "/upgrade/v1/signal";
   }
 }
 
-// MsgSignalUpgrade signals for an upgrade
-message MsgSignalUpgrade {
+// MsgSignalVersion signals for an upgrade
+message MsgSignalVersion {
   string validator_address = 1;
   uint64 version = 2;
 }
 
-// MsgSignalUpgradeResponse describes the response returned after the submission
-// of a SignalUpgrade
-message MsgSignalUpgradeResponse {}
+// MsgSignalVersionResponse describes the response returned after the submission
+// of a SignalVersion
+message MsgSignalVersionResponse {}

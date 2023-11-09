@@ -1,10 +1,10 @@
 syntax = "proto3";
-package celestia.blob.v1;
+package celestia.upgrade.v1;
 
 import "google/api/annotations.proto";
-import "celestia/blob/v1/params.proto";
+import "celestia/upgrade/v1/params.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/upgrade";
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
 
 // Query defines the upgrade Query service.
 service Query {
@@ -13,11 +13,11 @@ service Query {
     option (google.api.http).get = "/upgrade/v1/params";
   }
 
-  // UpgradeStatus allows the querying of the tally of voting power by all
+  // VersionTally allows the querying of the tally of voting power by all
   // validators that have signalled for each version
-  rpc UpgradeStatus(QueryUpgradeStatusRequest)
-      returns (QueryUpgradeStatusResponse) {
-    option (google.api.http).get = "/upgrade/v1/status";
+  rpc VersionTally(QueryVersionTallyRequest)
+      returns (QueryVersionTallyResponse) {
+    option (google.api.http).get = "/upgrade/v1/tally/{version}";
   }
 }
 
@@ -27,10 +27,13 @@ message QueryParamsRequest {}
 // QueryParamsResponse is the response type for the Params RPC method.
 message QueryParamsResponse { Params params = 1; }
 
-// QueryUpgradeStatusRequest is the request type for the UpgradeStatus RPC
+// QueryVersionTallyRequest is the request type for the UpgradeStatus RPC
 // method.
-message QueryUpgradeStatusRequest { uint64 version = 1; }
+message QueryVersionTallyRequest { uint64 version = 1; }
 
-// QueryUpgradeStatusResponse is the response type for the UpgradeStatus RPC
+// QueryVersionTallyResponse is the response type for the UpgradeStatus RPC
 // method.
-message QueryUpgradeStatusResponse { uint64 voting_power = 1; }
+message QueryVersionTallyResponse {
+  uint64 voting_power = 1;
+  uint64 total_voting_power = 2;
+}
