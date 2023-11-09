@@ -136,6 +136,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// have been followed and thus each blobs share commitment should be valid
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
 		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
+		fmt.Println("square at height", req.Header.Height)
+		fmt.Println("proposed data root", req.Header.DataHash, "calculated data root", dah.Hash())
+		fmt.Println(eds.Flattened())
 		return reject()
 	}
 
