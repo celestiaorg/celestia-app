@@ -1,8 +1,6 @@
 package upgrade
 
 import (
-	fmt "fmt"
-
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -16,26 +14,18 @@ type Keeper struct {
 	// safely be ported over without any migration
 	storeKey storetypes.StoreKey
 
-	// in memory copy of the upgrade schedule if any. This is local per node
+	// in memory copy of the upgrade height if any. This is local per node
 	// and configured from the config.
-	upgradeSchedule map[string]Schedule
-
-	// the app version that should be set in end blocker
-	pendingAppVersion uint64
+	upgradeHeight int64
 }
 
 type VersionSetter func(version uint64)
 
 // NewKeeper constructs an upgrade keeper
-func NewKeeper(storeKey storetypes.StoreKey, upgradeSchedule map[string]Schedule) Keeper {
-	for chainID, schedule := range upgradeSchedule {
-		if err := schedule.ValidateBasic(); err != nil {
-			panic(fmt.Sprintf("invalid schedule %s: %v", chainID, err))
-		}
-	}
+func NewKeeper(storeKey storetypes.StoreKey, upgradeHeight int64) Keeper {
 	return Keeper{
-		storeKey:        storeKey,
-		upgradeSchedule: upgradeSchedule,
+		storeKey:      storeKey,
+		upgradeHeight: upgradeHeight,
 	}
 }
 
@@ -98,4 +88,10 @@ func (k Keeper) ClearIBCState(ctx sdk.Context, lastHeight int64) {
 	store := ctx.KVStore(k.storeKey)
 	store.Delete(types.UpgradedClientKey(lastHeight))
 	store.Delete(types.UpgradedConsStateKey(lastHeight))
+}
+
+// ShouldUpgrade returns true if the current height is one before
+// the locally provided upgrade height that is passed as a flag
+func (k Keeper) ShouldUpgrade(height int64) bool {
+	return k.upgradeHeight == height+1
 }

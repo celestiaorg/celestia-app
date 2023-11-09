@@ -140,7 +140,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	genesisState := app.NewDefaultGenesisState(encCdc.Codec)
 	app := app.New(
-		log.NewNopLogger(), db, nil, true, 5, encCdc, nil, simapp.EmptyAppOptions{},
+		log.NewNopLogger(), db, nil, true, 5, encCdc, 0, simapp.EmptyAppOptions{},
 	)
 
 	// set genesis accounts

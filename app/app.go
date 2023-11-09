@@ -85,6 +85,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -239,6 +240,10 @@ type App struct {
 }
 
 // New returns a reference to an initialized celestia app.
+//
+// NOTE: upgradeHeight refers specifically to the height that
+// a node will upgrade from v1 to v2. It will be deprecated in v3
+// in place for a dynamically signalling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -246,16 +251,10 @@ func New(
 	loadLatest bool,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeSchedule map[string]upgrade.Schedule,
+	upgradeHeight int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	for _, schedule := range upgradeSchedule {
-		if err := schedule.ValidateVersions(supportedVersions); err != nil {
-			panic(err)
-		}
-	}
-
 	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
@@ -334,7 +333,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeSchedule)
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeHeight)
 
 	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
@@ -574,14 +573,10 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
-	if app.UpgradeKeeper.ShouldUpgrade() {
-		newAppVersion := app.UpgradeKeeper.GetNextAppVersion()
-		app.SetProtocolVersion(newAppVersion)
-		_, err := app.mm.RunMigrations(ctx, app.configurator, GetModuleVersion(newAppVersion))
-		if err != nil {
-			panic(err)
-		}
-		app.UpgradeKeeper.MarkUpgradeComplete()
+	// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
+	// to be coordinated through the signalling protocol
+	if app.UpgradeKeeper.ShouldUpgrade(req.Height) {
+		app.SetProtocolVersion(v2.Version)
 	}
 	return res
 }
