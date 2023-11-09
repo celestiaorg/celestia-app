@@ -101,8 +101,15 @@ func Run(
 			log.Info().Err(err).Msg("sequence terminated")
 			continue
 		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			continue
+		}
 		log.Error().Err(err).Msg("sequence failed")
 		finalErr = err
+	}
+
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 
 	return finalErr
