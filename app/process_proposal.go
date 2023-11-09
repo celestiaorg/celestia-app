@@ -32,6 +32,15 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		}
 	}()
 
+	if req.Header.Height == 532423 {
+		// at this height simulate the proposer
+		_ = app.PrepareProposal(abci.RequestPrepareProposal{
+			BlockData: &tmproto.Data{
+				Txs: [][]byte{},
+			},
+		})
+	}
+
 	// Create the anteHander that are used to check the validity of
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
