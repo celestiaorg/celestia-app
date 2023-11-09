@@ -26,12 +26,8 @@ func TestE2ESimple(t *testing.T) {
 		t.Skip("skipping e2e test")
 	}
 
-	if os.Getenv("E2E_VERSIONS") != "" {
-		versionsStr := os.Getenv("E2E_VERSIONS")
-		versions := ParseVersions(versionsStr)
-		if len(versions) > 0 {
-			latestVersion = versions.GetLatest().String()
-		}
+	if os.Getenv("E2E_LATEST_VERSION") != "" {
+		latestVersion = os.Getenv("E2E_LATEST_VERSION")		
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 
