@@ -117,6 +117,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 
 	// end the tx sim
 	cancel()
+
 	err = <-errCh
 	require.True(t, errors.Is(err, context.Canceled), err.Error())
 }
@@ -179,6 +180,7 @@ func MajorUpgradeToV2(t *testing.T) {
 
 	// end txsim
 	cancel()
+
 	err = <-errCh
 	require.True(t, errors.Is(err, context.Canceled), err.Error())
 }

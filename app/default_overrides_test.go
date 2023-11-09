@@ -9,6 +9,7 @@ import (
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/assert"
+	tmcfg "github.com/tendermint/tendermint/config"
 )
 
 // Test_newGovModule verifies that the gov module's genesis state has defaults
@@ -62,4 +63,29 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, uint64(1500), cfg.StateSync.SnapshotInterval)
 	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
 	assert.Equal(t, "0.1utia", cfg.MinGasPrices)
+}
+
+func TestDefaultConsensusConfig(t *testing.T) {
+	got := DefaultConsensusConfig()
+
+	t.Run("mempool overrides", func(t *testing.T) {
+		want := tmcfg.MempoolConfig{
+			// defaults
+			Broadcast:             tmcfg.DefaultMempoolConfig().Broadcast,
+			CacheSize:             tmcfg.DefaultMempoolConfig().CacheSize,
+			KeepInvalidTxsInCache: tmcfg.DefaultMempoolConfig().KeepInvalidTxsInCache,
+			Recheck:               tmcfg.DefaultMempoolConfig().Recheck,
+			RootDir:               tmcfg.DefaultMempoolConfig().RootDir,
+			Size:                  tmcfg.DefaultMempoolConfig().Size,
+			WalPath:               tmcfg.DefaultMempoolConfig().WalPath,
+
+			// overrides
+			MaxTxBytes:   7_897_088,
+			MaxTxsBytes:  39_485_440,
+			TTLDuration:  75 * time.Second,
+			TTLNumBlocks: 5,
+			Version:      "v1",
+		}
+		assert.Equal(t, want, *got.Mempool)
+	})
 }
