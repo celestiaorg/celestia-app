@@ -1,0 +1,24 @@
+syntax = "proto3";
+package celestia.upgrade.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade";
+
+// Msg defines the upgrade Msg service.
+service Msg {
+  // SignalUpgrade allows the validator to signal for an upgrade
+  rpc SignalUpgrade(MsgSignalUpgrade) returns (MsgSignalUpgradeResponse) {
+    option (google.api.http).get = "/upgrade/v1/signal";
+  }
+}
+
+// MsgSignalUpgrade signals for an upgrade
+message MsgSignalUpgrade {
+  string validator_address = 1;
+  uint64 version = 2;
+}
+
+// MsgSignalUpgradeResponse describes the response returned after the submission
+// of a SignalUpgrade
+message MsgSignalUpgradeResponse {}

@@ -1,0 +1,11 @@
+syntax = "proto3";
+package celestia.upgrade.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade";
+
+// Params defines the parameters for the upgrade module.
+message Params {
+  // Quorum represents the minimum voting power for an upgrade to go through.
+  // It must be at least 2/3.
+  uint64 quorum = 1;
+}
