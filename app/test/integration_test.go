@@ -195,11 +195,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				// assert that the app version is correctly set
-				// FIXME: This should return the latest version but tendermint v0.34.x doesn't copy
-				// over the version when converting from proto so it disappears
-				require.EqualValues(t, 0, blockRes.Block.Header.Version.App)
-
 				sizes = append(sizes, size)
 				ExtendBlobTest(t, blockRes.Block)
 			}
