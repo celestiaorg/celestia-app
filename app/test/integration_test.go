@@ -210,10 +210,6 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blob.Blob {
-		return blob.New(ns, data, shareVersion)
-	}
-
 	type test struct {
 		name string
 		blob *blob.Blob
@@ -223,7 +219,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	tests := []test{
 		{
 			"small random typical",
-			mustNewBlob(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
+			blob.New(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
 			[]user.TxOption{
 				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 				user.SetGasLimit(1_000_000_000),
@@ -231,7 +227,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			mustNewBlob(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
+			blob.New(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
 			[]user.TxOption{
 				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 				user.SetGasLimit(1_000_000_000),
@@ -239,7 +235,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with memo",
-			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
+			blob.New(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
 			[]user.TxOption{
 				user.SetMemo("lol I could stick the rollup block here if I wanted to"),
 				user.SetGasLimit(1_000_000_000),
@@ -247,7 +243,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with timeout height",
-			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
+			blob.New(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
 			[]user.TxOption{
 				user.SetTimeoutHeight(10000),
 				user.SetGasLimit(1_000_000_000),
@@ -396,27 +392,27 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	testCases := []testCase{
 		{
 			name:           "1,000 byte blob",
-			blob:           mustNewBlob(1_000),
+			blob:           newBlobWithSize(1_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "10,000 byte blob",
-			blob:           mustNewBlob(10_000),
+			blob:           newBlobWithSize(10_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "100,000 byte blob",
-			blob:           mustNewBlob(100_000),
+			blob:           newBlobWithSize(100_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "1,000,000 byte blob",
-			blob:           mustNewBlob(1_000_000),
+			blob:           newBlobWithSize(1_000_000),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
 			name:           "10,000,000 byte blob returns err tx too large",
-			blob:           mustNewBlob(10_000_000),
+			blob:           newBlobWithSize(10_000_000),
 			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
 		},
 	}
@@ -437,8 +433,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	}
 }
 
-func mustNewBlob(blobSize int) *blob.Blob {
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	data := tmrand.Bytes(blobSize)
-	return blob.New(ns1, data, appconsts.ShareVersionZero)
+func newBlobWithSize(size int) *blob.Blob {
+	ns := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	data := tmrand.Bytes(size)
+	return blob.New(ns, data, appconsts.ShareVersionZero)
 }
