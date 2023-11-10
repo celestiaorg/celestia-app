@@ -19,6 +19,10 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
+const (
+	Kibibyte = 1024
+)
+
 func TestIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping full node integration test in short mode.")
@@ -72,13 +76,13 @@ func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 	require.NoError(err)
 }
 
-func (s *IntegrationTestSuite) Test_PostData() {
+func (s *IntegrationTestSuite) TestPostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(Kibibyte))
 	require.NoError(err)
 }
 
-func (s *IntegrationTestSuite) Test_FillBlock() {
+func (s *IntegrationTestSuite) TestFillBlock() {
 	require := s.Require()
 
 	for squareSize := 2; squareSize <= appconsts.DefaultGovMaxSquareSize; squareSize *= 2 {
@@ -98,7 +102,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 	}
 }
 
-func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
+func (s *IntegrationTestSuite) TestFillBlock_InvalidSquareSizeError() {
 	tests := []struct {
 		name        string
 		squareSize  int
