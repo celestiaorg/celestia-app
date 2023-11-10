@@ -186,7 +186,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
 				sizes = append(sizes, size)
-				ExtendBlobTest(t, blockRes.Block)
+				ExtendBlockTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -194,8 +194,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		require.NoError(t, s.cctx.WaitForNextBlock())
 	}
 }
-
-func getSquareSizes()
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
@@ -339,9 +337,9 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	}
 }
 
-// ExtendBlobTest re-extends the block and compares the data roots to ensure
+// ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
-func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
+func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
@@ -361,7 +359,7 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
 		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
-		ExtendBlobTest(t, blockRes.Block)
+		ExtendBlockTest(t, blockRes.Block)
 	}
 }
 
