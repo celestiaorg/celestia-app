@@ -6,6 +6,8 @@ import (
 	"github.com/testground/sdk-go/runtime"
 )
 
+const FailedState = "failed"
+
 // EntryPoint is the universal entry point for all role based tests.
 func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	initCtx, ctx, cancel, err := compositions.InitTest(runenv, initCtx)

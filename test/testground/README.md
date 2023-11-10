@@ -1,5 +1,85 @@
 # Testground Experiement Tooling
 
+## Flow
+
+```go
+// Role is the interface between a testground test entrypoint and the actual
+// test logic. Testground creates many instances and passes each instance a
+// configuration from the plan and manifest toml files. From those
+// configurations a Role is created for each node, and the three methods below
+// are ran in order.
+type Role interface {
+	// Plan is the first function called in a test by each node. It is
+	// responsible for creating the genesis block, configuring nodes, and
+	// starting the network.
+	Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
+	// Execute is the second function called in a test by each node. It is
+	// responsible for running any experiments. This is phase where commands are
+	// sent and received.
+	Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
+	// Retro is the last function called in a test by each node. It is
+	// responsible for collecting any data from the node and/or running any
+	// retrospective tests or benchmarks.
+	Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
+}
+
+var _ Role = (*Leader)(nil)
+
+var _ Role = (*Follower)(nil)
+```
+
+```mermaid
+sequenceDiagram
+    participant I as Initializer Node
+    participant L as Leader Node
+    participant F1 as Follower Node 1
+    participant F2 as Follower Node 2
+    participant Fn as Follower Node N
+
+    Note over I, Fn: Testground Initialization
+    I->>L: Create Leader Node Instance
+    I->>F1: Create Follower Node 1 Instance
+    I->>F2: Create Follower Node 2 Instance
+    I->>Fn: Create Follower Node N Instance
+
+    Note over L, Fn: EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext)
+    
+    Note over L, Fn: Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext)
+    F1->>L: Send GenTx
+    F2->>L: Send GenTx
+    Fn->>L: Send GenTx
+
+    Note over L: Genesis Creation
+    L->>L: Collect GenTx
+
+    L->>F1: Send Genesis File
+    L->>F2: Send Genesis File
+    L->>Fn: Send Genesis File
+
+    Note over L: Configuration
+    L->>L: Configurators
+
+    L->>F1: Send Config Files
+    L->>F2: Send Config Files
+    L->>Fn: Send Config Files
+
+    Note over L, Fn: Start Network
+
+    Note over L, Fn: Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext)
+
+    L->>F1: Send Arbitrary Commands
+    L->>F2: Send Arbitrary Commands
+    L->>Fn: Send Arbitrary Commands
+
+    L->>F1: Send EndTest Command
+    L->>F2: Send EndTest Command
+    L->>Fn: Send EndTest Command
+
+    Note over L, Fn: Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext)
+
+    Note over L: Process log local data
+```
+
 ## Configuring an experiment
 
 ### Tracing

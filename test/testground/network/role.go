@@ -21,11 +21,13 @@ const (
 // configurations a Role is created for each node, and the three methods below
 // are ran in order.
 type Role interface {
-	// Plan is the first function called in a test by each node. It is responsible
-	// for creating the genesis block and distributing it to all nodes.
+	// Plan is the first function called in a test by each node. It is
+	// responsible for creating the genesis block, configuring nodes, and
+	// starting the network.
 	Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
 	// Execute is the second function called in a test by each node. It is
-	// responsible for starting the node and/or running any tests.
+	// responsible for running any experiments. This is phase where commands are
+	// sent and received.
 	Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error
 	// Retro is the last function called in a test by each node. It is
 	// responsible for collecting any data from the node and/or running any
