@@ -173,10 +173,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				resp, err := testnode.QueryTx(s.cctx.Context, hash, true)
 				require.NoError(t, err)
-				assert.NotNil(t, resp)
-				if resp == nil {
-					continue
-				}
+				require.NotNil(t, resp)
 				require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code, resp.TxResult.Log)
 				heights[resp.Height]++
 				// ensure that some gas was used
