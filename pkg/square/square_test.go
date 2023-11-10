@@ -134,12 +134,10 @@ func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blob
 	)
 }
 
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func TestSquareBlobShareRange_Flaky(t *testing.T) {
-	rand := tmrand.NewRand()
+func TestSquareBlobShareRange(t *testing.T) {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	txs := blobfactory.RandBlobTxsRandomlySized(signer, rand, 10, 1000, 10).ToSliceOfBytes()
+	txs := blobfactory.RandBlobTxsRandomlySized(signer, tmrand.NewRand(), 10, 1000, 10).ToSliceOfBytes()
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)
@@ -153,6 +151,7 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 		for blobIdx := range blobTx.Blobs {
 			shareRange, err := square.BlobShareRange(txs, pfbIdx, blobIdx, appconsts.LatestVersion)
 			require.NoError(t, err)
+			require.LessOrEqual(t, shareRange.End, len(dataSquare))
 			blobShares := dataSquare[shareRange.Start:shareRange.End]
 			blobSharesBytes, err := rawData(blobShares)
 			require.NoError(t, err)
