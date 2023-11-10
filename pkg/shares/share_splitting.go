@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/maps"
@@ -73,7 +74,7 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 }
 
 // SplitBlobs splits the provided blobs into shares.
-func SplitBlobs(blobs ...coretypes.Blob) ([]Share, error) {
+func SplitBlobs(blobs ...*blob.Blob) ([]Share, error) {
 	writer := NewSparseShareSplitter()
 	for _, blob := range blobs {
 		if err := writer.Write(blob); err != nil {

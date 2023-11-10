@@ -13,7 +13,7 @@ import (
 
 // InitFiles initializes the files for a new tendermint node with the provided
 // genesis. It will use the validatorIndex to save the validator's consensus
-// key. TODO: abstract this function so that testground can use it.
+// key.
 func InitFiles(
 	dir string,
 	tmCfg *config.Config,

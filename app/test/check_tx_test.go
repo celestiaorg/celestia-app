@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
@@ -82,9 +83,9 @@ func TestCheckTx(t *testing.T) {
 					[]int{100},
 				)[0]
 
-				dtx, _ := coretypes.UnmarshalBlobTx(btx)
+				dtx, _ := blob.UnmarshalBlobTx(btx)
 				dtx.Blobs[0].NamespaceId = appns.RandomBlobNamespace().ID
-				bbtx, err := coretypes.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
+				bbtx, err := blob.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
 			},

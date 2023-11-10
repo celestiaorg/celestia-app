@@ -4,6 +4,7 @@ import (
 	"io"
 	mrand "math/rand"
 
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
@@ -17,6 +18,6 @@ func NewSeed(r *mrand.Rand) []byte {
 	return seed
 }
 
-func GenerateEd25519(seed []byte) ed25519.PrivKey {
+func GenerateEd25519(seed []byte) crypto.PrivKey {
 	return ed25519.GenPrivKeyFromSecret(seed)
 }

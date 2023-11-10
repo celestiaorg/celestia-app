@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -66,13 +67,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	sdkupgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
-	sdkupgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v6/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
-	ibcclient "github.com/cosmos/ibc-go/v6/modules/core/02-client"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
@@ -87,17 +85,17 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
-	appupgrade "github.com/celestiaorg/celestia-app/x/upgrade"
 
-	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
-	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
-	qgbmoduletypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	bsmodule "github.com/celestiaorg/celestia-app/x/blobstream"
+	bsmodulekeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
+	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
@@ -144,7 +142,7 @@ var (
 		capability.AppModuleBasic{},
 		stakingModule{},
 		mintModule{},
-		distr.AppModuleBasic{},
+		distributionModule{},
 		newGovModule(),
 		params.AppModuleBasic{},
 		crisisModule{},
@@ -156,12 +154,12 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		blobmodule.AppModuleBasic{},
-		qgbmodule.AppModuleBasic{},
+		bsmodule.AppModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
 	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = extractRegisters(ModuleBasics, appupgrade.TypeRegister{})
+	ModuleEncodingRegisters = extractRegisters(ModuleBasics, upgrade.TypeRegister{})
 
 	// module account permissions
 	maccPerms = map[string][]string{
@@ -220,7 +218,7 @@ type App struct {
 	DistrKeeper      distrkeeper.Keeper
 	GovKeeper        govkeeper.Keeper
 	CrisisKeeper     crisiskeeper.Keeper
-	UpgradeKeeper    sdkupgradekeeper.Keeper
+	UpgradeKeeper    upgrade.Keeper
 	ParamsKeeper     paramskeeper.Keeper
 	IBCKeeper        *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper   evidencekeeper.Keeper
@@ -231,23 +229,29 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper blobmodulekeeper.Keeper
-	QgbKeeper  qgbmodulekeeper.Keeper
+	BlobKeeper       blobmodulekeeper.Keeper
+	BlobstreamKeeper bsmodulekeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
+
+	// module configurator
+	configurator module.Configurator
 }
 
 // New returns a reference to an initialized celestia app.
+//
+// NOTE: upgradeHeight refers specifically to the height that
+// a node will upgrade from v1 to v2. It will be deprecated in v3
+// in place for a dynamically signalling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
-	skipUpgradeHeights map[int64]bool,
-	homePath string,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
+	upgradeHeight int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -263,10 +267,10 @@ func New(
 	keys := sdk.NewKVStoreKeys(
 		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, sdkupgradetypes.StoreKey, feegrant.StoreKey,
+		govtypes.StoreKey, paramstypes.StoreKey, upgrade.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
 		blobmoduletypes.StoreKey,
-		qgbmoduletypes.StoreKey,
+		bsmoduletypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
 	)
@@ -329,22 +333,22 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = sdkupgradekeeper.NewKeeper(skipUpgradeHeights, keys[sdkupgradetypes.StoreKey], appCodec, homePath, app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeHeight)
 
-	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
+	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
-		keys[qgbmoduletypes.StoreKey],
-		app.GetSubspace(qgbmoduletypes.ModuleName),
+		keys[bsmoduletypes.StoreKey],
+		app.GetSubspace(bsmoduletypes.ModuleName),
 		&stakingKeeper,
 	)
-	qgbmod := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+	bsmod := bsmodule.NewAppModule(appCodec, app.BlobstreamKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.StakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
-			app.QgbKeeper.Hooks(),
+			app.BlobstreamKeeper.Hooks(),
 		),
 	)
 
@@ -361,7 +365,7 @@ func New(
 	govRouter := oldgovtypes.NewRouter()
 	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
-		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
+		AddRoute(ibcclienttypes.RouterKey, NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
 	// Create Transfer Keepers
 	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
@@ -437,7 +441,7 @@ func New(
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
 		blobmod,
-		qgbmod,
+		bsmod,
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -460,10 +464,11 @@ func New(
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobmoduletypes.ModuleName,
-		qgbmoduletypes.ModuleName,
+		bsmoduletypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
+		upgrade.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -482,10 +487,11 @@ func New(
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobmoduletypes.ModuleName,
-		qgbmoduletypes.ModuleName,
+		bsmoduletypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
+		upgrade.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -508,12 +514,12 @@ func New(
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		blobmoduletypes.ModuleName,
-		qgbmoduletypes.ModuleName,
+		bsmoduletypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
-		sdkupgradetypes.ModuleName,
+		upgrade.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -521,8 +527,8 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
-	configurator := module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.mm.RegisterServices(configurator)
+	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	app.mm.RegisterServices(app.configurator)
 
 	// initialize stores
 	app.MountKVStores(keys)
@@ -566,7 +572,13 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	res := app.mm.EndBlock(ctx, req)
+	// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
+	// to be coordinated through the signalling protocol
+	if app.UpgradeKeeper.ShouldUpgrade(req.Height) {
+		app.SetProtocolVersion(v2.Version)
+	}
+	return res
 }
 
 // InitChainer application update at chain initialization
@@ -575,7 +587,9 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap())
+	if req.ConsensusParams != nil && req.ConsensusParams.Version != nil {
+		app.SetProtocolVersion(req.ConsensusParams.Version.AppVersion)
+	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
@@ -740,7 +754,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(blobmoduletypes.ModuleName)
-	paramsKeeper.Subspace(qgbmoduletypes.ModuleName)
+	paramsKeeper.Subspace(bsmoduletypes.ModuleName)
 
 	return paramsKeeper
 }

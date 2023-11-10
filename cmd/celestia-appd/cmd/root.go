@@ -4,9 +4,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
+	bscmd "github.com/celestiaorg/celestia-app/x/blobstream/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -22,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -45,6 +46,8 @@ const (
 
 	// FlagLogToFile specifies whether to log to file or not.
 	FlagLogToFile = "log-to-file"
+
+	UpgradeHeightFlag = "v2-upgrade-height"
 )
 
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
@@ -80,11 +83,14 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			// Override the default tendermint config for celestia-app
-			tmCfg := app.DefaultConsensusConfig()
-			customAppTemplate, customAppConfig := initAppConfig()
+			// Override the default tendermint config and app config for celestia-app
+			var (
+				tmCfg       = app.DefaultConsensusConfig()
+				appConfig   = app.DefaultAppConfig()
+				appTemplate = serverconfig.DefaultConfigTemplate
+			)
 
-			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			err = server.InterceptConfigsPreRunHandler(cmd, appTemplate, appConfig, tmCfg)
 			if err != nil {
 				return err
 			}
@@ -106,24 +112,6 @@ func NewRootCmd() *cobra.Command {
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
-}
-
-// initAppConfig helps to override default appConfig template and configs.
-// return "", nil if no custom configuration is required for the application.
-func initAppConfig() (string, interface{}) {
-	type CustomAppConfig struct {
-		serverconfig.Config
-	}
-
-	// Optionally allow the chain developer to overwrite the SDK's default
-	// server config.
-	srvCfg := app.DefaultAppConfig()
-
-	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
-
-	CelestiaAppTemplate := serverconfig.DefaultConfigTemplate
-
-	return CelestiaAppTemplate, CelestiaAppCfg
 }
 
 // setDefaultConsensusParams sets the default consensus parameters for the
@@ -151,6 +139,8 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		debugCmd,
 		config.Cmd(),
 		commands.CompactGoLevelDBCmd,
+		addrbookCommand(),
+		downloadGenesisCommand(),
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
@@ -161,12 +151,16 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
-		qgbcmd.VerifyCmd(),
+		bscmd.VerifyCmd(),
+	)
+	rootCmd.AddCommand(
+		snapshot.Cmd(NewAppServer),
 	)
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
+	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
 }
 
 func queryCommand() *cobra.Command {
@@ -226,11 +220,6 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		cache = store.NewCommitKVStoreCacheManager()
 	}
 
-	skipUpgradeHeights := make(map[int64]bool)
-	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
-		skipUpgradeHeights[int64(h)] = true
-	}
-
 	pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
 	if err != nil {
 		panic(err)
@@ -248,11 +237,20 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		panic(err)
 	}
 
+	var upgradeHeight int64
+	upgradeHeightStr, ok := appOpts.Get(UpgradeHeightFlag).(string)
+	if ok {
+		upgradeHeight, err = strconv.ParseInt(upgradeHeightStr, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return app.New(
-		logger, db, traceStore, true, skipUpgradeHeights,
-		cast.ToString(appOpts.Get(flags.FlagHome)),
+		logger, db, traceStore, true,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
+		upgradeHeight,
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
@@ -264,9 +262,6 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		baseapp.SetTrace(cast.ToBool(appOpts.Get(server.FlagTrace))),
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)))),
-		func(b *baseapp.BaseApp) {
-			b.SetProtocolVersion(appconsts.LatestVersion)
-		},
 	)
 }
 
@@ -278,13 +273,13 @@ func createAppAndExport(
 	encCfg.Codec = codec.NewProtoCodec(encCfg.InterfaceRegistry)
 	var capp *app.App
 	if height != -1 {
-		capp = app.New(logger, db, traceStore, false, map[int64]bool{}, "", uint(1), encCfg, appOpts)
+		capp = app.New(logger, db, traceStore, false, uint(1), encCfg, 0, appOpts)
 
 		if err := capp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		capp = app.New(logger, db, traceStore, true, map[int64]bool{}, "", uint(1), encCfg, appOpts)
+		capp = app.New(logger, db, traceStore, true, uint(1), encCfg, 0, appOpts)
 	}
 
 	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)

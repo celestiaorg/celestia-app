@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -16,7 +17,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
@@ -28,8 +28,8 @@ var (
 	TestMaxBlobCount = 5
 )
 
-func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, signer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
-	blobs := make([]*tmproto.Blob, blobCount)
+func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, signer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*blob.Blob) {
+	blobs := make([]*blob.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
 		blob, err := blobtypes.NewBlob(appns.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 		if err != nil {
@@ -45,19 +45,15 @@ func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, signer string, size, blobCo
 	return msg, blobs
 }
 
-func RandBlobsWithNamespace(namespaces []appns.Namespace, sizes []int) []*tmproto.Blob {
-	blobs := make([]*tmproto.Blob, len(namespaces))
+func RandBlobsWithNamespace(namespaces []appns.Namespace, sizes []int) []*blob.Blob {
+	blobs := make([]*blob.Blob, len(namespaces))
 	for i, ns := range namespaces {
-		blob, err := blobtypes.NewBlob(ns, tmrand.Bytes(sizes[i]), appconsts.ShareVersionZero)
-		if err != nil {
-			panic(err)
-		}
-		blobs[i] = blob
+		blobs[i] = blob.New(ns, tmrand.Bytes(sizes[i]), appconsts.ShareVersionZero)
 	}
 	return blobs
 }
 
-func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace, size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
+func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace, size int) (*blobtypes.MsgPayForBlobs, *blob.Blob) {
 	blob, err := blobtypes.NewBlob(ns, tmrand.Bytes(size), appconsts.ShareVersionZero)
 	if err != nil {
 		panic(err)
@@ -72,11 +68,8 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace,
 	return msg, blob
 }
 
-func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
-	blob, err := blobtypes.NewBlob(appns.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
-	if err != nil {
-		panic(err)
-	}
+func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs, *blob.Blob) {
+	blob := blob.New(appns.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		testfactory.TestAccAddr,
 		blob,
@@ -185,8 +178,8 @@ func RandBlobTxs(signer *user.Signer, rand *tmrand.Rand, count, blobsPerTx, size
 	return txs
 }
 
-func ManyRandBlobs(t *testing.T, rand *tmrand.Rand, sizes ...int) []*tmproto.Blob {
-	return ManyBlobs(t, rand, appns.RandomBlobNamespaces(rand, len(sizes)), sizes)
+func ManyRandBlobs(rand *tmrand.Rand, sizes ...int) []*blob.Blob {
+	return ManyBlobs(rand, appns.RandomBlobNamespaces(rand, len(sizes)), sizes)
 }
 
 func Repeat[T any](s T, count int) []T {
@@ -197,18 +190,16 @@ func Repeat[T any](s T, count int) []T {
 	return ss
 }
 
-func ManyBlobs(t *testing.T, rand *tmrand.Rand, namespaces []appns.Namespace, sizes []int) []*tmproto.Blob {
-	blobs := make([]*tmproto.Blob, len(namespaces))
+func ManyBlobs(rand *tmrand.Rand, namespaces []appns.Namespace, sizes []int) []*blob.Blob {
+	blobs := make([]*blob.Blob, len(namespaces))
 	for i, ns := range namespaces {
-		blob, err := blobtypes.NewBlob(ns, rand.Bytes(sizes[i]), appconsts.ShareVersionZero)
-		require.NoError(t, err)
-		blobs[i] = blob
+		blobs[i] = blob.New(ns, rand.Bytes(sizes[i]), appconsts.ShareVersionZero)
 	}
 	return blobs
 }
 
-func NestedBlobs(t *testing.T, namespaces []appns.Namespace, sizes [][]int) [][]*tmproto.Blob {
-	blobs := make([][]*tmproto.Blob, len(sizes))
+func NestedBlobs(t *testing.T, namespaces []appns.Namespace, sizes [][]int) [][]*blob.Blob {
+	blobs := make([][]*blob.Blob, len(sizes))
 	counter := 0
 	for i, set := range sizes {
 		for _, size := range set {
@@ -228,7 +219,7 @@ func ManyMultiBlobTx(
 	chainid string,
 	accounts []string,
 	accInfos []AccountInfo,
-	blobs [][]*tmproto.Blob,
+	blobs [][]*blob.Blob,
 ) [][]byte {
 	t.Helper()
 	txs := make([][]byte, len(accounts))
@@ -250,10 +241,10 @@ func IndexWrappedTxWithInvalidNamespace(
 	rand *tmrand.Rand,
 	signer *user.Signer,
 	index uint32,
-) (coretypes.Tx, tmproto.Blob) {
+) (coretypes.Tx, blob.Blob) {
 	t.Helper()
 	addr := signer.Address()
-	blob := ManyRandBlobs(t, rand, 100)[0]
+	blob := ManyRandBlobs(rand, 100)[0]
 	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
@@ -276,8 +267,8 @@ func RandBlobTxsWithNamespacesAndSigner(
 	txs := make([]coretypes.Tx, len(namespaces))
 	for i := 0; i < len(namespaces); i++ {
 		// TODO: this can be refactored as the signer only needs the blobs and can construct the PFB itself
-		_, blob := RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), namespaces[i], sizes[i])
-		cTx, err := signer.CreatePayForBlob([]*tmproto.Blob{blob}, DefaultTxOpts()...)
+		_, b := RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), namespaces[i], sizes[i])
+		cTx, err := signer.CreatePayForBlob([]*blob.Blob{b}, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)
 		}
@@ -295,7 +286,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Si
 	rawTx, err := signer.CreateTx(msgs, DefaultTxOpts()...)
 	require.NoError(t, err)
 
-	btx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
+	btx, err := blob.MarshalBlobTx(rawTx, blobs...)
 	require.NoError(t, err)
 	return btx
 }
@@ -332,7 +323,7 @@ func RandMultiBlobTxsSameSigner(t *testing.T, rand *tmrand.Rand, signer *user.Si
 	for i := 0; i < pfbCount; i++ {
 		blobsPerPfb := GenerateRandomBlobCount(rand)
 		blobSizes := GenerateRandomBlobSizes(blobsPerPfb, rand)
-		blobs := ManyRandBlobs(t, rand, blobSizes...)
+		blobs := ManyRandBlobs(rand, blobSizes...)
 		pfbTxs[i], err = signer.CreatePayForBlob(blobs)
 		require.NoError(t, err)
 	}

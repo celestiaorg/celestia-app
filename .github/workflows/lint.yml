@@ -1,5 +1,3 @@
-# lint runs all linters in this repository. This workflow is run on every pull
-# request and push to main.
 name: lint
 on:
   workflow_call:
@@ -27,17 +25,17 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@v3.7.0
         with:
-          version: v1.52.2
+          version: v1.54.2
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.3 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.2.8 # yamllint disable-line rule:line-length
 
   yamllint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.3
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.2.8

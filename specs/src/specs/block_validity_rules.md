@@ -7,7 +7,7 @@ stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when a subset of these validity
 rules have not been followed in order to avoid making an honest majority
-assumption on the consensus network. This has a significant impact on thier
+assumption on the consensus network. This has a significant impact on their
 design. More information on how light clients can check the invalidity of a
 block can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
 

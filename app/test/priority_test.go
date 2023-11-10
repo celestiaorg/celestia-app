@@ -78,7 +78,6 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		gasPrice := s.rand.Float64()
 		btx, err := signer.CreatePayForBlob(
 			blobfactory.ManyBlobs(
-				t,
 				s.rand,
 				[]namespace.Namespace{namespace.RandomBlobNamespace()},
 				[]int{100}),

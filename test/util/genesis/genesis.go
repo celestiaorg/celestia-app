@@ -10,10 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -109,12 +107,10 @@ func (g *Genesis) AddAccount(acc Account) error {
 	if err := acc.ValidateBasic(); err != nil {
 		return err
 	}
-	_, mn, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+	_, _, err = g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		return err
 	}
-
-	acc.Mnemonic = mn
 	g.accounts = append(g.accounts, acc)
 	return nil
 }
@@ -145,59 +141,31 @@ func (g *Genesis) Accounts() []Account {
 	return g.accounts
 }
 
-// genAccountsToSDKTypes converts the genesis accounts to native SDK types.
-func genAccountsToSDKTypes(kr keyring.Keyring, accs []Account) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
-	genBals := make([]banktypes.Balance, len(accs))
-	genAccs := make([]authtypes.GenesisAccount, len(accs))
-	hasMap := make(map[string]bool)
-	for i, acc := range accs {
-		rec, err := kr.Key(acc.Name)
+func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
+	addrs := make([]string, 0, len(g.accounts))
+	pubKeys := make([]cryptotypes.PubKey, 0, len(g.accounts))
+	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
+
+	for _, acc := range g.Accounts() {
+		rec, err := g.kr.Key(acc.Name)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		addr, err := rec.GetAddress()
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
-		if hasMap[addr.String()] {
-			return nil, nil, fmt.Errorf("duplicate account address %s", addr)
-		}
-		hasMap[addr.String()] = true
+		addrs = append(addrs, addr.String())
 
-		pubKey, err := rec.GetPubKey()
+		pubK, err := rec.GetPubKey()
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
-		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(acc.InitialTokens)),
-		)
-
-		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
-		genAccs[i] = authtypes.NewBaseAccount(addr, pubKey, uint64(i), 0)
+		pubKeys = append(pubKeys, pubK)
 	}
-	return genBals, genAccs, nil
-}
-
-func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
-	authGenState := authtypes.DefaultGenesisState()
-	bankGenState := banktypes.DefaultGenesisState()
-	genutilGenState := genutiltypes.DefaultGenesisState()
-
-	genBals, genAccs, err := genAccountsToSDKTypes(g.kr, g.Accounts())
-	if err != nil {
-		return nil, err
-	}
-
-	accounts, err := authtypes.PackAccounts(genAccs)
-	if err != nil {
-		return nil, err
-	}
-	authGenState.Accounts = append(authGenState.Accounts, accounts...)
-	bankGenState.Balances = append(bankGenState.Balances, genBals...)
-	bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
 
 	for _, genTx := range g.genTxs {
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
@@ -205,43 +173,18 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 			return nil, err
 		}
 
-		genutilGenState.GenTxs = append(genutilGenState.GenTxs, json.RawMessage(bz))
+		gentxs = append(gentxs, json.RawMessage(bz))
 	}
 
-	// perform some basic validation of the genesis state
-	if err := authtypes.ValidateGenesis(*authGenState); err != nil {
-		return nil, err
-	}
-	if err := bankGenState.Validate(); err != nil {
-		return nil, err
-	}
-	if err := genutiltypes.ValidateGenesis(genutilGenState, g.ecfg.TxConfig.TxJSONDecoder()); err != nil {
-		return nil, err
-	}
-
-	state := app.ModuleBasics.DefaultGenesis(g.ecfg.Codec)
-	state[authtypes.ModuleName] = g.ecfg.Codec.MustMarshalJSON(authGenState)
-	state[banktypes.ModuleName] = g.ecfg.Codec.MustMarshalJSON(bankGenState)
-	state[genutiltypes.ModuleName] = g.ecfg.Codec.MustMarshalJSON(genutilGenState)
-
-	for _, option := range g.genOps {
-		state = option(state)
-	}
-
-	stateBz, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the genesis doc
-	genesisDoc := &coretypes.GenesisDoc{
-		ChainID:         g.ChainID,
-		GenesisTime:     g.GenesisTime,
-		ConsensusParams: g.ConsensusParams,
-		AppState:        stateBz,
-	}
-
-	return genesisDoc, nil
+	return Document(
+		g.ecfg,
+		g.ConsensusParams,
+		g.ChainID,
+		gentxs,
+		addrs,
+		pubKeys,
+		g.genOps...,
+	)
 }
 
 func (g *Genesis) Keyring() keyring.Keyring {

@@ -3,27 +3,31 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+	defer telemetry.MeasureSince(time.Now(), "process_proposal")
 	// In the case of a panic from an unexpected condition, it is better for the liveness of the
 	// network that we catch it, log an error and vote nil than to crash the node.
 	defer func() {
 		if err := recover(); err != nil {
-			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("%v", err))
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("caught panic: %v", err))
+			telemetry.IncrCounter(1, "process_proposal", "panics")
 			resp = reject()
 		}
 	}()
@@ -47,7 +51,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(rawTx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}
@@ -62,7 +66,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 		// handle non-blob transactions first
 		if !isBlobTx {
-			_, has := hasPFB(sdkTx.GetMsgs())
+			msgs := sdkTx.GetMsgs()
+
+			_, has := hasPFB(msgs)
 			if has {
 				// A non blob tx has a PFB, which is invalid
 				logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
@@ -74,7 +80,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			// if the account in question doens't exist.
 			sdkCtx, err = handler(sdkCtx, sdkTx, false)
 			if err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
+				logInvalidPropBlockError(app.Logger(), req.Header, "failure to increment sequence", err)
 				return reject()
 			}
 
@@ -131,7 +137,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
+		logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.Header.DataHash, dah.Hash()))
 		return reject()
 	}
 

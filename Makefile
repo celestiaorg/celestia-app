@@ -1,10 +1,12 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
+ALL_VERSIONS := $(shell git tag -l)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
+HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -57,6 +59,12 @@ proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
 
+## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
+proto-check-breaking:
+	@echo "--> Checking if Protobuf definitions have any breaking changes"
+	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
+.PHONY: proto-check-breaking
+
 ## proto-format: Format protobuf files. Requires docker.
 proto-format:
 	@echo "--> Formatting Protobuf files"
@@ -108,11 +116,10 @@ test-short:
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-e2e: Run end to end tests via knuu.
+## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
-	@version=$(git rev-parse --short HEAD)
-	@echo "--> Running e2e tests on version: $version"
-	@KNUU_NAMESPACE=test E2E_VERSION=$version E2E=true go test ./test/e2e/... -timeout 30m
+	@echo "--> Running end to end tests"
+	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_VERSIONS="$(ALL_VERSIONS)" E2E=true go test ./test/e2e/... -timeout 20m -v
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
@@ -120,7 +127,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -134,6 +141,10 @@ test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
+
+test-fuzz:
+	bash -x scripts/test_fuzz.sh
+.PHONY: test-fuzz
 
 ## txsim-install: Install the tx simulator.
 txsim-install:

@@ -7,12 +7,12 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
 )
 
 type Builder struct {
@@ -54,7 +54,7 @@ func NewBuilder(maxSquareSize int, appVersion uint64, txs ...[]byte) (*Builder, 
 	}
 	seenFirstBlobTx := false
 	for idx, tx := range txs {
-		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			seenFirstBlobTx = true
 			if !builder.AppendBlobTx(blobTx) {
@@ -88,7 +88,7 @@ func (b *Builder) AppendTx(tx []byte) bool {
 
 // AppendBlobTx attempts to allocate the blob transaction to the square. It returns false if there is not
 // enough space in the square to fit the transaction.
-func (b *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
+func (b *Builder) AppendBlobTx(blobTx blob.BlobTx) bool {
 	iw := &coretypes.IndexWrapper{
 		Tx:           blobTx.Tx,
 		TypeId:       consts.ProtoIndexWrapperTypeID,
@@ -100,11 +100,7 @@ func (b *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 	// create a new blob element for each blob and track the worst-case share count
 	blobElements := make([]*Element, len(blobTx.Blobs))
 	maxBlobShareCount := 0
-	for idx, blobProto := range blobTx.Blobs {
-		blob, err := types.BlobFromProto(blobProto)
-		if err != nil {
-			return false
-		}
+	for idx, blob := range blobTx.Blobs {
 		blobElements[idx] = newElement(blob, len(b.Pfbs), idx, b.subtreeRootThreshold)
 		maxBlobShareCount += blobElements[idx].maxShareOffset()
 	}
@@ -130,13 +126,13 @@ func (b *Builder) Export() (Square, error) {
 	// calculate the square size.
 	// NOTE: A future optimization could be to recalculate the currentSize based on the actual
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
-	ss := shares.BlobMinSquareSize(b.currentSize)
+	ss := inclusion.BlobMinSquareSize(b.currentSize)
 
 	// Sort the blobs by namespace. This uses SliceStable to preserve the order
 	// of blobs within a namespace because b.Blobs are already ordered by tx
 	// priority.
 	sort.SliceStable(b.Blobs, func(i, j int) bool {
-		return bytes.Compare(b.Blobs[i].Blob.Namespace(), b.Blobs[j].Blob.Namespace()) < 0
+		return bytes.Compare(b.Blobs[i].Blob.Namespace().Bytes(), b.Blobs[j].Blob.Namespace().Bytes()) < 0
 	})
 
 	// write all the regular transactions into compact shares
@@ -155,7 +151,7 @@ func (b *Builder) Export() (Square, error) {
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor = shares.NextShareIndex(cursor, element.NumShares, b.subtreeRootThreshold)
+		cursor = inclusion.NextShareIndex(cursor, element.NumShares, b.subtreeRootThreshold)
 		if i == 0 {
 			nonReservedStart = cursor
 		}
@@ -368,14 +364,14 @@ func (b *Builder) IsEmpty() bool {
 }
 
 type Element struct {
-	Blob       core.Blob
+	Blob       *blob.Blob
 	PfbIndex   int
 	BlobIndex  int
 	NumShares  int
 	MaxPadding int
 }
 
-func newElement(blob core.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) *Element {
+func newElement(blob *blob.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) *Element {
 	numShares := shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	return &Element{
 		Blob:      blob,
@@ -405,7 +401,7 @@ func newElement(blob core.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) *
 		//
 		// Note that the padding would actually belong to the namespace of the transaction before it, but
 		// this makes no difference to the total share size.
-		MaxPadding: shares.SubTreeWidth(numShares, subtreeRootThreshold) - 1,
+		MaxPadding: inclusion.SubTreeWidth(numShares, subtreeRootThreshold) - 1,
 	}
 }
 

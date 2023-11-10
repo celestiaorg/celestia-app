@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -17,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -147,7 +148,7 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 	require.NoError(t, err)
 
 	for pfbIdx, tx := range txs {
-		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
 		require.True(t, isBlobTx)
 		for blobIdx := range blobTx.Blobs {
 			shareRange, err := square.BlobShareRange(txs, pfbIdx, blobIdx, appconsts.LatestVersion)
@@ -244,7 +245,7 @@ func TestSquareShareCommitments(t *testing.T) {
 		tx, err := decoder(wpfb.Tx)
 		require.NoError(t, err)
 
-		pfb, ok := tx.GetMsgs()[0].(*blob.MsgPayForBlobs)
+		pfb, ok := tx.GetMsgs()[0].(*blobtypes.MsgPayForBlobs)
 		require.True(t, ok)
 
 		for blobIndex, shareIndex := range wpfb.ShareIndexes {
