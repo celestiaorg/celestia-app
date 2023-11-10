@@ -83,7 +83,7 @@ func (s *IntegrationTestSuite) TestFillBlock() {
 	require := s.Require()
 
 	for squareSize := 2; squareSize <= appconsts.DefaultGovMaxSquareSize; squareSize *= 2 {
-		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
+		resp, err := s.cctx.FillBlock(squareSize, s.accounts[1], flags.BroadcastSync)
 		require.NoError(err)
 
 		err = s.cctx.WaitForBlocks(3)
@@ -123,7 +123,7 @@ func (s *IntegrationTestSuite) TestFillBlock_InvalidSquareSizeError() {
 
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
-			_, actualErr := s.cctx.FillBlock(tc.squareSize, s.accounts, flags.BroadcastAsync)
+			_, actualErr := s.cctx.FillBlock(tc.squareSize, s.accounts[2], flags.BroadcastAsync)
 			s.Equal(tc.expectedErr, actualErr)
 		})
 	}
