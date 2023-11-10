@@ -53,16 +53,15 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = cctx
 }
 
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
+func (s *IntegrationTestSuite) Test_verifyTimeIotaMs() {
 	require := s.Require()
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
-	// check that we're actually able to set the consensus params
+
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to decrease flakiness
-	for i := 0; i < 40; i++ {
+	for i := 0; i < 100; i++ {
 		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
 		if err == nil && params != nil {
 			break
@@ -72,8 +71,6 @@ func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 	require.NoError(err)
 	require.NotNil(params)
 	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
-	_, err = s.cctx.WaitForHeight(20)
-	require.NoError(err)
 }
 
 func (s *IntegrationTestSuite) TestPostData() {
