@@ -74,32 +74,32 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
 
 	tests := []test{
 		{
-			name:                  "big",
-			govMaxSquareSize:      256,
-			maxBytes:              100000000,
-			expectedMaxSquareSize: 256,
+			name:                  "default",
+			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+			maxBytes:              appconsts.DefaultMaxBytes,
+			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
 			pfbsPerBlock:          20,
 		},
-		// {
-		// 	name:                  "max bytes constrains square size",
-		// 	govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
-		// 	maxBytes:              appconsts.DefaultMaxBytes,
-		// 	expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
-		// 	pfbsPerBlock:          40,
-		// },
-		// {
-		// 	name:                  "gov square size == hardcoded max",
-		// 	govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
-		// 	maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
-		// 	expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
-		// 	pfbsPerBlock:          40,
-		// },
+		{
+			name:                  "max bytes constrains square size",
+			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+			maxBytes:              appconsts.DefaultMaxBytes,
+			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			pfbsPerBlock:          40,
+		},
+		{
+			name:                  "gov square size == hardcoded max",
+			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
+			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
+			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+			pfbsPerBlock:          40,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(100_000, 40, tt.pfbsPerBlock, 20*time.Second)
+			start, end := s.fillBlocks(100_000, 10, tt.pfbsPerBlock, 20*time.Second)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			actualMaxSize := 0

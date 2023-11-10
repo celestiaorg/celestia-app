@@ -20,7 +20,6 @@ import (
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
 func Build(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, [][]byte, error) {
-	fmt.Println("building the square", appVersion, maxSquareSize)
 	builder, err := NewBuilder(maxSquareSize, appVersion)
 	if err != nil {
 		return nil, nil, err
