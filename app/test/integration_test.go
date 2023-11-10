@@ -51,14 +51,18 @@ type IntegrationTestSuite struct {
 	cctx     testnode.Context
 }
 
-func (s *IntegrationTestSuite) SetupSuite() {
-	t := s.T()
-
+func (s *IntegrationTestSuite) setupAccounts() {
 	numAccounts := 142
 	s.accounts = make([]string, numAccounts)
 	for i := 0; i < numAccounts; i++ {
 		s.accounts[i] = tmrand.Str(20)
 	}
+}
+
+func (s *IntegrationTestSuite) SetupSuite() {
+	t := s.T()
+
+	s.setupAccounts()
 
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 
