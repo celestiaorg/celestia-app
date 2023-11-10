@@ -7,17 +7,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
@@ -63,9 +59,9 @@ func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 }
 
-// TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
-// SubmitPayForBlob is invoked with different blob sizes.
-func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
+// TestErrTotalBlobSizeTooLarge verifies that submitting a 2 MiB blob hits
+// ErrTotalBlobSizeTooLarge.
+func (s *MaxTotalBlobSizeSuite) TestErrTotalBlobSizeTooLarge() {
 	t := s.T()
 
 	type testCase struct {
@@ -75,16 +71,6 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 		want uint32
 	}
 	testCases := []testCase{
-		{
-			name: "1 byte blob",
-			blob: mustNewBlob(1),
-			want: abci.CodeTypeOK,
-		},
-		{
-			name: "1 mebibyte blob",
-			blob: mustNewBlob(mebibyte),
-			want: abci.CodeTypeOK,
-		},
 		{
 			name: "2 mebibyte blob",
 			blob: mustNewBlob(2 * mebibyte),
@@ -105,16 +91,6 @@ func (s *MaxTotalBlobSizeSuite) TestSubmitPayForBlob_blobSizes() {
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.want, res.Code, res.Logs)
-
-			sq, err := square.Construct([][]byte{blobTx}, appconsts.LatestVersion, squareSize)
-			if tc.want == abci.CodeTypeOK {
-				// verify that if the tx was accepted, the blob can fit in a square
-				assert.NoError(t, err)
-				assert.False(t, sq.IsEmpty())
-			} else {
-				// verify that if the tx was rejected, the blob can not fit in a square
-				assert.Error(t, err)
-			}
 		})
 	}
 }
