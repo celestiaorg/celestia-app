@@ -20,6 +20,9 @@ import (
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping full node integration test in short mode.")
+	}
 	suite.Run(t, new(IntegrationTestSuite))
 }
 
@@ -31,27 +34,19 @@ type IntegrationTestSuite struct {
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping full node integration test in short mode.")
-	}
 	t := s.T()
-
-	accounts := make([]string, 10)
-	for i := 0; i < 10; i++ {
-		accounts[i] = tmrand.Str(10)
-	}
+	s.accounts = RandomAccounts(10)
 
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
 	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 
 	cfg := DefaultConfig().
-		WithFundedAccounts(accounts...).
+		WithFundedAccounts(s.accounts...).
 		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
-	s.accounts = accounts
 }
 
 // The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
