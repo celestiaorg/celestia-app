@@ -90,8 +90,16 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 	cn.kr = kr
 
 	val := genesis.NewDefaultValidator(nodeID)
-	cn.consensusKey = val.ConsensusKey
-	cn.networkKey = val.NetworkKey
+	ckey, ok := val.ConsensusKey.(ed25519.PrivKey)
+	if !ok {
+		return nil, errors.New("invalid consensus key type")
+	}
+	cn.consensusKey = ckey
+	nkey, ok := val.NetworkKey.(ed25519.PrivKey)
+	if !ok {
+		return nil, errors.New("invalid consensus key type")
+	}
+	cn.networkKey = nkey
 
 	var bz []byte
 	if runenv.TestGroupID == ValidatorGroupID {
