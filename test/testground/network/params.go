@@ -201,7 +201,7 @@ func StandardAppConfig(_ *Params) *srvconfig.Config {
 	return app.DefaultAppConfig()
 }
 
-func StandardConsensusParams(params *Params) *tmproto.ConsensusParams {
+func TestgroundConsensusParams(params *Params) *tmproto.ConsensusParams {
 	cp := app.DefaultConsensusParams()
 	cp.Block.MaxBytes = int64(params.MaxBlockBytes)
 	cp.Version.AppVersion = testgroundconsts.Version

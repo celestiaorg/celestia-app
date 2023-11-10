@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
@@ -126,6 +127,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.params.HaltHeight))
+
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*30)
 	if err != nil {
 		return err
@@ -168,6 +170,7 @@ func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []Pee
 	pubKeys := make([]cryptotypes.PubKey, 0)
 	addrs := make([]string, 0)
 	gentxs := make([]json.RawMessage, 0, len(packets))
+
 	for _, packet := range packets {
 		pks, err := packet.GetPubKeys()
 		if err != nil {
@@ -178,10 +181,17 @@ func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []Pee
 		if packet.GroupID == ValidatorGroupID {
 			gentxs = append(gentxs, packet.GenTx)
 		}
-
 	}
 
-	return GenesisDoc(l.ecfg, l.params, gentxs, addrs, pubKeys, params.GenesisModifiers...)
+	return genesis.Document(
+		l.ecfg,
+		TestgroundConsensusParams(params),
+		l.params.ChainID,
+		gentxs,
+		addrs,
+		pubKeys,
+		params.GenesisModifiers...,
+	)
 }
 
 func SerializePublicKey(pubKey cryptotypes.PubKey) string {
@@ -193,11 +203,14 @@ func DeserializeAccountPublicKey(hexPubKey string) (cryptotypes.PubKey, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var pubKey secp256k1.PubKey
 	if len(bz) != secp256k1.PubKeySize {
 		return nil, errors.New("incorrect pubkey size")
 	}
+
 	pubKey.Key = bz
+
 	return &pubKey, nil
 }
 
