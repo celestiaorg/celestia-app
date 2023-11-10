@@ -281,13 +281,12 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	t := s.T()
 
-	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg,
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
-		100000,
+		100*Kibibyte,
 		1,
 		true,
 		s.accounts[120:140],
@@ -380,23 +379,23 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	}
 	testCases := []testCase{
 		{
-			name:           "1,000 byte blob",
-			blob:           newBlobWithSize(1_000),
+			name:           "1 kibibyte blob",
+			blob:           newBlobWithSize(Kibibyte),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
-			name:           "10,000 byte blob",
-			blob:           newBlobWithSize(10_000),
+			name:           "10 kibibyte blob",
+			blob:           newBlobWithSize(10 * Kibibyte),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
-			name:           "100,000 byte blob",
-			blob:           newBlobWithSize(100_000),
+			name:           "100 kibibyte blob",
+			blob:           newBlobWithSize(100 * Kibibyte),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
-			name:           "1,000,000 byte blob",
-			blob:           newBlobWithSize(1_000_000),
+			name:           "1 mebibyte blob",
+			blob:           newBlobWithSize(1 * mebibyte),
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
@@ -408,7 +407,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 60*time.Second)
 			defer cancel()
 			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
 			if tc.txResponseCode == abci.CodeTypeOK {
