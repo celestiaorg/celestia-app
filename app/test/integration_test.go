@@ -36,6 +36,11 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const (
+	Kibibyte = 1024
+	Mebibyte = 1_048_576
+)
+
 func TestIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping app/test/integration_test in short mode.")
@@ -83,47 +88,41 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	t := s.T()
 
-	// tendermint's default tx size limit is 1Mb, so we get close to that
-	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
+	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			950000,
+			600*Kibibyte,
 			1,
 			false,
 			s.accounts[:20],
 		)
 	}
 
-	// Tendermint's default tx size limit is 1 MiB, so we get close to that by
-	// generating transactions of size 600 KB because 3 blobs per transaction *
-	// 200,000 bytes each = 600,000 total bytes = 600 KB per transaction.
-	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
+	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
+	// 600 KiB total per transaction.
+	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			200000, // 200 KB
+			200*Kibibyte,
 			3,
 			false,
 			s.accounts[20:40],
 		)
 	}
 
-	// Generate 80 randomly sized txs (max size == 50 KB). Generate these
-	// transactions using some of the same accounts as the previous generator to
-	// ensure that the sequence number is being utilized correctly in blob
-	// txs
-	randoTxGen := func(c client.Context) []coretypes.Tx {
+	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			50000,
+			50*Kibibyte,
 			8,
 			true,
 			s.accounts[40:120],
@@ -137,16 +136,16 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 	tests := []test{
 		{
-			"20 1Mb txs",
-			equallySized1MbTxGen,
+			"singleBlobTxGen",
+			singleBlobTxGen,
 		},
 		{
-			"20 1Mb multiblob txs",
-			randMultiBlob1MbTxGen,
+			"multiBlobTxGen",
+			multiBlobTxGen,
 		},
 		{
-			"80 random txs",
-			randoTxGen,
+			"randomTxGen",
+			randomTxGen,
 		},
 	}
 	for _, tc := range tests {
@@ -155,6 +154,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			hashes := make([]string, len(txs))
 
 			for i, tx := range txs {
+				// The default CometBFT mempool MaxTxBytes is 1 MiB so the generators in
+				// this test must create transactions that are smaller than that.
+				require.LessOrEqual(t, len(tx), 1*mebibyte)
+
 				res, err := s.cctx.Context.BroadcastTxSync(tx)
 				require.NoError(t, err)
 				assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
