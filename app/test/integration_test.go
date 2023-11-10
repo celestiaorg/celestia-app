@@ -133,20 +133,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		name        string
 		txGenerator func(clientCtx client.Context) []coretypes.Tx
 	}
-
 	tests := []test{
-		{
-			"singleBlobTxGen",
-			singleBlobTxGen,
-		},
-		{
-			"multiBlobTxGen",
-			multiBlobTxGen,
-		},
-		{
-			"randomTxGen",
-			randomTxGen,
-		},
+		{"singleBlobTxGen", singleBlobTxGen},
+		{"multiBlobTxGen", multiBlobTxGen},
+		{"randomTxGen", randomTxGen},
 	}
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
@@ -204,6 +194,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		require.NoError(t, s.cctx.WaitForNextBlock())
 	}
 }
+
+func getSquareSizes()
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
