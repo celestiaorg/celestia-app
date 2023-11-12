@@ -31,7 +31,7 @@ var (
 	GenesisTopic = sync.NewTopic("genesis", GenesisWrapper{})
 	// MetaConfigTopic is the topic where each node's app and tendermint configs
 	// are puslished to. These are published before the any node starts.
-	MetaConfigTopic = sync.NewTopic("meta_config", ConsensusNodeMetaConfig{})
+	MetaConfigTopic = sync.NewTopic("meta_config", RoleConfig{})
 	// CommandTopic is the topic that commands are published to. These commands
 	// are published by the leader and subscribed to by all followers.
 	CommandTopic = sync.NewTopic("command", Command{})
@@ -73,11 +73,11 @@ func (pp *PeerPacket) GetPubKeys() ([]cryptotypes.PubKey, error) {
 	return pks, nil
 }
 
-func NewConfigSet(params *Params, pps []PeerPacket) []ConsensusNodeMetaConfig {
-	nodeConfigs := make([]ConsensusNodeMetaConfig, 0, len(pps))
+func NewConfigSet(params *Params, pps []PeerPacket) []RoleConfig {
+	nodeConfigs := make([]RoleConfig, 0, len(pps))
 
 	for _, pp := range pps {
-		nodeConfigs = append(nodeConfigs, ConsensusNodeMetaConfig{
+		nodeConfigs = append(nodeConfigs, RoleConfig{
 			CmtConfig:      StandardCometConfig(params),
 			AppConfig:      StandardAppConfig(params),
 			PeerID:         pp.PeerID,
@@ -89,7 +89,7 @@ func NewConfigSet(params *Params, pps []PeerPacket) []ConsensusNodeMetaConfig {
 	return nodeConfigs
 }
 
-type ConsensusNodeMetaConfig struct {
+type RoleConfig struct {
 	PeerID         string            `json:"peer_id"`
 	GroupID        string            `json:"group_id"`
 	GlobalSequence int64             `json:"global_sequence"`
@@ -97,7 +97,7 @@ type ConsensusNodeMetaConfig struct {
 	AppConfig      *srvconfig.Config `json:"app_config"`
 }
 
-func peerIDs(nodes []ConsensusNodeMetaConfig) []string {
+func peerIDs(nodes []RoleConfig) []string {
 	peerIDs := make([]string, 0, len(nodes))
 	for _, nodeCfg := range nodes {
 		peerIDs = append(peerIDs, nodeCfg.PeerID)
@@ -105,16 +105,16 @@ func peerIDs(nodes []ConsensusNodeMetaConfig) []string {
 	return peerIDs
 }
 
-func searchNodes(nodes []ConsensusNodeMetaConfig, globalSeq int64) (ConsensusNodeMetaConfig, bool) {
+func searchNodes(nodes []RoleConfig, globalSeq int64) (RoleConfig, bool) {
 	for _, node := range nodes {
 		if node.GlobalSequence == globalSeq {
 			return node, true
 		}
 	}
-	return ConsensusNodeMetaConfig{}, false
+	return RoleConfig{}, false
 }
 
-func PublishNodeConfigs(ctx context.Context, initCtx *run.InitContext, nodes []ConsensusNodeMetaConfig) error {
+func PublishNodeConfigs(ctx context.Context, initCtx *run.InitContext, nodes []RoleConfig) error {
 	for _, node := range nodes {
 		_, err := initCtx.SyncClient.Publish(ctx, MetaConfigTopic, node)
 		if err != nil {
@@ -125,8 +125,8 @@ func PublishNodeConfigs(ctx context.Context, initCtx *run.InitContext, nodes []C
 	return nil
 }
 
-func DownloadNodeConfigs(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) ([]ConsensusNodeMetaConfig, error) {
-	return DownloadSync(ctx, initCtx, MetaConfigTopic, ConsensusNodeMetaConfig{}, runenv.TestInstanceCount)
+func DownloadNodeConfigs(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) ([]RoleConfig, error) {
+	return DownloadSync(ctx, initCtx, MetaConfigTopic, RoleConfig{}, runenv.TestInstanceCount)
 }
 
 // GenesisWrapper is a simple struct wrapper that makes it easier testground to

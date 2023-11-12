@@ -97,7 +97,7 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 	cn.consensusKey = ckey
 	nkey, ok := val.NetworkKey.(ed25519.PrivKey)
 	if !ok {
-		return nil, errors.New("invalid consensus key type")
+		return nil, errors.New("invalid network key type")
 	}
 	cn.networkKey = nkey
 
@@ -147,7 +147,7 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 
 // Init creates the files required by tendermint and celestia-app using the data
 // downloaded from the Leader node.
-func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg ConsensusNodeMetaConfig) error {
+func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg RoleConfig) error {
 	cn.CmtConfig = mcfg.CmtConfig
 	cn.CmtConfig.Instrumentation.InfluxToken = "_AHFLpgzvTD2e6cOIp1rE_ToLziwKKKq8Vk9oIq9XjBRJB7ZaJiJSc9Upr57DPc7Fz-tZbIM-mH39MB-TiE7qA=="
 	cn.AppConfig = mcfg.AppConfig

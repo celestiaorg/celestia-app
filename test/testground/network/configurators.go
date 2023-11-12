@@ -52,13 +52,13 @@ func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
 // configurations. It is used to generate the topology (which nodes are
 // connected to which) of the network, along with making other arbitrary changes
 // to the configs.
-type Configurator func(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error)
+type Configurator func(nodes []RoleConfig) ([]RoleConfig, error)
 
 var _ = Configurator(ConnectAll)
 
 // ConnectAll is a Configurator that connects all nodes to each other via
 // persistent peers.
-func ConnectAll(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error) {
+func ConnectAll(nodes []RoleConfig) ([]RoleConfig, error) {
 	sort.Slice(nodes, func(i, j int) bool {
 		return nodes[i].GlobalSequence < nodes[j].GlobalSequence
 	})
@@ -85,7 +85,7 @@ func ConnectAll(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, err
 var _ = Configurator(ConnectRandom(1))
 
 func ConnectRandom(numPeers int) Configurator {
-	return func(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error) {
+	return func(nodes []RoleConfig) ([]RoleConfig, error) {
 		if numPeers >= len(nodes) {
 			return nil, errors.New("numPeers should be less than the total number of nodes")
 		}
@@ -119,9 +119,9 @@ var _ = Configurator(SeedConfigurator)
 
 // SeedConfigurator is a Configurator that finds and sets the seed node for the
 // network. Note that this only supports a single seed node for the time being.
-func SeedConfigurator(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error) {
+func SeedConfigurator(nodes []RoleConfig) ([]RoleConfig, error) {
 	// find the seed node
-	var seedNode ConsensusNodeMetaConfig
+	var seedNode RoleConfig
 	for i, node := range nodes {
 		if node.GroupID == SeedGroupID {
 			seedNode = node
@@ -142,7 +142,7 @@ func SeedConfigurator(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfi
 }
 
 func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configurator {
-	return func(nodes []ConsensusNodeMetaConfig) ([]ConsensusNodeMetaConfig, error) {
+	return func(nodes []RoleConfig) ([]RoleConfig, error) {
 		runenv.RecordMessage(fmt.Sprintf("tracing nodes: %+v", tparams))
 
 		tracedNodes := 0

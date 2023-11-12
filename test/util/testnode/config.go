@@ -20,7 +20,6 @@ const (
 	DefaultValidatorAccountName = "validator"
 )
 
-// todo: properly abstract and rename
 type UniversalTestingConfig struct {
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
