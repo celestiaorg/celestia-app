@@ -44,23 +44,31 @@ func ParseVersions(versionStr string) VersionSet {
 	versions := strings.Split(versionStr, " ")
 	output := make(VersionSet, 0, len(versions))
 	for _, v := range versions {
-		var major, minor, patch, rc uint64
-		isRC := false
-		if strings.Contains(v, "rc") {
-			_, err := fmt.Sscanf(v, "v%d.%d.%d-rc%d", &major, &minor, &patch, &rc)
-			isRC = true
-			if err != nil {
-				continue
-			}
-		} else {
-			_, err := fmt.Sscanf(v, "v%d.%d.%d", &major, &minor, &patch)
-			if err != nil {
-				continue
-			}
+		isValid, version := ParseVersion(v)
+		if !isValid {
+			continue
 		}
-		output = append(output, Version{major, minor, patch, isRC, rc})
+		output = append(output, version)
 	}
 	return output
+}
+
+func ParseVersion(version string) (bool, Version) {
+	var major, minor, patch, rc uint64
+	isRC := false
+	if strings.Contains(version, "rc") {
+		_, err := fmt.Sscanf(version, "v%d.%d.%d-rc%d", &major, &minor, &patch, &rc)
+		isRC = true
+		if err != nil {
+			return false, Version{}
+		}
+	} else {
+		_, err := fmt.Sscanf(version, "v%d.%d.%d", &major, &minor, &patch)
+		if err != nil {
+			return false, Version{}
+		}
+	}
+	return true, Version{major, minor, patch, isRC, rc}
 }
 
 func (v VersionSet) FilterMajor(majorVersion uint64) VersionSet {

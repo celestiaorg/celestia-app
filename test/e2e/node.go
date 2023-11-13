@@ -78,7 +78,7 @@ func NewNode(
 	}
 	args := []string{"start",fmt.Sprintf("--home=%s", remoteRootDir),"--rpc.laddr=tcp://0.0.0.0:26657"}
 	if upgradeHeight != 0 {
-		args = append(args, fmt.Sprintf("--upgrade-height=%d", upgradeHeight))
+		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
 	}
 
 	err = instance.SetArgs(args...)

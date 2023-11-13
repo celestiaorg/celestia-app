@@ -11,6 +11,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/stretchr/testify/require"
@@ -122,30 +124,33 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	require.True(t, errors.Is(err, context.Canceled), err.Error())
 }
 
-func MajorUpgradeToV2(t *testing.T) {
-	t.Skip()
+func TestMajorUpgradeToV2(t *testing.T) {
 	if os.Getenv("E2E") == "" {
 		t.Skip("skipping e2e test")
 	}
 
-	if os.Getenv("E2E_VERSIONS") == "" {
-		t.Skip("skipping e2e test: E2E_VERSIONS not set")
+	if os.Getenv("E2E_LATEST_VERSION") != "" {
+		latestVersion = os.Getenv("E2E_LATEST_VERSION")
+		isSemVer, _ := ParseVersion(latestVersion)
+		switch {
+		case isSemVer:
+		case latestVersion == "latest":
+		case len(latestVersion) == 8:
+			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
+			latestVersion = latestVersion[:7]
+		default:
+			t.Fatalf("unrecognised version: %s", latestVersion)
+		}
 	}
 
-	versionStr := os.Getenv("E2E_VERSIONS")
-	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 	numNodes := 4
-	r := rand.New(rand.NewSource(seed))
 	upgradeHeight := int64(10)
-	startingVersion := versions.Random(r).String()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	preloader, err := knuu.NewPreloader()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = preloader.EmptyImages() })
-	err = preloader.AddImage(DockerImageName(startingVersion))
-	require.NoError(t, err)
 	err = preloader.AddImage(DockerImageName(latestVersion))
 	require.NoError(t, err)
 
@@ -153,14 +158,24 @@ func MajorUpgradeToV2(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 	for i := 0; i < numNodes; i++ {
-		// each node begins with a random version within the same major version set
-		v := versions.Random(r).String()
-		t.Log("Starting node", "node", i, "version", v)
-		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, upgradeHeight))
+		t.Log("Starting node", "node", i, "version", latestVersion)
+		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
 	require.NoError(t, err)
+
+	require.NoError(t, testnet.Setup())
+	require.NoError(t, testnet.Start())
+
+	// assert that the network is initially running on v1
+	for i := 0; i < numNodes; i++ {
+		client, err := testnet.Node(i).Client()
+		require.NoError(t, err)
+		resp, err := client.Header(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, v1.Version, resp.Header.Version.App)
+	}
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -176,6 +191,9 @@ func MajorUpgradeToV2(t *testing.T) {
 		client, err := testnet.Node(i).Client()
 		require.NoError(t, err)
 		require.NoError(t, waitForHeight(ctx, client, upgradeHeight+2, 30*time.Second))
+		resp, err := client.Header(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, v2.Version, resp.Header.Version.App)
 	}
 
 	// end txsim

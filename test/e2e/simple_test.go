@@ -27,7 +27,17 @@ func TestE2ESimple(t *testing.T) {
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_LATEST_VERSION")		
+		latestVersion = os.Getenv("E2E_LATEST_VERSION")
+		isSemVer, _ := ParseVersion(latestVersion)
+		switch {
+		case isSemVer:
+		case latestVersion == "latest":
+		case len(latestVersion) == 8:
+			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
+			latestVersion = latestVersion[:7]
+		default:
+			t.Fatalf("unrecognised version: %s", latestVersion)
+		}
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 
