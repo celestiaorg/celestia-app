@@ -147,15 +147,16 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	testnet, err := New(t.Name(), seed)
+	require.NoError(t, err)
+	t.Cleanup(testnet.Cleanup)
+
 	preloader, err := knuu.NewPreloader()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = preloader.EmptyImages() })
 	err = preloader.AddImage(DockerImageName(latestVersion))
 	require.NoError(t, err)
 
-	testnet, err := New(t.Name(), seed)
-	require.NoError(t, err)
-	t.Cleanup(testnet.Cleanup)
 	for i := 0; i < numNodes; i++ {
 		t.Log("Starting node", "node", i, "version", latestVersion)
 		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight))
@@ -174,7 +175,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 		resp, err := client.Header(ctx, nil)
 		require.NoError(t, err)
 		// FIXME: we are not correctly setting the app version at genesis
-		require.Equal(t, 0, resp.Header.Version.App, "version mismatch before upgrade")
+		require.Equal(t, uint64(0), resp.Header.Version.App, "version mismatch before upgrade")
 	}
 
 	errCh := make(chan error)
