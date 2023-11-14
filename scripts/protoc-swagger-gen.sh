@@ -6,6 +6,7 @@
 # Prior to running this script, please install the following::
 # - Install Node v18.12.0 (LTS)  
 # - Install Go 1.21+  
+#
 
 set -eo pipefail
 
@@ -66,9 +67,24 @@ for dir in $proto_dirs; do
   fi
 done
 
+files=$(find $tmp_dir -name '*.swagger.json' -print0 | xargs -0)
+
+# for file in $files; do
+#   # Tag everything as "gRPC Gateway API"
+#   sed -i -e 's/"(Query|Service)"/"gRPC Gateway API"/' ${file}
+# done
+
+
+
+# merges all the above into final.json
+python3 ${work_dir}/scripts/merge_swagger.py \
+  -d ${tmp_dir} \
+  -t "Celestia gRPC Gateway API" \
+  -o ${work_dir}/docs/swagger-ui/config.json
+
 npm install -g swagger-combine
 npx swagger-combine -f yaml \
-    $work_dir/docs/swagger-ui/config.json \
-    -o $work_dir/docs/swagger-ui/swagger.yaml \
+    ${work_dir}/docs/swagger-ui/config.json \
+    -o ${work_dir}/docs/swagger-ui/swagger.yaml \
     --continueOnConflictingPaths true \
     --includeDefinitions true
