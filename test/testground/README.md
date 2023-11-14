@@ -45,9 +45,9 @@ sequenceDiagram
     Note over L, Fn: EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext)
     
     Note over L, Fn: Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext)
-    F1->>L: Send GenTx
-    F2->>L: Send GenTx
-    Fn->>L: Send GenTx
+    F1->>L: Send PeerPacket
+    F2->>L: Send PeerPacket
+    Fn->>L: Send PeerPacket
 
     Note over L: Genesis Creation
     L->>L: Collect GenTx
@@ -80,7 +80,26 @@ sequenceDiagram
     Note over L: Process log local data
 ```
 
-## Configuring an experiment
+## Configuring an Experiment
+
+### Defining Topologies and Configs
+
+Per the diagram above, the leader node initializes and modifies the configs used
+by each node. This allows for arbitrary network topologies to be created.
+
+### Defining the Experiemnt
+
+To run an specific type of experiment, specify the experiemnt in the `plan.toml`.
+
+```toml
+experiment = "unbounded_block_size"
+```
+
+To create a new experiment.
+
+## Running the Experiment
+
+## Collecting Data
 
 ### Tracing
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/txsim"
@@ -22,8 +21,10 @@ type Follower struct {
 
 // NewFollower creates a new follower role.
 func NewFollower() *Follower {
-	op := NewOperator()
 	f := &Follower{&ConsensusNode{}, nil}
+	// all of the commands that the follower can receive have to be registered
+	// at some point. This is currently done here.
+	op := NewOperator()
 	op.RegisterCommand(
 		RunTxSimCommandID,
 		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args json.RawMessage) error {
@@ -37,7 +38,6 @@ func NewFollower() *Follower {
 		},
 	)
 
-	op.RegisterCommand(RunSubmitRandomPFBs, f.SubmitRandomPFBsHandler)
 	f.op = op
 	return f
 }
@@ -179,37 +179,5 @@ func NewSubmitRandomPFBsCommand(id string, timeout time.Duration, sizes ...int) 
 		Args:        bz,
 		Timeout:     timeout,
 		TargetGroup: "all",
-	}
-}
-
-func (c *ConsensusNode) SubmitRandomPFBsHandler(
-	ctx context.Context,
-	runenv *runtime.RunEnv,
-	initCtx *run.InitContext,
-	args json.RawMessage,
-) error {
-	var sizes []int
-	err := json.Unmarshal(args, &sizes)
-	if err != nil {
-		return err
-	}
-	runenv.RecordMessage("called handler")
-	for {
-		select {
-		case <-ctx.Done():
-			runenv.RecordMessage("done with handler")
-			return nil
-		default:
-			runenv.RecordMessage("calling suvbmit")
-			resp, err := c.SubmitRandomPFB(ctx, runenv, sizes...)
-			if err != nil {
-				return err
-			}
-			runenv.RecordMessage("received a response")
-			if resp == nil {
-				return errors.New("nil response and nil error submitting PFB")
-			}
-			runenv.RecordMessage(fmt.Sprintf("follower submitted PFB code: %d %s", resp.Code, resp.Codespace))
-		}
 	}
 }

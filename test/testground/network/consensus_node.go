@@ -14,12 +14,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -28,7 +24,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmtos "github.com/tendermint/tendermint/libs/os"
 	tmos "github.com/tendermint/tendermint/libs/os"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
@@ -243,45 +238,6 @@ func (cn *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfi
 	}
 }
 
-// SubmitRandomPFB will submit a single PFB using the consensus node's tx
-// signing account. One blob will be included for each size provided in a single PFB.
-func (c *ConsensusNode) SubmitRandomPFB(ctx context.Context, runenv *runtime.RunEnv, blobSizes ...int) (*sdk.TxResponse, error) {
-	runenv.RecordMessage("attempting to get the key")
-	if c.kr == nil {
-		return nil, errors.New("nil keyring")
-	}
-	rec, err := c.kr.Key(c.Name)
-	if err != nil {
-		return nil, err
-	}
-	runenv.RecordMessage("got key")
-	addr, err := rec.GetAddress()
-	if err != nil {
-		return nil, err
-	}
-	runenv.RecordMessage("got addr")
-	signer, err := user.SetupSigner(ctx, c.kr, c.cctx.GRPCClient, addr, c.ecfg)
-	if err != nil {
-		return nil, err
-	}
-	runenv.RecordMessage("created signer")
-
-	r := tmrand.NewRand()
-
-	blobs := blobfactory.RandBlobsWithNamespace(appns.RandomBlobNamespaces(r, len(blobSizes)), blobSizes)
-	runenv.RecordMessage("made blobs")
-	blobSizesU := make([]uint32, 0, len(blobSizes))
-	for _, size := range blobSizes {
-		blobSizesU = append(blobSizesU, uint32(size))
-	}
-
-	limit := blobtypes.DefaultEstimateGas(blobSizesU)
-
-	runenv.RecordMessage("finished prep for pfb")
-
-	return signer.SubmitPayForBlob(ctx, blobs, user.SetGasLimitAndFee(limit, 0.1))
-}
-
 func addrsToStrings(addrs ...sdk.AccAddress) []string {
 	strs := make([]string, len(addrs))
 	for i, addr := range addrs {
@@ -352,7 +308,7 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 	match := re.FindStringSubmatch(input)
 
 	if len(match) != 4 {
-		return "", nil, 0, fmt.Errorf("Invalid input format")
+		return "", nil, 0, fmt.Errorf("invalid input format")
 	}
 
 	// Extract the components from the regex match.
