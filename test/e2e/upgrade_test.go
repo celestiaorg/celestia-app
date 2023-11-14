@@ -69,7 +69,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	opts := txsim.DefaultOptions().WithSeed(seed)
+	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {

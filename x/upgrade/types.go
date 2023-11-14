@@ -1,8 +1,6 @@
 package upgrade
 
 import (
-	fmt "fmt"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -64,75 +62,4 @@ func IsUpgradeMsg(msg []sdk.Msg) (uint64, bool) {
 		return 0, false
 	}
 	return msgVersionChange.Version, true
-}
-
-func (s Schedule) ValidateBasic() error {
-	lastHeight := 0
-	lastVersion := uint64(0)
-	for idx, plan := range s {
-		if err := plan.ValidateBasic(); err != nil {
-			return fmt.Errorf("plan %d: %w", idx, err)
-		}
-		if plan.Start <= int64(lastHeight) {
-			return fmt.Errorf("plan %d: start height must be greater than %d, got %d", idx, lastHeight, plan.Start)
-		}
-		if plan.Version <= lastVersion {
-			return fmt.Errorf("plan %d: version must be greater than %d, got %d", idx, lastVersion, plan.Version)
-		}
-		lastHeight = int(plan.End)
-		lastVersion = plan.Version
-	}
-	return nil
-}
-
-// ValidateVersions checks if all plan versions are covered by all the app versions
-// that the state machine supports.
-func (s Schedule) ValidateVersions(appVersions []uint64) error {
-	versionMap := make(map[uint64]struct{})
-	for _, version := range appVersions {
-		versionMap[version] = struct{}{}
-	}
-	for _, plan := range s {
-		if _, ok := versionMap[plan.Version]; !ok {
-			return fmt.Errorf("plan version %d not found in app versions %v", plan.Version, appVersions)
-		}
-	}
-	return nil
-}
-
-func (s Schedule) ShouldProposeUpgrade(height int64) (uint64, bool) {
-	for _, plan := range s {
-		if height >= plan.Start-1 && height < plan.End {
-			return plan.Version, true
-		}
-	}
-	return 0, false
-}
-
-func (p Plan) ValidateBasic() error {
-	if p.Start < 1 {
-		return fmt.Errorf("plan start height cannot be negative or zero: %d", p.Start)
-	}
-	if p.End < 1 {
-		return fmt.Errorf("plan end height cannot be negative or zero: %d", p.End)
-	}
-	if p.Start > p.End {
-		return fmt.Errorf("plan end height must be greater or equal than start height: %d >= %d", p.Start, p.End)
-	}
-	if p.Version == 0 {
-		return fmt.Errorf("plan version cannot be zero")
-	}
-	return nil
-}
-
-func NewSchedule(plans ...Plan) Schedule {
-	return plans
-}
-
-func NewPlan(startHeight, endHeight int64, version uint64) Plan {
-	return Plan{
-		Start:   startHeight,
-		End:     endHeight,
-		Version: version,
-	}
 }
