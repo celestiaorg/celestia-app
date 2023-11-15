@@ -27,14 +27,5 @@ jobs:
       - name: Run e2e tests
         run: make test-e2e
 
-  test-fuzz:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Run fuzz tests
-        run: make test-fuzz
+  test:
+    uses: ./.github/workflows/test.yml
