@@ -6,11 +6,22 @@ Merged protoc definitions together into 1 JSON file without duplicate keys.
 """
 
 import os
+import re
 import json
+import yaml
 import random
 import string
 import argparse
 from pathlib import Path
+from collections import OrderedDict
+from yaml.representer import SafeRepresenter
+
+# Custom representer for OrderedDict
+def dict_representer(dumper, data):
+    return dumper.represent_dict(data.items())
+
+# Add custom representer to PyYAML for OrderedDict
+yaml.add_representer(OrderedDict, dict_representer)
 
 
 def get_version():
@@ -38,14 +49,9 @@ def merge_files(directory, title, version):
     Combine all individual files calls into 1 massive file.
     """
     # What we will save when all combined
-    output = {
-        "swagger": "2.0",
-        "info": {"title": title, "version": version},
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
-        "paths": {},
-        "definitions": {},
-    }
+
+    paths = {}
+    definitions = {}
 
     json_files = [str(file) for file in Path(directory).rglob('*.json')]
     for file in json_files:
@@ -54,12 +60,20 @@ def merge_files(directory, title, version):
             data = json.load(f)
 
         for key in data["paths"]:
-            output["paths"][key] = data["paths"][key]
+            if key in paths.keys(): continue
+            paths[key] = data["paths"][key]
 
         for key in data["definitions"]:
-            output["definitions"][key] = data["definitions"][key]
+            definitions[key] = data["definitions"][key]
 
-    return output
+    return OrderedDict([
+        ("swagger", "2.0"),
+        ("info", {"title": title, "version": version}),
+        ("consumes", ["application/json"]),
+        ("produces", ["application/json"]),
+        ("paths", paths),
+        ("definitions", definitions),
+    ])
 
 
 def alter_keys(output):
@@ -84,11 +98,11 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', help='Output file')
     args = parser.parse_args()
 
-    version = get_version()
+    version = args.version if args.version else get_version()
 
-    output = merge_files(args.directory, args.title, args.version)
+    output = merge_files(args.directory, args.title, version)
 
     output = alter_keys(output)
 
     with open(args.output, "w") as o:
-        json.dump(output, o, indent=2)
+          yaml.dump(output, o, default_flow_style=False)
