@@ -6,7 +6,6 @@ Merged protoc definitions together into 1 JSON file without duplicate keys.
 """
 
 import os
-import re
 import json
 import yaml
 import random
