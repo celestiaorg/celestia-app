@@ -64,7 +64,10 @@ If you'd rather not install from source, you can download a pre-built binary fro
     ./celestia-appd --help
     ```
 
-#### Optional: Verify the pre-built binary checksums and signatures
+<details>
+<summary>
+Optional: Verify the pre-built binary checksums and signatures  
+</summary>
 
 If you use a pre-built binary, you may also want to verify the checksums and signatures.
 
@@ -99,6 +102,7 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     gpg:          There is no indication that the signature belongs to the owner.
     Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
     ```
+</details>
 
 ### Ledger Support
 
