@@ -166,18 +166,3 @@ func (f *Follower) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
 	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
 	return txsim.Run(ctx, grpcEndpoint, f.kr, f.ecfg, opts, c.Sequences()...)
 }
-
-func NewSubmitRandomPFBsCommand(id string, timeout time.Duration, sizes ...int) Command {
-	bz, err := json.Marshal(sizes)
-	if err != nil {
-		panic(err)
-	}
-
-	return Command{
-		ID:          id,
-		Name:        RunSubmitRandomPFBs,
-		Args:        bz,
-		Timeout:     timeout,
-		TargetGroup: "all",
-	}
-}

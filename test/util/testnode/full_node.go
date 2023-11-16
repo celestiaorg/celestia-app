@@ -29,7 +29,7 @@ func NewCometNode(baseDir string, cfg *UniversalTestingConfig) (*node.Node, srvt
 		logger = log.NewNopLogger()
 	} else {
 		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-		// logger = log.NewFilter(logger, log.AllowError())
+		logger = log.NewFilter(logger, log.AllowError())
 	}
 
 	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")

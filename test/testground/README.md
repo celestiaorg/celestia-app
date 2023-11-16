@@ -99,6 +99,17 @@ To create a new experiment.
 
 ## Running the Experiment
 
+```sh
+cd ./test/testground
+testground plan import --from . --name celestia
+
+# This command should be executed in the 1st terminal
+testground daemon
+
+# This command should be executed in the 2nd terminal
+testground run composition -f compositions/unbounded-block-size/plan.toml --wait
+```
+
 ## Collecting Data
 
 ### Tracing

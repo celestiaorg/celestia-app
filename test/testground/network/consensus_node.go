@@ -234,7 +234,7 @@ func (cn *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfi
 		AppConfig:   cn.AppConfig,
 		AppOptions:  cn.AppOptions,
 		AppCreator:  cn.AppCreator,
-		SupressLogs: false,
+		SupressLogs: true,
 	}
 }
 
