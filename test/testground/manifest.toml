@@ -31,7 +31,7 @@ timeout_propose = { type = "string", default = "10s" }
 timeout_commit = { type = "string", default = "11s" }
 halt_height = { type = "int", default = 50 }
 pex = { type = "bool", default = true }
-topology = { type = "string", default = "connect_all" }
+topology = { type = "string", default = "seed" }
 blob_sequences = { type = "int", default = 10 }
 blob_sizes = { type = "int", default = 100000 }
 blobs_per_sequence = { type = "int", default = 1 }

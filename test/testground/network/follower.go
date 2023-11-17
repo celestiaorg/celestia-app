@@ -75,7 +75,7 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 
-	err = addPeersToAddressBook(homeDir, packets)
+	err = addPeersToAddressBook(f.CmtConfig.P2P.AddrBookFile(), packets)
 	if err != nil {
 		return err
 	}

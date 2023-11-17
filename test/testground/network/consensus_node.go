@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -263,20 +264,16 @@ func getPublicKeys(kr keyring.Keyring, accounts ...string) ([]string, error) {
 }
 
 func addPeersToAddressBook(path string, peers []PeerPacket) error {
-	var filePath string = fmt.Sprintf("%s/config/addrbook.json", path)
-
-	err := os.MkdirAll(path+"/config", os.ModePerm)
+	err := os.MkdirAll(strings.Replace(path, "addrbook.json", "", -1), os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	f, err := os.Create(filePath)
+	addrBook := pex.NewAddrBook(path, false)
+	err = addrBook.OnStart()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	addrBook := pex.NewAddrBook(filePath, false)
 
 	for _, peer := range peers {
 		id, ip, port, err := parsePeerID(peer.PeerID)
@@ -289,8 +286,6 @@ func addPeersToAddressBook(path string, peers []PeerPacket) error {
 			IP:   ip,
 			Port: uint16(port),
 		}
-
-		fmt.Println("routable", netAddr.Routable())
 
 		err = addrBook.AddAddress(&netAddr, &netAddr)
 		if err != nil {

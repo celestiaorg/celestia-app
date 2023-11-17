@@ -81,7 +81,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
-	err = addPeersToAddressBook(homeDir, packets)
+	err = addPeersToAddressBook(l.CmtConfig.P2P.AddrBookFile(), packets)
 	if err != nil {
 		return err
 	}

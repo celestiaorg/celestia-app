@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/testground/sdk-go/run"
@@ -90,16 +91,17 @@ func TestAddrBookLoading(t *testing.T) {
 	}
 	temp := t.TempDir()
 
-	err := addPeersToAddressBook(temp, []PeerPacket{peerPacket})
+	tmcfg := app.DefaultConsensusConfig()
+	tmcfg = tmcfg.SetRoot(temp)
+
+	fmt.Println(tmcfg.P2P.AddrBookFile(), temp)
+
+	err := addPeersToAddressBook(tmcfg.P2P.AddrBookFile(), []PeerPacket{peerPacket})
 	require.NoError(t, err)
 
-	addrBook := pex.NewAddrBook(temp+"/addrbook.json", false)
+	addrBook := pex.NewAddrBook(tmcfg.P2P.AddrBookFile(), false)
 	addrBook.OnStart()
-	s := addrBook.GetSelection()
-	ss := make([]string, 0, len(s))
-	for _, addr := range s {
-		ss = append(ss, addr.String())
-	}
 
-	fmt.Println(ss, addrBook.Empty())
+	require.False(t, addrBook.Empty())
+	require.Equal(t, addrBook.Size(), 1)
 }

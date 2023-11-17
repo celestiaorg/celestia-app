@@ -1,6 +1,6 @@
 # Testground Experiement Tooling
 
-## Flow
+## Test Instance Communication and Experiment Flow
 
 ```go
 // Role is the interface between a testground test entrypoint and the actual
@@ -87,15 +87,12 @@ sequenceDiagram
 Per the diagram above, the leader node initializes and modifies the configs used
 by each node. This allows for arbitrary network topologies to be created.
 
-### Defining the Experiemnt
+## Implemented Experiments
 
-To run an specific type of experiment, specify the experiemnt in the `plan.toml`.
+### Standard
 
-```toml
-experiment = "unbounded_block_size"
-```
-
-To create a new experiment.
+The `standard` test runs an experiment that is as close to mainnet as possible.
+This is used as a base for other experiements.
 
 ## Running the Experiment
 
@@ -107,10 +104,23 @@ testground plan import --from . --name celestia
 testground daemon
 
 # This command should be executed in the 2nd terminal
-testground run composition -f compositions/unbounded-block-size/plan.toml --wait
+testground run composition -f compositions/standard/plan.toml --wait
 ```
 
 ## Collecting Data
+
+### Grafana
+
+All metrics data is logged to a separate testground specific grafana/influx
+node. To access that node, forward the ports use kubectl.
+
+```sh
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=tg-monitoring" -o jsonpath="{.items[0].metadata.name}")
+
+kubectl --namespace default port-forward $POD_NAME 3000
+
+contact members of the devops team or testground admins to get the creds for accessing this node.
+```
 
 ### Tracing
 
