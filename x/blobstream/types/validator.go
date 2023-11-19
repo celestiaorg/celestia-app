@@ -143,7 +143,7 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) sdk.De
 	decMaxUint32 := sdk.NewDec(math.MaxUint32)
 	q := delta.Quo(decMaxUint32)
 
-	return q.Abs()
+	return q
 }
 
 // TotalPower returns the total power in the bridge validator set.

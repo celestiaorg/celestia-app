@@ -62,7 +62,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		log.NewNopLogger(), db, nil, true,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
-		nil,
+		0,
 		emptyOpts,
 	)
 

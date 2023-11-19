@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/celestia-app/x/upgrade"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -76,27 +75,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 				return reject()
 			}
 
-			if appVersion, ok := upgrade.IsUpgradeMsg(msgs); ok {
-				if idx != 0 {
-					logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("upgrade message %d is not the first transaction", idx))
-					return reject()
-				}
-
-				if !IsSupported(appVersion) {
-					logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("block proposes an unsupported app version %d", appVersion))
-					return reject()
-				}
-
-				// app version must always increase
-				if appVersion <= app.GetBaseApp().AppVersion() {
-					logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("block proposes an app version %d that is not greater than the current app version %d", appVersion, app.GetBaseApp().AppVersion()))
-					return reject()
-				}
-
-				// we don't need to pass this message through the ante handler
-				continue
-			}
-
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doens't exist.
@@ -159,7 +137,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
+		logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.Header.DataHash, dah.Hash()))
 		return reject()
 	}
 

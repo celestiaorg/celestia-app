@@ -50,7 +50,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetImage(fmt.Sprintf("%s:%s", dockerSrcURL, version))
+	err = instance.SetImage(DockerImageName(version))
 	if err != nil {
 		return nil, err
 	}
@@ -259,4 +259,12 @@ func (n *Node) Start() error {
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
 	return nil
+}
+
+func (n *Node) Upgrade(version string) error {
+	return n.Instance.SetImageInstant(DockerImageName(version))
+}
+
+func DockerImageName(version string) string {
+	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
 }
