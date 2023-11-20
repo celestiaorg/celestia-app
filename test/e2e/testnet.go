@@ -47,7 +47,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 }
 
 func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64) error {
-	for i := -0; i < num; i++ {
+	for i := 0; i < num; i++ {
 		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight); err != nil {
 			return err
 		}
