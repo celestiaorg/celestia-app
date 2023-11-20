@@ -145,7 +145,6 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 // downloaded from the Leader node.
 func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg RoleConfig) error {
 	cn.CmtConfig = mcfg.CmtConfig
-	cn.CmtConfig.Instrumentation.InfluxToken = "_AHFLpgzvTD2e6cOIp1rE_ToLziwKKKq8Vk9oIq9XjBRJB7ZaJiJSc9Upr57DPc7Fz-tZbIM-mH39MB-TiE7qA=="
 	cn.AppConfig = mcfg.AppConfig
 	cn.AppCreator = cmd.NewAppServer
 	cn.AppOptions = testnode.DefaultAppOptions()
@@ -221,7 +220,7 @@ func (cn *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
 func (cn *ConsensusNode) Stop() error {
 	var err error
 	for _, stop := range cn.stopFuncs {
-		if sterr := stop(); err != nil {
+		if sterr := stop(); sterr != nil {
 			err = sterr
 		}
 	}

@@ -38,7 +38,6 @@ func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
 		ops = append(ops, ConnectRandom(10))
 	case SeedTopology:
 		// don't do anything since we are manually adding peers to the address book
-		// ops = append(ops, SeedConfigurator)
 	default:
 		return nil, fmt.Errorf("unknown topology func: %s", topology)
 	}

@@ -82,7 +82,7 @@ func parseBandwidth(s string) (uint64, error) {
 	} else if strings.HasSuffix(s, "Tb") {
 		multiplier = 1000 * 1000 * 1000 * 1000
 	} else {
-		return 0, fmt.Errorf("unknown unit in string")
+		return 0, fmt.Errorf("unknown unit in string: %s", s)
 	}
 
 	numberStr := strings.TrimRight(s, "KibMibGibTibKBMGBT")

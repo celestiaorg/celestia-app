@@ -89,10 +89,12 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 					}
 				}
 
+				o.mut.Lock()
 				if o.jobs[cmd.ID] != nil {
 					runenv.RecordMessage(fmt.Sprintf("job with id %s already exists", cmd.ID))
 					continue
 				}
+				o.mut.Unlock()
 
 				handler, exists := o.registry[cmd.Name]
 				if !exists {
@@ -102,18 +104,18 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 
 				runenv.RecordMessage("handler exists")
 
-				ctx, cancel := context.WithTimeout(ctx, cmd.Timeout)
+				tctx, cancel := context.WithTimeout(ctx, cmd.Timeout)
 				o.jobs[cmd.ID] = cancel
 				o.wg.Add(1)
 
-				go func(cmd Command) {
+				go func(ctx context.Context, cmd Command) {
 					defer o.wg.Done()
 					defer o.StopJob(cmd.ID)
 					err := handler(ctx, runenv, initCtx, cmd.Args)
 					if err != nil {
 						runenv.RecordMessage(fmt.Sprintf("job %s ID %s failed: %s", cmd.Name, cmd.ID, err))
 					}
-				}(cmd)
+				}(tctx, cmd)
 
 				runenv.RecordMessage("goroutine started")
 			}

@@ -19,7 +19,7 @@ func TestOperator_StopJob(t *testing.T) {
 
 	// Add a fake job.
 	op.jobs["fake_job"] = func() {
-		t.Log("Fake job stoped")
+		t.Log("Fake job stopped")
 	}
 
 	op.StopJob("fake_job")

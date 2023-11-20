@@ -3,7 +3,6 @@ package network
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -20,6 +19,7 @@ import (
 )
 
 const (
+	TimeoutParam           = "timeout"
 	ChainIDParam           = "chain_id"
 	ValidatorsParam        = "validators"
 	FullNodesParam         = "full_nodes"
@@ -73,36 +73,10 @@ type TracingParams struct {
 }
 
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
-	strnodes, ok := runenv.TestInstanceParams[TracingNodesParam]
-	if !ok {
-		runenv.RecordMessage("tracing nodes param not set")
-		strnodes = "2"
-	}
-	nodes, err := strconv.Atoi(strnodes)
-	if err != nil {
-		runenv.RecordMessage("failure to convert a string")
-		nodes = 2
-	}
-	url, ok := runenv.TestInstanceParams[TracingUrlParam]
-	if !ok {
-		runenv.RecordMessage("tracing url param not set")
-		url = "http://167.99.237.127:8086/"
-	}
-	token, ok := runenv.TestInstanceParams[TracingTokenParam]
-	if !ok {
-		runenv.RecordMessage("tracing token param not set")
-		token = "m_AHFLpgzvTD2e6cOIp1rE_ToLziwKKKq8Vk9oIq9XjBRJB7ZaJiJSc9Upr57DPc7Fz-tZbIM-mH39MB-TiE7qA==" //nolint:lll
-	}
-
-	// return TracingParams{
-	// 	Nodes: runenv.IntParam(TracingNodesParam),
-	// 	Url:   runenv.StringParam(TracingUrlParam),
-	// 	Token: runenv.StringParam(TracingTokenParam),
-	// }
 	return TracingParams{
-		Nodes: nodes,
-		Url:   url,
-		Token: token,
+		Nodes: runenv.IntParam(TracingNodesParam),
+		Url:   runenv.StringParam(TracingUrlParam),
+		Token: runenv.StringParam(TracingTokenParam),
 	}
 }
 
@@ -132,7 +106,7 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 
 	p.MaxBlockBytes = runenv.IntParam(MaxBlockBytesParam)
 
-	p.Timeout, err = time.ParseDuration(runenv.StringParam(TimeoutCommitParam))
+	p.Timeout, err = time.ParseDuration(runenv.StringParam(TimeoutParam))
 	if err != nil {
 		return nil, err
 	}
