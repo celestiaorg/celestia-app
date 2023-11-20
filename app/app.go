@@ -576,7 +576,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
 	// to be coordinated through the signalling protocol
 	if app.UpgradeKeeper.ShouldUpgrade(req.Height) {
-		app.SetProtocolVersion(v2.Version)
+		app.SetAppVersion(ctx, v2.Version)
 	}
 	return res
 }
@@ -586,9 +586,6 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
-	}
-	if req.ConsensusParams != nil && req.ConsensusParams.Version != nil {
-		app.SetProtocolVersion(req.ConsensusParams.Version.AppVersion)
 	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
