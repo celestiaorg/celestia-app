@@ -7,8 +7,10 @@ Celestia uses the [knuu](https://github.com/celestiaorg/knuu) framework to orche
 E2E tests can be simply run through go tests. They are distinguished from unit tets through an environment variable. To run all e2e tests run:
 
 ```shell
-E2E=true KNUU_NAMESPACE=test go test ./test/e2e/... -timeout 30m
+E2E=true KNUU_NAMESPACE=test E2E_LATEST_VERSION="$(git rev-parse --short main)" E2E_VERSIONS="$(git tag -l)"  go test ./test/e2e/... -timeout 30m
 ```
+
+You can optionally set a global timeout using `KNUU_TIMEOUT` (default is 60m).
 
 ## Observation
 

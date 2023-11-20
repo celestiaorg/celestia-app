@@ -29,7 +29,7 @@ func TestE2ESimple(t *testing.T) {
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		isSemVer, _ := ParseVersion(latestVersion)
+		_, isSemVer := ParseVersion(latestVersion)
 		switch {
 		case isSemVer:
 		case latestVersion == "latest":

@@ -130,7 +130,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		isSemVer, _ := ParseVersion(latestVersion)
+		_, isSemVer := ParseVersion(latestVersion)
 		switch {
 		case isSemVer:
 		case latestVersion == "latest":
@@ -187,11 +187,11 @@ func TestMajorUpgradeToV2(t *testing.T) {
 		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	}()
 
-	// wait for all nodes to move pass the upgrade height
+	// wait for all nodes to move past the upgrade height
 	for i := 0; i < numNodes; i++ {
 		client, err := testnet.Node(i).Client()
 		require.NoError(t, err)
-		require.NoError(t, waitForHeight(ctx, client, upgradeHeight+2, 30*time.Second))
+		require.NoError(t, waitForHeight(ctx, client, upgradeHeight+2, time.Minute))
 		resp, err := client.Header(ctx, nil)
 		require.NoError(t, err)
 		require.Equal(t, v2.Version, resp.Header.Version.App, "version mismatch after upgrade")

@@ -40,11 +40,13 @@ func (v Version) IsGreater(v2 Version) bool {
 
 type VersionSet []Version
 
+// ParseVersions takes a string of space-separated versions and returns a
+// VersionSet. Invalid versions are ignored.
 func ParseVersions(versionStr string) VersionSet {
 	versions := strings.Split(versionStr, " ")
 	output := make(VersionSet, 0, len(versions))
 	for _, v := range versions {
-		isValid, version := ParseVersion(v)
+		version, isValid := ParseVersion(v)
 		if !isValid {
 			continue
 		}
@@ -53,22 +55,25 @@ func ParseVersions(versionStr string) VersionSet {
 	return output
 }
 
-func ParseVersion(version string) (bool, Version) {
+// ParseVersion takes a string and returns a Version. If the string is not a
+// valid version, the second return value is false.
+// Must be of the format v1.0.0 or v1.0.0-rc1 (i.e. following SemVer)
+func ParseVersion(version string) (Version, bool) {
 	var major, minor, patch, rc uint64
 	isRC := false
 	if strings.Contains(version, "rc") {
 		_, err := fmt.Sscanf(version, "v%d.%d.%d-rc%d", &major, &minor, &patch, &rc)
 		isRC = true
 		if err != nil {
-			return false, Version{}
+			return Version{}, false
 		}
 	} else {
 		_, err := fmt.Sscanf(version, "v%d.%d.%d", &major, &minor, &patch)
 		if err != nil {
-			return false, Version{}
+			return Version{}, false
 		}
 	}
-	return true, Version{major, minor, patch, isRC, rc}
+	return Version{major, minor, patch, isRC, rc}, true
 }
 
 func (v VersionSet) FilterMajor(majorVersion uint64) VersionSet {
