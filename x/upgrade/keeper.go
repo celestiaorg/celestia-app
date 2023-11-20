@@ -200,3 +200,9 @@ func VersionFromBytes(version []byte) uint64 {
 func (k Keeper) ShouldUpgrade(height int64) bool {
 	return k.upgradeHeight == height+1
 }
+
+// ShouldUpgrade returns true if the current height is one before
+// the locally provided upgrade height that is passed as a flag
+func (k Keeper) ShouldUpgrade(height int64) bool {
+	return k.upgradeHeight == height+1
+}
