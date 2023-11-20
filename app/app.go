@@ -86,7 +86,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
@@ -336,7 +335,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, app.StakingKeeper, app.GetSubspace(upgradetypes.ModuleName))
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeHeight)
 
 	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
@@ -576,19 +575,10 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
-
-	// handle upgrade logic
-	switch ctx.BlockHeader().Version.App {
-	case v1.Version:
-		// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
-		// to be coordinated through the signalling protocol
-		if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) {
-			app.SetProtocolVersion(v2.Version)
-		}
-	default:
-		if ready, version := app.UpgradeKeeper.ShouldUpgrade(); ready {
-			app.SetProtocolVersion(version)
-		}
+	// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
+	// to be coordinated through the signalling protocol
+	if app.UpgradeKeeper.ShouldUpgrade(req.Height) {
+		app.SetProtocolVersion(v2.Version)
 	}
 	return res
 }
