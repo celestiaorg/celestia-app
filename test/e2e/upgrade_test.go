@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		t.Log("Starting node", "node", i, "version", v)
-		require.NoError(t, testnet.CreateGenesisNode(v, 10000000))
+		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
@@ -64,6 +65,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	require.NoError(t, testnet.Setup())
 	require.NoError(t, testnet.Start())
 
+	// TODO: with upgrade tests we should simulate a far broader range of transactions
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
 	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
@@ -115,6 +117,87 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	}
 
 	// end the tx sim
+	cancel()
+
+	err = <-errCh
+	require.True(t, errors.Is(err, context.Canceled), err.Error())
+}
+
+func TestMajorUpgradeToV2(t *testing.T) {
+	if os.Getenv("E2E") == "" {
+		t.Skip("skipping e2e test")
+	}
+
+	if os.Getenv("E2E_LATEST_VERSION") != "" {
+		latestVersion = os.Getenv("E2E_LATEST_VERSION")
+		_, isSemVer := ParseVersion(latestVersion)
+		switch {
+		case isSemVer:
+		case latestVersion == "latest":
+		case len(latestVersion) == 8:
+			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
+			latestVersion = latestVersion[:7]
+		default:
+			t.Fatalf("unrecognised version: %s", latestVersion)
+		}
+	}
+
+	numNodes := 4
+	upgradeHeight := int64(10)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testnet, err := New(t.Name(), seed)
+	require.NoError(t, err)
+	t.Cleanup(testnet.Cleanup)
+
+	preloader, err := knuu.NewPreloader()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = preloader.EmptyImages() })
+	err = preloader.AddImage(DockerImageName(latestVersion))
+	require.NoError(t, err)
+
+	for i := 0; i < numNodes; i++ {
+		t.Log("Starting node", "node", i, "version", latestVersion)
+		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight))
+	}
+
+	kr, err := testnet.CreateAccount("alice", 1e12)
+	require.NoError(t, err)
+
+	require.NoError(t, testnet.Setup())
+	require.NoError(t, testnet.Start())
+
+	// assert that the network is initially running on v1
+	for i := 0; i < numNodes; i++ {
+		client, err := testnet.Node(i).Client()
+		require.NoError(t, err)
+		resp, err := client.Header(ctx, nil)
+		require.NoError(t, err)
+		// FIXME: we are not correctly setting the app version at genesis
+		require.Equal(t, uint64(0), resp.Header.Version.App, "version mismatch before upgrade")
+	}
+
+	errCh := make(chan error)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
+	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	go func() {
+		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
+	}()
+
+	// wait for all nodes to move past the upgrade height
+	for i := 0; i < numNodes; i++ {
+		client, err := testnet.Node(i).Client()
+		require.NoError(t, err)
+		require.NoError(t, waitForHeight(ctx, client, upgradeHeight+2, time.Minute))
+		resp, err := client.Header(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, v2.Version, resp.Header.Version.App, "version mismatch after upgrade")
+	}
+
+	// end txsim
 	cancel()
 
 	err = <-errCh
