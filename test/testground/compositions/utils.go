@@ -43,7 +43,7 @@ func CreateNetworkConfig(runenv *runtime.RunEnv, initCtx *run.InitContext) (netw
 		Network: "default",
 		Enable:  true,
 		Default: network.LinkShape{
-			Latency:   time.Duration(runenv.IntParam("latency")),
+			Latency:   time.Millisecond * time.Duration(runenv.IntParam("latency")),
 			Bandwidth: bandwidth,
 		},
 		CallbackState: "network-configured",

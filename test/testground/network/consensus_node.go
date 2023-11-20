@@ -133,11 +133,6 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 		return nil, err
 	}
 
-	// // manually save the packets to the address book.
-	// if err := addPeersToAddressBook(homeDir, packets); err != nil {
-	// 	return nil, err
-	// }
-
 	return packets, nil
 }
 
@@ -216,7 +211,9 @@ func (cn *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
 	return err
 }
 
-// Stop stops the node and cleans up the data directory.
+// Stop stops the node and cleans up the data directory by calling the cleanup
+// functions. It returns the last error that was not nil if any of the cleanup
+// functions returned an error.
 func (cn *ConsensusNode) Stop() error {
 	var err error
 	for _, stop := range cn.stopFuncs {

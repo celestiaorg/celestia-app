@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -94,13 +93,12 @@ func TestAddrBookLoading(t *testing.T) {
 	tmcfg := app.DefaultConsensusConfig()
 	tmcfg = tmcfg.SetRoot(temp)
 
-	fmt.Println(tmcfg.P2P.AddrBookFile(), temp)
-
 	err := addPeersToAddressBook(tmcfg.P2P.AddrBookFile(), []PeerPacket{peerPacket})
 	require.NoError(t, err)
 
 	addrBook := pex.NewAddrBook(tmcfg.P2P.AddrBookFile(), false)
-	addrBook.OnStart()
+	err = addrBook.OnStart()
+	require.NoError(t, err)
 
 	require.False(t, addrBook.Empty())
 	require.Equal(t, addrBook.Size(), 1)
