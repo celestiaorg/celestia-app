@@ -230,11 +230,11 @@ func (cn *ConsensusNode) Stop() error {
 // UniversalTestingConfig returns the configuration used by the testnode package.
 func (cn *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfig {
 	return testnode.UniversalTestingConfig{
-		TmConfig:    cn.CmtConfig,
-		AppConfig:   cn.AppConfig,
-		AppOptions:  cn.AppOptions,
-		AppCreator:  cn.AppCreator,
-		SupressLogs: true,
+		TmConfig:     cn.CmtConfig,
+		AppConfig:    cn.AppConfig,
+		AppOptions:   cn.AppOptions,
+		AppCreator:   cn.AppCreator,
+		SuppressLogs: true,
 	}
 }
 

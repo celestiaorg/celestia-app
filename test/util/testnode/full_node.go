@@ -25,7 +25,7 @@ import (
 // already initialized and saved to the baseDir.
 func NewCometNode(baseDir string, cfg *UniversalTestingConfig) (*node.Node, srvtypes.Application, error) {
 	var logger log.Logger
-	if cfg.SupressLogs {
+	if cfg.SuppressLogs {
 		logger = log.NewNopLogger()
 	} else {
 		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))

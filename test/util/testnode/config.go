@@ -29,8 +29,9 @@ type UniversalTestingConfig struct {
 	AppOptions *KVAppOptions
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
-	// SupressLogs
-	SupressLogs bool
+	// SuppressLogs in testnode. This should be set to true when running
+	// testground tests.
+	SuppressLogs bool
 }
 
 // Config is the configuration of a test node.
@@ -68,9 +69,9 @@ func (c *Config) WithAppCreator(creator srvtypes.AppCreator) *Config {
 	return c
 }
 
-// WithSupressLogs sets the SupressLogs and returns the Config.
-func (c *Config) WithSupressLogs(sl bool) *Config {
-	c.SupressLogs = sl
+// WithSuppressLogs sets the SuppressLogs and returns the Config.
+func (c *Config) WithSuppressLogs(sl bool) *Config {
+	c.SuppressLogs = sl
 	return c
 }
 
@@ -129,7 +130,7 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(cmd.NewAppServer).
-		WithSupressLogs(true)
+		WithSuppressLogs(true)
 }
 
 type KVAppOptions struct {
