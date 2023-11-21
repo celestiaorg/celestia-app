@@ -318,17 +318,3 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 
 	return address, ip, portInt, nil
 }
-
-func getAddresses(runenv *runtime.RunEnv) {
-	var filePath string = fmt.Sprintf("%s/config/addrbook.json", homeDir)
-
-	addrBook := pex.NewAddrBook(filePath, false)
-
-	s := addrBook.GetSelection()
-	ss := make([]string, 0, len(s))
-	for _, addr := range s {
-		ss = append(ss, addr.String())
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("addresses: %s empty: %v", ss, addrBook.Empty()))
-}
