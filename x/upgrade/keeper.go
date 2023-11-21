@@ -1,6 +1,8 @@
 package upgrade
 
 import (
+	fmt "fmt"
+
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -23,6 +25,7 @@ type VersionSetter func(version uint64)
 
 // NewKeeper constructs an upgrade keeper
 func NewKeeper(storeKey storetypes.StoreKey, upgradeHeight int64) Keeper {
+	fmt.Println("upgradeHeight", upgradeHeight)
 	return Keeper{
 		storeKey:      storeKey,
 		upgradeHeight: upgradeHeight,

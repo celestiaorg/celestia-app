@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -240,6 +241,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 	var upgradeHeight int64
 	upgradeHeightStr, ok := appOpts.Get(UpgradeHeightFlag).(string)
 	if ok {
+		fmt.Println("upgrade flag detected")
 		upgradeHeight, err = strconv.ParseInt(upgradeHeightStr, 10, 64)
 		if err != nil {
 			panic(err)
