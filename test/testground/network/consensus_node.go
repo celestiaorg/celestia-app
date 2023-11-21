@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	tg "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -58,6 +59,9 @@ type ConsensusNode struct {
 	AppOptions *testnode.KVAppOptions
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
+	// SuppressLogs in testnode. This should be set to true when running
+	// testground tests unless debugging.
+	SuppressLogs bool
 
 	cmtNode *node.Node
 }
@@ -133,11 +137,6 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 		return nil, err
 	}
 
-	// // manually save the packets to the address book.
-	// if err := addPeersToAddressBook(homeDir, packets); err != nil {
-	// 	return nil, err
-	// }
-
 	return packets, nil
 }
 
@@ -147,7 +146,12 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 	cn.CmtConfig = mcfg.CmtConfig
 	cn.AppConfig = mcfg.AppConfig
 	cn.AppCreator = cmd.NewAppServer
-	cn.AppOptions = testnode.DefaultAppOptions()
+	cn.SuppressLogs = true
+
+	// manually set the protocol version to the one used by the testground
+	appOpts := testnode.DefaultAppOptions()
+	appOpts.Set(app.SetProtocolVersionOptionKey, tg.Version)
+	cn.AppOptions = appOpts
 
 	baseDir = filepath.Join(baseDir, ".celestia-app")
 	cn.baseDir = baseDir
@@ -234,7 +238,7 @@ func (cn *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfi
 		AppConfig:    cn.AppConfig,
 		AppOptions:   cn.AppOptions,
 		AppCreator:   cn.AppCreator,
-		SuppressLogs: true,
+		SuppressLogs: cn.SuppressLogs,
 	}
 }
 
