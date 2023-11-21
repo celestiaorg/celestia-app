@@ -40,6 +40,7 @@ const (
 	TracingTokenParam      = "tracing_token"
 	TracingUrlParam        = "tracing_url"
 	TracingNodesParam      = "tracing_nodes"
+	ExperimentParam        = "experiment"
 )
 
 type Params struct {
@@ -64,6 +65,7 @@ type Params struct {
 	Mempool           string
 	BroadcastTxs      bool
 	TracingParams
+	Experiment string
 }
 
 type TracingParams struct {
@@ -136,6 +138,8 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 
 	p.TracingParams = ParseTracingParams(runenv)
 
+	p.Experiment = runenv.StringParam(ExperimentParam)
+
 	return p, p.ValidateBasic()
 }
 
@@ -168,6 +172,8 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.Version = params.Mempool
 	cmtcfg.Mempool.MaxTxsBytes = 1_000_000_000
 	cmtcfg.Mempool.MaxTxBytes = 100_000_000
+	cmtcfg.Mempool.TTLNumBlocks = 40
+	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	return cmtcfg
 }
 

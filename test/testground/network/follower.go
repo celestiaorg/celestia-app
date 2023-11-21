@@ -87,7 +87,7 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 
 	runenv.RecordMessage("follower waiting for start height")
 
-	_, err = f.cctx.WaitForHeightWithTimeout(int64(10), time.Minute*7)
+	_, err = f.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
 	if err != nil {
 		return err
 	}

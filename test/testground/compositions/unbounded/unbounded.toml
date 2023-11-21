@@ -11,9 +11,9 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "standard-100MB"
-timeout = "25m"
-halt_height = "50"
+chain_id = "unbounded-1Gb-5Mb-control"
+timeout = "59m"
+halt_height = "150"
 latency = "0"
 bandwidth = "1Gib"
 validators = "40"
@@ -28,13 +28,13 @@ blobs_per_sequence = "10"
 inbound_peer_count = "15"
 outbound_peer_count = "10"
 gov_max_square_size = "512"
-max_block_bytes = "99000000"
+max_block_bytes = "2000000"
 mempool = "v1"
 broadcast_txs = "true"
 tracing_nodes = "0"
 tracing_token = ""
 tracing_url = ""
-experiment = "consistent-fill"
+experiment = "ubounded"
 
 [[groups]]
 id = "validators"

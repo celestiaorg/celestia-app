@@ -44,3 +44,4 @@ broadcast_txs = { type = "bool", default = true }
 tracing_nodes = { type = "int", default = 0 }
 tracing_url = { type = "string", default = "" }
 tracing_token = { type = "string", default = "" }
+experiment = { type = "experiment", default = "consistent-fill" }

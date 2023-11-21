@@ -8,9 +8,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
 	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
@@ -113,24 +119,16 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 		}
 	}()
 
-	seqs := runenv.IntParam(BlobSequencesParam)
-	size := runenv.IntParam(BlobSizesParam)
-	count := runenv.IntParam(BlobsPerSeqParam)
-
-	cmd := NewRunTxSimCommand("txsim-0", time.Minute*10, RunTxSimCommandArgs{
-		BlobSequences: seqs,
-		BlobSize:      size,
-		BlobCount:     count,
-	})
-
-	_, err := initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
-	if err != nil {
-		return err
+	switch l.params.Experiment {
+	case UnboundedBlockSize:
+		l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec)
+	case ConsistentFill:
+		fillBlocks(ctx, runenv, initCtx, time.Minute*20)
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.params.HaltHeight))
 
-	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*30)
+	_, err := l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*50)
 	if err != nil {
 		return err
 	}
@@ -212,6 +210,41 @@ func DeserializeAccountPublicKey(hexPubKey string) (cryptotypes.PubKey, error) {
 	pubKey.Key = bz
 
 	return &pubKey, nil
+}
+
+// changeParams submits a parameter change proposal to the network. Errors are
+// thrown if the proposal is not submitted successfully.
+func (l *Leader) changeParams(ctx context.Context, runenv *runtime.RunEnv, changes ...proposal.ParamChange) error {
+	content := proposal.NewParameterChangeProposal("title", "description", changes)
+	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
+
+	msg, err := oldgov.NewMsgSubmitProposal(
+		content,
+		sdk.NewCoins(
+			sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+		addr,
+	)
+	if err != nil {
+		return err
+	}
+
+	signer, err := user.SetupSigner(ctx, l.cctx.Keyring, l.cctx.GRPCClient, addr, l.ecfg)
+	if err != nil {
+		return err
+	}
+
+	resp, err := signer.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimitAndFee(1000000, 0.2))
+	if err != nil {
+		return err
+	}
+
+	if resp.Code != 0 {
+		return fmt.Errorf("proposal failed with code %d: %s", resp.Code, resp.RawLog)
+	}
+
+	runenv.RecordMessage(fmt.Sprintf("submitted successful proposal %+v", changes))
+
+	return nil
 }
 
 // subscribeAndRecordBlocks subscribes to the block event stream and records
