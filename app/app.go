@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -576,7 +577,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
 	// to be coordinated through the signalling protocol
 	if app.UpgradeKeeper.ShouldUpgrade(req.Height) {
-		app.Logger().Info("Upgrading to v2", "height", req.Height)
+		fmt.Println("upgrading to v2", "height", req.Height)
 		app.SetAppVersion(ctx, v2.Version)
 	}
 	return res
