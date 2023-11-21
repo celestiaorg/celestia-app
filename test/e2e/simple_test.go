@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -26,11 +27,17 @@ func TestE2ESimple(t *testing.T) {
 		t.Skip("skipping e2e test")
 	}
 
-	if os.Getenv("E2E_VERSIONS") != "" {
-		versionsStr := os.Getenv("E2E_VERSIONS")
-		versions := ParseVersions(versionsStr)
-		if len(versions) > 0 {
-			latestVersion = versions.GetLatest().String()
+	if os.Getenv("E2E_LATEST_VERSION") != "" {
+		latestVersion = os.Getenv("E2E_LATEST_VERSION")
+		_, isSemVer := ParseVersion(latestVersion)
+		switch {
+		case isSemVer:
+		case latestVersion == "latest":
+		case len(latestVersion) == 8:
+			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
+			latestVersion = latestVersion[:7]
+		default:
+			t.Fatalf("unrecognised version: %s", latestVersion)
 		}
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
@@ -38,7 +45,7 @@ func TestE2ESimple(t *testing.T) {
 	testnet, err := New(t.Name(), seed)
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
-	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000))
+	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0))
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
 	require.NoError(t, err)
@@ -61,6 +68,7 @@ func TestE2ESimple(t *testing.T) {
 
 	totalTxs := 0
 	for _, block := range blockchain {
+		require.Equal(t, v1.Version, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
