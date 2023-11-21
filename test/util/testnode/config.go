@@ -3,6 +3,7 @@ package testnode
 import (
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
@@ -146,6 +147,7 @@ func (ao *KVAppOptions) Set(o string, v interface{}) {
 func DefaultAppOptions() *KVAppOptions {
 	opts := &KVAppOptions{options: make(map[string]interface{})}
 	opts.Set(server.FlagPruning, pruningtypes.PruningOptionNothing)
+	opts.Set(app.SetProtocolVersionOptionKey, appconsts.LatestVersion)
 	return opts
 }
 
