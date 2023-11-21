@@ -2,7 +2,7 @@
 language: "en" # English
 early_access: false
 reviews:
-  high_level_summary: true
+  high_level_summary: false # Disable the high level summary because this feature modifies the original PR description. Ideally this feature would add a new comment to the PR instead of modifying the original PR description.
   poem: false # Disable the poem feature because it adds noise and doesn't improve the review process.
   review_status: false
   collapse_walkthrough: true
