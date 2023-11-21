@@ -86,8 +86,6 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
-	getAddresses(runenv)
-
 	err = l.ConsensusNode.StartNode(ctx, l.baseDir)
 	if err != nil {
 		return err
@@ -95,7 +93,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	runenv.RecordMessage("waiting for initial height")
 
-	_, err = l.cctx.WaitForHeightWithTimeout(int64(10), time.Minute*7)
+	_, err = l.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
 	if err != nil {
 		return err
 	}
@@ -108,8 +106,12 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 }
 
 func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-
-	time.Sleep(time.Second * 20)
+	defer func() {
+		_, err := initCtx.SyncClient.Publish(ctx, CommandTopic, EndTestCommand())
+		if err != nil {
+			runenv.RecordMessage(fmt.Sprintf("error publishing end test command: %v", err))
+		}
+	}()
 
 	seqs := runenv.IntParam(BlobSequencesParam)
 	size := runenv.IntParam(BlobSizesParam)
@@ -132,8 +134,6 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	if err != nil {
 		return err
 	}
-
-	_, err = initCtx.SyncClient.Publish(ctx, CommandTopic, EndTestCommand())
 
 	return err
 }
@@ -233,7 +233,7 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 				return fmt.Errorf("unexpected event type: %T", ev.Data)
 			}
 			blockTime := newBlock.Block.Time.Sub(lastBlockTime)
-			runenv.RecordMessage(fmt.Sprintf("leader height %d time %v size bytes %d", newBlock.Block.Height, blockTime, newBlock.Block.Size()))
+			runenv.RecordMessage(fmt.Sprintf("leader height %d time %v size bytes %d app version %v", newBlock.Block.Height, blockTime, newBlock.Block.Size(), newBlock.Block.Version.App))
 			lastBlockTime = newBlock.Block.Time
 		case <-ctx.Done():
 			return nil

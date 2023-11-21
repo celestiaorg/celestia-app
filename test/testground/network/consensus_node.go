@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	tg "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -58,6 +59,9 @@ type ConsensusNode struct {
 	AppOptions *testnode.KVAppOptions
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
+	// SuppressLogs in testnode. This should be set to true when running
+	// testground tests unless debugging.
+	SuppressLogs bool
 
 	cmtNode *node.Node
 }
@@ -142,7 +146,12 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 	cn.CmtConfig = mcfg.CmtConfig
 	cn.AppConfig = mcfg.AppConfig
 	cn.AppCreator = cmd.NewAppServer
-	cn.AppOptions = testnode.DefaultAppOptions()
+	cn.SuppressLogs = true
+
+	// manually set the protocol version to the one used by the testground
+	appOpts := testnode.DefaultAppOptions()
+	appOpts.Set(app.SetProtocolVersionOptionKey, tg.Version)
+	cn.AppOptions = appOpts
 
 	baseDir = filepath.Join(baseDir, ".celestia-app")
 	cn.baseDir = baseDir
@@ -231,7 +240,7 @@ func (cn *ConsensusNode) UniversalTestingConfig() testnode.UniversalTestingConfi
 		AppConfig:    cn.AppConfig,
 		AppOptions:   cn.AppOptions,
 		AppCreator:   cn.AppCreator,
-		SuppressLogs: true,
+		SuppressLogs: cn.SuppressLogs,
 	}
 }
 
@@ -314,18 +323,4 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 	}
 
 	return address, ip, portInt, nil
-}
-
-func getAddresses(runenv *runtime.RunEnv) {
-	var filePath string = fmt.Sprintf("%s/config/addrbook.json", homeDir)
-
-	addrBook := pex.NewAddrBook(filePath, false)
-
-	s := addrBook.GetSelection()
-	ss := make([]string, 0, len(s))
-	for _, addr := range s {
-		ss = append(ss, addr.String())
-	}
-
-	runenv.RecordMessage(fmt.Sprintf("addresses: %s empty: %v", ss, addrBook.Empty()))
 }

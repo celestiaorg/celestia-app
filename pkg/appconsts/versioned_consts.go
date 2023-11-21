@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	LatestVersion = testground.Version
+	LatestVersion = v1.Version
 )
 
 // SubtreeRootThreshold works as a target upper bound for the number of subtree
