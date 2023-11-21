@@ -177,7 +177,6 @@ func TestMajorUpgradeToV2(t *testing.T) {
 		require.NoError(t, err)
 		resp, err := client.Header(ctx, nil)
 		require.NoError(t, err)
-		// FIXME: we are not correctly setting the app version at genesis
 		require.Equal(t, v1.Version, resp.Header.Version.App, "version mismatch before upgrade")
 	}
 
