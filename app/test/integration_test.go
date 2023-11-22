@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -191,10 +192,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				// assert that the app version is correctly set
-				// FIXME: This should return the latest version but tendermint v0.34.x doesn't copy
-				// over the version when converting from proto so it disappears
-				require.EqualValues(t, 0, blockRes.Block.Header.Version.App)
+				require.EqualValues(t, v2.Version, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
 				ExtendBlobTest(t, blockRes.Block)
@@ -329,9 +327,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		// FIXME: This should return the latest version but tendermint v0.34.x doesn't copy
-		// over the version when converting from proto so it disappears
-		require.EqualValues(t, 0, blockRes.Block.Header.Version.App)
+		require.EqualValues(t, v2.Version, blockRes.Block.Header.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
@@ -134,6 +135,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 		switch {
 		case isSemVer:
 		case latestVersion == "latest":
+		case len(latestVersion) == 7:
 		case len(latestVersion) == 8:
 			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
 			latestVersion = latestVersion[:7]
@@ -143,7 +145,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	}
 
 	numNodes := 4
-	upgradeHeight := int64(10)
+	upgradeHeight := int64(12)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -158,7 +160,6 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < numNodes; i++ {
-		t.Log("Starting node", "node", i, "version", latestVersion)
 		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight))
 	}
 
@@ -167,16 +168,6 @@ func TestMajorUpgradeToV2(t *testing.T) {
 
 	require.NoError(t, testnet.Setup())
 	require.NoError(t, testnet.Start())
-
-	// assert that the network is initially running on v1
-	for i := 0; i < numNodes; i++ {
-		client, err := testnet.Node(i).Client()
-		require.NoError(t, err)
-		resp, err := client.Header(ctx, nil)
-		require.NoError(t, err)
-		// FIXME: we are not correctly setting the app version at genesis
-		require.Equal(t, uint64(0), resp.Header.Version.App, "version mismatch before upgrade")
-	}
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -187,12 +178,16 @@ func TestMajorUpgradeToV2(t *testing.T) {
 		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	}()
 
-	// wait for all nodes to move past the upgrade height
+	// assert that the network is initially running on v1
+	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
 		client, err := testnet.Node(i).Client()
 		require.NoError(t, err)
-		require.NoError(t, waitForHeight(ctx, client, upgradeHeight+2, time.Minute))
-		resp, err := client.Header(ctx, nil)
+		require.NoError(t, waitForHeight(ctx, client, upgradeHeight, time.Minute))
+		resp, err := client.Header(ctx, &heightBefore)
+		require.NoError(t, err)
+		require.Equal(t, v1.Version, resp.Header.Version.App, "version mismatch before upgrade")
+		resp, err = client.Header(ctx, &upgradeHeight)
 		require.NoError(t, err)
 		require.Equal(t, v2.Version, resp.Header.Version.App, "version mismatch after upgrade")
 	}

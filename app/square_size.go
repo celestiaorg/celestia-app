@@ -19,10 +19,6 @@ func (app *App) GovSquareSizeUpperBound(ctx sdk.Context) int {
 	}
 
 	gmax := int(app.BlobKeeper.GovMaxSquareSize(ctx))
-	// perform a secondary check on the max square size.
-	if gmax > appconsts.SquareSizeUpperBound(app.AppVersion()) {
-		gmax = appconsts.SquareSizeUpperBound(app.AppVersion())
-	}
-
-	return gmax
+	hardMax := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
+	return min(gmax, hardMax)
 }
