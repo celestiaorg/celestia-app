@@ -15,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
@@ -27,6 +28,7 @@ import (
 // creating the genesis block and distributing it to all nodes.
 type Leader struct {
 	*ConsensusNode
+	signer *user.Signer
 }
 
 // Plan is the method that creates and distributes the genesis, configurations,
@@ -104,6 +106,15 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
+	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
+
+	signer, err := user.SetupSigner(ctx, l.cctx.Keyring, l.cctx.GRPCClient, addr, l.ecfg)
+	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to setup signer %+v", err))
+		return err
+	}
+	l.signer = signer
+
 	// this is a helpful sanity check that logs the blocks from the POV of the
 	// leader in a testground viewable way.
 	go l.subscribeAndRecordBlocks(ctx, runenv)
@@ -121,9 +132,13 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 
 	switch l.params.Experiment {
 	case UnboundedBlockSize:
+		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
 		l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec)
 	case ConsistentFill:
+		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
 		fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+	default:
+		return fmt.Errorf("unknown experiment %s", l.params.Experiment)
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.params.HaltHeight))
@@ -142,13 +157,13 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	defer l.ConsensusNode.Stop()
 
-	blockRes, err := l.cctx.Client.Block(ctx, nil)
+	blockRes, err := l.cctx.Client.Header(ctx, nil)
 	if err != nil {
 		return err
 	}
 
 	maxBlockSize := 0
-	for i := int64(1); i < blockRes.Block.Height; i++ {
+	for i := int64(1); i < blockRes.Header.Height; i++ {
 		blockRes, err := l.cctx.Client.Block(ctx, nil)
 		if err != nil {
 			return err
@@ -159,7 +174,7 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 		}
 	}
 
-	runenv.RecordMessage(fmt.Sprintf("leader retro: height %d max block size bytes %d", blockRes.Block.Height, maxBlockSize))
+	runenv.RecordMessage(fmt.Sprintf("leader retro: height %d max block size bytes %d", blockRes.Header.Height, maxBlockSize))
 
 	return nil
 }
@@ -214,35 +229,35 @@ func DeserializeAccountPublicKey(hexPubKey string) (cryptotypes.PubKey, error) {
 
 // changeParams submits a parameter change proposal to the network. Errors are
 // thrown if the proposal is not submitted successfully.
-func (l *Leader) changeParams(ctx context.Context, runenv *runtime.RunEnv, changes ...proposal.ParamChange) error {
+func (l *Leader) changeParams(ctx context.Context, runenv *runtime.RunEnv, propID uint64, changes ...proposal.ParamChange) error {
 	content := proposal.NewParameterChangeProposal("title", "description", changes)
 	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
 
-	msg, err := oldgov.NewMsgSubmitProposal(
+	propMsg, err := oldgov.NewMsgSubmitProposal(
 		content,
 		sdk.NewCoins(
 			sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
 		addr,
 	)
 	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to create proposal msg %+v", err))
 		return err
 	}
 
-	signer, err := user.SetupSigner(ctx, l.cctx.Keyring, l.cctx.GRPCClient, addr, l.ecfg)
-	if err != nil {
-		return err
-	}
+	voteMsg := v1.NewMsgVote(addr, propID, v1.VoteOption_VOTE_OPTION_YES, "")
 
-	resp, err := signer.SubmitTx(ctx, []sdk.Msg{msg}, user.SetGasLimitAndFee(1000000, 0.2))
+	resp, err := l.signer.SubmitTx(ctx, []sdk.Msg{propMsg, voteMsg}, user.SetGasLimitAndFee(1000000, 0.2))
 	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to submit tx %+v, %v", changes, err))
 		return err
 	}
 
 	if resp.Code != 0 {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to submit tx %+v, %v %v", changes, resp.Code, resp.Codespace))
 		return fmt.Errorf("proposal failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
-	runenv.RecordMessage(fmt.Sprintf("submitted successful proposal %+v", changes))
+	runenv.RecordMessage(fmt.Sprintf("leader: submitted successful proposal %+v", changes))
 
 	return nil
 }

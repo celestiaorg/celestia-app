@@ -77,12 +77,12 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 			}
 			switch cmd.Name {
 			case TestEndName:
-				runenv.RecordMessage("test ended by leader")
+				runenv.RecordMessage("follower: test ended by leader")
 				return nil
 			case CancelCommand:
 				o.StopJob(cmd.ID)
 			default:
-				runenv.RecordMessage(fmt.Sprintf("received command %s %+v", cmd.Name, cmd.Args))
+				runenv.RecordMessage(fmt.Sprintf("follower: received command %s %+v", cmd.Name, cmd.Args))
 				if cmd.TargetGroup != "all" {
 					if cmd.TargetGroup != o.groupID {
 						continue
@@ -91,14 +91,14 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 
 				o.mut.Lock()
 				if o.jobs[cmd.ID] != nil {
-					runenv.RecordMessage(fmt.Sprintf("job with id %s already exists", cmd.ID))
+					runenv.RecordMessage(fmt.Sprintf("follower: job with id %s already exists", cmd.ID))
 					continue
 				}
 				o.mut.Unlock()
 
 				handler, exists := o.registry[cmd.Name]
 				if !exists {
-					runenv.RecordMessage(fmt.Sprintf("job %s with id %s isn't registered", cmd.Name, cmd.ID))
+					runenv.RecordMessage(fmt.Sprintf("follower: job %s with id %s isn't registered", cmd.Name, cmd.ID))
 					continue
 				}
 
@@ -113,11 +113,11 @@ func (o *Operator) Run(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 					defer o.StopJob(cmd.ID)
 					err := handler(ctx, runenv, initCtx, cmd.Args)
 					if err != nil {
-						runenv.RecordMessage(fmt.Sprintf("job %s ID %s failed: %s", cmd.Name, cmd.ID, err))
+						runenv.RecordMessage(fmt.Sprintf("follower: job %s ID %s failed: %s", cmd.Name, cmd.ID, err))
 					}
 				}(tctx, cmd)
 
-				runenv.RecordMessage("goroutine started")
+				runenv.RecordMessage("follower: goroutine started")
 			}
 		}
 	}

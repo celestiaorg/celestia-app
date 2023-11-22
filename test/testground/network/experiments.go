@@ -26,6 +26,8 @@ func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitCo
 		BlobCount:     count,
 	})
 
+	runenv.RecordMessage("leader: sending txsim command")
+
 	_, err := initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
 	return err
 }
@@ -38,18 +40,22 @@ func (l *Leader) unboundedBlockSize(ctx context.Context, runenv *runtime.RunEnv,
 
 	go func() {
 		blockSize := 2000000
+		proposalCount := uint64(1)
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				err = l.changeParams(ctx, runenv, sdkutil.MaxBlockBytesParamChange(cdc, blockSize))
+				err = l.changeParams(ctx, runenv, proposalCount, sdkutil.MaxBlockBytesParamChange(cdc, blockSize))
 				if err != nil {
+					runenv.RecordMessage("leader: failure to increase the blocksize %d, %v", blockSize, err)
 					runenv.RecordFailure(err)
 					return
 				}
-				time.Sleep(time.Minute * 4)
+				runenv.RecordMessage("leader: changed max block size to %d", blockSize)
+				time.Sleep(time.Minute * 1)
 				blockSize += 10000000
+				proposalCount++
 			}
 		}
 	}()

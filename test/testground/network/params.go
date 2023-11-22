@@ -161,7 +161,7 @@ func (p *Params) NodeCount() int {
 func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg := app.DefaultConsensusConfig()
 	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
-	cmtcfg.Instrumentation.Prometheus = true
+	cmtcfg.Instrumentation.Prometheus = false
 	cmtcfg.P2P.PexReactor = params.Pex
 	cmtcfg.P2P.SendRate = int64(params.PerPeerBandwidth)
 	cmtcfg.P2P.RecvRate = int64(params.PerPeerBandwidth)
