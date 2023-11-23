@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "block-part-size-2"
+chain_id = "block-part-size-4"
 timeout = "59m"
 halt_height = "200"
 latency = "0"
