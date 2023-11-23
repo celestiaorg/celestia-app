@@ -6,6 +6,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/test/util/sdkutil"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/tendermint/tendermint/consensus"
+	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -14,6 +16,11 @@ const (
 	UnboundedBlockSize = "unbounded"
 	ConsistentFill     = "consistent-fill"
 )
+
+func init() {
+	coretypes.SetBlockPartSizeBytes(3220000)
+	consensus.SetMaxMsgSize(5000000)
+}
 
 func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, timeout time.Duration) error {
 	seqs := runenv.IntParam(BlobSequencesParam)
@@ -40,6 +47,9 @@ func (l *Leader) unboundedBlockSize(ctx context.Context, runenv *runtime.RunEnv,
 
 	go func() {
 		blockSize := 2000000
+		blockIncrement := 5000000
+		sleep := time.Second * 60
+		sleepIncrement := time.Second * 30
 		proposalCount := uint64(1)
 		for {
 			select {
@@ -53,8 +63,11 @@ func (l *Leader) unboundedBlockSize(ctx context.Context, runenv *runtime.RunEnv,
 					return
 				}
 				runenv.RecordMessage("leader: changed max block size to %d", blockSize)
-				time.Sleep(time.Minute * 1)
-				blockSize += 10000000
+				time.Sleep(sleep)
+				sleep += sleepIncrement
+				sleepIncrement += time.Second * 15
+				blockSize += blockIncrement
+				blockIncrement += 5000000
 				proposalCount++
 			}
 		}

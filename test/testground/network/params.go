@@ -75,10 +75,15 @@ type TracingParams struct {
 }
 
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
+	// return TracingParams{
+	// 	Nodes: runenv.IntParam(TracingNodesParam),
+	// 	Url:   runenv.StringParam(TracingUrlParam),
+	// 	Token: runenv.StringParam(TracingTokenParam),
+	// }
 	return TracingParams{
-		Nodes: runenv.IntParam(TracingNodesParam),
-		Url:   runenv.StringParam(TracingUrlParam),
-		Token: runenv.StringParam(TracingTokenParam),
+		Nodes: 1,
+		Url:   "http://51.158.232.250:8086",
+		Token: "fMN3ga2B3n-_9XDgyZh7VnC1mGRqWvh5pXN3SYMWmOGwA8a_lmjvHmTm6JQCU8b5-vvU6QwauQT3nNA0fZTfCg==",
 	}
 }
 
@@ -172,7 +177,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.Version = params.Mempool
 	cmtcfg.Mempool.MaxTxsBytes = 1_000_000_000
 	cmtcfg.Mempool.MaxTxBytes = 100_000_000
-	cmtcfg.Mempool.TTLNumBlocks = 40
+	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	return cmtcfg
 }

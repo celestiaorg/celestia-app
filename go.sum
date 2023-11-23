@@ -320,8 +320,8 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
-github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29.0.20231122225145-1c3d0f0527f0 h1:8lzQufHO8mUQE8gXVPxS66p4ufBzD7bB377MSJ9dZSg=
-github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29.0.20231122225145-1c3d0f0527f0/go.mod h1:8h9ZuRxWmbz2hgTyt+o9e3CXpA0H85twyVu2jga4tBg=
+github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29.0.20231123173029-c64169622019 h1:mhv3YGDs6HaR/Vq7GB7XIp2ZkouiLbclHTzatecJJtg=
+github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29.0.20231123173029-c64169622019/go.mod h1:8h9ZuRxWmbz2hgTyt+o9e3CXpA0H85twyVu2jga4tBg=
 github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14 h1:+Te28r5Zp4Vp69f82kcON9/BIF8f1BNXb0go2+achuc=
 github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14/go.mod h1:Og5KKgoBEiQlI6u56lDLG191pfknIdXctFn3COWLQP8=
 github.com/celestiaorg/knuu v0.9.0 h1:tS8iBSL/Gf6MI8OMf4etU2tU442jMowxaVMmYBnyLKs=

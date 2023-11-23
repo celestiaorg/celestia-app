@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "control-1"
+chain_id = "cat-1"
 timeout = "59m"
 halt_height = "200"
 latency = "0"
@@ -29,7 +29,7 @@ inbound_peer_count = "40"
 outbound_peer_count = "10"
 gov_max_square_size = "1024"
 max_block_bytes = "2000000"
-mempool = "v1"
+mempool = "v2"
 broadcast_txs = "true"
 tracing_nodes = "0"
 tracing_token = ""
