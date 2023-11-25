@@ -32,7 +32,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	tmNode, app, err := NewCometNode(t, baseDir, cfg)
 	require.NoError(t, err)
 
-	cctx = NewContext(context.TODO(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
+	cctx = NewContext(context.Background(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
