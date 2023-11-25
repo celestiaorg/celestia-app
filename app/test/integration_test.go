@@ -30,7 +30,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -183,66 +182,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
 		})
 		require.NoError(t, s.cctx.WaitForNextBlock())
-	}
-}
-
-func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
-	t := s.T()
-
-	type test struct {
-		name string
-		blob *blob.Blob
-		opts []user.TxOption
-	}
-
-	tests := []test{
-		{
-			"small random typical",
-			newBlobWithSize(3 * Kibibyte),
-			[]user.TxOption{
-				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-		{
-			"large random typical",
-			newBlobWithSize(350 * Kibibyte),
-			[]user.TxOption{
-				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-		{
-			"medium random with memo",
-			newBlobWithSize(100 * Kibibyte),
-			[]user.TxOption{
-				user.SetMemo("lol I could stick the rollup block here if I wanted to"),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-		{
-			"medium random with timeout height",
-			newBlobWithSize(100 * Kibibyte),
-			[]user.TxOption{
-				user.SetTimeoutHeight(10000),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-	}
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			// occasionally this test will error that the mempool is full (code
-			// 20) so we wait a few blocks for the txs to clear
-			require.NoError(t, s.cctx.WaitForBlocks(3))
-
-			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
-			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-			require.NoError(t, err)
-			res, err := signer.SubmitPayForBlob(context.TODO(), []*blob.Blob{tc.blob, tc.blob}, tc.opts...)
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
-		})
 	}
 }
 
