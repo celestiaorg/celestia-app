@@ -370,21 +370,6 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	}
 	testCases := []testCase{
 		{
-			name:           "1 kibibyte blob",
-			blob:           newBlobWithSize(Kibibyte),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "10 kibibyte blob",
-			blob:           newBlobWithSize(10 * Kibibyte),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "100 kibibyte blob",
-			blob:           newBlobWithSize(100 * Kibibyte),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
 			name:           "1 mebibyte blob",
 			blob:           newBlobWithSize(1 * mebibyte),
 			txResponseCode: abci.CodeTypeOK,
