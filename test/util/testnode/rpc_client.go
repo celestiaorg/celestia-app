@@ -15,13 +15,17 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// noOpCleanup is a function that conforms to the cleanup function signature and
+// performs no operation.
+var noOpCleanup = func() error { return nil }
+
 // StartNode starts the tendermint node along with a local core rpc client. The
 // rpc is returned via the client.Context. The function returned should be
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
 func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	if err := tmNode.Start(); err != nil {
-		return cctx, func() error { return nil }, err
+		return cctx, noOpCleanup, err
 	}
 
 	coreClient := local.New(tmNode)
