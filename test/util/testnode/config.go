@@ -116,7 +116,7 @@ func DefaultConfig() *Config {
 			genesis.NewDefaultGenesis().
 				WithChainID(tmrand.Str(6)).
 				WithGenesisTime(time.Now()).
-				WithConsensusParams(DefaultParams()).
+				WithConsensusParams(DefaultConsensusParams()).
 				WithModifiers().
 				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
 		).
@@ -127,7 +127,7 @@ func DefaultConfig() *Config {
 		WithSupressLogs(true)
 }
 
-func DefaultParams() *tmproto.ConsensusParams {
+func DefaultConsensusParams() *tmproto.ConsensusParams {
 	cparams := types.DefaultConsensusParams()
 	cparams.Block.TimeIotaMs = 1
 	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes

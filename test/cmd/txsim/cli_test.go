@@ -61,7 +61,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 
 	// set the consensus params to allow for the max square size
-	cparams := testnode.DefaultParams()
+	cparams := testnode.DefaultConsensusParams()
 	cparams.Block.MaxBytes = int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize
 
 	cfg := testnode.DefaultConfig().
