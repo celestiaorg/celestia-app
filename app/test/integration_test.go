@@ -188,7 +188,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
 	type test struct {
 		name string
@@ -199,7 +198,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	tests := []test{
 		{
 			"small random typical",
-			blob.New(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
+			newBlobWithSize(3 * Kibibyte),
 			[]user.TxOption{
 				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 				user.SetGasLimit(1_000_000_000),
@@ -207,7 +206,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			blob.New(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
+			newBlobWithSize(350 * Kibibyte),
 			[]user.TxOption{
 				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 				user.SetGasLimit(1_000_000_000),
@@ -215,7 +214,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with memo",
-			blob.New(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
+			newBlobWithSize(100 * Kibibyte),
 			[]user.TxOption{
 				user.SetMemo("lol I could stick the rollup block here if I wanted to"),
 				user.SetGasLimit(1_000_000_000),
@@ -223,7 +222,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with timeout height",
-			blob.New(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
+			newBlobWithSize(100 * Kibibyte),
 			[]user.TxOption{
 				user.SetTimeoutHeight(10000),
 				user.SetGasLimit(1_000_000_000),
