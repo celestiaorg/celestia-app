@@ -62,7 +62,7 @@ func (s *IntegrationTestSuite) Test_verifyTimeIotaMs() {
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to decrease flakiness
 	for i := 0; i < 100; i++ {
-		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
+		params, err = s.cctx.Client.ConsensusParams(context.Background(), nil)
 		if err == nil && params != nil {
 			break
 		}
