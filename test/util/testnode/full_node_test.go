@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Kibibyte = 1024
+	kibibyte = 1024
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -75,7 +75,7 @@ func (s *IntegrationTestSuite) Test_verifyTimeIotaMs() {
 
 func (s *IntegrationTestSuite) TestPostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(Kibibyte))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(kibibyte))
 	require.NoError(err)
 }
 
