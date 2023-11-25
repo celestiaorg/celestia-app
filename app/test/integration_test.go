@@ -38,7 +38,7 @@ import (
 
 const (
 	Kibibyte = 1024
-	Mebibyte = 1_048_576
+	Mebibyte = 1024 * Kibibyte
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
