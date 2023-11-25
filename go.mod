@@ -4,7 +4,7 @@ go 1.21.1
 
 require (
 	github.com/celestiaorg/nmt v0.20.0
-	github.com/ethereum/go-ethereum v1.13.4
+	github.com/ethereum/go-ethereum v1.13.5
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.1 // indirect
@@ -44,13 +44,13 @@ require (
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
-	github.com/cosmos/ledger-cosmos-go v0.13.2 // indirect
-	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
+	github.com/cosmos/ledger-cosmos-go v0.12.4 // indirect
+	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
-	github.com/ethereum/c-kzg-4844 v0.3.1 // indirect
+	github.com/ethereum/c-kzg-4844 v0.4.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
@@ -84,9 +84,9 @@ require (
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231009173412-8bfb1ae86b6c // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.28.2 // indirect
-	k8s.io/apimachinery v0.28.2 // indirect
-	k8s.io/client-go v0.28.2 // indirect
+	k8s.io/api v0.28.3 // indirect
+	k8s.io/apimachinery v0.28.3 // indirect
+	k8s.io/client-go v0.28.3 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
 	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2 // indirect
@@ -113,7 +113,7 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
-	github.com/celestiaorg/knuu v0.9.0
+	github.com/celestiaorg/knuu v0.10.0
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -239,7 +239,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.20.0-sdk-v0.46.16
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
