@@ -24,14 +24,7 @@ import (
 // validator celestia-app network. It expects that all configuration files are
 // already initialized and saved to the baseDir.
 func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtypes.Application, error) {
-	var logger log.Logger
-	if cfg.SupressLogs {
-		logger = log.NewNopLogger()
-	} else {
-		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-		logger = log.NewFilter(logger, log.AllowError())
-	}
-
+	logger := newLogger(cfg)
 	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
 	db, err := dbm.NewGoLevelDB("application", dbPath)
 	require.NoError(t, err)
@@ -112,4 +105,13 @@ func GetFreePort() int {
 		}
 	}
 	panic("while getting free port: " + err.Error())
+}
+
+func newLogger(cfg *Config) log.Logger {
+	if cfg.SupressLogs {
+		return log.NewNopLogger()
+	}
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logger = log.NewFilter(logger, log.AllowError())
+	return logger
 }
