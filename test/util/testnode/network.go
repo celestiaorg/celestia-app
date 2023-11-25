@@ -21,9 +21,9 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	t.Helper()
 
 	tmCfg := cfg.TmConfig
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
 	// initialize the genesis file and validator files for the first validator.
 	baseDir, err := genesis.InitFiles(t.TempDir(), tmCfg, cfg.Genesis, 0)
@@ -38,8 +38,8 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	require.NoError(t, err)
 
 	appCfg := cfg.AppConfig
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
 }
 
-func GetFreePort() int {
+func getFreePort() int {
 	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err == nil {
 		var l *net.TCPListener
