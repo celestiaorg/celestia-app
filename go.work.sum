@@ -256,6 +256,8 @@ github.com/bwesterb/go-ristretto v1.2.2/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7N
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/celestia-app v1.0.0-rc13/go.mod h1:JYu6i1NxJw26TVZ+XSllUdnw0Fw3nGNk5f3wm6RIcys=
 github.com/celestiaorg/celestia-app v1.0.0-rc18/go.mod h1:Q375ijriqMv8PjKmMujNs2WzMAsgxjpbeUoQt+AZre0=
+github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29.0.20231123174056-1262cad77f67 h1:yxDIcgtKE6X+7yda4671c6DUUbsUuOcSbG7KtSLQBSM=
+github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29.0.20231123174056-1262cad77f67/go.mod h1:8h9ZuRxWmbz2hgTyt+o9e3CXpA0H85twyVu2jga4tBg=
 github.com/celestiaorg/nmt v0.19.0/go.mod h1:Oz15Ub6YPez9uJV0heoU4WpFctxazuIhKyUtaYNio7E=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 h1:Q8nr5SAtDW5gocrBwqwDJcSS/JedqU58WwQA2SP+nXw=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2/go.mod h1:s/LzLUw0WeYPJ6qdk4q46jKLOq7rc9Z5Mdrxtfpcigw=
@@ -388,7 +390,6 @@ github.com/go-xmlfmt/xmlfmt v0.0.0-20191208150333-d5b6f63a941b/go.mod h1:aUCEOzz
 github.com/go-zookeeper/zk v1.0.2/go.mod h1:nOB03cncLtlp4t+UAkGSV+9beXP/akpekBwL+UX1Qcw=
 github.com/gobwas/glob v0.2.3/go.mod h1:d3Ez4x06l9bZtSvzIay5+Yzi0fmZzPgnTbPcKjJAkT8=
 github.com/goccy/go-json v0.9.11/go.mod h1:6MelG93GURQebXPDq3khkgXZkazVtN9CRI+MGFi0w8I=
-github.com/goccy/go-json v0.10.2/go.mod h1:6MelG93GURQebXPDq3khkgXZkazVtN9CRI+MGFi0w8I=
 github.com/godbus/dbus/v5 v5.0.6/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/gofrs/uuid v4.3.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
 github.com/gogo/googleapis v0.0.0-20180223154316-0cd9801be74a/go.mod h1:gf4bu3Q80BeJ6H1S1vYPm8/ELATdvryBaNFGgqEef3s=
