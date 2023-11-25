@@ -16,10 +16,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	squareSize = 64
-)
-
 func TestMaxTotalBlobSizeSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping max total blob size suite in short mode.")
