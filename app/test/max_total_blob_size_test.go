@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	mebibyte   = 1_048_576 // one mebibyte in bytes
 	squareSize = 64
 )
 

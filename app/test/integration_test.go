@@ -35,11 +35,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-const (
-	Kibibyte = 1024
-	Mebibyte = 1024 * Kibibyte
-)
-
 func TestIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping app/test/integration_test in short mode.")
@@ -84,7 +79,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			600*Kibibyte,
+			600*kibibyte,
 			1,
 			false,
 			s.accounts[:20],
@@ -99,7 +94,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			200*Kibibyte,
+			200*kibibyte,
 			3,
 			false,
 			s.accounts[20:40],
@@ -112,7 +107,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			50*Kibibyte,
+			50*kibibyte,
 			8,
 			true,
 			s.accounts[40:120],
@@ -215,7 +210,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
-		100*Kibibyte,
+		100*kibibyte,
 		1,
 		true,
 		s.accounts[120:140],
