@@ -34,7 +34,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 
 	cctx = NewContext(context.Background(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
 
-	cctx, stopNode, err := StartNode(tmNode, cctx)
+	cctx, stopNode, err := StartNode(t, tmNode, cctx)
 	require.NoError(t, err)
 
 	appCfg := cfg.AppConfig

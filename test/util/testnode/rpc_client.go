@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"testing"
 
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvgrpc "github.com/cosmos/cosmos-sdk/server/grpc"
@@ -23,7 +24,7 @@ var noOpCleanup = func() error { return nil }
 // rpc is returned via the client.Context. The function returned should be
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
-func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
+func StartNode(t testing.TB, tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	if err := tmNode.Start(); err != nil {
 		return cctx, noOpCleanup, err
 	}
@@ -35,12 +36,14 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	cctx.rootCtx = goCtx
 	cleanup := func() error {
 		cancel()
+		t.Log("stopping tmNode")
 		err := tmNode.Stop()
 		if err != nil {
 			return err
 		}
 		tmNode.Wait()
-		return removeDir(path.Join([]string{cctx.HomeDir, "config"}...))
+		t.Log("waiting for tmNode to stop")
+		return removeDir(t, path.Join([]string{cctx.HomeDir, "config"}...))
 	}
 
 	return cctx, cleanup, nil
@@ -86,16 +89,19 @@ func DefaultAppConfig() *srvconfig.Config {
 // the config folder of the tendermint node.
 // This will manually go over the files contained inside the provided `rootDir`
 // and delete them one by one.
-func removeDir(rootDir string) error {
+func removeDir(t testing.TB, rootDir string) error {
 	dir, err := os.ReadDir(rootDir)
 	if err != nil {
 		return err
 	}
 	for _, d := range dir {
-		err := os.RemoveAll(path.Join([]string{rootDir, d.Name()}...))
+		path := path.Join([]string{rootDir, d.Name()}...)
+		t.Logf("removing %v", d.Name())
+		err := os.RemoveAll(path)
 		if err != nil {
 			return err
 		}
 	}
+	t.Logf("removing %v", rootDir)
 	return os.RemoveAll(rootDir)
 }
