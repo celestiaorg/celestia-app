@@ -21,9 +21,9 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	t.Helper()
 
 	tmCfg := cfg.TmConfig
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
 	// initialize the genesis file and validator files for the first validator.
 	baseDir, err := genesis.InitFiles(t.TempDir(), tmCfg, cfg.Genesis, 0)
@@ -38,8 +38,8 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	require.NoError(t, err)
 
 	appCfg := cfg.AppConfig
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
 	require.NoError(t, err)
@@ -53,14 +53,27 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
 }
 
-func getFreePort() int {
+// getFreePort returns a free port and optionally an error.
+func getFreePort() (int, error) {
 	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err == nil {
-		var l *net.TCPListener
-		if l, err = net.ListenTCP("tcp", a); err == nil {
-			defer l.Close()
-			return l.Addr().(*net.TCPAddr).Port
-		}
+	if err != nil {
+		return 0, err
 	}
-	panic("while getting free port: " + err.Error())
+
+	l, err := net.ListenTCP("tcp", a)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+// mustGetFreePort returns a free port. Panics if no free ports are available or
+// an error is encountered.
+func mustGetFreePort() int {
+	port, err := getFreePort()
+	if err != nil {
+		panic(err)
+	}
+	return port
 }
