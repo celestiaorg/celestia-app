@@ -73,8 +73,6 @@ If you'd rather not install from source, you can download a prebuilt binary from
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-</details>
-
 ### Ledger Support
 
 Ledger is not supported on Windows and OpenBSD.
