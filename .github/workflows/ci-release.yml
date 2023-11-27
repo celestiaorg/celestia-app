@@ -83,9 +83,7 @@ jobs:
 
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    # TEMPORARY: uncomment the following line prior to merge.
-    # I'm skipping this prerequisite during development to speed up iteration time.
-    # needs: version_bump
+    needs: version_bump
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
