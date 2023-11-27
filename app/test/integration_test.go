@@ -287,9 +287,9 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 	}
 }
 
-// TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
+// TestSubmitPayForBlob_txResponseCode verifies the tx response ABCI code when
 // SubmitPayForBlob is invoked with different blob sizes.
-func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
+func (s *IntegrationTestSuite) TestSubmitPayForBlob_txResponseCode() {
 	t := s.T()
 	require.NoError(t, s.cctx.WaitForBlocks(3))
 	addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
