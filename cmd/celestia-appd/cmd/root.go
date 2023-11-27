@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	bscmd "github.com/celestiaorg/celestia-app/x/blobstream/client"
 
@@ -237,20 +236,11 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		panic(err)
 	}
 
-	var upgradeHeight int64
-	upgradeHeightStr, ok := appOpts.Get(UpgradeHeightFlag).(string)
-	if ok {
-		upgradeHeight, err = strconv.ParseInt(upgradeHeightStr, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	return app.New(
 		logger, db, traceStore, true,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
-		upgradeHeight,
+		cast.ToInt64(appOpts.Get(UpgradeHeightFlag)),
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),

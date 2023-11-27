@@ -4,9 +4,6 @@
 [![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
-[![Lint](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml)
-[![Tests / Code Coverage](https://github.com/celestiaorg/celestia-app/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/celestiaorg/celestia-app/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://app.codecov.io/gh/celestiaorg/celestia-app/tree/main)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
 celestia-app is a blockchain application built using parts of the Cosmos stack. celestia-app uses
@@ -64,7 +61,10 @@ If you'd rather not install from source, you can download a pre-built binary fro
     ./celestia-appd --help
     ```
 
-#### Optional: Verify the pre-built binary checksums and signatures
+<details>
+<summary>
+Optional: Verify the pre-built binary checksums and signatures  
+</summary>
 
 If you use a pre-built binary, you may also want to verify the checksums and signatures.
 
@@ -99,6 +99,7 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     gpg:          There is no indication that the signature belongs to the owner.
     Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
     ```
+</details>
 
 ### Ledger Support
 
