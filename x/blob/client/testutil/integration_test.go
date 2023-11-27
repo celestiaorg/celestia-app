@@ -42,9 +42,9 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up integration test suite")
 
-	network := network.New(s.T(), s.cfg, username)
-	s.network = network
-	s.kr = network.Validators[0].ClientCtx.Keyring
+	net := network.New(s.T(), s.cfg, username)
+	s.network = net
+	s.kr = net.Validators[0].ClientCtx.Keyring
 	_, err := s.network.WaitForHeight(1)
 	s.Require().NoError(err)
 }
