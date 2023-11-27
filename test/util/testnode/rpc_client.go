@@ -42,7 +42,7 @@ func StartNode(t testing.TB, tmNode *node.Node, cctx Context) (Context, func() e
 			return err
 		}
 		tmNode.Wait()
-		t.Log("waiting for tmNode to stop")
+		t.Log("tmNode has stopped")
 		return removeDir(t, path.Join([]string{cctx.HomeDir, "config"}...))
 	}
 
