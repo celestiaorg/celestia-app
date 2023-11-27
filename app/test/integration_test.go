@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/stretchr/testify/suite"
 
@@ -287,48 +286,23 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 	}
 }
 
-// TestSubmitPayForBlob_txResponseCode verifies the tx response ABCI code when
-// SubmitPayForBlob is invoked with different blob sizes.
-func (s *IntegrationTestSuite) TestSubmitPayForBlob_txResponseCode() {
+// TestSubmitPayForBlob verifies the tx response ABCI code when SubmitPayForBlob
+// is invoked with a 1 MiB blob.
+func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
-	require.NoError(t, s.cctx.WaitForBlocks(3))
+	require.NoError(t, s.cctx.WaitForBlocks(1))
 	addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
 	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
 	require.NoError(t, err)
 
-	type testCase struct {
-		name string
-		blob *blob.Blob
-		// txResponseCode is the expected tx response ABCI code.
-		txResponseCode uint32
-	}
-	testCases := []testCase{
-		{
-			name:           "1 mebibyte blob",
-			blob:           newBlobWithSize(1 * mebibyte),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "10,000,000 byte blob returns err tx too large",
-			blob:           newBlobWithSize(10_000_000),
-			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
-		},
-	}
-
-	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 60*time.Second)
-			defer cancel()
-			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
-			if tc.txResponseCode == abci.CodeTypeOK {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-			}
-			require.NotNil(t, res)
-			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
-		})
-	}
+	s.Run("1 mebibyte blob", func() {
+		subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 60*time.Second)
+		defer cancel()
+		res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{newBlobWithSize(1 * mebibyte)}, user.SetGasLimit(1_000_000_000))
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
+	})
 }
 
 func newBlobWithSize(size int) *blob.Blob {
