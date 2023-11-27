@@ -186,6 +186,7 @@ prebuilt-binary:
 	docker run \
 		--rm \
 		-e CGO_ENABLED=1 \
+		-e GPG_KEY=maintainers.asc \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \

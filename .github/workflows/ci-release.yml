@@ -108,9 +108,8 @@ jobs:
         run: |-
           echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
           echo 'GPG_FINGERPRINT=${{ steps.import_gpg.outputs.fingerprint }}' >> .release-env
-      - name: Create /secrets/key.gpg
+      - name: Create maintainers.asc
         run: |-
-          mkdir -p /secrets
-          echo "${{ secrets.GPG_SIGNING_KEY }}" > /secrets/key.gpg
+          echo "${{ secrets.GPG_SIGNING_KEY }}" > maintainers.asc
       - name: Create prebuilt binaries and attach them to the GitHub release
         run: make prebuilt-binary
