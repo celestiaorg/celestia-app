@@ -1,40 +1,53 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
 # NOTE: CGO is required for ledger support to work, however goreleaser
-# technically doesn't support CGO. But it seems to work so that's cool. This
-# only seems to work because we are building for a single binary. Cross
-# compiling binaries for multiple distributions doesn't work and a proper
-# workaround will be needed.
-#
-# REF: https://goreleaser.com/limitations/cgo/
-
+# technically doesn't support CGO. Therefore this GoReleaser config is used via
+# goreleaser-cross to enable CGO in multiple platforms.
 before:
   hooks:
     - go mod tidy
 builds:
-  - main: ./cmd/celestia-appd
+  - id: darwin-amd64
+    main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
+      - CGO_ENABLED=1
+      - CC=o64-clang
+      - CXX=o64-clang++
     goarch:
       - amd64
-      - arm64
     goos:
       - darwin
-      - linux
     tags:
       - ledger
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
-      #
-      # .FullCommit is git commit hash goreleaser is using for the release
-      #
       # .Version is the version being released
+      # .FullCommit is git commit hash goreleaser is using for the release
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
+
+  # - main: ./cmd/celestia-appd
+  #   binary: celestia-appd
+  #   env:
+  #     - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
+  #   goarch:
+  #     - amd64
+  #     - arm64
+  #   goos:
+  #     - darwin
+  #     - linux
+  #   tags:
+  #     - ledger
+  #   ldflags:
+  #     # Ref: https://goreleaser.com/customization/templates/#common-fields
+  #     # .Version is the version being released
+  #     # .FullCommit is git commit hash goreleaser is using for the release
+  #     - -X "{{ .Env.SDKPath }}.Name=celestia-app"
+  #     - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
+  #     - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
+  #     - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
 dist: ./build/goreleaser
 archives:
   - format: tar.gz
@@ -47,20 +60,20 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-checksum:
-  name_template: "checksums.txt"
-signs:
-  - artifacts: checksum
-    args:
-      [
-        "--batch",
-        "-u",
-        "{{ .Env.GPG_FINGERPRINT }}",
-        "--output",
-        "${signature}",
-        "--detach-sign",
-        "${artifact}",
-      ]
+# checksum:
+#   name_template: "checksums.txt"
+# signs:
+#   - artifacts: checksum
+#     args:
+#       [
+#         "--batch",
+#         "-u",
+#         "{{ .Env.GPG_FINGERPRINT }}",
+#         "--output",
+#         "${signature}",
+#         "--detach-sign",
+#         "${artifact}",
+#       ]
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
