@@ -172,19 +172,25 @@ adr-gen:
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
 
-## goreleaser: List Goreleaser commands and checks if GoReleaser is installed.
-goreleaser: Makefile
-	@echo " Choose a goreleaser command to run:"
-	@sed -n 's/^## goreleaser/goreleaser/p' $< | column -t -s ':' |  sed -e 's/^/ /'
-	@goreleaser --version
-.PHONY: goreleaser
 
-## goreleaser-build: Builds the celestia-appd binary using GoReleaser for your local OS.
-goreleaser-build:
-	goreleaser build --snapshot --clean --single-target
-.PHONY: goreleaser-build
+PACKAGE_NAME          := github.com/rootulp/celestia-app
+GOLANG_CROSS_VERSION  ?= v1.21.4
 
-## goreleaser-release: Builds the release celestia-appd binary as defined in .goreleaser.yaml. This requires there be a git tag for the release in the local git history.
-goreleaser-release:
-	goreleaser release --clean --fail-fast --skip-publish
-.PHONY: goreleaser-release
+## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker. Will not run locally.
+# Only expected to work in CI. See .github/workflows/ci-release.yml
+prebuilt-binary:
+	@if [ ! -f ".release-env" ]; then \
+		echo "\033[91m.release-env is required for release\033[0m";\
+		exit 1;\
+	fi
+	docker run \
+		--rm \
+		-e CGO_ENABLED=1 \
+		-e GPG_KEY=maintainers.asc \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --clean
+.PHONY: prebuilt-binary
