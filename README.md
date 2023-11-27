@@ -61,16 +61,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     ./celestia-appd --help
     ```
 
-<details>
-<summary>
-Optional: Verify the prebuilt binary checksums
-</summary>
-
-If you use a prebuilt binary, you may also want to verify the checksum.
-
-1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
-1. Download `checksums.txt` and the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
-1. Verify the checksums
+1. [Optional] verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
 
     ```shell
     sha256sum --ignore-missing --check checksums.txt
