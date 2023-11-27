@@ -7,6 +7,8 @@ IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app
+GOLANG_CROSS_VERSION  ?= v1.21.4
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -172,15 +174,10 @@ adr-gen:
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
 
-
-PACKAGE_NAME          := github.com/rootulp/celestia-app
-GOLANG_CROSS_VERSION  ?= v1.21.4
-
-## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker. Will not run locally.
-# Only expected to work in CI. See .github/workflows/ci-release.yml
+## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
-		echo "\033[91m.release-env is required for release\033[0m";\
+		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
 		exit 1;\
 	fi
 	docker run \
