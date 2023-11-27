@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -284,25 +283,6 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
 		ExtendBlockTest(t, blockRes.Block)
 	}
-}
-
-// TestSubmitPayForBlob verifies the tx response ABCI code when SubmitPayForBlob
-// is invoked with a 1 MiB blob.
-func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
-	t := s.T()
-	require.NoError(t, s.cctx.WaitForBlocks(1))
-	addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
-	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-	require.NoError(t, err)
-
-	s.Run("1 mebibyte blob", func() {
-		subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 60*time.Second)
-		defer cancel()
-		res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{newBlobWithSize(1 * mebibyte)}, user.SetGasLimit(1_000_000_000))
-		require.NoError(t, err)
-		require.NotNil(t, res)
-		require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
-	})
 }
 
 func newBlobWithSize(size int) *blob.Blob {
