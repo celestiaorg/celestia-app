@@ -55,7 +55,7 @@ builds:
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
   - id: linux-amd64
-  - main: ./cmd/celestia-appd
+    main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
@@ -78,7 +78,7 @@ builds:
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
   - id: linux-arm64
-  - main: ./cmd/celestia-appd
+    main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
