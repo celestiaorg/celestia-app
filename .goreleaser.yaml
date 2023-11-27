@@ -112,21 +112,20 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-# Disable checksum and signing for now
-# checksum:
-#   name_template: "checksums.txt"
-# signs:
-#   - artifacts: checksum
-#     args:
-#       [
-#         "--batch",
-#         "-u",
-#         "{{ .Env.GPG_FINGERPRINT }}",
-#         "--output",
-#         "${signature}",
-#         "--detach-sign",
-#         "${artifact}",
-#       ]
+checksum:
+  name_template: "checksums.txt"
+signs:
+  - artifacts: checksum
+    args:
+      [
+        "--batch",
+        "-u",
+        "{{ .Env.GPG_FINGERPRINT }}",
+        "--output",
+        "${signature}",
+        "--detach-sign",
+        "${artifact}",
+      ]
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
