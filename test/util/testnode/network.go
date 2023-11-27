@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// NewNetwork starts a single valiator celestia-app network using the provided
+// NewNetwork starts a single validator celestia-app network using the provided
 // configurations. Configured accounts will be funded and their keys can be
 // accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
 // in the provided configs are overwritten to use open ports. The node can be
