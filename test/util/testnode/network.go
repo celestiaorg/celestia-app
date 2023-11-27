@@ -46,8 +46,18 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 
 	t.Cleanup(func() {
 		t.Log("tearing down testnode")
-		require.NoError(t, stopNode())
-		require.NoError(t, cleanupGRPC())
+		err := stopNode()
+		if err != nil {
+			// the test has already completed so log the error instead of
+			// failing the test.
+			t.Logf("error stopping node %v", err)
+		}
+		err = cleanupGRPC()
+		if err != nil {
+			// the test has already completed so just log the error instead of
+			// failing the test.
+			t.Logf("error when cleaning up GRPC %v", err)
+		}
 	})
 
 	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
