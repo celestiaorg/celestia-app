@@ -176,7 +176,8 @@ adr-gen:
 PACKAGE_NAME          := github.com/rootulp/celestia-app
 GOLANG_CROSS_VERSION  ?= v1.21.4
 
-## prebuilt-binary: Create prebuilt binaries. Requires Docker. Not expected to be run locally. See .github/workflows/ci-release.yml
+## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker. Will not run locally.
+# Only expected to work in CI. See .github/workflows/ci-release.yml
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
 		echo "\033[91m.release-env is required for release\033[0m";\
