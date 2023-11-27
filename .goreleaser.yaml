@@ -12,8 +12,6 @@ builds:
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
       - CGO_ENABLED=1
-      # CC and CXX are required for CGO to work. See
-      # https://github.com/goreleaser/goreleaser-cross#supported-toolchainsplatforms
       - CC=o64-clang
       - CXX=o64-clang++
     goarch:
@@ -36,8 +34,6 @@ builds:
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
       - CGO_ENABLED=1
-      # CC and CXX are required for CGO to work. See
-      # https://github.com/goreleaser/goreleaser-cross#supported-toolchainsplatforms
       - CC=oa64-clang
       - CXX=oa64-clang++
     goarch:
@@ -59,8 +55,6 @@ builds:
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      # CC and CXX are required for CGO to work. See
-      # https://github.com/goreleaser/goreleaser-cross#supported-toolchainsplatforms
       - CC=x86_64-linux-gnu-gcc
       - CXX=x86_64-linux-gnu-g++
     goarch:
@@ -82,8 +76,6 @@ builds:
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
-      # CC and CXX are required for CGO to work. See
-      # https://github.com/goreleaser/goreleaser-cross#supported-toolchainsplatforms
       - CC=aarch64-linux-gnu-gcc
       - CXX=aarch64-linux-gnu-g++
     goarch:
