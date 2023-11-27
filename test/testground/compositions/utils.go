@@ -3,6 +3,7 @@ package compositions
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -43,7 +44,7 @@ func CreateNetworkConfig(runenv *runtime.RunEnv, initCtx *run.InitContext) (netw
 		Network: "default",
 		Enable:  true,
 		Default: network.LinkShape{
-			Latency:   time.Millisecond * time.Duration(runenv.IntParam("latency")),
+			Latency:   time.Millisecond * time.Duration(rand.Intn(runenv.IntParam("latency"))),
 			Bandwidth: bandwidth,
 		},
 		CallbackState: "network-configured",

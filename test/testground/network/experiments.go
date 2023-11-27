@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/test/util/sdkutil"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/tendermint/tendermint/consensus"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -19,9 +18,9 @@ const (
 func init() {
 	// coretypes.SetBlockPartSizeBytes(3220000)
 	// consensus.SetMaxMsgSize(5000000)
-	consensus.SetBlockPartPriority(50)
-	consensus.SetRecvBufferCapacity(100 * 50 * 4096)
-	consensus.SetSendQueueCapacity(10000)
+	// consensus.SetBlockPartPriority(50)
+	// consensus.SetRecvBufferCapacity(100 * 50 * 4096)
+	// consensus.SetSendQueueCapacity(10000)
 }
 
 func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, timeout time.Duration) error {
