@@ -14,3 +14,4 @@ run.sh
 testing/e2e/networks/*/
 square/testdata
 **/*.html
+.release-env
