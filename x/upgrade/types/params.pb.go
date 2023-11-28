@@ -27,8 +27,8 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Params defines the parameters for the upgrade module.
 type Params struct {
-	// SignalQuorum represents the minimum voting power for an upgrade to go through.
-	// It must be at least 2/3.
+	// SignalQuorum represents the minimum voting power for an upgrade to go
+	// through. It must be at least 2/3.
 	SignalQuorum github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=signal_quorum,json=signalQuorum,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"signal_quorum"`
 }
 
