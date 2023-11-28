@@ -277,7 +277,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 // create a square of the desired size. broadcast mode indicates if the tx
 // should be submitted async, sync, or block. (see flags.BroadcastModeSync). If
 // broadcast mode is the string zero value, then it will be set to block.
-func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode string) (*sdk.TxResponse, error) {
+func (c *Context) FillBlock(squareSize int, account string, broadcastMode string) (*sdk.TxResponse, error) {
 	if squareSize < appconsts.MinSquareSize+1 || (squareSize&(squareSize-1) != 0) {
 		return nil, fmt.Errorf("unsupported squareSize: %d", squareSize)
 	}
@@ -291,7 +291,7 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
 	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
-	return c.PostData(accounts[0], broadcastMode, appns.RandomBlobNamespace(), tmrand.Bytes(blobSize))
+	return c.PostData(account, broadcastMode, appns.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }
 
 // HeightForTimestamp returns the block height for the first block after a

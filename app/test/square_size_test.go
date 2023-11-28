@@ -60,8 +60,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 
 // TestSquareSizeUpperBound sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound_Flaky() {
+func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
 
 	type test struct {

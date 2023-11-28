@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -16,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/stretchr/testify/suite"
 
@@ -31,7 +29,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -54,12 +51,7 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
-
-	numAccounts := 142
-	s.accounts = make([]string, numAccounts)
-	for i := 0; i < numAccounts; i++ {
-		s.accounts[i] = tmrand.Str(20)
-	}
+	s.accounts = testnode.RandomAccounts(142)
 
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 
@@ -80,47 +72,41 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	t := s.T()
 
-	// tendermint's default tx size limit is 1Mb, so we get close to that
-	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
+	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			950000,
+			600*kibibyte,
 			1,
 			false,
 			s.accounts[:20],
 		)
 	}
 
-	// Tendermint's default tx size limit is 1 MiB, so we get close to that by
-	// generating transactions of size 600 KB because 3 blobs per transaction *
-	// 200,000 bytes each = 600,000 total bytes = 600 KB per transaction.
-	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
+	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
+	// 600 KiB total per transaction.
+	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			200000, // 200 KB
+			200*kibibyte,
 			3,
 			false,
 			s.accounts[20:40],
 		)
 	}
 
-	// Generate 80 randomly sized txs (max size == 50 KB). Generate these
-	// transactions using some of the same accounts as the previous generator to
-	// ensure that the sequence number is being utilized correctly in blob
-	// txs
-	randoTxGen := func(c client.Context) []coretypes.Tx {
+	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
 			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
-			50000,
+			50*kibibyte,
 			8,
 			true,
 			s.accounts[40:120],
@@ -131,20 +117,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		name        string
 		txGenerator func(clientCtx client.Context) []coretypes.Tx
 	}
-
 	tests := []test{
-		{
-			"20 1Mb txs",
-			equallySized1MbTxGen,
-		},
-		{
-			"20 1Mb multiblob txs",
-			randMultiBlob1MbTxGen,
-		},
-		{
-			"80 random txs",
-			randoTxGen,
-		},
+		{"singleBlobTxGen", singleBlobTxGen},
+		{"multiBlobTxGen", multiBlobTxGen},
+		{"randomTxGen", randomTxGen},
 	}
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
@@ -152,6 +128,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			hashes := make([]string, len(txs))
 
 			for i, tx := range txs {
+				// The default CometBFT mempool MaxTxBytes is 1 MiB so the generators in
+				// this test must create transactions that are smaller than that.
+				require.LessOrEqual(t, len(tx), 1*mebibyte)
+
 				res, err := s.cctx.Context.BroadcastTxSync(tx)
 				require.NoError(t, err)
 				assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
@@ -167,10 +147,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				resp, err := testnode.QueryTx(s.cctx.Context, hash, true)
 				require.NoError(t, err)
-				assert.NotNil(t, resp)
-				if resp == nil {
-					continue
-				}
+				require.NotNil(t, resp)
 				require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code, resp.TxResult.Log)
 				heights[resp.Height]++
 				// ensure that some gas was used
@@ -195,77 +172,12 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.EqualValues(t, v2.Version, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
-				ExtendBlobTest(t, blockRes.Block)
+				ExtendBlockTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
 		})
 		require.NoError(t, s.cctx.WaitForNextBlock())
-	}
-}
-
-func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
-	t := s.T()
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-
-	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blob.Blob {
-		return blob.New(ns, data, shareVersion)
-	}
-
-	type test struct {
-		name string
-		blob *blob.Blob
-		opts []user.TxOption
-	}
-
-	tests := []test{
-		{
-			"small random typical",
-			mustNewBlob(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
-			[]user.TxOption{
-				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-		{
-			"large random typical",
-			mustNewBlob(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
-			[]user.TxOption{
-				user.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-		{
-			"medium random with memo",
-			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
-			[]user.TxOption{
-				user.SetMemo("lol I could stick the rollup block here if I wanted to"),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-		{
-			"medium random with timeout height",
-			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
-			[]user.TxOption{
-				user.SetTimeoutHeight(10000),
-				user.SetGasLimit(1_000_000_000),
-			},
-		},
-	}
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			// occasionally this test will error that the mempool is full (code
-			// 20) so we wait a few blocks for the txs to clear
-			require.NoError(t, s.cctx.WaitForBlocks(3))
-
-			addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
-			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-			require.NoError(t, err)
-			res, err := signer.SubmitPayForBlob(context.TODO(), []*blob.Blob{tc.blob, tc.blob}, tc.opts...)
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
-		})
 	}
 }
 
@@ -294,13 +206,12 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	t := s.T()
 
-	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg,
 		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
-		100000,
+		100*kibibyte,
 		1,
 		true,
 		s.accounts[120:140],
@@ -348,9 +259,9 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	}
 }
 
-// ExtendBlobTest re-extends the block and compares the data roots to ensure
+// ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
-func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
+func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
@@ -370,71 +281,12 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
 		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
-		ExtendBlobTest(t, blockRes.Block)
+		ExtendBlockTest(t, blockRes.Block)
 	}
 }
 
-// TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
-// SubmitPayForBlob is invoked with different blob sizes.
-func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
-	t := s.T()
-	require.NoError(t, s.cctx.WaitForBlocks(3))
-	addr := testfactory.GetAddress(s.cctx.Keyring, s.accounts[141])
-	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-	require.NoError(t, err)
-
-	type testCase struct {
-		name string
-		blob *blob.Blob
-		// txResponseCode is the expected tx response ABCI code.
-		txResponseCode uint32
-	}
-	testCases := []testCase{
-		{
-			name:           "1,000 byte blob",
-			blob:           mustNewBlob(1_000),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "10,000 byte blob",
-			blob:           mustNewBlob(10_000),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "100,000 byte blob",
-			blob:           mustNewBlob(100_000),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "1,000,000 byte blob",
-			blob:           mustNewBlob(1_000_000),
-			txResponseCode: abci.CodeTypeOK,
-		},
-		{
-			name:           "10,000,000 byte blob returns err tx too large",
-			blob:           mustNewBlob(10_000_000),
-			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
-		},
-	}
-
-	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
-			defer cancel()
-			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimit(1_000_000_000))
-			if tc.txResponseCode == abci.CodeTypeOK {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-			}
-			require.NotNil(t, res)
-			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
-		})
-	}
-}
-
-func mustNewBlob(blobSize int) *blob.Blob {
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	data := tmrand.Bytes(blobSize)
-	return blob.New(ns1, data, appconsts.ShareVersionZero)
+func newBlobWithSize(size int) *blob.Blob {
+	ns := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	data := tmrand.Bytes(size)
+	return blob.New(ns, data, appconsts.ShareVersionZero)
 }
