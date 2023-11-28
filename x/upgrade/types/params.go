@@ -49,6 +49,7 @@ func validateSignalQuorum(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 	if v.LT(MinSignalQuorum) {
+		return fmt.Errorf("quorum must be at least %s (2/3), got %s", MinSignalQuorum, v)
 		return fmt.Errorf("quorum must be at least %d (2/3), got %d", MinSignalQuorum, v)
 	}
 
