@@ -18,7 +18,7 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 }
 
 // SignalQuorum returns the SignalQuorum param
-func (k Keeper) SignalQuorum(ctx sdk.Context) (res uint32) {
+func (k Keeper) SignalQuorum(ctx sdk.Context) (res sdk.Dec) {
 	k.paramStore.Get(ctx, types.KeySignalQuorum, &res)
 	return res
 }

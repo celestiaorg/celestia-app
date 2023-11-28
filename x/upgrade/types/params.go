@@ -2,32 +2,36 @@ package types
 
 import (
 	"fmt"
-	"math"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 var KeySignalQuorum = []byte("SignalQuorum")
 
-// ParamKeyTable returns the param key table for the blob module
+// ParamKeyTable returns the param key table for the upgrade module
 func ParamKeyTable() paramtypes.KeyTable {
 	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }
 
-func NewParams(signalQuorum uint32) Params {
+func NewParams(signalQuorum sdk.Dec) Params {
 	return Params{
 		SignalQuorum: signalQuorum,
 	}
 }
 
-func DefaultParams() *Params {
-	return &Params{
-		SignalQuorum: MinSignalQuorum,
+func DefaultParams() Params {
+	return Params{
+		SignalQuorum: DefaultSignalQuorum,
 	}
 }
 
-// 2/3
-const MinSignalQuorum = uint32(math.MaxUint32 * 2 / 3)
+var (
+	// 2/3
+	MinSignalQuorum = sdk.NewDec(2).Quo(sdk.NewDec(3))
+	// 5/6
+	DefaultSignalQuorum = sdk.NewDec(5).Quo(sdk.NewDec(6))
+)
 
 func (p Params) Validate() error {
 	return validateSignalQuorum(p.SignalQuorum)
@@ -40,12 +44,17 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 }
 
 func validateSignalQuorum(i interface{}) error {
-	v, ok := i.(uint32)
+	v, ok := i.(sdk.Dec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
-	if v < MinSignalQuorum {
+	if v.LT(MinSignalQuorum) {
 		return fmt.Errorf("quorum must be at least %d (2/3), got %d", MinSignalQuorum, v)
 	}
+
+	if v.GT(sdk.OneDec()) {
+		return fmt.Errorf("quorum must be less than or equal to 1, got %d", v)
+	}
+
 	return nil
 }

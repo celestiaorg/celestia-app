@@ -3,7 +3,7 @@ package upgrade
 import (
 	"context"
 	"encoding/binary"
-	"math"
+	"fmt"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/upgrade/types"
@@ -65,8 +65,8 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 	}
 
 	// check that the validator exists
-	power := k.stakingKeeper.GetLastValidatorPower(sdkCtx, valAddr)
-	if power <= 0 {
+	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)
+	if !found {
 		return nil, stakingtypes.ErrNoValidatorFound
 	}
 
@@ -93,6 +93,7 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 		valAddress := sdk.ValAddress(iterator.Key()[1:])
 		power := k.stakingKeeper.GetLastValidatorPower(sdkCtx, valAddress)
 		version := VersionFromBytes(iterator.Value())
+		fmt.Println("validator", valAddress, "power", power, "version", version)
 		if version == req.Version {
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
@@ -128,7 +129,7 @@ func (k Keeper) DeleteValidatorVersion(ctx sdk.Context, valAddress sdk.ValAddres
 // which the application can use as signal to upgrade to that version.
 func (k Keeper) EndBlock(ctx sdk.Context) {
 	threshold := k.GetVotingPowerThreshold(ctx)
-	hasQuorum, version := k.TallyVotingPower(ctx, threshold)
+	hasQuorum, version := k.TallyVotingPower(ctx, threshold.Int64())
 	if hasQuorum {
 		k.quorumVersion = version
 	}
@@ -136,7 +137,7 @@ func (k Keeper) EndBlock(ctx sdk.Context) {
 
 // TallyVotingPower tallies the voting power for each version and returns true if
 // any version has reached the quorum in voting power
-func (k Keeper) TallyVotingPower(ctx sdk.Context, quorum int64) (bool, uint64) {
+func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64) {
 	output := make(map[uint64]int64)
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(nil, nil)
@@ -144,8 +145,13 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, quorum int64) (bool, uint64) {
 	for ; iterator.Valid(); iterator.Next() {
 		valAddress := sdk.ValAddress(iterator.Key()[1:])
 		// check that the validator is still part of the bonded set
-		if val, found := k.stakingKeeper.GetValidator(ctx, valAddress); !found || !val.IsBonded() {
+		val, found := k.stakingKeeper.GetValidator(ctx, valAddress)
+		if !found {
+			// if it no longer exists, delete the version
 			k.DeleteValidatorVersion(ctx, valAddress)
+		}
+		// if the validator is not bonded, skip it's voting power
+		if !found || !val.IsBonded() {
 			continue
 		}
 		power := k.stakingKeeper.GetLastValidatorPower(ctx, valAddress)
@@ -155,7 +161,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, quorum int64) (bool, uint64) {
 		} else {
 			output[version] += power
 		}
-		if output[version] > quorum {
+		if output[version] > threshold {
 			return true, version
 		}
 	}
@@ -166,10 +172,10 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, quorum int64) (bool, uint64) {
 // upgrade to a new version. It converts the signal quorum parameter which
 // is a number between 0 and math.MaxUint32 representing a fraction and
 // then multiplies it by the total voting power
-func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) int64 {
-	quorum := sdkmath.NewInt(int64(k.GetParams(ctx).SignalQuorum))
+func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
+	quorum := k.SignalQuorum(ctx)
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
-	return totalVotingPower.Mul(quorum).QuoRaw(math.MaxUint32).Int64()
+	return quorum.MulInt(totalVotingPower).RoundInt()
 }
 
 // ShouldUpgradeToV2 returns true if the current height is one before
@@ -193,16 +199,4 @@ func VersionToBytes(version uint64) []byte {
 
 func VersionFromBytes(version []byte) uint64 {
 	return binary.BigEndian.Uint64(version)
-}
-
-// ShouldUpgrade returns true if the current height is one before
-// the locally provided upgrade height that is passed as a flag
-func (k Keeper) ShouldUpgrade(height int64) bool {
-	return k.upgradeHeight == height+1
-}
-
-// ShouldUpgrade returns true if the current height is one before
-// the locally provided upgrade height that is passed as a flag
-func (k Keeper) ShouldUpgrade(height int64) bool {
-	return k.upgradeHeight == height+1
 }

@@ -3,9 +3,12 @@ package celestia.upgrade.v1;
 
 option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
 
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
 // Params defines the parameters for the upgrade module.
 message Params {
   // SignalQuorum represents the minimum voting power for an upgrade to go through.
-  // It must be at least 2/3. MaxUint32 would mean 100% of the voting power.
-  uint32 signal_quorum = 1;
+  // It must be at least 2/3.
+  bytes signal_quorum = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
 }
