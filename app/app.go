@@ -445,6 +445,7 @@ func New(
 		transferModule,
 		blobmod,
 		bsmod,
+		upgrade.NewAppModule(app.UpgradeKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that

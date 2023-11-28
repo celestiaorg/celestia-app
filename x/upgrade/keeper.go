@@ -3,7 +3,6 @@ package upgrade
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/upgrade/types"
@@ -90,18 +89,19 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
-		valAddress := sdk.ValAddress(iterator.Key()[1:])
+		valAddress := sdk.ValAddress(iterator.Key())
 		power := k.stakingKeeper.GetLastValidatorPower(sdkCtx, valAddress)
 		version := VersionFromBytes(iterator.Value())
-		fmt.Println("validator", valAddress, "power", power, "version", version)
 		if version == req.Version {
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
 
+	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	return &types.QueryVersionTallyResponse{
-		TotalVotingPower: totalVotingPower.Uint64(),
 		VotingPower:      currentVotingPower.Uint64(),
+		Threshold:        threshold.Uint64(),
+		TotalVotingPower: totalVotingPower.Uint64(),
 	}, nil
 }
 
@@ -127,7 +127,7 @@ func (k Keeper) DeleteValidatorVersion(ctx sdk.Context, valAddress sdk.ValAddres
 // EndBlock is called at the end of every block. It tallies the voting power that has
 // voted on each version. If one version has quorum, it is set as the quorum version
 // which the application can use as signal to upgrade to that version.
-func (k Keeper) EndBlock(ctx sdk.Context) {
+func (k *Keeper) EndBlock(ctx sdk.Context) {
 	threshold := k.GetVotingPowerThreshold(ctx)
 	hasQuorum, version := k.TallyVotingPower(ctx, threshold.Int64())
 	if hasQuorum {
@@ -143,7 +143,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
-		valAddress := sdk.ValAddress(iterator.Key()[1:])
+		valAddress := sdk.ValAddress(iterator.Key())
 		// check that the validator is still part of the bonded set
 		val, found := k.stakingKeeper.GetValidator(ctx, valAddress)
 		if !found {

@@ -35,5 +35,6 @@ message QueryVersionTallyRequest { uint64 version = 1; }
 // method.
 message QueryVersionTallyResponse {
   uint64 voting_power = 1;
-  uint64 total_voting_power = 2;
+  uint64 threshold = 2;
+  uint64 total_voting_power = 3;
 }
