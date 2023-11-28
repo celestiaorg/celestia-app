@@ -65,7 +65,10 @@ func init() {
 	}
 
 	// v2 has all the same modules as v1 with the addition of an upgrade module
-	v2moduleVersionMap = v1moduleVersionMap
+	v2moduleVersionMap = make(module.VersionMap)  
+    for k, v := range v1moduleVersionMap {  
+        v2moduleVersionMap[k] = v  
+    }  
 	v2moduleVersionMap[upgradetypes.ModuleName] = upgrade.AppModule{}.ConsensusVersion()
 
 	for moduleName := range ModuleBasics {

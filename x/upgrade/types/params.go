@@ -53,7 +53,7 @@ func validateSignalQuorum(i interface{}) error {
 	}
 
 	if v.GT(sdk.OneDec()) {
-		return fmt.Errorf("quorum must be less than or equal to 1, got %d", v)
+		return fmt.Errorf("quorum must be less than or equal to 1, got %s", v)
 	}
 
 	return nil
