@@ -9,7 +9,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
 service Msg {
   // SignalVersion allows the validator to signal for an upgrade
   rpc SignalVersion(MsgSignalVersion) returns (MsgSignalVersionResponse) {
-    option (google.api.http).get = "/upgrade/v1/signal";
+    option (google.api.http).post = "/upgrade/v1/signal";
   }
 }
 
