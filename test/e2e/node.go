@@ -45,6 +45,7 @@ func NewNode(
 	startHeight, selfDelegation int64,
 	peers []string,
 	signerKey, networkKey, accountKey crypto.PrivKey,
+	upgradeHeight int64,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -75,7 +76,12 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetArgs("start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657")
+	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
+	if upgradeHeight != 0 {
+		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
+	}
+
+	err = instance.SetArgs(args...)
 	if err != nil {
 		return nil, err
 	}

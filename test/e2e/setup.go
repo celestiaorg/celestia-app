@@ -140,6 +140,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
 	cfg.Consensus.TimeoutPropose = time.Second
 	cfg.Consensus.TimeoutCommit = time.Second
+	cfg.Instrumentation.Prometheus = true
 	return cfg, nil
 }
 

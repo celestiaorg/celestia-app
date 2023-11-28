@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -21,11 +22,12 @@ func TestUpgradeAppVersion(t *testing.T) {
 
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: 2}})
 	// app version should not have changed yet
-	require.EqualValues(t, 1, testApp.AppVersion())
+	require.EqualValues(t, 1, testApp.AppVersion(sdk.Context{}))
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	// now the app version changes
+	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
-	require.EqualValues(t, 2, testApp.AppVersion())
+	require.EqualValues(t, 2, testApp.AppVersion(sdk.Context{}))
 }
 
 func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
@@ -40,7 +42,8 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
-	require.EqualValues(t, 0, testApp.GetBaseApp().AppVersion())
+	infoResp := testApp.Info(abci.RequestInfo{})
+	require.EqualValues(t, 0, infoResp.AppVersion)
 
 	cp := app.DefaultConsensusParams()
 	abciParams := &abci.ConsensusParams{
@@ -64,7 +67,8 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	)
 
 	// assert that the chain starts with version provided in genesis
-	require.EqualValues(t, app.DefaultConsensusParams().Version.AppVersion, testApp.GetBaseApp().AppVersion())
+	infoResp = testApp.Info(abci.RequestInfo{})
+	require.EqualValues(t, app.DefaultConsensusParams().Version.AppVersion, infoResp.AppVersion)
 
 	_ = testApp.Commit()
 	return testApp, kr

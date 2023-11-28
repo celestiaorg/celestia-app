@@ -62,7 +62,7 @@ func TestDefaultAppConfig(t *testing.T) {
 
 	assert.Equal(t, uint64(1500), cfg.StateSync.SnapshotInterval)
 	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
-	assert.Equal(t, "0.1utia", cfg.MinGasPrices)
+	assert.Equal(t, "0.002utia", cfg.MinGasPrices)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
