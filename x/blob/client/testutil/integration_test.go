@@ -79,16 +79,18 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	validPropFile := testutil.WriteToNewTempFile(s.T(), validBlob)
 
 	invalidBlob := fmt.Sprintf(`
-	"Blobs": [
-        {
-            "namespaceId": "%s",
-            "blob": "%s"
-        },
-        {
-            "namespaceId": "%s",
-            "blob": "%s"
-        }
-    ]
+	{
+		"Blobs": [
+			{
+				"namespaceId": "%s",
+				"blob": "%s"
+			},
+			{
+				"namespaceId": "%s",
+				"blob": "%s"
+			}
+		]
+	}
 	`, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob)
 	invalidPropFile := testutil.WriteToNewTempFile(s.T(), invalidBlob)
 
