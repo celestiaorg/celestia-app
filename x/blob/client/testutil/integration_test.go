@@ -9,6 +9,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
 
@@ -63,10 +64,38 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
-	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
-	invalidNamespaceID := hex.EncodeToString(bytes.Repeat([]byte{0}, 8)) // invalid because ID is expected to be 10 bytes
 
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
+
+	validBlob := fmt.Sprintf(`
+	{
+		"Blobs": [
+			{
+				"namespaceId": "%s",
+				"blob": "%s"
+			},
+			{
+				"namespaceId": "%s",
+				"blob": "%s"
+			}
+    	]
+	}
+	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
+	validPropFile := testutil.WriteToNewTempFile(s.T(), validBlob)
+
+	invalidBlob := fmt.Sprintf(`
+	"Blobs": [
+        {
+            "namespaceId": "%s",
+            "blob": "%s"
+        },
+        {
+            "namespaceId": "%s",
+            "blob": "%s"
+        }
+    ]
+	`, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob)
+	invalidPropFile := testutil.WriteToNewTempFile(s.T(), invalidBlob)
 
 	testCases := []struct {
 		name         string
@@ -78,8 +107,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "valid transaction",
 			args: []string{
-				hexNamespace,
-				hexBlob,
+				validPropFile.Name(),
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
@@ -92,8 +120,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "unsupported share version",
 			args: []string{
-				hexNamespace,
-				hexBlob,
+				validPropFile.Name(),
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
@@ -107,8 +134,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "invalid namespace ID",
 			args: []string{
-				invalidNamespaceID,
-				hexBlob,
+				invalidPropFile.Name(),
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
@@ -121,8 +147,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "invalid namespace version",
 			args: []string{
-				hexNamespace,
-				hexBlob,
+				validPropFile.Name(),
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
