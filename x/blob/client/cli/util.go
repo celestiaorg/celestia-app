@@ -18,26 +18,23 @@ type blobJSON struct {
 }
 
 func parseSubmitBlobs(cdc codec.Codec, path string) ([]blobJSON, error) {
-	var content blobs
+	var rawBlobs blobs
 
-	rawBlobs, err := os.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return []blobJSON{}, err
 	}
 
-	fmt.Println(rawBlobs)
-
-	err = json.Unmarshal(rawBlobs, &content)
+	err = json.Unmarshal(content, &rawBlobs)
 	if err != nil {
 		return []blobJSON{}, err
 	}
 
-	fmt.Println(content)
-
-	blobs := make([]blobJSON, len(content.Blobs))
-	for i, anyJSON := range content.Blobs {
+	blobs := make([]blobJSON, len(rawBlobs.Blobs))
+	for i, anyJSON := range rawBlobs.Blobs {
 		var blob blobJSON
-		err := cdc.UnmarshalInterfaceJSON(anyJSON, &blob)
+		fmt.Println(anyJSON)
+		err := cdc.UnmarshalJSON(anyJSON, blob)
 		if err != nil {
 			return []blobJSON{}, err
 		}
