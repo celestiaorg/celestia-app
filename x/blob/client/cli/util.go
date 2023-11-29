@@ -2,50 +2,40 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 
+	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/cosmos/cosmos-sdk/codec"
 )
 
+// Define the raw content from the file input.
 type blobs struct {
 	Blobs []json.RawMessage
 }
 
-type blobJSON struct {
-	NamespaceID string
-	Blob        string
-}
+func parseSubmitBlobs(cdc codec.Codec, path string) ([]blob.BlobJson, error) {
+	var rawBlobs blobs
 
-func parseSubmitBlobs(cdc codec.Codec, path string) ([]blobJSON, error) {
-	var content blobs
-
-	rawBlobs, err := os.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
-		return []blobJSON{}, err
+		return []blob.BlobJson{}, err
 	}
 
-	fmt.Println(rawBlobs)
-
-	err = json.Unmarshal(rawBlobs, &content)
+	err = json.Unmarshal(content, &rawBlobs)
 	if err != nil {
-		return []blobJSON{}, err
+		return []blob.BlobJson{}, err
 	}
 
-	fmt.Println(content)
-
-	blobs := make([]blobJSON, len(content.Blobs))
-	for i, anyJSON := range content.Blobs {
-		var blob blobJSON
-		err := cdc.UnmarshalInterfaceJSON(anyJSON, &blob)
+	blobs := make([]blob.BlobJson, len(rawBlobs.Blobs))
+	for i, anyJSON := range rawBlobs.Blobs {
+		var blob blob.BlobJson
+		err = cdc.UnmarshalJSON(anyJSON, &blob)
 		if err != nil {
-			return []blobJSON{}, err
+			break
 		}
 
 		blobs[i] = blob
 	}
 
-	fmt.Println(blobs)
-
-	return blobs, nil
+	return blobs, err
 }

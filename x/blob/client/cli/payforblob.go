@@ -32,9 +32,9 @@ const (
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs namespaceID path blobs",
+		Use: "PayForBlobs [path/to/blob.json]",
 		// This example command can be run in a new terminal after running single-node.sh
-		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
+		Example: "celestia-appd tx blob PayForBlobs path/to/blob.json \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
@@ -42,79 +42,63 @@ func CmdPayForBlob() *cobra.Command {
 			"\t--yes",
 		Short: "Pay for a data blobs to be published to Celestia.",
 		Long: "Pay for a data blobs to be published to Celestia.\n" +
-			"namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n" +
-			"blob must be a hex encoded string of any length.\n",
+			`Where blob.json contains: 
+
+		{
+			"Blobs": [
+				{
+					"namespaceId": "0x00010203040506070809",
+					"blob": "0x48656c6c6f2c20576f726c6421"
+				},
+				{
+					"namespaceId": "0x00010203040506070809",
+					"blob": "0x48656c6c6f2c20576f726c6421"
+				}
+			]
+		}
+
+		namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n
+		blob must be a hex encoded string of any length.\n
+		
+		`,
 		Aliases: []string{"PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 2 {
-				return fmt.Errorf("PayForBlobs requires two arguments or more: namespaceID and blobs")
+			if len(args) < 1 {
+				return fmt.Errorf("PayForBlobs requires one arguments: path to blob.json")
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
-			arg0 := strings.TrimPrefix(args[0], "0x")
-			namespaceID, err := hex.DecodeString(arg0)
-			if err != nil {
-				return fmt.Errorf("failed to decode hex namespace ID: %w", err)
-			}
 			namespaceVersion, err := cmd.Flags().GetUint8(FlagNamespaceVersion)
+			path := args[0]
+
+			paresdBlobs, err := parseSubmitBlobs(clientCtx.Codec, path)
 			if err != nil {
 				return err
 			}
-			namespace, err := getNamespace(namespaceID, namespaceVersion)
-			if err != nil {
-				return err
-			}
-
-			path := args[1]
-
-			_, err = parseSubmitBlobs(clientCtx.Codec, path)
-			if err != nil {
-				return err
-			}
-
-			// var blobs []*blob.Blob
-			// for i := range paresdBlobs {
-			// 	namespaceID, err := hex.DecodeString(paresdBlobs[i].NamespaceID)
-			// 	if err != nil {
-			// 		return fmt.Errorf("failed to decode hex namespace ID: %w", err)
-			// 	}
-			// 	namespace, err := getNamespace(namespaceID, namespaceVersion)
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// 	hexStr := strings.TrimPrefix(paresdBlobs[i].Blob, "0x")
-			// 	rawblob, err := hex.DecodeString(hexStr)
-			// 	if err != nil {
-			// 		fmt.Printf("failure to decode hex blob value %s: %s", hexStr, err.Error())
-			// 		continue
-			// 	}
-
-			// 	shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
-			// 	blob, err := types.NewBlob(namespace, rawblob, shareVersion)
-			// 	if err != nil {
-			// 		fmt.Printf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
-			// 		continue
-			// 	}
-			// 	blobs = append(blobs, blob)
-			// }
 
 			var blobs []*blob.Blob
-			// Skip the first argument as it's the namespaceID
-			blobArgs := args[2:]
-			for i := range blobArgs {
-				arg := strings.TrimPrefix(blobArgs[i], "0x")
-				rawblob, err := hex.DecodeString(arg)
+			for i := range paresdBlobs {
+				namespaceID, err := hex.DecodeString(strings.TrimPrefix(paresdBlobs[i].NamespaceId, "0x"))
 				if err != nil {
-					fmt.Printf("failure to decode hex blob value %s: %s", blobArgs[i], err.Error())
+					return fmt.Errorf("failed to decode hex namespace ID: %w", err)
+				}
+				namespace, err := getNamespace(namespaceID, namespaceVersion)
+				if err != nil {
+					return err
+				}
+				hexStr := strings.TrimPrefix(paresdBlobs[i].Blob, "0x")
+				rawblob, err := hex.DecodeString(hexStr)
+				if err != nil {
+					fmt.Printf("failure to decode hex blob value %s: %s", hexStr, err.Error())
 					continue
 				}
 
 				shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
 				blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 				if err != nil {
-					fmt.Printf("failure to create blob with hex blob value %s: %s", blobArgs[i], err.Error())
+					fmt.Printf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
 					continue
 				}
 				blobs = append(blobs, blob)
