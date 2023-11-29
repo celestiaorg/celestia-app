@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	kibibyte                    = 1024
-	mebibyte                    = kibibyte * 1024
+	kibibyte                    = 1024      // bytes
+	mebibyte                    = 1_048_576 // bytes
 	DefaultValidatorAccountName = "validator"
 )
 
