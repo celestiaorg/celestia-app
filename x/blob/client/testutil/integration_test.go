@@ -41,15 +41,10 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 	return &IntegrationTestSuite{cfg: cfg}
 }
 
-// Note: the SetupSuite may act flaky especially in CI.
 func (s *IntegrationTestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping integration test in short mode.")
-	}
 	s.T().Log("setting up integration test suite")
 
 	net := network.New(s.T(), s.cfg, username)
-
 	s.network = net
 	s.kr = net.Validators[0].ClientCtx.Keyring
 	_, err := s.network.WaitForHeight(1)
@@ -63,7 +58,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
-	val := s.network.Validators[0]
+	validator := s.network.Validators[0]
 
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
 
@@ -162,10 +157,10 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 
 	for _, tc := range testCases {
 		tc := tc
-		s.Require().NoError(s.network.WaitForNextBlock())
+		require.NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
 			cmd := paycli.CmdPayForBlob()
-			clientCtx := val.ClientCtx
+			clientCtx := validator.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
 			if tc.expectErr {
@@ -207,7 +202,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	}
 }
 
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func TestIntegrationTestSuite_Flaky(t *testing.T) {
+func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode.")
+	}
 	suite.Run(t, NewIntegrationTestSuite(network.DefaultConfig()))
 }
