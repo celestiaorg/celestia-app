@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/upgrade/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -16,7 +15,26 @@ import (
 var (
 	_ types.MsgServer   = Keeper{}
 	_ types.QueryServer = Keeper{}
+
+	defaultSignalTheshold = Fraction{Numerator: 5, Denominator: 6}
 )
+
+type Fraction struct {
+	Numerator   int64
+	Denominator int64
+}
+
+// SignalThreshold is the fraction of voting power that is required
+// to signal for a version change. It is set to 5/6 as the middle point
+// between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
+// network during an upgrade period. It can be modified through a
+// hard fork change that modified the app version
+func SignalThreshold(version uint64) Fraction {
+	switch version {
+	default:
+		return defaultSignalTheshold
+	}
+}
 
 type Keeper struct {
 	// we use the same upgrade store key so existing IBC client state can
@@ -35,9 +53,6 @@ type Keeper struct {
 	// staking keeper is used to fetch validators to calculate the total power
 	// signalled to a version
 	stakingKeeper StakingKeeper
-
-	// paramStore provides access to the signal quorum param
-	paramStore paramtypes.Subspace
 }
 
 // NewKeeper constructs an upgrade keeper
@@ -45,13 +60,11 @@ func NewKeeper(
 	storeKey storetypes.StoreKey,
 	upgradeHeight int64,
 	stakingKeeper StakingKeeper,
-	paramStore paramtypes.Subspace,
 ) Keeper {
 	return Keeper{
 		storeKey:      storeKey,
 		upgradeHeight: upgradeHeight,
 		stakingKeeper: stakingKeeper,
-		paramStore:    paramStore,
 	}
 }
 
@@ -100,16 +113,9 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),
-		Threshold:        threshold.Uint64(),
+		ThresholdPower:   threshold.Uint64(),
 		TotalVotingPower: totalVotingPower.Uint64(),
 	}, nil
-}
-
-// Params is a method required by the QueryServer interface
-func (k Keeper) Params(ctx context.Context, _ *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	params := k.GetParams(sdkCtx)
-	return &types.QueryParamsResponse{Params: &params}, nil
 }
 
 // SetValidatorVersion saves a signalled version for a validator using the keeper's store key
@@ -169,13 +175,12 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 }
 
 // GetVotingPowerThreshold returns the voting power threshold required to
-// upgrade to a new version. It converts the signal quorum parameter which
-// is a number between 0 and math.MaxUint32 representing a fraction and
-// then multiplies it by the total voting power
+// upgrade to a new version.
 func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
-	quorum := k.SignalQuorum(ctx)
+	// contract: totalVotingPower should not exceed MaxUit64
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
-	return quorum.MulInt(totalVotingPower).RoundInt()
+	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
+	return totalVotingPower.MulRaw(thresholdFraction.Numerator).QuoRaw(thresholdFraction.Denominator)
 }
 
 // ShouldUpgradeToV2 returns true if the current height is one before

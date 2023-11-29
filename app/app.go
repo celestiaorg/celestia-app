@@ -336,7 +336,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, app.StakingKeeper, app.GetSubspace(upgradetypes.ModuleName))
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, app.StakingKeeper)
 
 	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,

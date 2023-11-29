@@ -28,88 +28,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// QueryParamsRequest is the request type for the Params RPC method.
-type QueryParamsRequest struct {
-}
-
-func (m *QueryParamsRequest) Reset()         { *m = QueryParamsRequest{} }
-func (m *QueryParamsRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryParamsRequest) ProtoMessage()    {}
-func (*QueryParamsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7dd2290b21d03efa, []int{0}
-}
-func (m *QueryParamsRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryParamsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryParamsRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryParamsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryParamsRequest.Merge(m, src)
-}
-func (m *QueryParamsRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryParamsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryParamsRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryParamsRequest proto.InternalMessageInfo
-
-// QueryParamsResponse is the response type for the Params RPC method.
-type QueryParamsResponse struct {
-	Params *Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params,omitempty"`
-}
-
-func (m *QueryParamsResponse) Reset()         { *m = QueryParamsResponse{} }
-func (m *QueryParamsResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryParamsResponse) ProtoMessage()    {}
-func (*QueryParamsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7dd2290b21d03efa, []int{1}
-}
-func (m *QueryParamsResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryParamsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryParamsResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryParamsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryParamsResponse.Merge(m, src)
-}
-func (m *QueryParamsResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryParamsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryParamsResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryParamsResponse proto.InternalMessageInfo
-
-func (m *QueryParamsResponse) GetParams() *Params {
-	if m != nil {
-		return m.Params
-	}
-	return nil
-}
-
 // QueryVersionTallyRequest is the request type for the UpgradeStatus RPC
 // method.
 type QueryVersionTallyRequest struct {
@@ -120,7 +38,7 @@ func (m *QueryVersionTallyRequest) Reset()         { *m = QueryVersionTallyReque
 func (m *QueryVersionTallyRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryVersionTallyRequest) ProtoMessage()    {}
 func (*QueryVersionTallyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7dd2290b21d03efa, []int{2}
+	return fileDescriptor_7dd2290b21d03efa, []int{0}
 }
 func (m *QueryVersionTallyRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -160,7 +78,7 @@ func (m *QueryVersionTallyRequest) GetVersion() uint64 {
 // method.
 type QueryVersionTallyResponse struct {
 	VotingPower      uint64 `protobuf:"varint,1,opt,name=voting_power,json=votingPower,proto3" json:"voting_power,omitempty"`
-	Threshold        uint64 `protobuf:"varint,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	ThresholdPower   uint64 `protobuf:"varint,2,opt,name=threshold_power,json=thresholdPower,proto3" json:"threshold_power,omitempty"`
 	TotalVotingPower uint64 `protobuf:"varint,3,opt,name=total_voting_power,json=totalVotingPower,proto3" json:"total_voting_power,omitempty"`
 }
 
@@ -168,7 +86,7 @@ func (m *QueryVersionTallyResponse) Reset()         { *m = QueryVersionTallyResp
 func (m *QueryVersionTallyResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryVersionTallyResponse) ProtoMessage()    {}
 func (*QueryVersionTallyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7dd2290b21d03efa, []int{3}
+	return fileDescriptor_7dd2290b21d03efa, []int{1}
 }
 func (m *QueryVersionTallyResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -204,9 +122,9 @@ func (m *QueryVersionTallyResponse) GetVotingPower() uint64 {
 	return 0
 }
 
-func (m *QueryVersionTallyResponse) GetThreshold() uint64 {
+func (m *QueryVersionTallyResponse) GetThresholdPower() uint64 {
 	if m != nil {
-		return m.Threshold
+		return m.ThresholdPower
 	}
 	return 0
 }
@@ -219,8 +137,6 @@ func (m *QueryVersionTallyResponse) GetTotalVotingPower() uint64 {
 }
 
 func init() {
-	proto.RegisterType((*QueryParamsRequest)(nil), "celestia.upgrade.v1.QueryParamsRequest")
-	proto.RegisterType((*QueryParamsResponse)(nil), "celestia.upgrade.v1.QueryParamsResponse")
 	proto.RegisterType((*QueryVersionTallyRequest)(nil), "celestia.upgrade.v1.QueryVersionTallyRequest")
 	proto.RegisterType((*QueryVersionTallyResponse)(nil), "celestia.upgrade.v1.QueryVersionTallyResponse")
 }
@@ -228,32 +144,28 @@ func init() {
 func init() { proto.RegisterFile("celestia/upgrade/v1/query.proto", fileDescriptor_7dd2290b21d03efa) }
 
 var fileDescriptor_7dd2290b21d03efa = []byte{
-	// 399 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0xbf, 0x6f, 0xda, 0x40,
-	0x14, 0xc6, 0xb4, 0xa5, 0xea, 0xc1, 0x50, 0x1d, 0x0c, 0xae, 0xa1, 0x2e, 0x75, 0x87, 0x32, 0x14,
-	0x9f, 0x80, 0xfe, 0x05, 0x1d, 0x2b, 0x45, 0x22, 0x28, 0x62, 0xc8, 0x82, 0x0e, 0x38, 0x19, 0x4b,
-	0xc6, 0x77, 0xdc, 0x9d, 0x4d, 0x50, 0x94, 0x25, 0x63, 0xa6, 0x28, 0x51, 0xfe, 0xa7, 0x8c, 0x48,
-	0x59, 0x32, 0x46, 0x90, 0x3f, 0x24, 0xe2, 0x7c, 0xfc, 0x12, 0x8e, 0x92, 0xcd, 0xfe, 0xde, 0xf7,
-	0x7d, 0xef, 0x7b, 0xef, 0x1d, 0xf8, 0x31, 0x20, 0x01, 0x11, 0xd2, 0xc7, 0x28, 0x62, 0x1e, 0xc7,
-	0x43, 0x82, 0xe2, 0x06, 0x9a, 0x44, 0x84, 0xcf, 0x5c, 0xc6, 0xa9, 0xa4, 0xb0, 0xb8, 0x26, 0xb8,
-	0x9a, 0xe0, 0xc6, 0x0d, 0xab, 0xe2, 0x51, 0xea, 0x05, 0x04, 0x61, 0xe6, 0x23, 0x1c, 0x86, 0x54,
-	0x62, 0xe9, 0xd3, 0x50, 0x24, 0x12, 0xab, 0x9a, 0xe6, 0xc9, 0x30, 0xc7, 0x63, 0xcd, 0x70, 0x4a,
-	0x00, 0x1e, 0xaf, 0x7a, 0xb4, 0x15, 0xd8, 0x21, 0x93, 0x88, 0x08, 0xe9, 0xfc, 0x07, 0xc5, 0x3d,
-	0x54, 0x30, 0x1a, 0x0a, 0x02, 0x5b, 0x20, 0x97, 0x88, 0x4d, 0xa3, 0x6a, 0xd4, 0xf2, 0xcd, 0xb2,
-	0x9b, 0x12, 0xc9, 0xd5, 0x22, 0x4d, 0x75, 0xfe, 0x02, 0x53, 0x79, 0x75, 0x09, 0x17, 0x3e, 0x0d,
-	0x4f, 0x70, 0x10, 0xcc, 0x74, 0x1f, 0x68, 0x82, 0xcf, 0x71, 0x02, 0x2b, 0xc7, 0x8f, 0x9d, 0xf5,
-	0xaf, 0x73, 0x65, 0x80, 0x6f, 0x29, 0x32, 0x1d, 0xe4, 0x27, 0x28, 0xc4, 0x54, 0xfa, 0xa1, 0xd7,
-	0x63, 0x74, 0x4a, 0xb8, 0x16, 0xe7, 0x13, 0xac, 0xbd, 0x82, 0x60, 0x05, 0x7c, 0x91, 0x23, 0x4e,
-	0xc4, 0x88, 0x06, 0x43, 0x33, 0xab, 0xea, 0x5b, 0x00, 0xfe, 0x01, 0x50, 0x52, 0x89, 0x83, 0xde,
-	0x9e, 0xcd, 0x07, 0x45, 0xfb, 0xaa, 0x2a, 0xdd, 0xad, 0x57, 0xf3, 0x2e, 0x0b, 0x3e, 0xa9, 0x30,
-	0x70, 0x0a, 0x72, 0xc9, 0x78, 0xf0, 0x77, 0xea, 0xec, 0x87, 0xbb, 0xb4, 0x6a, 0x6f, 0x13, 0x93,
-	0xa9, 0x1c, 0xeb, 0xf2, 0xe1, 0xf9, 0x36, 0x5b, 0x82, 0xf0, 0xf0, 0x5a, 0xf0, 0xc6, 0x00, 0x85,
-	0xdd, 0x55, 0xc0, 0xfa, 0xeb, 0xb6, 0x29, 0x9b, 0xb6, 0xdc, 0xf7, 0xd2, 0x75, 0x96, 0x5f, 0x2a,
-	0xcb, 0x77, 0x58, 0xde, 0xcd, 0x22, 0x57, 0x14, 0x74, 0xae, 0x6f, 0x74, 0xf1, 0xef, 0xe8, 0x7e,
-	0x61, 0x1b, 0xf3, 0x85, 0x6d, 0x3c, 0x2d, 0x6c, 0xe3, 0x7a, 0x69, 0x67, 0xe6, 0x4b, 0x3b, 0xf3,
-	0xb8, 0xb4, 0x33, 0xa7, 0x2d, 0xcf, 0x97, 0xa3, 0xa8, 0xef, 0x0e, 0xe8, 0x18, 0xad, 0x1b, 0x53,
-	0xee, 0x6d, 0xbe, 0xeb, 0x98, 0x31, 0x74, 0xb6, 0xf1, 0x96, 0x33, 0x46, 0x44, 0x3f, 0xa7, 0x9e,
-	0x64, 0xeb, 0x25, 0x00, 0x00, 0xff, 0xff, 0x37, 0x43, 0xf1, 0x62, 0x0a, 0x03, 0x00, 0x00,
+	// 331 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0xcd, 0x4e, 0x02, 0x31,
+	0x14, 0x85, 0x29, 0xfe, 0x25, 0x95, 0xa8, 0xa9, 0x1b, 0x44, 0x1d, 0x15, 0x17, 0xba, 0x90, 0x36,
+	0x88, 0x4f, 0xe0, 0xde, 0x44, 0x89, 0x61, 0xe1, 0x86, 0x14, 0x68, 0x86, 0x49, 0xc6, 0xb9, 0xa5,
+	0xbd, 0x33, 0x4a, 0x8c, 0x1b, 0x9f, 0xc0, 0x68, 0xdc, 0xf9, 0x40, 0x2e, 0x49, 0xdc, 0xb8, 0x34,
+	0xe0, 0x83, 0x18, 0x66, 0x86, 0x11, 0x13, 0x4c, 0xdc, 0xb5, 0xa7, 0xdf, 0x39, 0xbd, 0x3f, 0x74,
+	0xa7, 0xad, 0x7c, 0x65, 0xd1, 0x93, 0x22, 0xd4, 0xae, 0x91, 0x1d, 0x25, 0xa2, 0xaa, 0xe8, 0x85,
+	0xca, 0xf4, 0xb9, 0x36, 0x80, 0xc0, 0xd6, 0x27, 0x00, 0x4f, 0x01, 0x1e, 0x55, 0x4b, 0x5b, 0x2e,
+	0x80, 0xeb, 0x2b, 0x21, 0xb5, 0x27, 0x64, 0x10, 0x00, 0x4a, 0xf4, 0x20, 0xb0, 0x89, 0xa5, 0x7c,
+	0x42, 0x8b, 0x17, 0xe3, 0x84, 0x86, 0x32, 0xd6, 0x83, 0xe0, 0x52, 0xfa, 0x7e, 0xbf, 0xae, 0x7a,
+	0xa1, 0xb2, 0xc8, 0x8a, 0x74, 0x29, 0x4a, 0xe4, 0x22, 0xd9, 0x25, 0x87, 0xf3, 0xf5, 0xc9, 0xb5,
+	0xfc, 0x42, 0xe8, 0xc6, 0x0c, 0x9b, 0xd5, 0x10, 0x58, 0xc5, 0xf6, 0x68, 0x21, 0x02, 0xf4, 0x02,
+	0xb7, 0xa9, 0xe1, 0x46, 0x99, 0xd4, 0xbc, 0x9c, 0x68, 0xe7, 0x63, 0x89, 0x1d, 0xd0, 0x55, 0xec,
+	0x1a, 0x65, 0xbb, 0xe0, 0x77, 0x52, 0x2a, 0x1f, 0x53, 0x2b, 0x99, 0x9c, 0x80, 0x47, 0x94, 0x21,
+	0xa0, 0xf4, 0x9b, 0xbf, 0x12, 0xe7, 0x62, 0x76, 0x2d, 0x7e, 0x69, 0xfc, 0xc4, 0x1e, 0xbf, 0x12,
+	0xba, 0x10, 0xd7, 0xc5, 0x9e, 0x08, 0x2d, 0x4c, 0x17, 0xc7, 0x2a, 0x7c, 0xc6, 0x70, 0xf8, 0x5f,
+	0xbd, 0x97, 0xf8, 0x7f, 0xf1, 0xa4, 0xe7, 0xf2, 0xfe, 0xc3, 0xfb, 0xd7, 0x73, 0x7e, 0x9b, 0x6d,
+	0x4e, 0xef, 0x06, 0xc7, 0x88, 0xb8, 0x4b, 0xa7, 0x76, 0x7f, 0x7a, 0xf6, 0x36, 0x74, 0xc8, 0x60,
+	0xe8, 0x90, 0xcf, 0xa1, 0x43, 0x1e, 0x47, 0x4e, 0x6e, 0x30, 0x72, 0x72, 0x1f, 0x23, 0x27, 0x77,
+	0x55, 0x73, 0x3d, 0xec, 0x86, 0x2d, 0xde, 0x86, 0x6b, 0x31, 0xf9, 0x18, 0x8c, 0x9b, 0x9d, 0x2b,
+	0x52, 0x6b, 0x71, 0x9b, 0x65, 0x63, 0x5f, 0x2b, 0xdb, 0x5a, 0x8c, 0x57, 0x58, 0xfb, 0x0e, 0x00,
+	0x00, 0xff, 0xff, 0xa9, 0x02, 0x48, 0x0f, 0x18, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -268,8 +180,6 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
-	// Params allows the querying of the params
-	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
 	// VersionTally allows the querying of the tally of voting power by all
 	// validators that have signalled for each version
 	VersionTally(ctx context.Context, in *QueryVersionTallyRequest, opts ...grpc.CallOption) (*QueryVersionTallyResponse, error)
@@ -283,15 +193,6 @@ func NewQueryClient(cc grpc1.ClientConn) QueryClient {
 	return &queryClient{cc}
 }
 
-func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error) {
-	out := new(QueryParamsResponse)
-	err := c.cc.Invoke(ctx, "/celestia.upgrade.v1.Query/Params", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *queryClient) VersionTally(ctx context.Context, in *QueryVersionTallyRequest, opts ...grpc.CallOption) (*QueryVersionTallyResponse, error) {
 	out := new(QueryVersionTallyResponse)
 	err := c.cc.Invoke(ctx, "/celestia.upgrade.v1.Query/VersionTally", in, out, opts...)
@@ -303,8 +204,6 @@ func (c *queryClient) VersionTally(ctx context.Context, in *QueryVersionTallyReq
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
-	// Params allows the querying of the params
-	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
 	// VersionTally allows the querying of the tally of voting power by all
 	// validators that have signalled for each version
 	VersionTally(context.Context, *QueryVersionTallyRequest) (*QueryVersionTallyResponse, error)
@@ -314,33 +213,12 @@ type QueryServer interface {
 type UnimplementedQueryServer struct {
 }
 
-func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
-}
 func (*UnimplementedQueryServer) VersionTally(ctx context.Context, req *QueryVersionTallyRequest) (*QueryVersionTallyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VersionTally not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
 	s.RegisterService(&_Query_serviceDesc, srv)
-}
-
-func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryParamsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).Params(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/celestia.upgrade.v1.Query/Params",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).Params(ctx, req.(*QueryParamsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _Query_VersionTally_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -366,74 +244,12 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*QueryServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Params",
-			Handler:    _Query_Params_Handler,
-		},
-		{
 			MethodName: "VersionTally",
 			Handler:    _Query_VersionTally_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "celestia/upgrade/v1/query.proto",
-}
-
-func (m *QueryParamsRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryParamsRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryParamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryParamsResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryParamsResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.Params != nil {
-		{
-			size, err := m.Params.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintQuery(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
 }
 
 func (m *QueryVersionTallyRequest) Marshal() (dAtA []byte, err error) {
@@ -489,8 +305,8 @@ func (m *QueryVersionTallyResponse) MarshalToSizedBuffer(dAtA []byte) (int, erro
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.Threshold != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.Threshold))
+	if m.ThresholdPower != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ThresholdPower))
 		i--
 		dAtA[i] = 0x10
 	}
@@ -513,28 +329,6 @@ func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *QueryParamsRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	return n
-}
-
-func (m *QueryParamsResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Params != nil {
-		l = m.Params.Size()
-		n += 1 + l + sovQuery(uint64(l))
-	}
-	return n
-}
-
 func (m *QueryVersionTallyRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -556,8 +350,8 @@ func (m *QueryVersionTallyResponse) Size() (n int) {
 	if m.VotingPower != 0 {
 		n += 1 + sovQuery(uint64(m.VotingPower))
 	}
-	if m.Threshold != 0 {
-		n += 1 + sovQuery(uint64(m.Threshold))
+	if m.ThresholdPower != 0 {
+		n += 1 + sovQuery(uint64(m.ThresholdPower))
 	}
 	if m.TotalVotingPower != 0 {
 		n += 1 + sovQuery(uint64(m.TotalVotingPower))
@@ -570,142 +364,6 @@ func sovQuery(x uint64) (n int) {
 }
 func sozQuery(x uint64) (n int) {
 	return sovQuery(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *QueryParamsRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryParamsRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryParamsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryParamsResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryParamsResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Params", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Params == nil {
-				m.Params = &Params{}
-			}
-			if err := m.Params.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *QueryVersionTallyRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -826,9 +484,9 @@ func (m *QueryVersionTallyResponse) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Threshold", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ThresholdPower", wireType)
 			}
-			m.Threshold = 0
+			m.ThresholdPower = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowQuery
@@ -838,7 +496,7 @@ func (m *QueryVersionTallyResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Threshold |= uint64(b&0x7F) << shift
+				m.ThresholdPower |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

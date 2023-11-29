@@ -22,7 +22,7 @@ func init() {
 }
 
 const (
-	consensusVersion uint64 = 2
+	consensusVersion uint64 = 3
 )
 
 var (
