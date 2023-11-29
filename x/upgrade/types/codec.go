@@ -15,5 +15,4 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 // RegisterInterfaces registers the upgrade module types.
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
-	msgservice.RegisterMsgServiceDesc(registry, &_Query_serviceDesc)
 }
