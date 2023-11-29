@@ -133,7 +133,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	switch l.params.Experiment {
 	case UnboundedBlockSize:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec)
+		l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 10)
 	case ConsistentFill:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
 		fillBlocks(ctx, runenv, initCtx, time.Minute*20)
@@ -266,7 +266,7 @@ func (l *Leader) changeParams(ctx context.Context, runenv *runtime.RunEnv, propI
 // the block times and sizes.
 func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.RunEnv) error {
 	query := "tm.event = 'NewBlock'"
-	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 100)
+	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 10)
 	if err != nil {
 		return err
 	}
