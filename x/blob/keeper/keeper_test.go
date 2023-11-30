@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -21,7 +22,6 @@ import (
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	typesparams "github.com/cosmos/cosmos-sdk/x/params/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmdb "github.com/tendermint/tm-db"
 )
@@ -91,12 +91,11 @@ func CreateKeeper(t *testing.T) (*keeper.Keeper, store.CommitMultiStore, sdk.Con
 		},
 	}, false, nil)
 
-	aminoCdc := codec.NewLegacyAmino()
-	paramsSubspace := typesparams.NewSubspace(cdc,
-		aminoCdc,
+	paramsSubspace := paramtypes.NewSubspace(cdc,
+		testutil.MakeTestCodec(),
 		storeKey,
 		tStoreKey,
-		"Blob",
+		types.ModuleName,
 	)
 	k := keeper.NewKeeper(
 		cdc,
