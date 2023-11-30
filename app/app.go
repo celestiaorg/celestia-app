@@ -272,7 +272,6 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		blobmoduletypes.StoreKey,
 		bsmoduletypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
@@ -402,8 +401,6 @@ func New(
 
 	app.BlobKeeper = *blobmodulekeeper.NewKeeper(
 		appCodec,
-		keys[blobmoduletypes.StoreKey],
-		keys[blobmoduletypes.MemStoreKey],
 		app.GetSubspace(blobmoduletypes.ModuleName),
 	)
 	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
