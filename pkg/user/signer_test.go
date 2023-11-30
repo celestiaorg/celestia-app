@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -111,8 +110,8 @@ func (s *SignerTestSuite) TestGasConsumption() {
 }
 
 func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {
-	balanceQuery := banktypes.NewQueryClient(s.ctx.GRPCClient)
-	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &banktypes.QueryAllBalancesRequest{Address: s.signer.Address().String()})
+	balanceQuery := bank.NewQueryClient(s.ctx.GRPCClient)
+	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: s.signer.Address().String()})
 	require.NoError(t, err)
 	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
 }
