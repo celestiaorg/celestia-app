@@ -3,31 +3,29 @@ package cli
 import (
 	"encoding/json"
 	"os"
-
-	"github.com/cosmos/cosmos-sdk/codec"
 )
 
 // Define the raw content from the file input.
 type blobs struct {
-	Blobs []blobJson
+	Blobs []blobJSON
 }
 
-type blobJson struct {
-	NamespaceId string
+type blobJSON struct {
+	NamespaceID string
 	Blob        string
 }
 
-func parseSubmitBlobs(cdc codec.Codec, path string) ([]blobJson, error) {
+func parseSubmitBlobs(path string) ([]blobJSON, error) {
 	var rawBlobs blobs
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return []blobJson{}, err
+		return []blobJSON{}, err
 	}
 
 	err = json.Unmarshal(content, &rawBlobs)
 	if err != nil {
-		return []blobJson{}, err
+		return []blobJSON{}, err
 	}
 
 	return rawBlobs.Blobs, err

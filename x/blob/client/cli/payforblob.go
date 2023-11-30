@@ -74,18 +74,20 @@ func CmdPayForBlob() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientTxContext(cmd)
 			namespaceVersion, err := cmd.Flags().GetUint8(FlagNamespaceVersion)
+			if err != nil {
+				return err
+			}
 			path := args[0]
 
-			paresdBlobs, err := parseSubmitBlobs(clientCtx.Codec, path)
+			paresdBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
 				return err
 			}
 
 			var blobs []*blob.Blob
 			for i := range paresdBlobs {
-				namespaceID, err := hex.DecodeString(strings.TrimPrefix(paresdBlobs[i].NamespaceId, "0x"))
+				namespaceID, err := hex.DecodeString(strings.TrimPrefix(paresdBlobs[i].NamespaceID, "0x"))
 				if err != nil {
 					return fmt.Errorf("failed to decode hex namespace ID: %w", err)
 				}
@@ -103,7 +105,6 @@ func CmdPayForBlob() *cobra.Command {
 				blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 				if err != nil {
 					return fmt.Errorf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
-
 				}
 				blobs = append(blobs, blob)
 			}
