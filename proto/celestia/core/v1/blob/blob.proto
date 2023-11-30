@@ -23,10 +23,3 @@ message BlobTx {
   string type_id = 3;
 }
 
-
-// BlobJson define a simple file in JSON format for user to pass in as argument 
-// in payForBlob CLI. 
-message BlobJson {
-  string namespace_id = 1;
-  string blob = 2;
-}

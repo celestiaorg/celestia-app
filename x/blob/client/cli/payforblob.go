@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -66,6 +67,10 @@ func CmdPayForBlob() *cobra.Command {
 			if len(args) < 1 {
 				return fmt.Errorf("PayForBlobs requires one arguments: path to blob.json")
 			}
+			path := args[0]
+			if filepath.Ext(path) != ".json" {
+				return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -91,15 +96,14 @@ func CmdPayForBlob() *cobra.Command {
 				hexStr := strings.TrimPrefix(paresdBlobs[i].Blob, "0x")
 				rawblob, err := hex.DecodeString(hexStr)
 				if err != nil {
-					fmt.Printf("failure to decode hex blob value %s: %s", hexStr, err.Error())
-					continue
+					return fmt.Errorf("failure to decode hex blob value %s: %s", hexStr, err.Error())
 				}
 
 				shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
 				blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 				if err != nil {
-					fmt.Printf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
-					continue
+					return fmt.Errorf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
+
 				}
 				blobs = append(blobs, blob)
 			}
