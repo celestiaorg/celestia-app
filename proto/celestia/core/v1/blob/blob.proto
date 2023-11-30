@@ -22,4 +22,3 @@ message BlobTx {
   repeated Blob blobs = 2;
   string type_id = 3;
 }
-
