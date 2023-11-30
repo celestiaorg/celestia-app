@@ -96,7 +96,8 @@ func TestTallyingLogic(t *testing.T) {
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
 
-	upgradeKeeper.EndBlock(ctx)
+	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+	require.NoError(t, err)
 	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade()
 	require.False(t, shouldUpgrade)
 	require.Equal(t, uint64(0), version)
@@ -108,7 +109,8 @@ func TestTallyingLogic(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	upgradeKeeper.EndBlock(ctx)
+	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+	require.NoError(t, err)
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade()
 	require.True(t, shouldUpgrade)
 	require.Equal(t, uint64(2), version)
