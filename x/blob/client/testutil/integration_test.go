@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/gogo/protobuf/proto"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
@@ -35,6 +36,23 @@ type IntegrationTestSuite struct {
 	cfg     cosmosnet.Config
 	network *cosmosnet.Network
 	kr      keyring.Keyring
+}
+
+// Create a .json file for testing
+func createTestFile(t testing.TB, s string) *os.File {
+	t.Helper()
+
+	tempdir, err := os.MkdirTemp("", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
+
+	fp, err := os.CreateTemp(tempdir, "*.json")
+	require.NoError(t, err)
+	_, err = fp.WriteString(s)
+
+	require.Nil(t, err)
+
+	return fp
 }
 
 func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
@@ -76,7 +94,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
     	]
 	}
 	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
-	validPropFile := testutil.WriteToNewTempFile(s.T(), validBlob)
+	validPropFile := createTestFile(s.T(), validBlob)
 
 	invalidBlob := fmt.Sprintf(`
 	{
@@ -92,7 +110,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		]
 	}
 	`, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob)
-	invalidPropFile := testutil.WriteToNewTempFile(s.T(), invalidBlob)
+	invalidPropFile := createTestFile(s.T(), invalidBlob)
 
 	testCases := []struct {
 		name         string
