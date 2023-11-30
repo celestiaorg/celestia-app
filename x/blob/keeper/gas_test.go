@@ -1,52 +1,14 @@
-package keeper
+package keeper_test
 
 import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/store"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	typesparams "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmdb "github.com/tendermint/tm-db"
 )
-
-func keeper(t *testing.T) (*Keeper, store.CommitMultiStore) {
-	storeKey := sdk.NewKVStoreKey(types.StoreKey)
-	memStoreKey := storetypes.NewMemoryStoreKey(types.MemStoreKey)
-
-	db := tmdb.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
-	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
-	stateStore.MountStoreWithDB(memStoreKey, storetypes.StoreTypeMemory, nil)
-	require.NoError(t, stateStore.LoadLatestVersion())
-
-	registry := codectypes.NewInterfaceRegistry()
-	cdc := codec.NewProtoCodec(registry)
-	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
-
-	aminoCdc := codec.NewLegacyAmino()
-	paramsSubspace := typesparams.NewSubspace(cdc,
-		aminoCdc,
-		storeKey,
-		memStoreKey,
-		"Blob",
-	)
-	k := NewKeeper(
-		cdc,
-		storeKey,
-		memStoreKey,
-		paramsSubspace,
-	)
-	k.SetParams(tempCtx, types.DefaultParams())
-
-	return k, stateStore
-}
 
 func TestPayForBlobGas(t *testing.T) {
 	type testCase struct {
@@ -87,7 +49,7 @@ func TestPayForBlobGas(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			k, stateStore := keeper(t)
+			k, stateStore, _ := CreateKeeper(t)
 			ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
 			_, err := k.PayForBlobs(sdk.WrapSDKContext(ctx), &tc.msg)
 			require.NoError(t, err)
@@ -100,7 +62,7 @@ func TestPayForBlobGas(t *testing.T) {
 
 func TestChangingGasParam(t *testing.T) {
 	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
-	k, stateStore := keeper(t)
+	k, stateStore, _ := CreateKeeper(t)
 	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
 
 	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
