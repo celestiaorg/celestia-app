@@ -1,0 +1,28 @@
+syntax = "proto3";
+package celestia.upgrade.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
+
+// Query defines the upgrade Query service.
+service Query {
+  // VersionTally allows the querying of the tally of voting power by all
+  // validators that have signalled for each version
+  rpc VersionTally(QueryVersionTallyRequest)
+      returns (QueryVersionTallyResponse) {
+    option (google.api.http).get = "/upgrade/v1/tally/{version}";
+  }
+}
+
+// QueryVersionTallyRequest is the request type for the UpgradeStatus RPC
+// method.
+message QueryVersionTallyRequest { uint64 version = 1; }
+
+// QueryVersionTallyResponse is the response type for the UpgradeStatus RPC
+// method.
+message QueryVersionTallyResponse {
+  uint64 voting_power = 1;
+  uint64 threshold_power = 2;
+  uint64 total_voting_power = 3;
+}

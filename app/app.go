@@ -9,6 +9,7 @@ import (
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/celestiaorg/celestia-app/x/upgrade"
+	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -85,6 +86,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
@@ -155,11 +157,12 @@ var (
 		vesting.AppModuleBasic{},
 		blobmodule.AppModuleBasic{},
 		bsmodule.AppModuleBasic{},
+		upgrade.AppModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
 	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = extractRegisters(ModuleBasics, upgrade.TypeRegister{})
+	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
 
 	// module account permissions
 	maccPerms = map[string][]string{
@@ -267,7 +270,7 @@ func New(
 	keys := sdk.NewKVStoreKeys(
 		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, upgrade.StoreKey, feegrant.StoreKey,
+		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
 		blobmoduletypes.StoreKey,
 		bsmoduletypes.StoreKey,
@@ -333,7 +336,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgrade.StoreKey], upgradeHeight)
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, app.StakingKeeper)
 
 	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
@@ -442,6 +445,7 @@ func New(
 		transferModule,
 		blobmod,
 		bsmod,
+		upgrade.NewAppModule(app.UpgradeKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -468,7 +472,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
-		upgrade.ModuleName,
+		upgradetypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -491,7 +495,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
-		upgrade.ModuleName,
+		upgradetypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -519,7 +523,7 @@ func New(
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
-		upgrade.ModuleName,
+		upgradetypes.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -573,10 +577,17 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
-	// NOTE: this is a specific feature for upgrading to v2 as v3 and onward is expected
-	// to be coordinated through the signalling protocol
-	if app.UpgradeKeeper.ShouldUpgrade(req.Height) {
-		app.SetAppVersion(ctx, v2.Version)
+	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
+	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) {
+		if app.AppVersion(ctx) == v1.Version {
+			app.SetAppVersion(ctx, v2.Version)
+		}
+		// from v2 to v3 and onwards we use a signalling mechanism
+	} else if shouldUpgrade, version := app.UpgradeKeeper.ShouldUpgrade(); shouldUpgrade {
+		// Version changes must be increasing. Downgrades are not permitted
+		if version > app.AppVersion(ctx) {
+			app.SetAppVersion(ctx, version)
+		}
 	}
 	return res
 }
