@@ -15,7 +15,10 @@ const (
 	QuerierRoute = ModuleName
 )
 
-var _ sdk.Msg = &MsgSignalVersion{}
+var (
+	_ sdk.Msg = &MsgSignalVersion{}
+	_ sdk.Msg = &MsgTryUpgrade{}
+)
 
 func NewMsgSignalVersion(valAddress sdk.ValAddress, version uint64) *MsgSignalVersion {
 	return &MsgSignalVersion{
@@ -34,5 +37,24 @@ func (msg *MsgSignalVersion) GetSigners() []sdk.AccAddress {
 
 func (msg *MsgSignalVersion) ValidateBasic() error {
 	_, err := sdk.ValAddressFromBech32(msg.ValidatorAddress)
+	return err
+}
+
+func NewMsgTryUpgrade(signer sdk.AccAddress) *MsgTryUpgrade {
+	return &MsgTryUpgrade{
+		Signer: signer.String(),
+	}
+}
+
+func (msg *MsgTryUpgrade) GetSigners() []sdk.AccAddress {
+	valAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{sdk.AccAddress(valAddr)}
+}
+
+func (msg *MsgTryUpgrade) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	return err
 }
