@@ -15,6 +15,7 @@ const (
 	eventType                   = "fee_refund"
 	attributeKeyRefund          = "refund"
 	attributeKeyRefundRecipient = "refund_recipient"
+	bondDenom                   = "utia"
 )
 
 // FeeRefundDecorator handles refunding a portion of the fee that was originally
@@ -48,30 +49,30 @@ func (dfd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 		return errors.Wrap(sdkerrors.ErrTxDecode, "tx must be a FeeTx")
 	}
 
-	// TODO: calculate
-	var amountToRefund sdk.Coins
-
+	coinsToRefund := getCoinsToRefund(ctx, feeTx)
 	refundRecipient := getRefundRecipient(feeTx)
 	refundRecipientAccount := dfd.accountKeeper.GetAccount(ctx, refundRecipient)
 	if refundRecipientAccount == nil {
 		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
 	}
 
-	if err := dfd.processRefund(dfd.bankKeeper, ctx, refundRecipientAccount, amountToRefund); err != nil {
+	if err := dfd.processRefund(dfd.bankKeeper, ctx, refundRecipientAccount, coinsToRefund); err != nil {
 		return err
 	}
 
-	events := sdk.Events{newFeeRefundEvent(amountToRefund, refundRecipient)}
+	events := sdk.Events{newFeeRefundEvent(coinsToRefund, refundRecipient)}
 	ctx.EventManager().EmitEvents(events)
 
 	return nil
 }
 
-func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
-	if feeGranter := feeTx.FeeGranter(); feeGranter != nil {
-		return feeGranter
-	}
-	return feeTx.FeePayer()
+func getCoinsToRefund(ctx sdk.Context, feeTx sdk.FeeTx) sdk.Coins {
+	gasConsumed := ctx.GasMeter().GasConsumed()
+	gasPrice := getGasPrice(feeTx)
+	feeBasedOnGasConsumption := gasPrice.Amount.MulInt64(int64(gasConsumed)).Ceil().TruncateInt()
+	amountToRefund := feeTx.GetFee().AmountOf(bondDenom).Sub(feeBasedOnGasConsumption)
+	coinsToRefund := sdk.NewCoins(sdk.NewCoin(bondDenom, amountToRefund))
+	return coinsToRefund
 }
 
 // processRefund sends amountToRefund from the fee collector module account to the refundRecipient.
@@ -91,6 +92,21 @@ func (dfd FeeRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk
 	}
 
 	return nil
+}
+
+func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
+	if feeGranter := feeTx.FeeGranter(); feeGranter != nil {
+		return feeGranter
+	}
+	return feeTx.FeePayer()
+}
+
+func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
+	// gas * gasPrice = fees. So gasPrice = fees / gas.
+	feeCoins := feeTx.GetFee()
+	gas := feeTx.GetGas()
+	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(bondDenom)).Quo(sdk.NewDec(int64(gas)))
+	return sdk.NewDecCoinFromDec(bondDenom, gasPrice)
 }
 
 func newFeeRefundEvent(amountToRefund sdk.Coins, refundRecipient sdk.AccAddress) sdk.Event {
