@@ -119,33 +119,121 @@ func (m *MsgSignalVersionResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgSignalVersionResponse proto.InternalMessageInfo
 
+// MsgTryUpgrade tries to upgrade the chain
+type MsgTryUpgrade struct {
+	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
+}
+
+func (m *MsgTryUpgrade) Reset()         { *m = MsgTryUpgrade{} }
+func (m *MsgTryUpgrade) String() string { return proto.CompactTextString(m) }
+func (*MsgTryUpgrade) ProtoMessage()    {}
+func (*MsgTryUpgrade) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ee2a0c754324bd13, []int{2}
+}
+func (m *MsgTryUpgrade) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgTryUpgrade) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgTryUpgrade.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgTryUpgrade) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgTryUpgrade.Merge(m, src)
+}
+func (m *MsgTryUpgrade) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgTryUpgrade) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgTryUpgrade.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgTryUpgrade proto.InternalMessageInfo
+
+func (m *MsgTryUpgrade) GetSigner() string {
+	if m != nil {
+		return m.Signer
+	}
+	return ""
+}
+
+// MsgTryUpgradeResponse describes the response returned after the submission
+type MsgTryUpgradeResponse struct {
+}
+
+func (m *MsgTryUpgradeResponse) Reset()         { *m = MsgTryUpgradeResponse{} }
+func (m *MsgTryUpgradeResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgTryUpgradeResponse) ProtoMessage()    {}
+func (*MsgTryUpgradeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ee2a0c754324bd13, []int{3}
+}
+func (m *MsgTryUpgradeResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgTryUpgradeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgTryUpgradeResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgTryUpgradeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgTryUpgradeResponse.Merge(m, src)
+}
+func (m *MsgTryUpgradeResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgTryUpgradeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgTryUpgradeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgTryUpgradeResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*MsgSignalVersion)(nil), "celestia.upgrade.v1.MsgSignalVersion")
 	proto.RegisterType((*MsgSignalVersionResponse)(nil), "celestia.upgrade.v1.MsgSignalVersionResponse")
+	proto.RegisterType((*MsgTryUpgrade)(nil), "celestia.upgrade.v1.MsgTryUpgrade")
+	proto.RegisterType((*MsgTryUpgradeResponse)(nil), "celestia.upgrade.v1.MsgTryUpgradeResponse")
 }
 
 func init() { proto.RegisterFile("celestia/upgrade/v1/tx.proto", fileDescriptor_ee2a0c754324bd13) }
 
 var fileDescriptor_ee2a0c754324bd13 = []byte{
-	// 283 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x50, 0x4f, 0x4b, 0xc3, 0x30,
-	0x14, 0x6f, 0xa6, 0x28, 0x06, 0x84, 0x59, 0x3d, 0x94, 0x32, 0xc2, 0x28, 0x08, 0x03, 0x59, 0xc2,
-	0xdc, 0x27, 0xd0, 0x7b, 0x2f, 0x15, 0x04, 0xbd, 0x48, 0xb6, 0x86, 0x18, 0xa8, 0x49, 0xc8, 0xcb,
-	0xca, 0x3c, 0xea, 0xcd, 0x9b, 0xe0, 0x97, 0xf2, 0x38, 0xf0, 0xe2, 0x51, 0x5a, 0x3f, 0x88, 0xb0,
-	0xda, 0xa2, 0xc3, 0x83, 0xb7, 0xf7, 0xde, 0xef, 0x1f, 0xef, 0x87, 0x07, 0x73, 0x51, 0x08, 0xf0,
-	0x8a, 0xb3, 0x85, 0x95, 0x8e, 0xe7, 0x82, 0x95, 0x13, 0xe6, 0x97, 0xd4, 0x3a, 0xe3, 0x4d, 0x78,
-	0xd8, 0xa2, 0xf4, 0x1b, 0xa5, 0xe5, 0x24, 0x1e, 0x48, 0x63, 0x64, 0x21, 0x18, 0xb7, 0x8a, 0x71,
-	0xad, 0x8d, 0xe7, 0x5e, 0x19, 0x0d, 0x8d, 0x24, 0xb9, 0xc2, 0xfd, 0x14, 0xe4, 0x85, 0x92, 0x9a,
-	0x17, 0x97, 0xc2, 0x81, 0x32, 0x3a, 0x3c, 0xc1, 0x07, 0x25, 0x2f, 0x54, 0xce, 0xbd, 0x71, 0x37,
-	0x3c, 0xcf, 0x9d, 0x00, 0x88, 0xd0, 0x10, 0x8d, 0xf6, 0xb2, 0x7e, 0x07, 0x9c, 0x35, 0xf7, 0x30,
-	0xc2, 0xbb, 0x65, 0xa3, 0x8b, 0x7a, 0x43, 0x34, 0xda, 0xce, 0xda, 0x35, 0x89, 0x71, 0xb4, 0x69,
-	0x9d, 0x09, 0xb0, 0x46, 0x83, 0x38, 0x7d, 0x42, 0x78, 0x2b, 0x05, 0x19, 0x3e, 0x20, 0xbc, 0xff,
-	0x3b, 0xfc, 0x98, 0xfe, 0xf1, 0x04, 0xdd, 0x34, 0x8a, 0xc7, 0xff, 0xa2, 0xb5, 0x79, 0x49, 0xfc,
-	0xf8, 0xf6, 0xf9, 0xd2, 0x3b, 0x4a, 0xc2, 0x9f, 0xbd, 0xc1, 0x9a, 0x7a, 0x9e, 0xbe, 0x56, 0x04,
-	0xad, 0x2a, 0x82, 0x3e, 0x2a, 0x82, 0x9e, 0x6b, 0x12, 0xac, 0x6a, 0x12, 0xbc, 0xd7, 0x24, 0xb8,
-	0x9e, 0x4a, 0xe5, 0x6f, 0x17, 0x33, 0x3a, 0x37, 0x77, 0xac, 0x8d, 0x33, 0x4e, 0x76, 0xf3, 0x98,
-	0x5b, 0xcb, 0x96, 0x9d, 0xa5, 0xbf, 0xb7, 0x02, 0x66, 0x3b, 0xeb, 0x62, 0xa7, 0x5f, 0x01, 0x00,
-	0x00, 0xff, 0xff, 0x7d, 0x45, 0x22, 0x3c, 0xab, 0x01, 0x00, 0x00,
+	// 343 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0xcd, 0x4a, 0x33, 0x31,
+	0x14, 0xed, 0xf4, 0xfb, 0xa8, 0x18, 0x28, 0xd4, 0xd4, 0xea, 0x30, 0x96, 0xa1, 0x04, 0xc4, 0xa2,
+	0x74, 0x42, 0xed, 0x13, 0xe8, 0x7e, 0x36, 0xf5, 0x07, 0x74, 0x23, 0x69, 0x27, 0xc4, 0xc0, 0x98,
+	0x84, 0x24, 0x1d, 0xda, 0xa5, 0xe2, 0x03, 0x08, 0xbe, 0x94, 0xcb, 0x82, 0x1b, 0x97, 0xd2, 0xfa,
+	0x20, 0x42, 0xe7, 0xc7, 0xb6, 0x28, 0xba, 0xbb, 0x37, 0xe7, 0xdc, 0x73, 0x4e, 0x2e, 0x17, 0x34,
+	0x87, 0x34, 0xa6, 0xc6, 0x72, 0x82, 0x47, 0x8a, 0x69, 0x12, 0x51, 0x9c, 0x74, 0xb1, 0x1d, 0x07,
+	0x4a, 0x4b, 0x2b, 0x61, 0x3d, 0x47, 0x83, 0x0c, 0x0d, 0x92, 0xae, 0xd7, 0x64, 0x52, 0xb2, 0x98,
+	0x62, 0xa2, 0x38, 0x26, 0x42, 0x48, 0x4b, 0x2c, 0x97, 0xc2, 0xa4, 0x23, 0xe8, 0x0a, 0xd4, 0x42,
+	0xc3, 0xce, 0x38, 0x13, 0x24, 0xbe, 0xa4, 0xda, 0x70, 0x29, 0xe0, 0x11, 0xd8, 0x4a, 0x48, 0xcc,
+	0x23, 0x62, 0xa5, 0xbe, 0x21, 0x51, 0xa4, 0xa9, 0x31, 0xae, 0xd3, 0x72, 0xda, 0x9b, 0xfd, 0x5a,
+	0x01, 0x9c, 0xa4, 0xef, 0xd0, 0x05, 0x1b, 0x49, 0x3a, 0xe7, 0x96, 0x5b, 0x4e, 0xfb, 0x7f, 0x3f,
+	0x6f, 0x91, 0x07, 0xdc, 0x75, 0xe9, 0x3e, 0x35, 0x4a, 0x0a, 0x43, 0xd1, 0x01, 0xa8, 0x86, 0x86,
+	0x9d, 0xeb, 0xc9, 0x45, 0x1a, 0x14, 0xee, 0x80, 0x8a, 0xe1, 0x4c, 0x50, 0x9d, 0x19, 0x65, 0x1d,
+	0xda, 0x05, 0x8d, 0x15, 0x62, 0xae, 0x70, 0xfc, 0x58, 0x06, 0xff, 0x42, 0xc3, 0xe0, 0xbd, 0x03,
+	0xaa, 0xab, 0xf1, 0xf7, 0x83, 0x6f, 0xd6, 0x10, 0xac, 0x47, 0xf1, 0x3a, 0x7f, 0xa2, 0x15, 0x89,
+	0xbd, 0x87, 0xd7, 0x8f, 0xe7, 0xf2, 0x36, 0x82, 0xcb, 0x9b, 0x37, 0x0b, 0x2a, 0x9c, 0x00, 0xb0,
+	0xf4, 0x15, 0xf4, 0x93, 0xf0, 0x17, 0xc7, 0x3b, 0xfc, 0x9d, 0x53, 0x38, 0xef, 0x2d, 0x9c, 0x1b,
+	0xa8, 0xbe, 0xec, 0x9c, 0x95, 0xa7, 0xe1, 0xcb, 0xcc, 0x77, 0xa6, 0x33, 0xdf, 0x79, 0x9f, 0xf9,
+	0xce, 0xd3, 0xdc, 0x2f, 0x4d, 0xe7, 0x7e, 0xe9, 0x6d, 0xee, 0x97, 0xae, 0x7b, 0x8c, 0xdb, 0xdb,
+	0xd1, 0x20, 0x18, 0xca, 0x3b, 0x9c, 0x9b, 0x49, 0xcd, 0x8a, 0xba, 0x43, 0x94, 0xc2, 0xe3, 0x42,
+	0xd3, 0x4e, 0x14, 0x35, 0x83, 0xca, 0xe2, 0x2a, 0x7a, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xe5,
+	0xec, 0x2f, 0xdc, 0x68, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -162,6 +250,9 @@ const _ = grpc.SupportPackageIsVersion4
 type MsgClient interface {
 	// SignalVersion allows the validator to signal for an upgrade
 	SignalVersion(ctx context.Context, in *MsgSignalVersion, opts ...grpc.CallOption) (*MsgSignalVersionResponse, error)
+	// TryUpgrade tallies all the votes and if a quorum is reached, it will
+	// trigger an upgrade for the following height
+	TryUpgrade(ctx context.Context, in *MsgTryUpgrade, opts ...grpc.CallOption) (*MsgTryUpgradeResponse, error)
 }
 
 type msgClient struct {
@@ -181,10 +272,22 @@ func (c *msgClient) SignalVersion(ctx context.Context, in *MsgSignalVersion, opt
 	return out, nil
 }
 
+func (c *msgClient) TryUpgrade(ctx context.Context, in *MsgTryUpgrade, opts ...grpc.CallOption) (*MsgTryUpgradeResponse, error) {
+	out := new(MsgTryUpgradeResponse)
+	err := c.cc.Invoke(ctx, "/celestia.upgrade.v1.Msg/TryUpgrade", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// SignalVersion allows the validator to signal for an upgrade
 	SignalVersion(context.Context, *MsgSignalVersion) (*MsgSignalVersionResponse, error)
+	// TryUpgrade tallies all the votes and if a quorum is reached, it will
+	// trigger an upgrade for the following height
+	TryUpgrade(context.Context, *MsgTryUpgrade) (*MsgTryUpgradeResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -193,6 +296,9 @@ type UnimplementedMsgServer struct {
 
 func (*UnimplementedMsgServer) SignalVersion(ctx context.Context, req *MsgSignalVersion) (*MsgSignalVersionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SignalVersion not implemented")
+}
+func (*UnimplementedMsgServer) TryUpgrade(ctx context.Context, req *MsgTryUpgrade) (*MsgTryUpgradeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TryUpgrade not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -217,6 +323,24 @@ func _Msg_SignalVersion_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_TryUpgrade_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgTryUpgrade)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).TryUpgrade(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/celestia.upgrade.v1.Msg/TryUpgrade",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).TryUpgrade(ctx, req.(*MsgTryUpgrade))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "celestia.upgrade.v1.Msg",
 	HandlerType: (*MsgServer)(nil),
@@ -224,6 +348,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignalVersion",
 			Handler:    _Msg_SignalVersion_Handler,
+		},
+		{
+			MethodName: "TryUpgrade",
+			Handler:    _Msg_TryUpgrade_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -288,6 +416,59 @@ func (m *MsgSignalVersionResponse) MarshalToSizedBuffer(dAtA []byte) (int, error
 	return len(dAtA) - i, nil
 }
 
+func (m *MsgTryUpgrade) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgTryUpgrade) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgTryUpgrade) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Signer) > 0 {
+		i -= len(m.Signer)
+		copy(dAtA[i:], m.Signer)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Signer)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgTryUpgradeResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgTryUpgradeResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgTryUpgradeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	offset -= sovTx(v)
 	base := offset
@@ -316,6 +497,28 @@ func (m *MsgSignalVersion) Size() (n int) {
 }
 
 func (m *MsgSignalVersionResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgTryUpgrade) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Signer)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgTryUpgradeResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -458,6 +661,138 @@ func (m *MsgSignalVersionResponse) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: MsgSignalVersionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgTryUpgrade) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgTryUpgrade: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgTryUpgrade: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Signer", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Signer = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgTryUpgradeResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgTryUpgradeResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgTryUpgradeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
