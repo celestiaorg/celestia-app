@@ -20,8 +20,7 @@ const (
 
 // FeeRefundDecorator handles refunding a portion of the fee that was originally
 // deducted from the feepayer but was not needed because the tx consumed less
-// gas than the gas limit. CONTRACT: Tx must implement FeeTx interface to use
-// FeeRefundDecorator.
+// gas than the gas limit.
 type FeeRefundDecorator struct {
 	accountKeeper  authkeeper.AccountKeeper
 	bankKeeper     types.BankKeeper
@@ -44,8 +43,8 @@ func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 }
 
 func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
-	// Replace the context's gas meter with an infinite gas meter so that we
-	// don't run out of gas while refunding.
+	// Replace the context's gas meter with an infinite gas meter so that this
+	// decorator doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
 	ctx = ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
 
@@ -55,7 +54,7 @@ func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 	}
 
 	if gasMeter.IsOutOfGas() {
-		// If the gas meter is out of gas, then there is no refund to be made.
+		// If the gas meter is out of gas, then no refund needs to be issued.
 		return nil
 	}
 
