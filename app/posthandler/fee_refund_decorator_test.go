@@ -44,9 +44,7 @@ func (s *FeeRefundDecoratorSuite) SetupSuite() {
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
-// based on the fee provided in the tx instead of the gas used by the tx. This
-// behavior leads to poor UX because tx submitters must over-estimate the amount
-// of gas that their tx will consume and they are not refunded for the excess.
+// based on the gas consumed by the tx instead of the fee specified by the tx.
 func (s *FeeRefundDecoratorSuite) TestGasConsumption() {
 	t := s.T()
 
@@ -67,15 +65,17 @@ func (s *FeeRefundDecoratorSuite) TestGasConsumption() {
 	require.EqualValues(t, abci.CodeTypeOK, resp.Code)
 	balanceAfter := s.queryCurrentBalance(t)
 
-	// verify that the amount deducted depends on the fee set in the tx.
+	// Verify that the amount deducted does not depend on the fee set in the tx.
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
-	assert.Equal(t, int64(fee), amountDeducted)
+	assert.NotEqual(t, int64(fee), amountDeducted)
 
-	// verify that the amount deducted does not depend on the actual gas used.
-	gasUsedBasedDeduction := resp.GasUsed * gasPrice
-	assert.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
-	// The gas used based deduction should be less than the fee because the fee is 1 TIA.
-	assert.Less(t, gasUsedBasedDeduction, int64(fee))
+	// Verify that the amount deducted depends on the actual gas consumed.
+	gasConsumedBasedDeduction := resp.GasUsed * gasPrice
+	assert.Equal(t, gasConsumedBasedDeduction, amountDeducted)
+
+	// The gas consumed based deduction should be less than the fee because
+	// the fee is 1 TIA.
+	assert.Less(t, gasConsumedBasedDeduction, int64(fee))
 }
 
 func (s *FeeRefundDecoratorSuite) queryCurrentBalance(t *testing.T) int64 {
