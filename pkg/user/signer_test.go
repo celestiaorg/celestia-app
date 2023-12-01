@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -102,11 +103,11 @@ func (s *SignerTestSuite) TestGasConsumption() {
 
 	// verify that the amount deducted depends on the fee set in the tx.
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
-	require.EqualValues(t, int64(fee), amountDeducted)
+	assert.Equal(t, int64(fee), amountDeducted)
 
 	// verify that the amount deducted does not depend on the actual gas used.
 	gasUsedBasedDeduction := resp.GasUsed * gasPrice
-	require.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
+	assert.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
 }
 
 func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {
