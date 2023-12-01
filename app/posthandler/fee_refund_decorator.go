@@ -3,6 +3,7 @@ package posthandler
 import (
 	"fmt"
 
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
@@ -37,11 +38,11 @@ func NewFeeRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk 
 func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
-		return ctx, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
+		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
 	}
 
 	if !simulate && ctx.BlockHeight() > 0 && feeTx.GetGas() == 0 {
-		return ctx, sdkerrors.Wrap(sdkerrors.ErrInvalidGasLimit, "must provide positive gas")
+		return ctx, errors.Wrap(sdkerrors.ErrInvalidGasLimit, "must provide positive gas")
 	}
 
 	fee := feeTx.GetFee()
@@ -55,7 +56,7 @@ func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 func (dfd FeeRefundDecorator) checkRefundFee(ctx sdk.Context, sdkTx sdk.Tx, amountToRefund sdk.Coins) error {
 	feeTx, ok := sdkTx.(sdk.FeeTx)
 	if !ok {
-		return sdkerrors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
+		return errors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
 	}
 
 	if addr := dfd.accountKeeper.GetModuleAddress(types.FeeCollectorName); addr == nil {
@@ -65,7 +66,7 @@ func (dfd FeeRefundDecorator) checkRefundFee(ctx sdk.Context, sdkTx sdk.Tx, amou
 	refundRecipient := getRefundRecipient(feeTx)
 	refundRecipientAccount := dfd.accountKeeper.GetAccount(ctx, refundRecipient)
 	if refundRecipientAccount == nil {
-		return sdkerrors.ErrUnknownAddress.Wrapf("refund recipient address: %s does not exist", refundRecipientAccount)
+		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
 	}
 
 	if !amountToRefund.IsZero() {
@@ -97,12 +98,12 @@ func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 // refund sends amountToRefund from the fee collector module account to the refund recipient.
 func refund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
 	if !amountToRefund.IsValid() {
-		return sdkerrors.Wrapf(sdkerrors.ErrInsufficientFee, "invalid fee amount: %s", amountToRefund)
+		return errors.Wrapf(sdkerrors.ErrInsufficientFee, "invalid fee amount: %s", amountToRefund)
 	}
 
 	err := bankKeeper.SendCoinsFromAccountToModule(ctx, refundRecipient.GetAddress(), types.FeeCollectorName, amountToRefund)
 	if err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrInsufficientFunds, err.Error())
+		return errors.Wrapf(sdkerrors.ErrInsufficientFunds, err.Error())
 	}
 
 	return nil
