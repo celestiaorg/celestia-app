@@ -3,14 +3,13 @@ package keeper_test
 import (
 	"testing"
 
-	testkeeper "github.com/celestiaorg/celestia-app/test/util/keeper"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParamsQuery(t *testing.T) {
-	keeper, ctx := testkeeper.BlobKeeper(t)
+	keeper, _, ctx := CreateKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
 	params := types.DefaultParams()
 	keeper.SetParams(ctx, params)
