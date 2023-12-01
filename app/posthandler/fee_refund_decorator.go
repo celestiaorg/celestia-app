@@ -73,17 +73,9 @@ func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 
 func getCoinsToRefund(ctx sdk.Context, feeTx sdk.FeeTx) sdk.Coins {
 	gasConsumed := ctx.GasMeter().GasConsumed()
-	gasRemaining := ctx.GasMeter().GasRemaining()
 	gasPrice := getGasPrice(feeTx)
 	feeBasedOnGasConsumption := gasPrice.Amount.MulInt64(int64(gasConsumed)).Ceil().TruncateInt()
 	amountToRefund := feeTx.GetFee().AmountOf(bondDenom).Sub(feeBasedOnGasConsumption)
-	alternativeAmountToRefund := gasPrice.Amount.MulInt64(int64(gasRemaining)).TruncateInt()
-
-	// Verify that these two ways of calculating the amount to refund are the same.
-	// TODO: remove this check
-	if !amountToRefund.Equal(alternativeAmountToRefund) {
-		panic(fmt.Sprintf("amountToRefund (%s) != alternativeAmountToRefund (%s)", amountToRefund, alternativeAmountToRefund))
-	}
 	coinsToRefund := sdk.NewCoins(sdk.NewCoin(bondDenom, amountToRefund))
 	return coinsToRefund
 }
