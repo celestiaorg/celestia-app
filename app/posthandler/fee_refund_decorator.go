@@ -44,17 +44,22 @@ func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 }
 
 func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
+	// Replace the context's gas meter with an infinite gas meter so that we
+	// don't run out of gas while refunding.
+	gasMeter := ctx.GasMeter()
+	ctx = ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
+
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return errors.Wrap(sdkerrors.ErrTxDecode, "tx must be a FeeTx to use FeeRefundDecorator")
 	}
 
-	if ctx.GasMeter().IsOutOfGas() {
+	if gasMeter.IsOutOfGas() {
 		// If the gas meter is out of gas, then there is no refund to be made.
 		return nil
 	}
 
-	coinsToRefund := getCoinsToRefund(ctx, feeTx)
+	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
 	refundRecipient := getRefundRecipient(feeTx)
 	refundRecipientAccount := frd.accountKeeper.GetAccount(ctx, refundRecipient)
 	if refundRecipientAccount == nil {
@@ -71,8 +76,8 @@ func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 	return nil
 }
 
-func getCoinsToRefund(ctx sdk.Context, feeTx sdk.FeeTx) sdk.Coins {
-	gasConsumed := ctx.GasMeter().GasConsumed()
+func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
+	gasConsumed := gasMeter.GasConsumed()
 	gasPrice := getGasPrice(feeTx)
 	feeBasedOnGasConsumption := gasPrice.Amount.MulInt64(int64(gasConsumed)).Ceil().TruncateInt()
 	amountToRefund := feeTx.GetFee().AmountOf(bondDenom).Sub(feeBasedOnGasConsumption)
