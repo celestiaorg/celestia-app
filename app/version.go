@@ -8,6 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blobstream"
 	"github.com/celestiaorg/celestia-app/x/mint"
+	"github.com/celestiaorg/celestia-app/x/upgrade"
+	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
@@ -31,6 +33,15 @@ var (
 	// versions that the current state machine supports
 	supportedVersions = []uint64{v1.Version, v2.Version}
 
+	v1moduleVersionMap = make(module.VersionMap)
+	v2moduleVersionMap = make(module.VersionMap)
+)
+
+const DefaultInitialVersion = v1.Version
+
+// this is used as a compile time consistency check across different module
+// based maps
+func init() {
 	v1moduleVersionMap = module.VersionMap{
 		"bank":         bank.AppModule{}.ConsensusVersion(),
 		"auth":         auth.AppModule{}.ConsensusVersion(),
@@ -53,22 +64,24 @@ var (
 		"transfer":     transfer.AppModule{}.ConsensusVersion(),
 	}
 
-	// There is currently complete parity between v1 and v2 modules, but this
-	// will likely change
-	v2moduleVersionMap = v1moduleVersionMap
-)
+	// v2 has all the same modules as v1 with the addition of an upgrade module
+	v2moduleVersionMap = make(module.VersionMap)
+	for k, v := range v1moduleVersionMap {
+		v2moduleVersionMap[k] = v
+	}
+	v2moduleVersionMap[upgradetypes.ModuleName] = upgrade.AppModule{}.ConsensusVersion()
 
-const DefaultInitialVersion = v1.Version
-
-// this is used as a compile time consistency check across different module
-// based maps
-func init() {
 	for moduleName := range ModuleBasics {
+		isSupported := false
 		for _, v := range supportedVersions {
 			versionMap := GetModuleVersion(v)
-			if _, ok := versionMap[moduleName]; !ok {
-				panic(fmt.Sprintf("inconsistency: module %s not found in module version map for version %d", moduleName, v))
+			if _, ok := versionMap[moduleName]; ok {
+				isSupported = true
+				break
 			}
+		}
+		if !isSupported {
+			panic(fmt.Sprintf("inconsistency: module %s not found in any version", moduleName))
 		}
 	}
 }
