@@ -11,10 +11,11 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "no-mempool-1"
+chain_id = "l-150-no-mempool-2"
 timeout = "59m"
 halt_height = "200"
-latency = "0"
+latency = "150"
+random_latency = "true"
 bandwidth = "1Gib"
 validators = "100"
 topology = "seed"

@@ -3,10 +3,11 @@ package compositions
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/run"
@@ -40,11 +41,19 @@ func CreateNetworkConfig(runenv *runtime.RunEnv, initCtx *run.InitContext) (netw
 	if err != nil {
 		return network.Config{}, err
 	}
+	l := runenv.IntParam("latency")
+	// rand.Intn will panic if l == 0
+	if l == 0 {
+		l = 1
+	}
+	if runenv.BooleanParam("random_latency") {
+		l = tmrand.Intn(l)
+	}
 	config := network.Config{
 		Network: "default",
 		Enable:  true,
 		Default: network.LinkShape{
-			Latency:   time.Millisecond * time.Duration(rand.Intn(runenv.IntParam("latency"))),
+			Latency:   time.Millisecond * time.Duration(l),
 			Bandwidth: bandwidth,
 		},
 		CallbackState: "network-configured",
