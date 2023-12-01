@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -19,15 +18,11 @@ const (
 // Keeper handles all the state changes for the blob module.
 type Keeper struct {
 	cdc        codec.BinaryCodec
-	storeKey   storetypes.StoreKey
-	memKey     storetypes.StoreKey
 	paramStore paramtypes.Subspace
 }
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
-	storeKey,
-	memKey storetypes.StoreKey,
 	ps paramtypes.Subspace,
 ) *Keeper {
 	if !ps.HasKeyTable() {
@@ -36,8 +31,6 @@ func NewKeeper(
 
 	return &Keeper{
 		cdc:        cdc,
-		storeKey:   storeKey,
-		memKey:     memKey,
 		paramStore: ps,
 	}
 }
