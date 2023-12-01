@@ -43,7 +43,7 @@ func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	return next(ctx, tx, simulate)
 }
 
-func (dfd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
+func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return errors.Wrap(sdkerrors.ErrTxDecode, "tx must be a FeeTx")
@@ -51,12 +51,12 @@ func (dfd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 
 	coinsToRefund := getCoinsToRefund(ctx, feeTx)
 	refundRecipient := getRefundRecipient(feeTx)
-	refundRecipientAccount := dfd.accountKeeper.GetAccount(ctx, refundRecipient)
+	refundRecipientAccount := frd.accountKeeper.GetAccount(ctx, refundRecipient)
 	if refundRecipientAccount == nil {
 		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
 	}
 
-	if err := dfd.processRefund(dfd.bankKeeper, ctx, refundRecipientAccount, coinsToRefund); err != nil {
+	if err := frd.processRefund(frd.bankKeeper, ctx, refundRecipientAccount, coinsToRefund); err != nil {
 		return err
 	}
 
@@ -76,9 +76,9 @@ func getCoinsToRefund(ctx sdk.Context, feeTx sdk.FeeTx) sdk.Coins {
 }
 
 // processRefund sends amountToRefund from the fee collector module account to the refundRecipient.
-func (dfd FeeRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
+func (frd FeeRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
 	to := refundRecipient.GetAddress()
-	from := dfd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
+	from := frd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
 	if from == nil {
 		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)
 	}
@@ -102,9 +102,9 @@ func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 }
 
 func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
-	// gas * gasPrice = fees. So gasPrice = fees / gas.
 	feeCoins := feeTx.GetFee()
 	gas := feeTx.GetGas()
+	// gas * gasPrice = fees. So gasPrice = fees / gas.
 	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(bondDenom)).Quo(sdk.NewDec(int64(gas)))
 	return sdk.NewDecCoinFromDec(bondDenom, gasPrice)
 }
