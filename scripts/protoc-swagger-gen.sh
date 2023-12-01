@@ -3,7 +3,7 @@
 # Run from the project root directory
 # This script generates the swagger.yaml documentation for the rest API on port 1317
 #
-# Prior to running this script, please install the following::
+# Prior to running this script, please install the following:
 # - Install Go 1.21+  
 # - Install pyyaml: `pip3 install pyyaml`
 
