@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	EventType                   = "fee_refund"
-	AttributeKeyRefund          = "refund"
-	AttributeKeyRefundRecipient = "refund_recipient"
+	eventType                   = "fee_refund"
+	attributeKeyRefund          = "refund"
+	attributeKeyRefundRecipient = "refund_recipient"
 )
 
 // FeeRefundDecorator handles refunding a portion of the fee that was originally
@@ -36,32 +36,20 @@ func NewFeeRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk 
 }
 
 func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	feeTx, ok := tx.(sdk.FeeTx)
-	if !ok {
-		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
-	}
-
-	if !simulate && ctx.BlockHeight() > 0 && feeTx.GetGas() == 0 {
-		return ctx, errors.Wrap(sdkerrors.ErrInvalidGasLimit, "must provide positive gas")
-	}
-
-	fee := feeTx.GetFee()
-	if err := frd.checkRefundFee(ctx, tx, fee); err != nil {
+	if err := frd.maybeRefund(ctx, tx); err != nil {
 		return ctx, err
 	}
-
 	return next(ctx, tx, simulate)
 }
 
-func (dfd FeeRefundDecorator) checkRefundFee(ctx sdk.Context, sdkTx sdk.Tx, amountToRefund sdk.Coins) error {
-	feeTx, ok := sdkTx.(sdk.FeeTx)
+func (dfd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
+	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
-		return errors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
+		return errors.Wrap(sdkerrors.ErrTxDecode, "tx must be a FeeTx")
 	}
 
-	if addr := dfd.accountKeeper.GetModuleAddress(types.FeeCollectorName); addr == nil {
-		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)
-	}
+	// TODO: calculate
+	var amountToRefund sdk.Coins
 
 	refundRecipient := getRefundRecipient(feeTx)
 	refundRecipientAccount := dfd.accountKeeper.GetAccount(ctx, refundRecipient)
@@ -69,20 +57,11 @@ func (dfd FeeRefundDecorator) checkRefundFee(ctx sdk.Context, sdkTx sdk.Tx, amou
 		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
 	}
 
-	if !amountToRefund.IsZero() {
-		err := refund(dfd.bankKeeper, ctx, refundRecipientAccount, amountToRefund)
-		if err != nil {
-			return err
-		}
+	if err := dfd.processRefund(dfd.bankKeeper, ctx, refundRecipientAccount, amountToRefund); err != nil {
+		return err
 	}
 
-	events := sdk.Events{
-		sdk.NewEvent(
-			EventType,
-			sdk.NewAttribute(AttributeKeyRefund, amountToRefund.String()),
-			sdk.NewAttribute(AttributeKeyRefundRecipient, refundRecipientAccount.String()),
-		),
-	}
+	events := sdk.Events{newFeeRefundEvent(amountToRefund, refundRecipient)}
 	ctx.EventManager().EmitEvents(events)
 
 	return nil
@@ -95,16 +74,29 @@ func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 	return feeTx.FeePayer()
 }
 
-// refund sends amountToRefund from the fee collector module account to the refund recipient.
-func refund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
-	if !amountToRefund.IsValid() {
-		return errors.Wrapf(sdkerrors.ErrInsufficientFee, "invalid fee amount: %s", amountToRefund)
+// processRefund sends amountToRefund from the fee collector module account to the refundRecipient.
+func (dfd FeeRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
+	to := refundRecipient.GetAddress()
+	from := dfd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
+	if from == nil {
+		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)
 	}
 
-	err := bankKeeper.SendCoinsFromAccountToModule(ctx, refundRecipient.GetAddress(), types.FeeCollectorName, amountToRefund)
-	if err != nil {
-		return errors.Wrapf(sdkerrors.ErrInsufficientFunds, err.Error())
+	if !amountToRefund.IsValid() {
+		return fmt.Errorf("invalid amount to refund: %s", amountToRefund)
+	}
+
+	if err := bankKeeper.SendCoins(ctx, from, to, amountToRefund); err != nil {
+		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", amountToRefund, to)
 	}
 
 	return nil
+}
+
+func newFeeRefundEvent(amountToRefund sdk.Coins, refundRecipient sdk.AccAddress) sdk.Event {
+	return sdk.NewEvent(
+		eventType,
+		sdk.NewAttribute(attributeKeyRefund, amountToRefund.String()),
+		sdk.NewAttribute(attributeKeyRefundRecipient, refundRecipient.String()),
+	)
 }
