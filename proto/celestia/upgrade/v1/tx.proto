@@ -11,6 +11,12 @@ service Msg {
   rpc SignalVersion(MsgSignalVersion) returns (MsgSignalVersionResponse) {
     option (google.api.http).post = "/upgrade/v1/signal";
   }
+
+  // TryUpgrade tallies all the votes and if a quorum is reached, it will
+  // trigger an upgrade for the following height
+  rpc TryUpgrade(MsgTryUpgrade) returns (MsgTryUpgradeResponse) {
+    option (google.api.http).post = "/upgrade/v1/upgrade";
+  }
 }
 
 // MsgSignalVersion signals for an upgrade
@@ -22,3 +28,9 @@ message MsgSignalVersion {
 // MsgSignalVersionResponse describes the response returned after the submission
 // of a SignalVersion
 message MsgSignalVersionResponse {}
+
+// MsgTryUpgrade tries to upgrade the chain
+message MsgTryUpgrade { string signer = 1; }
+
+// MsgTryUpgradeResponse describes the response returned after the submission
+message MsgTryUpgradeResponse {}

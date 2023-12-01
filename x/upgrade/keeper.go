@@ -13,7 +13,7 @@ import (
 
 // Keeper implements the MsgServer and QueryServer interfaces
 var (
-	_ types.MsgServer   = Keeper{}
+	_ types.MsgServer   = &Keeper{}
 	_ types.QueryServer = Keeper{}
 
 	defaultSignalTheshold = Fraction{Numerator: 5, Denominator: 6}
@@ -93,6 +93,20 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 	return &types.MsgSignalVersionResponse{}, nil
 }
 
+// TryUpgrade is a method required by the MsgServer interface
+// It tallies the voting power that has voted on each version.
+// If one version has quorum, it is set as the quorum version
+// which the application can use as signal to upgrade to that version.
+func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	threshold := k.GetVotingPowerThreshold(sdkCtx)
+	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
+	if hasQuorum {
+		k.quorumVersion = version
+	}
+	return &types.MsgTryUpgradeResponse{}, nil
+}
+
 // VersionTally is a method required by the QueryServer interface
 func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRequest) (*types.QueryVersionTallyResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -128,17 +142,6 @@ func (k Keeper) SetValidatorVersion(ctx sdk.Context, valAddress sdk.ValAddress, 
 func (k Keeper) DeleteValidatorVersion(ctx sdk.Context, valAddress sdk.ValAddress) {
 	store := ctx.KVStore(k.storeKey)
 	store.Delete(valAddress)
-}
-
-// EndBlock is called at the end of every block. It tallies the voting power that has
-// voted on each version. If one version has quorum, it is set as the quorum version
-// which the application can use as signal to upgrade to that version.
-func (k *Keeper) EndBlock(ctx sdk.Context) {
-	threshold := k.GetVotingPowerThreshold(ctx)
-	hasQuorum, version := k.TallyVotingPower(ctx, threshold.Int64())
-	if hasQuorum {
-		k.quorumVersion = version
-	}
 }
 
 // TallyVotingPower tallies the voting power for each version and returns true if
