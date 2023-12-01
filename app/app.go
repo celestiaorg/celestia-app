@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/celestiaorg/celestia-app/app/posthandler"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
@@ -25,7 +26,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/cosmos/cosmos-sdk/x/auth/posthandler"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
@@ -549,7 +549,11 @@ func New(
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 	))
-	app.setPostHanders()
+	app.SetPostHandler(posthandler.New(
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.FeeGrantKeeper,
+	))
 
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
@@ -716,17 +720,6 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 
 func (app *App) RegisterNodeService(clientCtx client.Context) {
 	nodeservice.RegisterNodeService(clientCtx, app.GRPCQueryRouter())
-}
-
-func (app *App) setPostHanders() {
-	postHandler, err := posthandler.NewPostHandler(
-		posthandler.HandlerOptions{},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	app.SetPostHandler(postHandler)
 }
 
 // BlockedParams are params that require a hardfork to change, and cannot be changed via
