@@ -63,7 +63,7 @@ If you'd rather not install from source, you can download a pre-built binary fro
 
 <details>
 <summary>
-Optional: Verify the pre-built binary checksums and signatures  
+Optional: Verify the pre-built binary checksums and signatures
 </summary>
 
 If you use a pre-built binary, you may also want to verify the checksums and signatures.
@@ -99,6 +99,7 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     gpg:          There is no indication that the signature belongs to the owner.
     Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
     ```
+
 </details>
 
 ### Ledger Support
@@ -146,7 +147,7 @@ This repo attempts to conform to [conventional commits](https://www.conventional
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
+1. Install [golangci-lint](https://golangci-lint.run/usage/install/) 1.55.2
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
