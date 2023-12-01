@@ -89,7 +89,7 @@ func (s *SignerTestSuite) TestGasConsumption() {
 
 	gasPrice := int64(1)
 	gasLimit := uint64(1e6)
-	fee := uint64(1e6)
+	fee := uint64(1e6) // 1 TIA
 	// Note: gas price * gas limit = fee amount. So by setting gasLimit and fee
 	// to the same value, these options set a gas price of 1utia.
 	options := []user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}
@@ -108,6 +108,8 @@ func (s *SignerTestSuite) TestGasConsumption() {
 	// verify that the amount deducted does not depend on the actual gas used.
 	gasUsedBasedDeduction := resp.GasUsed * gasPrice
 	assert.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
+	// The gas used based deduction should be less than the fee because the fee is 1 TIA.
+	assert.Less(t, gasUsedBasedDeduction, int64(fee))
 }
 
 func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {
