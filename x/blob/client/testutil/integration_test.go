@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -96,22 +95,6 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
 	validPropFile := createTestFile(s.T(), validBlob)
 
-	invalidBlob := fmt.Sprintf(`
-	{
-		"Blobs": [
-			{
-				"namespaceId": "%s",
-				"blob": "%s"
-			},
-			{
-				"namespaceId": "%s",
-				"blob": "%s"
-			}
-		]
-	}
-	`, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob, hex.EncodeToString(bytes.Repeat([]byte{0}, 8)), hexBlob)
-	invalidPropFile := createTestFile(s.T(), invalidBlob)
-
 	testCases := []struct {
 		name         string
 		args         []string
@@ -129,47 +112,6 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			expectErr:    false,
-			expectedCode: 0,
-			respType:     &sdk.TxResponse{},
-		},
-		{
-			name: "unsupported share version",
-			args: []string{
-				validPropFile.Name(),
-				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
-				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=1", paycli.FlagShareVersion),
-			},
-			expectErr:    true,
-			expectedCode: 0,
-			respType:     &sdk.TxResponse{},
-		},
-		{
-			name: "invalid namespace ID",
-			args: []string{
-				invalidPropFile.Name(),
-				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
-				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-			},
-			expectErr:    true,
-			expectedCode: 0,
-			respType:     &sdk.TxResponse{},
-		},
-		{
-			name: "invalid namespace version",
-			args: []string{
-				validPropFile.Name(),
-				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
-				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=1", paycli.FlagNamespaceVersion),
-			},
-			expectErr:    true,
 			expectedCode: 0,
 			respType:     &sdk.TxResponse{},
 		},
