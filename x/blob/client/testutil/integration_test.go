@@ -38,14 +38,20 @@ type IntegrationTestSuite struct {
 }
 
 // Create a .json file for testing
-func createTestFile(t testing.TB, s string) *os.File {
+func createTestFile(t testing.TB, s string, isValid bool) *os.File {
 	t.Helper()
 
 	tempdir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
 
-	fp, err := os.CreateTemp(tempdir, "*.json")
+	var fp *os.File
+
+	if isValid {
+		fp, err = os.CreateTemp(tempdir, "*.json")
+	} else {
+		fp, err = os.CreateTemp(tempdir, "")
+	}
 	require.NoError(t, err)
 	_, err = fp.WriteString(s)
 
@@ -93,7 +99,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
     	]
 	}
 	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
-	validPropFile := createTestFile(s.T(), validBlob)
+	validPropFile := createTestFile(s.T(), validBlob, true)
+	invalidPropFile := createTestFile(s.T(), validBlob, false)
 
 	testCases := []struct {
 		name         string
@@ -119,13 +126,26 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "multiple blobs valid transaction",
 			args: []string{
-				validPropFile.Name(),
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, validPropFile.Name()),
 			},
 			expectErr:    false,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "multiple blobs with invalid file path extension",
+			args: []string{
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, invalidPropFile.Name()),
+			},
+			expectErr:    true,
 			expectedCode: 0,
 			respType:     &sdk.TxResponse{},
 		},

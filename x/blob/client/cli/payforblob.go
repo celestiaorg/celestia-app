@@ -29,22 +29,35 @@ const (
 	// FlagNamespaceVersion allows the user to override the namespace version when
 	// submitting a PayForBlob.
 	FlagNamespaceVersion = "namespace-version"
+
+	// FlagNamespaceVersion allows the user to override the namespace version when
+	// submitting a PayForBlob.
+	FlagFileInput = "input-file"
 )
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs [namespaceID, blob] [path/to/blob.json]",
+		Use: "PayForBlobs [namespaceID blob]",
 		// This example command can be run in a new terminal after running single-node.sh
-		Example: "celestia-appd tx blob PayForBlobs path/to/blob.json \\\n" +
+		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
-			"\t--yes",
-		Short: "Pay for a data blobs to be published to Celestia.",
-		Long: "Pay for a data blobs to be published to Celestia.\n" +
-			"User can use namespaceID and blob or path to a json file as argument" +
-			`Where blob.json contains: 
+			"\t--yes \\\n" +
+			"\n" +
+			"celestia-appd tx blob PayForBlobs --input-file path/to/blobs.json \\\n" +
+			"\t--chain-id private \\\n" +
+			"\t--from validator \\\n" +
+			"\t--keyring-backend test \\\n" +
+			"\t--fees 21000utia \\\n" +
+			"\t--yes \\\n" +
+			"\\\n",
+		Short: "Pay for a data blob(s) to be published to Celestia.",
+		Long: "Pay for a data blob(s) to be published to Celestia.\n" +
+			"User can use namespaceID and blob as argument for single blob submission \n" +
+			"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
+			`where the json file contains: 
 
 		{
 			"Blobs": [
@@ -64,16 +77,22 @@ func CmdPayForBlob() *cobra.Command {
 		`,
 		Aliases: []string{"PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("PayForBlobs requires atleast one argument")
+			path, err := cmd.Flags().GetString(FlagFileInput)
+			if err != nil {
+				return err
 			}
 
-			// If there is only one argument we assume it to be a file path so we check the file extension
-			if len(args) == 1 {
-				path := args[0]
+			// If there is a file path input we'll check for the file extension
+			if path != "" {
 				if filepath.Ext(path) != ".json" {
 					return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
 				}
+
+				return nil
+			}
+
+			if len(args) < 2 {
+				return fmt.Errorf("PayForBlobs requires two argument: namespaceID and blob")
 			}
 
 			return nil
@@ -89,8 +108,13 @@ func CmdPayForBlob() *cobra.Command {
 				return err
 			}
 
-			// In case of arguments contain namespaceID and blob
-			if len(args) >= 2 {
+			path, err := cmd.Flags().GetString(FlagFileInput)
+			if err != nil {
+				return err
+			}
+
+			// In case of no file input, get the namespaceID and blob from the arguments
+			if path == "" {
 				blob, err := getBlobFromArguments(args[0], args[1], namespaceVersion, shareVersion)
 				if err != nil {
 					return err
@@ -98,9 +122,6 @@ func CmdPayForBlob() *cobra.Command {
 
 				return broadcastPFB(cmd, blob)
 			}
-
-			// In case of argument contains file path to submit multiple blobs
-			path := args[0]
 
 			paresdBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
@@ -123,6 +144,7 @@ func CmdPayForBlob() *cobra.Command {
 	flags.AddTxFlagsToCmd(cmd)
 	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version (default 0)")
 	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version (default 0)")
+	cmd.PersistentFlags().String(FlagFileInput, "", "Specify the file input")
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	return cmd
 }
