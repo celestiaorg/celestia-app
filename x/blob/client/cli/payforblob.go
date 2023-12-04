@@ -63,11 +63,11 @@ func CmdPayForBlob() *cobra.Command {
 		{
 			"Blobs": [
 				{
-					"namespaceId": "0x00010203040506070809",
+					"namespaceID": "0x00010203040506070809",
 					"blob": "0x48656c6c6f2c20576f726c6421"
 				},
 				{
-					"namespaceId": "0x00010203040506070809",
+					"namespaceID": "0x00010203040506070809",
 					"blob": "0x48656c6c6f2c20576f726c6421"
 				}
 			]
