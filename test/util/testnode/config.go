@@ -6,8 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
-	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	tmconfig "github.com/tendermint/tendermint/config"
@@ -17,6 +15,8 @@ import (
 )
 
 const (
+	kibibyte                    = 1024      // bytes
+	mebibyte                    = 1_048_576 // bytes
 	DefaultValidatorAccountName = "validator"
 )
 
@@ -70,7 +70,7 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
-// WithTimeoutCommit sets the CommitTimeout and returns the Config.
+// WithTimeoutCommit sets the TimeoutCommit and returns the Config.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
 	return c
@@ -108,16 +108,15 @@ func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 	return c
 }
 
+// DefaultConfig returns the default configuration of a test node.
 func DefaultConfig() *Config {
-	tmcfg := DefaultTendermintConfig()
-	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
 		WithGenesis(
 			genesis.NewDefaultGenesis().
 				WithChainID(tmrand.Str(6)).
 				WithGenesisTime(time.Now()).
-				WithConsensusParams(DefaultParams()).
+				WithConsensusParams(DefaultConsensusParams()).
 				WithModifiers().
 				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
 		).
@@ -128,28 +127,7 @@ func DefaultConfig() *Config {
 		WithSupressLogs(true)
 }
 
-type KVAppOptions struct {
-	options map[string]interface{}
-}
-
-// Get implements AppOptions
-func (ao *KVAppOptions) Get(o string) interface{} {
-	return ao.options[o]
-}
-
-// Set adds an option to the KVAppOptions
-func (ao *KVAppOptions) Set(o string, v interface{}) {
-	ao.options[o] = v
-}
-
-// DefaultAppOptions returns the default application options.
-func DefaultAppOptions() *KVAppOptions {
-	opts := &KVAppOptions{options: make(map[string]interface{})}
-	opts.Set(server.FlagPruning, pruningtypes.PruningOptionNothing)
-	return opts
-}
-
-func DefaultParams() *tmproto.ConsensusParams {
+func DefaultConsensusParams() *tmproto.ConsensusParams {
 	cparams := types.DefaultConsensusParams()
 	cparams.Block.TimeIotaMs = 1
 	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
@@ -159,22 +137,20 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
-	// TimeoutCommit is the duration the node waits after committing a block
-	// before starting the next height. This duration influences the time
-	// interval between blocks. A smaller TimeoutCommit value could lead to
-	// less time between blocks (i.e. shorter block intervals).
+	// Reduce the timeout commit to 1ms to speed up the rate at which the test
+	// node produces blocks.
 	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 
-	// set the mempool's MaxTxBytes to allow the testnode to accept a
+	// Override the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
-	tmCfg.Mempool.MaxTxBytes = upperBoundBytes
+	maxTxBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	tmCfg.Mempool.MaxTxBytes = maxTxBytes
 
-	// remove all barriers from the testnode being able to accept very large
-	// transactions and respond to very queries with large responses (~200MB was
+	// Override the MaxBodyBytes to allow the testnode to accept very large
+	// transactions and respond to queries with large responses (200 MiB was
 	// chosen only as an arbitrary large number).
-	tmCfg.RPC.MaxBodyBytes = 200_000_000
+	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
 
 	return tmCfg
 }
