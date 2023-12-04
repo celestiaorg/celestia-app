@@ -19,10 +19,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-const (
-	kibibyte = 1024
-)
-
 func TestIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping full node integration test in short mode.")
