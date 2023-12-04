@@ -114,3 +114,5 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+git:
+  prerelease_suffix: "-"
