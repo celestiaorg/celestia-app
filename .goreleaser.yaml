@@ -1,36 +1,93 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# NOTE: CGO is required for ledger support to work, however goreleaser
-# technically doesn't support CGO. But it seems to work so that's cool. This
-# only seems to work because we are building for a single binary. Cross
-# compiling binaries for multiple distributions doesn't work and a proper
-# workaround will be needed.
-#
-# REF: https://goreleaser.com/limitations/cgo/
-
+# Ledger support is only available if the binary is built with CGO enabled.
+# Since GoReleaser doesn't support CGO natively, our GoReleaser process builds
+# binaries in a Docker image maintained by goreleaser-cross that has CGO support
+# for multiple platforms. See https://github.com/goreleaser/goreleaser-cross
 before:
   hooks:
     - go mod tidy
 builds:
-  - main: ./cmd/celestia-appd
+  - id: darwin-amd64
+    main: ./cmd/celestia-appd
     binary: celestia-appd
     env:
       - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
+      - CGO_ENABLED=1
+      - CC=o64-clang
+      - CXX=o64-clang++
     goarch:
       - amd64
+    goos:
+      - darwin
+    tags:
+      - ledger
+    ldflags:
+      # Ref: https://goreleaser.com/customization/templates/#common-fields
+      # .Version is the version being released
+      # .FullCommit is git commit hash goreleaser is using for the release
+      - -X "{{ .Env.SDKPath }}.Name=celestia-app"
+      - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
+      - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
+      - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
+  - id: darwin-arm64
+    main: ./cmd/celestia-appd
+    binary: celestia-appd
+    env:
+      - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
+      - CGO_ENABLED=1
+      - CC=oa64-clang
+      - CXX=oa64-clang++
+    goarch:
       - arm64
     goos:
       - darwin
+    tags:
+      - ledger
+    ldflags:
+      # Ref: https://goreleaser.com/customization/templates/#common-fields
+      # .Version is the version being released
+      # .FullCommit is git commit hash goreleaser is using for the release
+      - -X "{{ .Env.SDKPath }}.Name=celestia-app"
+      - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
+      - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
+      - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
+  - id: linux-amd64
+    main: ./cmd/celestia-appd
+    binary: celestia-appd
+    env:
+      - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
+      - CC=x86_64-linux-gnu-gcc
+      - CXX=x86_64-linux-gnu-g++
+    goarch:
+      - amd64
+    goos:
       - linux
     tags:
       - ledger
     ldflags:
       # Ref: https://goreleaser.com/customization/templates/#common-fields
-      #
-      # .FullCommit is git commit hash goreleaser is using for the release
-      #
       # .Version is the version being released
+      # .FullCommit is git commit hash goreleaser is using for the release
+      - -X "{{ .Env.SDKPath }}.Name=celestia-app"
+      - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
+      - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
+      - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
+  - id: linux-arm64
+    main: ./cmd/celestia-appd
+    binary: celestia-appd
+    env:
+      - SDKPath={{ "github.com/cosmos/cosmos-sdk/version" }}
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    goarch:
+      - arm64
+    goos:
+      - linux
+    tags:
+      - ledger
+    ldflags:
+      # Ref: https://goreleaser.com/customization/templates/#common-fields
+      # .Version is the version being released
+      # .FullCommit is git commit hash goreleaser is using for the release
       - -X "{{ .Env.SDKPath }}.Name=celestia-app"
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
@@ -49,18 +106,6 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 checksum:
   name_template: "checksums.txt"
-signs:
-  - artifacts: checksum
-    args:
-      [
-        "--batch",
-        "-u",
-        "{{ .Env.GPG_FINGERPRINT }}",
-        "--output",
-        "${signature}",
-        "--detach-sign",
-        "${artifact}",
-      ]
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
