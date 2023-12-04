@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -92,7 +93,7 @@ func CmdPayForBlob() *cobra.Command {
 			}
 
 			if len(args) < 2 {
-				return fmt.Errorf("PayForBlobs requires two argument: namespaceID and blob")
+				return errors.New("PayForBlobs requires two arguments: namespaceID and blob")
 			}
 
 			return nil
