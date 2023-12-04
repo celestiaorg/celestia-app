@@ -70,7 +70,7 @@ jobs:
   # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
     needs: version_bump
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
@@ -81,6 +81,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: 1.21.1
+<<<<<<< HEAD
       # Import the GPG key from Github secrets to sign the binaries
       - name: Import GPG key
         id: import_gpg
@@ -97,3 +98,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+=======
+      - name: Create .release-env file
+        run: |-
+          echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
+      - name: Create prebuilt binaries and attach them to the GitHub release
+        run: make prebuilt-binary
+>>>>>>> 0e94856 (feat: prebuilt binaries with Ledger support (#2872))
