@@ -43,9 +43,9 @@ node            |  |                               |  |
     make install
     ```
 
-### Pre-built binary
+### Prebuilt binary
 
-If you'd rather not install from source, you can download a pre-built binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
+If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
@@ -61,16 +61,7 @@ If you'd rather not install from source, you can download a pre-built binary fro
     ./celestia-appd --help
     ```
 
-<details>
-<summary>
-Optional: Verify the pre-built binary checksums and signatures
-</summary>
-
-If you use a pre-built binary, you may also want to verify the checksums and signatures.
-
-1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
-1. Download `checksums.txt`, `checksums.txt.sig`, and the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
-1. Verify the checksums
+1. [Optional] verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
 
     ```shell
     sha256sum --ignore-missing --check checksums.txt
@@ -81,26 +72,6 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     ```shell
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
-
-1. Download the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
-1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script
-
-    ```shell
-    ./verify-signature.sh checksums.txt.sig checksums.txt
-    ```
-
-    You should see output like this:
-
-    ```shell
-    gpg: Signature made Tue Oct 10 13:25:06 2023 UTC
-    gpg:                using EDDSA key BF02F32CC36864560B90B764D469F859693DC3FA
-    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [unknown]
-    gpg: WARNING: This key is not certified with a trusted signature!
-    gpg:          There is no indication that the signature belongs to the owner.
-    Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
-    ```
-
-</details>
 
 ### Ledger Support
 
