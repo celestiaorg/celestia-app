@@ -155,6 +155,16 @@ func TestTallyingLogic(t *testing.T) {
 		Version:          2,
 	})
 	require.Error(t, err)
+
+	// resetting the tally should clear other votes
+	upgradeKeeper.ResetTally(ctx, 2)
+	res, err = upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, res.VotingPower)
+	require.EqualValues(t, 99, res.ThresholdPower)
+	require.EqualValues(t, 119, res.TotalVotingPower)
 }
 
 func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
