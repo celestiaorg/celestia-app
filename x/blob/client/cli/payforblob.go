@@ -29,11 +29,15 @@ const (
 	// FlagNamespaceVersion allows the user to override the namespace version when
 	// submitting a PayForBlob.
 	FlagNamespaceVersion = "namespace-version"
+
+	// FlagNamespaceVersion allows the user to override the namespace version when
+	// submitting a PayForBlob.
+	FlagBlobsFilePath = "blobs-file-path"
 )
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs [path/to/blob.json]",
+		Use: "PayForBlobs [namespaceID, blob] [path/to/blob.json]",
 		// This example command can be run in a new terminal after running single-node.sh
 		Example: "celestia-appd tx blob PayForBlobs path/to/blob.json \\\n" +
 			"\t--chain-id private \\\n" +
@@ -43,6 +47,7 @@ func CmdPayForBlob() *cobra.Command {
 			"\t--yes",
 		Short: "Pay for a data blobs to be published to Celestia.",
 		Long: "Pay for a data blobs to be published to Celestia.\n" +
+			"User can use namespaceID and blob or path to a json file as argument" +
 			`Where blob.json contains: 
 
 		{
@@ -60,17 +65,21 @@ func CmdPayForBlob() *cobra.Command {
 
 		namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n
 		blob must be a hex encoded string of any length.\n
-		
 		`,
 		Aliases: []string{"PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return fmt.Errorf("PayForBlobs requires one arguments: path to blob.json")
+				return fmt.Errorf("PayForBlobs requires atleast one argument")
 			}
-			path := args[0]
-			if filepath.Ext(path) != ".json" {
-				return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
+
+			// If there is only one argument we assume it to be a file path so we check the file extension
+			if len(args) == 1 {
+				path := args[0]
+				if filepath.Ext(path) != ".json" {
+					return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
+				}
 			}
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,6 +87,23 @@ func CmdPayForBlob() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			shareVersion, err := cmd.Flags().GetUint8(FlagShareVersion)
+			if err != nil {
+				return err
+			}
+
+			// In case of arguments contain namespaceID and blob
+			if len(args) >= 2 {
+				blob, err := getBlobFromArguments(args[0], args[1], namespaceVersion, shareVersion)
+				if err != nil {
+					return err
+				}
+
+				return broadcastPFB(cmd, blob)
+			}
+
+			// In case of argument contains file path to submit multiple blobs
 			path := args[0]
 
 			paresdBlobs, err := parseSubmitBlobs(path)
@@ -86,25 +112,10 @@ func CmdPayForBlob() *cobra.Command {
 			}
 
 			var blobs []*blob.Blob
-			for i := range paresdBlobs {
-				namespaceID, err := hex.DecodeString(strings.TrimPrefix(paresdBlobs[i].NamespaceID, "0x"))
-				if err != nil {
-					return fmt.Errorf("failed to decode hex namespace ID: %w", err)
-				}
-				namespace, err := getNamespace(namespaceID, namespaceVersion)
+			for _, paresdBlob := range paresdBlobs {
+				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion)
 				if err != nil {
 					return err
-				}
-				hexStr := strings.TrimPrefix(paresdBlobs[i].Blob, "0x")
-				rawblob, err := hex.DecodeString(hexStr)
-				if err != nil {
-					return fmt.Errorf("failure to decode hex blob value %s: %s", hexStr, err.Error())
-				}
-
-				shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
-				blob, err := types.NewBlob(namespace, rawblob, shareVersion)
-				if err != nil {
-					return fmt.Errorf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
 				}
 				blobs = append(blobs, blob)
 			}
@@ -118,6 +129,29 @@ func CmdPayForBlob() *cobra.Command {
 	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version (default 0)")
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	return cmd
+}
+
+func getBlobFromArguments(namespaceIdArg, blobArg string, namespaceVersion, shareVersion uint8) (*blob.Blob, error) {
+	namespaceID, err := hex.DecodeString(strings.TrimPrefix(namespaceIdArg, "0x"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode hex namespace ID: %w", err)
+	}
+	namespace, err := getNamespace(namespaceID, namespaceVersion)
+	if err != nil {
+		return nil, err
+	}
+	hexStr := strings.TrimPrefix(blobArg, "0x")
+	rawblob, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, fmt.Errorf("failure to decode hex blob value %s: %s", hexStr, err.Error())
+	}
+
+	blob, err := types.NewBlob(namespace, rawblob, shareVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
+	}
+
+	return blob, nil
 }
 
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {

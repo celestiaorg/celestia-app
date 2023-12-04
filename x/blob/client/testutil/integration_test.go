@@ -103,7 +103,21 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		respType     proto.Message
 	}{
 		{
-			name: "valid transaction",
+			name: "single blob valid transaction",
+			args: []string{
+				hex.EncodeToString(appns.RandomBlobNamespaceID()),
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+			},
+			expectErr:    false,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "multiple blobs valid transaction",
 			args: []string{
 				validPropFile.Name(),
 				fmt.Sprintf("--from=%s", username),
