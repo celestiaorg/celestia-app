@@ -89,11 +89,11 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	{
 		"Blobs": [
 			{
-				"namespaceId": "%s",
+				"namespaceID": "%s",
 				"blob": "%s"
 			},
 			{
-				"namespaceId": "%s",
+				"namespaceID": "%s",
 				"blob": "%s"
 			}
     	]
