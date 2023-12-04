@@ -64,17 +64,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     ./celestia-appd --help
     ```
 
-<<<<<<< HEAD
-#### Optional: Verify the pre-built binary checksums and signatures
-
-If you use a pre-built binary, you may also want to verify the checksums and signatures.
-
-1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
-1. Download `checksums.txt`, `checksums.txt.sig`, and the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
-1. Verify the checksums
-=======
 1. [Optional] verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
->>>>>>> 0e94856 (feat: prebuilt binaries with Ledger support (#2872))
 
     ```shell
     sha256sum --ignore-missing --check checksums.txt
@@ -86,24 +76,6 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-<<<<<<< HEAD
-1. Download the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
-1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script
-
-    ```shell
-    ./verify-signature.sh checksums.txt.sig checksums.txt
-    ```
-
-    You should see output like this:
-
-    ```shell
-    gpg: Signature made Thu Sep 21 14:39:26 2023 EDT
-    gpg:                using EDDSA key BF02F32CC36864560B90B764D469F859693DC3FA
-    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [ultimate]
-    ```
-
-=======
->>>>>>> 0e94856 (feat: prebuilt binaries with Ledger support (#2872))
 ### Ledger Support
 
 Ledger is not supported on Windows and OpenBSD.
