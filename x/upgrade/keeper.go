@@ -76,17 +76,17 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 		return nil, err
 	}
 
-	// check that the validator exists
-	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)
-	if !found {
-		return nil, stakingtypes.ErrNoValidatorFound
-	}
-
 	// the signalled version must be either the current version (for cancelling an upgrade)
 	// or the very next version (for accepting an upgrade)
 	currentVersion := sdkCtx.BlockHeader().Version.App
 	if req.Version != currentVersion && req.Version != currentVersion+1 {
 		return nil, types.ErrInvalidVersion
+	}
+
+	// check that the validator exists
+	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)
+	if !found {
+		return nil, stakingtypes.ErrNoValidatorFound
 	}
 
 	k.SetValidatorVersion(sdkCtx, valAddr, req.Version)
@@ -199,6 +199,22 @@ func (k Keeper) ShouldUpgradeToV2(height int64) bool {
 // that the node should upgrade to.
 func (k *Keeper) ShouldUpgrade() (bool, uint64) {
 	return k.quorumVersion != 0, k.quorumVersion
+}
+
+// ResetTally resets the tally after a version change. It iterates over the store,
+// and deletes any versions that are less than the provided version. It also
+// resets the quorumVersion to 0.
+func (k *Keeper) ResetTally(ctx sdk.Context, version uint64) {
+	store := ctx.KVStore(k.storeKey)
+	iterator := store.Iterator(nil, nil)
+	defer iterator.Close()
+	for ; iterator.Valid(); iterator.Next() {
+		v := VersionFromBytes(iterator.Value())
+		if v <= version {
+			store.Delete(iterator.Key())
+		}
+	}
+	k.quorumVersion = 0
 }
 
 func VersionToBytes(version uint64) []byte {
