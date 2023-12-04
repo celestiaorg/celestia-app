@@ -30,8 +30,8 @@ const (
 	// submitting a PayForBlob.
 	FlagNamespaceVersion = "namespace-version"
 
-	// FlagNamespaceVersion allows the user to override the namespace version when
-	// submitting a PayForBlob.
+	// FlagFileInput allows the user to provide file path to the json file
+	// for submitting multiple blobs.
 	FlagFileInput = "input-file"
 )
 
