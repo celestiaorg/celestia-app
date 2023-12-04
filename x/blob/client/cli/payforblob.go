@@ -29,10 +29,6 @@ const (
 	// FlagNamespaceVersion allows the user to override the namespace version when
 	// submitting a PayForBlob.
 	FlagNamespaceVersion = "namespace-version"
-
-	// FlagNamespaceVersion allows the user to override the namespace version when
-	// submitting a PayForBlob.
-	FlagBlobsFilePath = "blobs-file-path"
 )
 
 func CmdPayForBlob() *cobra.Command {
