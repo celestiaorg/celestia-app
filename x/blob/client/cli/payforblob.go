@@ -131,8 +131,8 @@ func CmdPayForBlob() *cobra.Command {
 	return cmd
 }
 
-func getBlobFromArguments(namespaceIdArg, blobArg string, namespaceVersion, shareVersion uint8) (*blob.Blob, error) {
-	namespaceID, err := hex.DecodeString(strings.TrimPrefix(namespaceIdArg, "0x"))
+func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shareVersion uint8) (*blob.Blob, error) {
+	namespaceID, err := hex.DecodeString(strings.TrimPrefix(namespaceIDArg, "0x"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode hex namespace ID: %w", err)
 	}
