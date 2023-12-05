@@ -45,15 +45,13 @@ func CmdPayForBlob() *cobra.Command {
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
-			"\t--yes \\\n" +
-			"\n" +
+			"\t--yes \n\n" +
 			"celestia-appd tx blob PayForBlobs --input-file path/to/blobs.json \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
-			"\t--yes \\\n" +
-			"\\\n",
+			"\t--yes \n",
 		Short: "Pay for a data blob(s) to be published to Celestia.",
 		Long: "Pay for a data blob(s) to be published to Celestia.\n" +
 			"User can use namespaceID and blob as argument for single blob submission \n" +
