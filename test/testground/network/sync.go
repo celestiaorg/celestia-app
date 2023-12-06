@@ -132,6 +132,8 @@ func DownloadNodeConfigs(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 // GenesisWrapper is a simple struct wrapper that makes it easier testground to
 // properly serialize and distribute the genesis file.
 type GenesisWrapper struct {
+	// Part is the index of the part of the genesis file. This is used to bypass
+	// testground's 32Kb limit on messages.
 	Part    int    `json:"part"`
 	Genesis string `json:"genesis"`
 }
@@ -171,6 +173,8 @@ func PublishGenesis(ctx context.Context, initCtx *run.InitContext, gen *coretype
 	return nil
 }
 
+// DownloadGenesis downloads the genesis from the sync service. It downloads
+// each part of the genesis and concatenates them together.
 func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMessage, error) {
 	rawGens, err := DownloadSync(ctx, initCtx, GenesisTopic, GenesisWrapper{}, wrapperParts)
 	if err != nil {
@@ -191,6 +195,9 @@ func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMes
 	return genesis, nil
 }
 
+// DownloadSync downloads the given topic from the sync service. It will
+// download the given number of messages from the topic. If the topic is closed
+// before the expected number of messages are received, an error is returned.
 func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, t T, count int) ([]T, error) {
 	ch := make(chan T)
 	sub, err := initCtx.SyncClient.Subscribe(ctx, topic, ch)
