@@ -1,4 +1,4 @@
-package v1
+package testground
 
 const (
 	Version              uint64 = 420420420
