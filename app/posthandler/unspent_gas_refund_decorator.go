@@ -54,12 +54,8 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) err
 
 	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
 	refundRecipient := getRefundRecipient(feeTx)
-	refundRecipientAccount := frd.accountKeeper.GetAccount(ctx, refundRecipient)
-	if refundRecipientAccount == nil {
-		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
-	}
 
-	if err := frd.processRefund(frd.bankKeeper, ctx, refundRecipientAccount, coinsToRefund); err != nil {
+	if err := frd.processRefund(ctx, coinsToRefund, refundRecipient); err != nil {
 		return err
 	}
 
@@ -76,19 +72,22 @@ func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 }
 
 // processRefund sends amountToRefund from the fee collector module account to the refundRecipient.
-func (frd UnspentGasRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
-	to := refundRecipient.GetAddress()
+func (frd UnspentGasRefundDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, refundRecipient sdk.AccAddress) error {
 	from := frd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
 	if from == nil {
 		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)
+	}
+
+	if refundRecipientAccount := frd.accountKeeper.GetAccount(ctx, refundRecipient); refundRecipientAccount == nil {
+		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
 	}
 
 	if !amountToRefund.IsValid() {
 		return fmt.Errorf("invalid amount to refund: %s", amountToRefund)
 	}
 
-	if err := bankKeeper.SendCoins(ctx, from, to, amountToRefund); err != nil {
-		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", amountToRefund, to)
+	if err := frd.bankKeeper.SendCoins(ctx, from, refundRecipient, amountToRefund); err != nil {
+		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", amountToRefund, refundRecipient)
 	}
 
 	return nil
