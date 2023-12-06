@@ -3,13 +3,12 @@ package keeper_test
 import (
 	"testing"
 
-	testkeeper "github.com/celestiaorg/celestia-app/test/util/keeper"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetParams(t *testing.T) {
-	k, ctx := testkeeper.BlobKeeper(t)
+	k, _, ctx := CreateKeeper(t)
 	params := types.DefaultParams()
 
 	k.SetParams(ctx, params)

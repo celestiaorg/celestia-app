@@ -21,7 +21,7 @@ RUN uname -a &&\
     make build
 
 # stage 2
-FROM docker.io/alpine:3.18.4
+FROM docker.io/alpine:3.18.5
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001

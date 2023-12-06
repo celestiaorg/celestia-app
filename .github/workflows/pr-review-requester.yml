@@ -1,4 +1,4 @@
-name: housekeeping
+name: pr-review-requester
 
 on:
   # pull_request_target is used to allow forks write permissions when running
@@ -9,8 +9,8 @@ on:
   pull_request_target:
 
 jobs:
-  pr-assignment:
-    name: PR Auto Assignment
+  auto-request-review:
+    name: Auto request reviews
     uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@v0.2.8 # yamllint disable-line rule:line-length
     secrets: inherit
     # write access for issues and pull requests is needed because the called
