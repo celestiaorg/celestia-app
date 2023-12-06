@@ -12,10 +12,7 @@ import (
 )
 
 const (
-	eventType                   = "fee_refund"
-	attributeKeyRefund          = "refund"
-	attributeKeyRefundRecipient = "refund_recipient"
-	bondDenom                   = "utia"
+	bondDenom = "utia"
 )
 
 // FeeRefundDecorator handles refunding a portion of the fee that was originally
@@ -69,9 +66,6 @@ func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 		return err
 	}
 
-	events := sdk.Events{newFeeRefundEvent(coinsToRefund, refundRecipient)}
-	ctx.EventManager().EmitEvents(events)
-
 	return nil
 }
 
@@ -116,12 +110,4 @@ func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
 	// gas * gasPrice = fees. So gasPrice = fees / gas.
 	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(bondDenom)).Quo(sdk.NewDec(int64(gas)))
 	return sdk.NewDecCoinFromDec(bondDenom, gasPrice)
-}
-
-func newFeeRefundEvent(amountToRefund sdk.Coins, refundRecipient sdk.AccAddress) sdk.Event {
-	return sdk.NewEvent(
-		eventType,
-		sdk.NewAttribute(attributeKeyRefund, amountToRefund.String()),
-		sdk.NewAttribute(attributeKeyRefundRecipient, refundRecipient.String()),
-	)
 }
