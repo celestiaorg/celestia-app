@@ -4,15 +4,12 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
-)
-
-const (
-	bondDenom = "utia"
 )
 
 // FeeRefundDecorator handles refunding a portion of the fee that was originally
@@ -73,8 +70,8 @@ func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasConsumed := gasMeter.GasConsumed()
 	gasPrice := getGasPrice(feeTx)
 	feeBasedOnGasConsumption := gasPrice.Amount.MulInt64(int64(gasConsumed)).Ceil().TruncateInt()
-	amountToRefund := feeTx.GetFee().AmountOf(bondDenom).Sub(feeBasedOnGasConsumption)
-	coinsToRefund := sdk.NewCoins(sdk.NewCoin(bondDenom, amountToRefund))
+	amountToRefund := feeTx.GetFee().AmountOf(appconsts.BondDenom).Sub(feeBasedOnGasConsumption)
+	coinsToRefund := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
 	return coinsToRefund
 }
 
@@ -108,6 +105,6 @@ func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
 	feeCoins := feeTx.GetFee()
 	gas := feeTx.GetGas()
 	// gas * gasPrice = fees. So gasPrice = fees / gas.
-	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(bondDenom)).Quo(sdk.NewDec(int64(gas)))
-	return sdk.NewDecCoinFromDec(bondDenom, gasPrice)
+	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(appconsts.BondDenom)).Quo(sdk.NewDec(int64(gas)))
+	return sdk.NewDecCoinFromDec(appconsts.BondDenom, gasPrice)
 }
