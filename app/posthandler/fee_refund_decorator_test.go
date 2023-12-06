@@ -15,14 +15,14 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-func TestFeeRefundDecorator(t *testing.T) {
+func TestUnspentGasRefundDecorator(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping fee refund decorator test in short mode.")
+		t.Skip("skipping unspent gas refund decorator test in short mode.")
 	}
-	suite.Run(t, new(FeeRefundDecoratorSuite))
+	suite.Run(t, new(UnspentGasRefundDecoratorSuite))
 }
 
-type FeeRefundDecoratorSuite struct {
+type UnspentGasRefundDecoratorSuite struct {
 	suite.Suite
 
 	ctx    testnode.Context
@@ -30,7 +30,7 @@ type FeeRefundDecoratorSuite struct {
 	signer *user.Signer
 }
 
-func (s *FeeRefundDecoratorSuite) SetupSuite() {
+func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a"))
 	_, err := s.ctx.WaitForHeight(1)
@@ -45,7 +45,7 @@ func (s *FeeRefundDecoratorSuite) SetupSuite() {
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
 // based on the gas consumed by the tx instead of the fee specified by the tx.
-func (s *FeeRefundDecoratorSuite) TestGasConsumption() {
+func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	t := s.T()
 
 	utiaToSend := int64(1)
@@ -78,7 +78,7 @@ func (s *FeeRefundDecoratorSuite) TestGasConsumption() {
 	assert.Less(t, gasConsumedBasedDeduction, int64(fee))
 }
 
-func (s *FeeRefundDecoratorSuite) queryCurrentBalance(t *testing.T) int64 {
+func (s *UnspentGasRefundDecoratorSuite) queryCurrentBalance(t *testing.T) int64 {
 	balanceQuery := bank.NewQueryClient(s.ctx.GRPCClient)
 	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: s.signer.Address().String()})
 	require.NoError(t, err)

@@ -12,31 +12,31 @@ import (
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 )
 
-// FeeRefundDecorator handles refunding a portion of the fee that was originally
-// deducted from the feepayer but was not needed because the tx consumed less
-// gas than the gas limit.
-type FeeRefundDecorator struct {
+// UnspentGasRefundDecorator handles refunding a portion of the tx fee that was
+// originally deducted from the feepayer but was not needed because the tx
+// consumed less gas than the gas limit.
+type UnspentGasRefundDecorator struct {
 	accountKeeper  authkeeper.AccountKeeper
 	bankKeeper     types.BankKeeper
 	feegrantKeeper feegrantkeeper.Keeper
 }
 
-func NewFeeRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk feegrantkeeper.Keeper) FeeRefundDecorator {
-	return FeeRefundDecorator{
+func NewUnspentGasRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk feegrantkeeper.Keeper) UnspentGasRefundDecorator {
+	return UnspentGasRefundDecorator{
 		accountKeeper:  ak,
 		bankKeeper:     bk,
 		feegrantKeeper: fk,
 	}
 }
 
-func (frd FeeRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+func (frd UnspentGasRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if err := frd.maybeRefund(ctx, tx); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
 }
 
-func (frd FeeRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
+func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
 	// Replace the context's gas meter with an infinite gas meter so that this
 	// decorator doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
@@ -76,7 +76,7 @@ func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 }
 
 // processRefund sends amountToRefund from the fee collector module account to the refundRecipient.
-func (frd FeeRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
+func (frd UnspentGasRefundDecorator) processRefund(bankKeeper types.BankKeeper, ctx sdk.Context, refundRecipient types.AccountI, amountToRefund sdk.Coins) error {
 	to := refundRecipient.GetAddress()
 	from := frd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
 	if from == nil {

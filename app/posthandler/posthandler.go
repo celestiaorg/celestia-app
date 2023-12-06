@@ -14,7 +14,7 @@ func New(
 	feegrantKeeper feegrantkeeper.Keeper,
 ) sdk.AnteHandler {
 	postDecorators := []sdk.AnteDecorator{
-		NewFeeRefundDecorator(accountKeeper, bankKeeper, feegrantKeeper),
+		NewUnspentGasRefundDecorator(accountKeeper, bankKeeper, feegrantKeeper),
 	}
 
 	return sdk.ChainAnteDecorators(postDecorators...)
