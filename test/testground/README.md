@@ -96,6 +96,10 @@ This is used as a base for other experiements.
 
 ## Running the Experiment
 
+Testground must be installed, and testground cluster must be setup in a
+kubernetes cluster that you have access to via a kubeconfig file. More details
+can be found in the [testground](https://github.com/testground/testground) repo.
+
 ```sh
 cd ./test/testground
 testground plan import --from . --name celestia
