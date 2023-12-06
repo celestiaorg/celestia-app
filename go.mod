@@ -52,11 +52,12 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
+	github.com/bufbuild/protocompile v0.4.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
+	github.com/chzyer/readline v1.5.0 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
 	github.com/coinbase/rosetta-sdk-go v0.7.9 // indirect
 	github.com/cometbft/cometbft-db v0.7.0 // indirect
@@ -67,7 +68,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/cosmos/iavl v0.19.6 // indirect
-	github.com/cosmos/ledger-cosmos-go v0.12.4 // indirect
+	github.com/cosmos/ledger-cosmos-go v0.13.2 // indirect
 	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
@@ -98,7 +99,7 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
-	github.com/go-playground/validator/v10 v10.4.1 // indirect
+	github.com/go-playground/validator/v10 v10.11.2 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/gateway v1.1.0 // indirect
@@ -168,7 +169,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
+	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/pyroscope-io/client v0.7.2 // indirect
@@ -177,6 +178,7 @@ require (
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rs/cors v1.8.2 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.6+incompatible // indirect
@@ -192,6 +194,7 @@ require (
 	github.com/tidwall/btree v1.5.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/ugorji/go/codec v1.2.9 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
@@ -219,6 +222,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gotest.tools/v3 v3.5.1 // indirect
 	k8s.io/api v0.28.3 // indirect
 	k8s.io/apimachinery v0.28.3 // indirect
 	k8s.io/client-go v0.28.3 // indirect
@@ -234,6 +238,9 @@ require (
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.20.0-sdk-v0.46.16
+	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
+	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
+	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.29.0-tm-v0.34.29
