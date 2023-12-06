@@ -123,7 +123,6 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
-
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),

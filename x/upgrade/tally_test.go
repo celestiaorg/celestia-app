@@ -167,6 +167,18 @@ func TestTallyingLogic(t *testing.T) {
 	require.EqualValues(t, 119, res.TotalVotingPower)
 }
 
+func TestEmptyStore(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+	goCtx := sdk.WrapSDKContext(ctx)
+
+	res, err := upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, res.VotingPower)
+	require.EqualValues(t, 120, res.TotalVotingPower)
+}
+
 func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
 	upgradeStore := sdk.NewKVStoreKey(types.StoreKey)
 	db := tmdb.NewMemDB()
