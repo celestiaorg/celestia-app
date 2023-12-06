@@ -135,7 +135,7 @@ func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
 }
 
 // Test_defaultAppVersion tests that the default app version is set correctly in
-// testnode.
+// testnode node.
 func (s *IntegrationTestSuite) Test_defaultAppVersion() {
 	t := s.T()
 	blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
