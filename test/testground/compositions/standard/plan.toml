@@ -3,7 +3,7 @@ name = "standard"
 author = "core-app"
 
 [global]
-plan = "core-app"
+plan = "celestia"
 case = "entrypoint"
 total_instances = 40
 builder = "docker:generic"
