@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	tg "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -150,7 +149,6 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 
 	// manually set the protocol version to the one used by the testground
 	appOpts := testnode.DefaultAppOptions()
-	appOpts.Set(app.SetProtocolVersionOptionKey, tg.Version)
 	cn.AppOptions = appOpts
 
 	baseDir = filepath.Join(baseDir, ".celestia-app")
