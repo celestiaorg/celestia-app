@@ -140,7 +140,7 @@ type GenesisWrapper struct {
 
 // PublishGenesis publishes the genesis to the sync service. It splits the
 // genesis into 10 parts and publishes each part separately. This gets around the
-// 32Kb limit the underlying websocket has
+// 32Kb limit the underlying websocket has.
 func PublishGenesis(ctx context.Context, initCtx *run.InitContext, gen *coretypes.GenesisDoc) error {
 	genBytes, err := cmtjson.Marshal(gen)
 	if err != nil {
