@@ -14,6 +14,9 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
+// TestUpgradeIntegration uses the real application including the upgrade keeper (and staking keeper). It
+// simulates an upgrade scenario with a single validator which signals for the version change, checks the quorum
+// has been reached and then calls TryUpgrade, asserting that the upgrade module returns the new app version
 func TestUpgradeIntegration(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := sdk.NewContext(app.CommitMultiStore(), tmtypes.Header{
