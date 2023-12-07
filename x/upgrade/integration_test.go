@@ -48,7 +48,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, res.VotingPower)
-	require.EqualValues(t, 0, res.ThresholdPower)
+	require.EqualValues(t, 1, res.ThresholdPower)
 	require.EqualValues(t, 1, res.TotalVotingPower)
 
 	_, err = app.UpgradeKeeper.TryUpgrade(ctx, nil)
