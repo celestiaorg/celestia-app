@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Call this from the ./scripts/protoc_swagger_gen.sh script.
+Call this from the ./scripts/protoc-swagger-gen.sh script.
 Merged protoc definitions together into 1 JSON file without duplicate keys.
 """
 
