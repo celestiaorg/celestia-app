@@ -30,7 +30,7 @@ func GetTxCmd() *cobra.Command {
 
 func CmdSignalVersion() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "signal [version]",
+		Use:   "signal version",
 		Short: "Signal a software upgrade for the specified version",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

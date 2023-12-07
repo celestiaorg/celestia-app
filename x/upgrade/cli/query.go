@@ -12,7 +12,6 @@ import (
 
 // GetQueryCmd returns the CLI query commands for this module
 func GetQueryCmd() *cobra.Command {
-	// Group blob queries under a subcommand
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
 		Short:                      fmt.Sprintf("Querying commands for the %s module", types.ModuleName),
@@ -28,7 +27,7 @@ func GetQueryCmd() *cobra.Command {
 
 func CmdQueryTally() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tally [version]",
+		Use:   "tally version",
 		Short: "Query the tally of signal votes for a given version",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
