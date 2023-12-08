@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	upgrade "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -40,6 +41,7 @@ type StandardSDKIntegrationTestSuite struct {
 	suite.Suite
 
 	accounts []string
+	cfg      *testnode.Config
 	cctx     testnode.Context
 	ecfg     encoding.Config
 
@@ -56,11 +58,10 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 		accounts[i] = tmrand.Str(9)
 	}
 
-	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...)
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	s.cfg = testnode.DefaultConfig().WithFundedAccounts(accounts...)
+	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
 	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.cctx = cctx
 }
 
 func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {
@@ -69,6 +70,18 @@ func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {
 	s.accountCounter++
 	s.mut.Unlock()
 	return acc
+}
+
+func (s *StandardSDKIntegrationTestSuite) getValidatorName() string {
+	return s.cfg.Genesis.Validators()[0].Name
+}
+
+func (s *StandardSDKIntegrationTestSuite) getValidatorAccount() sdk.ValAddress {
+	record, err := s.cfg.Genesis.Keyring().Key(s.getValidatorName())
+	s.Require().NoError(err)
+	address, err := record.GetAddress()
+	s.Require().NoError(err)
+	return sdk.ValAddress(address)
 }
 
 func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
@@ -271,6 +284,25 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
+			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "try to upgrade the network version",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				addr := testfactory.GetAddress(s.cctx.Keyring, account)
+				msg := upgrade.NewMsgTryUpgrade(addr)
+				return []sdk.Msg{msg}, account
+			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "signal a version change",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				valAccount := s.getValidatorAccount()
+				msg := upgrade.NewMsgSignalVersion(valAccount, 2)
+				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
