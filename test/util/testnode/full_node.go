@@ -3,11 +3,9 @@ package testnode
 import (
 	"os"
 	"path/filepath"
-	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -19,11 +17,13 @@ import (
 // NewCometNode creates a ready to use comet node that operates a single
 // validator celestia-app network. It expects that all configuration files are
 // already initialized and saved to the baseDir.
-func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtypes.Application, error) {
+func NewCometNode(baseDir string, cfg *UniversalTestingConfig) (*node.Node, srvtypes.Application, error) {
 	logger := newLogger(cfg)
 	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
 	db, err := dbm.NewGoLevelDB("application", dbPath)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	cfg.AppOptions.Set(flags.FlagHome, baseDir)
 
@@ -48,8 +48,8 @@ func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtyp
 	return tmNode, app, err
 }
 
-func newLogger(cfg *Config) log.Logger {
-	if cfg.SupressLogs {
+func newLogger(cfg *UniversalTestingConfig) log.Logger {
+	if cfg.SuppressLogs {
 		return log.NewNopLogger()
 	}
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))

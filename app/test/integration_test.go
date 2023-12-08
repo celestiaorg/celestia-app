@@ -168,7 +168,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				require.EqualValues(t, app.DefaultInitialVersion, blockRes.Block.Header.Version.App)
+				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
 				ExtendBlockTest(t, blockRes.Block)
@@ -237,7 +237,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		require.EqualValues(t, app.DefaultInitialVersion, blockRes.Block.Header.Version.App)
+		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)
