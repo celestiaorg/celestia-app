@@ -92,7 +92,7 @@ func TestTallyingLogic(t *testing.T) {
 		Version: 2,
 	})
 	require.NoError(t, err)
-	require.EqualValues(t, 100, res.VotingPower)
+	require.EqualValues(t, 99, res.VotingPower)
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
 
@@ -133,20 +133,21 @@ func TestTallyingLogic(t *testing.T) {
 		Version: 2,
 	})
 	require.NoError(t, err)
-	require.EqualValues(t, 61, res.VotingPower)
+	require.EqualValues(t, 60, res.VotingPower)
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
 
 	// remove one of the validators from the set
 	delete(mockStakingKeeper.validators, testutil.ValAddrs[1].String())
+	// the validator had 1 voting power, so we deduct it from the total
 	mockStakingKeeper.totalVotingPower--
 
 	res, err = upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
 	})
 	require.NoError(t, err)
-	require.EqualValues(t, 60, res.VotingPower)
-	require.EqualValues(t, 99, res.ThresholdPower)
+	require.EqualValues(t, 59, res.VotingPower)
+	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 119, res.TotalVotingPower)
 
 	// That validator should not be able to signal a version
@@ -163,8 +164,38 @@ func TestTallyingLogic(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 0, res.VotingPower)
-	require.EqualValues(t, 99, res.ThresholdPower)
-	require.EqualValues(t, 119, res.TotalVotingPower)
+}
+
+func TestEmptyStore(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+	goCtx := sdk.WrapSDKContext(ctx)
+
+	res, err := upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, res.VotingPower)
+	// 120 is the summation in voting power of the four validators
+	require.EqualValues(t, 120, res.TotalVotingPower)
+}
+
+func TestThresholdVotingPower(t *testing.T) {
+	upgradeKeeper, ctx, mockStakingKeeper := setup(t)
+
+	for _, tc := range []struct {
+		total     int64
+		threshold int64
+	}{
+		{total: 1, threshold: 1},
+		{total: 2, threshold: 2},
+		{total: 3, threshold: 3},
+		{total: 6, threshold: 5},
+		{total: 59, threshold: 50},
+	} {
+		mockStakingKeeper.totalVotingPower = tc.total
+		threshold := upgradeKeeper.GetVotingPowerThreshold(ctx)
+		require.EqualValues(t, tc.threshold, threshold.Int64())
+	}
 }
 
 func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
@@ -179,15 +210,14 @@ func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
 			App:   1,
 		},
 	}, false, log.NewNopLogger())
-	mockStakingKeeper := &mockStakingKeeper{
-		totalVotingPower: 120,
-		validators: map[string]int64{
+	mockStakingKeeper := newMockStakingKeeper(
+		map[string]int64{
 			testutil.ValAddrs[0].String(): 40,
 			testutil.ValAddrs[1].String(): 1,
-			testutil.ValAddrs[2].String(): 60,
-			testutil.ValAddrs[3].String(): 19,
+			testutil.ValAddrs[2].String(): 59,
+			testutil.ValAddrs[3].String(): 20,
 		},
-	}
+	)
 
 	upgradeKeeper := upgrade.NewKeeper(upgradeStore, 0, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
@@ -198,6 +228,17 @@ var _ upgrade.StakingKeeper = (*mockStakingKeeper)(nil)
 type mockStakingKeeper struct {
 	totalVotingPower int64
 	validators       map[string]int64
+}
+
+func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
+	totalVotingPower := int64(0)
+	for _, power := range validators {
+		totalVotingPower += power
+	}
+	return &mockStakingKeeper{
+		totalVotingPower: totalVotingPower,
+		validators:       validators,
+	}
 }
 
 func (m *mockStakingKeeper) GetLastTotalPower(_ sdk.Context) math.Int {
