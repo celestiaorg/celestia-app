@@ -237,7 +237,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		require.EqualValues(t, app.DefaultInitialVersion, blockRes.Block.Header.Version.App)
+		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)
