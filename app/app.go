@@ -734,11 +734,9 @@ func (app *App) setPostHanders() {
 // governance.
 func (*App) BlockedParams() [][2]string {
 	return [][2]string{
-		// MaxSquareSize
-		{blobmoduletypes.ModuleName, string(blobmoduletypes.KeyGovMaxSquareSize)},
 		// bank.SendEnabled
 		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
-		// MaxBlockBytes and consensus.block.TimeIotaMs
+		// consensus.block.TimeIotaMs
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyBlockParams)},
 		// consensus.validator.PubKeyTypes
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
