@@ -36,18 +36,18 @@ func TestParamFilter(t *testing.T) {
 	}
 
 	// ensure that we are not filtering out valid proposals
-	validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
+	validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxEntries), "1")
 	p := testProposal(validChange)
 	err := handler(ctx, p)
 	require.NoError(t, err)
 
 	ps := app.StakingKeeper.GetParams(ctx)
-	require.Equal(t, ps.MaxValidators, uint32(1))
+	require.Equal(t, ps.MaxEntries, uint32(1))
 
 	// ensure that we're throwing out entire proposals if any of the changes are blocked
 	for _, p := range app.BlockedParams() {
 		// try to set the max validators to 2, unlike above this should fail
-		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "2")
+		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxEntries), "2")
 		invalidChange := proposal.NewParamChange(p[0], p[1], "value")
 		p := testProposal(validChange, invalidChange)
 		err := handler(ctx, p)
@@ -55,8 +55,7 @@ func TestParamFilter(t *testing.T) {
 		require.Contains(t, err.Error(), "parameter can not be modified")
 
 		ps := app.StakingKeeper.GetParams(ctx)
-		require.Equal(t, ps.MaxValidators, uint32(1))
-
+		require.Equal(t, ps.MaxEntries, uint32(1))
 	}
 }
 
