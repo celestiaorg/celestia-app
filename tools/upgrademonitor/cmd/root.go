@@ -8,11 +8,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "upgrademonitor",
+	Use:   "upgrademonitor grpc-endpoint",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("hello")
 	},
+	Args: cobra.ExactArgs(1),
 }
 
 func Execute() {
