@@ -39,9 +39,10 @@ var rootCmd = &cobra.Command{
 					if err != nil {
 						return err
 					}
-					if err := internal.SubmitTryUpgrade(grpcEndpoint, addr); err != nil {
+					if _, err = internal.SubmitTryUpgrade(grpcEndpoint, addr); err != nil {
 						return err
 					}
+					fmt.Printf("submitted try upgrade for version: %v. Exiting.", version)
 					return nil
 				}
 			}

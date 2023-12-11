@@ -30,16 +30,22 @@ func QueryVersionTally(grpcEndpoint string, version uint64) (*upgradetypes.Query
 	return resp, nil
 }
 
-func SubmitTryUpgrade(grpcEndpoint string, addr sdk.AccAddress) error {
+func SubmitTryUpgrade(grpcEndpoint string, addr sdk.AccAddress) (*upgradetypes.MsgTryUpgradeResponse, error) {
 	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return fmt.Errorf("did not connect: %v", err)
+		return nil, fmt.Errorf("did not connect: %v", err)
 	}
 	defer conn.Close()
 
-	// msg := upgradetypes.NewMsgTryUpgrade(signer)
-	// TODO (@rootulp): submit tx with msg
-	return nil
+	client := upgradetypes.NewMsgClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.TryUpgrade(ctx, upgradetypes.NewMsgTryUpgrade(addr))
+	if err != nil {
+		return nil, fmt.Errorf("could not submit try upgrade: %v", err)
+	}
+	return resp, nil
 }
 
 func IsUpgradeable(response *upgradetypes.QueryVersionTallyResponse) bool {
