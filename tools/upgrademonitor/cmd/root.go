@@ -10,28 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	// defaultVersion is the value used if the version flag isn't provided. Since
-	// v2 is coordinated via an upgrade-height, v3 is the first version that this
-	// tool supports.
-	defaultVersion = uint64(3)
-	version        uint64
-
-	// defaultGrpcEndpoint is the value used if the grpc-endpoint flag isn't provided.
-	defaultGrpcEndpoint = "0.0.0.0:9090"
-	grpcEndpoint        string
-
-	// defaultPollFrequency is the value used if the poll-frequency flag isn't provided.
-	// TODO (@rootulp) make this 10 after done developing
-	defaultPollFrequency = int64(1)
-	pollFrequency        int64
-
-	// defaultAutoTry is the value used if the auto-try flag isn't provided.
-	// TODO (@rootulp) make this false after done developing
-	defaultAutoTry = true
-	autoTry        bool
-)
-
 var rootCmd = &cobra.Command{
 	Use:   "upgrademonitor",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
