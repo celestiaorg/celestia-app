@@ -38,6 +38,6 @@ go build .
     # Build the binary
     go build .
 
-    # Run the binary and provide a GRPC endpoint
-    ./upgrademonitor 0.0.0.0:9000
+    # Run the binary
+    ./upgrademonitor
     ```
