@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 )
 
@@ -21,8 +22,14 @@ var (
 	grpcEndpoint        string
 
 	// defaultPollFrequency is the value used if the poll-frequency flag isn't provided.
-	defaultPollFrequency = 1 // TODO (@rootulp) make this 10 after done developing
+	// TODO (@rootulp) make this 10 after done developing
+	defaultPollFrequency = int64(1)
 	pollFrequency        int64
+
+	// defaultAutoTry is the value used if the auto-try flag isn't provided.
+	// TODO (@rootulp) make this false after done developing
+	defaultAutoTry = true
+	autoTry        bool
 )
 
 var rootCmd = &cobra.Command{
@@ -35,9 +42,16 @@ var rootCmd = &cobra.Command{
 		for {
 			select {
 			case <-ticker.C:
-				err := internal.QueryVersionTally(grpcEndpoint, version)
+				resp, err := internal.QueryVersionTally(grpcEndpoint, version)
 				if err != nil {
 					return err
+				}
+				fmt.Printf("version: %v, voting: %v, threshold: %v, total: %v\n", version, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
+
+				if autoTry && internal.IsUpgradeable(resp) {
+					// TODO (@rootulp): get signer
+					signer := sdk.AccAddress{}
+					internal.SubmitTryUpgrade(grpcEndpoint, signer)
 				}
 			}
 		}
@@ -52,7 +66,10 @@ func Execute() {
 	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint")
 
 	// Bind the pollFrequency variable to the --poll-frequency flag
-	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", int64(defaultPollFrequency), "poll frequency in seconds")
+	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", defaultPollFrequency, "poll frequency in seconds")
+
+	// Bind the autoTry variable to the --auto-try flag
+	rootCmd.Flags().BoolVar(&autoTry, "auto-try", defaultAutoTry, "auto try upgrade")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
