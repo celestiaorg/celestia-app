@@ -18,15 +18,10 @@ var rootCmd = &cobra.Command{
 	Use:   "upgrademonitor",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if autoTry {
-			// signer must be valid if autoTry is enabled
-			if signer == "" {
-				return fmt.Errorf("invalid signer. Must specify signer if autoTry is enabled.")
-			}
-			if _, err := sdk.AccAddressFromBech32(signer); err != nil {
-				return err
-			}
+		if err := validateSigner(autoTry, signer); err != nil {
+			return err
 		}
+
 		ticker := time.NewTicker(time.Duration(pollFrequency) * time.Second)
 		defer ticker.Stop()
 
@@ -67,4 +62,17 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func validateSigner(autoTry bool, signer string) error {
+	if !autoTry {
+		return nil
+	}
+	if signer == "" {
+		return fmt.Errorf("invalid signer. Must specify signer if autoTry is enabled.")
+	}
+	if _, err := sdk.AccAddressFromBech32(signer); err != nil {
+		return err
+	}
+	return nil
 }
