@@ -30,7 +30,7 @@ func QueryVersionTally(grpcEndpoint string, version uint64) (*upgradetypes.Query
 	return resp, nil
 }
 
-func SubmitTryUpgrade(grpcEndpoint string, signer sdk.AccAddress) error {
+func SubmitTryUpgrade(grpcEndpoint string, addr sdk.AccAddress) error {
 	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("did not connect: %v", err)

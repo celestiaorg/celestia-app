@@ -12,6 +12,9 @@ var (
 	// autoTry is whether upgrademonitor will auto submit a MsgTryUpgrade if the
 	// network version is upgradeable.
 	autoTry bool
+	// signer is the the Celestia address that should be used to submit a
+	// MsgTryUpgrade if the network version is upgradeable.
+	signer string
 )
 
 // Defaults
@@ -27,5 +30,9 @@ var (
 	// TODO (@rootulp) consider making this 10 seconds
 	defaultPollFrequency = int64(1) // 1 second
 	// defaultAutoTry is the value used if the auto-try flag isn't provided.
+	// TODO (@rootulp) set this to false
 	defaultAutoTry = true
+	// defaultSigner is the value used if the signer flag isn't provided.
+	// TODO (@rootulp) set this to ""
+	defaultSigner = "celestia1nh43y2t7stpa2fdfql6jutwkkn8pyr6qwmt383"
 )

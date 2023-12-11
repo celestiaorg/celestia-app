@@ -5,6 +5,10 @@ import (
 	"os"
 	"time"
 
+	// import celestia-app for it's side-effects so that celestia-app init()
+	// overrides the Cosmos SDK config with the correct account address
+	// prefixes.
+	_ "github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
@@ -14,6 +18,15 @@ var rootCmd = &cobra.Command{
 	Use:   "upgrademonitor",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if autoTry {
+			// signer must be valid if autoTry is enabled
+			if signer == "" {
+				return fmt.Errorf("invalid signer. Must specify signer if autoTry is enabled.")
+			}
+			if _, err := sdk.AccAddressFromBech32(signer); err != nil {
+				return err
+			}
+		}
 		ticker := time.NewTicker(time.Duration(pollFrequency) * time.Second)
 		defer ticker.Stop()
 
@@ -27,9 +40,11 @@ var rootCmd = &cobra.Command{
 				fmt.Printf("version: %v, voting: %v, threshold: %v, total: %v\n", version, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
 
 				if autoTry && internal.IsUpgradeable(resp) {
-					// TODO (@rootulp): get signer
-					signer := sdk.AccAddress{}
-					internal.SubmitTryUpgrade(grpcEndpoint, signer)
+					addr, err := sdk.AccAddressFromBech32(signer)
+					if err != nil {
+						return err
+					}
+					internal.SubmitTryUpgrade(grpcEndpoint, addr)
 				}
 			}
 		}
@@ -45,6 +60,8 @@ func Execute() {
 	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", defaultPollFrequency, "poll frequency in seconds")
 	// Bind the autoTry variable to the --auto-try flag
 	rootCmd.Flags().BoolVar(&autoTry, "auto-try", defaultAutoTry, "auto try upgrade if the network is upgradeable")
+	// Bind the signer variable to the --signer flag
+	rootCmd.Flags().StringVar(&signer, "signer", defaultSigner, "signer is the Celestia address that should be used to submit the try upgrade")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
