@@ -27,9 +27,6 @@ func QueryVersionTally(grpcEndpoint string, version uint64) error {
 		return fmt.Errorf("could not query version tally: %v", err)
 	}
 
-	fmt.Printf("version: %v\n", version)
-	fmt.Printf("total voting power: %v\n", resp.GetTotalVotingPower())
-	fmt.Printf("threshold power: %v\n", resp.GetThresholdPower())
-	fmt.Printf("voting power: %v\n", resp.GetVotingPower())
+	fmt.Printf("version: %v, voting: %v, threshold: %v, total: %v\n", version, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
 	return nil
 }
