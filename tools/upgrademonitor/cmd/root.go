@@ -10,10 +10,14 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "upgrademonitor grpc-endpoint",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("hello")
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return fmt.Errorf("must provide a grpc-endpoint")
+		}
+		// grpcEndpoint := args[0]
+		return nil
 	},
-	Args: cobra.ExactArgs(1),
 }
 
 func Execute() {
