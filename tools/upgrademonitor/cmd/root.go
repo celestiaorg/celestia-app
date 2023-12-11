@@ -39,13 +39,10 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	// Bind the version variable to the --version flag
 	rootCmd.Flags().Uint64Var(&version, "version", defaultVersion, "version to monitor")
-
 	// Bind the grpcEndpoint variable to the --grpc-endpoint flag
 	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint")
-
 	// Bind the pollFrequency variable to the --poll-frequency flag
 	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", defaultPollFrequency, "poll frequency in seconds")
-
 	// Bind the autoTry variable to the --auto-try flag
 	rootCmd.Flags().BoolVar(&autoTry, "auto-try", defaultAutoTry, "auto try upgrade")
 
