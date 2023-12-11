@@ -11,8 +11,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func QueryVersionTally(grpcEndpoint string) error {
-	fmt.Printf("queryVersionTally\n")
+func QueryVersionTally(grpcEndpoint string, version uint64) error {
 	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("did not connect: %v", err)
@@ -24,12 +23,12 @@ func QueryVersionTally(grpcEndpoint string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	resp, err := client.VersionTally(ctx, &upgradetypes.QueryVersionTallyRequest{Version: 2})
-	fmt.Printf("version tally\n")
+	resp, err := client.VersionTally(ctx, &upgradetypes.QueryVersionTallyRequest{Version: version})
 	if err != nil {
 		return fmt.Errorf("could not query version tally: %v", err)
 	}
 
+	fmt.Printf("version: %v\n", version)
 	fmt.Printf("total voting power: %v\n", resp.GetTotalVotingPower())
 	fmt.Printf("threshold power: %v\n", resp.GetThresholdPower())
 	fmt.Printf("voting power: %v\n", resp.GetVotingPower())
