@@ -19,7 +19,6 @@ func QueryVersionTally(grpcEndpoint string, version uint64) error {
 	defer conn.Close()
 
 	client := upgradetypes.NewQueryClient(conn)
-	fmt.Printf("new query client\n")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
