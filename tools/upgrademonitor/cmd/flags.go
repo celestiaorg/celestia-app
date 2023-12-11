@@ -22,7 +22,8 @@ var (
 	// defaultVersion is the value used if the version flag isn't provided. Since
 	// v2 is coordinated via an upgrade-height, v3 is the first version that this
 	// tool supports.
-	defaultVersion = uint64(3)
+	// TODO (@rootulp) consider making this 3 after development.
+	defaultVersion = uint64(2)
 	// defaultGrpcEndpoint is the value used if the grpc-endpoint flag isn't provided.
 	// This endpoint is the one enabled by default when you run ./scripts/single-node.sh
 	defaultGrpcEndpoint = "0.0.0.0:9090"
