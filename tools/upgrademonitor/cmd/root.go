@@ -40,11 +40,11 @@ func Execute() {
 	// Bind the version variable to the --version flag
 	rootCmd.Flags().Uint64Var(&version, "version", defaultVersion, "version to monitor")
 	// Bind the grpcEndpoint variable to the --grpc-endpoint flag
-	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint")
+	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint of a consensus node")
 	// Bind the pollFrequency variable to the --poll-frequency flag
 	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", defaultPollFrequency, "poll frequency in seconds")
 	// Bind the autoTry variable to the --auto-try flag
-	rootCmd.Flags().BoolVar(&autoTry, "auto-try", defaultAutoTry, "auto try upgrade")
+	rootCmd.Flags().BoolVar(&autoTry, "auto-try", defaultAutoTry, "auto try upgrade if the network is upgradeable")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

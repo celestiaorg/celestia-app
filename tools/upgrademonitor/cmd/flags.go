@@ -27,6 +27,5 @@ var (
 	// TODO (@rootulp) consider making this 10 seconds
 	defaultPollFrequency = int64(1) // 1 second
 	// defaultAutoTry is the value used if the auto-try flag isn't provided.
-	// TODO (@rootulp) consider making this false
 	defaultAutoTry = true
 )
