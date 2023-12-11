@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +16,13 @@ var rootCmd = &cobra.Command{
 		if len(args) != 1 {
 			return fmt.Errorf("must provide a grpc-endpoint")
 		}
-		// grpcEndpoint := args[0]
+
+		grpcEndpoint := args[0]
+		err := internal.QueryVersionTally(grpcEndpoint)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	},
 }

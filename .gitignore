@@ -17,4 +17,4 @@ square/testdata
 .release-env
 **/*.DS_Store
 vendor
-./tools/upgrademonitor/upgrademonitor
+tools/upgrademonitor/upgrademonitor
