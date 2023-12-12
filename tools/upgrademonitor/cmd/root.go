@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"time"
@@ -9,16 +8,11 @@ import (
 	// import celestia-app for it's side-effects so that celestia-app init()
 	// overrides the Cosmos SDK config with the correct account address
 	// prefixes.
-	"github.com/celestiaorg/celestia-app/app"
+
 	_ "github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx"
-	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var rootCmd = &cobra.Command{
@@ -40,39 +34,11 @@ var rootCmd = &cobra.Command{
 
 				if internal.IsUpgradeable(resp) {
 					fmt.Printf("the network is upgradeable so attempting to publish %v\n", autoPublish)
-
-					signedTx, err := os.ReadFile(autoPublish)
+					resp, err := internal.SubmitTryUpgrade(grpcEndpoint, autoPublish)
 					if err != nil {
-						return fmt.Errorf("failed to read file %v. %v", autoPublish, err)
+						return err
 					}
-
-					encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-					transaction, err := encCfg.TxConfig.TxJSONDecoder()(signedTx)
-					if err != nil {
-						return fmt.Errorf("failed to unmarshal transaction: %v", err)
-					}
-
-					txBytes, err := encCfg.TxConfig.TxEncoder()(transaction)
-					if err != nil {
-						return fmt.Errorf("failed to encode transaction: %v", err)
-					}
-
-					conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-					if err != nil {
-						return fmt.Errorf("failed to connect to GRPC server: %v", err)
-					}
-					defer conn.Close()
-
-					client := tx.NewServiceClient(conn)
-					res, err := client.BroadcastTx(context.Background(), &txTypes.BroadcastTxRequest{
-						Mode:    tx.BroadcastMode_BROADCAST_MODE_BLOCK,
-						TxBytes: txBytes,
-					})
-					if err != nil {
-						return fmt.Errorf("failed to broadcast transaction: %v", err)
-					}
-
-					fmt.Printf("Broadcast transaction response: %+v", res.TxResponse)
+					fmt.Printf("published transaction: %v\n", resp.TxHash)
 					return nil
 				}
 			}
