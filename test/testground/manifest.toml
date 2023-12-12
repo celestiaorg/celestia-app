@@ -38,7 +38,7 @@ blobs_per_sequence = { type = "int", default = 1 }
 inbound_peer_count = { type = "int", default = 40 }
 outbound_peer_count = { type = "int", default = 10 }
 gov_max_square_size = { type = "int", default = 256 }
-max_block_bytes = { type = "int", deafult = 100000000 }
+max_block_bytes = { type = "int", default = 100000000 }
 mempool = { type = "string", default = "v1" }
 broadcast_txs = { type = "bool", default = true }
 tracing_nodes = { type = "int", default = 0 }

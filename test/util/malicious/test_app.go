@@ -32,7 +32,7 @@ func OutOfOrderNamespaceConfig(startHeight int64) *testnode.Config {
 	return TestNodeConfig(bcfg)
 }
 
-// TestNodeConfig returns a testnode config with the malicous application and
+// TestNodeConfig returns a testnode config with the malicious application and
 // provided behavior set in the app options.
 func TestNodeConfig(behavior BehaviorConfig) *testnode.Config {
 	cfg := testnode.DefaultConfig().

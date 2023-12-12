@@ -379,7 +379,7 @@ func newElement(blob *blob.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) 
 		BlobIndex: blobIndex,
 		NumShares: numShares,
 		//
-		// For cacluating the maximum possible padding consider the following tree
+		// For calculating the maximum possible padding consider the following tree
 		// where each leaf corresponds to a share.
 		//
 		//	Depth       Position
