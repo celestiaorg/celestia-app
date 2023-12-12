@@ -5,12 +5,7 @@ import (
 	"os"
 	"time"
 
-	// import celestia-app for it's side-effects so that celestia-app init()
-	// overrides the Cosmos SDK config with the correct account address
-	// prefixes.
-	_ "github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -66,17 +61,4 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func validateSigner(autoTry bool, signer string) error {
-	if !autoTry {
-		return nil
-	}
-	if signer == "" {
-		return fmt.Errorf("invalid signer. Must specify signer if autoTry is enabled.")
-	}
-	if _, err := sdk.AccAddressFromBech32(signer); err != nil {
-		return err
-	}
-	return nil
 }

@@ -12,7 +12,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
-	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"google.golang.org/grpc"
 )
 
@@ -46,7 +45,7 @@ func Publish(conn *grpc.ClientConn, pathToTransaction string) (*types.TxResponse
 	}
 
 	client := tx.NewServiceClient(conn)
-	res, err := client.BroadcastTx(context.Background(), &txTypes.BroadcastTxRequest{
+	res, err := client.BroadcastTx(context.Background(), &tx.BroadcastTxRequest{
 		Mode:    tx.BroadcastMode_BROADCAST_MODE_BLOCK,
 		TxBytes: txBytes,
 	})
