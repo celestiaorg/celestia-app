@@ -233,10 +233,10 @@ func (n *NmtHasher) ValidateNodeFormat(node []byte) (err error) {
 // check that two siblings are ordered with respect to their namespaces.
 func (n *NmtHasher) validateSiblingsNamespaceOrder(left, right []byte) (err error) {
 	if err := n.ValidateNodeFormat(left); err != nil {
-		return fmt.Errorf("%w: left node does not match the namesapce hash format", err)
+		return fmt.Errorf("%w: left node does not match the namespace hash format", err)
 	}
 	if err := n.ValidateNodeFormat(right); err != nil {
-		return fmt.Errorf("%w: right node does not match the namesapce hash format", err)
+		return fmt.Errorf("%w: right node does not match the namespace hash format", err)
 	}
 	return nil
 }

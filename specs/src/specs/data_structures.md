@@ -335,7 +335,7 @@ Then,
 1. For each of `transactionData`, `intermediateStateRootData`, PayForBlob transactions, [serialize](#serialization):
     1. For each request in the list:
         1. [Serialize](#serialization) the request (individually).
-        1. Compute the length of each serialized request, [serialize the length](#serialization), and pre-pend the serialized request with its serialized length.
+        1. Compute the length of each serialized request, [serialize the length](#serialization), and prepend the serialized request with its serialized length.
     1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
     1. Create a [share](./shares.md) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be set specially.
 1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
@@ -347,7 +347,7 @@ These shares are arranged in the [first quadrant](#2d-reed-solomon-encoding-sche
 Each blob in the list `blobData`:
 
 1. [Serialize](#serialization) the blob (individually).
-1. Compute the length of each serialized blob, [serialize the length](#serialization), and pre-pend the serialized blob with its serialized length.
+1. Compute the length of each serialized blob, [serialize the length](#serialization), and prepend the serialized blob with its serialized length.
 1. Split up the length/blob pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)-byte chunks.
 1. Create a [share](./shares.md) out of each chunk. The first [`NAMESPACE_SIZE`](./consensus.md#constants) bytes for these shares is set to the namespace.
 

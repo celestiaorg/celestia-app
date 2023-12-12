@@ -1,4 +1,4 @@
-# Testground Experiement Tooling
+# Testground Experiment Tooling
 
 ## Test Instance Communication and Experiment Flow
 
@@ -68,7 +68,7 @@ by each node. This allows for arbitrary network topologies to be created.
 ### Standard
 
 The `standard` test runs an experiment that is as close to mainnet as possible.
-This is used as a base for other experiements.
+This is used as a base for other experiments.
 
 ## Running the Experiment
 
