@@ -142,7 +142,7 @@ each PFB, to be included in a block must follow a set of validity rules.
    field of the blob transaction `BlobTx`.
 1. Namespace Validity: The namespace of each blob in a blob transaction `BlobTx`
    must be valid. This validity is determined by the following sub-rules:
-    1. The namepsace of each blob must match the respective (same index)
+    1. The namespace of each blob must match the respective (same index)
        namespace in the `MsgPayForBlobs` `sdk.Msg` field `namespaces`.
     1. The namespace is not reserved for protocol use.
 1. Blob Size: No blob can have a size of 0.
@@ -203,7 +203,7 @@ celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [fla
 ```
 
 For submitting PFB transaction via a light client's rpc, see [celestia-node's
-documention](https://docs.celestia.org/developers/node-tutorial#submitting-data).
+documentation](https://docs.celestia.org/developers/node-tutorial#submitting-data).
 
 The steps in the
 [`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)

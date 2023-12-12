@@ -123,7 +123,6 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
-
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),
@@ -170,7 +169,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 		} else {
 			output[version] += power
 		}
-		if output[version] > threshold {
+		if output[version] >= threshold {
 			return true, version
 		}
 	}
@@ -180,10 +179,14 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 // GetVotingPowerThreshold returns the voting power threshold required to
 // upgrade to a new version.
 func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
-	// contract: totalVotingPower should not exceed MaxUit64
+	// contract: totalVotingPower should not exceed MaxUint64
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
 	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
-	return totalVotingPower.MulRaw(thresholdFraction.Numerator).QuoRaw(thresholdFraction.Denominator)
+	product := totalVotingPower.MulRaw(thresholdFraction.Numerator)
+	if product.ModRaw(thresholdFraction.Denominator).IsZero() {
+		return product.QuoRaw(thresholdFraction.Denominator)
+	}
+	return product.QuoRaw(thresholdFraction.Denominator).AddRaw(1)
 }
 
 // ShouldUpgradeToV2 returns true if the current height is one before

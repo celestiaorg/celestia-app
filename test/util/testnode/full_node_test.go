@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -123,4 +124,13 @@ func (s *IntegrationTestSuite) TestFillBlock_InvalidSquareSizeError() {
 			s.Equal(tc.expectedErr, actualErr)
 		})
 	}
+}
+
+// Test_defaultAppVersion tests that the default app version is set correctly in
+// testnode node.
+func (s *IntegrationTestSuite) Test_defaultAppVersion() {
+	t := s.T()
+	blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
+	require.NoError(t, err)
+	require.Equal(t, appconsts.LatestVersion, blockRes.Block.Version.App)
 }

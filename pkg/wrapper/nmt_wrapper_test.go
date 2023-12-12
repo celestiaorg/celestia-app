@@ -173,8 +173,8 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 			} else {
 				namespaceID = appns.ParitySharesNamespace.Bytes()
 			}
-			verfied := proof.VerifyInclusion(appconsts.NewBaseHashFunc(), namespaceID, [][]byte{data[i]}, root)
-			assert.True(t, verfied)
+			verified := proof.VerifyInclusion(appconsts.NewBaseHashFunc(), namespaceID, [][]byte{data[i]}, root)
+			assert.True(t, verified)
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package appconsts
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 )
@@ -24,8 +25,14 @@ func SubtreeRootThreshold(_ uint64) int {
 // SquareSizeUpperBound is the maximum original square width possible
 // for a version of the state machine. The maximum is decided through
 // governance. See `DefaultGovMaxSquareSize`.
-func SquareSizeUpperBound(_ uint64) int {
-	return v1.SquareSizeUpperBound
+func SquareSizeUpperBound(v uint64) int {
+	switch v {
+	case testground.Version:
+		return testground.SquareSizeUpperBound
+	// There is currently only a single square size upper bound.
+	default:
+		return v1.SquareSizeUpperBound
+	}
 }
 
 var (

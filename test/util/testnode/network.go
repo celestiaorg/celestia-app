@@ -29,12 +29,12 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	baseDir, err := genesis.InitFiles(t.TempDir(), tmCfg, cfg.Genesis, 0)
 	require.NoError(t, err)
 
-	tmNode, app, err := NewCometNode(t, baseDir, cfg)
+	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
 	require.NoError(t, err)
 
 	cctx = NewContext(context.Background(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
 
-	cctx, stopNode, err := StartNode(t, tmNode, cctx)
+	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
 	appCfg := cfg.AppConfig

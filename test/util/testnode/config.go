@@ -9,7 +9,6 @@ import (
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	tmconfig "github.com/tendermint/tendermint/config"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 )
@@ -20,9 +19,7 @@ const (
 	DefaultValidatorAccountName = "validator"
 )
 
-// Config is the configuration of a test node.
-type Config struct {
-	Genesis *genesis.Genesis
+type UniversalTestingConfig struct {
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
@@ -31,8 +28,15 @@ type Config struct {
 	AppOptions *KVAppOptions
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
-	// SupressLogs
-	SupressLogs bool
+	// SuppressLogs in testnode. This should be set to true when running
+	// testground tests.
+	SuppressLogs bool
+}
+
+// Config is the configuration of a test node.
+type Config struct {
+	Genesis *genesis.Genesis
+	UniversalTestingConfig
 }
 
 func (c *Config) WithGenesis(g *genesis.Genesis) *Config {
@@ -64,9 +68,9 @@ func (c *Config) WithAppCreator(creator srvtypes.AppCreator) *Config {
 	return c
 }
 
-// WithSupressLogs sets the SupressLogs and returns the Config.
-func (c *Config) WithSupressLogs(sl bool) *Config {
-	c.SupressLogs = sl
+// WithSuppressLogs sets the SuppressLogs and returns the Config.
+func (c *Config) WithSuppressLogs(sl bool) *Config {
+	c.SuppressLogs = sl
 	return c
 }
 
@@ -114,17 +118,14 @@ func DefaultConfig() *Config {
 	return cfg.
 		WithGenesis(
 			genesis.NewDefaultGenesis().
-				WithChainID(tmrand.Str(6)).
-				WithGenesisTime(time.Now()).
-				WithConsensusParams(DefaultConsensusParams()).
-				WithModifiers().
 				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
 		).
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(cmd.NewAppServer).
-		WithSupressLogs(true)
+		WithSuppressLogs(true).
+		WithConsensusParams(DefaultConsensusParams())
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {

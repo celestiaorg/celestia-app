@@ -3,12 +3,14 @@ package testutil
 import (
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
@@ -35,6 +37,29 @@ type IntegrationTestSuite struct {
 	kr      keyring.Keyring
 }
 
+// Create a .json file for testing
+func createTestFile(t testing.TB, s string, isValid bool) *os.File {
+	t.Helper()
+
+	tempdir, err := os.MkdirTemp("", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
+
+	var fp *os.File
+
+	if isValid {
+		fp, err = os.CreateTemp(tempdir, "*.json")
+	} else {
+		fp, err = os.CreateTemp(tempdir, "")
+	}
+	require.NoError(t, err)
+	_, err = fp.WriteString(s)
+
+	require.Nil(t, err)
+
+	return fp
+}
+
 func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 	return &IntegrationTestSuite{cfg: cfg}
 }
@@ -57,8 +82,25 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	validator := s.network.Validators[0]
-	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
+
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
+
+	validBlob := fmt.Sprintf(`
+	{
+		"Blobs": [
+			{
+				"namespaceID": "%s",
+				"blob": "%s"
+			},
+			{
+				"namespaceID": "%s",
+				"blob": "%s"
+			}
+    	]
+	}
+	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
+	validPropFile := createTestFile(s.T(), validBlob, true)
+	invalidPropFile := createTestFile(s.T(), validBlob, false)
 
 	testCases := []struct {
 		name         string
@@ -68,9 +110,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		respType     proto.Message
 	}{
 		{
-			name: "valid transaction",
+			name: "single blob valid transaction",
 			args: []string{
-				hexNamespace,
+				hex.EncodeToString(appns.RandomBlobNamespaceID()),
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
@@ -78,6 +120,32 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			expectErr:    false,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "multiple blobs valid transaction",
+			args: []string{
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, validPropFile.Name()),
+			},
+			expectErr:    false,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "multiple blobs with invalid file path extension",
+			args: []string{
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, invalidPropFile.Name()),
+			},
+			expectErr:    true,
 			expectedCode: 0,
 			respType:     &sdk.TxResponse{},
 		},
