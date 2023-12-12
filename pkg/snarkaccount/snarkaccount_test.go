@@ -14,7 +14,7 @@ import (
 // It defines three inputs::
 // - Input X: The base of the square operation.
 // - Input Z: An additional input with no effect on the constraints.
-// - Output Y: The result of squaring X (i.e., X * X).
+// - Input Y: The result of squaring X (i.e., X * X).
 type SquareRoot struct {
 	X frontend.Variable `gnark:"x"`       // Base of the square operation
 	Y frontend.Variable `gnark:",public"` // Result of the square operation
@@ -36,9 +36,10 @@ func TestSquareRootPredicate(t *testing.T) {
 		X, Y, Z int64
 		valid   bool
 	}{
-		{"X*X=Y", 3, 9, 3, true},
-		{"X*X=Y", 1, 1, 4, true},
-		{"X*X=Y", 4, 15, 4, false},
+		{"valid witness: 3*3=9", 3, 9, 3, true},
+		{"valid witness: 3*3=9", 3, 9, 1, true},
+		{"valid witness: 1*1=1", 1, 1, 4, true},
+		{"invalid witness: 4*4!=15", 4, 15, 1, false},
 	}
 	for _, tc := range args {
 		t.Run(tc.name, func(t *testing.T) {
