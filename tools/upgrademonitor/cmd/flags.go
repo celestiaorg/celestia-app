@@ -19,14 +19,12 @@ var (
 	// defaultVersion is the value used if the version flag isn't provided. Since
 	// v2 is coordinated via an upgrade-height, v3 is the first version that this
 	// tool supports.
-	// TODO (@rootulp) consider making this 3 after development.
-	defaultVersion = uint64(2)
+	defaultVersion = uint64(3)
 	// defaultGrpcEndpoint is the value used if the grpc-endpoint flag isn't provided.
 	// This endpoint is the one enabled by default when you run ./scripts/single-node.sh
 	defaultGrpcEndpoint = "0.0.0.0:9090"
 	// defaultPollFrequency is the value used if the poll-frequency flag isn't provided.
-	// TODO (@rootulp) consider making this 10 seconds
-	defaultPollFrequency = int64(1) // 1 second
+	defaultPollFrequency = int64(10) // 10 seconds
 	// defaultPathToTransaction is the value used if the auto-publish flag isn't provided.
 	defaultPathToTransaction = ""
 )
