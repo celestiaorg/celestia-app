@@ -9,9 +9,9 @@ var (
 	// pollFrequency is the frequency in seconds that upgrade monitor polls the
 	// GRPC endpoint.
 	pollFrequency int64
-	// autoPublish is the file path to a signed transaction that will be
+	// pathToTransaction is the file path to a signed transaction that will be
 	// auto-published when the network is upgradeable.
-	autoPublish string
+	pathToTransaction string
 )
 
 // Defaults
@@ -27,6 +27,6 @@ var (
 	// defaultPollFrequency is the value used if the poll-frequency flag isn't provided.
 	// TODO (@rootulp) consider making this 10 seconds
 	defaultPollFrequency = int64(1) // 1 second
-	// defaultAutoPublish is the value used if the auto-publish flag isn't provided.
-	defaultAutoPublish = ""
+	// defaultPathToTransaction is the value used if the auto-publish flag isn't provided.
+	defaultPathToTransaction = ""
 )

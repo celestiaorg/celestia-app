@@ -33,8 +33,8 @@ var rootCmd = &cobra.Command{
 				fmt.Printf("version: %v, voting: %v, threshold: %v, total: %v\n", version, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
 
 				if internal.IsUpgradeable(resp) {
-					fmt.Printf("the network is upgradeable so attempting to publish %v\n", autoPublish)
-					resp, err := internal.SubmitTryUpgrade(grpcEndpoint, autoPublish)
+					fmt.Printf("the network is upgradeable so publishing %v\n", pathToTransaction)
+					resp, err := internal.Publish(grpcEndpoint, pathToTransaction)
 					if err != nil {
 						return err
 					}
@@ -53,8 +53,8 @@ func Execute() {
 	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint of a consensus node")
 	// Bind the pollFrequency variable to the --poll-frequency flag
 	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", defaultPollFrequency, "poll frequency in seconds")
-	// Bind the autoPublish variable to the --auto-publish flag
-	rootCmd.Flags().StringVar(&autoPublish, "auto-publish", defaultAutoPublish, "auto publish a signed transaction when the network is upgradeable")
+	// Bind the pathToTransaction variable to the value provided for the --auto-publish flag
+	rootCmd.Flags().StringVar(&pathToTransaction, "auto-publish", defaultPathToTransaction, "auto publish a signed transaction when the network is upgradeable")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

@@ -35,7 +35,7 @@ func QueryVersionTally(grpcEndpoint string, version uint64) (*upgradetypes.Query
 	return resp, nil
 }
 
-func SubmitTryUpgrade(grpcEndpoint string, autoPublish string) (*types.TxResponse, error) {
+func Publish(grpcEndpoint string, autoPublish string) (*types.TxResponse, error) {
 	signedTx, err := os.ReadFile(autoPublish)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %v. %v", autoPublish, err)
