@@ -35,7 +35,7 @@ import (
 
 // ConsensusNode is the node type used by testground instances to run a
 // celestia-app full node. It can optionally be configured to be a validator,
-// and has methods to boostrap a network, initialize itself, start, and stop.
+// and has methods to bootstrap a network, initialize itself, start, and stop.
 type ConsensusNode struct {
 	Name string
 	// NetworkKey is the key used for signing gossiped messages.

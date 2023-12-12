@@ -23,7 +23,7 @@ In contrast to a flexible inflation rate, Celestia intends on having a predictab
 | Target inflation           | 1.50      |
 
 When the target inflation is reached, it remains at that rate.
-The table below depicts the inflation rate for the forseeable future:
+The table below depicts the inflation rate for the foreseeable future:
 
 | Year | Inflation (%)     |
 |------|-------------------|

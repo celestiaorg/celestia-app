@@ -40,7 +40,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		iterations             int
 	}
 	tests := []test{
-		// running these tests more than once in CI will sometimes timout, so we
+		// running these tests more than once in CI will sometimes timeout, so we
 		// have to run them each once per square size. However, we can run these
 		// more locally by increasing the iterations.
 		{"many small single share single blob transactions", 1000, 1, 400, 1},

@@ -152,7 +152,7 @@ func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
 }
 
 // GasToConsume works out the extra gas charged to pay for a set of blobs in a PFB.
-// Note that tranasctions will incur other gas costs, such as the signature verification
+// Note that transactions will incur other gas costs, such as the signature verification
 // and reads to the user's account.
 func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 	var totalSharesUsed uint64
