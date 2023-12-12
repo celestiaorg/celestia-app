@@ -289,7 +289,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 The first major change is that we are making use of an intermediate data structure. It contains fields that are progressively and optionally used during the malleation process. This makes it easier to keep track of malleated transactions and their messages, prune transactions in the case that we go over the max square size, cache the decoded transactions avoiding excessive deserialization, and add metadata to malleated transactions after we malleate them. All while preserving the original ordering (from the prioritized mempool) of the transactions.
 
 ```go
-// parsedTx is an interanl struct that keeps track of potentially valid txs and
+// parsedTx is an internal struct that keeps track of potentially valid txs and
 // their wire messages if they have any.
 type parsedTx struct {
    // the original raw bytes of the tx
