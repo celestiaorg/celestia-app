@@ -42,11 +42,14 @@ go build .
     # Prepare the unsigned transaction
     celestia-appd tx upgrade try-upgrade --from $FROM --keyring-backend $KEYRING_BACKEND --fees 420utia --generate-only > unsigned_tx.json
 
-    # Verify the unsigned transactino
+    # Verify the unsigned transaction
     cat unsigned_tx.json
 
     # Sign the unsigned transaction.
     celestia-appd tx sign unsigned_tx.json --from $FROM --keyring-backend $KEYRING_BACKEND --chain-id $CHAIN_ID --output-document signed_tx.json
+
+    # Verify the signed transaction
+    cat signed_tx.json
     ```
 
 1. Run the upgrademonitor.
