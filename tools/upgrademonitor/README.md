@@ -30,7 +30,27 @@ go build .
     ./scripts/single-node.sh
     ```
 
-1. In a new terminal tab, run the upgrademonitor
+1. In a new terminal tab, prepare the try upgrade transaction
+
+    ```shell
+    # Export environment variables. Modify these based on your needs.
+    export CHAIN_ID="private"
+    export KEY_NAME="validator"
+    export KEYRING_BACKEND="test"
+    export FROM=$(celestia-appd keys show $KEY_NAME --address --keyring-backend $KEYRING_BACKEND)
+
+    # Prepare the unsigned transaction
+    celestia-appd tx upgrade try-upgrade --from $FROM --fees 420utia --generate-only --keyring-backend $KEYRING_BACKEND > unsigned_tx.json
+
+    # Verify the unsigned transactino
+    cat unsigned_tx.json
+
+    # Sign the unsigned transaction.
+    # For some reason, this command sends output to STDERR instead of STDOUT so redirect both to a file.
+    celestia-appd tx sign unsigned_tx.json --chain-id $CHAIN_ID --keyring-backend $KEYRING_BACKEND --from $FROM &> signed_tx.json
+    ```
+
+1. Run the upgrademonitor.
 
     ```shell
     cd celestia-app/tools/upgrademonitor
@@ -38,6 +58,9 @@ go build .
     # Build the binary
     go build .
 
-    # Run the binary
+    # Run the binary without auto publishing
     ./upgrademonitor
+
+    # Run the binary with auto publishing
+    ./upgrademonitor --auto-publish signed_tx.json
     ```
