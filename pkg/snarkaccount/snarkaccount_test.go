@@ -45,15 +45,20 @@ func TestSquareRootPredicate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Compiles the circuit into a R1CS (Rank-1 Constraint System).
 			var circuit SquareRoot
-			ccs, _ := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+			ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+			assert.NoError(t, err)
 
 			// Performs the setup phase of the Groth16 zkSNARK.
-			pk, vk, _ := groth16.Setup(ccs)
+			pk, vk, err := groth16.Setup(ccs)
+			assert.NoError(t, err)
 
 			// Defines the witness (assignment of values to the circuit inputs).
 			assignment := SquareRoot{X: tc.X, Y: tc.Y, Z: tc.Z}
-			witness, _ := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
-			publicWitness, _ := witness.Public()
+			witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+			assert.NoError(t, err)
+
+			publicWitness, err := witness.Public()
+			assert.NoError(t, err)
 
 			// Generates a proof using the Groth16 proving system.
 			proof, err := groth16.Prove(ccs, pk, witness)
