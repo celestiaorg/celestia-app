@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -8,19 +9,22 @@ import (
 	// import celestia-app for it's side-effects so that celestia-app init()
 	// overrides the Cosmos SDK config with the correct account address
 	// prefixes.
+	"github.com/celestiaorg/celestia-app/app"
 	_ "github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "upgrademonitor",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := validateSigner(autoTry, signer); err != nil {
-			return err
-		}
 
 		ticker := time.NewTicker(time.Duration(pollFrequency) * time.Second)
 		defer ticker.Stop()
@@ -34,15 +38,41 @@ var rootCmd = &cobra.Command{
 				}
 				fmt.Printf("version: %v, voting: %v, threshold: %v, total: %v\n", version, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
 
-				if autoTry && internal.IsUpgradeable(resp) {
-					addr, err := sdk.AccAddressFromBech32(signer)
+				if internal.IsUpgradeable(resp) {
+					fmt.Printf("the network is upgradeable so attempting to publish %v\n", autoPublish)
+
+					signedTx, err := os.ReadFile(autoPublish)
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to read file %v. %v", autoPublish, err)
 					}
-					if _, err = internal.SubmitTryUpgrade(grpcEndpoint, addr); err != nil {
-						return err
+
+					encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+					transaction, err := encCfg.TxConfig.TxJSONDecoder()(signedTx)
+					if err != nil {
+						return fmt.Errorf("failed to unmarshal transaction: %v", err)
 					}
-					fmt.Printf("submitted try upgrade for version: %v. Exiting.", version)
+
+					txBytes, err := encCfg.TxConfig.TxEncoder()(transaction)
+					if err != nil {
+						return fmt.Errorf("failed to encode transaction: %v", err)
+					}
+
+					conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+					if err != nil {
+						return fmt.Errorf("failed to connect to GRPC server: %v", err)
+					}
+					defer conn.Close()
+
+					client := tx.NewServiceClient(conn)
+					res, err := client.BroadcastTx(context.Background(), &txTypes.BroadcastTxRequest{
+						Mode:    tx.BroadcastMode_BROADCAST_MODE_BLOCK,
+						TxBytes: txBytes,
+					})
+					if err != nil {
+						return fmt.Errorf("failed to broadcast transaction: %v", err)
+					}
+
+					fmt.Printf("Broadcast transaction response: %+v", res.TxResponse)
 					return nil
 				}
 			}
@@ -57,10 +87,8 @@ func Execute() {
 	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint of a consensus node")
 	// Bind the pollFrequency variable to the --poll-frequency flag
 	rootCmd.Flags().Int64Var(&pollFrequency, "poll-frequency", defaultPollFrequency, "poll frequency in seconds")
-	// Bind the autoTry variable to the --auto-try flag
-	rootCmd.Flags().BoolVar(&autoTry, "auto-try", defaultAutoTry, "auto try upgrade if the network is upgradeable")
-	// Bind the signer variable to the --signer flag
-	rootCmd.Flags().StringVar(&signer, "signer", defaultSigner, "signer is the Celestia address that should be used to submit the try upgrade")
+	// Bind the autoPublish variable to the --auto-publish flag
+	rootCmd.Flags().StringVar(&autoPublish, "auto-publish", defaultAutoPublish, "auto publish a signed transaction when the network is upgradeable")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
