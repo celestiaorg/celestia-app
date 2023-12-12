@@ -378,7 +378,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>For each request in the list:
 <ol>
 <li><a href="#serialization">Serialize</a> the request (individually).</li>
-<li>Compute the length of each serialized request, <a href="#serialization">serialize the length</a>, and pre-pend the serialized request with its serialized length.</li>
+<li>Compute the length of each serialized request, <a href="#serialization">serialize the length</a>, and prepend the serialized request with its serialized length.</li>
 </ol>
 </li>
 <li>Split up the length/request pairs into <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_ID_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a>-byte chunks.</li>
@@ -392,7 +392,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>Each blob in the list <code>blobData</code>:</p>
 <ol>
 <li><a href="#serialization">Serialize</a> the blob (individually).</li>
-<li>Compute the length of each serialized blob, <a href="#serialization">serialize the length</a>, and pre-pend the serialized blob with its serialized length.</li>
+<li>Compute the length of each serialized blob, <a href="#serialization">serialize the length</a>, and prepend the serialized blob with its serialized length.</li>
 <li>Split up the length/blob pairs into <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a>-byte chunks.</li>
 <li>Create a <a href="./shares.html">share</a> out of each chunk. The first <a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> bytes for these shares is set to the namespace.</li>
 </ol>

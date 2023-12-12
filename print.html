@@ -428,7 +428,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>For each request in the list:
 <ol>
 <li><a href="specs/data_structures.html#serialization">Serialize</a> the request (individually).</li>
-<li>Compute the length of each serialized request, <a href="specs/data_structures.html#serialization">serialize the length</a>, and pre-pend the serialized request with its serialized length.</li>
+<li>Compute the length of each serialized request, <a href="specs/data_structures.html#serialization">serialize the length</a>, and prepend the serialized request with its serialized length.</li>
 </ol>
 </li>
 <li>Split up the length/request pairs into <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_ID_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a>-byte chunks.</li>
@@ -442,7 +442,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>Each blob in the list <code>blobData</code>:</p>
 <ol>
 <li><a href="specs/data_structures.html#serialization">Serialize</a> the blob (individually).</li>
-<li>Compute the length of each serialized blob, <a href="specs/data_structures.html#serialization">serialize the length</a>, and pre-pend the serialized blob with its serialized length.</li>
+<li>Compute the length of each serialized blob, <a href="specs/data_structures.html#serialization">serialize the length</a>, and prepend the serialized blob with its serialized length.</li>
 <li>Split up the length/blob pairs into <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a>-byte chunks.</li>
 <li>Create a <a href="specs/./shares.html">share</a> out of each chunk. The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> bytes for these shares is set to the namespace.</li>
 </ol>
@@ -1430,7 +1430,7 @@ Availability Proofs: Maximising Light Client Security and Scaling Blockchains
 with Dishonest Majorities&quot;</a> and in the
 <a href="https://github.com/celestiaorg/celestia-node"><code>celestia-node</code></a> repo.</p>
 </blockquote>
-<p>Celestia specifc validity rules can be categorized into two groups:</p>
+<p>Celestia specific validity rules can be categorized into two groups:</p>
 <h3 id="transaction-validity-rules"><a class="header" href="#transaction-validity-rules">Transaction Validity Rules</a></h3>
 <p>All <code>BlobTx</code> transactions must be valid according to the <a href="specs/../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</p>
 <p>All remaining transactions must be decodable and pass all <a href="specs/./ante_handler.html">AnteHandler</a> checks.</p>
@@ -1995,7 +1995,7 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>mint.BondDenom</td><td>utia</td><td>Denomination that is inflated and sent to the distribution module account.</td><td>False</td></tr>
 <tr><td>mint.DisinflationRate</td><td>0.10 (10%)</td><td>The rate at which the inflation rate decreases each year.</td><td>False</td></tr>
 <tr><td>mint.InitialInflationRate</td><td>0.08 (8%)</td><td>The inflation rate the network starts at.</td><td>False</td></tr>
-<tr><td>mint.TargetInflationRate</td><td>0.015 (1.5%)</td><td>The inflation rate that the network aims to stabalize at.</td><td>False</td></tr>
+<tr><td>mint.TargetInflationRate</td><td>0.015 (1.5%)</td><td>The inflation rate that the network aims to stabilize at.</td><td>False</td></tr>
 <tr><td>slashing.DowntimeJailDuration</td><td>1 min</td><td>Duration of time a validator must stay jailed.</td><td>True</td></tr>
 <tr><td>slashing.MinSignedPerWindow</td><td>0.75 (75%)</td><td>The percentage of SignedBlocksWindow that must be signed not to get jailed.</td><td>True</td></tr>
 <tr><td>slashing.SignedBlocksWindow</td><td>5000</td><td>The range of blocks used to count for downtime.</td><td>True</td></tr>
