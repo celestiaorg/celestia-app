@@ -57,7 +57,7 @@ For example, consider the scenario where at mainnet launch blobs are laid out ac
 - When a namespace starts with `1`, all blobs in the namespace conform to the new set of non-interactive default rules.
 
 ```go
-optional := []byte{
+optionA := []byte{
   0,                      // namespace version
   1, 2, 3, 4, 5, 6, 7, 8, // namespace ID
   1,          // info byte (sequence start indicator = true)
