@@ -35,7 +35,7 @@ availabily by simply downloading the entire block.
 > with Dishonest Majorities"](https://arxiv.org/abs/1809.09044) and in the
 > [`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
 
-Celestia specifc validity rules can be categorized into two groups:
+Celestia specific validity rules can be categorized into two groups:
 
 ### Transaction Validity Rules
 

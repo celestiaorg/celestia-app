@@ -51,7 +51,7 @@ An approach that addresses these issues is to prefix the namespace ID with versi
 | Namespace Version | 1 | the version of the namespace ID |
 | Namespace ID | 8 if Namespace Version=0, 32 if Namespace Version=1 | namespace ID of the share |
 
-For example, consider the scenario where at mainnet launch blobs are layed out according to the existing non-interactive default rules. In this scenario, blobs always start at an index aligned with the `BlobMinSquareSize`. The only supported namespace ID is `0`. At some point in the future, if we introduce new non-interactive default rules (e.g. [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)), we may also expand the range of available namespaces to include namespaces that start with a leading `0` or `1` byte. Users may opt in to using the new non-interactive default rules by submitting PFB transactions with a namespace ID version of `1`.
+For example, consider the scenario where at mainnet launch blobs are laid out according to the existing non-interactive default rules. In this scenario, blobs always start at an index aligned with the `BlobMinSquareSize`. The only supported namespace ID is `0`. At some point in the future, if we introduce new non-interactive default rules (e.g. [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)), we may also expand the range of available namespaces to include namespaces that start with a leading `0` or `1` byte. Users may opt in to using the new non-interactive default rules by submitting PFB transactions with a namespace ID version of `1`.
 
 - When the namespace starts with `0`, all blobs in the namespace conform to the previous set of non-interactive default rules.
 - When a namespace starts with `1`, all blobs in the namespace conform to the new set of non-interactive default rules.
@@ -159,7 +159,7 @@ When a user creates a PFB, concatenate the namespace version with the namespace 
     1. Option 1: when there are changes to the universal share prefix
     2. Option 2: when there are changes to any part of the remaining data in a share
 3. When do we expect to increment the namespace version?
-    1. During a backwards incompatable non-interactive default rule change
+    1. During a backwards incompatible non-interactive default rule change
     2. If we change the format of a padding share (e.g. a namespace padding share) instead of `0` bytes, pad with something else like. We may need to preserve backwards compatibility for padding shares that use old namespaces. Note this scenario likely implies a namespace version and share version increase.
     3. Change the format of PFB tx serialization. This scenario likely implies duplicating the PFB txs in a data square, one with the old namespace version and one with the new namespace version.
 4. Inspired by [type-length-value](https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value), should we consider prefixing optional fields (sequence length and reserved bytes) with a type and a length? This would enable us to modify those fields without introducing new share versions.

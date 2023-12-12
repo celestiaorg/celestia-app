@@ -267,7 +267,7 @@ func (s *Signer) PubKey() cryptotypes.PubKey {
 	return s.pk
 }
 
-// GetSequencer gets the lastest signed sequnce and increments the local sequence number
+// GetSequence gets the lastest signed sequence and increments the local sequence number
 func (s *Signer) GetSequence() uint64 {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
