@@ -8,17 +8,23 @@ import (
 	// import celestia-app for it's side-effects so that celestia-app init()
 	// overrides the Cosmos SDK config with the correct account address
 	// prefixes.
-
 	_ "github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/tools/upgrademonitor/internal"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "upgrademonitor",
 	Short: "upgrademonitor monitors that status of upgrades on a Celestia network.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return fmt.Errorf("could not connect: %v", err)
+		}
+		defer conn.Close()
 
 		ticker := time.NewTicker(time.Duration(pollFrequency) * time.Second)
 		defer ticker.Stop()
@@ -26,7 +32,7 @@ var rootCmd = &cobra.Command{
 		for {
 			select {
 			case <-ticker.C:
-				resp, err := internal.QueryVersionTally(grpcEndpoint, version)
+				resp, err := internal.QueryVersionTally(conn, version)
 				if err != nil {
 					return err
 				}
@@ -34,12 +40,12 @@ var rootCmd = &cobra.Command{
 
 				if internal.IsUpgradeable(resp) {
 					fmt.Printf("the network is upgradeable so publishing %v\n", pathToTransaction)
-					resp, err := internal.Publish(grpcEndpoint, pathToTransaction)
+					resp, err := internal.Publish(conn, pathToTransaction)
 					if err != nil {
 						return err
 					}
 					fmt.Printf("published transaction: %v\n", resp.TxHash)
-					return nil
+					return nil // stop the upgrademonitor
 				}
 			}
 		}

@@ -14,16 +14,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	txTypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-func QueryVersionTally(grpcEndpoint string, version uint64) (*upgradetypes.QueryVersionTallyResponse, error) {
-	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("did not connect: %v", err)
-	}
-	defer conn.Close()
-
+func QueryVersionTally(conn *grpc.ClientConn, version uint64) (*upgradetypes.QueryVersionTallyResponse, error) {
 	client := upgradetypes.NewQueryClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -35,10 +28,10 @@ func QueryVersionTally(grpcEndpoint string, version uint64) (*upgradetypes.Query
 	return resp, nil
 }
 
-func Publish(grpcEndpoint string, autoPublish string) (*types.TxResponse, error) {
-	signedTx, err := os.ReadFile(autoPublish)
+func Publish(conn *grpc.ClientConn, pathToTransaction string) (*types.TxResponse, error) {
+	signedTx, err := os.ReadFile(pathToTransaction)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file %v. %v", autoPublish, err)
+		return nil, fmt.Errorf("failed to read file %v. %v", pathToTransaction, err)
 	}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -52,12 +45,6 @@ func Publish(grpcEndpoint string, autoPublish string) (*types.TxResponse, error)
 		return nil, fmt.Errorf("failed to encode transaction: %v", err)
 	}
 
-	conn, err := grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to GRPC server: %v", err)
-	}
-	defer conn.Close()
-
 	client := tx.NewServiceClient(conn)
 	res, err := client.BroadcastTx(context.Background(), &txTypes.BroadcastTxRequest{
 		Mode:    tx.BroadcastMode_BROADCAST_MODE_BLOCK,
@@ -66,7 +53,6 @@ func Publish(grpcEndpoint string, autoPublish string) (*types.TxResponse, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to broadcast transaction: %v", err)
 	}
-
 	return res.GetTxResponse(), nil
 }
 
