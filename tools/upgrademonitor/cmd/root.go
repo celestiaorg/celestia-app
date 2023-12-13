@@ -24,6 +24,10 @@ var rootCmd = &cobra.Command{
 		ticker := time.NewTicker(time.Duration(pollFrequency) * time.Second)
 		defer ticker.Stop()
 
+		if err := internal.ValidateTransaction(pathToTransaction); err != nil {
+			return fmt.Errorf("invalid transaction: %v", err)
+		}
+
 		for {
 			select {
 			case <-ticker.C:
