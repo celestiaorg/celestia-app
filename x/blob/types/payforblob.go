@@ -52,7 +52,7 @@ func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, err
 		return nil, err
 	}
 
-	sizes := GetBlobSizes(blobs)
+	sizes := extractSizes(blobs)
 
 	msg := &MsgPayForBlobs{
 		Signer:           signer,
@@ -194,9 +194,8 @@ func ValidateBlobs(blobs ...*blob.Blob) error {
 	return nil
 }
 
-// GetBlobSizes returns a slice of blobs sizes.
-// TODO: consider un-exporting this.
-func GetBlobSizes(blobs []*blob.Blob) (sizes []uint32) {
+// extractSizes returns a slice of blobs sizes.
+func extractSizes(blobs []*blob.Blob) (sizes []uint32) {
 	for _, pblob := range blobs {
 		size := uint32(len(pblob.Data))
 		sizes = append(sizes, size)
