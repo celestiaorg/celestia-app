@@ -176,8 +176,9 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 			added:    true,
 		},
 		{
-			// fun fact: three blobs increases the size of the PFB to two shares, hence this fails
+			// fun fact: four blobs increases the size of the PFB to two shares, hence this fails
 			blobSize: []int{
+				shares.AvailableBytesFromSparseShares(1),
 				shares.AvailableBytesFromSparseShares(1),
 				shares.AvailableBytesFromSparseShares(1),
 				shares.AvailableBytesFromSparseShares(1),
@@ -300,7 +301,7 @@ func TestSquareBlobPostions(t *testing.T) {
 				[]ns.Namespace{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
 				blobfactory.Repeat([]int{100}, 9),
 			),
-			expectedIndexes: [][]uint32{{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}},
+			expectedIndexes: [][]uint32{{6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}},
 		},
 		{
 			squareSize: 4,
@@ -318,7 +319,7 @@ func TestSquareBlobPostions(t *testing.T) {
 				[]ns.Namespace{ns1, ns1, ns1},
 				[][]int{{1000}, {10000}, {10000}},
 			),
-			expectedIndexes: [][]uint32{{3}, {6}, {27}},
+			expectedIndexes: [][]uint32{{2}, {5}, {26}},
 		},
 		{
 			squareSize: 32,
@@ -327,7 +328,7 @@ func TestSquareBlobPostions(t *testing.T) {
 				[]ns.Namespace{ns2, ns1, ns1},
 				[][]int{{100}, {100}, {100}},
 			),
-			expectedIndexes: [][]uint32{{5}, {3}, {4}},
+			expectedIndexes: [][]uint32{{4}, {2}, {3}},
 		},
 		{
 			squareSize: 16,
@@ -336,7 +337,7 @@ func TestSquareBlobPostions(t *testing.T) {
 				[]ns.Namespace{ns1, ns2, ns1},
 				[][]int{{100}, {900}, {900}}, // 1, 2, 2 shares respectively
 			),
-			expectedIndexes: [][]uint32{{3}, {6}, {4}},
+			expectedIndexes: [][]uint32{{2}, {5}, {3}},
 		},
 		{
 			squareSize: 4,
@@ -432,7 +433,7 @@ func TestSquareBlobPostions(t *testing.T) {
 			for j, tx := range txs {
 				wrappedPFB, isWrappedPFB := coretypes.UnmarshalIndexWrapper(tx)
 				require.True(t, isWrappedPFB)
-				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, j)
+				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, fmt.Sprintf("expected index %v, got %v", tt.expectedIndexes[j], wrappedPFB.ShareIndexes))
 			}
 		})
 	}

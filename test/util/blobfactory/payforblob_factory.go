@@ -1,7 +1,6 @@
 package blobfactory
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
@@ -232,30 +231,6 @@ func ManyMultiBlobTx(
 		require.NoError(t, err)
 	}
 	return txs
-}
-
-// IndexWrappedTxWithInvalidNamespace returns an index wrapped PFB tx with an
-// invalid namespace and a blob associated with that index wrapped PFB tx.
-func IndexWrappedTxWithInvalidNamespace(
-	t *testing.T,
-	rand *tmrand.Rand,
-	signer *user.Signer,
-	index uint32,
-) (coretypes.Tx, blob.Blob) {
-	t.Helper()
-	addr := signer.Address()
-	blob := ManyRandBlobs(rand, 100)[0]
-	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
-	require.NoError(t, err)
-	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
-
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
-	require.NoError(t, err)
-
-	cTx, err := coretypes.MarshalIndexWrapper(rawTx, index)
-	require.NoError(t, err)
-
-	return cTx, *blob
 }
 
 func RandBlobTxsWithNamespacesAndSigner(

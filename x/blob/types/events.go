@@ -7,10 +7,9 @@ import (
 var EventTypePayForBlob = proto.MessageName(&EventPayForBlobs{})
 
 // NewPayForBlobsEvent returns a new EventPayForBlobs
-func NewPayForBlobsEvent(signer string, blobSizes []uint32, namespaces [][]byte) *EventPayForBlobs {
+func NewPayForBlobsEvent(signer string, blobSizes []uint32) *EventPayForBlobs {
 	return &EventPayForBlobs{
-		Signer:     signer,
-		BlobSizes:  blobSizes,
-		Namespaces: namespaces,
+		Signer:    signer,
+		BlobSizes: blobSizes,
 	}
 }

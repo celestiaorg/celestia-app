@@ -73,7 +73,7 @@ func TestValidateBlobTx(t *testing.T) {
 				btx.Blobs[0].NamespaceId = namespace.RandomBlobNamespace().ID
 				return btx
 			},
-			expectedErr: types.ErrNamespaceMismatch,
+			expectedErr: types.ErrInvalidShareCommitment,
 		},
 		{
 			name: "invalid transaction, no pfb",

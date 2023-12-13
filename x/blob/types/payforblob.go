@@ -3,8 +3,6 @@ package types
 import (
 	fmt "fmt"
 
-	"cosmossdk.io/errors"
-
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
@@ -54,22 +52,12 @@ func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, err
 		return nil, err
 	}
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := ExtractBlobComponents(blobs)
-	namespaces := []appns.Namespace{}
-	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
-		if err != nil {
-			return nil, err
-		}
-		namespaces = append(namespaces, namespace)
-	}
+	sizes := GetBlobSizes(blobs)
 
 	msg := &MsgPayForBlobs{
 		Signer:           signer,
-		Namespaces:       namespacesToBytes(namespaces),
 		ShareCommitments: commitments,
 		BlobSizes:        sizes,
-		ShareVersions:    shareVersions,
 	}
 
 	return msg, msg.ValidateBasic()
@@ -93,14 +81,6 @@ func (msg *MsgPayForBlobs) Type() string {
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual blob(s)
 func (msg *MsgPayForBlobs) ValidateBasic() error {
-	if len(msg.Namespaces) == 0 {
-		return ErrNoNamespaces
-	}
-
-	if len(msg.ShareVersions) == 0 {
-		return ErrNoShareVersions
-	}
-
 	if len(msg.BlobSizes) == 0 {
 		return ErrNoBlobSizes
 	}
@@ -109,28 +89,11 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 		return ErrNoShareCommitments
 	}
 
-	if len(msg.Namespaces) != len(msg.ShareVersions) || len(msg.Namespaces) != len(msg.BlobSizes) || len(msg.Namespaces) != len(msg.ShareCommitments) {
+	if len(msg.BlobSizes) != len(msg.ShareCommitments) {
 		return ErrMismatchedNumberOfPFBComponent.Wrapf(
-			"namespaces %d blob sizes %d share versions %d share commitments %d",
-			len(msg.Namespaces), len(msg.BlobSizes), len(msg.ShareVersions), len(msg.ShareCommitments),
+			"blob sizes %d share commitments %d",
+			len(msg.ShareCommitments), len(msg.ShareCommitments),
 		)
-	}
-
-	for _, namespace := range msg.Namespaces {
-		ns, err := appns.From(namespace)
-		if err != nil {
-			return errors.Wrap(ErrInvalidNamespace, err.Error())
-		}
-		err = ValidateBlobNamespace(ns)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, v := range msg.ShareVersions {
-		if v != uint32(appconsts.ShareVersionZero) {
-			return ErrUnsupportedShareVersion
-		}
 	}
 
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -238,20 +201,12 @@ func ValidateBlobs(blobs ...*blob.Blob) error {
 	return nil
 }
 
-// ExtractBlobComponents separates and returns the components of a slice of
-// blobs.
-func ExtractBlobComponents(pblobs []*blob.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
-	namespaceVersions = make([]uint32, len(pblobs))
-	namespaceIds = make([][]byte, len(pblobs))
-	sizes = make([]uint32, len(pblobs))
-	shareVersions = make([]uint32, len(pblobs))
-
-	for i, pblob := range pblobs {
-		namespaceVersions[i] = pblob.NamespaceVersion
-		namespaceIds[i] = pblob.NamespaceId
-		sizes[i] = uint32(len(pblob.Data))
-		shareVersions[i] = pblob.ShareVersion
+// GetBlobSizes returns a slice of blobs sizes.
+// TODO: consider un-exporting this.
+func GetBlobSizes(blobs []*blob.Blob) (sizes []uint32) {
+	for _, pblob := range blobs {
+		size := uint32(len(pblob.Data))
+		sizes = append(sizes, size)
 	}
-
-	return namespaceVersions, namespaceIds, sizes, shareVersions
+	return sizes
 }

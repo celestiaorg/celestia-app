@@ -31,7 +31,6 @@ func TestPayForBlobs(t *testing.T) {
 	k, _, ctx := CreateKeeper(t)
 	signer := "celestia15drmhzw5kwgenvemy30rqqqgq52axf5wwrruf7"
 	namespace := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	namespaces := [][]byte{namespace.Bytes()}
 	blobData := []byte("blob")
 	blobSizes := []uint32{uint32(len(blobData))}
 
@@ -54,7 +53,6 @@ func TestPayForBlobs(t *testing.T) {
 
 	// verify the attributes of the event
 	assert.Equal(t, signer, event.Signer)
-	assert.Equal(t, namespaces, event.Namespaces)
 	assert.Equal(t, blobSizes, event.BlobSizes)
 }
 

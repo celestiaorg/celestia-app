@@ -21,7 +21,6 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -32,9 +31,6 @@ func TestProcessProposal(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
-	addr := testfactory.GetAddress(kr, accounts[0])
-	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence)
-	require.NoError(t, err)
 
 	// create 4 single blob blobTxs that are signed with valid account numbers
 	// and sequences
@@ -197,23 +193,6 @@ func TestProcessProposal(t *testing.T) {
 				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
-				d.Hash = calculateNewDataHash(t, d.Txs)
-			},
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
-			name:  "invalid namespace in index wrapper tx",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				index := 4
-				tx, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
-				blobTx, err := blob.MarshalBlobTx(tx, &b)
-				require.NoError(t, err)
-
-				// Replace the data with new contents
-				d.Txs = [][]byte{blobTx}
-
-				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,

@@ -89,7 +89,7 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return bbtx
 			},
-			expectedABCICode: blobtypes.ErrNamespaceMismatch.ABCICode(),
+			expectedABCICode: blobtypes.ErrInvalidShareCommitment.ABCICode(),
 		},
 		{
 			name:      "PFB with no blob, CheckTxType_New",

@@ -70,24 +70,6 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx blob.BlobTx) error {
 		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
 	}
 
-	for i, ns := range msgPFB.Namespaces {
-		msgPFBNamespace, err := appns.From(ns)
-		if err != nil {
-			return err
-		}
-
-		// this not only checks that the pfb namespaces match the ones in the blobs
-		// but that the namespace version and namespace id are valid
-		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
-		if err != nil {
-			return err
-		}
-
-		if !bytes.Equal(blobNamespace.Bytes(), msgPFBNamespace.Bytes()) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", blobNamespace.Bytes(), msgPFB.Namespaces[i])
-		}
-	}
-
 	// verify that the commitment of the blob matches that of the msgPFB
 	for i, commitment := range msgPFB.ShareCommitments {
 		calculatedCommit, err := inclusion.CreateCommitment(bTx.Blobs[i])
