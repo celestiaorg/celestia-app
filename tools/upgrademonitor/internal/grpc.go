@@ -56,5 +56,8 @@ func Publish(conn *grpc.ClientConn, pathToTransaction string) (*types.TxResponse
 }
 
 func IsUpgradeable(response *upgradetypes.QueryVersionTallyResponse) bool {
-	return response.GetVotingPower() > response.ThresholdPower
+    if response == nil {
+        return false
+    }
+    return response.GetVotingPower() > response.ThresholdPower
 }
