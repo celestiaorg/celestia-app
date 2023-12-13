@@ -39,7 +39,11 @@ var rootCmd = &cobra.Command{
 					if err != nil {
 						return err
 					}
-					fmt.Printf("published transaction: %v\n", resp.TxHash)
+					if resp.Code != 0 {
+						fmt.Printf("failed to publish transaction: %v\n", resp.RawLog)
+					} else {
+						fmt.Printf("published transaction: %v\n", resp.TxHash)
+					}
 					return nil // stop the upgrademonitor
 				}
 			}
