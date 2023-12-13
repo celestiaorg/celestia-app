@@ -85,7 +85,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	if len(msg.BlobSizes) != len(msg.ShareCommitments) {
 		return ErrMismatchedNumberOfPFBComponent.Wrapf(
 			"blob sizes %d share commitments %d",
-			len(msg.ShareCommitments), len(msg.ShareCommitments),
+			len(msg.BlobSizes), len(msg.ShareCommitments),
 		)
 	}
 
