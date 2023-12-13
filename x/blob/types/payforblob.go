@@ -63,13 +63,6 @@ func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, err
 	return msg, msg.ValidateBasic()
 }
 
-func namespacesToBytes(namespaces []appns.Namespace) (result [][]byte) {
-	for _, namespace := range namespaces {
-		result = append(result, namespace.Bytes())
-	}
-	return result
-}
-
 // Route fulfills the legacytx.LegacyMsg interface
 func (msg *MsgPayForBlobs) Route() string { return RouterKey }
 
