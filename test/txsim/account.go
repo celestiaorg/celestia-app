@@ -47,6 +47,7 @@ func NewAccountManager(
 	keys keyring.Keyring,
 	encCfg encoding.Config,
 	masterAccName string,
+	chainID string,
 	conn *grpc.ClientConn,
 	pollTime time.Duration,
 	useFeegrant bool,
@@ -77,7 +78,7 @@ func NewAccountManager(
 		}
 	}
 
-	if err := am.setupMasterAccount(ctx, masterAccName); err != nil {
+	if err := am.setupMasterAccount(ctx, masterAccName, chainID); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +128,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 // setupMasterAccount loops through all accounts in the keyring and picks out the one with
 // the highest balance as the master account. Accounts that don't yet exist on chain are
 // ignored.
-func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName string) error {
+func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName string, chainID string) error {
 	masterRecord, err := am.keys.Key(masterAccName)
 	if err != nil {
 		return fmt.Errorf("error getting master account %s: %w", masterAccName, err)
@@ -144,7 +145,11 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	am.master, err = user.SetupSigner(ctx, am.keys, am.conn, masterAddress, am.encCfg)
+	accNum, seqNum, err := user.QueryAccount(ctx, am.conn, am.encCfg, masterAddress.String())
+	if err != nil {
+		return err
+	}
+	am.master, err = user.NewSigner(am.keys, am.conn, masterAddress, am.encCfg.TxConfig, chainID, accNum, seqNum)
 	if err != nil {
 		return err
 	}

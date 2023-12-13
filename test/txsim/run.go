@@ -50,7 +50,7 @@ func Run(
 	}
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
+	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, opts.chainID, conn, opts.pollTime, opts.useFeeGrant)
 	if err != nil {
 		return err
 	}
@@ -118,6 +118,7 @@ func Run(
 type Options struct {
 	seed           int64
 	masterAcc      string
+	chainID        string
 	pollTime       time.Duration
 	useFeeGrant    bool
 	suppressLogger bool
@@ -155,6 +156,11 @@ func (o *Options) SpecifyMasterAccount(name string) *Options {
 
 func (o *Options) WithSeed(seed int64) *Options {
 	o.seed = seed
+	return o
+}
+
+func (o *Options) WithChainID(chainID string) *Options {
+	o.chainID = chainID
 	return o
 }
 

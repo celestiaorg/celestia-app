@@ -34,13 +34,13 @@ const (
 
 // Values for all flags
 var (
-	keyPath, masterAccName, keyMnemonic, grpcEndpoint string
-	blobSizes, blobAmounts                            string
-	seed                                              int64
-	pollTime                                          time.Duration
-	send, sendIterations, sendAmount                  int
-	stake, stakeValue, blob                           int
-	useFeegrant, suppressLogs                         bool
+	keyPath, masterAccName, keyMnemonic, grpcEndpoint, chainID string
+	blobSizes, blobAmounts                                     string
+	seed                                                       int64
+	pollTime                                                   time.Duration
+	send, sendIterations, sendAmount                           int
+	stake, stakeValue, blob                                    int
+	useFeegrant, suppressLogs                                  bool
 )
 
 func main() {
@@ -152,7 +152,8 @@ well funded account that can act as the master account. The command runs until a
 
 			opts := txsim.DefaultOptions().
 				SpecifyMasterAccount(masterAccName).
-				WithSeed(seed)
+				WithSeed(seed).
+				WithChainID(chainID)
 
 			if useFeegrant {
 				opts.UseFeeGrant()
@@ -188,6 +189,7 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&masterAccName, "master", "", "the account name of the master account. Leaving empty will result in using the account with the most funds.")
 	flags.StringVar(&keyMnemonic, "key-mnemonic", "", "space separated mnemonic for the keyring. The hdpath used is an empty string")
 	flags.StringVar(&grpcEndpoint, "grpc-endpoint", "", "grpc endpoint to a running node")
+	flags.StringVar(&chainID, "chain-id", "", "chain id")
 	flags.Int64Var(&seed, "seed", 0, "seed for the random number generator")
 	flags.DurationVar(&pollTime, "poll-time", user.DefaultPollTime, "poll time for the transaction client")
 	flags.IntVar(&send, "send", 0, "number of send sequences to run")
