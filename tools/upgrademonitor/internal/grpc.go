@@ -7,6 +7,7 @@ import (
 
 	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 
+	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"google.golang.org/grpc"
@@ -40,9 +41,11 @@ func Publish(conn *grpc.ClientConn, pathToTransaction string) (*types.TxResponse
 	return res.GetTxResponse(), nil
 }
 
-func IsUpgradeable(response *upgradetypes.QueryVersionTallyResponse) bool {
-	if response == nil {
-		return false
+func QueryCurrentVersion(conn *grpc.ClientConn) (uint64, error) {
+	client := tmservice.NewServiceClient(conn)
+	resp, err := client.GetLatestBlock(context.Background(), &tmservice.GetLatestBlockRequest{})
+	if err != nil {
+		return 0, err
 	}
-	return response.GetVotingPower() > response.ThresholdPower
+	return resp.GetBlock().GetHeader().Version.App, nil
 }

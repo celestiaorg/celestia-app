@@ -28,14 +28,21 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("invalid transaction: %v", err)
 		}
 
+		currentVersion, err := internal.QueryCurrentVersion(conn)
+		if err != nil {
+			return err
+		}
+		nextVersion := currentVersion + 1
+		fmt.Printf("currentVersion: %v, nextVersion: %v\n", currentVersion, nextVersion)
+
 		for {
 			select {
 			case <-ticker.C:
-				resp, err := internal.QueryVersionTally(conn, version)
+				resp, err := internal.QueryVersionTally(conn, nextVersion)
 				if err != nil {
 					return err
 				}
-				fmt.Printf("version: %v, voting: %v, threshold: %v, total: %v\n", version, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
+				fmt.Printf("nextVersion: %v, voting: %v, threshold: %v, total: %v\n", nextVersion, resp.GetVotingPower(), resp.GetThresholdPower(), resp.GetTotalVotingPower())
 
 				if internal.IsUpgradeable(resp) {
 					fmt.Printf("the network is upgradeable so publishing %v\n", pathToTransaction)
@@ -44,10 +51,9 @@ var rootCmd = &cobra.Command{
 						return err
 					}
 					if resp.Code != 0 {
-						fmt.Printf("failed to publish transaction: %v\n", resp.RawLog)
-					} else {
-						fmt.Printf("published transaction: %v\n", resp.TxHash)
+						return fmt.Errorf("failed to publish transaction: %v\n", resp.RawLog)
 					}
+					fmt.Printf("published transaction: %v\n", resp.TxHash)
 					return nil // stop the upgrademonitor
 				}
 			}
@@ -56,8 +62,6 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	// Bind the version variable to the --version flag
-	rootCmd.Flags().Uint64Var(&version, "version", defaultVersion, "version to monitor")
 	// Bind the grpcEndpoint variable to the --grpc-endpoint flag
 	rootCmd.Flags().StringVar(&grpcEndpoint, "grpc-endpoint", defaultGrpcEndpoint, "GRPC endpoint of a consensus node")
 	// Bind the pollFrequency variable to the --poll-frequency flag
