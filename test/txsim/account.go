@@ -145,6 +145,15 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
+	if chainID == "" {
+		resp, err := tmservice.NewServiceClient(am.conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
+		if err != nil {
+			return err
+		}
+
+		chainID = resp.SdkBlock.Header.ChainID
+	}
+
 	accNum, seqNum, err := user.QueryAccount(ctx, am.conn, am.encCfg, masterAddress.String())
 	if err != nil {
 		return err
