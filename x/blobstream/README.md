@@ -159,7 +159,7 @@ To check if the latest attestation nonce is defined in store, use the [`CheckLat
 
 ### Latest unbonding height
 
-The latest unbonding height indicates the most recent height at which some validator started unbdonding. It is not initialized in genesis, and the keeper getter
+The latest unbonding height indicates the most recent height at which some validator started unbonding. It is not initialized in genesis, and the keeper getter
 [`GetLatestUnBondingBlockHeight(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_valset.go#L66-L77) returns **0** if the value is still not defined.
 
 | Name                   | Key                                                                                                                                                      |
@@ -222,7 +222,7 @@ The Blobstream state machine prunes old attestations up to the specified [`Attes
 
 So, on every block height, the state machine [checks](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L140-L157) whether there are any [`expired`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25) attestations. Then, it starts [pruning](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161-L182) via calling the [`DeleteAttestation(...)`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/keeper_attestation.go#L128-L139) method. Then, it [`prints`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L186-L194) a log message specifying the number of pruned attestations.
 
-If the all the attestations in store are expired, which is an edge case that should never occur, the Blobstream state machine [doesn't prune](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161) the latest attestation.
+If all the attestations in store are expired, which is an edge case that should never occur, the Blobstream state machine [doesn't prune](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161) the latest attestation.
 
 ### Hooks
 
