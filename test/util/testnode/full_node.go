@@ -19,9 +19,7 @@ import (
 // already initialized and saved to the baseDir.
 func NewCometNode(baseDir string, cfg *UniversalTestingConfig) (*node.Node, srvtypes.Application, error) {
 	logger := newLogger(cfg)
-	// Put the database in a new directory called "database" instead of "data"
-	// because "data" will be managed by CometBFT.
-	dbPath := filepath.Join(cfg.TmConfig.RootDir, "database")
+	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
 	db, err := dbm.NewGoLevelDB("application", dbPath)
 	if err != nil {
 		return nil, nil, err
