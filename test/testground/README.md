@@ -95,7 +95,7 @@ testground terminate --runner cluster:k8s
 ### Grafana
 
 All metrics data is logged to a separate testground specific grafana/influx
-node. To access that node, forward the ports use kubectl.
+node. To access that node, forward the ports using kubectl.
 
 ```sh
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=tg-monitoring" -o jsonpath="{.items[0].metadata.name}")
