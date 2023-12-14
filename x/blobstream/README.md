@@ -159,7 +159,7 @@ To check if the latest attestation nonce is defined in store, use the [`CheckLat
 
 ### Latest unbonding height
 
-The latest unbonding height indicates the most recent height at which some validator started unbdonding. It is not initialized in genesis, and the keeper getter
+The latest unbonding height indicates the most recent height at which some validator started unbonding. It is not initialized in genesis, and the keeper getter
 [`GetLatestUnBondingBlockHeight(...)`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/keeper/keeper_valset.go#L66-L77) returns **0** if the value is still not defined.
 
 | Name                   | Key                                                                                                                                                      |
