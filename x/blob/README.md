@@ -206,4 +206,4 @@ The response of CometBFT API endpoints (e.g. `/cosmos/base/tendermint/v1beta1/bl
    1. If it is a `BlobTx`, then unmarshal the `BlobTx`'s `Tx` field into a `sdk.Tx` type.
    1. If it is not a `BlobTx`, then unmarshal the transaction into a `sdk.Tx` type.
 
-See this [Go Playground](https://go.dev/play/p/rdB1uVlQRml) for a code exmaple.
+See [test/decode_blob_tx_test.go](./test/decode_blob_tx_test.go) for an example of how to do this.
