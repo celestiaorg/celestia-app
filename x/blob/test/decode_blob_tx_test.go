@@ -73,12 +73,12 @@ func getBlockResponse(t *testing.T) BlockResponse {
 	path := filepath.Join("testdata", "block_response.json")
 	fileContents, err := os.ReadFile(path)
 	if err != nil {
-		t.Errorf("reading json file: %v", err)
+		t.Fatalf("reading json file: %v", err)
 	}
 
 	var blockResponse BlockResponse
 	if err := json.Unmarshal(fileContents, &blockResponse); err != nil {
-		t.Errorf("error decoding JSON block response: %v", err)
+		t.Fatalf("error decoding JSON block response: %v", err)
 	}
 	return blockResponse
 }
