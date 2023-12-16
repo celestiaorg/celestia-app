@@ -77,7 +77,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		},
 	}
 
-	// run the above test case for each square size the specified number of
+	// run the above test case for each square size with the specified number of
 	// iterations
 	for _, size := range sizes {
 		// setup a new application with different MaxBytes consensus parameter
