@@ -60,7 +60,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 	}
 
-	// build the square from the set of valid and prioritised transactions.
+	// build the square from the set of valid and prioritized transactions.
 	// The txs returned are the ones used in the square and block
 	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(sdkCtx), app.GovSquareSizeUpperBound(sdkCtx))
 	if err != nil {
