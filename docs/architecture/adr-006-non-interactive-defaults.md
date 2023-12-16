@@ -242,7 +242,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
    // squares but can only return values within the min and max square size.
    squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, req.BlockData.Evidence)
 
-   // the totalSharesUsed can be larger that the max number of shares if we
+   // the totalSharesUsed can be larger than the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
    // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {
