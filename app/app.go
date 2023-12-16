@@ -246,7 +246,7 @@ type App struct {
 //
 // NOTE: upgradeHeight refers specifically to the height that
 // a node will upgrade from v1 to v2. It will be deprecated in v3
-// in place for a dynamically signalling scheme
+// in place for a dynamically signaling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
