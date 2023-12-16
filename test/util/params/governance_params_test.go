@@ -2,18 +2,21 @@ package params_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
-	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 type HandlerTestSuite struct {
@@ -47,21 +50,19 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 	}{
 		// This parameters below should not be modifiable, however the tests show they are.
 		{
-			"conensus.block",
+			"bank.SendEnabled",
 			testProposal(proposal.ParamChange{
-				Subspace: baseapp.Paramspace,
-				Key:      string(baseapp.ParamStoreKeyBlockParams),
-				Value:    `{"max_bytes": "100", "max_gas": "100"}`,
+				Subspace: banktypes.ModuleName,
+				Key:      string(banktypes.KeySendEnabled),
+				Value:    `[{"denom": "test", "enabled": false}]`,
 			}),
 			func() {
-				blockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
-				suite.Require().Equal(abci.BlockParams{
-					MaxBytes: 100,
-					MaxGas:   100,
-				}, *blockParams)
+				sendEnabledParams := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
+				suite.Require().Equal([]*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}, sendEnabledParams)
 			},
 			false,
 		},
+		// TimeIotaMs is not in conensus.block
 		{
 			"conensus.validator.PubKeyTypes",
 			testProposal(proposal.ParamChange{
@@ -79,6 +80,83 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 			},
 			false,
 		},
+		{
+			"consensus.Version.AppVersion",
+			testProposal(proposal.ParamChange{
+				Subspace: baseapp.Paramspace,
+				Key:      string(baseapp.ParamStoreKeyVersionParams),
+				Value:    `{"app_version": "3"}`,
+			}),
+			func() {
+				versionParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Version
+				suite.Require().Equal(
+					tmproto.VersionParams{
+						AppVersion: 3,
+					},
+					*versionParams)
+			},
+			false,
+		},
+		{
+			"mint.MintDenom",
+			testProposal(proposal.ParamChange{
+				Subspace: minttypes.ModuleName,
+				Key:      string(minttypes.KeyMintDenom),
+				Value:    `"test"`,
+			}),
+			func() {
+				mintParams := suite.app.MintKeeper.GetParams(suite.ctx)
+				suite.Require().Equal(
+					mintParams.MintDenom,
+					"test")
+			},
+			false,
+		},
+		{
+			"staking.BondDenom",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyBondDenom),
+				Value:    `"test"`,
+			}),
+			func() {
+				stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+				suite.Require().Equal(
+					stakingParams.BondDenom,
+					"test")
+			},
+			false,
+		},
+		{
+			"staking.MaxValidators",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyMaxValidators),
+				Value:    `1`,
+			}),
+			func() {
+				stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+				suite.Require().Equal(
+					stakingParams.MaxValidators,
+					uint32(1))
+			},
+			false,
+		},
+		{
+			"staking.UnbondingTime",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyUnbondingTime),
+				Value:    `"1"`,
+			}),
+			func() {
+				stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+				suite.Require().Equal(
+					stakingParams.UnbondingTime,
+					time.Duration(1))
+			},
+			false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -89,7 +167,7 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 				suite.Require().Error(validationErr)
 			} else {
 				suite.Require().NoError(validationErr)
-
+				tc.onHandle()
 			}
 		})
 	}
