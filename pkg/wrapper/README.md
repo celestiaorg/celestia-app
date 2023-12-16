@@ -32,7 +32,7 @@ In addition, the NMT wrapper is configured with the original data square size `S
 These additional configurations are used to determine the namespace ID of the shares that the NMT wrapper represents based on the quadrants to which they belong.
 
 NMT wrapper supports [Merkle inclusion proof][nmtlink] for the given share index and [Merkle range proof][nmtlink] for a range of share indices.
-It extends the NMT data insertion behaviour (i.e., the [`Push` method][nmt-add-leaves-link]) to prepend shares with proper namespace before inclusion in the tree.
+It extends the NMT data insertion behavior (i.e., the [`Push` method][nmt-add-leaves-link]) to prepend shares with proper namespace before inclusion in the tree.
 
 ### Namespace ID assignment to the shares of an extended data square
 
