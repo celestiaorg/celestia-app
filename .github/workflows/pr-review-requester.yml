@@ -1,7 +1,7 @@
 name: pr-review-requester
 
 on:
-  # pull_request_target is used to allow forks write permissions when running
+  # pull_request_target is used to allow forks to write permissions when running
   # this workflow. With the pull_request trigger, forks do not have any write
   # access for security reasons, however write access is needed in order to
   # request reviews. Since this workflow is simply requesting reviewers, it is
