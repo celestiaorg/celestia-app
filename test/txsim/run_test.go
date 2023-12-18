@@ -37,7 +37,7 @@ func TestTxSimulator(t *testing.T) {
 	}{
 		{
 			name:      "send sequence",
-			sequences: []txsim.Sequence{txsim.NewSendSequence(2, 1000, 100)},
+			sequences: []txsim.Sequence{txsim.NewSendSequence(2, 1000, 100, 0.002)},
 			// we expect at least 5 bank send messages within 30 seconds
 			expMessages: map[string]int64{sdk.MsgTypeURL(&bank.MsgSend{}): 5},
 		},
@@ -71,7 +71,7 @@ func TestTxSimulator(t *testing.T) {
 		{
 			name: "multi mixed sequence",
 			sequences: append(append(
-				txsim.NewSendSequence(2, 1000, 100).Clone(3),
+				txsim.NewSendSequence(2, 1000, 100, 0.002).Clone(3),
 				txsim.NewStakeSequence(1000).Clone(3)...),
 				txsim.NewBlobSequence(txsim.NewRange(1000, 1000), txsim.NewRange(1, 3)).Clone(3)...),
 			expMessages: map[string]int64{
@@ -84,7 +84,7 @@ func TestTxSimulator(t *testing.T) {
 		{
 			name: "multi mixed sequence using feegrant",
 			sequences: append(append(
-				txsim.NewSendSequence(2, 1000, 100).Clone(3),
+				txsim.NewSendSequence(2, 1000, 100, 0.002).Clone(3),
 				txsim.NewStakeSequence(1000).Clone(3)...),
 				txsim.NewBlobSequence(txsim.NewRange(1000, 1000), txsim.NewRange(1, 3)).Clone(3)...),
 			expMessages: map[string]int64{

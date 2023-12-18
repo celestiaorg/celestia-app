@@ -27,9 +27,10 @@ type SendSequence struct {
 	accounts       []types.AccAddress
 	index          int
 	numIterations  int
+	gasPrice       float64
 }
 
-func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
+func NewSendSequence(numAccounts, sendAmount, numIterations int, gasPrice float64) *SendSequence {
 	return &SendSequence{
 		numAccounts:    numAccounts,
 		sendAmount:     sendAmount,
@@ -41,7 +42,7 @@ func NewSendSequence(numAccounts, sendAmount, numIterations int) *SendSequence {
 func (s *SendSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
 	for i := 0; i < n; i++ {
-		sequenceGroup[i] = NewSendSequence(s.numAccounts, s.sendAmount, s.numIterations)
+		sequenceGroup[i] = NewSendSequence(s.numAccounts, s.sendAmount, s.numIterations, s.gasPrice)
 	}
 	return sequenceGroup
 }
@@ -49,7 +50,7 @@ func (s *SendSequence) Clone(n int) []Sequence {
 // Init sets up the accounts involved in the sequence. It calculates the necessary balance as the fees per transaction
 // multiplied by the number of expected iterations plus the amount to be sent from one account to another
 func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, _ bool) {
-	amount := s.sendAmount + (s.numIterations * int(sendFee))
+	amount := s.sendAmount + (s.numIterations * int(SendGasLimit*s.gasPrice))
 	s.accounts = allocateAccounts(s.numAccounts, amount)
 }
 
@@ -64,6 +65,7 @@ func (s *SendSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 		},
 		Delay:    uint64(rand.Int63n(int64(s.maxHeightDelay))),
 		GasLimit: SendGasLimit,
+		GasPrice: s.gasPrice,
 	}
 	s.index++
 	return op, nil

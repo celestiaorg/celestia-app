@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -39,6 +40,7 @@ var (
 	seed                                              int64
 	pollTime                                          time.Duration
 	send, sendIterations, sendAmount                  int
+	gasPrice                                          float64
 	stake, stakeValue, blob                           int
 	useFeegrant, suppressLogs                         bool
 )
@@ -114,7 +116,7 @@ well funded account that can act as the master account. The command runs until a
 			}
 
 			if send > 0 {
-				sequences = append(sequences, txsim.NewSendSequence(2, sendAmount, sendIterations).Clone(send)...)
+				sequences = append(sequences, txsim.NewSendSequence(2, sendAmount, sendIterations, gasPrice).Clone(send)...)
 			}
 
 			if blob > 0 {
@@ -191,6 +193,7 @@ func flags() *flag.FlagSet {
 	flags.Int64Var(&seed, "seed", 0, "seed for the random number generator")
 	flags.DurationVar(&pollTime, "poll-time", user.DefaultPollTime, "poll time for the transaction client")
 	flags.IntVar(&send, "send", 0, "number of send sequences to run")
+	flags.Float64Var(&gasPrice, "sendGasPrice", appconsts.DefaultMinGasPrice, "specify the gas price for sequences that support a specific gas price")
 	flags.IntVar(&sendIterations, "send-iterations", 1000, "number of send iterations to run per sequence")
 	flags.IntVar(&sendAmount, "send-amount", 1000, "amount to send from one account to another")
 	flags.IntVar(&stake, "stake", 0, "number of stake sequences to run")

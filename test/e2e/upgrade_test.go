@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/txsim"
@@ -68,7 +69,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100, appconsts.DefaultMinGasPrice).Clone(5)...)
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -173,7 +174,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100, appconsts.DefaultMinGasPrice).Clone(5)...)
 	go func() {
 		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	}()

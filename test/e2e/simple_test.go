@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
@@ -55,7 +56,7 @@ func TestE2ESimple(t *testing.T) {
 	require.NoError(t, testnet.Start())
 
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100, appconsts.DefaultMinGasPrice).Clone(5)...)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
