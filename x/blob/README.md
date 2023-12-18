@@ -197,7 +197,7 @@ function can be reverse engineered to submit blobs programmatically.
 
 Q: Why do the PFB transactions in the response from Comet BFT API endpoints fail to decode to valid transaction hashes?
 
-The response of CometBFT API endpoints (e.g. `/cosmos/base/tendermint/v1beta1/blocks/{block_number}`) will contain a field called `txs` with base64 encoded transactions. On most Cosmos based chains, one can base64 decode the transactions in the response and unmarshal the result into a `sdk.Tx` type. However, on Celestia, the `BlobTx` type is a wrapper around the Cosmos SDK transaction. For this reason, the transactions in the response can't directly be decoded and used. In order to use the response, one must unpack the transaction inside any `BlobTx`s. In other words:
+The response of CometBFT API endpoints (e.g. `/cosmos/base/tendermint/v1beta1/blocks/{block_number}`) will contain a field called `txs` with base64 encoded transactions. In Celestia, transactions may have one of the two possible types of `sdk.Tx` or `BlobTx` (which wraps around a `sdk.Tx`). As such, each transaction should be first decoded and then gets unmarshalled according to its type, as explained below: 
 
 1. Base64 decode the transaction
 1. Check to see if the transaction is a `BlobTx` by unmarshalling it into a `BlobTx` type.
