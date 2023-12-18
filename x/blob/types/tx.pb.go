@@ -30,7 +30,8 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
 type MsgPayForBlobs struct {
-	// signer is the bech32 encoded signer address
+	// signer is the bech32 encoded signer address. See
+	// https://en.bitcoin.it/wiki/Bech32.
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// namespaces is a list of namespaces that the blobs are associated with. A
 	// namespace is a byte slice of length 29 where the first byte is the

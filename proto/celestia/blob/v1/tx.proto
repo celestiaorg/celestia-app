@@ -15,7 +15,8 @@ service Msg {
 
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
 message MsgPayForBlobs {
-  // signer is the bech32 encoded signer address
+  // signer is the bech32 encoded signer address. See
+  // https://en.bitcoin.it/wiki/Bech32.
   string signer = 1;
   // namespaces is a list of namespaces that the blobs are associated with. A
   // namespace is a byte slice of length 29 where the first byte is the
