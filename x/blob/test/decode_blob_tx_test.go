@@ -36,8 +36,9 @@ func TestDecodeBlobTx(t *testing.T) {
 			t.Errorf("error decoding tx: %v", err)
 		}
 
+		// The last transaction in the block is a blob transaction.
+		// https://celenium.io/tx/C55BDD3DF3348A9F8D9206528051804754F009A1B9D0F69CCC2F9D4334215D21
 		if i == 273 {
-			// https://celenium.io/tx/C55BDD3DF3348A9F8D9206528051804754F009A1B9D0F69CCC2F9D4334215D21
 			wantHash := "C55BDD3DF3348A9F8D9206528051804754F009A1B9D0F69CCC2F9D4334215D21"
 			gotHash := strings.ToUpper(hex.EncodeToString(hash(txBytes)))
 			assert.Equal(t, wantHash, gotHash)
