@@ -2,9 +2,7 @@ package test
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,23 +14,12 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/tendermint/tendermint/proto/tendermint/blockchain"
 )
-
-type BlockResponse struct {
-	Block Block `json:"block"`
-}
-
-type Block struct {
-	Data BlockData `json:"data"`
-}
-
-type BlockData struct {
-	Txs []string `json:"txs"`
-}
 
 // TestDecodeBlobTx demonstrates how one can take the response from the Comet
 // BFT API endpoint /cosmos/base/tendermint/v1beta1/blocks/{block_number} and
-// convert a base64 encoded transaction into an sdk.Tx.
+// convert all encoded transactions into sdk.Tx.
 //
 // NOTE: this process differs from other Cosmos SDK chains because the
 // transactions of type BlobTx won't be usable directly. One needs to extract
@@ -41,12 +28,7 @@ func TestDecodeBlobTx(t *testing.T) {
 	blockResponse := getBlockResponse(t)
 
 	for i, rawTx := range blockResponse.Block.Data.Txs {
-		decoded, err := base64Decode(rawTx)
-		if err != nil {
-			t.Errorf("error decoding base64 tx: %v", err)
-		}
-
-		txBytes := getTxBytes(decoded)
+		txBytes := getTxBytes(rawTx)
 		tx, err := decodeTx(txBytes)
 		if err != nil {
 			t.Errorf("error decoding tx: %v", err)
@@ -65,7 +47,7 @@ func TestDecodeBlobTx(t *testing.T) {
 	}
 }
 
-func getBlockResponse(t *testing.T) BlockResponse {
+func getBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
 	// block_response.json is the JSON response from the API endpoint:
 	// https://api.celestia.pops.one/cosmos/base/tendermint/v1beta1/blocks/408
 	// The response was persisted to block_response.json so that this test
@@ -76,15 +58,11 @@ func getBlockResponse(t *testing.T) BlockResponse {
 		t.Fatalf("reading json file: %v", err)
 	}
 
-	var blockResponse BlockResponse
-	if err := json.Unmarshal(fileContents, &blockResponse); err != nil {
-		t.Fatalf("error decoding JSON block response: %v", err)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	if err = encodingConfig.Codec.UnmarshalJSON(fileContents, &resp); err != nil {
+		t.Fatalf("error unmarshal JSON block response: %v", err)
 	}
-	return blockResponse
-}
-
-func base64Decode(s string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(s)
+	return resp
 }
 
 func getTxBytes(txBytes []byte) []byte {
