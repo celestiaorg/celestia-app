@@ -27,7 +27,7 @@ import (
 // transactions of type BlobTx won't be usable directly. One needs to extract
 // the Tx field inside the BlobTx prior to decoding it as an sdk.Tx.
 func TestDecodeBlobTx(t *testing.T) {
-	blockResponse := getBlockResponse(t)
+	blockResponse := getTestdataBlockResponse(t)
 
 	for i, rawTx := range blockResponse.Block.Data.Txs {
 		txBytes := getTxBytes(rawTx)
@@ -59,7 +59,8 @@ func TestDecodeBlobTx(t *testing.T) {
 	}
 }
 
-func getBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
+// getTestdataBlockResponse gets the block response from the testdata directory.
+func getTestdataBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
 	// block_response.json is the JSON response from the API endpoint:
 	// https://api.celestia.pops.one/cosmos/base/tendermint/v1beta1/blocks/408
 	// The response was persisted to block_response.json so that this test
