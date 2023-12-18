@@ -15,7 +15,7 @@ After the `BlobTx` is submitted to the network, a block producer separates the
 the `sdk.Tx` from the blob(s). Both components get included in the
 data square in different namespaces:
 
-1. The `sdk.Tx` and some metadata about the separated blobs gets included in the PayForBlobNamespace (one of the [reserved namespaces](../../specs/src/specs/namespace.md#reserved-namespaces)).
+1. The `sdk.Tx` and some metadata about the separated blobs gets included in the `PayForBlobNamespace` (one of the [reserved namespaces](../../specs/src/specs/namespace.md#reserved-namespaces)).
 1. The blob(s) get included in the namespace specified by each blob.
 
 Further reading: [Data Square Layout](../../specs/src/specs/data_square_layout.md).
