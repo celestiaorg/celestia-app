@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/tendermint/tendermint/proto/tendermint/blockchain"
@@ -40,9 +41,18 @@ func TestDecodeBlobTx(t *testing.T) {
 			gotHash := strings.ToUpper(hex.EncodeToString(hash(txBytes)))
 			assert.Equal(t, wantHash, gotHash)
 
+			msg := tx.GetMsgs()[0]
 			wantSigner := "celestia18y3ydyn7uslhuxu4lcm2x83gkdhrrcyaqvg6gk"
-			gotSigner := tx.GetMsgs()[0].GetSigners()[0].String()
+			gotSigner := msg.GetSigners()[0].String()
 			assert.Equal(t, gotSigner, wantSigner)
+
+			msgPayForBlobs, ok := msg.(*blobtypes.MsgPayForBlobs)
+			if !ok {
+				t.Errorf("expected MsgPayForBlobs, got %T", msg)
+			}
+			wantNamespace := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8, 0xe5, 0xf6, 0x79, 0xbf, 0x71, 0x16, 0xcb}
+			gotNamespace := msgPayForBlobs.Namespaces[0]
+			assert.Equal(t, wantNamespace, gotNamespace)
 		}
 	}
 }
