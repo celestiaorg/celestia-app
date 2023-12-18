@@ -37,7 +37,7 @@ func TestDecodeBlobTx(t *testing.T) {
 		if i == 273 {
 			// https://celenium.io/tx/C55BDD3DF3348A9F8D9206528051804754F009A1B9D0F69CCC2F9D4334215D21
 			wantHash := "C55BDD3DF3348A9F8D9206528051804754F009A1B9D0F69CCC2F9D4334215D21"
-			gotHash := strings.ToUpper(hex.EncodeToString(sum(txBytes)))
+			gotHash := strings.ToUpper(hex.EncodeToString(hash(txBytes)))
 			assert.Equal(t, wantHash, gotHash)
 
 			wantSigner := "celestia18y3ydyn7uslhuxu4lcm2x83gkdhrrcyaqvg6gk"
@@ -83,7 +83,7 @@ func decodeTx(txBytes []byte) (types.Tx, error) {
 	return tx, nil
 }
 
-func sum(bz []byte) []byte {
-	h := sha256.Sum256(bz)
-	return h[:]
+func hash(bz []byte) []byte {
+	checksum := sha256.Sum256(bz)
+	return checksum[:]
 }
