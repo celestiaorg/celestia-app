@@ -18,9 +18,10 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/blockchain"
 )
 
-// TestDecodeBlobTx demonstrates how one can take the response from the Comet
-// BFT API endpoint /cosmos/base/tendermint/v1beta1/blocks/{block_number} and
-// convert all encoded transactions into sdk.Tx.
+// TestDecodeBlobTx demonstrates how one can take the response from the
+// celestia-core API endpoint:
+// `/cosmos/base/tendermint/v1beta1/blocks/{block_number}`
+// and convert all encoded transactions into sdk.Tx.
 //
 // NOTE: this process differs from other Cosmos SDK chains because the
 // transactions of type BlobTx won't be usable directly. One needs to extract
