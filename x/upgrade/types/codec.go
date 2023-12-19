@@ -5,6 +5,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
@@ -19,5 +20,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgTryUpgrade{})
 	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgSignalVersion{})
+	registry.RegisterInterface("cosmos.auth.v1beta1.BaseAccount", (*authtypes.AccountI)(nil))
+	registry.RegisterImplementations((*authtypes.AccountI)(nil), &authtypes.BaseAccount{})
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
