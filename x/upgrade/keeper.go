@@ -76,17 +76,17 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 		return nil, err
 	}
 
-	// check that the validator exists
-	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)
-	if !found {
-		return nil, stakingtypes.ErrNoValidatorFound
-	}
-
 	// the signalled version must be either the current version (for cancelling an upgrade)
 	// or the very next version (for accepting an upgrade)
 	currentVersion := sdkCtx.BlockHeader().Version.App
 	if req.Version != currentVersion && req.Version != currentVersion+1 {
 		return nil, types.ErrInvalidVersion
+	}
+
+	// check that the validator exists
+	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)
+	if !found {
+		return nil, stakingtypes.ErrNoValidatorFound
 	}
 
 	k.SetValidatorVersion(sdkCtx, valAddr, req.Version)
@@ -123,7 +123,6 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
-
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),
@@ -170,7 +169,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 		} else {
 			output[version] += power
 		}
-		if output[version] > threshold {
+		if output[version] >= threshold {
 			return true, version
 		}
 	}
@@ -180,10 +179,14 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 // GetVotingPowerThreshold returns the voting power threshold required to
 // upgrade to a new version.
 func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
-	// contract: totalVotingPower should not exceed MaxUit64
+	// contract: totalVotingPower should not exceed MaxUint64
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
 	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
-	return totalVotingPower.MulRaw(thresholdFraction.Numerator).QuoRaw(thresholdFraction.Denominator)
+	product := totalVotingPower.MulRaw(thresholdFraction.Numerator)
+	if product.ModRaw(thresholdFraction.Denominator).IsZero() {
+		return product.QuoRaw(thresholdFraction.Denominator)
+	}
+	return product.QuoRaw(thresholdFraction.Denominator).AddRaw(1)
 }
 
 // ShouldUpgradeToV2 returns true if the current height is one before
@@ -199,6 +202,22 @@ func (k Keeper) ShouldUpgradeToV2(height int64) bool {
 // that the node should upgrade to.
 func (k *Keeper) ShouldUpgrade() (bool, uint64) {
 	return k.quorumVersion != 0, k.quorumVersion
+}
+
+// ResetTally resets the tally after a version change. It iterates over the store,
+// and deletes any versions that are less than the provided version. It also
+// resets the quorumVersion to 0.
+func (k *Keeper) ResetTally(ctx sdk.Context, version uint64) {
+	store := ctx.KVStore(k.storeKey)
+	iterator := store.Iterator(nil, nil)
+	defer iterator.Close()
+	for ; iterator.Valid(); iterator.Next() {
+		v := VersionFromBytes(iterator.Value())
+		if v <= version {
+			store.Delete(iterator.Key())
+		}
+	}
+	k.quorumVersion = 0
 }
 
 func VersionToBytes(version uint64) []byte {

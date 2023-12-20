@@ -46,7 +46,7 @@ Users will specify a version (1 byte) and a ID (28 bytes) in their PFB. Addition
 ## Desirable criteria
 
 1. A user should be able to randomly generate a namespace that hasn't been used before[^1]
-2. There should exist a large enough namespace ID space for all rollups that may exist in the forseeable future (e.g. 100 years)
+2. There should exist a large enough namespace ID space for all rollups that may exist in the foreseeable future (e.g. 100 years)
 
 ### Criteria 1
 
@@ -70,7 +70,7 @@ Namespace ID size (bytes) | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillio
 
 > As a rule of thumb, a hash function with range of size N can hash on the order of sqrt(N) values before running into collisions.[^4]
 
-Namespace ID size (bytes) | Hash funciton range | Can hash this many items before running into collision
+Namespace ID size (bytes) | Hash function range | Can hash this many items before running into collision
 --------------------------|---------------------|-------------------------------------------------------
 8                         | 2^64                | 2^32 = ~4 billion items
 16                        | 2^128               | 2^64 = ~1 quintillion items
@@ -141,7 +141,7 @@ Another tradeoff to consider is the size of the namespace in the share. Since a 
 
 ### Maximum blob size
 
-If the namespace size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace size is adopted, the maxmimum blob size will decrease by an upper bound of `appconsts.MaxSquareSize * appconsts.MaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
+If the namespace size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace size is adopted, the maximum blob size will decrease by an upper bound of `appconsts.MaxSquareSize * appconsts.MaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
 
 ### SHA256 performance
 

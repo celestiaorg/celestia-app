@@ -1,7 +1,10 @@
 package types
 
 import (
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
@@ -13,12 +16,22 @@ const (
 
 	// QuerierRoute defines the module's query routing key
 	QuerierRoute = ModuleName
+
+	// RouterKey defines the module's message routing key
+	RouterKey = ModuleName
+
+	URLMsgSignalVersion = "/celestia.upgrade.v1.Msg/SignalVersion"
+	URLMsgTryUpgrade    = "/celestia.upgrade.v1.Msg/TryUpgrade"
 )
 
 var (
-	_ sdk.Msg = &MsgSignalVersion{}
-	_ sdk.Msg = &MsgTryUpgrade{}
+	_ sdk.Msg            = &MsgSignalVersion{}
+	_ sdk.Msg            = &MsgTryUpgrade{}
+	_ legacytx.LegacyMsg = &MsgSignalVersion{}
+	_ legacytx.LegacyMsg = &MsgTryUpgrade{}
 )
+
+var ModuleCdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 
 func NewMsgSignalVersion(valAddress sdk.ValAddress, version uint64) *MsgSignalVersion {
 	return &MsgSignalVersion{
@@ -40,6 +53,21 @@ func (msg *MsgSignalVersion) ValidateBasic() error {
 	return err
 }
 
+// GetSignBytes implements legacytx.LegacyMsg.
+func (msg *MsgSignalVersion) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
+}
+
+// Route implements legacytx.LegacyMsg.
+func (msg *MsgSignalVersion) Route() string {
+	return RouterKey
+}
+
+// Type implements legacytx.LegacyMsg.
+func (msg *MsgSignalVersion) Type() string {
+	return URLMsgSignalVersion
+}
+
 func NewMsgTryUpgrade(signer sdk.AccAddress) *MsgTryUpgrade {
 	return &MsgTryUpgrade{
 		Signer: signer.String(),
@@ -57,4 +85,19 @@ func (msg *MsgTryUpgrade) GetSigners() []sdk.AccAddress {
 func (msg *MsgTryUpgrade) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	return err
+}
+
+// GetSignBytes implements legacytx.LegacyMsg.
+func (msg *MsgTryUpgrade) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
+}
+
+// Route implements legacytx.LegacyMsg.
+func (msg *MsgTryUpgrade) Route() string {
+	return RouterKey
+}
+
+// Type implements legacytx.LegacyMsg.
+func (msg *MsgTryUpgrade) Type() string {
+	return URLMsgTryUpgrade
 }

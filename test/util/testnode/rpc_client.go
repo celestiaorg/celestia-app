@@ -1,7 +1,6 @@
 package testnode
 
 import (
-	"context"
 	"os"
 	"path"
 	"strings"
@@ -15,28 +14,35 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// noOpCleanup is a function that conforms to the cleanup function signature and
+// performs no operation.
+var noOpCleanup = func() error { return nil }
+
 // StartNode starts the tendermint node along with a local core rpc client. The
 // rpc is returned via the client.Context. The function returned should be
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
 func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	if err := tmNode.Start(); err != nil {
-		return cctx, func() error { return nil }, err
+		return cctx, noOpCleanup, err
 	}
 
 	coreClient := local.New(tmNode)
 
 	cctx.Context = cctx.WithClient(coreClient)
-	goCtx, cancel := context.WithCancel(context.Background())
-	cctx.rootCtx = goCtx
 	cleanup := func() error {
-		cancel()
 		err := tmNode.Stop()
 		if err != nil {
 			return err
 		}
 		tmNode.Wait()
-		return removeDir(path.Join([]string{cctx.HomeDir, "config"}...))
+		if err = removeDir(path.Join([]string{cctx.HomeDir, "config"}...)); err != nil {
+			return err
+		}
+		if err = removeDir(path.Join([]string{cctx.HomeDir, tmNode.Config().DBPath}...)); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	return cctx, cleanup, nil
@@ -88,7 +94,8 @@ func removeDir(rootDir string) error {
 		return err
 	}
 	for _, d := range dir {
-		err := os.RemoveAll(path.Join([]string{rootDir, d.Name()}...))
+		path := path.Join([]string{rootDir, d.Name()}...)
+		err := os.RemoveAll(path)
 		if err != nil {
 			return err
 		}

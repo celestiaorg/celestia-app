@@ -335,7 +335,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, app.StakingKeeper)
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, stakingKeeper)
 
 	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
 		appCodec,
@@ -588,6 +588,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		// Version changes must be increasing. Downgrades are not permitted
 		if version > app.AppVersion(ctx) {
 			app.SetAppVersion(ctx, version)
+			app.UpgradeKeeper.ResetTally(ctx, version)
 		}
 	}
 	return res

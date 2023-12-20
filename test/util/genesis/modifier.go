@@ -46,12 +46,12 @@ func ImmediateProposals(codec codec.Codec) Modifier {
 }
 
 // SetDataCommitmentWindow will set the provided data commitment window in the
-// qgb module's genesis state.
+// blobstream module's genesis state.
 func SetDataCommitmentWindow(codec codec.Codec, window uint64) Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
-		qgbGenState := bstypes.DefaultGenesis()
-		qgbGenState.Params.DataCommitmentWindow = window
-		state[bstypes.ModuleName] = codec.MustMarshalJSON(qgbGenState)
+		blobstreamGenState := bstypes.DefaultGenesis()
+		blobstreamGenState.Params.DataCommitmentWindow = window
+		state[bstypes.ModuleName] = codec.MustMarshalJSON(blobstreamGenState)
 		return state
 	}
 }

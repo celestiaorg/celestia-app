@@ -16,7 +16,7 @@ CHAINID="private"
 coins="1000000000000000utia"
 ${BIN_PATH} init $CHAINID --chain-id $CHAINID --home ${HOME_DIR}
 ${BIN_PATH} keys add validator --keyring-backend="test" --home ${HOME_DIR}
-# this won't work because the some proto types are decalared twice and the logs output to stdout (dependency hell involving iavl)
+# this won't work because the some proto types are declared twice and the logs output to stdout (dependency hell involving iavl)
 ${BIN_PATH} add-genesis-account $(${BIN_PATH} keys show validator -a --keyring-backend="test" --home ${HOME_DIR}) $coins --home ${HOME_DIR}
 ${BIN_PATH} gentx validator 5000000000utia \
 	--keyring-backend="test" \
