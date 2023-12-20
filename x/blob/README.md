@@ -3,31 +3,20 @@
 ## Abstract
 
 The `x/blob` module enables users to pay for arbitrary data to be published to
-the Celestia blockchain. Users create a single `BlobTx` that is composed of:
+the Celestia blockchain. This module's name is derived from Binary Large Object
+(blob).
 
-1. Multiple `Blob`s (Binary Large OBjects): the data they wish to publish. A
-   single `Blob` is composed of:
-    1. `NamespaceId  []byte`: the namespace this blob should be published to.
-    1. `Data         []byte`: the data to be published.
-    1. `ShareVersion uint32`: the version of the share format used to encode
-       this blob into a share.
-1. A single [`sdk.Tx`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.15.0-sdk-v0.46.13/docs/architecture/adr-020-protobuf-transaction-encoding.md) which encapsulates a `MsgPayForBlobs` message that is composed of:
-    1. `Signer string`: the transaction signer
-    1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to.
-       The namespaces here must match the namespaces in the `Blob`s.
-    1. `ShareCommitments [][]byte`: a share commitment that is the root of a Merkle
-       tree where the leaves are share commitments to each blob associated with
-       this `BlobTx`.
+To use the blob module, users create and submit a `BlobTx` that is composed of:
+
+1. A single [`sdk.Tx`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.15.0-sdk-v0.46.13/docs/architecture/adr-020-protobuf-transaction-encoding.md) which encapsulates a message of type `MsgPayForBlobs`.
+1. Multiple `Blob`s: the data they wish to publish.
 
 After the `BlobTx` is submitted to the network, a block producer separates the
-transaction i.e., `sdk.Tx` from the blob. Both components get included in the
-data square in different namespaces: the `sdk.Tx` of the original `BlobTx`
-together with some metadata about the separated blobs get included in the
-PayForBlobNamespace (one of the [reserved
-namespaces](../../specs/src/specs/namespace.md#reserved-namespaces)) and the
-associated blob gets included in the namespace the user specified in the
-original `BlobTx`. Further reading: [Data Square
-Layout](../../specs/src/specs/data_square_layout.md)
+the `sdk.Tx` from the blob(s). Both components get included in the
+[data square](../../specs/src/specs/data_square_layout.md) in different namespaces:
+
+1. The `sdk.Tx` and some metadata about the separated blobs gets included in the `PayForBlobNamespace` (one of the [reserved namespaces](../../specs/src/specs/namespace.md#reserved-namespaces)).
+1. The blob(s) get included in the namespace specified by each blob.
 
 After a block has been created, the user can verify that their data was included
 in a block via a blob inclusion proof. A blob inclusion proof uses the
@@ -71,38 +60,31 @@ details.
 
 ## Messages
 
-- [`MsgPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31)
-  pays for a set of blobs to be included in the block. Blob transactions that contain
-  this `sdk.Msg` are also referred to as "PFBs".
+`MsgPayForBlobs` pays for a set of blobs to be included in the block. Blob transactions that contain this `sdk.Msg` are also referred to as "PFBs".
 
 ```proto
+// MsgPayForBlobs pays for the inclusion of a blob in the block.
 message MsgPayForBlobs {
+  // signer is the bech32 encoded signer address
   string signer = 1;
+  // namespaces is a list of namespaces that the blobs are associated with. A
+  // namespace is a byte slice of length 29 where the first byte is the
+  // namespaceVersion and the subsequent 28 bytes are the namespaceId.
   repeated bytes namespaces = 2;
+  // blob_sizes is a list of blob sizes (one per blob). Each size is in bytes.
   repeated uint32 blob_sizes = 3;
+  // share_commitments is a list of share commitments (one per blob).
   repeated bytes share_commitments = 4;
+  // share_versions are the versions of the share format that the blobs
+  // associated with this message should use when included in a block. The
+  // share_versions specified must match the share_versions used to generate the
+  // share_commitment in this message.
   repeated uint32 share_versions = 8;
 }
 ```
 
-`MsgPayForBlobs` pays for the inclusion of blobs in the block and consists of the
-following fields:
-
-- signer: bech32 encoded signer address
-- namespace: namespace is a byte slice of length 29 where the first byte is the
-  namespaceVersion and the subsequent 28 bytes are the namespaceId.
-- blob_sizes: sizes of each blob in bytes.
-- share_commitments is a list of share commitments (one per blob).
-- share_versions are the versions of the share format that the blobs associated
-  with this message should use when included in a block. The share_versions
-  specified must match the share_versions used to generate the share_commitment
-  in this message. See
-  [ADR007](../../docs/architecture/adr-007-universal-share-prefix.md) for more
-  details on how this effects the share encoding and when it is updated.
-
-Note that while the shares version in each protobuf encoded PFB are uint32s, the
-internal representation of shares versions is always uint8s. This is because
-protobuf doesn't support uint8s.
+> [!NOTE]
+> The internal representation of share versions is always `uint8`. Since protobuf doesn't support the `uint8` type, they are encoded and decoded as `uint32`.
 
 ### Generating the `ShareCommitment`
 
@@ -210,3 +192,16 @@ The steps in the
 function can be reverse engineered to submit blobs programmatically.
 
 <!-- markdownlint-enable MD010 -->
+
+## FAQ
+
+Q: Why do the PFB transactions in the response from Comet BFT API endpoints fail to decode to valid transaction hashes?
+
+The response of CometBFT API endpoints (e.g. `/cosmos/base/tendermint/v1beta1/blocks/{block_number}`) will contain a field called `txs` with base64 encoded transactions. In Celestia, transactions may have one of the two possible types of `sdk.Tx` or `BlobTx` (which wraps around a `sdk.Tx`). As such, each transaction should be first decoded and then gets unmarshalled according to its type, as explained below: 
+
+1. Base64 decode the transaction
+1. Check to see if the transaction is a `BlobTx` by unmarshalling it into a `BlobTx` type.
+   1. If it is a `BlobTx`, then unmarshal the `BlobTx`'s `Tx` field into a `sdk.Tx` type.
+   1. If it is not a `BlobTx`, then unmarshal the transaction into a `sdk.Tx` type.
+
+See [test/decode_blob_tx_test.go](./test/decode_blob_tx_test.go) for an example of how to do this.
