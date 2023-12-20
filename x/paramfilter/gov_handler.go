@@ -56,9 +56,7 @@ func (pbl ParamBlockList) handleParameterChangeProposal(
 		if pbl.IsBlocked(c.Subspace, c.Key) {
 			return ErrBlockedParameter
 		}
-	}
 
-	for _, c := range p.Changes {
 		ss, ok := pk.GetSubspace(c.Subspace)
 		if !ok {
 			return sdkerrors.Wrap(proposal.ErrUnknownSubspace, c.Subspace)
