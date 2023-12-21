@@ -63,10 +63,8 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) err
 }
 
 func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
-	gasConsumed := gasMeter.GasConsumed()
 	gasPrice := getGasPrice(feeTx)
-	feeBasedOnGasConsumption := gasPrice.Amount.MulInt64(int64(gasConsumed)).Ceil().TruncateInt()
-	amountToRefund := feeTx.GetFee().AmountOf(appconsts.BondDenom).Sub(feeBasedOnGasConsumption)
+	amountToRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
 	coinsToRefund := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
 	return coinsToRefund
 }
