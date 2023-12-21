@@ -33,21 +33,30 @@ func TestUnspentGasRefundDecorator(t *testing.T) {
 type UnspentGasRefundDecoratorSuite struct {
 	suite.Suite
 
-	ctx    testnode.Context
-	encCfg encoding.Config
-	signer *user.Signer
+	ctx      testnode.Context
+	encCfg   encoding.Config
+	signer   *user.Signer
+	feePayer *user.Signer
 }
 
 func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a"))
+	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b"))
 	_, err := s.ctx.WaitForHeight(1)
 	s.Require().NoError(err)
-	rec, err := s.ctx.Keyring.Key("a")
+
+	recordA, err := s.ctx.Keyring.Key("a")
 	s.Require().NoError(err)
-	addr, err := rec.GetAddress()
+	addrA, err := recordA.GetAddress()
 	s.Require().NoError(err)
-	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addr, s.encCfg)
+	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrA, s.encCfg)
+	s.Require().NoError(err)
+
+	recordB, err := s.ctx.Keyring.Key("b")
+	s.Require().NoError(err)
+	addrB, err := recordB.GetAddress()
+	s.Require().NoError(err)
+	s.feePayer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrB, s.encCfg)
 	s.Require().NoError(err)
 }
 
@@ -95,16 +104,66 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	}
 }
 
-// calculateNetFee calculates the fee that signer paid for the tx based on
+func (s *UnspentGasRefundDecoratorSuite) TestRefundRecipient() {
+	t := s.T()
+
+	type testCase struct {
+		name                string
+		gasLimit            uint64
+		fee                 uint64
+		wantNetFee          int64
+		feePayer            sdk.AccAddress
+		wantRefundRecipient sdk.AccAddress
+	}
+
+	testCases := []testCase{
+		{
+			name:                "refund should be sent to signer if fee payer is unspecified",
+			gasLimit:            1e6,
+			fee:                 tia,
+			wantNetFee:          tia * .5,
+			wantRefundRecipient: s.signer.Address(),
+		},
+		// TODO: explore how to submit a tx with fee payer
+		//
+		// {
+		// 	name:                "refund should be sent to fee payer if specified",
+		// 	gasLimit:            1e6,
+		// 	fee:                 tia,
+		// 	feePayer:            s.feePayer.Address(),
+		// 	wantNetFee:          tia * .5,
+		// 	wantRefundRecipient: s.feePayer.Address(),
+		// },
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			options := []user.TxOption{user.SetGasLimit(tc.gasLimit), user.SetFee(tc.fee)}
+			if tc.feePayer != nil {
+				options = append(options, user.SetFeePayer(tc.feePayer))
+			}
+			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
+
+			resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
+			require.NoError(t, err)
+			require.EqualValues(t, abci.CodeTypeOK, resp.Code)
+
+			got := calculateNetFee(t, resp, tc.wantRefundRecipient.String())
+			assert.Equal(t, tc.wantNetFee, got)
+		})
+	}
+}
+
+// calculateNetFee calculates the fee that feePayer paid for the tx based on
 // events in the TxResponse.
-func calculateNetFee(t *testing.T, resp *sdk.TxResponse, signer string) (netFee int64) {
+func calculateNetFee(t *testing.T, resp *sdk.TxResponse, feePayer string) (netFee int64) {
 	assert.NotNil(t, resp)
 	transfers := getTransfers(t, resp.Events)
 	for _, transfer := range transfers {
-		if transfer.from == signer {
+		if transfer.from == feePayer {
 			netFee += transfer.amount
 		}
-		if transfer.recipient == signer {
+		if transfer.recipient == feePayer {
 			netFee -= transfer.amount
 		}
 	}
