@@ -18,6 +18,11 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
+const (
+	utia = 1
+	tia  = 1e6
+)
+
 func TestUnspentGasRefundDecorator(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping unspent gas refund decorator test in short mode.")
@@ -52,7 +57,7 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	t := s.T()
 
 	gasLimit := uint64(1e6)
-	fee := uint64(1e6) // 1 TIA
+	fee := uint64(1 * tia)
 	// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
 	// same value, these options set a gasPrice of 1utia.
 	options := []user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}
@@ -60,7 +65,6 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 	require.NoError(t, err)
-
 	require.EqualValues(t, abci.CodeTypeOK, resp.Code)
 	netFee := calculateNetFee(t, resp, s.signer.Address().String())
 
@@ -70,31 +74,23 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	assert.Equal(t, want, netFee)
 }
 
+// calculateNetFee calculates the fee that signer paid for the tx based on
+// events in the TxResponse.
 func calculateNetFee(t *testing.T, resp *sdk.TxResponse, signer string) (netFee int64) {
-	if resp == nil {
-		return 0
-	}
-	transfers := filterTransfers(t, resp.Events)
+	assert.NotNil(t, resp)
+	transfers := getTransfers(t, resp.Events)
 	for _, transfer := range transfers {
 		if transfer.from == signer {
-			// deduct fee decorator
 			netFee += transfer.amount
 		}
 		if transfer.recipient == signer {
-			// unspent gas refund decorator
 			netFee -= transfer.amount
 		}
 	}
 	return netFee
 }
 
-type transferEvent struct {
-	recipient string
-	from      string
-	amount    int64
-}
-
-func filterTransfers(t *testing.T, events []abci.Event) (transfers []transferEvent) {
+func getTransfers(t *testing.T, events []abci.Event) (transfers []transferEvent) {
 	for _, event := range events {
 		if event.Type == banktypes.EventTypeTransfer {
 			amount, err := strconv.ParseInt(strings.TrimSuffix(string(event.Attributes[2].Value), "utia"), 10, 64)
@@ -110,9 +106,10 @@ func filterTransfers(t *testing.T, events []abci.Event) (transfers []transferEve
 	return transfers
 }
 
-func (s *UnspentGasRefundDecoratorSuite) queryCurrentBalance(t *testing.T) int64 {
-	balanceQuery := banktypes.NewQueryClient(s.ctx.GRPCClient)
-	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &banktypes.QueryAllBalancesRequest{Address: s.signer.Address().String()})
-	require.NoError(t, err)
-	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
+// transferEvent is a struct based on the transfer event type emitted by the
+// bank module.
+type transferEvent struct {
+	recipient string
+	from      string
+	amount    int64
 }
