@@ -65,12 +65,18 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 
 	testCases := []testCase{
 		{
-			name: "at most half of the fee should be refunded",
+			name: "part of the fee should be refunded",
 			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-			// same value, these options set a gasPrice of 1utia.
+			// same value, these options set a gasPrice of 1 utia.
+			gasLimit: 1e5, // 100_000
+			fee:      1e5, // 100_000 utia
+			want:     61_931,
+		},
+		{
+			name:     "at most half of the fee should be refunded",
 			gasLimit: 1e6,
-			fee:      1 * tia,
-			want:     1 * tia * .5,
+			fee:      tia,
+			want:     tia * .5,
 		},
 	}
 
