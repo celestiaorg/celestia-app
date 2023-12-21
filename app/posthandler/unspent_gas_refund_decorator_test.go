@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -48,9 +49,6 @@ func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	t := s.T()
 
-	utiaToSend := int64(1)
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
-
 	gasLimit := uint64(1e6)
 	fee := uint64(1e6) // 1 TIA
 	// Note: gas price * gas limit = fee amount. So by setting gasLimit and fee
@@ -58,6 +56,7 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	options := []user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}
 
 	balanceBefore := s.queryCurrentBalance(t)
+	msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 	require.NoError(t, err)
 
@@ -65,7 +64,7 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	balanceAfter := s.queryCurrentBalance(t)
 
 	// Verify that the amount deducted does not depend on the fee set in the tx.
-	amountDeducted := balanceBefore - balanceAfter - utiaToSend
+	amountDeducted := balanceBefore - balanceAfter
 	assert.NotEqual(t, int64(fee), amountDeducted)
 
 	want := int64(fee) / 2
