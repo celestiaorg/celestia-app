@@ -44,14 +44,13 @@ func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
-// based on the gas consumed by the tx instead of the fee specified by the tx.
+// not based on the fee specified by the tx.
 func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	t := s.T()
 
 	utiaToSend := int64(1)
 	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
 
-	gasPrice := int64(1)
 	gasLimit := uint64(1e6)
 	fee := uint64(1e6) // 1 TIA
 	// Note: gas price * gas limit = fee amount. So by setting gasLimit and fee
@@ -69,13 +68,8 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
 	assert.NotEqual(t, int64(fee), amountDeducted)
 
-	// Verify that the amount deducted depends on the actual gas consumed.
-	gasConsumedBasedDeduction := resp.GasUsed * gasPrice
-	assert.Equal(t, gasConsumedBasedDeduction, amountDeducted)
-
-	// The gas consumed based deduction should be less than the fee because
-	// the fee is 1 TIA.
-	assert.Less(t, gasConsumedBasedDeduction, int64(fee))
+	want := int64(fee) / 2
+	assert.Equal(t, want, amountDeducted)
 }
 
 func (s *UnspentGasRefundDecoratorSuite) queryCurrentBalance(t *testing.T) int64 {

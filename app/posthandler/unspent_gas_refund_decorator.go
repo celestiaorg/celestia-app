@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -11,6 +12,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 )
+
+// MaxPortionOfFee is the maximum portion of the fee that can be refunded.
+var MaxPortionOfFee = sdk.NewDecWithPrec(5, 1) // 50%
 
 // UnspentGasRefundDecorator handles refunding a portion of the tx fee that was
 // originally deducted from the feepayer but was not needed because the tx
@@ -64,7 +68,9 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) err
 
 func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasPrice := getGasPrice(feeTx)
-	amountToRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
+	toRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
+	maxToRefund := MaxPortionOfFee.MulInt(feeTx.GetFee().AmountOf(appconsts.BondDenom)).TruncateInt()
+	amountToRefund := minimum(toRefund, maxToRefund)
 	coinsToRefund := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
 	return coinsToRefund
 }
@@ -104,4 +110,11 @@ func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
 	// gas * gasPrice = fees. So gasPrice = fees / gas.
 	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(appconsts.BondDenom)).Quo(sdk.NewDec(int64(gas)))
 	return sdk.NewDecCoinFromDec(appconsts.BondDenom, gasPrice)
+}
+
+func minimum(a, b math.Int) math.Int {
+	if a.LTE(b) {
+		return a
+	}
+	return b
 }
