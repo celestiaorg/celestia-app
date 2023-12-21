@@ -56,22 +56,37 @@ func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	t := s.T()
 
-	gasLimit := uint64(1e6)
-	fee := uint64(1 * tia)
-	// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-	// same value, these options set a gasPrice of 1utia.
-	options := []user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}
+	type testCase struct {
+		name     string
+		gasLimit uint64
+		fee      uint64
+		want     int64
+	}
 
-	msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
-	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
-	require.NoError(t, err)
-	require.EqualValues(t, abci.CodeTypeOK, resp.Code)
-	netFee := calculateNetFee(t, resp, s.signer.Address().String())
+	testCases := []testCase{
+		{
+			name: "at most half of the fee should be refunded",
+			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
+			// same value, these options set a gasPrice of 1utia.
+			gasLimit: 1e6,
+			fee:      1 * tia,
+			want:     1 * tia * .5,
+		},
+	}
 
-	assert.NotEqual(t, int64(fee), netFee)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			options := []user.TxOption{user.SetGasLimit(tc.gasLimit), user.SetFee(tc.fee)}
+			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 
-	want := int64(fee) / 2
-	assert.Equal(t, want, netFee)
+			resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
+			require.NoError(t, err)
+			require.EqualValues(t, abci.CodeTypeOK, resp.Code)
+
+			got := calculateNetFee(t, resp, s.signer.Address().String())
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 // calculateNetFee calculates the fee that signer paid for the tx based on
