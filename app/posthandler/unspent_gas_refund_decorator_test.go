@@ -1,6 +1,8 @@
 package posthandler_test
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -9,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -51,29 +53,66 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 
 	gasLimit := uint64(1e6)
 	fee := uint64(1e6) // 1 TIA
-	// Note: gas price * gas limit = fee amount. So by setting gasLimit and fee
-	// to the same value, these options set a gas price of 1utia.
+	// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
+	// same value, these options set a gasPrice of 1utia.
 	options := []user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}
 
-	balanceBefore := s.queryCurrentBalance(t)
 	msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 	require.NoError(t, err)
 
 	require.EqualValues(t, abci.CodeTypeOK, resp.Code)
-	balanceAfter := s.queryCurrentBalance(t)
+	netFee := calculateNetFee(t, resp, s.signer.Address().String())
 
-	// Verify that the amount deducted does not depend on the fee set in the tx.
-	amountDeducted := balanceBefore - balanceAfter
-	assert.NotEqual(t, int64(fee), amountDeducted)
+	assert.NotEqual(t, int64(fee), netFee)
 
 	want := int64(fee) / 2
-	assert.Equal(t, want, amountDeducted)
+	assert.Equal(t, want, netFee)
+}
+
+func calculateNetFee(t *testing.T, resp *sdk.TxResponse, signer string) (netFee int64) {
+	if resp == nil {
+		return 0
+	}
+	transfers := filterTransfers(t, resp.Events)
+	for _, transfer := range transfers {
+		if transfer.from == signer {
+			// deduct fee decorator
+			netFee += transfer.amount
+		}
+		if transfer.recipient == signer {
+			// unspent gas refund decorator
+			netFee -= transfer.amount
+		}
+	}
+	return netFee
+}
+
+type transferEvent struct {
+	recipient string
+	from      string
+	amount    int64
+}
+
+func filterTransfers(t *testing.T, events []abci.Event) (transfers []transferEvent) {
+	for _, event := range events {
+		if event.Type == banktypes.EventTypeTransfer {
+			amount, err := strconv.ParseInt(strings.TrimSuffix(string(event.Attributes[2].Value), "utia"), 10, 64)
+			assert.NoError(t, err)
+			transfer := transferEvent{
+				recipient: string(event.Attributes[0].Value),
+				from:      string(event.Attributes[1].Value),
+				amount:    amount,
+			}
+			transfers = append(transfers, transfer)
+		}
+	}
+	return transfers
 }
 
 func (s *UnspentGasRefundDecoratorSuite) queryCurrentBalance(t *testing.T) int64 {
-	balanceQuery := bank.NewQueryClient(s.ctx.GRPCClient)
-	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: s.signer.Address().String()})
+	balanceQuery := banktypes.NewQueryClient(s.ctx.GRPCClient)
+	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &banktypes.QueryAllBalancesRequest{Address: s.signer.Address().String()})
 	require.NoError(t, err)
 	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
 }
