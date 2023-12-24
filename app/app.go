@@ -736,8 +736,6 @@ func (*App) BlockedParams() [][2]string {
 	return [][2]string{
 		// bank.SendEnabled
 		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
-		// consensus.block.TimeIotaMs
-		{baseapp.Paramspace, string(baseapp.ParamStoreKeyBlockParams)},
 		// consensus.validator.PubKeyTypes
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
 		// consensus.Version.AppVersion
