@@ -51,7 +51,7 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 		onHandle func()
 		expErr   bool
 	}{
-		// This parameters below should not be modifiable, however the tests show they are.
+		// The tests below show the parameters as modifiable, block in App.BlockedParams().
 		{
 			"bank.SendEnabled",
 			testProposal(proposal.ParamChange{
@@ -65,7 +65,7 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 			},
 			false,
 		},
-		// TimeIotaMs is not in conensus.block
+		// TimeIotaMs is not in conensus.block, can not submit a governance proposal to modify it.
 		{
 			"conensus.validator.PubKeyTypes",
 			testProposal(proposal.ParamChange{
