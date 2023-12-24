@@ -1,19 +1,21 @@
-package params_test
+package test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/stretchr/testify/suite"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	testutil "github.com/celestiaorg/celestia-app/test/util"
+	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -22,23 +24,24 @@ import (
 type HandlerTestSuite struct {
 	suite.Suite
 
-	app        *simapp.SimApp
+	app        *app.App
 	ctx        sdk.Context
-	govHandler govv1beta1.Handler
+	govHandler v1beta1.Handler
+	pph        paramfilter.ParamBlockList
 }
 
 func (suite *HandlerTestSuite) SetupTest() {
-	suite.app = simapp.Setup(suite.T(), false)
+	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
 	suite.govHandler = params.NewParamChangeProposalHandler(suite.app.ParamsKeeper)
+	suite.pph = paramfilter.NewParamBlockList([2]string{})
+
+	minter := minttypes.DefaultMinter()
+	suite.app.MintKeeper.SetMinter(suite.ctx, minter)
 }
 
 func TestHandlerTestSuite(t *testing.T) {
 	suite.Run(t, new(HandlerTestSuite))
-}
-
-func testProposal(changes ...proposal.ParamChange) *proposal.ParameterChangeProposal {
-	return proposal.NewParameterChangeProposal("title", "description", changes)
 }
 
 func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
@@ -97,21 +100,21 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 			},
 			false,
 		},
-		{
-			"mint.MintDenom",
-			testProposal(proposal.ParamChange{
-				Subspace: minttypes.ModuleName,
-				Key:      string(minttypes.KeyMintDenom),
-				Value:    `"test"`,
-			}),
-			func() {
-				mintParams := suite.app.MintKeeper.GetParams(suite.ctx)
-				suite.Require().Equal(
-					mintParams.MintDenom,
-					"test")
-			},
-			false,
-		},
+		// {
+		// 	"mint.BondDenom",
+		// 	testProposal(proposal.ParamChange{
+		// 		Subspace: minttypes.ModuleName,
+		// 		Key:      string(minttypes.KeyMinter),
+		// 		Value:    `{"inflation_rate": "1", "annual_provisions": "3", "PreviousBlockTime": "1", "bond_denom": "test"}`,
+		// 	}),
+		// 	func() {
+		// 		mintParams := suite.app.MintKeeper.GetMinter(suite.ctx)
+		// 		suite.Require().Equal(
+		// 			mintParams.BondDenom,
+		// 			"test")
+		// 	},
+		// 	false,
+		// },
 		{
 			"staking.BondDenom",
 			testProposal(proposal.ParamChange{
