@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
-    permissions: "write-all"
+    permissions: write-all
     steps:
       - uses: actions/checkout@v4
         with:

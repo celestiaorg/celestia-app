@@ -26,5 +26,6 @@ jobs:
 
   goreleaser:
     uses: ./.github/workflows/goreleaser.yml
+    permissions: write-all
     secrets:
       GORELEASER_ACCESS_TOKEN: ${{ secrets.GORELEASER_ACCESS_TOKEN }}
