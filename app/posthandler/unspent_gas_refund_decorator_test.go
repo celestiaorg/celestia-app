@@ -12,6 +12,7 @@ import (
 	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -58,6 +59,11 @@ func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 	s.Require().NoError(err)
 	s.feePayer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrB, s.encCfg)
 	s.Require().NoError(err)
+
+	msg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, s.feePayer.Address(), s.signer.Address())
+	s.Require().NoError(err)
+	options := []user.TxOption{user.SetGasLimit(1e6), user.SetFee(tia)}
+	s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
@@ -104,6 +110,7 @@ func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
 	}
 }
 
+// TODO: consider collapsing this test with the test above.
 func (s *UnspentGasRefundDecoratorSuite) TestRefundRecipient() {
 	t := s.T()
 
@@ -124,23 +131,25 @@ func (s *UnspentGasRefundDecoratorSuite) TestRefundRecipient() {
 			wantNetFee:          tia * .5,
 			wantRefundRecipient: s.signer.Address(),
 		},
-		// TODO: explore how to submit a tx with fee payer
-		//
-		// {
-		// 	name:                "refund should be sent to fee payer if specified",
-		// 	gasLimit:            1e6,
-		// 	fee:                 tia,
-		// 	feePayer:            s.feePayer.Address(),
-		// 	wantNetFee:          tia * .5,
-		// 	wantRefundRecipient: s.feePayer.Address(),
-		// },
+		{
+			name:                "refund should be sent to fee payer if specified",
+			gasLimit:            1e6,
+			fee:                 tia,
+			feePayer:            s.feePayer.Address(),
+			wantNetFee:          tia * .5,
+			wantRefundRecipient: s.feePayer.Address(),
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			options := []user.TxOption{user.SetGasLimit(tc.gasLimit), user.SetFee(tc.fee)}
 			if tc.feePayer != nil {
-				options = append(options, user.SetFeePayer(tc.feePayer))
+				// Cosmos SDK has confusing naming but invoke SetFeeGranter
+				// instead of SetFeePayer.
+				//
+				// https://github.com/cosmos/cosmos-sdk/issues/18886
+				options = append(options, user.SetFeeGranter(tc.feePayer))
 			}
 			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 
