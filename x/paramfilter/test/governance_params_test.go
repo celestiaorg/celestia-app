@@ -65,7 +65,6 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 			},
 			false,
 		},
-		// TimeIotaMs is not in conensus.block, can not submit a governance proposal to modify it.
 		{
 			"conensus.validator.PubKeyTypes",
 			testProposal(proposal.ParamChange{
