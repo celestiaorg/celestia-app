@@ -99,21 +99,6 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 			},
 			false,
 		},
-		// {
-		// 	"mint.BondDenom",
-		// 	testProposal(proposal.ParamChange{
-		// 		Subspace: minttypes.ModuleName,
-		// 		Key:      string(minttypes.KeyMinter),
-		// 		Value:    `{"inflation_rate": "1", "annual_provisions": "3", "PreviousBlockTime": "1", "bond_denom": "test"}`,
-		// 	}),
-		// 	func() {
-		// 		mintParams := suite.app.MintKeeper.GetMinter(suite.ctx)
-		// 		suite.Require().Equal(
-		// 			mintParams.BondDenom,
-		// 			"test")
-		// 	},
-		// 	false,
-		// },
 		{
 			"staking.BondDenom",
 			testProposal(proposal.ParamChange{
