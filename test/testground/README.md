@@ -1,4 +1,4 @@
-# Testground Experiement Tooling
+# Testground Experiment Tooling
 
 ## Test Instance Communication and Experiment Flow
 
@@ -68,7 +68,7 @@ by each node. This allows for arbitrary network topologies to be created.
 ### Standard
 
 The `standard` test runs an experiment that is as close to mainnet as possible.
-This is used as a base for other experiements.
+This is used as a base for other experiments.
 
 ## Running the Experiment
 
@@ -95,7 +95,7 @@ testground terminate --runner cluster:k8s
 ### Grafana
 
 All metrics data is logged to a separate testground specific grafana/influx
-node. To access that node, forward the ports use kubectl.
+node. To access that node, forward the ports using kubectl.
 
 ```sh
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=tg-monitoring" -o jsonpath="{.items[0].metadata.name}")

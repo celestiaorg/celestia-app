@@ -47,7 +47,7 @@ func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
 	return ops, nil
 }
 
-// Configurator is a function that arbitarily modifies the provided node
+// Configurator is a function that arbitrarily modifies the provided node
 // configurations. It is used to generate the topology (which nodes are
 // connected to which) of the network, along with making other arbitrary changes
 // to the configs.

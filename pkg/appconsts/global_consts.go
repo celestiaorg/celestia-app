@@ -29,7 +29,7 @@ const (
 	ShareSize = 512
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
-	// byte contains the share version and a sequence start idicator.
+	// byte contains the share version and a sequence start indicator.
 	ShareInfoBytes = 1
 
 	// SequenceLenBytes is the number of bytes reserved for the sequence length
@@ -78,7 +78,7 @@ const (
 )
 
 var (
-	// DataCommitmentBlocksLimit is the maximnum number of blocks that a data commitment can span
+	// DataCommitmentBlocksLimit is the maximum number of blocks that a data commitment can span
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
