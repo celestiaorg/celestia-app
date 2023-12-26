@@ -46,7 +46,6 @@ func TestParamFilter(t *testing.T) {
 
 	// ensure that we're throwing out entire proposals if any of the changes are blocked
 	for _, p := range app.BlockedParams() {
-		// try to set the max validators to 2, unlike above this should fail
 		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxEntries), "2")
 		invalidChange := proposal.NewParamChange(p[0], p[1], "value")
 		p := testProposal(validChange, invalidChange)

@@ -273,7 +273,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create param proposal change for a modifiable parameter",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
+				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxEntries), "2")
 				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
 				msg, err := oldgov.NewMsgSubmitProposal(
