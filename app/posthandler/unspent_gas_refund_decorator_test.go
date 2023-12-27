@@ -1,6 +1,7 @@
 package posthandler_test
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -117,6 +118,7 @@ func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
 			}
 			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 
+			fmt.Printf("test case: %v\n", tc.name)
 			resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 			require.NoError(t, err)
 			require.EqualValues(t, abci.CodeTypeOK, resp.Code)

@@ -33,14 +33,16 @@ func NewUnspentGasRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeep
 	}
 }
 
+// TODO: How to handle the simulate flag?
 func (frd UnspentGasRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if err := frd.maybeRefund(ctx, tx); err != nil {
+	if err := frd.maybeRefund(ctx, tx, simulate); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
 }
 
-func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) error {
+// TODO: How to handle the simulate flag?
+func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
 	// Replace the context's gas meter with an infinite gas meter so that this
 	// decorator doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
@@ -62,6 +64,9 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx) err
 	if err := frd.processRefund(ctx, coinsToRefund, refundRecipient); err != nil {
 		return err
 	}
+
+	gasConsumedDuringRefund := gasMeter.GasConsumed()
+	fmt.Printf("gasConsumedDuringRefund %v\n", gasConsumedDuringRefund)
 
 	return nil
 }
