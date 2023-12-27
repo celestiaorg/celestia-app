@@ -66,5 +66,5 @@ are blocked by the `x/paramfilter` module.
 | staking.UnbondingTime                         | 1814400 (21 days)                           | Duration of time for unbonding in seconds.                                                                                                                                                      | False                     |
 
 ### Tests
-See [/x/paramfilter/test/governance_params_test.go](/x/paramfilter/test/governance_params_test.go) for tests that attempt to modify a parameter.
-Note that `TimeIotaMs` is not in `conensus.block`, so a governance proposal can not be submitted to modify it. Additionally, the `x/mint` module does not have any governance modifiable params as justified in [/x/mint/README.md#params](/x/mint/README.md#params)
+See [/x/paramfilter/test/governance_params_test.go](./x/paramfilter/test/governance_params_test.go) for tests that attempt to modify a parameter.
+Note that `TimeIotaMs` is not in `conensus.block`, so a governance proposal can not be submitted to modify it. Additionally, the `x/mint` module does not have any governance modifiable params as justified in [/x/mint/README.md#params](./x/mint/README.md#params)
