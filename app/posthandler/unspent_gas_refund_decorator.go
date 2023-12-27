@@ -65,7 +65,7 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 		return err
 	}
 
-	gasConsumedDuringRefund := gasMeter.GasConsumed()
+	gasConsumedDuringRefund := ctx.GasMeter().GasConsumed()
 	fmt.Printf("gasConsumedDuringRefund %v\n", gasConsumedDuringRefund)
 
 	return nil
