@@ -1,7 +1,6 @@
 package posthandler_test
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -86,7 +85,7 @@ func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
 			// same value, these options set a gasPrice of 1 utia.
 			gasLimit:            1e5, // 100_000
 			fee:                 1e5, // 100_000 utia
-			wantNetFee:          61_931,
+			wantNetFee:          76931,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
@@ -104,6 +103,15 @@ func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
 			wantNetFee:          tia * .5,
 			wantRefundRecipient: s.feePayer.Address(),
 		},
+		{
+			name: "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
+			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
+			// same value, these options set a gasPrice of 1 utia.
+			gasLimit:            65000,
+			fee:                 65000,
+			wantNetFee:          65000,
+			wantRefundRecipient: s.signer.Address(),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -118,7 +126,6 @@ func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
 			}
 			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 
-			fmt.Printf("test case: %v\n", tc.name)
 			resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 			require.NoError(t, err)
 			require.EqualValues(t, abci.CodeTypeOK, resp.Code)

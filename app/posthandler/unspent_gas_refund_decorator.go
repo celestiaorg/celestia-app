@@ -16,6 +16,9 @@ import (
 // MaxPortionOfFee is the maximum portion of the fee that can be refunded.
 var MaxPortionOfFee = sdk.NewDecWithPrec(5, 1) // 50%
 
+// RefundGasCost is the amount of gas consumed during the refund operation.
+const RefundGasCost = 15_000
+
 // UnspentGasRefundDecorator handles refunding a portion of the tx fee that was
 // originally deducted from the feepayer but was not needed because the tx
 // consumed less gas than the gas limit.
@@ -48,14 +51,16 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 	gasMeter := ctx.GasMeter()
 	ctx = ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
 
+	if gasMeter.GasRemaining() < RefundGasCost {
+		// If the gas meter doesn't have enough gas remaining to cover the
+		// refund gas cost, then no refund needs to be issued.
+		return nil
+	}
+	gasMeter.ConsumeGas(RefundGasCost, "refund gas cost")
+
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return errors.Wrap(sdkerrors.ErrTxDecode, "tx must be a FeeTx to use FeeRefundDecorator")
-	}
-
-	if gasMeter.IsOutOfGas() {
-		// If the gas meter is out of gas, then no refund needs to be issued.
-		return nil
 	}
 
 	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
@@ -64,9 +69,6 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 	if err := frd.processRefund(ctx, coinsToRefund, refundRecipient); err != nil {
 		return err
 	}
-
-	gasConsumedDuringRefund := ctx.GasMeter().GasConsumed()
-	fmt.Printf("gasConsumedDuringRefund %v\n", gasConsumedDuringRefund)
 
 	return nil
 }
