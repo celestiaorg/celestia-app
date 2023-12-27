@@ -66,52 +66,7 @@ func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 	s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 }
 
-// TestGasConsumption verifies that the amount deducted from a user's balance is
-// not based on the fee specified by the tx.
-func (s *UnspentGasRefundDecoratorSuite) TestGasConsumption() {
-	t := s.T()
-
-	type testCase struct {
-		name     string
-		gasLimit uint64
-		fee      uint64
-		want     int64
-	}
-
-	testCases := []testCase{
-		{
-			name: "part of the fee should be refunded",
-			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-			// same value, these options set a gasPrice of 1 utia.
-			gasLimit: 1e5, // 100_000
-			fee:      1e5, // 100_000 utia
-			want:     61_931,
-		},
-		{
-			name:     "at most half of the fee should be refunded",
-			gasLimit: 1e6,
-			fee:      tia,
-			want:     tia * .5,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			options := []user.TxOption{user.SetGasLimit(tc.gasLimit), user.SetFee(tc.fee)}
-			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
-
-			resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
-			require.NoError(t, err)
-			require.EqualValues(t, abci.CodeTypeOK, resp.Code)
-
-			got := calculateNetFee(t, resp, s.signer.Address().String())
-			assert.Equal(t, tc.want, got)
-		})
-	}
-}
-
-// TODO: consider collapsing this test with the test above.
-func (s *UnspentGasRefundDecoratorSuite) TestRefundRecipient() {
+func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
 	t := s.T()
 
 	type testCase struct {
@@ -125,7 +80,16 @@ func (s *UnspentGasRefundDecoratorSuite) TestRefundRecipient() {
 
 	testCases := []testCase{
 		{
-			name:                "refund should be sent to signer if fee payer is unspecified",
+			name: "part of the fee should be refunded",
+			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
+			// same value, these options set a gasPrice of 1 utia.
+			gasLimit:            1e5, // 100_000
+			fee:                 1e5, // 100_000 utia
+			wantNetFee:          61_931,
+			wantRefundRecipient: s.signer.Address(),
+		},
+		{
+			name:                "at most half of the fee should be refunded",
 			gasLimit:            1e6,
 			fee:                 tia,
 			wantNetFee:          tia * .5,
