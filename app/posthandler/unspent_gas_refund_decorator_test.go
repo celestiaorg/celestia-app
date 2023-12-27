@@ -24,14 +24,14 @@ const (
 	tia  = 1e6
 )
 
-func TestUnspentGasRefundDecorator(t *testing.T) {
+func TestRefundGasRemainingDecorator(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping unspent gas refund decorator test in short mode.")
+		t.Skip("skipping refund gas remaining decorator test in short mode.")
 	}
-	suite.Run(t, new(UnspentGasRefundDecoratorSuite))
+	suite.Run(t, new(RefundGasRemainingDecoratorSuite))
 }
 
-type UnspentGasRefundDecoratorSuite struct {
+type RefundGasRemainingDecoratorSuite struct {
 	suite.Suite
 
 	ctx      testnode.Context
@@ -40,7 +40,7 @@ type UnspentGasRefundDecoratorSuite struct {
 	feePayer *user.Signer
 }
 
-func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
+func (s *RefundGasRemainingDecoratorSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b"))
 	_, err := s.ctx.WaitForHeight(1)
@@ -66,7 +66,7 @@ func (s *UnspentGasRefundDecoratorSuite) SetupSuite() {
 	s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 }
 
-func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
+func (s *RefundGasRemainingDecoratorSuite) TestDecorator() {
 	t := s.T()
 
 	type testCase struct {
@@ -156,6 +156,7 @@ func calculateNetFee(t *testing.T, resp *sdk.TxResponse, feePayer string) (netFe
 	return netFee
 }
 
+// getTransfers returns all the transfer events in the slice of events.
 func getTransfers(t *testing.T, events []abci.Event) (transfers []transferEvent) {
 	for _, event := range events {
 		if event.Type == banktypes.EventTypeTransfer {

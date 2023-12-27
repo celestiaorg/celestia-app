@@ -17,37 +17,42 @@ import (
 var MaxPortionOfFeeToRefund = sdk.NewDecWithPrec(5, 1) // 50%
 
 // RefundGasCost is the amount of gas consumed during the refund operation. If a
-// tx reaches this decorator with gas remaining in excess of this amount, then a
-// refund will be issued for the gas remaining - RefundGasCost.
+// tx reaches this posthandler with gas remaining in excess of this amount, then
+// a refund will be issued for the gas remaining - RefundGasCost.
 const RefundGasCost = 15_000
 
-// UnspentGasRefundDecorator handles refunding a portion of the tx fee that was
+// RefundGasRemainingDecorator handles refunding a portion of the tx fee that was
 // originally deducted from the feepayer but was not needed because the tx
 // consumed less gas than the gas limit.
-type UnspentGasRefundDecorator struct {
+type RefundGasRemainingDecorator struct {
 	accountKeeper  authkeeper.AccountKeeper
 	bankKeeper     types.BankKeeper
 	feegrantKeeper feegrantkeeper.Keeper
 }
 
-func NewUnspentGasRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk feegrantkeeper.Keeper) UnspentGasRefundDecorator {
-	return UnspentGasRefundDecorator{
+// NewRefundGasRemainingDecorator returns a new RefundGasRemainingDecorator.
+func NewRefundGasRemainingDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk feegrantkeeper.Keeper) RefundGasRemainingDecorator {
+	return RefundGasRemainingDecorator{
 		accountKeeper:  ak,
 		bankKeeper:     bk,
 		feegrantKeeper: fk,
 	}
 }
 
-// TODO: How to handle the simulate flag?
-func (ugrd UnspentGasRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if err := ugrd.maybeRefund(ctx, tx, simulate); err != nil {
+// AnteHandle implements the cosmos-sdk AnteHandler interface. Note: the
+// AnteHandler interface is also used for post-handlers.
+func (rgrd RefundGasRemainingDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	// TODO: How to handle the simulate flag?
+	if err := rgrd.maybeRefund(ctx, tx, simulate); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
 }
 
-// TODO: How to handle the simulate flag?
-func (ugrd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
+// maybeRefund conditionally refunds a portion of the tx fee to the fee payer.
+func (rgrd RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
+	// TODO: How to handle the simulate flag?
+
 	// Replace the context's gas meter with an infinite gas meter so that this
 	// posthandler doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
@@ -68,13 +73,14 @@ func (ugrd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, si
 	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
 	recipient := getRefundRecipient(feeTx)
 
-	if err := ugrd.processRefund(ctx, coinsToRefund, recipient); err != nil {
+	if err := rgrd.processRefund(ctx, coinsToRefund, recipient); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// getCoinsToRefund returns the amount of coins to refund to the recipient.
 func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasPrice := getGasPrice(feeTx)
 	toRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
@@ -85,7 +91,7 @@ func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 }
 
 // processRefund sends amountToRefund from the fee collector module account to the recipient.
-func (frd UnspentGasRefundDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, recipient sdk.AccAddress) error {
+func (frd RefundGasRemainingDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, recipient sdk.AccAddress) error {
 	from := frd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
 	if from == nil {
 		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)

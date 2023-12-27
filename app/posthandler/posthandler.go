@@ -14,8 +14,9 @@ func New(
 	feegrantKeeper feegrantkeeper.Keeper,
 ) sdk.AnteHandler {
 	postDecorators := []sdk.AnteDecorator{
-		// The unspent gas refund decorator must be the last decorator in this list.
-		NewUnspentGasRefundDecorator(accountKeeper, bankKeeper, feegrantKeeper),
+		// The refund gas remaining decorator must be the last decorator in this
+		// list.
+		NewRefundGasRemainingDecorator(accountKeeper, bankKeeper, feegrantKeeper),
 	}
 
 	return sdk.ChainAnteDecorators(postDecorators...)
