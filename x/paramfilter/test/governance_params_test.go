@@ -66,6 +66,25 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 			false,
 		},
 		{
+			"consensus.block.TimeIotaMs",
+			testProposal(proposal.ParamChange{
+				Subspace: baseapp.Paramspace,
+				Key:      string(baseapp.ParamStoreKeyBlockParams),
+				Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
+			}),
+			func() {
+				blockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
+				suite.Require().Equal(
+					tmproto.BlockParams{
+						MaxBytes:   1,
+						MaxGas:     1,
+						TimeIotaMs: 1,
+					},
+					*blockParams)
+			},
+			false,
+		},
+		{
 			"conensus.validator.PubKeyTypes",
 			testProposal(proposal.ParamChange{
 				Subspace: baseapp.Paramspace,
