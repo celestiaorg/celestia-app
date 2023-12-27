@@ -49,7 +49,7 @@ func (ugrd UnspentGasRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 // TODO: How to handle the simulate flag?
 func (ugrd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
 	// Replace the context's gas meter with an infinite gas meter so that this
-	// decorator doesn't run out of gas while refunding.
+	// posthandler doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
 	ctx = ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
 
@@ -66,9 +66,9 @@ func (ugrd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, si
 	}
 
 	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
-	refundRecipient := getRefundRecipient(feeTx)
+	recipient := getRefundRecipient(feeTx)
 
-	if err := ugrd.processRefund(ctx, coinsToRefund, refundRecipient); err != nil {
+	if err := ugrd.processRefund(ctx, coinsToRefund, recipient); err != nil {
 		return err
 	}
 
@@ -84,28 +84,29 @@ func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	return coinsToRefund
 }
 
-// processRefund sends amountToRefund from the fee collector module account to the refundRecipient.
-func (frd UnspentGasRefundDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, refundRecipient sdk.AccAddress) error {
+// processRefund sends amountToRefund from the fee collector module account to the recipient.
+func (frd UnspentGasRefundDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, recipient sdk.AccAddress) error {
 	from := frd.accountKeeper.GetModuleAddress(types.FeeCollectorName)
 	if from == nil {
 		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)
 	}
 
-	if refundRecipientAccount := frd.accountKeeper.GetAccount(ctx, refundRecipient); refundRecipientAccount == nil {
-		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "refund recipient address: %s does not exist", refundRecipientAccount)
+	if recipientAccount := frd.accountKeeper.GetAccount(ctx, recipient); recipientAccount == nil {
+		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "recipient address: %s does not exist", recipientAccount)
 	}
 
 	if !amountToRefund.IsValid() {
 		return fmt.Errorf("invalid amount to refund: %s", amountToRefund)
 	}
 
-	if err := frd.bankKeeper.SendCoins(ctx, from, refundRecipient, amountToRefund); err != nil {
-		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", amountToRefund, refundRecipient)
+	if err := frd.bankKeeper.SendCoins(ctx, from, recipient, amountToRefund); err != nil {
+		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", amountToRefund, recipient)
 	}
 
 	return nil
 }
 
+// getRefundRecipient returns the address that should receive the refund.
 func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 	if feeGranter := feeTx.FeeGranter(); feeGranter != nil {
 		return feeGranter
@@ -113,14 +114,16 @@ func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 	return feeTx.FeePayer()
 }
 
+// getGasPrice returns the gas price of the feeTx.
+// gasLimit * gasPrice = fee. So gasPrice = fee / gasLimit.
 func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
 	feeCoins := feeTx.GetFee()
 	gas := feeTx.GetGas()
-	// gas * gasPrice = fees. So gasPrice = fees / gas.
 	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(appconsts.BondDenom)).Quo(sdk.NewDec(int64(gas)))
 	return sdk.NewDecCoinFromDec(appconsts.BondDenom, gasPrice)
 }
 
+// minimum returns the smaller of a and b.
 func minimum(a, b math.Int) math.Int {
 	if a.LTE(b) {
 		return a
