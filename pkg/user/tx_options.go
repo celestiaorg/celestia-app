@@ -1,6 +1,8 @@
 package user
 
 import (
+	"math"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
