@@ -24,14 +24,14 @@ const (
 	tia  = 1e6
 )
 
-func TestRefundGasRemainingDecorator(t *testing.T) {
+func TestRefundGasRemaining(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping refund gas remaining decorator test in short mode.")
+		t.Skip("skipping refund gas remaining test in short mode.")
 	}
-	suite.Run(t, new(RefundGasRemainingDecoratorSuite))
+	suite.Run(t, new(RefundGasRemainingSuite))
 }
 
-type RefundGasRemainingDecoratorSuite struct {
+type RefundGasRemainingSuite struct {
 	suite.Suite
 
 	ctx      testnode.Context
@@ -40,7 +40,7 @@ type RefundGasRemainingDecoratorSuite struct {
 	feePayer *user.Signer
 }
 
-func (s *RefundGasRemainingDecoratorSuite) SetupSuite() {
+func (s *RefundGasRemainingSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b"))
 	_, err := s.ctx.WaitForHeight(1)
@@ -66,7 +66,7 @@ func (s *RefundGasRemainingDecoratorSuite) SetupSuite() {
 	s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 }
 
-func (s *RefundGasRemainingDecoratorSuite) TestDecorator() {
+func (s *RefundGasRemainingSuite) TestDecorator() {
 	t := s.T()
 
 	type testCase struct {

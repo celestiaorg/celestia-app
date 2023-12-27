@@ -16,9 +16,12 @@ import (
 // MaxPortionOfFeeToRefund is the maximum portion of the fee that can be refunded.
 var MaxPortionOfFeeToRefund = sdk.NewDecWithPrec(5, 1) // 50%
 
-// RefundGasCost is the amount of gas consumed during the refund operation. If a
-// tx reaches this posthandler with gas remaining in excess of this amount, then
-// a refund will be issued for the gas remaining - RefundGasCost.
+// RefundGasCost is the amount of gas consumed during the execution of this
+// posthandler. If a tx reaches this posthandler with gas remaining in excess of
+// this amount, then a refund will be issued for the gas remaining -
+// RefundGasCost.
+//
+// NOTE: this value was determined empirically.
 const RefundGasCost = 15_000
 
 // RefundGasRemainingDecorator handles refunding a portion of the tx fee that was
