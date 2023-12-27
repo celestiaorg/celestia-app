@@ -45,7 +45,6 @@ func NewRefundGasRemainingDecorator(ak authkeeper.AccountKeeper, bk types.BankKe
 // AnteHandle implements the cosmos-sdk AnteHandler interface. Note: the
 // AnteHandler interface is also used for post-handlers.
 func (d RefundGasRemainingDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	// TODO: How to handle the simulate flag?
 	if err := d.maybeRefund(ctx, tx, simulate); err != nil {
 		return ctx, err
 	}
@@ -54,16 +53,19 @@ func (d RefundGasRemainingDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simu
 
 // maybeRefund conditionally refunds a portion of the tx fee to the fee payer.
 func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
-	// TODO: How to handle the simulate flag?
+	// If this is a simulation, then no refund needs to be issued.
+	if simulate {
+		return nil
+	}
 
 	// Replace the context's gas meter with an infinite gas meter so that this
 	// posthandler doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
 	ctx = ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
 
+	// If the gas meter doesn't have enough gas remaining to cover the
+	// refund gas cost, then no refund needs to be issued.
 	if gasMeter.GasRemaining() < RefundGasCost {
-		// If the gas meter doesn't have enough gas remaining to cover the
-		// refund gas cost, then no refund needs to be issued.
 		return nil
 	}
 	gasMeter.ConsumeGas(RefundGasCost, "refund gas cost")
