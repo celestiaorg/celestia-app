@@ -89,14 +89,18 @@ func (s *UnspentGasRefundDecoratorSuite) TestUnspentGasRefundDecorator() {
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
-			name:                "at most half of the fee should be refunded",
+			name: "at most half of the fee should be refunded",
+			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
+			// same value, these options set a gasPrice of 1 utia.
 			gasLimit:            1e6,
 			fee:                 tia,
 			wantNetFee:          tia * .5,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
-			name:                "refund should be sent to fee payer if specified",
+			name: "refund should be sent to fee payer if specified",
+			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
+			// same value, these options set a gasPrice of 1 utia.
 			gasLimit:            1e6,
 			fee:                 tia,
 			feePayer:            s.feePayer.Address(),

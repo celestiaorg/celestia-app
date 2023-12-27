@@ -13,10 +13,12 @@ import (
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 )
 
-// MaxPortionOfFee is the maximum portion of the fee that can be refunded.
-var MaxPortionOfFee = sdk.NewDecWithPrec(5, 1) // 50%
+// MaxPortionOfFeeToRefund is the maximum portion of the fee that can be refunded.
+var MaxPortionOfFeeToRefund = sdk.NewDecWithPrec(5, 1) // 50%
 
-// RefundGasCost is the amount of gas consumed during the refund operation.
+// RefundGasCost is the amount of gas consumed during the refund operation. If a
+// tx reaches this decorator with gas remaining in excess of this amount, then a
+// refund will be issued for the gas remaining - RefundGasCost.
 const RefundGasCost = 15_000
 
 // UnspentGasRefundDecorator handles refunding a portion of the tx fee that was
@@ -37,15 +39,15 @@ func NewUnspentGasRefundDecorator(ak authkeeper.AccountKeeper, bk types.BankKeep
 }
 
 // TODO: How to handle the simulate flag?
-func (frd UnspentGasRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if err := frd.maybeRefund(ctx, tx, simulate); err != nil {
+func (ugrd UnspentGasRefundDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	if err := ugrd.maybeRefund(ctx, tx, simulate); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
 }
 
 // TODO: How to handle the simulate flag?
-func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
+func (ugrd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
 	// Replace the context's gas meter with an infinite gas meter so that this
 	// decorator doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
@@ -66,7 +68,7 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
 	refundRecipient := getRefundRecipient(feeTx)
 
-	if err := frd.processRefund(ctx, coinsToRefund, refundRecipient); err != nil {
+	if err := ugrd.processRefund(ctx, coinsToRefund, refundRecipient); err != nil {
 		return err
 	}
 
@@ -76,7 +78,7 @@ func (frd UnspentGasRefundDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasPrice := getGasPrice(feeTx)
 	toRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
-	maxToRefund := MaxPortionOfFee.MulInt(feeTx.GetFee().AmountOf(appconsts.BondDenom)).TruncateInt()
+	maxToRefund := MaxPortionOfFeeToRefund.MulInt(feeTx.GetFee().AmountOf(appconsts.BondDenom)).TruncateInt()
 	amountToRefund := minimum(toRefund, maxToRefund)
 	coinsToRefund := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
 	return coinsToRefund
