@@ -190,3 +190,7 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
+
+govulncheck:
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+.PHONY: govulncheck
