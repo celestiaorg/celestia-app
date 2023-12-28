@@ -85,7 +85,7 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 			},
 		},
 		{
-			"conensus.validator.PubKeyTypes",
+			"consensus.validator.PubKeyTypes",
 			testProposal(proposal.ParamChange{
 				Subspace: baseapp.Paramspace,
 				Key:      string(baseapp.ParamStoreKeyValidatorParams),
