@@ -80,27 +80,30 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 
 	testCases := []testCase{
 		{
-			name: "part of the fee should be refunded",
-			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-			// same value, these options set a gasPrice of 1 utia.
+			// Note: gasPrice * gasLimit = fee. So gasPrice = 1 utia.
+			name:                "part of the fee should be refunded",
 			gasLimit:            1e5, // 100_000
 			fee:                 1e5, // 100_000 utia
 			wantNetFee:          76931,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
-			name: "at most half of the fee should be refunded",
-			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-			// same value, these options set a gasPrice of 1 utia.
-			gasLimit:            1e6,
+			// Note: gasPrice * gasLimit = fee. So gasPrice = 10 utia.
+			name:                "refund should vary based on gasPrice",
+			gasLimit:            1e5, // 100_000
+			fee:                 tia, // 1_000_000 utia
+			wantNetFee:          770270,
+			wantRefundRecipient: s.signer.Address(),
+		},
+		{
+			name:                "at most half of the fee should be refunded",
+			gasLimit:            1e6, // 1_000_000 is way higher than gas consumed by this tx
 			fee:                 tia,
 			wantNetFee:          tia * .5,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
-			name: "refund should be sent to fee payer if specified",
-			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-			// same value, these options set a gasPrice of 1 utia.
+			name:                "refund should be sent to fee payer if specified",
 			gasLimit:            1e6,
 			fee:                 tia,
 			feePayer:            s.feePayer.Address(),
@@ -108,9 +111,7 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			wantRefundRecipient: s.feePayer.Address(),
 		},
 		{
-			name: "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
-			// Note: gasPrice * gasLimit = fee. So by setting gasLimit and fee to the
-			// same value, these options set a gasPrice of 1 utia.
+			name:                "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
 			gasLimit:            65000,
 			fee:                 65000,
 			wantNetFee:          65000,
