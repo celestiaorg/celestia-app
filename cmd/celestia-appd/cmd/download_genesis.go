@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	flagYes   = "yes"
-	flagForce = "force"
+	flagYes = "yes"
 )
 
 // chainIDToSha256 is a map of chainID to the SHA-256 hash of the genesis file for that chain ID.
@@ -42,7 +41,7 @@ func downloadGenesisCommand() *cobra.Command {
 				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10", chainID)
 			}
 			outputFile := server.GetServerContextFromCmd(cmd).Config.GenesisFile()
-			// confirm cover, unless -y is passed
+			// confirm covering, unless -y is passed
 			if skip, _ := cmd.Flags().GetBool(flagYes); !skip {
 				// if file is existed
 				if _, err := os.Stat(outputFile); err == nil {
