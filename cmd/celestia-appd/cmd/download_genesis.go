@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -8,8 +9,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/cosmos/cosmos-sdk/client/input"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
+)
+
+const (
+	flagYes   = "yes"
+	flagForce = "force"
 )
 
 // chainIDToSha256 is a map of chainID to the SHA-256 hash of the genesis file for that chain ID.
@@ -35,6 +42,19 @@ func downloadGenesisCommand() *cobra.Command {
 				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10", chainID)
 			}
 			outputFile := server.GetServerContextFromCmd(cmd).Config.GenesisFile()
+			// confirm cover, unless -y is passed
+			if skip, _ := cmd.Flags().GetBool(flagYes); !skip {
+				// if file is existed
+				if _, err := os.Stat(outputFile); err == nil {
+					buf := bufio.NewReader(cmd.InOrStdin())
+					if yes, err := input.GetConfirmation(fmt.Sprintf("Genesis file in %s is existed. Continue covering?", outputFile), buf, cmd.ErrOrStderr()); err != nil {
+						return fmt.Errorf("get confirmation error: %w", err)
+					} else if !yes {
+						return nil
+					}
+				}
+			}
+
 			fmt.Printf("Downloading genesis file for %s to %s\n", chainID, outputFile)
 
 			url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
@@ -63,6 +83,7 @@ func downloadGenesisCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolP(flagYes, "y", false, "Skip covering confirmation prompt when genesis.json is existed")
 
 	return cmd
 }
