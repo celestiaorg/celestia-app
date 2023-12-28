@@ -48,7 +48,7 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 	testCases := []struct {
 		name     string
 		proposal *proposal.ParameterChangeProposal
-		subTest     func()
+		subTest  func()
 	}{
 		// The tests below show the parameters as modifiable, block in App.BlockedParams().
 		{
@@ -59,8 +59,9 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `[{"denom": "test", "enabled": false}]`,
 			}),
 			func() {
-				sendEnabledParams := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
-				suite.Require().Equal([]*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}, sendEnabledParams)
+				gotSendEnabledParams := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
+				wantSendEnabledParams := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
+				suite.Require().Equal(wantSendEnabledParams, gotSendEnabledParams)
 			},
 		},
 		{
@@ -72,14 +73,15 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 			}),
 			func() {
 				// need to determine if ConsensusParams.Block should be BlockParams from proto/tendermint/types instead of abci/types
-				blockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
+				gotBlockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
+				wantBlockParams := tmproto.BlockParams{
+					MaxBytes:   1,
+					MaxGas:     1,
+					TimeIotaMs: 1,
+				}
 				suite.Require().Equal(
-					tmproto.BlockParams{
-						MaxBytes:   1,
-						MaxGas:     1,
-						TimeIotaMs: 1,
-					},
-					*blockParams)
+					wantBlockParams,
+					*gotBlockParams)
 			},
 		},
 		{
@@ -90,12 +92,13 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `{"pub_key_types": ["secp256k1"]}`,
 			}),
 			func() {
-				validatorParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
+				gotValidatorParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
+				wantValidatorParams := tmproto.ValidatorParams{
+					PubKeyTypes: []string{"secp256k1"},
+				}
 				suite.Require().Equal(
-					tmproto.ValidatorParams{
-						PubKeyTypes: []string{"secp256k1"},
-					},
-					*validatorParams)
+					wantValidatorParams,
+					*gotValidatorParams)
 			},
 		},
 		{
@@ -106,12 +109,13 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `{"app_version": "3"}`,
 			}),
 			func() {
-				versionParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Version
+				gotVersionParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Version
+				wantVersionParams := tmproto.VersionParams{
+					AppVersion: 3,
+				}
 				suite.Require().Equal(
-					tmproto.VersionParams{
-						AppVersion: 3,
-					},
-					*versionParams)
+					wantVersionParams,
+					*gotVersionParams)
 			},
 		},
 		{
@@ -122,10 +126,11 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `"test"`,
 			}),
 			func() {
-				stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+				gotBondDenom := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
+				wantBondDenom := "test"
 				suite.Require().Equal(
-					stakingParams.BondDenom,
-					"test")
+					gotBondDenom,
+					wantBondDenom)
 			},
 		},
 		{
@@ -136,10 +141,11 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `1`,
 			}),
 			func() {
-				stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+				gotMaxValidators := suite.app.StakingKeeper.GetParams(suite.ctx).MaxValidators
+				wantMaxValidators := uint32(1)
 				suite.Require().Equal(
-					stakingParams.MaxValidators,
-					uint32(1))
+					gotMaxValidators,
+					wantMaxValidators)
 			},
 		},
 		{
@@ -150,10 +156,11 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				stakingParams := suite.app.StakingKeeper.GetParams(suite.ctx)
+				gotUnbondingTime := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
+				wantUnbondingTime := time.Duration(1)
 				suite.Require().Equal(
-					stakingParams.UnbondingTime,
-					time.Duration(1))
+					gotUnbondingTime,
+					wantUnbondingTime)
 			},
 		},
 	}
