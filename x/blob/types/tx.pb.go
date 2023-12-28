@@ -30,7 +30,10 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
 type MsgPayForBlobs struct {
-	Signer    string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
+	// signer is the bech32 encoded signer address. See
+	// https://en.bitcoin.it/wiki/Bech32.
+	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
+	// blob_sizes is a list of blob sizes (one per blob). Each size is in bytes.
 	BlobSizes []uint32 `protobuf:"varint,3,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
 	// share_commitments is a list of share commitments (one per blob).
 	ShareCommitments [][]byte `protobuf:"bytes,4,rep,name=share_commitments,json=shareCommitments,proto3" json:"share_commitments,omitempty"`

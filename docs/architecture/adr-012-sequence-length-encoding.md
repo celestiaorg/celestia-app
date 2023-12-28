@@ -71,7 +71,7 @@ Cons
 
 ## Option E: Extend protobuf and introduce a fixed16 type
 
-Big endian uint32 seems equivalant to protobuf fixed32 but there is no fixed16. This option adds a fixed16 type to protobuf so that we can encode the sequence length as a fixed32 and the reserved bytes as a fixed16.
+Big endian uint32 seems equivalent to protobuf fixed32 but there is no fixed16. This option adds a fixed16 type to protobuf so that we can encode the sequence length as a fixed32 and the reserved bytes as a fixed16.
 
 ## Table
 
@@ -81,7 +81,7 @@ Big endian uint32 seems equivalant to protobuf fixed32 but there is no fixed16. 
 | Option B | 4 byte padded varint                                      | 2 byte padded varint                    |
 | Option C | 4 byte big endian uint32                                  | 2 byte padded varint                    |
 | Option D | 4 byte big endian uint32                                  | 4 byte big endian uint32                |
-| Option E | 4 byte big endian uint32 (equivalant to protobuf fixed32) | 2 byte protobuf fixed16 (doesn't exist) |
+| Option E | 4 byte big endian uint32 (equivalent to protobuf fixed32) | 2 byte protobuf fixed16 (doesn't exist) |
 
 ## Decision
 
@@ -96,7 +96,7 @@ Option D
 ### Neutral
 
 - All options retain the need for other language implementations to parse varints because the length delimiter that is prefixed to units in a compact share (e.g. a transaction) is still a varint.
-- This document assumes that an encoded big endian uint32 is equivalant to a protobuf fixed32
+- This document assumes that an encoded big endian uint32 is equivalent to a protobuf fixed32
 
 ## References
 

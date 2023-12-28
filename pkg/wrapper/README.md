@@ -28,7 +28,7 @@ At its core, it is an [NMT][nmtlink] and is defined by a similar set of paramete
 Namely, the [namespace ID size `NamespaceIDSize`][nmt-ds-link],
 the underlying hash function for the digest calculation of the [namespaced hashes][nmt-hash-link],
 and the [`IgnoreMaxNamespace` flag][nmt-ignoremax-link] which dictates how namespace range of non-leaf nodes are calculated.
-In addition, the NMT wrapper is configured with the original data square size `SqaureSize` (`k` in the above example), and the index of the row or column it represents `AxisIndex` which is a value in `[0, 2*SquareSize)`.
+In addition, the NMT wrapper is configured with the original data square size `SquareSize` (`k` in the above example), and the index of the row or column it represents `AxisIndex` which is a value in `[0, 2*SquareSize)`.
 These additional configurations are used to determine the namespace ID of the shares that the NMT wrapper represents based on the quadrants to which they belong.
 
 NMT wrapper supports [Merkle inclusion proof][nmtlink] for the given share index and [Merkle range proof][nmtlink] for a range of share indices.
