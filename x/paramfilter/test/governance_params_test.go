@@ -21,7 +21,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-type HandlerTestSuite struct {
+type TestSuite struct {
 	suite.Suite
 
 	app        *app.App
@@ -30,7 +30,7 @@ type HandlerTestSuite struct {
 	pph        paramfilter.ParamBlockList
 }
 
-func (suite *HandlerTestSuite) SetupTest() {
+func (suite *TestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
 	suite.govHandler = params.NewParamChangeProposalHandler(suite.app.ParamsKeeper)
@@ -40,15 +40,15 @@ func (suite *HandlerTestSuite) SetupTest() {
 	suite.app.MintKeeper.SetMinter(suite.ctx, minter)
 }
 
-func TestHandlerTestSuite(t *testing.T) {
-	suite.Run(t, new(HandlerTestSuite))
+func RunTestSuite(t *testing.T) {
+	suite.Run(t, new(TestSuite))
 }
 
-func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
+func (suite *TestSuite) TestUnmodifiableParameters() {
 	testCases := []struct {
 		name     string
 		proposal *proposal.ParameterChangeProposal
-		onHandle func()
+		test     func()
 		expErr   bool
 	}{
 		// The tests below show the parameters as modifiable, block in App.BlockedParams().
@@ -166,14 +166,13 @@ func (suite *HandlerTestSuite) TestUnmodifiableParameters() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		suite.Run(tc.name, func() {
 			validationErr := suite.govHandler(suite.ctx, tc.proposal)
 			if tc.expErr {
 				suite.Require().Error(validationErr)
 			} else {
 				suite.Require().NoError(validationErr)
-				tc.onHandle()
+				tc.test()
 			}
 		})
 	}
