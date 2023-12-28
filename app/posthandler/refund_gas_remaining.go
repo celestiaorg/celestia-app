@@ -9,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/cosmos/cosmos-sdk/x/auth/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 )
 
@@ -29,12 +29,12 @@ const RefundGasCost = 15_000
 // consumed less gas than the gas limit.
 type RefundGasRemainingDecorator struct {
 	accountKeeper  authkeeper.AccountKeeper
-	bankKeeper     types.BankKeeper
+	bankKeeper     authtypes.BankKeeper
 	feegrantKeeper feegrantkeeper.Keeper
 }
 
 // NewRefundGasRemainingDecorator returns a new RefundGasRemainingDecorator.
-func NewRefundGasRemainingDecorator(ak authkeeper.AccountKeeper, bk types.BankKeeper, fk feegrantkeeper.Keeper) RefundGasRemainingDecorator {
+func NewRefundGasRemainingDecorator(ak authkeeper.AccountKeeper, bk authtypes.BankKeeper, fk feegrantkeeper.Keeper) RefundGasRemainingDecorator {
 	return RefundGasRemainingDecorator{
 		accountKeeper:  ak,
 		bankKeeper:     bk,
@@ -62,6 +62,8 @@ func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 	// posthandler doesn't run out of gas while refunding.
 	gasMeter := ctx.GasMeter()
 	ctx = ctx.WithGasMeter(sdk.NewInfiniteGasMeter())
+	// Restore the original gas meter after this posthandler is done.
+	defer ctx.WithGasMeter(gasMeter)
 
 	// If the gas meter doesn't have enough gas remaining to cover the
 	// refund gas cost, then no refund needs to be issued.
@@ -87,9 +89,9 @@ func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 
 // processRefund sends amountToRefund from the fee collector module account to the recipient.
 func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, recipient sdk.AccAddress) error {
-	from := d.accountKeeper.GetModuleAddress(types.FeeCollectorName)
+	from := d.accountKeeper.GetModuleAddress(authtypes.FeeCollectorName)
 	if from == nil {
-		return fmt.Errorf("fee collector module account (%s) has not been set", types.FeeCollectorName)
+		return fmt.Errorf("fee collector module account (%s) has not been set", authtypes.FeeCollectorName)
 	}
 
 	if recipientAccount := d.accountKeeper.GetAccount(ctx, recipient); recipientAccount == nil {

@@ -1,179 +1,117 @@
 package posthandler_test
 
 import (
-	"strconv"
-	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
+
+	"github.com/celestiaorg/celestia-app/app/posthandler"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
+	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 )
 
-const (
-	utia = 1
-	tia  = 1e6
-)
-
-func TestRefundGasRemaining(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping refund gas remaining test in short mode.")
-	}
-	suite.Run(t, new(RefundGasRemainingSuite))
-}
-
-type RefundGasRemainingSuite struct {
-	suite.Suite
-
-	ctx      testnode.Context
-	encCfg   encoding.Config
-	signer   *user.Signer
-	feePayer *user.Signer
-}
-
-func (s *RefundGasRemainingSuite) SetupSuite() {
-	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b"))
-	_, err := s.ctx.WaitForHeight(1)
-	s.Require().NoError(err)
-
-	recordA, err := s.ctx.Keyring.Key("a")
-	s.Require().NoError(err)
-	addrA, err := recordA.GetAddress()
-	s.Require().NoError(err)
-	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrA, s.encCfg)
-	s.Require().NoError(err)
-
-	recordB, err := s.ctx.Keyring.Key("b")
-	s.Require().NoError(err)
-	addrB, err := recordB.GetAddress()
-	s.Require().NoError(err)
-	s.feePayer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrB, s.encCfg)
-	s.Require().NoError(err)
-
-	msg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, s.feePayer.Address(), s.signer.Address())
-	s.Require().NoError(err)
-	options := []user.TxOption{user.SetGasLimit(1e6), user.SetFee(tia)}
-	s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
-}
-
-func (s *RefundGasRemainingSuite) TestDecorator() {
-	t := s.T()
-
+func TestAnteHandler(t *testing.T) {
+	gasLimit := uint64(1e6)
 	type testCase struct {
-		name                string
-		gasLimit            uint64
-		fee                 uint64
-		wantRefund          int64
-		feePayer            sdk.AccAddress
-		wantRefundRecipient sdk.AccAddress
+		name     string
+		ctx      sdk.Context
+		tx       sdk.Tx
+		simulate bool
+		next     sdk.AnteHandler
+		wantErr  bool
+		wantCtx  sdk.Context
 	}
-
 	testCases := []testCase{
 		{
-			// Note: gasPrice * gasLimit = fee. So gasPrice = 1 utia.
-			name:                "part of the fee should be refunded",
-			gasLimit:            1e5, // 100_000
-			fee:                 1e5, // 100_000 utia
-			wantRefund:          23069,
-			wantRefundRecipient: s.signer.Address(),
+			name:     "want an error if transaction is not a fee tx",
+			ctx:      mockContext(gasLimit),
+			tx:       notFeeTx{},
+			simulate: false,
+			next:     mockAnteHandler(),
+			wantErr:  true,
 		},
 		{
-			// Note: gasPrice * gasLimit = fee. So gasPrice = 10 utia.
-			name:                "refund should vary based on gasPrice",
-			gasLimit:            1e5, // 100_000
-			fee:                 tia, // 1_000_000 utia
-			wantRefund:          229730,
-			wantRefundRecipient: s.signer.Address(),
+			name:     "want gas meter to decrease if simulation is false",
+			ctx:      mockContext(gasLimit),
+			tx:       notFeeTx{},
+			simulate: false,
+			next:     mockAnteHandler(),
+			wantErr:  false,
+			wantCtx:  contextWithRefundGasConsumed(gasLimit),
 		},
 		{
-			name:                "refund should be at most half of the fee",
-			gasLimit:            1e6, // 1_000_000 is way higher than gas consumed by this tx
-			fee:                 tia,
-			wantRefund:          tia * .5,
-			wantRefundRecipient: s.signer.Address(),
-		},
-		{
-			name:                "refund should be sent to fee payer if specified",
-			gasLimit:            1e6,
-			fee:                 tia,
-			feePayer:            s.feePayer.Address(),
-			wantRefund:          tia * .5,
-			wantRefundRecipient: s.feePayer.Address(),
-		},
-		{
-			name:                "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
-			gasLimit:            65000,
-			fee:                 65000,
-			wantRefund:          0,
-			wantRefundRecipient: s.signer.Address(),
+			name:     "want no error and no gas meter modifications if simulation is true",
+			ctx:      mockContext(gasLimit),
+			tx:       notFeeTx{},
+			simulate: true,
+			next:     mockAnteHandler(),
+			wantErr:  false,
+			wantCtx:  mockContext(gasLimit),
 		},
 	}
+	ak := mockAccountKeeper()
+	bk := mockBankKeeper()
+	fk := mockFeeGrantKeeper()
+	decorator := posthandler.NewRefundGasRemainingDecorator(ak, bk, fk)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			options := []user.TxOption{user.SetGasLimit(tc.gasLimit), user.SetFee(tc.fee)}
-			if tc.feePayer != nil {
-				// Cosmos SDK has confusing naming but invoke SetFeeGranter
-				// instead of SetFeePayer.
-				//
-				// https://github.com/cosmos/cosmos-sdk/issues/18886
-				options = append(options, user.SetFeeGranter(tc.feePayer))
+			gotCtx, err := decorator.AnteHandle(tc.ctx, tc.tx, tc.simulate, tc.next)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
 			}
-			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
-
-			resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
-			require.NoError(t, err)
-			require.EqualValues(t, abci.CodeTypeOK, resp.Code)
-
-			got := getRefund(t, resp, tc.wantRefundRecipient.String())
-			assert.Equal(t, tc.wantRefund, got)
+			assert.Equal(t, tc.wantCtx, gotCtx)
 		})
 	}
 }
 
-// getRefund returns the amount refunded to the feePayer based on the events in the TxResponse.
-func getRefund(t *testing.T, resp *sdk.TxResponse, feePayer string) (refund int64) {
-	assert.NotNil(t, resp)
-	transfers := getTransfers(t, resp.Events)
-	for _, transfer := range transfers {
-		if transfer.recipient == feePayer {
-			return transfer.amount
-		}
-	}
-	return refund
+func mockContext(gasLimit uint64) sdk.Context {
+	return sdk.Context{}.WithGasMeter(sdk.NewGasMeter(gasLimit))
 }
 
-// getTransfers returns all the transfer events in the slice of events.
-func getTransfers(t *testing.T, events []abci.Event) (transfers []transferEvent) {
-	for _, event := range events {
-		if event.Type == banktypes.EventTypeTransfer {
-			amount, err := strconv.ParseInt(strings.TrimSuffix(string(event.Attributes[2].Value), "utia"), 10, 64)
-			assert.NoError(t, err)
-			transfer := transferEvent{
-				recipient: string(event.Attributes[0].Value),
-				from:      string(event.Attributes[1].Value),
-				amount:    amount,
-			}
-			transfers = append(transfers, transfer)
-		}
-	}
-	return transfers
+func contextWithRefundGasConsumed(gasLimit uint64) sdk.Context {
+	meter := sdk.NewGasMeter(gasLimit)
+	meter.ConsumeGas(posthandler.RefundGasCost, "refund gas cost")
+	return sdk.Context{}.WithGasMeter(meter)
 }
 
-// transferEvent is a struct based on the transfer event type emitted by the
-// bank module.
-type transferEvent struct {
-	recipient string
-	from      string
-	amount    int64
+func mockTx() sdk.Tx {
+	return &tx.Tx{}
+}
+
+func mockAnteHandler() sdk.AnteHandler {
+	anteHandler := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+	return anteHandler
+}
+
+func mockAccountKeeper() authkeeper.AccountKeeper {
+	return authkeeper.AccountKeeper{}
+}
+
+func mockBankKeeper() authtypes.BankKeeper {
+	return bankkeeper.BaseKeeper{}
+}
+
+func mockFeeGrantKeeper() feegrantkeeper.Keeper {
+	return feegrantkeeper.Keeper{}
+}
+
+type notFeeTx struct{}
+
+// notFeeTx implements the sdk.Tx interface but does not implement the sdk.FeeTx interface.
+var _ sdk.Tx = notFeeTx{}
+
+func (tx notFeeTx) GetMsgs() []sdk.Msg {
+	return []sdk.Msg{}
+}
+
+func (tx notFeeTx) ValidateBasic() error {
+	return nil
 }
