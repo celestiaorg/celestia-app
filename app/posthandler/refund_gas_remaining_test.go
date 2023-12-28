@@ -73,7 +73,7 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 		name                string
 		gasLimit            uint64
 		fee                 uint64
-		wantNetFee          int64
+		wantRefund          int64
 		feePayer            sdk.AccAddress
 		wantRefundRecipient sdk.AccAddress
 	}
@@ -84,7 +84,7 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			name:                "part of the fee should be refunded",
 			gasLimit:            1e5, // 100_000
 			fee:                 1e5, // 100_000 utia
-			wantNetFee:          76931,
+			wantRefund:          23069,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
@@ -92,14 +92,14 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			name:                "refund should vary based on gasPrice",
 			gasLimit:            1e5, // 100_000
 			fee:                 tia, // 1_000_000 utia
-			wantNetFee:          770270,
+			wantRefund:          229730,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
-			name:                "at most half of the fee should be refunded",
+			name:                "refund should be at most half of the fee",
 			gasLimit:            1e6, // 1_000_000 is way higher than gas consumed by this tx
 			fee:                 tia,
-			wantNetFee:          tia * .5,
+			wantRefund:          tia * .5,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
@@ -107,14 +107,14 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			gasLimit:            1e6,
 			fee:                 tia,
 			feePayer:            s.feePayer.Address(),
-			wantNetFee:          tia * .5,
+			wantRefund:          tia * .5,
 			wantRefundRecipient: s.feePayer.Address(),
 		},
 		{
 			name:                "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
 			gasLimit:            65000,
 			fee:                 65000,
-			wantNetFee:          65000,
+			wantRefund:          0,
 			wantRefundRecipient: s.signer.Address(),
 		},
 	}
@@ -135,26 +135,22 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			require.NoError(t, err)
 			require.EqualValues(t, abci.CodeTypeOK, resp.Code)
 
-			got := calculateNetFee(t, resp, tc.wantRefundRecipient.String())
-			assert.Equal(t, tc.wantNetFee, got)
+			got := getRefund(t, resp, tc.wantRefundRecipient.String())
+			assert.Equal(t, tc.wantRefund, got)
 		})
 	}
 }
 
-// calculateNetFee calculates the fee that feePayer paid for the tx based on
-// events in the TxResponse.
-func calculateNetFee(t *testing.T, resp *sdk.TxResponse, feePayer string) (netFee int64) {
+// getRefund returns the amount refunded to the feePayer based on the events in the TxResponse.
+func getRefund(t *testing.T, resp *sdk.TxResponse, feePayer string) (refund int64) {
 	assert.NotNil(t, resp)
 	transfers := getTransfers(t, resp.Events)
 	for _, transfer := range transfers {
-		if transfer.from == feePayer {
-			netFee += transfer.amount
-		}
 		if transfer.recipient == feePayer {
-			netFee -= transfer.amount
+			return transfer.amount
 		}
 	}
-	return netFee
+	return refund
 }
 
 // getTransfers returns all the transfer events in the slice of events.
