@@ -77,10 +77,10 @@ func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 		return errors.Wrap(sdkerrors.ErrTxDecode, "tx must be a FeeTx to use FeeRefundDecorator")
 	}
 
-	coinsToRefund := getCoinsToRefund(gasMeter, feeTx)
-	recipient := getRefundRecipient(feeTx)
+	refund := getRefund(gasMeter, feeTx)
+	recipient := getRecipient(feeTx)
 
-	if err := d.processRefund(ctx, coinsToRefund, recipient); err != nil {
+	if err := d.processRefund(ctx, refund, recipient); err != nil {
 		return err
 	}
 
@@ -88,7 +88,7 @@ func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 }
 
 // processRefund sends amountToRefund from the fee collector module account to the recipient.
-func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, amountToRefund sdk.Coins, recipient sdk.AccAddress) error {
+func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, refund sdk.Coins, recipient sdk.AccAddress) error {
 	from := d.accountKeeper.GetModuleAddress(authtypes.FeeCollectorName)
 	if from == nil {
 		return fmt.Errorf("fee collector module account (%s) has not been set", authtypes.FeeCollectorName)
@@ -98,29 +98,28 @@ func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, amountToRefu
 		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "recipient address: %s does not exist", recipientAccount)
 	}
 
-	if !amountToRefund.IsValid() {
-		return fmt.Errorf("invalid amount to refund: %s", amountToRefund)
+	if !refund.IsValid() {
+		return fmt.Errorf("invalid coins to refund: %s", refund)
 	}
 
-	if err := d.bankKeeper.SendCoins(ctx, from, recipient, amountToRefund); err != nil {
-		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", amountToRefund, recipient)
+	if err := d.bankKeeper.SendCoins(ctx, from, recipient, refund); err != nil {
+		return errors.Wrapf(err, "error refunding %s from fee collector module account to %s", refund, recipient)
 	}
 
 	return nil
 }
 
-// getCoinsToRefund returns the amount of coins to refund to the recipient.
-func getCoinsToRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
+// getRefund returns the coins that should be refunded to the recipient.
+func getRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasPrice := getGasPrice(feeTx)
 	toRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
 	maxToRefund := MaxPortionOfFeeToRefund.MulInt(feeTx.GetFee().AmountOf(appconsts.BondDenom)).TruncateInt()
 	amountToRefund := minimum(toRefund, maxToRefund)
-	coinsToRefund := sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
-	return coinsToRefund
+	return sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
 }
 
-// getRefundRecipient returns the address that should receive the refund.
-func getRefundRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
+// getRecipient returns the address that should receive the refund.
+func getRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 	if feeGranter := feeTx.FeeGranter(); feeGranter != nil {
 		return feeGranter
 	}
