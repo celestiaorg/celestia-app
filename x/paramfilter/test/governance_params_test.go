@@ -40,7 +40,7 @@ func (suite *TestSuite) SetupTest() {
 	suite.app.MintKeeper.SetMinter(suite.ctx, minter)
 }
 
-func RunTestSuite(t *testing.T) {
+func TestTestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
 
@@ -48,7 +48,7 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 	testCases := []struct {
 		name     string
 		proposal *proposal.ParameterChangeProposal
-		test     func()
+		subTest     func()
 		expErr   bool
 	}{
 		// The tests below show the parameters as modifiable, block in App.BlockedParams().
@@ -73,6 +73,7 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
 			}),
 			func() {
+				// need to determine if ConsensusParams.Block should be BlockParams from proto/tendermint/types instead of abci/types
 				blockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
 				suite.Require().Equal(
 					tmproto.BlockParams{
@@ -82,6 +83,7 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					},
 					*blockParams)
 			},
+			
 			false,
 		},
 		{
@@ -172,7 +174,7 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				suite.Require().Error(validationErr)
 			} else {
 				suite.Require().NoError(validationErr)
-				tc.test()
+				tc.subTest()
 			}
 		})
 	}
