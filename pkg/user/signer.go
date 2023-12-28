@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -153,7 +153,7 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts 
 		return nil, err
 	}
 	if resp.Code != 0 {
-		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+		return nil, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
@@ -206,36 +206,32 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 	return resp.TxResponse, nil
 }
 
-// ConfirmTx periodically pings the provided node for the commitment of a transaction by its
-// hash. It will continually loop until the context is cancelled, the tx is found or an error
-// is encountered.
+// ConfirmTx waits for tx to be confirmed on the blockchain.
+// It stops waiting when the context is canceled.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
-	timer := time.NewTimer(0)
-	defer timer.Stop()
+
+	poolTicker := time.NewTicker(s.pollTime)
+	defer poolTicker.Stop()
+
 	for {
+		resp, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txHash})
+		if err == nil {
+			if resp.TxResponse.Code != 0 {
+				return nil, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+			}
+			return resp.TxResponse, nil
+		}
+
+		if !errors.Is(err, sdkerrors.ErrNotFound) {
+			return nil, err
+		}
+
+		// Wait for the next round.
 		select {
 		case <-ctx.Done():
-			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-timer.C:
-			resp, err := txClient.GetTx(
-				ctx,
-				&tx.GetTxRequest{
-					Hash: txHash,
-				},
-			)
-			if err == nil {
-				if resp.TxResponse.Code != 0 {
-					return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-				}
-				return resp.TxResponse, nil
-			}
-
-			if !strings.Contains(err.Error(), "not found") {
-				return &sdktypes.TxResponse{}, err
-			}
-
-			timer.Reset(s.pollTime)
+			return nil, ctx.Err()
+		case <-poolTicker.C:
 		}
 	}
 }
@@ -257,8 +253,6 @@ func (s *Signer) Address() sdktypes.AccAddress {
 
 // SetPollTime sets how often the signer should poll for the confirmation of the transaction
 func (s *Signer) SetPollTime(pollTime time.Duration) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	s.pollTime = pollTime
 }
 
