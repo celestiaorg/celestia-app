@@ -82,7 +82,7 @@ func downloadGenesisCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolP(flagYes, "y", false, "Skip overwrite confirmation prompt when genesis.json is existed")
+	cmd.Flags().BoolP(flagYes, "y", false, "Skip overwrite confirmation prompt when genesis.json already exists")
 
 	return cmd
 }
