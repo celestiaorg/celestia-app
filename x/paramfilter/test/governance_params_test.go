@@ -49,7 +49,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 		name     string
 		proposal *proposal.ParameterChangeProposal
 		subTest     func()
-		expErr   bool
 	}{
 		// The tests below show the parameters as modifiable, block in App.BlockedParams().
 		{
@@ -63,7 +62,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 				sendEnabledParams := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
 				suite.Require().Equal([]*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}, sendEnabledParams)
 			},
-			false,
 		},
 		{
 			"consensus.block.TimeIotaMs",
@@ -83,8 +81,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					},
 					*blockParams)
 			},
-			
-			false,
 		},
 		{
 			"conensus.validator.PubKeyTypes",
@@ -101,7 +97,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					},
 					*validatorParams)
 			},
-			false,
 		},
 		{
 			"consensus.Version.AppVersion",
@@ -118,7 +113,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					},
 					*versionParams)
 			},
-			false,
 		},
 		{
 			"staking.BondDenom",
@@ -133,7 +127,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					stakingParams.BondDenom,
 					"test")
 			},
-			false,
 		},
 		{
 			"staking.MaxValidators",
@@ -148,7 +141,6 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					stakingParams.MaxValidators,
 					uint32(1))
 			},
-			false,
 		},
 		{
 			"staking.UnbondingTime",
@@ -163,19 +155,14 @@ func (suite *TestSuite) TestUnmodifiableParameters() {
 					stakingParams.UnbondingTime,
 					time.Duration(1))
 			},
-			false,
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			validationErr := suite.govHandler(suite.ctx, tc.proposal)
-			if tc.expErr {
-				suite.Require().Error(validationErr)
-			} else {
-				suite.Require().NoError(validationErr)
-				tc.subTest()
-			}
+			suite.Require().NoError(validationErr)
+			tc.subTest()
 		})
 	}
 }
