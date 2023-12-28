@@ -211,7 +211,11 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
 
-	poolTicker := time.NewTicker(s.pollTime)
+	s.mtx.RLock()
+	pollTime := s.pollTime
+	s.mtx.RUnlock()
+
+	poolTicker := time.NewTicker(pollTime)
 	defer poolTicker.Stop()
 
 	for {
@@ -253,6 +257,8 @@ func (s *Signer) Address() sdktypes.AccAddress {
 
 // SetPollTime sets how often the signer should poll for the confirmation of the transaction
 func (s *Signer) SetPollTime(pollTime time.Duration) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	s.pollTime = pollTime
 }
 
