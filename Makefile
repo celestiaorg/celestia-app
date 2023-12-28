@@ -191,6 +191,7 @@ prebuilt-binary:
 		release --clean
 .PHONY: prebuilt-binary
 
+## govulncheck: Check for vulnerabilities in dependencies.
 govulncheck:
 	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 .PHONY: govulncheck
