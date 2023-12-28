@@ -43,7 +43,7 @@ func downloadGenesisCommand() *cobra.Command {
 			outputFile := server.GetServerContextFromCmd(cmd).Config.GenesisFile()
 			// confirm overwrite, unless -y is passed
 			if skip, _ := cmd.Flags().GetBool(flagYes); !skip {
-				// if file is existed
+				// if file already exists
 				if _, err := os.Stat(outputFile); err == nil {
 					buf := bufio.NewReader(cmd.InOrStdin())
 					if yes, err := input.GetConfirmation(fmt.Sprintf("A genesis file already exists at %s. Do you want to overwrite it?", outputFile), buf, cmd.ErrOrStderr()); err != nil {
