@@ -41,29 +41,32 @@ type RefundGasRemainingSuite struct {
 }
 
 func (s *RefundGasRemainingSuite) SetupSuite() {
+	require := s.Require()
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b"))
 	_, err := s.ctx.WaitForHeight(1)
-	s.Require().NoError(err)
+	require.NoError(err)
 
 	recordA, err := s.ctx.Keyring.Key("a")
-	s.Require().NoError(err)
+	require.NoError(err)
 	addrA, err := recordA.GetAddress()
-	s.Require().NoError(err)
+	require.NoError(err)
 	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrA, s.encCfg)
-	s.Require().NoError(err)
+	require.NoError(err)
 
 	recordB, err := s.ctx.Keyring.Key("b")
-	s.Require().NoError(err)
+	require.NoError(err)
 	addrB, err := recordB.GetAddress()
-	s.Require().NoError(err)
+	require.NoError(err)
 	s.feePayer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrB, s.encCfg)
-	s.Require().NoError(err)
+	require.NoError(err)
 
 	msg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, s.feePayer.Address(), s.signer.Address())
-	s.Require().NoError(err)
+	require.NoError(err)
 	options := []user.TxOption{user.SetGasLimit(1e6), user.SetFee(tia)}
-	s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
+	resp, err := s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
+	require.NoError(err)
+	require.Equal(abci.CodeTypeOK, resp.Code)
 }
 
 func (s *RefundGasRemainingSuite) TestDecorator() {
