@@ -17,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
@@ -210,6 +211,66 @@ func (suite *TestSuite) TestModifiableParameters() {
 				suite.Require().Equal(
 					wantMaxBytes,
 					gotMaxBytes)
+			},
+		},
+		{
+			"distribution.BaseProposerReward",
+			testProposal(proposal.ParamChange{
+				Subspace: distributiontypes.ModuleName,
+				Key:      string(distributiontypes.ParamStoreKeyBaseProposerReward),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotBaseProposerReward := suite.app.DistrKeeper.GetParams(suite.ctx).BaseProposerReward
+				wantBaseProposerReward := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantBaseProposerReward,
+					gotBaseProposerReward)
+			},
+		},
+		{
+			"distribution.BonusProposerReward",
+			testProposal(proposal.ParamChange{
+				Subspace: distributiontypes.ModuleName,
+				Key:      string(distributiontypes.ParamStoreKeyBonusProposerReward),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotBonusProposerReward := suite.app.DistrKeeper.GetParams(suite.ctx).BonusProposerReward
+				wantBonusProposerReward := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantBonusProposerReward,
+					gotBonusProposerReward)
+			},
+		},
+		{
+			"distribution.CommunityTax",
+			testProposal(proposal.ParamChange{
+				Subspace: distributiontypes.ModuleName,
+				Key:      string(distributiontypes.ParamStoreKeyCommunityTax),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotCommunityTax := suite.app.DistrKeeper.GetParams(suite.ctx).CommunityTax
+				wantCommunityTax := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantCommunityTax,
+					gotCommunityTax)
+			},
+		},
+		{
+			"distribution.WithdrawAddrEnabled",
+			testProposal(proposal.ParamChange{
+				Subspace: distributiontypes.ModuleName,
+				Key:      string(distributiontypes.ParamStoreKeyWithdrawAddrEnabled),
+				Value:    `false`,
+			}),
+			func() {
+				gotWithdrawAddrEnabled := suite.app.DistrKeeper.GetParams(suite.ctx).WithdrawAddrEnabled
+				wantWithdrawAddrEnabled := false
+				suite.Require().Equal(
+					wantWithdrawAddrEnabled,
+					gotWithdrawAddrEnabled)
 			},
 		},
 	}
