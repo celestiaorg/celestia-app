@@ -46,9 +46,6 @@ send a new message overriding the previous one.
 				ValidatorAddress: valAddress,
 				EvmAddress:       evmAddress,
 			}
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
