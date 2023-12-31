@@ -1,6 +1,6 @@
 # BUILD_BASE_IMAGE is the base image to use for the build. It contains a rolling
 # accumulation of Go build/package caches.
-ARG BUILD_BASE_IMAGE=docker.io/golang:1.21.0-alpine3.18
+ARG BUILD_BASE_IMAGE=docker.io/golang:1.21.5-alpine3.18
 # This Dockerfile performs a multi-stage build and RUNTIME_IMAGE is the image
 # onto which to copy the resulting binary.
 #
@@ -37,7 +37,7 @@ ARG GO_PROXY=https://proxy.golang.org
 # BUILD_TAGS is either nothing, or when expanded, it expands to "-tags <comma-separated build tags>"
 ARG BUILD_TAGS
 
-# TESTPLAN_EXEC_PKG is the executable package within this test plan we want to build. 
+# TESTPLAN_EXEC_PKG is the executable package within this test plan we want to build.
 ENV TESTPLAN_EXEC_PKG ${TESTPLAN_EXEC_PKG}
 
 # We explicitly set GOCACHE under the /go directory for more tidiness.
@@ -51,9 +51,9 @@ RUN apk add gcompat
 
 # Download deps.
 RUN echo "Using go proxy: ${GO_PROXY}" \
-    && cd ${PLAN_DIR} \
-    && go env -w GOPROXY="${GO_PROXY}" \
-    && go mod download
+  && cd ${PLAN_DIR} \
+  && go env -w GOPROXY="${GO_PROXY}" \
+  && go mod download
 
 
 # Now copy the rest of the source and run the build.
@@ -61,8 +61,8 @@ COPY . /
 
 
 RUN cd ${PLAN_DIR} \
-    && go env -w GOPROXY="${GO_PROXY}" \
-    && CGO_ENABLED=${CgoEnabled} GOOS=linux GOARCH=amd64 go build -o ${PLAN_DIR}/testplan.bin ${BUILD_TAGS} ${TESTPLAN_EXEC_PKG}
+  && go env -w GOPROXY="${GO_PROXY}" \
+  && CGO_ENABLED=${CgoEnabled} GOOS=linux GOARCH=amd64 go build -o ${PLAN_DIR}/testplan.bin ${BUILD_TAGS} ${TESTPLAN_EXEC_PKG}
 
 # Store module dependencies
 RUN cd ${PLAN_DIR} \

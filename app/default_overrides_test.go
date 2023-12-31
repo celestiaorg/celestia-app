@@ -16,7 +16,7 @@ import (
 // overridden.
 func Test_newGovModule(t *testing.T) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	day := time.Duration(time.Hour * 24)
+	day := time.Hour * 24
 	oneWeek := day * 7
 
 	govModule := newGovModule()
