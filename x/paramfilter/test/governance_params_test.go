@@ -23,6 +23,7 @@ import (
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
@@ -474,6 +475,66 @@ func (suite *TestSuite) TestModifiableParameters() {
 				suite.Require().Equal(
 					wantSlashFractionDowntime,
 					gotSlashFractionDowntime)
+			},
+		},
+		{
+			"staking.HistoricalEntries",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyHistoricalEntries),
+				Value:    `1`,
+			}),
+			func() {
+				gotHistoricalEntries := suite.app.StakingKeeper.GetParams(suite.ctx).HistoricalEntries
+				wantHistoricalEntries := uint32(1)
+				suite.Require().Equal(
+					wantHistoricalEntries,
+					gotHistoricalEntries)
+			},
+		},
+		{
+			"staking.MaxEntries",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyMaxEntries),
+				Value:    `1`,
+			}),
+			func() {
+				gotMaxEntries := suite.app.StakingKeeper.GetParams(suite.ctx).MaxEntries
+				wantMaxEntries := uint32(1)
+				suite.Require().Equal(
+					wantMaxEntries,
+					gotMaxEntries)
+			},
+		},
+		{
+			"staking.MinCommissionRate",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyMinCommissionRate),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotMinCommissionRate := suite.app.StakingKeeper.GetParams(suite.ctx).MinCommissionRate
+				wantMinCommissionRate := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantMinCommissionRate,
+					gotMinCommissionRate)
+			},
+		},
+		{
+			"staking.UnbondingTime",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyUnbondingTime),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotUnbondingTime := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
+				wantUnbondingTime := time.Duration(1)
+				suite.Require().Equal(
+					wantUnbondingTime,
+					gotUnbondingTime)
 			},
 		},
 	}
