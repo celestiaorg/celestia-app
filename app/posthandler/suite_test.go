@@ -76,8 +76,8 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 		name                string
 		gasLimit            uint64
 		fee                 uint64
-		wantRefund          int64
 		feePayer            sdk.AccAddress
+		wantRefund          int64
 		wantRefundRecipient sdk.AccAddress
 	}
 
@@ -85,29 +85,29 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 		{
 			// Note: gasPrice * gasLimit = fee. So gasPrice = 1 utia.
 			name:                "part of the fee should be refunded",
-			gasLimit:            1e5, // 100_000
-			fee:                 1e5, // 100_000 utia
+			gasLimit:            100_000,
+			fee:                 100_000 * utia,
 			wantRefund:          23069,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
 			// Note: gasPrice * gasLimit = fee. So gasPrice = 10 utia.
 			name:                "refund should vary based on gasPrice",
-			gasLimit:            1e5, // 100_000
+			gasLimit:            100_000,
 			fee:                 tia, // 1_000_000 utia
 			wantRefund:          229730,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
 			name:                "refund should be at most half of the fee",
-			gasLimit:            1e6, // 1_000_000 is way higher than gas consumed by this tx
+			gasLimit:            1_000_000, // 1_000_000 is way higher than gas consumed by this tx
 			fee:                 tia,
 			wantRefund:          tia * .5,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
 			name:                "refund should be sent to fee payer if specified",
-			gasLimit:            1e6,
+			gasLimit:            1_000_000,
 			fee:                 tia,
 			feePayer:            s.feePayer.Address(),
 			wantRefund:          tia * .5,
@@ -115,8 +115,8 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 		},
 		{
 			name:                "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
-			gasLimit:            65000,
-			fee:                 65000,
+			gasLimit:            65_000,
+			fee:                 65_000,
 			wantRefund:          0,
 			wantRefundRecipient: s.signer.Address(),
 		},
