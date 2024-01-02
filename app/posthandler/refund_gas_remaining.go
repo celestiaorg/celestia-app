@@ -123,7 +123,7 @@ func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, refund sdk.C
 // getRefund returns the coins that should be refunded to the recipient.
 func getRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasPrice := getGasPrice(feeTx)
-	toRefund := gasPrice.Amount.MulInt64(int64(gasMeter.GasRemaining())).TruncateInt()
+	toRefund := gasPrice.Amount.MulInt(sdk.NewIntFromUint64(gasMeter.GasRemaining())).TruncateInt()
 	maxToRefund := MaxPortionOfFeeToRefund.MulInt(feeTx.GetFee().AmountOf(appconsts.BondDenom)).TruncateInt()
 	amountToRefund := minimum(toRefund, maxToRefund)
 	return sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
