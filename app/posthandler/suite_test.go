@@ -128,6 +128,13 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			wantRefund:          0,
 			wantRefundRecipient: s.signer.Address(),
 		},
+		{
+			name:                "should not cause an int overflow if gas limit = max gas wanted",
+			gasLimit:            tx.MaxGasWanted,
+			fee:                 1_000_000_000 * tia,
+			wantRefund:          500_000_000 * tia,
+			wantRefundRecipient: s.signer.Address(),
+		},
 	}
 
 	for _, tc := range testCases {
