@@ -79,7 +79,7 @@ func (msg *MsgTryUpgrade) GetSigners() []sdk.AccAddress {
 	if err != nil {
 		panic(err)
 	}
-	return []sdk.AccAddress{sdk.AccAddress(valAddr)}
+	return []sdk.AccAddress{valAddr}
 }
 
 func (msg *MsgTryUpgrade) ValidateBasic() error {

@@ -43,12 +43,12 @@ func TestSquareConstruction(t *testing.T) {
 	t.Run("not enough space to append transactions", func(t *testing.T) {
 		_, err := square.Construct(coretypes.Txs(sendTxs).ToSliceOfBytes(), appconsts.LatestVersion, 2)
 		require.Error(t, err)
-		_, err = square.Construct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), appconsts.LatestVersion, 2)
+		_, err = square.Construct(pfbTxs.ToSliceOfBytes(), appconsts.LatestVersion, 2)
 		require.Error(t, err)
 	})
 	t.Run("construction should fail if a single PFB tx contains a blob that is too large to fit in the square", func(t *testing.T) {
 		pfbTxs := blobfactory.RandBlobTxs(signer, rand, 1, 1, 2*mebibyte)
-		_, err := square.Construct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), appconsts.LatestVersion, 64)
+		_, err := square.Construct(pfbTxs.ToSliceOfBytes(), appconsts.LatestVersion, 64)
 		require.Error(t, err)
 	})
 }
