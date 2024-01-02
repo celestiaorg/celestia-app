@@ -1831,13 +1831,13 @@ consumption. For example, vesting accounts use more bytes of state than a normal
 account, so more gas is consumed each time a vesting account is read from or
 updated.</p>
 <h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
-<p>There are three parameters that can be modified via governance to modify gas
+<p>There are four parameters that can be modified via governance to modify gas
 usage.</p>
-<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default Value</th><th>Description</th></tr></thead><tbody>
-<tr><td>consensus/max_gas</td><td>-1</td><td>The maximum gas allowed in a block. Default of -1 means this value is not capped.</td></tr>
-<tr><td>auth/tx_size_cost_per_byte</td><td>10</td><td>Gas used per each byte used by the transaction.</td></tr>
-<tr><td>auth/sig_verify_cost_secp256k1</td><td>1000</td><td>Gas used per verifying a secp256k1 signature</td></tr>
-<tr><td>blob/gas_per_blob_byte</td><td>8</td><td>Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details.</td></tr>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default Value</th><th>Description</th><th>Changeable via Governance</th></tr></thead><tbody>
+<tr><td>consensus/max_gas</td><td>-1</td><td>The maximum gas allowed in a block. Default of -1 means this value is not capped.</td><td>True</td></tr>
+<tr><td>auth/tx_size_cost_per_byte</td><td>10</td><td>Gas used per each byte used by the transaction.</td><td>True</td></tr>
+<tr><td>auth/sig_verify_cost_secp256k1</td><td>1000</td><td>Gas used per verifying a secp256k1 signature</td><td>True</td></tr>
+<tr><td>blob/gas_per_blob_byte</td><td>8</td><td>Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details.</td><td>True</td></tr>
 </tbody></table>
 </div>
 <h2 id="gas-limit"><a class="header" href="#gas-limit">Gas Limit</a></h2>
