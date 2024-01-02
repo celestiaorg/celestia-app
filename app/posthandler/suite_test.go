@@ -129,7 +129,10 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
-			name:                "should not cause an int overflow if gas limit = max gas wanted",
+			name: "should not cause an int overflow if gas limit = max gas wanted",
+			// NOTE: these test cases do not need to consider gasLimit >
+			// MaxGasWanted because that will result in an error on
+			// tx.ValidateBasic().
 			gasLimit:            tx.MaxGasWanted,
 			fee:                 1_000_000_000 * tia,
 			wantRefund:          500_000_000 * tia,
