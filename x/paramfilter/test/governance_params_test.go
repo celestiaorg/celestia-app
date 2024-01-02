@@ -22,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
@@ -398,6 +399,81 @@ func (suite *TestSuite) TestModifiableParameters() {
 				suite.Require().Equal(
 					wantSendEnabled,
 					gotSendEnabled)
+			},
+		},
+		{
+			"slashing.DowntimeJailDuration",
+			testProposal(proposal.ParamChange{
+				Subspace: slashingtypes.ModuleName,
+				Key:      string(slashingtypes.KeyDowntimeJailDuration),
+				Value:    `"2"`,
+			}),
+			func() {
+				gotDowntimeJailDuration := suite.app.SlashingKeeper.GetParams(suite.ctx).DowntimeJailDuration
+				wantDowntimeJailDuration := time.Duration(2)
+				suite.Require().Equal(
+					wantDowntimeJailDuration,
+					gotDowntimeJailDuration)
+			},
+		},
+		{
+			"slashing.MinSignedPerWindow",
+			testProposal(proposal.ParamChange{
+				Subspace: slashingtypes.ModuleName,
+				Key:      string(slashingtypes.KeyMinSignedPerWindow),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotMinSignedPerWindow := suite.app.SlashingKeeper.GetParams(suite.ctx).MinSignedPerWindow
+				wantMinSignedPerWindow := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantMinSignedPerWindow,
+					gotMinSignedPerWindow)
+			},
+		},
+		{
+			"slashing.SignedBlocksWindow",
+			testProposal(proposal.ParamChange{
+				Subspace: slashingtypes.ModuleName,
+				Key:      string(slashingtypes.KeySignedBlocksWindow),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotSignedBlocksWindow := suite.app.SlashingKeeper.GetParams(suite.ctx).SignedBlocksWindow
+				wantSignedBlocksWindow := int64(1)
+				suite.Require().Equal(
+					wantSignedBlocksWindow,
+					gotSignedBlocksWindow)
+			},
+		},
+		{
+			"slashing.SlashFractionDoubleSign",
+			testProposal(proposal.ParamChange{
+				Subspace: slashingtypes.ModuleName,
+				Key:      string(slashingtypes.KeySlashFractionDoubleSign),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotSlashFractionDoubleSign := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDoubleSign
+				wantSlashFractionDoubleSign := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantSlashFractionDoubleSign,
+					gotSlashFractionDoubleSign)
+			},
+		},
+		{
+			"slashing.SlashFractionDowntime",
+			testProposal(proposal.ParamChange{
+				Subspace: slashingtypes.ModuleName,
+				Key:      string(slashingtypes.KeySlashFractionDowntime),
+				Value:    `"1"`,
+			}),
+			func() {
+				gotSlashFractionDowntime := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDowntime
+				wantSlashFractionDowntime := sdk.NewDec(1)
+				suite.Require().Equal(
+					wantSlashFractionDowntime,
+					gotSlashFractionDowntime)
 			},
 		},
 	}
