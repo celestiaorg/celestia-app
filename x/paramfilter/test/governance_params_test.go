@@ -18,6 +18,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
@@ -271,6 +272,69 @@ func (suite *TestSuite) TestModifiableParameters() {
 				suite.Require().Equal(
 					wantWithdrawAddrEnabled,
 					gotWithdrawAddrEnabled)
+			},
+		},
+		{
+			"gov.DepositParams",
+			testProposal(proposal.ParamChange{
+				Subspace: "gov",
+				Key:      string(govtypes.ParamStoreKeyDepositParams),
+				Value:    `{"max_deposit_period": "1", "min_deposit": [{"denom": "test", "amount": "2"}]}`,
+			}),
+			func() {
+				gotMaxDepositPeriod := *suite.app.GovKeeper.GetDepositParams(suite.ctx).MaxDepositPeriod
+				wantMaxDepositPeriod := time.Duration(1)
+				suite.Require().Equal(
+					wantMaxDepositPeriod,
+					gotMaxDepositPeriod)
+
+				gotMinDeposit := suite.app.GovKeeper.GetDepositParams(suite.ctx).MinDeposit
+				wantMinDeposit := []sdk.Coin{{Denom: "test", Amount: sdk.NewInt(2)}}
+				suite.Require().Equal(
+					wantMinDeposit,
+					gotMinDeposit)
+			},
+		},
+		{
+			"gov.TallyParams",
+			testProposal(proposal.ParamChange{
+				Subspace: "gov",
+				Key:      string(govtypes.ParamStoreKeyTallyParams),
+				Value:    `{"quorum": "0.1", "threshold": "0.2", "veto_threshold": "0.3"}`,
+			}),
+			func() {
+				gotQuroum := suite.app.GovKeeper.GetTallyParams(suite.ctx).Quorum
+				wantQuorum := "0.1"
+				suite.Require().Equal(
+					wantQuorum,
+					gotQuroum)
+
+				gotThreshold := suite.app.GovKeeper.GetTallyParams(suite.ctx).Threshold
+				wantThreshold := "0.2"
+				suite.Require().Equal(
+					wantThreshold,
+					gotThreshold)
+
+				gotVetoThreshold := suite.app.GovKeeper.GetTallyParams(suite.ctx).VetoThreshold
+				wantVetoThreshold := "0.3"
+				suite.Require().Equal(
+					wantVetoThreshold,
+					gotVetoThreshold)
+			},
+		},
+		{
+			"gov.VotingParams.VotingPeriod",
+			testProposal(proposal.ParamChange{
+				Subspace: "gov",
+				Key:      string(govtypes.ParamStoreKeyVotingParams),
+				Value:    `{"voting_period": "2"}`,
+			}),
+			func() {
+				gotVotingPeriod := *suite.app.GovKeeper.GetVotingParams(suite.ctx).VotingPeriod
+				wantVotingPeriod := time.Duration(2)
+				suite.Require().Equal(
+					wantVotingPeriod,
+					gotVotingPeriod)
 			},
 		},
 	}
