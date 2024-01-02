@@ -137,7 +137,7 @@ func NewShareInclusionProof(
 		}
 
 		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
-		proof, err := tree.ProveRange(int(startLeafPos), int(endLeafPos+1))
+		proof, err := tree.ProveRange(startLeafPos, endLeafPos+1)
 		if err != nil {
 			return types.ShareProof{}, err
 		}
