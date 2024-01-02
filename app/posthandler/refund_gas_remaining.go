@@ -86,6 +86,9 @@ func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 	}
 
 	refund := getRefund(gasMeter, feeTx)
+	if len(refund) == 0 {
+		return nil
+	}
 	recipient := getRecipient(feeTx)
 
 	if err := d.processRefund(ctx, refund, recipient); err != nil {
@@ -139,7 +142,7 @@ func getRecipient(feeTx sdk.FeeTx) sdk.AccAddress {
 func getGasPrice(feeTx sdk.FeeTx) sdk.DecCoin {
 	feeCoins := feeTx.GetFee()
 	gas := feeTx.GetGas()
-	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(appconsts.BondDenom)).Quo(sdk.NewDec(int64(gas)))
+	gasPrice := sdk.NewDecFromInt(feeCoins.AmountOf(appconsts.BondDenom)).Quo(sdk.NewDecFromInt(sdk.NewIntFromUint64(gas)))
 	return sdk.NewDecCoinFromDec(appconsts.BondDenom, gasPrice)
 }
 

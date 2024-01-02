@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/stretchr/testify/assert"
@@ -117,6 +118,13 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			name:                "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
 			gasLimit:            65_000,
 			fee:                 65_000,
+			wantRefund:          0,
+			wantRefundRecipient: s.signer.Address(),
+		},
+		{
+			name:                "no refund should be sent if gasPrice is extremely low because the refund amount truncates to zero",
+			gasLimit:            tx.MaxGasWanted,
+			fee:                 utia,
 			wantRefund:          0,
 			wantRefundRecipient: s.signer.Address(),
 		},
