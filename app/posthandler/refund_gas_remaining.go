@@ -60,7 +60,8 @@ func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, sim
 		return nil
 	}
 
-	// If this is a simulation, then no refund needs to be issued.
+	// If this is a simulation then no state changes should be persisted and
+	// therefore no refund needs to be issued.
 	if simulate {
 		return nil
 	}
