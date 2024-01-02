@@ -6,6 +6,7 @@ import (
 	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
@@ -53,6 +54,12 @@ func (d RefundGasRemainingDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simu
 
 // maybeRefund conditionally refunds a portion of the tx fee to the fee payer.
 func (d RefundGasRemainingDecorator) maybeRefund(ctx sdk.Context, tx sdk.Tx, simulate bool) error {
+	// If this tx was included in a v1 block then no refund needs to be issued.
+	// Gas refunds are only applicable for blocks >= v2.Version
+	if ctx.BlockHeader().Version.App == v1.Version {
+		return nil
+	}
+
 	// If this is a simulation, then no refund needs to be issued.
 	if simulate {
 		return nil

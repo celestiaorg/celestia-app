@@ -8,11 +8,15 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/app/posthandler"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 func TestAnteHandler(t *testing.T) {
@@ -33,7 +37,7 @@ func TestAnteHandler(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:     "want an error if transaction is not a fee tx",
-			ctx:      mockContext(gasLimit),
+			ctx:      mockContext(gasLimit, v2.Version),
 			tx:       notFeeTx{},
 			simulate: false,
 			next:     mockAnteHandler(),
@@ -41,21 +45,30 @@ func TestAnteHandler(t *testing.T) {
 		},
 		{
 			name:     "want no error and no gas meter modifications if simulation is true",
-			ctx:      mockContext(gasLimit),
+			ctx:      mockContext(gasLimit, v2.Version),
 			tx:       mockTx(gasLimit, fee, feePayer),
 			simulate: true,
 			next:     mockAnteHandler(),
 			wantErr:  false,
-			wantCtx:  mockContext(gasLimit),
+			wantCtx:  mockContext(gasLimit, v2.Version),
 		},
 		{
-			name:     "want gas meter to decrease if simulation is false",
-			ctx:      mockContext(gasLimit),
+			name:     "want no error and no gas meter modifications if app version is v1",
+			ctx:      mockContext(gasLimit, v1.Version),
 			tx:       mockTx(gasLimit, fee, feePayer),
 			simulate: false,
 			next:     mockAnteHandler(),
 			wantErr:  false,
-			wantCtx:  contextWithRefundGasConsumed(gasLimit),
+			wantCtx:  mockContext(gasLimit, v1.Version),
+		},
+		{
+			name:     "want gas meter to decrease if simulation is false",
+			ctx:      mockContext(gasLimit, v2.Version),
+			tx:       mockTx(gasLimit, fee, feePayer),
+			simulate: false,
+			next:     mockAnteHandler(),
+			wantErr:  false,
+			wantCtx:  contextWithRefundGasConsumed(gasLimit, v2.Version),
 		},
 	}
 	ak := mockAccountKeeper()
@@ -75,14 +88,25 @@ func TestAnteHandler(t *testing.T) {
 	}
 }
 
-func mockContext(gasLimit uint64) sdk.Context {
-	return sdk.Context{}.WithGasMeter(sdk.NewGasMeter(gasLimit))
+func mockContext(gasLimit uint64, appVersion uint64) sdk.Context {
+	gasMeter := sdk.NewGasMeter(gasLimit)
+	blockHeader := tmproto.Header{
+		Version: version.Consensus{
+			App: appVersion,
+		},
+	}
+	return sdk.Context{}.WithGasMeter(gasMeter).WithBlockHeader(blockHeader)
 }
 
-func contextWithRefundGasConsumed(gasLimit uint64) sdk.Context {
-	meter := sdk.NewGasMeter(gasLimit)
-	meter.ConsumeGas(posthandler.RefundGasCost, "refund gas cost")
-	return sdk.Context{}.WithGasMeter(meter)
+func contextWithRefundGasConsumed(gasLimit uint64, appVersion uint64) sdk.Context {
+	gasMeter := sdk.NewGasMeter(gasLimit)
+	gasMeter.ConsumeGas(posthandler.RefundGasCost, "refund gas cost")
+	blockHeader := tmproto.Header{
+		Version: version.Consensus{
+			App: appVersion,
+		},
+	}
+	return sdk.Context{}.WithGasMeter(gasMeter).WithBlockHeader(blockHeader)
 }
 
 func mockTx(gasLimit uint64, fee int64, feePayer sdk.AccAddress) sdk.Tx {
