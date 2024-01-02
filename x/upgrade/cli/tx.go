@@ -48,9 +48,6 @@ func CmdSignalVersion() *cobra.Command {
 			valAddr := sdk.ValAddress(addr)
 
 			msg := types.NewMsgSignalVersion(valAddr, version)
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -75,9 +72,6 @@ to the signalled version at the following height.
 			}
 
 			msg := types.NewMsgTryUpgrade(clientCtx.GetFromAddress())
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
