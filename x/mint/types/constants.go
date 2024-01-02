@@ -12,7 +12,7 @@ const (
 	// https://en.wikipedia.org/wiki/Year
 	DaysPerYear        = 365.2425
 	SecondsPerYear     = int64(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
-	NanosecondsPerYear = int64(NanosecondsPerSecond * SecondsPerYear)                         // 31,556,952,000,000,000
+	NanosecondsPerYear = NanosecondsPerSecond * SecondsPerYear                                // 31,556,952,000,000,000
 
 	// InitialInflationRate is the inflation rate that the network starts at.
 	InitialInflationRate = 0.08

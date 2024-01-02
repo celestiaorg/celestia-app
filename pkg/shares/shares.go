@@ -239,7 +239,7 @@ func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
 func ToBytes(shares []Share) (bytes [][]byte) {
 	bytes = make([][]byte, len(shares))
 	for i, share := range shares {
-		bytes[i] = []byte(share.data)
+		bytes[i] = share.data
 	}
 	return bytes
 }

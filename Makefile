@@ -8,7 +8,7 @@ DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspa
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app
-GOLANG_CROSS_VERSION  ?= v1.21.4
+GOLANG_CROSS_VERSION  ?= v1.21.5
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -190,3 +190,8 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
+
+## govulncheck: Check for vulnerabilities in dependencies.
+govulncheck:
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+.PHONY: govulncheck
