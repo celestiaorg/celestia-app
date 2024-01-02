@@ -141,15 +141,15 @@ updated.
 
 ## Parameters
 
-There are three parameters that can be modified via governance to modify gas
+There are four parameters that can be modified via governance to modify gas
 usage.
 
-| Parameter       | Default Value | Description                             |
-|-----------------|---------------|-----------------------------------------|
-| consensus/max_gas     | -1     | The maximum gas allowed in a block. Default of -1 means this value is not capped.             |
-| auth/tx_size_cost_per_byte | 10 | Gas used per each byte used by the transaction. |
-| auth/sig_verify_cost_secp256k1 | 1000 | Gas used per verifying a secp256k1 signature |
-| blob/gas_per_blob_byte | 8 | Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details. |
+| Parameter       | Default Value | Description                             | Changeable via Governance |
+|-----------------|---------------|-----------------------------------------|---------------------------|
+| consensus/max_gas     | -1     | The maximum gas allowed in a block. Default of -1 means this value is not capped.             | True                      |
+| auth/tx_size_cost_per_byte | 10 | Gas used per each byte used by the transaction. | True                      |
+| auth/sig_verify_cost_secp256k1 | 1000 | Gas used per verifying a secp256k1 signature | True                      |
+| blob/gas_per_blob_byte | 8 | Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details. | True                      |
 
 ## Gas Limit
 
