@@ -153,7 +153,8 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts 
 		return nil, err
 	}
 	if resp.Code != 0 {
-		return nil, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+		// TODO(htienv): Should return nil here? 
+		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
