@@ -1,7 +1,7 @@
 name: ci-release
 
 # Run this workflow on push events (i.e. PR merge) to main or release branches,
-# push events for new semantic version tags, all PRs, and manual triggers.
+# push events for new semantic version tags, and all PRs.
 on:
   push:
     branches:
@@ -13,19 +13,6 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
   pull_request:
-  workflow_dispatch:
-    # Inputs the workflow accepts.
-    inputs:
-      version:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: "Semver type of new version (major / minor / patch)"
-        # Input has to be provided for the workflow to run
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 jobs:
   lint:
@@ -37,68 +24,8 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
 
-  goreleaser-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-      - uses: goreleaser/goreleaser-action@v5
-        with:
-          version: latest
-          args: check
-
-  # branch_name trims ref/heads/ from github.ref to access a clean branch name
-  branch_name:
-    runs-on: ubuntu-latest
-    outputs:
-      branch: ${{ steps.trim_ref.outputs.branch }}
-    steps:
-      - name: Trim branch name
-        id: trim_ref
-        run: |
-          echo "branch=$(${${{ github.ref }}:11})" >> $GITHUB_OUTPUT
-
-  # If this was a workflow dispatch event, we need to generate and push a tag
-  # for goreleaser to grab
-  version_bump:
-    needs: [lint, test, branch_name, goreleaser-check]
-    runs-on: ubuntu-latest
-    permissions: "write-all"
-    steps:
-      - uses: actions/checkout@v4
-      - name: Bump version and push tag
-        # Placing the if condition here is a workaround for needing to block
-        # on this step during workflow dispatch events but the step not
-        # needing to run on tags. If we had the if condition on the full
-        # version_bump section, it would skip and not run, which would result
-        # in goreleaser not running either.
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: mathieudutour/github-tag-action@v6.1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: ${{ inputs.version }}
-          # Setting the branch name so that release branch other than
-          # master/main doesn't impact tag name
-          release_branches: ${{ needs.branch_name.outputs.branch }}
-
-  # Generate the release with goreleaser to include pre-built binaries
   goreleaser:
-    needs: version_bump
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
-    permissions: "write-all"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - run: git fetch --force --tags
-      - uses: actions/setup-go@v5
-        with:
-          go-version: 1.21.1
-      - name: Create .release-env file
-        run: |-
-          echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
-      - name: Create prebuilt binaries and attach them to the GitHub release
-        run: make prebuilt-binary
+    uses: ./.github/workflows/goreleaser.yml
+    permissions: write-all
+    secrets:
+      GORELEASER_ACCESS_TOKEN: ${{ secrets.GORELEASER_ACCESS_TOKEN }}
