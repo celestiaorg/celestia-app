@@ -22,6 +22,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
+	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
+	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
 )
 
 type TestSuite struct {
@@ -335,6 +338,66 @@ func (suite *TestSuite) TestModifiableParameters() {
 				suite.Require().Equal(
 					wantVotingPeriod,
 					gotVotingPeriod)
+			},
+		},
+		{
+			"ibc.ClientGenesis.AllowedClients",
+			testProposal(proposal.ParamChange{
+				Subspace: "ibc",
+				Key:      string(ibcclienttypes.KeyAllowedClients),
+				Value:    `["01-test"]`,
+			}),
+			func() {
+				gotVotingPeriod := suite.app.IBCKeeper.ClientKeeper.GetParams(suite.ctx).AllowedClients
+				wantVotingPeriod := []string{"01-test"}
+				suite.Require().Equal(
+					wantVotingPeriod,
+					gotVotingPeriod)
+			},
+		},
+		{
+			"ibc.ConnectionGenesis.MaxExpectedTimePerBlock",
+			testProposal(proposal.ParamChange{
+				Subspace: "ibc",
+				Key:      string(ibcconnectiontypes.KeyMaxExpectedTimePerBlock),
+				Value:    `"2"`,
+			}),
+			func() {
+				gotMaxExpectedTimePerBlock := suite.app.IBCKeeper.ConnectionKeeper.GetParams(suite.ctx).MaxExpectedTimePerBlock
+				wantMaxExpectedTimePerBlock := uint64(2)
+				suite.Require().Equal(
+					wantMaxExpectedTimePerBlock,
+					gotMaxExpectedTimePerBlock)
+			},
+		},
+		{
+			"ibc.Transfer.ReceiveEnabled",
+			testProposal(proposal.ParamChange{
+				Subspace: ibctransfertypes.ModuleName,
+				Key:      string(ibctransfertypes.KeyReceiveEnabled),
+				Value:    `false`,
+			}),
+			func() {
+				gotReceiveEnabled := suite.app.TransferKeeper.GetParams(suite.ctx).ReceiveEnabled
+				wantReceiveEnabled := false
+				suite.Require().Equal(
+					wantReceiveEnabled,
+					gotReceiveEnabled)
+			},
+		},
+		{
+			"ibc.Transfer.SendEnabled",
+			testProposal(proposal.ParamChange{
+				Subspace: ibctransfertypes.ModuleName,
+				Key:      string(ibctransfertypes.KeySendEnabled),
+				Value:    `false`,
+			}),
+			func() {
+				gotSendEnabled := suite.app.TransferKeeper.GetParams(suite.ctx).SendEnabled
+				wantSendEnabled := false
+				suite.Require().Equal(
+					wantSendEnabled,
+					gotSendEnabled)
 			},
 		},
 	}
