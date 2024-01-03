@@ -1,4 +1,4 @@
-package snarkaccount_test
+package snarkutils_test
 
 import (
 	"testing"
