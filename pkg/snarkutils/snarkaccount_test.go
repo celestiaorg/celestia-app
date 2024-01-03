@@ -31,6 +31,15 @@ func (circuit *SquareRoot) Define(api frontend.API) error {
 }
 
 func TestSquareRootPredicate(t *testing.T) {
+	// Compiles the circuit into a R1CS (Rank-1 Constraint System).
+	var circuit SquareRoot
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	assert.NoError(t, err)
+
+	// Performs the setup phase of the Groth16 zkSNARK.
+	pk, vk, err := groth16.Setup(ccs)
+	assert.NoError(t, err)
+
 	args := []struct {
 		name    string
 		X, Y, Z int64
@@ -43,15 +52,6 @@ func TestSquareRootPredicate(t *testing.T) {
 	}
 	for _, tc := range args {
 		t.Run(tc.name, func(t *testing.T) {
-			// Compiles the circuit into a R1CS (Rank-1 Constraint System).
-			var circuit SquareRoot
-			ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
-			assert.NoError(t, err)
-
-			// Performs the setup phase of the Groth16 zkSNARK.
-			pk, vk, err := groth16.Setup(ccs)
-			assert.NoError(t, err)
-
 			// Defines the witness (assignment of values to the circuit inputs).
 			assignment := SquareRoot{X: tc.X, Y: tc.Y, Z: tc.Z}
 			witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
