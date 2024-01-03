@@ -19,6 +19,7 @@ var chainIDToSha256 = map[string]string{
 	"celestia":   "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
 	"mocha-4":    "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
 	"arabica-10": "fad0a187669f7a2c11bb07f9dc27140d66d2448b7193e186312713856f28e3e1",
+	"arabica-11": ""
 }
 
 func downloadGenesisCommand() *cobra.Command {
