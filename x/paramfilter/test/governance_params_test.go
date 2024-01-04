@@ -13,7 +13,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -40,9 +39,6 @@ func (suite *GovernanceParamsTestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
 	suite.govHandler = paramfilter.NewParamBlockList(suite.app.BlockedParams()...).GovHandler(suite.app.ParamsKeeper)
-
-	minter := minttypes.DefaultMinter()
-	suite.app.MintKeeper.SetMinter(suite.ctx, minter)
 }
 
 func TestGovernanceParamsTestSuite(t *testing.T) {
