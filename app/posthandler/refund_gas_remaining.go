@@ -14,8 +14,8 @@ import (
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 )
 
-// MaxPortionOfFeeToRefund is the maximum portion of the fee that can be refunded.
-var MaxPortionOfFeeToRefund = sdk.NewDecWithPrec(5, 1) // 50%
+// MaxRefundGasConsumed is the maximum amount of gasConsumed that can be refunded.
+var MaxRefundGasConsumed = sdk.NewDecWithPrec(5, 1) // 50%
 
 // RefundGasCost is the amount of gas consumed during the execution of this
 // posthandler. If a tx reaches this posthandler with gas remaining in excess of
@@ -124,7 +124,7 @@ func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, refund sdk.C
 func getRefund(gasMeter sdk.GasMeter, feeTx sdk.FeeTx) sdk.Coins {
 	gasPrice := getGasPrice(feeTx)
 	toRefund := gasPrice.Amount.MulInt(sdk.NewIntFromUint64(gasMeter.GasRemaining())).TruncateInt()
-	maxToRefund := MaxPortionOfFeeToRefund.MulInt(feeTx.GetFee().AmountOf(appconsts.BondDenom)).TruncateInt()
+	maxToRefund := MaxRefundGasConsumed.Mul(gasPrice.Amount.MulInt(sdk.NewIntFromUint64(gasMeter.GasConsumed()))).TruncateInt()
 	amountToRefund := minimum(toRefund, maxToRefund)
 	return sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, amountToRefund))
 }

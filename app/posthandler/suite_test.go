@@ -88,7 +88,7 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			name:                "part of the fee should be refunded",
 			gasLimit:            100_000,
 			fee:                 100_000 * utia,
-			wantRefund:          23069,
+			wantRefund:          23_069,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
@@ -100,18 +100,20 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
+			// Note: gasPrice * gasLimit = fee. So gasPrice = 1 utia.
 			name:                "refund should be at most half of the fee",
 			gasLimit:            1_000_000, // 1_000_000 is way higher than gas consumed by this tx
 			fee:                 tia,
-			wantRefund:          tia * .5,
+			wantRefund:          38_513,
 			wantRefundRecipient: s.signer.Address(),
 		},
 		{
+			// Note: gasPrice * gasLimit = fee. So gasPrice = 1 utia.
 			name:                "refund should be sent to fee payer if specified",
 			gasLimit:            1_000_000,
 			fee:                 tia,
 			feePayer:            s.feePayer.Address(),
-			wantRefund:          tia * .5,
+			wantRefund:          44075,
 			wantRefundRecipient: s.feePayer.Address(),
 		},
 		{
@@ -135,7 +137,7 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 			// tx.ValidateBasic().
 			gasLimit:            tx.MaxGasWanted,
 			fee:                 1_000_000_000 * tia,
-			wantRefund:          500_000_000 * tia,
+			wantRefund:          4 * utia,
 			wantRefundRecipient: s.signer.Address(),
 		},
 	}
