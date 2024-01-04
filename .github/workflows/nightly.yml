@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: '1.21.1'
+  GO_VERSION: '1.21.5'
 
 jobs:
   test-e2e:

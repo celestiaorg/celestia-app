@@ -212,7 +212,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	// If a delay is set, wait for that many blocks to have been produced
 	// before continuing
 	if op.Delay != 0 {
-		if err := am.waitDelay(ctx, uint64(op.Delay)); err != nil {
+		if err := am.waitDelay(ctx, op.Delay); err != nil {
 			return fmt.Errorf("error delaying tx submission: %w", err)
 		}
 	}
