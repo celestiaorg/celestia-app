@@ -1,13 +1,14 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
-COMMIT := $(shell git log -1 --format='%H')
+COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
+ALL_VERSIONS := $(shell git tag -l)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app
-GOLANG_CROSS_VERSION  ?= v1.21.4
+GOLANG_CROSS_VERSION  ?= v1.21.5
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -37,12 +38,9 @@ install: go.sum
 .PHONY: install
 
 ## mod: Update go.mod.
-	@echo "--> Syncing workspaces"
-	@go work sync
+mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
-	@echo "--> Updating go.mod in ./test/testground"
-	@(cd ./test/testground && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -66,7 +64,7 @@ proto-lint:
 ## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
 proto-check-breaking:
 	@echo "--> Checking if Protobuf definitions have any breaking changes"
-	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=v1.x
+	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
 .PHONY: proto-check-breaking
 
 ## proto-format: Format protobuf files. Requires docker.
@@ -78,10 +76,10 @@ proto-format:
 ## build-docker: Build the celestia-appd docker image. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
 
-## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
+## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
@@ -108,22 +106,30 @@ fmt:
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
-## test: Run unit tests.
+## test: Run tests.
 test:
-	@echo "--> Running unit tests"
-	@go test ./...
+	@echo "--> Running tests"
+	@go test -timeout 30m ./...
 .PHONY: test
 
-## test-short: Run unit tests in short mode.
+## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
 	@go test ./... -short -timeout 1m
 .PHONY: test-short
 
-## test-race: Run unit tests in race mode.
+## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
+test-e2e:
+	@echo "--> Running end to end tests"
+	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_LATEST_VERSION=$(shell git rev-parse --short main) E2E_VERSIONS="$(ALL_VERSIONS)" E2E=true go test ./test/e2e/... -timeout 20m -v
+.PHONY: test-e2e
+
+## test-race: Run tests in race mode.
 test-race:
+# TODO: Remove the -skip flag once the following tests no longer contain data races.
+# https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestQGBRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestQGBCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -137,6 +143,30 @@ test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
+
+test-fuzz:
+	bash -x scripts/test_fuzz.sh
+.PHONY: test-fuzz
+
+## txsim-install: Install the tx simulator.
+txsim-install:
+	@echo "--> Installing tx simulator"
+	@go install $(BUILD_FLAGS) ./test/cmd/txsim
+.PHONY: txsim-install
+
+## txsim-build: Build the tx simulator binary into the ./build directory.
+txsim-build:
+	@echo "--> Building tx simulator"
+	@cd ./test/cmd/txsim
+	@mkdir -p build/
+	@go build $(BUILD_FLAGS) -o build/ ./test/cmd/txsim
+	@go mod tidy
+.PHONY: txsim-build
+
+## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
+txsim-build-docker:
+	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
+.PHONY: txsim-build-docker
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
 adr-gen:
@@ -160,3 +190,8 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
+
+## govulncheck: Check for vulnerabilities in dependencies.
+govulncheck:
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+.PHONY: govulncheck
