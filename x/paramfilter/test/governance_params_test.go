@@ -20,7 +20,6 @@ import (
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	params "github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -35,14 +34,12 @@ type GovernanceParamsTestSuite struct {
 	app        *app.App
 	ctx        sdk.Context
 	govHandler v1beta1.Handler
-	pph        paramfilter.ParamBlockList
 }
 
 func (suite *GovernanceParamsTestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
-	suite.govHandler = params.NewParamChangeProposalHandler(suite.app.ParamsKeeper)
-	suite.pph = paramfilter.NewParamBlockList([2]string{})
+	suite.govHandler = paramfilter.NewParamBlockList(suite.app.BlockedParams()...).GovHandler(suite.app.ParamsKeeper)
 
 	minter := minttypes.DefaultMinter()
 	suite.app.MintKeeper.SetMinter(suite.ctx, minter)
@@ -520,21 +517,6 @@ func (suite *GovernanceParamsTestSuite) TestModifiableParameters() {
 				suite.Require().Equal(
 					wantMinCommissionRate,
 					gotMinCommissionRate)
-			},
-		},
-		{
-			"staking.UnbondingTime",
-			testProposal(proposal.ParamChange{
-				Subspace: stakingtypes.ModuleName,
-				Key:      string(stakingtypes.KeyUnbondingTime),
-				Value:    `"1"`,
-			}),
-			func() {
-				gotUnbondingTime := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
-				wantUnbondingTime := time.Duration(1)
-				suite.Require().Equal(
-					wantUnbondingTime,
-					gotUnbondingTime)
 			},
 		},
 	}
