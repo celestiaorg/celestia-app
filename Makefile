@@ -38,7 +38,8 @@ install: go.sum
 .PHONY: install
 
 ## mod: Update go.mod.
-mod:
+	@echo "--> Syncing workspaces"
+	@go work sync
 	@echo "--> Updating go.mod"
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"
