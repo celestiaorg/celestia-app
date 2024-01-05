@@ -44,18 +44,18 @@ type RefundGasRemainingSuite struct {
 func (s *RefundGasRemainingSuite) SetupSuite() {
 	require := s.Require()
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b"))
+	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("signer", "feegranter"))
 	_, err := s.ctx.WaitForHeight(1)
 	require.NoError(err)
 
-	recordA, err := s.ctx.Keyring.Key("a")
+	recordA, err := s.ctx.Keyring.Key("signer")
 	require.NoError(err)
 	addrA, err := recordA.GetAddress()
 	require.NoError(err)
 	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrA, s.encCfg)
 	require.NoError(err)
 
-	recordB, err := s.ctx.Keyring.Key("b")
+	recordB, err := s.ctx.Keyring.Key("feegranter")
 	require.NoError(err)
 	addrB, err := recordB.GetAddress()
 	require.NoError(err)
