@@ -35,10 +35,10 @@ func TestRefundGasRemaining(t *testing.T) {
 type RefundGasRemainingSuite struct {
 	suite.Suite
 
-	ctx      testnode.Context
-	encCfg   encoding.Config
-	signer   *user.Signer
-	feePayer *user.Signer
+	ctx        testnode.Context
+	encCfg     encoding.Config
+	signer     *user.Signer
+	feeGranter *user.Signer
 }
 
 func (s *RefundGasRemainingSuite) SetupSuite() {
@@ -59,13 +59,13 @@ func (s *RefundGasRemainingSuite) SetupSuite() {
 	require.NoError(err)
 	addrB, err := recordB.GetAddress()
 	require.NoError(err)
-	s.feePayer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrB, s.encCfg)
+	s.feeGranter, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addrB, s.encCfg)
 	require.NoError(err)
 
-	msg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, s.feePayer.Address(), s.signer.Address())
+	msg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, s.feeGranter.Address(), s.signer.Address())
 	require.NoError(err)
 	options := []user.TxOption{user.SetGasLimit(1e6), user.SetFee(tia)}
-	resp, err := s.feePayer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
+	resp, err := s.feeGranter.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, options...)
 	require.NoError(err)
 	require.Equal(abci.CodeTypeOK, resp.Code)
 }
@@ -77,7 +77,7 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 		name                string
 		gasLimit            uint64
 		fee                 uint64
-		feePayer            sdk.AccAddress
+		feeGranter          sdk.AccAddress
 		wantRefund          int64
 		wantRefundRecipient sdk.AccAddress
 	}
@@ -109,12 +109,12 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 		},
 		{
 			// Note: gasPrice * gasLimit = fee. So gasPrice = 1 utia.
-			name:                "refund should be sent to fee payer if specified",
+			name:                "refund should be sent to fee granter if specified",
 			gasLimit:            1_000_000,
 			fee:                 tia,
-			feePayer:            s.feePayer.Address(),
+			feeGranter:          s.feeGranter.Address(),
 			wantRefund:          44075,
-			wantRefundRecipient: s.feePayer.Address(),
+			wantRefundRecipient: s.feeGranter.Address(),
 		},
 		{
 			name:                "no refund should be sent if gasLimit isn't high enough to pay for the refund gas cost",
@@ -145,12 +145,8 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			options := []user.TxOption{user.SetGasLimit(tc.gasLimit), user.SetFee(tc.fee)}
-			if tc.feePayer != nil {
-				// Cosmos SDK has confusing naming but invoke SetFeeGranter
-				// instead of SetFeePayer.
-				//
-				// https://github.com/cosmos/cosmos-sdk/issues/18886
-				options = append(options, user.SetFeeGranter(tc.feePayer))
+			if tc.feeGranter != nil {
+				options = append(options, user.SetFeeGranter(tc.feeGranter))
 			}
 			msg := upgradetypes.NewMsgTryUpgrade(s.signer.Address())
 
@@ -164,12 +160,12 @@ func (s *RefundGasRemainingSuite) TestDecorator() {
 	}
 }
 
-// getRefund returns the amount refunded to the feePayer based on the events in the TxResponse.
-func getRefund(t *testing.T, resp *sdk.TxResponse, feePayer string) (refund int64) {
+// getRefund returns the amount refunded to the recipient based on the events in the TxResponse.
+func getRefund(t *testing.T, resp *sdk.TxResponse, recipient string) (refund int64) {
 	assert.NotNil(t, resp)
 	transfers := getTransfers(t, resp.Events)
 	for _, transfer := range transfers {
-		if transfer.recipient == feePayer {
+		if transfer.recipient == recipient {
 			return transfer.amount
 		}
 	}

@@ -25,9 +25,9 @@ var MaxRefundGasConsumed = sdk.NewDecWithPrec(5, 1) // 50%
 // NOTE: this value was determined empirically.
 const RefundGasCost = 15_000
 
-// RefundGasRemainingDecorator handles refunding a portion of the tx fee that was
-// originally deducted from the feepayer but was not needed because the tx
-// consumed less gas than the gas limit.
+// RefundGasRemainingDecorator handles refunding a portion of the tx fee that
+// was originally deducted from the feepayer (or feegranter) but was not needed
+// because the tx consumed less gas than the gas limit.
 type RefundGasRemainingDecorator struct {
 	accountKeeper  authkeeper.AccountKeeper
 	bankKeeper     authtypes.BankKeeper
