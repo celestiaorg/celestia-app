@@ -106,7 +106,7 @@ func (d RefundGasRemainingDecorator) processRefund(ctx sdk.Context, refund sdk.C
 	}
 
 	if recipientAccount := d.accountKeeper.GetAccount(ctx, recipient); recipientAccount == nil {
-		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "recipient address: %s does not exist", recipientAccount)
+		return errors.Wrapf(sdkerrors.ErrUnknownAddress, "recipient address: %s does not exist", recipient)
 	}
 
 	if !refund.IsValid() {
