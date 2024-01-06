@@ -215,8 +215,8 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 	pollTime := s.pollTime
 	s.mtx.RUnlock()
 
-	poolTicker := time.NewTicker(pollTime)
-	defer poolTicker.Stop()
+	pollTicker := time.NewTicker(pollTime)
+	defer pollTicker.Stop()
 
 	for {
 		resp, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txHash})
@@ -234,7 +234,7 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		select {
 		case <-ctx.Done():
 			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-poolTicker.C:
+		case <-pollTicker.C:
 		}
 	}
 }
