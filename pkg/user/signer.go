@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -153,7 +153,6 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts 
 		return nil, err
 	}
 	if resp.Code != 0 {
-		// TODO(htienv): Should return nil here? 
 		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
@@ -223,19 +222,18 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		resp, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txHash})
 		if err == nil {
 			if resp.TxResponse.Code != 0 {
-				return nil, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+				return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 			}
 			return resp.TxResponse, nil
 		}
-
-		if !errors.Is(err, sdkerrors.ErrNotFound) {
-			return nil, err
+		if !strings.Contains(err.Error(), "not found") {
+			return &sdktypes.TxResponse{}, err
 		}
 
 		// Wait for the next round.
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return &sdktypes.TxResponse{}, ctx.Err()
 		case <-poolTicker.C:
 		}
 	}
