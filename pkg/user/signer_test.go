@@ -69,11 +69,13 @@ func (s *SignerTestSuite) TestSubmitTx() {
 	require.EqualValues(t, 0, resp.Code)
 }
 
-func (s *SignerTestSuite) TestConfirmTxTimeout() {
+// TestConfirmTx verifies that the ConfirmTx method returns an error when
+// the context times out.
+func (s *SignerTestSuite) TestConfirmTx() {
 	t := s.T()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_, err := s.signer.ConfirmTx(ctx, string("E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728"))
+	_, err := s.signer.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 }
