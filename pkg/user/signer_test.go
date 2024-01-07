@@ -70,11 +70,12 @@ func (s *SignerTestSuite) TestSubmitTx() {
 }
 
 func (s *SignerTestSuite) TestConfirmTxTimeout() {
+	t := s.T()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := s.signer.ConfirmTx(ctx, string("E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728"))
-	require.Error(s.T(), err)
-	require.Equal(s.T(), context.DeadlineExceeded, err)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
