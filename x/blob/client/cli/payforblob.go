@@ -75,7 +75,7 @@ The JSON should look like:
 
 The namespaceID is the user-specifiable portion of a version 0 namespace.
 The namespaceID must be a hex encoded string of 10 bytes.
-The blob must be a hex encoded string of any length.
+The blob must be a hex encoded string of non-zero length.
 		`,
 		Aliases: []string{"pay-for-blobs", "PayForBlobs", "PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
