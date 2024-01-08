@@ -2,6 +2,7 @@ package ante
 
 import (
 	"math"
+
 	errors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -64,5 +64,5 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
-   }
+	}
 }
