@@ -38,15 +38,15 @@ const (
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs [namespaceID blob]",
+		Use: "pay-for-blob [namespaceID blob]",
 		// This example command can be run in a new terminal after running single-node.sh
-		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
+		Example: "celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
 			"\t--yes \n\n" +
-			"celestia-appd tx blob PayForBlobs --input-file path/to/blobs.json \\\n" +
+			"celestia-appd tx blob pay-for-blob --input-file path/to/blobs.json \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
@@ -56,7 +56,7 @@ func CmdPayForBlob() *cobra.Command {
 		Long: "Pay for a data blob(s) to be published to Celestia.\n" +
 			"User can use namespaceID and blob as argument for single blob submission \n" +
 			"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
-			`where the json file contains: 
+			`where the json file contains:
 
 		{
 			"Blobs": [
@@ -74,7 +74,7 @@ func CmdPayForBlob() *cobra.Command {
 		namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n
 		blob must be a hex encoded string of any length.\n
 		`,
-		Aliases: []string{"PayForBlob"},
+		Aliases: []string{"pay-for-blobs", "PayForBlobs", "PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
 			path, err := cmd.Flags().GetString(FlagFileInput)
 			if err != nil {
@@ -91,7 +91,7 @@ func CmdPayForBlob() *cobra.Command {
 			}
 
 			if len(args) < 2 {
-				return errors.New("PayForBlobs requires two arguments: namespaceID and blob")
+				return errors.New("pay-for-blob requires two arguments: namespaceID and blob")
 			}
 
 			return nil
