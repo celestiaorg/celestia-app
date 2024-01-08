@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetTxPriority(t *testing.T) {
@@ -49,7 +49,7 @@ func TestGetTxPriority(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			pri := getTxPriority(tc.fee, tc.gas)
-			require.Equal(t, tc.expectedPri, pri)
+			assert.Equal(t, tc.expectedPri, pri)
 		})
 	}
 }
