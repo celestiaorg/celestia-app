@@ -206,8 +206,9 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 	return resp.TxResponse, nil
 }
 
-// ConfirmTx waits for tx to be confirmed on the blockchain.
-// It stops waiting when the context is canceled.
+// ConfirmTx periodically pings the provided node for the commitment of a transaction by its
+// hash. It will continually loop until the context is cancelled, the tx is found or an error
+// is encountered.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
 
