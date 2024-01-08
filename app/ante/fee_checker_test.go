@@ -5,19 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
-    // try and build a tx 
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	builder := encCfg.TxConfig.NewTxBuilder()
-	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin("utia", 10))))
-	assert.NoError(t, err)
-	tx := builder.GetTx()
-
-	}
 
 func TestGetTxPriority(t *testing.T) {
 	cases := []struct {
@@ -61,7 +50,7 @@ func TestGetTxPriority(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			pri := getTxPriority(tc.fee, tc.gas)
-			assert.Equal(t, tc.expectedPri, pri)
+			require.Equal(t, tc.expectedPri, pri)
 		})
 	}
 }
