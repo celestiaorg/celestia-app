@@ -1,6 +1,7 @@
 package ante
 
 import (
+	"math"
 	errors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,9 +13,9 @@ const (
 	priorityScalingFactor = 1_000_000
 )
 
-// checkTxFeeWithGlobalMinGasPrices implements the default fee logic, where the minimum price per
+// CheckTxFeeWithGlobalMinGasPrices implements the default fee logic, where the minimum price per
 // unit of gas is fixed and set globally, and the tx priority is computed from the gas price.
-func checkTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+func CheckTxFeeWithGlobalMinGasPrices(_ sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
@@ -23,11 +24,9 @@ func checkTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
 
-	if appconsts.GlobalMinGasPrice > 0 {
-		minFee := sdk.NewInt(int64(appconsts.GlobalMinGasPrice * float64(gas)))
-		if !fee.GTE(minFee) {
-			return nil, 0, errors.Wrapf(sdkerror.ErrInsufficientFee, "insufficient fees; got: %s required: %s", fee, minFee)
-		}
+	minFee := sdk.NewInt(int64(math.Ceil(appconsts.GlobalMinGasPrice * float64(gas))))
+	if !fee.GTE(minFee) {
+		return nil, 0, errors.Wrapf(sdkerror.ErrInsufficientFee, "insufficient fees; got: %s required: %s", fee, minFee)
 	}
 
 	priority := getTxPriority(feeTx.GetFee(), int64(gas))
