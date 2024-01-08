@@ -41,14 +41,14 @@ const (
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs [namespaceID blob]",
-		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
+		Use: "pay-for-blob [namespaceID blob]",
+		Example: "celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
 			"\t--yes \n\n" +
-			"celestia-appd tx blob PayForBlobs --input-file path/to/blobs.json \\\n" +
+			"celestia-appd tx blob pay-for-blob --input-file path/to/blobs.json \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
@@ -77,7 +77,7 @@ The namespaceID is the user-specifiable portion of a version 0 namespace.
 The namespaceID must be a hex encoded string of 10 bytes.
 The blob must be a hex encoded string of any length.
 		`,
-		Aliases: []string{"PayForBlob"},
+		Aliases: []string{"pay-for-blobs", "PayForBlobs", "PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
 			path, err := cmd.Flags().GetString(FlagFileInput)
 			if err != nil {
@@ -93,7 +93,7 @@ The blob must be a hex encoded string of any length.
 			}
 
 			if len(args) < 2 {
-				return fmt.Errorf("PayForBlobs requires two arguments if %s isn't provided: namespaceID and blob", FlagFileInput)
+				return fmt.Errorf("pay-for-blob requires two arguments if %s isn't provided: namespaceID and blob", FlagFileInput)
 			}
 
 			return nil
