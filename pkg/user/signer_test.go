@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,15 +71,44 @@ func (s *SignerTestSuite) TestSubmitTx() {
 	require.EqualValues(t, 0, resp.Code)
 }
 
-// TestConfirmTx verifies that the ConfirmTx method returns an error when
-// the context times out.
+// TestConfirmTx verifies that the ConfirmTx method returns the expected results.
 func (s *SignerTestSuite) TestConfirmTx() {
 	t := s.T()
+
+	// 1. ConfirmTx returns an error when the context time out
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_, err := s.signer.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
+
+	// 2. ConfirmTx returns an error when tx is not found
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = s.signer.ConfirmTx(ctx, "not found tx")
+	assert.Error(t, err)
+
+	// 3. ConfirmTx has no error if tx is found immediately
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(1e6)
+	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
+	assert.NoError(t, err)
+	assert.Equal(t, resp.Code, uint32(0))
+
+	// 4. ConfirmTx returns error if the tx is found with a non-zero error code
+	balance := s.queryCurrentBalance(t)
+	// Create a msg send with out of balance, ensure this tx is failed
+	msg = bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
+	resp, err = s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
+	assert.Error(t, err)
+	assert.NotEqual(t, resp.Code, uint32(0))
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
@@ -120,4 +151,20 @@ func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {
 	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: s.signer.Address().String()})
 	require.NoError(t, err)
 	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
+}
+
+func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdktypes.Msg, opts ...user.TxOption) (*sdktypes.TxResponse, error) {
+	txBytes, err := s.signer.CreateTx(msgs, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.signer.BroadcastTx(s.ctx.GoContext(), txBytes)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 0 {
+		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+	}
+	return resp, nil
 }
