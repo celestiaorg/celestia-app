@@ -474,9 +474,9 @@ func pathToString(p path) string {
 	for _, wi := range p.instructions {
 		switch wi {
 		case WalkLeft:
-			s = s + "l"
+			s += "l"
 		case WalkRight:
-			s = s + "r"
+			s += "r"
 		}
 	}
 	return s

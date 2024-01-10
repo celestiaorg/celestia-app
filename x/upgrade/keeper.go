@@ -29,11 +29,9 @@ type Fraction struct {
 // between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
 // network during an upgrade period. It can be modified through a
 // hard fork change that modified the app version
-func SignalThreshold(version uint64) Fraction {
-	switch version {
-	default:
-		return defaultSignalTheshold
-	}
+func SignalThreshold(_ uint64) Fraction {
+	// TODO not using param in function header, return default.
+	return defaultSignalTheshold
 }
 
 type Keeper struct {
