@@ -300,6 +300,11 @@ func (s *Signer) ForceSetSequence(seq uint64) {
 	s.lastSignedSequence = seq
 }
 
+// Keyring exposes the signers underlying keyring
+func (s *Signer) Keyring() keyring.Keyring {
+	return s.keys
+}
+
 func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
