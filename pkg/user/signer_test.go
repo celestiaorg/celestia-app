@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -157,7 +156,7 @@ func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {
 	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
 }
 
-func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdktypes.Msg, opts ...user.TxOption) (*sdktypes.TxResponse, error) {
+func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdk.Msg, opts ...user.TxOption) (*sdk.TxResponse, error) {
 	txBytes, err := s.signer.CreateTx(msgs, opts...)
 	if err != nil {
 		return nil, err
