@@ -211,31 +211,31 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 // is encountered.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
-	timer := time.NewTimer(0)
-	defer timer.Stop()
+
+	s.mtx.RLock()
+	pollTime := s.pollTime
+	s.mtx.RUnlock()
+
+	pollTicker := time.NewTicker(pollTime)
+	defer pollTicker.Stop()
+
 	for {
+		resp, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txHash})
+		if err == nil {
+			if resp.TxResponse.Code != 0 {
+				return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+			}
+			return resp.TxResponse, nil
+		}
+		if !strings.Contains(err.Error(), "not found") {
+			return &sdktypes.TxResponse{}, err
+		}
+
+		// Wait for the next round.
 		select {
 		case <-ctx.Done():
 			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-timer.C:
-			resp, err := txClient.GetTx(
-				ctx,
-				&tx.GetTxRequest{
-					Hash: txHash,
-				},
-			)
-			if err == nil {
-				if resp.TxResponse.Code != 0 {
-					return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-				}
-				return resp.TxResponse, nil
-			}
-
-			if !strings.Contains(err.Error(), "not found") {
-				return &sdktypes.TxResponse{}, err
-			}
-
-			timer.Reset(s.pollTime)
+		case <-pollTicker.C:
 		}
 	}
 }
