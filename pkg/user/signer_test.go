@@ -74,40 +74,45 @@ func (s *SignerTestSuite) TestSubmitTx() {
 func (s *SignerTestSuite) TestConfirmTx() {
 	t := s.T()
 
-	// 1. ConfirmTx returns an error when the context times out
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	_, err := s.signer.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
-
-	// 2. ConfirmTx returns an error when tx is not found
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, err = s.signer.ConfirmTx(ctx, "not found tx")
-	assert.Error(t, err)
-
-	// 3. ConfirmTx returns no error if tx is found immediately
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-	resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
-	assert.NoError(t, err)
-	assert.Equal(t, abci.CodeTypeOK, resp.Code)
 
-	// 4. ConfirmTx returns error if the tx is found with a non-zero error code
-	balance := s.queryCurrentBalance(t)
-	// Create a msg send with out of balance, ensure this tx fails
-	msg = bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
-	resp, err = s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
-	assert.Error(t, err)
-	assert.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	t.Run("deadline exceeded when the context times out", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_, err := s.signer.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
+	})
+
+	t.Run("should error when tx is not found", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err := s.signer.ConfirmTx(ctx, "not found tx")
+		assert.Error(t, err)
+	})
+
+	t.Run("should success when tx is found immediately", func(t *testing.T) {
+		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
+		assert.NoError(t, err)
+		assert.Equal(t, abci.CodeTypeOK, resp.Code)
+	})
+
+	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
+		balance := s.queryCurrentBalance(t)
+		// Create a msg send with out of balance, ensure this tx fails
+		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
+		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
+		assert.Error(t, err)
+		assert.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	})
 }
 
 // TestGasConsumption verifies that the amount deducted from a user's balance is
