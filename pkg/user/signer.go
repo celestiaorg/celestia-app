@@ -283,8 +283,8 @@ func (s *Signer) GetSequence() uint64 {
 	return s.lastSignedSequence
 }
 
-// incrementSequence gets the latest signed sequence and increments the local sequence number
-func (s *Signer) incrementSequence() uint64 {
+// getAndIncrementSequence gets the latest signed sequence and increments the local sequence number
+func (s *Signer) getAndIncrementSequence() uint64 {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	defer func() { s.lastSignedSequence++ }()
@@ -315,7 +315,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
 
-	sequence := s.incrementSequence()
+	sequence := s.getAndIncrementSequence()
 
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
