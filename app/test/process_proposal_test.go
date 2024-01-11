@@ -245,6 +245,16 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:  "undecodable tx at index 0",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				// Update the data hash so that it doesn't fail on an incorrect data root.
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:  "incorrectly sorted; send tx after pfb",
 			input: mixedData,
 			mutator: func(d *tmproto.Data) {
