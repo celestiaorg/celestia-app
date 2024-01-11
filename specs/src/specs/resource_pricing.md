@@ -175,7 +175,7 @@ allowing for a fee of 0, creating the possibility of secondary markets. Now,
 Celestia introduces a global minimum gas price, a consensus constant, unaffected
 by individual node configurations. Although nodes retain the freedom to increase
 gas prices locally, transactions that do not meet the global minimum threshold
-will face rejection from the mempool, ensuring fairness across the network.
+will face rejection from the mempool.
 
 ## Estimating PFB cost
 
