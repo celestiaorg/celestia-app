@@ -37,7 +37,8 @@ install: go.sum
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
-## mod: Update go.mod.
+## Update go.mod
+mod:
 	@echo "--> Syncing workspaces"
 	@go work sync
 	@echo "--> Updating go.mod"
