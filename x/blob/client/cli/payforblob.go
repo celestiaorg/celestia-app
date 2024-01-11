@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,67 +30,70 @@ const (
 	// submitting a PayForBlob.
 	FlagNamespaceVersion = "namespace-version"
 
-	// FlagFileInput allows the user to provide file path to the json file
-	// for submitting multiple blobs.
+	// FlagFileInput allows the user to provide the path to a JSON file for
+	// submitting multiple blobs.
 	FlagFileInput = "input-file"
+
+	// FileInputExtension is the only file extension supported for
+	// FlagFileInput.
+	FileInputExtension = ".json"
 )
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "PayForBlobs [namespaceID blob]",
-		// This example command can be run in a new terminal after running single-node.sh
-		Example: "celestia-appd tx blob PayForBlobs 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
+		Use: "pay-for-blob [namespaceID blob]",
+		Example: "celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
 			"\t--yes \n\n" +
-			"celestia-appd tx blob PayForBlobs --input-file path/to/blobs.json \\\n" +
+			"celestia-appd tx blob pay-for-blob --input-file path/to/blobs.json \\\n" +
 			"\t--chain-id private \\\n" +
 			"\t--from validator \\\n" +
 			"\t--keyring-backend test \\\n" +
 			"\t--fees 21000utia \\\n" +
 			"\t--yes \n",
-		Short: "Pay for a data blob(s) to be published to Celestia.",
-		Long: "Pay for a data blob(s) to be published to Celestia.\n" +
-			"User can use namespaceID and blob as argument for single blob submission \n" +
-			"or use --input-file flag with the path to a json file for multiple blobs submission, \n" +
-			`where the json file contains: 
+		Short: "Pay for data blob(s) to be published to Celestia.",
+		Long: `Pay for data blob(s) to be published to Celestia.
+To publish a single blob, specify the namespaceID and blob via CLI arguments.
+To publish multiple blobs, use the --input-file flag with the path to a JSON file.
+The JSON should look like:
 
+{
+	"Blobs": [
 		{
-			"Blobs": [
-				{
-					"namespaceID": "0x00010203040506070809",
-					"blob": "0x48656c6c6f2c20576f726c6421"
-				},
-				{
-					"namespaceID": "0x00010203040506070809",
-					"blob": "0x48656c6c6f2c20576f726c6421"
-				}
-			]
+			"namespaceID": "0x00010203040506070809",
+			"blob": "0x48656c6c6f2c20576f726c6421"
+		},
+		{
+			"namespaceID": "0x00010203040506070809",
+			"blob": "0x48656c6c6f2c20576f726c6421"
 		}
+	]
+}
 
-		namespaceID is the user-specifiable portion of a version 0 namespace. It must be a hex encoded string of 10 bytes.\n
-		blob must be a hex encoded string of any length.\n
+The namespaceID is the user-specifiable portion of a version 0 namespace.
+The namespaceID must be a hex encoded string of 10 bytes.
+The blob must be a hex encoded string of non-zero length.
 		`,
-		Aliases: []string{"PayForBlob"},
+		Aliases: []string{"pay-for-blobs", "PayForBlobs", "PayForBlob"},
 		Args: func(cmd *cobra.Command, args []string) error {
 			path, err := cmd.Flags().GetString(FlagFileInput)
 			if err != nil {
 				return err
 			}
 
-			// If there is a file path input we'll check for the file extension
 			if path != "" {
-				if filepath.Ext(path) != ".json" {
-					return fmt.Errorf("invalid file extension, require json got %s", filepath.Ext(path))
+				if filepath.Ext(path) != FileInputExtension {
+					return fmt.Errorf("invalid file extension %v. The only supported extension is %s", filepath.Ext(path), FileInputExtension)
 				}
 
 				return nil
 			}
 
 			if len(args) < 2 {
-				return errors.New("PayForBlobs requires two arguments: namespaceID and blob")
+				return fmt.Errorf("pay-for-blob requires two arguments if %s isn't provided: namespaceID and blob", FlagFileInput)
 			}
 
 			return nil
