@@ -27,7 +27,7 @@ import (
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
 )
 
-type GovernanceParamsTestSuite struct {
+type GovParamsTestSuite struct {
 	suite.Suite
 
 	app        *app.App
@@ -35,20 +35,20 @@ type GovernanceParamsTestSuite struct {
 	govHandler v1beta1.Handler
 }
 
-func (suite *GovernanceParamsTestSuite) SetupTest() {
+func (suite *GovParamsTestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
 	suite.govHandler = paramfilter.NewParamBlockList(suite.app.BlockedParams()...).GovHandler(suite.app.ParamsKeeper)
 }
 
-func TestGovernanceParamsTestSuite(t *testing.T) {
+func TestGovParamsTestSuite(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping governance params test suite in short mode.")
+		t.Skip("skipping gov params test suite in short mode.")
 	}
-	suite.Run(t, new(GovernanceParamsTestSuite))
+	suite.Run(t, new(GovParamsTestSuite))
 }
 
-func (suite *GovernanceParamsTestSuite) TestModifiableParameters() {
+func (suite *GovParamsTestSuite) TestModifiableParameters() {
 	testCases := []struct {
 		name     string
 		proposal *proposal.ParameterChangeProposal
