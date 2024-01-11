@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -78,7 +79,7 @@ func (s *MaxTotalBlobSizeSuite) TestErrTotalBlobSizeTooLarge() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			blobTx, err := signer.CreatePayForBlob([]*blob.Blob{tc.blob}, user.SetGasLimit(1e9))
+			blobTx, err := signer.CreatePayForBlob([]*blob.Blob{tc.blob}, user.SetGasLimit(1e9), user.SetFeeAmount(sdk.NewCoins(sdk.NewInt64Coin("utia", 2000000))))
 			require.NoError(t, err)
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()
