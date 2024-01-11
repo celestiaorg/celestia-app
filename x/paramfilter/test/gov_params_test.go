@@ -163,6 +163,27 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				assert.Equal(want, got)
 			},
 		},
+		// {
+		// 	"consensus.block.TimeIotaMs",
+		// 	testProposal(proposal.ParamChange{
+		// 		Subspace: baseapp.Paramspace,
+		// 		Key:      string(baseapp.ParamStoreKeyBlockParams),
+		// 		Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
+		// 	}),
+		// 	func() {
+		// 		// need to determine if ConsensusParams.Block should be BlockParams from proto/tendermint/types instead of abci/types
+		// 		gotBlockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
+		// 		suite.ctx.ConsensusParams().Block
+		// 		wantBlockParams := tmproto.BlockParams{
+		// 			MaxBytes:   1,
+		// 			MaxGas:     1,
+		// 			TimeIotaMs: 1,
+		// 		}
+		// 		suite.Require().Equal(
+		// 			wantBlockParams,
+		// 			*gotBlockParams)
+		// 	},
+		// },
 		{
 			"consensus.block",
 			testProposal(proposal.ParamChange{
@@ -199,6 +220,19 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				gotMaxBytes := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxBytes
 				wantMaxBytes := int64(3)
 				assert.Equal(wantMaxBytes, gotMaxBytes)
+			},
+		},
+		{
+			"consensus.Version.AppVersion",
+			testProposal(proposal.ParamChange{
+				Subspace: baseapp.Paramspace,
+				Key:      string(baseapp.ParamStoreKeyVersionParams),
+				Value:    `{"app_version": "3"}`,
+			}),
+			func() {
+				got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Version
+				want := tmproto.VersionParams{AppVersion: 3}
+				assert.Equal(want, got)
 			},
 		},
 		{
@@ -448,6 +482,19 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			},
 		},
 		{
+			"staking.MaxValidators",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyMaxValidators),
+				Value:    `1`,
+			}),
+			func() {
+				got := suite.app.StakingKeeper.GetParams(suite.ctx).MaxValidators
+				want := uint32(1)
+				assert.Equal(want, got)
+			},
+		},
+		{
 			"staking.MinCommissionRate",
 			testProposal(proposal.ParamChange{
 				Subspace: stakingtypes.ModuleName,
@@ -536,54 +583,6 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				suite.Require().NotEqual(want, got)
 			},
 		},
-		// {
-		// 	"consensus.block.TimeIotaMs",
-		// 	testProposal(proposal.ParamChange{
-		// 		Subspace: baseapp.Paramspace,
-		// 		Key:      string(baseapp.ParamStoreKeyBlockParams),
-		// 		Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
-		// 	}),
-		// 	func() {
-		// 		// need to determine if ConsensusParams.Block should be BlockParams from proto/tendermint/types instead of abci/types
-		// 		gotBlockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
-		// 		wantBlockParams := tmproto.BlockParams{
-		// 			MaxBytes:   1,
-		// 			MaxGas:     1,
-		// 			TimeIotaMs: 1,
-		// 		}
-		// 		suite.Require().Equal(
-		// 			wantBlockParams,
-		// 			*gotBlockParams)
-		// 	},
-		// },
-		// {
-		// 	"consensus.Version.AppVersion",
-		// 	testProposal(proposal.ParamChange{
-		// 		Subspace: baseapp.Paramspace,
-		// 		Key:      string(baseapp.ParamStoreKeyVersionParams),
-		// 		Value:    `{"app_version": "3"}`,
-		// 	}),
-		// 	func() {
-		// 		got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Version
-		// 		want := tmproto.VersionParams{
-		// 			AppVersion: 3,
-		// 		}
-		// 		suite.Require().Equal(want, got)
-		// 	},
-		// },
-		// {
-		// 	"staking.MaxValidators",
-		// 	testProposal(proposal.ParamChange{
-		// 		Subspace: stakingtypes.ModuleName,
-		// 		Key:      string(stakingtypes.KeyMaxValidators),
-		// 		Value:    `1`,
-		// 	}),
-		// 	func() {
-		// 		got := suite.app.StakingKeeper.GetParams(suite.ctx).MaxValidators
-		// 		want := uint32(1)
-		// 		suite.Require().Equal(want, got)
-		// 	},
-		// },
 	}
 
 	for _, tc := range testCases {
