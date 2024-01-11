@@ -37,10 +37,14 @@ install: go.sum
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
-## mod: Update go.mod.
+## Update go.mod
 mod:
+	@echo "--> Syncing workspaces"
+	@go work sync
 	@echo "--> Updating go.mod"
 	@go mod tidy
+	@echo "--> Updating go.mod in ./test/testground"
+	@(cd ./test/testground && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
