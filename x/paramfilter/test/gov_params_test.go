@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -48,7 +49,9 @@ func TestGovParamsTestSuite(t *testing.T) {
 	suite.Run(t, new(GovParamsTestSuite))
 }
 
-func (suite *GovParamsTestSuite) TestModifiableParameters() {
+// TestModifiableParams verifies that the params listed as governance modifiable
+// in the specs params.md file are modifiable via governance.
+func (suite *GovParamsTestSuite) TestModifiableParams() {
 	assert := suite.Assert()
 
 	testCases := []struct {
@@ -463,6 +466,130 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 		suite.Run(tc.name, func() {
 			err := suite.govHandler(suite.ctx, tc.proposal)
 			suite.Require().NoError(err)
+			tc.postProposal()
+		})
+	}
+}
+
+// TestUnmodifiableParams verifies that the params listed as non governance
+// modifiable in the specs params.md file cannot be modified via
+// governance.
+func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
+	assert := suite.Assert()
+
+	testCases := []struct {
+		name         string
+		proposal     *proposal.ParameterChangeProposal
+		postProposal func()
+	}{
+		{
+			"bank.SendEnabled",
+			testProposal(proposal.ParamChange{
+				Subspace: banktypes.ModuleName,
+				Key:      string(banktypes.KeySendEnabled),
+				Value:    `[{"denom": "test", "enabled": false}]`,
+			}),
+			func() {
+				got := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
+				want := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
+				assert.NotEqual(want, got)
+			},
+		},
+		{
+			"consensus.validator.PubKeyTypes",
+			testProposal(proposal.ParamChange{
+				Subspace: baseapp.Paramspace,
+				Key:      string(baseapp.ParamStoreKeyValidatorParams),
+				Value:    `{"pub_key_types": ["secp256k1"]}`,
+			}),
+			func() {
+				got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
+				want := tmproto.ValidatorParams{
+					PubKeyTypes: []string{"secp256k1"},
+				}
+				assert.NotEqual(want, got)
+			},
+		},
+		{
+			"staking.BondDenom",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyBondDenom),
+				Value:    `"test"`,
+			}),
+			func() {
+				got := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
+				want := "test"
+				assert.NotEqual(want, got)
+			},
+		},
+		{
+			"staking.UnbondingTime",
+			testProposal(proposal.ParamChange{
+				Subspace: stakingtypes.ModuleName,
+				Key:      string(stakingtypes.KeyUnbondingTime),
+				Value:    `"1"`,
+			}),
+			func() {
+				got := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
+				want := time.Duration(1)
+				suite.Require().NotEqual(want, got)
+			},
+		},
+		// {
+		// 	"consensus.block.TimeIotaMs",
+		// 	testProposal(proposal.ParamChange{
+		// 		Subspace: baseapp.Paramspace,
+		// 		Key:      string(baseapp.ParamStoreKeyBlockParams),
+		// 		Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
+		// 	}),
+		// 	func() {
+		// 		// need to determine if ConsensusParams.Block should be BlockParams from proto/tendermint/types instead of abci/types
+		// 		gotBlockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
+		// 		wantBlockParams := tmproto.BlockParams{
+		// 			MaxBytes:   1,
+		// 			MaxGas:     1,
+		// 			TimeIotaMs: 1,
+		// 		}
+		// 		suite.Require().Equal(
+		// 			wantBlockParams,
+		// 			*gotBlockParams)
+		// 	},
+		// },
+		// {
+		// 	"consensus.Version.AppVersion",
+		// 	testProposal(proposal.ParamChange{
+		// 		Subspace: baseapp.Paramspace,
+		// 		Key:      string(baseapp.ParamStoreKeyVersionParams),
+		// 		Value:    `{"app_version": "3"}`,
+		// 	}),
+		// 	func() {
+		// 		got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Version
+		// 		want := tmproto.VersionParams{
+		// 			AppVersion: 3,
+		// 		}
+		// 		suite.Require().Equal(want, got)
+		// 	},
+		// },
+		// {
+		// 	"staking.MaxValidators",
+		// 	testProposal(proposal.ParamChange{
+		// 		Subspace: stakingtypes.ModuleName,
+		// 		Key:      string(stakingtypes.KeyMaxValidators),
+		// 		Value:    `1`,
+		// 	}),
+		// 	func() {
+		// 		got := suite.app.StakingKeeper.GetParams(suite.ctx).MaxValidators
+		// 		want := uint32(1)
+		// 		suite.Require().Equal(want, got)
+		// 	},
+		// },
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			err := suite.govHandler(suite.ctx, tc.proposal)
+			suite.Require().Error(err)
 			tc.postProposal()
 		})
 	}
