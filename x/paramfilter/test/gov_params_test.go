@@ -62,9 +62,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotMaxMemoCharacters := suite.app.AccountKeeper.GetParams(suite.ctx).MaxMemoCharacters
-				wantMaxMemoCharacters := uint64(2)
-				suite.Require().Equal(wantMaxMemoCharacters, gotMaxMemoCharacters)
+				got := suite.app.AccountKeeper.GetParams(suite.ctx).MaxMemoCharacters
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -75,9 +75,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotSigVerifyCostED25519 := suite.app.AccountKeeper.GetParams(suite.ctx).SigVerifyCostED25519
-				wantSigVerifyCostED25519 := uint64(2)
-				suite.Require().Equal(wantSigVerifyCostED25519, gotSigVerifyCostED25519)
+				got := suite.app.AccountKeeper.GetParams(suite.ctx).SigVerifyCostED25519
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -88,9 +88,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotSigVerifyCostSecp256k1 := suite.app.AccountKeeper.GetParams(suite.ctx).SigVerifyCostSecp256k1
-				wantSigVerifyCostSecp256k1 := uint64(2)
-				suite.Require().Equal(wantSigVerifyCostSecp256k1, gotSigVerifyCostSecp256k1)
+				got := suite.app.AccountKeeper.GetParams(suite.ctx).SigVerifyCostSecp256k1
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -101,9 +101,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotTxSigLimit := suite.app.AccountKeeper.GetParams(suite.ctx).TxSigLimit
-				wantTxSigLimit := uint64(2)
-				suite.Require().Equal(wantTxSigLimit, gotTxSigLimit)
+				got := suite.app.AccountKeeper.GetParams(suite.ctx).TxSigLimit
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -114,9 +114,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotTxSizeCostPerByte := suite.app.AccountKeeper.GetParams(suite.ctx).TxSizeCostPerByte
-				wantTxSizeCostPerByte := uint64(2)
-				suite.Require().Equal(wantTxSizeCostPerByte, gotTxSizeCostPerByte)
+				got := suite.app.AccountKeeper.GetParams(suite.ctx).TxSizeCostPerByte
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -127,11 +127,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `2`,
 			}),
 			func() {
-				gotGasPerBlobByte := suite.app.BlobKeeper.GetParams(suite.ctx).GasPerBlobByte
-				wantGasPerBlobByte := uint32(2)
-				suite.Require().Equal(
-					wantGasPerBlobByte,
-					gotGasPerBlobByte)
+				got := suite.app.BlobKeeper.GetParams(suite.ctx).GasPerBlobByte
+				want := uint32(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -142,11 +140,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotGovMaxSquareSize := suite.app.BlobKeeper.GetParams(suite.ctx).GovMaxSquareSize
-				wantGovMaxSquareSize := uint64(2)
-				suite.Require().Equal(
-					wantGovMaxSquareSize,
-					gotGovMaxSquareSize)
+				got := suite.app.BlobKeeper.GetParams(suite.ctx).GovMaxSquareSize
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -157,11 +153,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"100"`,
 			}),
 			func() {
-				gotDataCommitmentWindow := suite.app.BlobstreamKeeper.GetParams(suite.ctx).DataCommitmentWindow
-				wantDataCommitmentWindow := uint64(100)
-				suite.Require().Equal(
-					wantDataCommitmentWindow,
-					gotDataCommitmentWindow)
+				got := suite.app.BlobstreamKeeper.GetParams(suite.ctx).DataCommitmentWindow
+				want := uint64(100)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -174,15 +168,11 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 			func() {
 				gotMaxBytes := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block.MaxBytes
 				wantMaxBytes := int64(1)
-				suite.Require().Equal(
-					wantMaxBytes,
-					gotMaxBytes)
+				suite.Require().Equal(wantMaxBytes, gotMaxBytes)
 
 				gotMaxGas := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block.MaxGas
 				wantMaxGas := int64(2)
-				suite.Require().Equal(
-					wantMaxGas,
-					gotMaxGas)
+				suite.Require().Equal(wantMaxGas, gotMaxGas)
 			},
 		},
 		{
@@ -195,21 +185,15 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 			func() {
 				gotMaxAgeDuration := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxAgeDuration
 				wantMaxAgeDuration := time.Duration(1)
-				suite.Require().Equal(
-					wantMaxAgeDuration,
-					gotMaxAgeDuration)
+				suite.Require().Equal(wantMaxAgeDuration, gotMaxAgeDuration)
 
 				gotMaxAgeNumBlocks := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxAgeNumBlocks
 				wantMaxAgeNumBlocks := int64(2)
-				suite.Require().Equal(
-					wantMaxAgeNumBlocks,
-					gotMaxAgeNumBlocks)
+				suite.Require().Equal(wantMaxAgeNumBlocks, gotMaxAgeNumBlocks)
 
 				gotMaxBytes := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxBytes
 				wantMaxBytes := int64(3)
-				suite.Require().Equal(
-					wantMaxBytes,
-					gotMaxBytes)
+				suite.Require().Equal(wantMaxBytes, gotMaxBytes)
 			},
 		},
 		{
@@ -220,11 +204,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotBaseProposerReward := suite.app.DistrKeeper.GetParams(suite.ctx).BaseProposerReward
-				wantBaseProposerReward := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantBaseProposerReward,
-					gotBaseProposerReward)
+				got := suite.app.DistrKeeper.GetParams(suite.ctx).BaseProposerReward
+				want := sdk.NewDec(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -235,11 +217,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotBonusProposerReward := suite.app.DistrKeeper.GetParams(suite.ctx).BonusProposerReward
-				wantBonusProposerReward := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantBonusProposerReward,
-					gotBonusProposerReward)
+				got := suite.app.DistrKeeper.GetParams(suite.ctx).BonusProposerReward
+				want := sdk.NewDec(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -250,11 +230,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotCommunityTax := suite.app.DistrKeeper.GetParams(suite.ctx).CommunityTax
-				wantCommunityTax := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantCommunityTax,
-					gotCommunityTax)
+				want := suite.app.DistrKeeper.GetParams(suite.ctx).CommunityTax
+				got := sdk.NewDec(1)
+				suite.Require().Equal(got, want)
 			},
 		},
 		{
@@ -265,11 +243,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `false`,
 			}),
 			func() {
-				gotWithdrawAddrEnabled := suite.app.DistrKeeper.GetParams(suite.ctx).WithdrawAddrEnabled
-				wantWithdrawAddrEnabled := false
-				suite.Require().Equal(
-					wantWithdrawAddrEnabled,
-					gotWithdrawAddrEnabled)
+				got := suite.app.DistrKeeper.GetParams(suite.ctx).WithdrawAddrEnabled
+				want := false
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -282,15 +258,11 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 			func() {
 				gotMaxDepositPeriod := *suite.app.GovKeeper.GetDepositParams(suite.ctx).MaxDepositPeriod
 				wantMaxDepositPeriod := time.Duration(1)
-				suite.Require().Equal(
-					wantMaxDepositPeriod,
-					gotMaxDepositPeriod)
+				suite.Require().Equal(wantMaxDepositPeriod, gotMaxDepositPeriod)
 
 				gotMinDeposit := suite.app.GovKeeper.GetDepositParams(suite.ctx).MinDeposit
 				wantMinDeposit := []sdk.Coin{{Denom: "test", Amount: sdk.NewInt(2)}}
-				suite.Require().Equal(
-					wantMinDeposit,
-					gotMinDeposit)
+				suite.Require().Equal(wantMinDeposit, gotMinDeposit)
 			},
 		},
 		{
@@ -303,21 +275,15 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 			func() {
 				gotQuroum := suite.app.GovKeeper.GetTallyParams(suite.ctx).Quorum
 				wantQuorum := "0.1"
-				suite.Require().Equal(
-					wantQuorum,
-					gotQuroum)
+				suite.Require().Equal(wantQuorum, gotQuroum)
 
 				gotThreshold := suite.app.GovKeeper.GetTallyParams(suite.ctx).Threshold
 				wantThreshold := "0.2"
-				suite.Require().Equal(
-					wantThreshold,
-					gotThreshold)
+				suite.Require().Equal(wantThreshold, gotThreshold)
 
 				gotVetoThreshold := suite.app.GovKeeper.GetTallyParams(suite.ctx).VetoThreshold
 				wantVetoThreshold := "0.3"
-				suite.Require().Equal(
-					wantVetoThreshold,
-					gotVetoThreshold)
+				suite.Require().Equal(wantVetoThreshold, gotVetoThreshold)
 			},
 		},
 		{
@@ -328,11 +294,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `{"voting_period": "2"}`,
 			}),
 			func() {
-				gotVotingPeriod := *suite.app.GovKeeper.GetVotingParams(suite.ctx).VotingPeriod
-				wantVotingPeriod := time.Duration(2)
-				suite.Require().Equal(
-					wantVotingPeriod,
-					gotVotingPeriod)
+				got := *suite.app.GovKeeper.GetVotingParams(suite.ctx).VotingPeriod
+				want := time.Duration(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -343,11 +307,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `["01-test"]`,
 			}),
 			func() {
-				gotVotingPeriod := suite.app.IBCKeeper.ClientKeeper.GetParams(suite.ctx).AllowedClients
-				wantVotingPeriod := []string{"01-test"}
-				suite.Require().Equal(
-					wantVotingPeriod,
-					gotVotingPeriod)
+				got := suite.app.IBCKeeper.ClientKeeper.GetParams(suite.ctx).AllowedClients
+				want := []string{"01-test"}
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -358,11 +320,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotMaxExpectedTimePerBlock := suite.app.IBCKeeper.ConnectionKeeper.GetParams(suite.ctx).MaxExpectedTimePerBlock
-				wantMaxExpectedTimePerBlock := uint64(2)
-				suite.Require().Equal(
-					wantMaxExpectedTimePerBlock,
-					gotMaxExpectedTimePerBlock)
+				got := suite.app.IBCKeeper.ConnectionKeeper.GetParams(suite.ctx).MaxExpectedTimePerBlock
+				want := uint64(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -373,11 +333,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `false`,
 			}),
 			func() {
-				gotReceiveEnabled := suite.app.TransferKeeper.GetParams(suite.ctx).ReceiveEnabled
-				wantReceiveEnabled := false
-				suite.Require().Equal(
-					wantReceiveEnabled,
-					gotReceiveEnabled)
+				got := suite.app.TransferKeeper.GetParams(suite.ctx).ReceiveEnabled
+				want := false
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -388,11 +346,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `false`,
 			}),
 			func() {
-				gotSendEnabled := suite.app.TransferKeeper.GetParams(suite.ctx).SendEnabled
-				wantSendEnabled := false
-				suite.Require().Equal(
-					wantSendEnabled,
-					gotSendEnabled)
+				got := suite.app.TransferKeeper.GetParams(suite.ctx).SendEnabled
+				want := false
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -403,11 +359,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"2"`,
 			}),
 			func() {
-				gotDowntimeJailDuration := suite.app.SlashingKeeper.GetParams(suite.ctx).DowntimeJailDuration
-				wantDowntimeJailDuration := time.Duration(2)
-				suite.Require().Equal(
-					wantDowntimeJailDuration,
-					gotDowntimeJailDuration)
+				got := suite.app.SlashingKeeper.GetParams(suite.ctx).DowntimeJailDuration
+				want := time.Duration(2)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -418,11 +372,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotMinSignedPerWindow := suite.app.SlashingKeeper.GetParams(suite.ctx).MinSignedPerWindow
-				wantMinSignedPerWindow := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantMinSignedPerWindow,
-					gotMinSignedPerWindow)
+				got := suite.app.SlashingKeeper.GetParams(suite.ctx).MinSignedPerWindow
+				want := sdk.NewDec(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -433,11 +385,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotSignedBlocksWindow := suite.app.SlashingKeeper.GetParams(suite.ctx).SignedBlocksWindow
-				wantSignedBlocksWindow := int64(1)
-				suite.Require().Equal(
-					wantSignedBlocksWindow,
-					gotSignedBlocksWindow)
+				got := suite.app.SlashingKeeper.GetParams(suite.ctx).SignedBlocksWindow
+				want := int64(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -448,11 +398,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotSlashFractionDoubleSign := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDoubleSign
-				wantSlashFractionDoubleSign := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantSlashFractionDoubleSign,
-					gotSlashFractionDoubleSign)
+				got := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDoubleSign
+				want := sdk.NewDec(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -463,11 +411,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotSlashFractionDowntime := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDowntime
-				wantSlashFractionDowntime := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantSlashFractionDowntime,
-					gotSlashFractionDowntime)
+				got := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDowntime
+				want := sdk.NewDec(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -478,11 +424,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `1`,
 			}),
 			func() {
-				gotHistoricalEntries := suite.app.StakingKeeper.GetParams(suite.ctx).HistoricalEntries
-				wantHistoricalEntries := uint32(1)
-				suite.Require().Equal(
-					wantHistoricalEntries,
-					gotHistoricalEntries)
+				got := suite.app.StakingKeeper.GetParams(suite.ctx).HistoricalEntries
+				want := uint32(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -493,11 +437,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `1`,
 			}),
 			func() {
-				gotMaxEntries := suite.app.StakingKeeper.GetParams(suite.ctx).MaxEntries
-				wantMaxEntries := uint32(1)
-				suite.Require().Equal(
-					wantMaxEntries,
-					gotMaxEntries)
+				got := suite.app.StakingKeeper.GetParams(suite.ctx).MaxEntries
+				want := uint32(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 		{
@@ -508,11 +450,9 @@ func (suite *GovParamsTestSuite) TestModifiableParameters() {
 				Value:    `"1"`,
 			}),
 			func() {
-				gotMinCommissionRate := suite.app.StakingKeeper.GetParams(suite.ctx).MinCommissionRate
-				wantMinCommissionRate := sdk.NewDec(1)
-				suite.Require().Equal(
-					wantMinCommissionRate,
-					gotMinCommissionRate)
+				got := suite.app.StakingKeeper.GetParams(suite.ctx).MinCommissionRate
+				want := sdk.NewDec(1)
+				suite.Require().Equal(want, got)
 			},
 		},
 	}
