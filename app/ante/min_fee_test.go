@@ -8,11 +8,11 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
@@ -32,37 +32,36 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 	builder.SetGasLimit(gasLimit)
 
 	ctx := sdk.Context{}
-	
 
 	testCases := []struct {
-		name   string
-		fee    sdk.Coins
+		name       string
+		fee        sdk.Coins
 		appVersion uint64
-		expErr bool
+		expErr     bool
 	}{
 		{
-			name:   "bad tx; fee below required minimum",
-			fee:    sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
+			name:       "bad tx; fee below required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
 			appVersion: uint64(2),
-			expErr: true,
+			expErr:     true,
 		},
 		{
-			name:   "good tx; fee above required minimum",
-			fee:    sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
+			name:       "good tx; fee above required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
 			appVersion: uint64(2),
-			expErr: false,
+			expErr:     false,
 		},
 		{
-			name:   "good tx; fee equal to required minimum",
-			fee:    sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			name:       "good tx; fee equal to required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			appVersion: uint64(2),
-			expErr: false,
+			expErr:     false,
 		},
 		{
-			name:   "good tx; with no fee",
-			fee:    sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
+			name:       "good tx; with no fee",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
 			appVersion: uint64(1),
-			expErr: false,
+			expErr:     false,
 		},
 	}
 
