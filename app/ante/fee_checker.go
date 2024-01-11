@@ -27,7 +27,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 	gas := feeTx.GetGas()
 
 	minFee := sdk.NewInt(int64(math.Ceil(appconsts.GlobalMinGasPrice * float64(gas))))
-	
+
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
 		if !fee.GTE(minFee) {
