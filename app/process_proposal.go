@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -58,7 +59,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
-			if req.Header.Version.App == 1 {
+			if req.Header.Version.App == v1.Version {
 				// For appVersion 1, there was no block validity rule that all
 				// transactions must be decodable.
 				continue
