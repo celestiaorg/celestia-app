@@ -16,6 +16,7 @@
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
   - [Data Square Layout](./specs/data_square_layout.md)
   - [Resource Pricing](./specs/resource_pricing.md)
+  - [Multisig](./specs/multisig.md)
 - [State Machine Modules](./specs/state_machine_modules.md)
   - [blob](https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md)
   - [blobstream](https://github.com/celestiaorg/celestia-app/blob/main/x/blobstream/README.md)
