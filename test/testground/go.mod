@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/test/testground
 
-go 1.21.5
+go 1.21.6
 
 require (
 	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20231219172024-f57f5c104ea0
@@ -219,5 +219,5 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.31.0-tm-v0.34.29
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.32.0-tm-v0.34.29
 )

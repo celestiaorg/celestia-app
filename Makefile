@@ -8,7 +8,7 @@ DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspa
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app
-GOLANG_CROSS_VERSION  ?= v1.21.5
+GOLANG_CROSS_VERSION  ?= v1.21.6
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -37,7 +37,8 @@ install: go.sum
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
-## mod: Update go.mod.
+## Update go.mod
+mod:
 	@echo "--> Syncing workspaces"
 	@go work sync
 	@echo "--> Updating go.mod"
