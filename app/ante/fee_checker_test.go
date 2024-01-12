@@ -3,9 +3,9 @@ package ante
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 func TestGetTxPriority(t *testing.T) {
