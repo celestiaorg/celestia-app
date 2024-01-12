@@ -58,7 +58,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			expErr:     false,
 		},
 		{
-			name:       "good tx; with no fee",
+			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
 			appVersion: uint64(1),
 			expErr:     false,
