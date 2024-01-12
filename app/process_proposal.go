@@ -58,6 +58,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
+			if req.Header.Version.App == 1 {
+				// For appVersion 1, there was no block validity rule that all
+				// transactions must be decodable.
+				continue
+			}
 			// An error here means that a tx was included in the block that is not decodable.
 			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d is not decodable", idx))
 			return reject()
