@@ -12,13 +12,14 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/require"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 func TestGovDecorator(t *testing.T) {
 	decorator := ante.NewGovProposalDecorator()
 	anteHandler := types.ChainAnteDecorators(decorator)
 	accounts := testfactory.GenerateAccounts(1)
-	coins := types.NewCoins(types.NewCoin("utia", types.NewInt(10)))
+	coins := types.NewCoins(types.NewCoin(appconsts.BondDenom, types.NewInt(10)))
 
 	msgSend := banktypes.NewMsgSend(
 		testnode.RandomAddress().(types.AccAddress),
