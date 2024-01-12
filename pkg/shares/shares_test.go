@@ -17,20 +17,20 @@ func TestSequenceLen(t *testing.T) {
 		wantLen uint32
 		wantErr bool
 	}
-	firstShare := append(bytes.Repeat([]byte{1}, 
+	firstShare := append(bytes.Repeat([]byte{1},
 		appconsts.NamespaceSize),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	firstShareWithLongSequence := append(bytes.Repeat([]byte{1}, 
+	firstShareWithLongSequence := append(bytes.Repeat([]byte{1},
 		appconsts.NamespaceSize),
 		[]byte{
 			1,           // info byte
 			0, 0, 1, 67, // sequence len
 		}...)
-	continuationShare := append(bytes.Repeat([]byte{1}, 
+	continuationShare := append(bytes.Repeat([]byte{1},
 		appconsts.NamespaceSize),
 		[]byte{
 			0, // info byte

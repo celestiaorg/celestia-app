@@ -30,7 +30,6 @@ type Fraction struct {
 // network during an upgrade period. It can be modified through a
 // hard fork change that modified the app version
 func SignalThreshold(_ uint64) Fraction {
-	// TODO not using param in function header, return default.
 	return defaultSignalTheshold
 }
 
