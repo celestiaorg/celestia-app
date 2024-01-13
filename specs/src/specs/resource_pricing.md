@@ -170,7 +170,7 @@ entire fee is then deducted from the transaction no matter what.
 
 By default, Celestia's consensus nodes prioritize transactions in their mempools
 based on gas price. In v1, there was no minimum gas price enforced, allowing each 
-consensus node to independently set its own minimum gas fee in `app.toml`, even 
+consensus node to independently set its own minimum gas price in `app.toml`, even 
 allowing for a fee of 0, creating the possibility of secondary markets. In v2, 
 Celestia introduces a global minimum gas price, a consensus constant, unaffected
 by individual node configurations. Although nodes retain the freedom to increase
