@@ -4,9 +4,6 @@
 [![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
-[![Lint](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml)
-[![Tests / Code Coverage](https://github.com/celestiaorg/celestia-app/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/celestiaorg/celestia-app/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://app.codecov.io/gh/celestiaorg/celestia-app/tree/main)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
 celestia-app is a blockchain application built using parts of the Cosmos stack. celestia-app uses
@@ -38,7 +35,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.21.1
+1. [Install Go](https://go.dev/doc/install) 1.21.6
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -46,9 +43,9 @@ node            |  |                               |  |
     make install
     ```
 
-### Pre-built binary
+### Prebuilt binary
 
-If you'd rather not install from source, you can download a pre-built binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
+If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
 1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
@@ -64,13 +61,7 @@ If you'd rather not install from source, you can download a pre-built binary fro
     ./celestia-appd --help
     ```
 
-#### Optional: Verify the pre-built binary checksums and signatures
-
-If you use a pre-built binary, you may also want to verify the checksums and signatures.
-
-1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
-1. Download `checksums.txt`, `checksums.txt.sig`, and the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
-1. Verify the checksums
+1. [Optional] verify the prebuilt binary checksum. Download `checksums.txt` and then verify the checksum:
 
     ```shell
     sha256sum --ignore-missing --check checksums.txt
@@ -80,24 +71,6 @@ If you use a pre-built binary, you may also want to verify the checksums and sig
 
     ```shell
     celestia-app_Linux_x86_64.tar.gz: OK
-    ```
-
-1. Download the [verify-signature.sh](./scripts/signing/verify-signature.sh) script.
-1. Verify the signature via the [verify-signature.sh](./scripts/signing/verify-signature.sh) script
-
-    ```shell
-    ./verify-signature.sh checksums.txt.sig checksums.txt
-    ```
-
-    You should see output like this:
-
-    ```shell
-    gpg: Signature made Tue Oct 10 13:25:06 2023 UTC
-    gpg:                using EDDSA key BF02F32CC36864560B90B764D469F859693DC3FA
-    gpg: Good signature from "celestia-app-maintainers <celestia-app-maintainers@celestia.org>" [unknown]
-    gpg: WARNING: This key is not certified with a trusted signature!
-    gpg:          There is no indication that the signature belongs to the owner.
-    Primary key fingerprint: BF02 F32C C368 6456 0B90  B764 D469 F859 693D C3FA
     ```
 
 ### Ledger Support
@@ -145,7 +118,7 @@ This repo attempts to conform to [conventional commits](https://www.conventional
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
+1. Install [golangci-lint](https://golangci-lint.run/usage/install/) 1.55.2
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)

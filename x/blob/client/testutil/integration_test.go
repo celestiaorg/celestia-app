@@ -1,15 +1,16 @@
 package testutil
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
@@ -36,19 +37,37 @@ type IntegrationTestSuite struct {
 	kr      keyring.Keyring
 }
 
+// Create a .json file for testing
+func createTestFile(t testing.TB, s string, isValid bool) *os.File {
+	t.Helper()
+
+	tempdir, err := os.MkdirTemp("", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
+
+	var fp *os.File
+
+	if isValid {
+		fp, err = os.CreateTemp(tempdir, "*.json")
+	} else {
+		fp, err = os.CreateTemp(tempdir, "")
+	}
+	require.NoError(t, err)
+	_, err = fp.WriteString(s)
+
+	require.Nil(t, err)
+
+	return fp
+}
+
 func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 	return &IntegrationTestSuite{cfg: cfg}
 }
 
-// Note: the SetupSuite may act flaky especially in CI.
 func (s *IntegrationTestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping integration test in short mode.")
-	}
 	s.T().Log("setting up integration test suite")
 
 	net := network.New(s.T(), s.cfg, username)
-
 	s.network = net
 	s.kr = net.Validators[0].ClientCtx.Keyring
 	_, err := s.network.WaitForHeight(1)
@@ -62,11 +81,26 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
-	val := s.network.Validators[0]
-	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
-	invalidNamespaceID := hex.EncodeToString(bytes.Repeat([]byte{0}, 8)) // invalid because ID is expected to be 10 bytes
+	validator := s.network.Validators[0]
 
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
+
+	validBlob := fmt.Sprintf(`
+	{
+		"Blobs": [
+			{
+				"namespaceID": "%s",
+				"blob": "%s"
+			},
+			{
+				"namespaceID": "%s",
+				"blob": "%s"
+			}
+    	]
+	}
+	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
+	validPropFile := createTestFile(s.T(), validBlob, true)
+	invalidPropFile := createTestFile(s.T(), validBlob, false)
 
 	testCases := []struct {
 		name         string
@@ -76,9 +110,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		respType     proto.Message
 	}{
 		{
-			name: "valid transaction",
+			name: "single blob valid transaction",
 			args: []string{
-				hexNamespace,
+				hex.EncodeToString(appns.RandomBlobNamespaceID()),
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
@@ -90,44 +124,26 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			respType:     &sdk.TxResponse{},
 		},
 		{
-			name: "unsupported share version",
+			name: "multiple blobs valid transaction",
 			args: []string{
-				hexNamespace,
-				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=1", paycli.FlagShareVersion),
+				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, validPropFile.Name()),
 			},
-			expectErr:    true,
+			expectErr:    false,
 			expectedCode: 0,
 			respType:     &sdk.TxResponse{},
 		},
 		{
-			name: "invalid namespace ID",
+			name: "multiple blobs with invalid file path extension",
 			args: []string{
-				invalidNamespaceID,
-				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-			},
-			expectErr:    true,
-			expectedCode: 0,
-			respType:     &sdk.TxResponse{},
-		},
-		{
-			name: "invalid namespace version",
-			args: []string{
-				hexNamespace,
-				hexBlob,
-				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
-				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=1", paycli.FlagNamespaceVersion),
+				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, invalidPropFile.Name()),
 			},
 			expectErr:    true,
 			expectedCode: 0,
@@ -137,10 +153,10 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 
 	for _, tc := range testCases {
 		tc := tc
-		s.Require().NoError(s.network.WaitForNextBlock())
+		require.NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
 			cmd := paycli.CmdPayForBlob()
-			clientCtx := val.ClientCtx
+			clientCtx := validator.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
 			if tc.expectErr {
@@ -182,7 +198,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	}
 }
 
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func TestIntegrationTestSuite_Flaky(t *testing.T) {
+func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode.")
+	}
 	suite.Run(t, NewIntegrationTestSuite(network.DefaultConfig()))
 }

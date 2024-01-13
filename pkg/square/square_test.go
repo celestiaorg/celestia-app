@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -25,13 +25,17 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const (
+	mebibyte = 1_048_576 // one mebibyte in bytes
+)
+
 func TestSquareConstruction(t *testing.T) {
 	rand := tmrand.NewRand()
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 	sendTxs := blobfactory.GenerateManyRawSendTxs(signer, 250)
 	pfbTxs := blobfactory.RandBlobTxs(signer, rand, 10000, 1, 1024)
-	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
+	t.Run("normal transactions after PFB transactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
 		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.Error(t, err)
@@ -39,7 +43,12 @@ func TestSquareConstruction(t *testing.T) {
 	t.Run("not enough space to append transactions", func(t *testing.T) {
 		_, err := square.Construct(coretypes.Txs(sendTxs).ToSliceOfBytes(), appconsts.LatestVersion, 2)
 		require.Error(t, err)
-		_, err = square.Construct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), appconsts.LatestVersion, 2)
+		_, err = square.Construct(pfbTxs.ToSliceOfBytes(), appconsts.LatestVersion, 2)
+		require.Error(t, err)
+	})
+	t.Run("construction should fail if a single PFB tx contains a blob that is too large to fit in the square", func(t *testing.T) {
+		pfbTxs := blobfactory.RandBlobTxs(signer, rand, 1, 1, 2*mebibyte)
+		_, err := square.Construct(pfbTxs.ToSliceOfBytes(), appconsts.LatestVersion, 64)
 		require.Error(t, err)
 	})
 }
@@ -119,7 +128,7 @@ func TestSquareTxShareRange(t *testing.T) {
 // len(blobSizes[i]) number of blobs per BlobTx. Note: not suitable for using in
 // prepare or process proposal, as the signatures will be invalid since this
 // does not query for relevant account numbers or sequences.
-func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blobSizes [][]int) [][]byte {
+func generateBlobTxsWithNamespaces(t *testing.T, namespaces []appns.Namespace, blobSizes [][]int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	const acc = "signer"
 	kr, _ := testnode.NewKeyring(acc)
@@ -134,12 +143,10 @@ func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blob
 	)
 }
 
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func TestSquareBlobShareRange_Flaky(t *testing.T) {
-	rand := tmrand.NewRand()
+func TestSquareBlobShareRange(t *testing.T) {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	txs := blobfactory.RandBlobTxsRandomlySized(signer, rand, 10, 1000, 10).ToSliceOfBytes()
+	txs := blobfactory.RandBlobTxsRandomlySized(signer, tmrand.NewRand(), 10, 1000, 10).ToSliceOfBytes()
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)
@@ -153,6 +160,7 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 		for blobIdx := range blobTx.Blobs {
 			shareRange, err := square.BlobShareRange(txs, pfbIdx, blobIdx, appconsts.LatestVersion)
 			require.NoError(t, err)
+			require.LessOrEqual(t, shareRange.End, len(dataSquare))
 			blobShares := dataSquare[shareRange.Start:shareRange.End]
 			blobSharesBytes, err := rawData(blobShares)
 			require.NoError(t, err)

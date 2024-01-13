@@ -11,6 +11,7 @@ linters:
     - revive
     - prealloc
     - stylecheck
+    - unconvert
 
 linters-settings:
   nakedret:

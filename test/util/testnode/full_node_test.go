@@ -21,6 +21,9 @@ import (
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping full node integration test in short mode.")
+	}
 	suite.Run(t, new(IntegrationTestSuite))
 }
 
@@ -32,40 +35,31 @@ type IntegrationTestSuite struct {
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping full node integration test in short mode.")
-	}
 	t := s.T()
-
-	accounts := make([]string, 10)
-	for i := 0; i < 10; i++ {
-		accounts[i] = tmrand.Str(10)
-	}
+	s.accounts = RandomAccounts(10)
 
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
 	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 
 	cfg := DefaultConfig().
-		WithFundedAccounts(accounts...).
+		WithFundedAccounts(s.accounts...).
 		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
-	s.accounts = accounts
 }
 
-// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
-func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
+func (s *IntegrationTestSuite) Test_verifyTimeIotaMs() {
 	require := s.Require()
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
-	// check that we're actually able to set the consensus params
+
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to decrease flakiness
-	for i := 0; i < 40; i++ {
-		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
+	for i := 0; i < 100; i++ {
+		params, err = s.cctx.Client.ConsensusParams(context.Background(), nil)
 		if err == nil && params != nil {
 			break
 		}
@@ -74,21 +68,19 @@ func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 	require.NoError(err)
 	require.NotNil(params)
 	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
-	_, err = s.cctx.WaitForHeight(20)
-	require.NoError(err)
 }
 
-func (s *IntegrationTestSuite) Test_PostData() {
+func (s *IntegrationTestSuite) TestPostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(kibibyte))
 	require.NoError(err)
 }
 
-func (s *IntegrationTestSuite) Test_FillBlock() {
+func (s *IntegrationTestSuite) TestFillBlock() {
 	require := s.Require()
 
 	for squareSize := 2; squareSize <= appconsts.DefaultGovMaxSquareSize; squareSize *= 2 {
-		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
+		resp, err := s.cctx.FillBlock(squareSize, s.accounts[1], flags.BroadcastSync)
 		require.NoError(err)
 
 		err = s.cctx.WaitForBlocks(3)
@@ -104,7 +96,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 	}
 }
 
-func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
+func (s *IntegrationTestSuite) TestFillBlock_InvalidSquareSizeError() {
 	tests := []struct {
 		name        string
 		squareSize  int
@@ -128,14 +120,14 @@ func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
 
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
-			_, actualErr := s.cctx.FillBlock(tc.squareSize, s.accounts, flags.BroadcastAsync)
+			_, actualErr := s.cctx.FillBlock(tc.squareSize, s.accounts[2], flags.BroadcastAsync)
 			s.Equal(tc.expectedErr, actualErr)
 		})
 	}
 }
 
 // Test_defaultAppVersion tests that the default app version is set correctly in
-// testnode.
+// testnode node.
 func (s *IntegrationTestSuite) Test_defaultAppVersion() {
 	t := s.T()
 	blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)

@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -50,7 +49,7 @@ func NewDefaultGenesis() *Genesis {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	g := &Genesis{
 		ecfg:            ecfg,
-		ConsensusParams: DefaultConsensusParams(),
+		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         tmrand.Str(6),
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(ecfg.Codec),
@@ -202,11 +201,4 @@ func (g *Genesis) Validator(i int) (Validator, bool) {
 		return g.validators[i], true
 	}
 	return Validator{}, false
-}
-
-func DefaultConsensusParams() *tmproto.ConsensusParams {
-	cparams := coretypes.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
-	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	return cparams
 }

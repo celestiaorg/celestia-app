@@ -1,5 +1,4 @@
 [metadata]
-name = "standard"
 author = "core-app"
 
 [global]
@@ -54,3 +53,4 @@ go_version = "1.21"
 [groups.build]
 [groups.run]
 artifact = ""
+name = "standard"

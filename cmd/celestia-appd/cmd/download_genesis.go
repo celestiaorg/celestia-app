@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -19,6 +20,7 @@ var chainIDToSha256 = map[string]string{
 	"celestia":   "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
 	"mocha-4":    "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
 	"arabica-10": "fad0a187669f7a2c11bb07f9dc27140d66d2448b7193e186312713856f28e3e1",
+	"arabica-11": "77605cee57ce545b1be22402110d4baacac837bdc7fc3f5c74020abf9a08810f",
 }
 
 func downloadGenesisCommand() *cobra.Command {
@@ -26,13 +28,13 @@ func downloadGenesisCommand() *cobra.Command {
 		Use:   "download-genesis [chain-id]",
 		Short: "Download genesis file from https://github.com/celestiaorg/networks",
 		Long: "Download genesis file from https://github.com/celestiaorg/networks.\n" +
-			"The first argument should be a known chain-id. Ex. celestia, mocha-4, or arabica-10.\n" +
+			fmt.Sprintf("The first argument should be a known chain-id. Ex. %s\n", chainIDs()) +
 			"If no argument is provided, defaults to celestia.\n",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			chainID := getChainIDOrDefault(args)
 			if !isKnownChainID(chainID) {
-				return fmt.Errorf("unknown chain-id: %s. Must be: celestia, mocha-4, or arabica-10", chainID)
+				return fmt.Errorf("unknown chain-id: %s. Must be: %s", chainID, chainIDs())
 			}
 			outputFile := server.GetServerContextFromCmd(cmd).Config.GenesisFile()
 			fmt.Printf("Downloading genesis file for %s to %s\n", chainID, outputFile)
@@ -80,6 +82,10 @@ func getChainIDOrDefault(args []string) string {
 func isKnownChainID(chainID string) bool {
 	knownChainIDs := getKeys(chainIDToSha256)
 	return contains(knownChainIDs, chainID)
+}
+
+func chainIDs() string {
+	return strings.Join(getKeys(chainIDToSha256), ", ")
 }
 
 // contains checks if a string is present in a slice.

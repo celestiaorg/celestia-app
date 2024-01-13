@@ -1,7 +1,7 @@
 package appconsts
 
 import (
-	testground "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 )
 
@@ -28,6 +28,7 @@ func SquareSizeUpperBound(v uint64) int {
 	switch v {
 	case testground.Version:
 		return testground.SquareSizeUpperBound
+	// There is currently only a single square size upper bound.
 	default:
 		return v1.SquareSizeUpperBound
 	}

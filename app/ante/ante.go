@@ -59,7 +59,7 @@ func NewAnteHandler(
 		blobante.NewMinGasPFBDecorator(blobKeeper),
 		// Ensure that the tx's total blob size is <= the max blob size.
 		blobante.NewMaxBlobSizeDecorator(blobKeeper),
-		// Ensure that tx's with a MsgSubmitProposal have atleast one proposal
+		// Ensure that tx's with a MsgSubmitProposal have at least one proposal
 		// message.
 		NewGovProposalDecorator(),
 		// Side effect: increment the nonce for all tx signers.

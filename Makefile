@@ -1,5 +1,5 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
-COMMIT := $(shell git log -1 --format='%H')
+COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 ALL_VERSIONS := $(shell git tag -l)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
@@ -7,6 +7,8 @@ IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app
+GOLANG_CROSS_VERSION  ?= v1.21.6
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -35,10 +37,14 @@ install: go.sum
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
-## mod: Update go.mod.
+## Update go.mod
 mod:
+	@echo "--> Syncing workspaces"
+	@go work sync
 	@echo "--> Updating go.mod"
 	@go mod tidy
+	@echo "--> Updating go.mod in ./test/testground"
+	@(cd ./test/testground && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -119,7 +125,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_VERSIONS="$(ALL_VERSIONS)" E2E=true go test ./test/e2e/... -timeout 20m -v
+	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_LATEST_VERSION=$(shell git rev-parse --short main) E2E_VERSIONS="$(ALL_VERSIONS)" E2E=true go test ./test/e2e/... -timeout 20m -v
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
@@ -127,7 +133,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -172,19 +178,24 @@ adr-gen:
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
 
-## goreleaser: List Goreleaser commands and checks if GoReleaser is installed.
-goreleaser: Makefile
-	@echo " Choose a goreleaser command to run:"
-	@sed -n 's/^## goreleaser/goreleaser/p' $< | column -t -s ':' |  sed -e 's/^/ /'
-	@goreleaser --version
-.PHONY: goreleaser
+## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
+prebuilt-binary:
+	@if [ ! -f ".release-env" ]; then \
+		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
+		exit 1;\
+	fi
+	docker run \
+		--rm \
+		-e CGO_ENABLED=1 \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		release --clean
+.PHONY: prebuilt-binary
 
-## goreleaser-build: Builds the celestia-appd binary using GoReleaser for your local OS.
-goreleaser-build:
-	goreleaser build --snapshot --clean --single-target
-.PHONY: goreleaser-build
-
-## goreleaser-release: Builds the release celestia-appd binary as defined in .goreleaser.yaml. This requires there be a git tag for the release in the local git history.
-goreleaser-release:
-	goreleaser release --clean --fail-fast --skip-publish
-.PHONY: goreleaser-release
+## govulncheck: Check for vulnerabilities in dependencies.
+govulncheck:
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+.PHONY: govulncheck

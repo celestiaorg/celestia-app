@@ -214,31 +214,31 @@ func (s *Signer) BroadcastTx(ctx context.Context, txBytes []byte) (*sdktypes.TxR
 // is encountered.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
 	txClient := tx.NewServiceClient(s.grpc)
-	timer := time.NewTimer(0)
-	defer timer.Stop()
+
+	s.mtx.RLock()
+	pollTime := s.pollTime
+	s.mtx.RUnlock()
+
+	pollTicker := time.NewTicker(pollTime)
+	defer pollTicker.Stop()
+
 	for {
+		resp, err := txClient.GetTx(ctx, &tx.GetTxRequest{Hash: txHash})
+		if err == nil {
+			if resp.TxResponse.Code != 0 {
+				return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+			}
+			return resp.TxResponse, nil
+		}
+		if !strings.Contains(err.Error(), "not found") {
+			return &sdktypes.TxResponse{}, err
+		}
+
+		// Wait for the next round.
 		select {
 		case <-ctx.Done():
 			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-timer.C:
-			resp, err := txClient.GetTx(
-				ctx,
-				&tx.GetTxRequest{
-					Hash: txHash,
-				},
-			)
-			if err == nil {
-				if resp.TxResponse.Code != 0 {
-					return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-				}
-				return resp.TxResponse, nil
-			}
-
-			if !strings.Contains(err.Error(), "not found") {
-				return &sdktypes.TxResponse{}, err
-			}
-
-			timer.Reset(s.pollTime)
+		case <-pollTicker.C:
 		}
 	}
 }
@@ -270,8 +270,24 @@ func (s *Signer) PubKey() cryptotypes.PubKey {
 	return s.pk
 }
 
-// GetSequencer gets the lastest signed sequnce and increments the local sequence number
+// Sequence returns the last signed sequence number of the signer
+func (s *Signer) Sequence() uint64 {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.lastSignedSequence
+}
+
+// GetSequence gets the latest signed sequence and increments the local sequence number
+// Deprecated: Use Sequence if you want to get the latest signed sequence number
 func (s *Signer) GetSequence() uint64 {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	defer func() { s.lastSignedSequence++ }()
+	return s.lastSignedSequence
+}
+
+// getAndIncrementSequence gets the latest signed sequence and increments the local sequence number
+func (s *Signer) getAndIncrementSequence() uint64 {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	defer func() { s.lastSignedSequence++ }()
@@ -287,6 +303,11 @@ func (s *Signer) ForceSetSequence(seq uint64) {
 	s.lastSignedSequence = seq
 }
 
+// Keyring exposes the signers underlying keyring
+func (s *Signer) Keyring() keyring.Keyring {
+	return s.keys
+}
+
 func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
@@ -297,7 +318,7 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
 
-	sequence := s.GetSequence()
+	sequence := s.getAndIncrementSequence()
 
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data

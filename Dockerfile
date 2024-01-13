@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.21.4-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.21.6-alpine3.18 as builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -21,7 +21,7 @@ RUN uname -a &&\
     make build
 
 # stage 2
-FROM docker.io/alpine:3.18.4
+FROM docker.io/alpine:3.19.0
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
