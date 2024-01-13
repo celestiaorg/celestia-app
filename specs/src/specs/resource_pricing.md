@@ -174,8 +174,9 @@ consensus node to independently set its own minimum gas price in `app.toml`, eve
 allowing for a gas price of 0, creating the possibility of secondary markets. In v2, 
 Celestia introduces a global minimum gas price, a consensus constant, unaffected
 by individual node configurations. Although nodes retain the freedom to increase
-gas prices locally, transactions that do not meet the global minimum threshold
-will lead to the entire block being rejected as invalid.
+gas prices locally, all transactions in a block must be greater than or equal to the 
+global minimum threshold. If a block is proposed that contains a tx with a gas price
+below the global min gas price, the block will be rejected rejected as invalid.
 
 ## Estimating PFB cost
 
