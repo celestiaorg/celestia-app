@@ -3,12 +3,9 @@ package testnode
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
-	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	tmconfig "github.com/tendermint/tendermint/config"
@@ -128,28 +125,6 @@ func DefaultConfig() *Config {
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(cmd.NewAppServer).
 		WithSuppressLogs(true)
-}
-
-type KVAppOptions struct {
-	options map[string]interface{}
-}
-
-// Get implements AppOptions
-func (ao *KVAppOptions) Get(o string) interface{} {
-	return ao.options[o]
-}
-
-// Set adds an option to the KVAppOptions
-func (ao *KVAppOptions) Set(o string, v interface{}) {
-	ao.options[o] = v
-}
-
-// DefaultAppOptions returns the default application options.
-func DefaultAppOptions() *KVAppOptions {
-	opts := &KVAppOptions{options: make(map[string]interface{})}
-	opts.Set(server.FlagPruning, pruningtypes.PruningOptionNothing)
-	opts.Set(app.SetProtocolVersionOptionKey, appconsts.LatestVersion)
-	return opts
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {

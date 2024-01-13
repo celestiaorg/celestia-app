@@ -110,9 +110,6 @@ const (
 	BondDenomAlias = "microtia"
 	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
 	DisplayDenom = "TIA"
-	// SetProtocolVersionOptionKey is the key used to set the protocol version
-	// to a specific value during tests.
-	SetProtocolVersionOptionKey = "set-protocol-version"
 )
 
 // These constants are derived from the above variables.
@@ -264,15 +261,6 @@ func New(
 	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
-
-	// set the protocol version to a specific value if specified. This is used
-	// for testing purposes.
-	if pvo := appOpts.Get(SetProtocolVersionOptionKey); pvo != nil {
-		baseAppOptions = append(baseAppOptions, func(ba *baseapp.BaseApp) {
-			appVersion := pvo.(uint64)
-			ba.SetProtocolVersion(appVersion)
-		})
-	}
 
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
