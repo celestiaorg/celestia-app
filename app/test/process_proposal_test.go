@@ -257,7 +257,7 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
-				// Update the data hash so that it doesn't fail on an incorrect data root.
+				// Update the data hash so that the test doesn't fail due to an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     v1.Version,
