@@ -82,8 +82,6 @@ func ConnectAll(nodes []RoleConfig) ([]RoleConfig, error) {
 	return nodes, nil
 }
 
-var _ = Configurator(ConnectRandom(1))
-
 func ConnectRandom(numPeers int) Configurator {
 	return func(nodes []RoleConfig) ([]RoleConfig, error) {
 		if numPeers >= len(nodes) {
@@ -130,7 +128,7 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 			nodes[i].CmtConfig.Instrumentation.InfluxOrg = "celestia"
 			nodes[i].CmtConfig.Instrumentation.InfluxBucket = "testground"
 			nodes[i].CmtConfig.Instrumentation.InfluxBatchSize = 200
-			nodes[i].CmtConfig.Instrumentation.InfluxURL = tparams.Url
+			nodes[i].CmtConfig.Instrumentation.InfluxURL = tparams.URL
 			nodes[i].CmtConfig.Instrumentation.InfluxToken = tparams.Token
 			nodes[i].CmtConfig.Instrumentation.InfluxTables = schema.RoundStateTable
 		}

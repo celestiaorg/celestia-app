@@ -43,7 +43,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 	runenv.RecordMessage("got packets, using parts for the genesis")
 
 	// create Genesis and distribute it to all nodes
-	genesis, err := l.GenesisEvent(ctx, l.params, packets)
+	genesis, err := l.GenesisEvent(l.params, packets)
 	if err != nil {
 		return err
 	}
@@ -117,6 +117,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	// this is a helpful sanity check that logs the blocks from the POV of the
 	// leader in a testground viewable way.
+	//nolint:errcheck
 	go l.subscribeAndRecordBlocks(ctx, runenv)
 
 	return nil
@@ -133,10 +134,16 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	switch l.params.Experiment {
 	case UnboundedBlockSize:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 10)
+		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 10)
+		if err != nil {
+			runenv.RecordMessage(fmt.Sprintf("error unbounded block size test: %v", err))
+		}
 	case ConsistentFill:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+		err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+		if err != nil {
+			runenv.RecordMessage(fmt.Sprintf("error consistent fill block size test: %v", err))
+		}
 	default:
 		return fmt.Errorf("unknown experiment %s", l.params.Experiment)
 	}
@@ -154,7 +161,8 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 // Retro collects standard data from the leader node and saves it as a file.
 // This data includes the block times, rounds required to reach consensus, and
 // the block sizes.
-func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext) error {
+	//nolint:errcheck
 	defer l.ConsensusNode.Stop()
 
 	blockRes, err := l.cctx.Client.Header(ctx, nil)
@@ -179,7 +187,7 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 	return nil
 }
 
-func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
+func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
 	pubKeys := make([]cryptotypes.PubKey, 0)
 	addrs := make([]string, 0)
 	gentxs := make([]json.RawMessage, 0, len(packets))

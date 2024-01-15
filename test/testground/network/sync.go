@@ -191,7 +191,7 @@ func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMes
 	return genesis, nil
 }
 
-func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, t T, count int) ([]T, error) {
+func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, _ T, count int) ([]T, error) {
 	ch := make(chan T)
 	sub, err := initCtx.SyncClient.Subscribe(ctx, topic, ch)
 	if err != nil {

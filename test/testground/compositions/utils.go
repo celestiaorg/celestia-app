@@ -95,7 +95,7 @@ func parseBandwidth(s string) (uint64, error) {
 		return 0, fmt.Errorf("unknown unit in string: %s", s)
 	}
 
-	numberStr := strings.TrimRight(s, "KibMibGibTibKBMGBT")
+	numberStr := strings.TrimRight(s, "KMGTib")
 	number, err := strconv.ParseFloat(numberStr, 64)
 	if err != nil {
 		return 0, err

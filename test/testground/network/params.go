@@ -38,7 +38,7 @@ const (
 	MempoolParam           = "mempool"
 	BroadcastTxsParam      = "broadcast_txs"
 	TracingTokenParam      = "tracing_token"
-	TracingUrlParam        = "tracing_url"
+	TracingURLParam        = "tracing_url"
 	TracingNodesParam      = "tracing_nodes"
 	ExperimentParam        = "experiment"
 )
@@ -70,20 +70,15 @@ type Params struct {
 
 type TracingParams struct {
 	Nodes int
-	Url   string
+	URL   string
 	Token string
 }
 
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
-	// return TracingParams{
-	// 	Nodes: runenv.IntParam(TracingNodesParam),
-	// 	Url:   runenv.StringParam(TracingUrlParam),
-	// 	Token: runenv.StringParam(TracingTokenParam),
-	// }
 	return TracingParams{
-		Nodes: 1,
-		Url:   "http://51.158.232.250:8086",
-		Token: "fMN3ga2B3n-_9XDgyZh7VnC1mGRqWvh5pXN3SYMWmOGwA8a_lmjvHmTm6JQCU8b5-vvU6QwauQT3nNA0fZTfCg==",
+		Nodes: runenv.IntParam(TracingNodesParam),
+		URL:   runenv.StringParam(TracingURLParam),
+		Token: runenv.StringParam(TracingTokenParam),
 	}
 }
 
