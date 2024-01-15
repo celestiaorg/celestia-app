@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.21.6
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20231204021123-ca0e705bbb18
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240113184340-3c240437c7ef
 	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.34.28
@@ -106,7 +106,6 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
-	github.com/hashicorp/go-uuid v1.0.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -152,7 +151,6 @@ require (
 	github.com/raulk/clock v1.1.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
-	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/rs/cors v1.8.3 // indirect
 	github.com/rs/zerolog v1.31.0 // indirect
