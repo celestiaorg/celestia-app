@@ -157,7 +157,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	account := "validator"
 
 	// create and submit a new param change proposal for both params
-	change1 := sdkutil.GovMaxSquareSizeParamChange(s.ecfg.Codec, squareSize)
+	change1 := sdkutil.GovMaxSquareSizeParamChange(squareSize)
 	change2 := sdkutil.MaxBlockBytesParamChange(s.ecfg.Codec, maxBytes)
 
 	content := proposal.NewParameterChangeProposal(

@@ -26,7 +26,7 @@ func MaxBlockBytesParamChange(codec codec.Codec, maxBytes int) proposal.ParamCha
 
 // GovMaxSquareSizeParamChange returns a param change for the blob module's max
 // square size.
-func GovMaxSquareSizeParamChange(codec codec.Codec, squareSize int) proposal.ParamChange {
+func GovMaxSquareSizeParamChange(squareSize int) proposal.ParamChange {
 	return proposal.NewParamChange(
 		blobtypes.ModuleName,
 		string(blobtypes.KeyGovMaxSquareSize),
