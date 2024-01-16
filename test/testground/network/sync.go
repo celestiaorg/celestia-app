@@ -132,6 +132,8 @@ func DownloadNodeConfigs(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 // GenesisWrapper is a simple struct wrapper that makes it easier testground to
 // properly serialize and distribute the genesis file.
 type GenesisWrapper struct {
+	// Part is the index of the part of the genesis file. This is used to bypass
+	// testground's 32Kb limit on messages.
 	Part    int    `json:"part"`
 	Genesis string `json:"genesis"`
 }
