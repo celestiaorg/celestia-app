@@ -114,6 +114,15 @@ func (s *SignerTestSuite) TestConfirmTx() {
 	})
 }
 
+func (s *SignerTestSuite) TestGasEstimation() {
+	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	txBytes, err := s.signer.CreateTx([]sdk.Msg{msg})
+	require.NoError(s.T(), err)
+	gas, err := s.signer.EstimateGas(context.Background(), txBytes)
+	require.NoError(s.T(), err)
+	require.Greater(s.T(), gas, uint64(0))
+}
+
 // TestGasConsumption verifies that the amount deducted from a user's balance is
 // based on the fee provided in the tx instead of the gas used by the tx. This
 // behavior leads to poor UX because tx submitters must over-estimate the amount
