@@ -115,7 +115,7 @@ func ConnectRandom(numPeers int) Configurator {
 
 // TracingConfigurator is a Configurator that configures tracing for the
 // network. It will set the nodes to collect only the round state data, and will
-// set the nodes specified in the TracingParams to collect all trae data.
+// set the nodes specified in the TracingParams to collect all trace data.
 func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configurator {
 	return func(nodes []RoleConfig) ([]RoleConfig, error) {
 		runenv.RecordMessage(fmt.Sprintf("tracing nodes: %+v", tparams))
