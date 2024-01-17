@@ -206,8 +206,12 @@ For additional information on the significance and application of the reserved n
 <p>Applications MUST refrain from using the <a href="#reserved-namespaces">reserved namespaces</a> for their blob data.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="../../../pkg/namespace">pkg/namespace</a>.</p>
-<h2 id="protobuf-definition"><a class="header" href="#protobuf-definition">Protobuf Definition</a></h2>
-<!-- TODO: Add protobuf definition for namespace -->
+<h2 id="go-definition"><a class="header" href="#go-definition">Go Definition</a></h2>
+<pre><code class="language-go">type Namespace struct {
+	Version uint8
+	ID      []byte
+}
+</code></pre>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <ol>
 <li><a href="../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
