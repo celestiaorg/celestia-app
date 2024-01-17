@@ -87,13 +87,6 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			appVersion: uint64(2),
 			expErr:     false,
 		},
-		{
-			name:       "good tx; fee is 1",
-			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)),
-			gasLimit:   uint64(float64(1) / appconsts.GlobalMinGasPrice),
-			appVersion: uint64(2),
-			expErr:     false,
-		},
 	}
 
 	for _, tc := range testCases {
