@@ -78,10 +78,10 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
 			gasLimit:   0,
 			appVersion: uint64(2),
-			expErr:     true,
+			expErr:     false,
 		},
 		{
-			name:       "good tx; rounds down to 0 gets reset to 1",
+			name:       "good tx; minFee = 0.8, rounds up to 1",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			gasLimit:   400,
 			appVersion: uint64(2),

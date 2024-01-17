@@ -26,9 +26,6 @@ const (
 	// that all transactions have a gas price greater than or equal to this value.
 	GlobalMinGasPrice = DefaultMinGasPrice
 
-	// MinFee is the absolute minimum amount of utia every transaction must pay.
-	MinFee = 1
-
 	// DefaultUnbondingTime is the default time a validator must wait
 	// to unbond in a proof of stake system. Any validator within this
 	// time can be subject to slashing under conditions of misbehavior.

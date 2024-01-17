@@ -35,12 +35,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 		}
 
 		gasInt := sdk.NewIntFromUint64(gas)
-		minFee := globalMinGasPrice.MulInt(gasInt).TruncateInt()
-
-		// if min fee truncates to zero, set it to one
-		if minFee.LT(sdk.NewInt(appconsts.MinFee)) {
-			minFee = sdk.NewInt(appconsts.MinFee)
-		}
+		minFee := globalMinGasPrice.MulInt(gasInt).RoundInt()
 
 		if !fee.GTE(minFee) {
 			return nil, 0, errors.Wrapf(sdkerror.ErrInsufficientFee, "insufficient fees; got: %s required: %s", fee, minFee)
