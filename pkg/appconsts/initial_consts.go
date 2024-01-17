@@ -25,7 +25,7 @@ const (
 	// GlobalMinGasPrice is used in the processProposal to ensure
 	// that all transactions have a gas price greater than or equal to this value.
 	GlobalMinGasPrice = DefaultMinGasPrice
-    
+
 	// MinFee is the absolute minimum every transaction must pay.
 	MinFee = 1
 
