@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -28,45 +29,76 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	feeAmount := int64(1000)
 
-	gasLimit := uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice)
-	builder.SetGasLimit(gasLimit)
-
 	ctx := sdk.Context{}
 
 	testCases := []struct {
 		name       string
 		fee        sdk.Coins
+		gasLimit   uint64
 		appVersion uint64
 		expErr     bool
 	}{
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     true,
 		},
 		{
-			name:       "good tx; fee above required minimum",
-			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
+			name:       "good tx; fee equal to required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     false,
 		},
 		{
-			name:       "good tx; fee equal to required minimum",
-			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			name:       "good tx; fee above required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     false,
 		},
 		{
 			name:       "good tx; with no fee (v1)",
-			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
 			appVersion: uint64(1),
+			expErr:     false,
+		},
+		{
+			name:       "good tx; gas limit and fee are maximum values",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, math.MaxInt64)),
+			gasLimit:   math.MaxUint64,
+			appVersion: uint64(2),
+			expErr:     false,
+		},
+		{
+			name:       "bad tx; gas limit and fee are 0",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
+			gasLimit:   0,
+			appVersion: uint64(2),
+			expErr:     true,
+		},
+		{
+			name:       "good tx; rounds down to 0 gets reset to 1",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
+			gasLimit:   400,
+			appVersion: uint64(2),
+			expErr:     false,
+		},
+		{
+			name:       "good tx; fee is 1",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)),
+			gasLimit:   uint64(float64(1) / appconsts.GlobalMinGasPrice),
+			appVersion: uint64(2),
 			expErr:     false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			builder.SetGasLimit(tc.gasLimit)
 			builder.SetFeeAmount(tc.fee)
 			tx := builder.GetTx()
 

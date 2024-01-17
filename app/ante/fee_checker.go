@@ -1,7 +1,7 @@
 package ante
 
 import (
-	"math"
+	"fmt"
 
 	errors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -26,10 +26,22 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
 
-	minFee := sdk.NewInt(int64(math.Ceil(appconsts.GlobalMinGasPrice * float64(gas))))
-
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
+		// convert the global minimum gas price to a big.Int
+		globalMinGasPrice, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.GlobalMinGasPrice))
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "invalid GlobalMinGasPrice")
+		}
+
+		gasInt := sdk.NewIntFromUint64(gas)
+		minFee := globalMinGasPrice.MulInt(gasInt).TruncateInt()
+        
+		// if min fee truncates to zero, set it to one
+		if minFee.LT(sdk.NewInt(appconsts.MinFee)) {
+			minFee = sdk.NewInt(appconsts.MinFee)
+		}
+
 		if !fee.GTE(minFee) {
 			return nil, 0, errors.Wrapf(sdkerror.ErrInsufficientFee, "insufficient fees; got: %s required: %s", fee, minFee)
 		}
