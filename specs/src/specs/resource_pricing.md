@@ -169,13 +169,14 @@ entire fee is then deducted from the transaction no matter what.
 ## Fee market
 
 By default, Celestia's consensus nodes prioritize transactions in their mempools
-based on gas price. In v1, there was no minimum gas price enforced, allowing each 
-consensus node to independently set its own minimum gas price in `app.toml`, even 
-allowing for a gas price of 0, creating the possibility of secondary markets. In v2, 
-Celestia introduces a global minimum gas price, a consensus constant, unaffected
-by individual node configurations. Although nodes retain the freedom to increase
-gas prices locally, all transactions in a block must be greater than or equal to the 
-global minimum threshold. If a block is proposed that contains a tx with a gas price
+based on gas price. In version 1, there was no enforced minimum gas price, which
+allowed each consensus node to independently set its own minimum gas price in
+`app.toml`. This even permitted a gas price of 0, thereby creating the
+possibility of secondary markets. In version 2, Celestia introduces a global
+minimum gas price, a consensus constant, unaffected by individual node
+configurations. Although nodes retain the freedom to increase gas prices
+locally, all transactions in a block must be greater than or equal to the global
+minimum threshold. If a block is proposed that contains a tx with a gas price
 below the global min gas price, the block will be rejected as invalid.
 
 ## Estimating PFB cost
