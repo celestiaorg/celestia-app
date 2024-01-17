@@ -176,7 +176,7 @@ Celestia introduces a global minimum gas price, a consensus constant, unaffected
 by individual node configurations. Although nodes retain the freedom to increase
 gas prices locally, all transactions in a block must be greater than or equal to the 
 global minimum threshold. If a block is proposed that contains a tx with a gas price
-below the global min gas price, the block will be rejected rejected as invalid.
+below the global min gas price, the block will be rejected as invalid.
 
 ## Estimating PFB cost
 
