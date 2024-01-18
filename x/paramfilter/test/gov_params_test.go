@@ -163,27 +163,6 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				assert.Equal(want, got)
 			},
 		},
-		// {
-		// 	"consensus.block.TimeIotaMs",
-		// 	testProposal(proposal.ParamChange{
-		// 		Subspace: baseapp.Paramspace,
-		// 		Key:      string(baseapp.ParamStoreKeyBlockParams),
-		// 		Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
-		// 	}),
-		// 	func() {
-		// 		// need to determine if ConsensusParams.Block should be BlockParams from proto/tendermint/types instead of abci/types
-		// 		gotBlockParams := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
-		// 		suite.ctx.ConsensusParams().Block
-		// 		wantBlockParams := tmproto.BlockParams{
-		// 			MaxBytes:   1,
-		// 			MaxGas:     1,
-		// 			TimeIotaMs: 1,
-		// 		}
-		// 		suite.Require().Equal(
-		// 			wantBlockParams,
-		// 			*gotBlockParams)
-		// 	},
-		// },
 		{
 			"consensus.block",
 			testProposal(proposal.ParamChange{
@@ -527,6 +506,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	testCases := []struct {
 		name         string
 		proposal     *proposal.ParameterChangeProposal
+		expectErr    bool
 		postProposal func()
 	}{
 		{
@@ -536,10 +516,34 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(banktypes.KeySendEnabled),
 				Value:    `[{"denom": "test", "enabled": false}]`,
 			}),
+			true,
 			func() {
 				got := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
-				want := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
-				assert.NotEqual(want, got)
+				new := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
+				assert.NotEqual(new, got)
+			},
+		},
+		{
+			"consensus.block.TimeIotaMs",
+			testProposal(proposal.ParamChange{
+				Subspace: baseapp.Paramspace,
+				Key:      string(baseapp.ParamStoreKeyBlockParams),
+				Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
+			}),
+			// TimeIotaMs is not blocked by the param filter but it isn't
+			// exposed from CometBFT to the application so it can not be
+			// modified by governance. Since it isn't blocked by the param
+			// filter, we expect no error if a governance proposal includes it.
+			// We do expect the value to not change.
+			false,
+			func() {
+				got := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
+				new := tmproto.BlockParams{
+					MaxBytes:   1,
+					MaxGas:     1,
+					TimeIotaMs: 1,
+				}
+				assert.NotEqual(new, got)
 			},
 		},
 		{
@@ -549,12 +553,13 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(baseapp.ParamStoreKeyValidatorParams),
 				Value:    `{"pub_key_types": ["secp256k1"]}`,
 			}),
+			true,
 			func() {
 				got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
-				want := tmproto.ValidatorParams{
+				new := tmproto.ValidatorParams{
 					PubKeyTypes: []string{"secp256k1"},
 				}
-				assert.NotEqual(want, got)
+				assert.NotEqual(new, got)
 			},
 		},
 		{
@@ -564,10 +569,11 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(stakingtypes.KeyBondDenom),
 				Value:    `"test"`,
 			}),
+			true,
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
-				want := "test"
-				assert.NotEqual(want, got)
+				new := "test"
+				assert.NotEqual(new, got)
 			},
 		},
 		{
@@ -577,10 +583,11 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(stakingtypes.KeyUnbondingTime),
 				Value:    `"1"`,
 			}),
+			true,
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
-				want := time.Duration(1)
-				suite.Require().NotEqual(want, got)
+				new := time.Duration(1)
+				assert.NotEqual(new, got)
 			},
 		},
 	}
@@ -588,7 +595,9 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			err := suite.govHandler(suite.ctx, tc.proposal)
-			suite.Require().Error(err)
+			if tc.expectErr {
+				suite.Require().Error(err)
+			}
 			tc.postProposal()
 		})
 	}
