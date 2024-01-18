@@ -3,7 +3,6 @@ package proof
 import (
 	"testing"
 
-	"github.com/celestiaorg/go-square/namespace"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -87,7 +86,7 @@ func validShareProof() ShareProof {
 				LeafHash: []uint8(nil),
 			},
 		},
-		NamespaceId:      namespace.TxNamespace.ID,
+		NamespaceId:      []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 		RowProof:         &rp,
 		NamespaceVersion: uint32(0),
 	}
