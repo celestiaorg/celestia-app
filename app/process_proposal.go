@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -58,10 +59,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
-			// we don't reject the block here because it is not a block validity
-			// rule that all transactions included in the block data are
-			// decodable
-			continue
+			if req.Header.Version.App == v1.Version {
+				// For appVersion 1, there was no block validity rule that all
+				// transactions must be decodable.
+				continue
+			}
+			// An error here means that a tx was included in the block that is not decodable.
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d is not decodable", idx))
+			return reject()
 		}
 
 		// handle non-blob transactions first
