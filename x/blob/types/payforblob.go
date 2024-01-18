@@ -6,10 +6,11 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/merkle"
+	appns "github.com/celestiaorg/go-square/namespace"
+	appshares "github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -49,7 +50,7 @@ func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, err
 	if err != nil {
 		return nil, err
 	}
-	commitments, err := inclusion.CreateCommitments(blobs)
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}

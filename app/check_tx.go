@@ -3,8 +3,10 @@ package app
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -37,7 +39,8 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		err := blobtypes.ValidateBlobTx(app.txConfig, btx)
+		subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdk.Context{}))
+		err := blobtypes.ValidateBlobTx(app.txConfig, btx, subtreeRootThreshold)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}

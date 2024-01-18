@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/rand"
 
-	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	ns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gogo/protobuf/grpc"
 )

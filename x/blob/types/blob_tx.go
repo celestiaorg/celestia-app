@@ -2,12 +2,14 @@ package types
 
 import (
 	"bytes"
+	"errors"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	appns "github.com/celestiaorg/go-square/namespace"
+	shares "github.com/celestiaorg/go-square/shares"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -33,7 +35,11 @@ func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, e
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx blob.BlobTx) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRootThreshold int) error {
+	if bTx == nil {
+		return errors.New("nil blob tx")
+	}
+
 	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
 	if err != nil {
 		return err
@@ -90,7 +96,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx blob.BlobTx) error {
 
 	// verify that the commitment of the blob matches that of the msgPFB
 	for i, commitment := range msgPFB.ShareCommitments {
-		calculatedCommit, err := inclusion.CreateCommitment(bTx.Blobs[i])
+		calculatedCommit, err := inclusion.CreateCommitment(bTx.Blobs[i], merkle.HashFromByteSlices, subtreeRootThreshold)
 		if err != nil {
 			return ErrCalculateCommitment
 		}

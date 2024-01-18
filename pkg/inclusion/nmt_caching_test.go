@@ -7,8 +7,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"

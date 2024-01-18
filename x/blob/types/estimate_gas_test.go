@@ -7,11 +7,11 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/stretchr/testify/require"
 
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"

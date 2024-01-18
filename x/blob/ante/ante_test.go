@@ -6,9 +6,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	ante "github.com/celestiaorg/celestia-app/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )

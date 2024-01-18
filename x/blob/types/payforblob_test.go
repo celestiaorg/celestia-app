@@ -6,16 +6,17 @@ import (
 
 	sdkerrors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	appns "github.com/celestiaorg/go-square/namespace"
+	shares "github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -200,7 +201,7 @@ func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 
 	blobs := []*blob.Blob{pblob}
 
-	commitments, err := inclusion.CreateCommitments(blobs)
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	require.NoError(t, err)
 
 	namespaceVersions, namespaceIds, sizes, shareVersions := types.ExtractBlobComponents(blobs)
@@ -338,7 +339,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 				assert.Equal(t, ns.ID, blob.NamespaceId)
 				assert.Equal(t, uint32(ns.Version), blob.NamespaceVersion)
 
-				expectedCommitment, err := inclusion.CreateCommitment(blob)
+				expectedCommitment, err := inclusion.CreateCommitment(blob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 				require.NoError(t, err)
 				assert.Equal(t, expectedCommitment, msgPFB.ShareCommitments[i])
 			}
