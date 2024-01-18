@@ -124,6 +124,8 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(cmd.NewAppServer).
+		WithSuppressLogs(true).
+		WithConsensusParams(DefaultConsensusParams()).
 		WithSuppressLogs(true)
 }
 
