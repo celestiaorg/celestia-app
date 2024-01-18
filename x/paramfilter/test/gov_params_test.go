@@ -519,8 +519,8 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			true,
 			func() {
 				got := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
-				new := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
-				assert.NotEqual(new, got)
+				proposed := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
+				assert.NotEqual(proposed, got)
 			},
 		},
 		{
@@ -538,12 +538,12 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			false,
 			func() {
 				got := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
-				new := tmproto.BlockParams{
+				proposed := tmproto.BlockParams{
 					MaxBytes:   1,
 					MaxGas:     1,
 					TimeIotaMs: 1,
 				}
-				assert.NotEqual(new, got)
+				assert.NotEqual(proposed, got)
 			},
 		},
 		{
@@ -556,10 +556,10 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			true,
 			func() {
 				got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
-				new := tmproto.ValidatorParams{
+				proposed := tmproto.ValidatorParams{
 					PubKeyTypes: []string{"secp256k1"},
 				}
-				assert.NotEqual(new, got)
+				assert.NotEqual(proposed, got)
 			},
 		},
 		{
@@ -572,8 +572,8 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			true,
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
-				new := "test"
-				assert.NotEqual(new, got)
+				proposed := "test"
+				assert.NotEqual(proposed, got)
 			},
 		},
 		{
@@ -586,8 +586,8 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			true,
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
-				new := time.Duration(1)
-				assert.NotEqual(new, got)
+				proposed := time.Duration(1)
+				assert.NotEqual(proposed, got)
 			},
 		},
 	}
