@@ -22,6 +22,10 @@ const (
 	// a nodes `CheckTx` and thus not be proposed by that node.
 	DefaultMinGasPrice = 0.002
 
+	// GlobalMinGasPrice is used in the processProposal to ensure
+	// that all transactions have a gas price greater than or equal to this value.
+	GlobalMinGasPrice = DefaultMinGasPrice
+
 	// DefaultUnbondingTime is the default time a validator must wait
 	// to unbond in a proof of stake system. Any validator within this
 	// time can be subject to slashing under conditions of misbehavior.
