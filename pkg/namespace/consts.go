@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	// NamespaveVersionSize is the size of a namespace version in bytes.
+	// NamespaceVersionSize is the size of a namespace version in bytes.
 	NamespaceVersionSize = 1
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
@@ -21,7 +21,7 @@ const (
 	// NamespaceVersionMax is the max namespace version.
 	NamespaceVersionMax = math.MaxUint8
 
-	// NamespaceZeroPrefixSize is the number of `0` bytes that are prefixed to
+	// NamespaceVersionZeroPrefixSize is the number of `0` bytes that are prefixed to
 	// namespace IDs for version 0.
 	NamespaceVersionZeroPrefixSize = 18
 
