@@ -95,7 +95,7 @@ func TestProcessProposal(t *testing.T) {
 			name:           "valid untouched data",
 			input:          validData(),
 			mutator:        func(d *tmproto.Data) {},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
@@ -104,7 +104,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				d.Txs = d.Txs[1:]
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -113,7 +113,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, blobTxs[3])
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -130,7 +130,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -147,7 +147,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -164,7 +164,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -181,7 +181,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -198,7 +198,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -211,7 +211,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs[0] = blobTxBytes
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -229,7 +229,7 @@ func TestProcessProposal(t *testing.T) {
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -239,7 +239,7 @@ func TestProcessProposal(t *testing.T) {
 				// swapping the order will cause the data root to be different
 				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -249,7 +249,7 @@ func TestProcessProposal(t *testing.T) {
 				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
 				d.Txs = append(d.Txs, btx.Tx)
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -281,7 +281,7 @@ func TestProcessProposal(t *testing.T) {
 				// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
 				d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -291,7 +291,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = append(d.Txs, badSigBlobTx)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -301,7 +301,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -328,7 +328,7 @@ func TestProcessProposal(t *testing.T) {
 				// square with a tampered sequence start indicator
 				d.Hash = dah.Hash()
 			},
-			appVersion:     v1.Version,
+			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
