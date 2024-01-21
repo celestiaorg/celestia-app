@@ -28,16 +28,6 @@ func New(version uint8, id []byte) (Namespace, error) {
 	}, nil
 }
 
-// MustNew returns a new namespace with the provided version and id. It panics
-// if the provided version or id are not supported.
-func MustNew(version uint8, id []byte) Namespace {
-	ns, err := New(version, id)
-	if err != nil {
-		panic(err)
-	}
-	return ns
-}
-
 // NewV0 returns a new namespace with version 0 and the provided subID. subID
 // must be <= 10 bytes. If subID is < 10 bytes, it will be left-padded with 0s
 // to fill 10 bytes.
