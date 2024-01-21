@@ -194,7 +194,7 @@ func MinShares() [][]byte {
 	return shares.ToBytes(EmptySquareShares())
 }
 
-// EmptySquare is a copy of the function defined in the square package to avoid
+// EmptySquareShares is a copy of the function defined in the square package to avoid
 // a circular dependency. TODO deduplicate
 func EmptySquareShares() []shares.Share {
 	return shares.TailPaddingShares(appconsts.MinShareCount)

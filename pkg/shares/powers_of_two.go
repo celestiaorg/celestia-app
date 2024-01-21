@@ -27,7 +27,7 @@ func RoundDownPowerOfTwo[I constraints.Integer](input I) (I, error) {
 	return roundedUp / 2, nil
 }
 
-// RoundUpPowerOfTwo returns the next power of two that is strictly greater than input.
+// RoundUpPowerOfTwoStrict returns the next power of two that is strictly greater than input.
 func RoundUpPowerOfTwoStrict[I constraints.Integer](input I) I {
 	result := RoundUpPowerOfTwo(input)
 

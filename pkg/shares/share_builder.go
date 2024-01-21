@@ -151,7 +151,7 @@ func (b *Builder) MaybeWriteReservedBytes() error {
 	return nil
 }
 
-// writeSequenceLen writes the sequence length to the first share.
+// WriteSequenceLen writes the sequence length to the first share.
 func (b *Builder) WriteSequenceLen(sequenceLen uint32) error {
 	if b == nil {
 		return errors.New("the builder object is not initialized (is nil)")

@@ -66,7 +66,7 @@ const (
 	// MinSquareSize is the smallest original square width.
 	MinSquareSize = 1
 
-	// MinshareCount is the minimum number of shares allowed in the original
+	// MinShareCount is the minimum number of shares allowed in the original
 	// data square.
 	MinShareCount = MinSquareSize * MinSquareSize
 

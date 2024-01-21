@@ -14,7 +14,7 @@ import (
 // decoding binaries that are not actually BlobTxs.
 const ProtoBlobTxTypeID = "BLOB"
 
-// NewBlob creates a new coretypes.Blob from the provided data after performing
+// New creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
 func New(ns namespace.Namespace, blob []byte, shareVersion uint8) *Blob {
 	return &Blob{
