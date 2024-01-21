@@ -91,9 +91,14 @@ Applications MUST refrain from using the [reserved namespaces](#reserved-namespa
 
 See [pkg/namespace](../../../pkg/namespace).
 
-## Protobuf Definition
+## Go Definition
 
-<!-- TODO: Add protobuf definition for namespace -->
+```go
+type Namespace struct {
+	Version uint8
+	ID      []byte
+}
+```
 
 ## References
 

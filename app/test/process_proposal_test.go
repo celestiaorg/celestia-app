@@ -11,11 +11,14 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -83,6 +86,7 @@ func TestProcessProposal(t *testing.T) {
 		name           string
 		input          *tmproto.Data
 		mutator        func(*tmproto.Data)
+		appVersion     uint64
 		expectedResult abci.ResponseProcessProposal_Result
 	}
 
@@ -91,6 +95,7 @@ func TestProcessProposal(t *testing.T) {
 			name:           "valid untouched data",
 			input:          validData(),
 			mutator:        func(d *tmproto.Data) {},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
@@ -99,6 +104,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				d.Txs = d.Txs[1:]
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -107,6 +113,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, blobTxs[3])
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -123,6 +130,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -139,6 +147,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -155,6 +164,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -171,6 +181,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -187,6 +198,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, _ := blobTx.Marshal()
 				d.Txs[0] = blobTxBytes
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -199,6 +211,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs[0] = blobTxBytes
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -216,6 +229,7 @@ func TestProcessProposal(t *testing.T) {
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -225,6 +239,7 @@ func TestProcessProposal(t *testing.T) {
 				// swapping the order will cause the data root to be different
 				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -234,14 +249,29 @@ func TestProcessProposal(t *testing.T) {
 				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
 				d.Txs = append(d.Txs, btx.Tx)
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "undecodable tx",
+			name:  "undecodable tx with app version 1",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				d.Txs = append(d.Txs, tmrand.Bytes(300))
+				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				// Update the data hash so that the test doesn't fail due to an incorrect data root.
+				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
+			appVersion:     v1.Version,
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:  "undecodable tx with app version 2",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				// Update the data hash so that the test doesn't fail due to an incorrect data root.
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     v2.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -251,6 +281,7 @@ func TestProcessProposal(t *testing.T) {
 				// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
 				d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -260,6 +291,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = append(d.Txs, badSigBlobTx)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -269,6 +301,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -295,6 +328,7 @@ func TestProcessProposal(t *testing.T) {
 				// square with a tampered sequence start indicator
 				d.Hash = dah.Hash()
 			},
+			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
@@ -318,6 +352,9 @@ func TestProcessProposal(t *testing.T) {
 					Height:   1,
 					DataHash: resp.BlockData.Hash,
 					ChainID:  testutil.ChainID,
+					Version: version.Consensus{
+						App: tt.appVersion,
+					},
 				},
 			})
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
