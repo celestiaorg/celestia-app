@@ -1,6 +1,8 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/app/ante"
+	appconsts "github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -44,6 +46,19 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
+
+		feeTx, ok := sdkTx.(sdk.FeeTx)
+		if !ok {
+			logger.Error("error")
+		}
+		fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
+
+		err = ante.CheckTxFeeWithMinGasPrice(feeTx.GetGas(), fee, appconsts.DefaultMinGasPrice, "")
+		if err != nil {
+			logger.Error("insufficient validator minimum fee", "error", err)
+			continue
+		}
+
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
