@@ -66,6 +66,12 @@ celestia-appd collect-gentxs \
 # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
 sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${CELESTIA_APP_HOME}"/config/config.toml
 
+# Enable transaction indexing
+sed -i'.bak' 's#"null"#"kv"#g' "${CELESTIA_APP_HOME}"/config/config.toml
+
+# Override the VotingPeriod from 1 week to 1 minute
+sed -i'.bak' 's#"604800s"#"60s"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
+
 # Register the validator EVM address
 {
   # Wait for block 1
