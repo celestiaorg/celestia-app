@@ -17,7 +17,6 @@ const (
 	ConsistentFill     = "consistent-fill"
 )
 
-
 func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, timeout time.Duration) error {
 	seqs := runenv.IntParam(BlobSequencesParam)
 	size := runenv.IntParam(BlobSizesParam)
@@ -35,6 +34,8 @@ func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitCo
 	return err
 }
 
+// unboundedBlockSize increases the block size until either the test times out
+// (1h by default) or the ability to reach consensus is lost.
 func (l *Leader) unboundedBlockSize(
 	ctx context.Context,
 	runenv *runtime.RunEnv,
