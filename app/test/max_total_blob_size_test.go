@@ -78,7 +78,7 @@ func (s *MaxTotalBlobSizeSuite) TestErrTotalBlobSizeTooLarge() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			blobTx, err := signer.CreatePayForBlob([]*blob.Blob{tc.blob}, user.SetGasLimit(1e9))
+			blobTx, err := signer.CreatePayForBlob([]*blob.Blob{tc.blob}, user.SetGasLimit(1e9), user.SetFee(2000000))
 			require.NoError(t, err)
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()
