@@ -193,6 +193,9 @@ func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMes
 	return genesis, nil
 }
 
+// DownloadSync downloads the given topic from the sync service. It will
+// download the given number of messages from the topic. If the topic is closed
+// before the expected number of messages are received, an error is returned.
 func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, _ T, count int) ([]T, error) {
 	ch := make(chan T)
 	sub, err := initCtx.SyncClient.Subscribe(ctx, topic, ch)
