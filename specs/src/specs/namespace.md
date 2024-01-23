@@ -87,10 +87,6 @@ For additional information on the significance and application of the reserved n
 
 Applications MUST refrain from using the [reserved namespaces](#reserved-namespaces) for their blob data.
 
-## Implementation
-
-See [pkg/namespace](../../../pkg/namespace).
-
 ## Go Definition
 
 ```go
