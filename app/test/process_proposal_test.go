@@ -36,7 +36,7 @@ func TestProcessProposal(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 	addr := testfactory.GetAddress(kr, accounts[0])
-	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence)
+	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence, appconsts.LatestVersion)
 	require.NoError(t, err)
 
 	// create 4 single blob blobTxs that are signed with valid account numbers

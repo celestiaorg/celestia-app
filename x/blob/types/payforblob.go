@@ -45,12 +45,12 @@ const (
 // See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(version))
 	if err != nil {
 		return nil, err
 	}

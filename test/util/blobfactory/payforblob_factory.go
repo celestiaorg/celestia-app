@@ -38,7 +38,7 @@ func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, signer string, size, blobCo
 		blobs[i] = blob
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(signer, blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blobs...)
 	if err != nil {
 		panic(err)
 	}
@@ -60,6 +60,7 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace,
 	}
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		signer,
+		appconsts.LatestVersion,
 		blob,
 	)
 	if err != nil {
@@ -72,6 +73,7 @@ func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs,
 	blob := blob.New(testfactory.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		testfactory.TestAccAddr,
+		appconsts.LatestVersion,
 		blob,
 	)
 	if err != nil {
@@ -226,7 +228,7 @@ func ManyMultiBlobTx(
 	opts := DefaultTxOpts()
 	for i, acc := range accounts {
 		addr := testfactory.GetAddress(kr, acc)
-		signer, err := user.NewSigner(kr, nil, addr, enc, chainid, accInfos[i].AccountNum, accInfos[i].Sequence)
+		signer, err := user.NewSigner(kr, nil, addr, enc, chainid, accInfos[i].AccountNum, accInfos[i].Sequence, appconsts.LatestVersion)
 		require.NoError(t, err)
 		txs[i], err = signer.CreatePayForBlob(blobs[i], opts...)
 		require.NoError(t, err)
@@ -245,7 +247,7 @@ func IndexWrappedTxWithInvalidNamespace(
 	t.Helper()
 	addr := signer.Address()
 	blob := ManyRandBlobs(rand, 100)[0]
-	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blob)
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 

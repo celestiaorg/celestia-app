@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -190,7 +191,7 @@ func TestCheckTx(t *testing.T) {
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	addr := testfactory.GetAddress(kr, accountName)
-	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, accNum, 0)
+	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, accNum, 0, appconsts.LatestVersion)
 	require.NoError(t, err)
 	return signer
 }

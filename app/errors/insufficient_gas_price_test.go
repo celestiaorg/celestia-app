@@ -37,14 +37,14 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
-	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), acc.GetSequence())
+	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), acc.GetSequence(), appconsts.LatestVersion)
 	require.NoError(t, err)
 
 	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(feeAmount)))
 	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
-	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), b)
+	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), appconsts.LatestVersion, b)
 	require.NoError(t, err)
 
 	tx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))

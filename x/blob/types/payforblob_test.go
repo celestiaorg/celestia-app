@@ -181,7 +181,7 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	}
 
 	addr := signer.Address()
-	pfb, err := types.NewMsgPayForBlobs(addr.String(), pblob)
+	pfb, err := types.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, pblob)
 	assert.NoError(t, err)
 
 	return pfb
@@ -328,7 +328,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			msgPFB, err := types.NewMsgPayForBlobs(tc.signer, tc.blobs...)
+			msgPFB, err := types.NewMsgPayForBlobs(tc.signer, appconsts.LatestVersion, tc.blobs...)
 			if tc.expectedErr {
 				assert.Error(t, err)
 				return

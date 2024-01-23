@@ -108,6 +108,7 @@ func TestValidateBlobTx(t *testing.T) {
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					addr.String(),
+					appconsts.LatestVersion,
 					b,
 				)
 				require.NoError(t, err)
