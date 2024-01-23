@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/inclusion"
