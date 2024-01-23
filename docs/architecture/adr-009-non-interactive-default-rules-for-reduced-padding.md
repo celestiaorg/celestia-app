@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented
+Implemented. Superseded by [ADR-013](./adr-013-non-interactive-default-rules-for-zero-padding.md).
 
 ## Changelog
 

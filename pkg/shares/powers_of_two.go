@@ -10,7 +10,7 @@ import (
 func RoundUpPowerOfTwo[I constraints.Integer](input I) I {
 	var result I = 1
 	for result < input {
-		result = result << 1
+		result <<= 1
 	}
 	return result
 }
