@@ -52,7 +52,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[numBlobTxs:],
 		testutil.ChainID,
 	)
-	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+	txs := blobTxs
+	txs = append(txs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
 	height := testApp.LastBlockHeight() + 1
 	blockTime := time.Now()

@@ -174,8 +174,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 
 			events := txResp.Logs[0].GetEvents()
 			for _, e := range events {
-				switch e.Type {
-				case types.EventTypePayForBlob:
+				if e.Type == types.EventTypePayForBlob {
 					signer := e.GetAttributes()[0].GetValue()
 					_, err = sdk.AccAddressFromBech32(signer)
 					require.NoError(err)

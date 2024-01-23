@@ -165,8 +165,8 @@ func calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end int) []coord
 		default:
 			lastLeafCursor = leafCursor
 			lastNodeCursor = nodeCursor
-			leafCursor = leafCursor + nodeRangeCursor
-			nodeRangeCursor = nodeRangeCursor * 2
+			leafCursor += nodeRangeCursor
+			nodeRangeCursor *= 2
 			nodeCursor = nodeCursor.climb()
 		}
 	}
