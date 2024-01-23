@@ -37,7 +37,7 @@ func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, e
 // blobs attached to the transaction are valid.
 func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRootThreshold int) error {
 	if bTx == nil {
-		return errors.New("nil blob tx")
+		return ErrNoBlobs
 	}
 
 	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
