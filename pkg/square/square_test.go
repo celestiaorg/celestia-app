@@ -36,7 +36,8 @@ func TestSquareConstruction(t *testing.T) {
 	sendTxs := blobfactory.GenerateManyRawSendTxs(signer, 250)
 	pfbTxs := blobfactory.RandBlobTxs(signer, rand, 10000, 1, 1024)
 	t.Run("normal transactions after PFB transactions", func(t *testing.T) {
-		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
+		txs := sendTxs[:5]
+		txs = append(txs, append(pfbTxs, sendTxs[5:]...)...)
 		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.Error(t, err)
 	})

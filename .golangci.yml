@@ -12,6 +12,7 @@ linters:
     - prealloc
     - stylecheck
     - unconvert
+    - gocritic
 
 linters-settings:
   nakedret:
