@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/blob"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -78,7 +79,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 
 func TestPrepareProposalFiltering(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := testfactory.GenerateAccounts(6)
+	accounts := testfactory.GenerateAccounts(9)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
@@ -111,10 +112,37 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		testutil.ChainID,
 	)).ToSliceOfBytes()
 
+	//  create 3 MsgSend transactions with high fee
+	largeFeeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig,
+		kr,
+		1000,
+		accounts[0],
+		accounts[3:6],
+		testutil.ChainID,
+		user.SetFee(20000000)),
+	).ToSliceOfBytes()
+
+	// set very small fee
+	smallFeeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig,
+		kr,
+		1000,
+		accounts[0],
+		accounts[3:6],
+		testutil.ChainID,
+		user.SetFee(0)),
+	).ToSliceOfBytes()
+
 	validTxs := func() [][]byte {
-		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs))
+		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(largeFeeTxs))
 		txs = append(txs, blobTxs...)
 		txs = append(txs, sendTxs...)
+		txs = append(txs, largeFeeTxs...)
 		return txs
 	}
 
@@ -180,6 +208,15 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				return [][]byte{noAccountTx}
 			},
 			prunedTxs: [][]byte{noAccountTx},
+		},
+		{
+			name: "small fee txs",
+			txs: func() [][]byte {
+				txs := make([][]byte, 0, len(smallFeeTxs))
+				txs = append(txs, smallFeeTxs...)
+				return txs
+			},
+			prunedTxs: smallFeeTxs,
 		},
 	}
 

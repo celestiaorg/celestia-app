@@ -53,7 +53,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		}
 		fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 
-		err = ante.CheckTxFeeWithMinGasPrice(feeTx.GetGas(), fee, appconsts.DefaultMinGasPrice, "")
+		err = ante.CheckTxFeeWithMinGasPrice(feeTx.GetGas(), fee, appconsts.DefaultMinGasPrice, "insufficient validator minimum fee")
 		if err != nil {
 			logger.Error("insufficient validator minimum fee", "error", err)
 			continue
