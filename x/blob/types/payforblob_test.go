@@ -168,7 +168,8 @@ func totalBlobSize(size int) int {
 func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
+	ns1 := appns.NamespaceVersionZeroPrefix
+	ns1 = append(ns1, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
 	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
 
 	pblob := &blob.Blob{
@@ -188,7 +189,8 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
+	ns1 := appns.NamespaceVersionZeroPrefix
+	ns1 = append(ns1, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
 	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
 
 	pblob := &blob.Blob{
