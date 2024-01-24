@@ -29,19 +29,19 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 
 	// global minimum fee only applies to app versions greater than one
 	if appVersion > v1.Version {
-		gmgp, err := appconsts.GlobalMinGasPrice(appVersion)
+		globalMinGasPrice, err := appconsts.GlobalMinGasPrice(appVersion)
 		if err != nil {
 			return nil, 0, errors.Wrapf(err, "failed to get GlobalMinGasPrice for app version %d", appVersion)
 		}
 
 		// convert the global minimum gas price to a big.Int
-		globalMinGasPrice, err := sdk.NewDecFromStr(fmt.Sprintf("%f", gmgp))
+		globalMinGasPriceInt, err := sdk.NewDecFromStr(fmt.Sprintf("%f", globalMinGasPrice))
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "invalid GlobalMinGasPrice")
 		}
 
 		gasInt := sdk.NewIntFromUint64(gas)
-		minFee := globalMinGasPrice.MulInt(gasInt).RoundInt()
+		minFee := globalMinGasPriceInt.MulInt(gasInt).RoundInt()
 
 		if !fee.GTE(minFee) {
 			return nil, 0, errors.Wrapf(sdkerror.ErrInsufficientFee, "insufficient fees; got: %s required: %s", fee, minFee)
