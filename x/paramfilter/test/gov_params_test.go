@@ -506,7 +506,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	testCases := []struct {
 		name         string
 		proposal     *proposal.ParameterChangeProposal
-		expectErr    bool
+		wantErr      error
 		postProposal func()
 	}{
 		{
@@ -516,7 +516,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(banktypes.KeySendEnabled),
 				Value:    `[{"denom": "test", "enabled": false}]`,
 			}),
-			true,
+			paramfilter.ErrBlockedParameter,
 			func() {
 				got := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
 				proposed := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
@@ -535,7 +535,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			// modified by governance. Since it isn't blocked by the param
 			// filter, we expect no error if a governance proposal includes it.
 			// We do expect the value to not change.
-			false,
+			nil,
 			func() {
 				got := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
 				proposed := tmproto.BlockParams{
@@ -553,7 +553,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(baseapp.ParamStoreKeyValidatorParams),
 				Value:    `{"pub_key_types": ["secp256k1"]}`,
 			}),
-			true,
+			paramfilter.ErrBlockedParameter,
 			func() {
 				got := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
 				proposed := tmproto.ValidatorParams{
@@ -569,7 +569,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(stakingtypes.KeyBondDenom),
 				Value:    `"test"`,
 			}),
-			true,
+			paramfilter.ErrBlockedParameter,
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
 				proposed := "test"
@@ -583,7 +583,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				Key:      string(stakingtypes.KeyUnbondingTime),
 				Value:    `"1"`,
 			}),
-			true,
+			paramfilter.ErrBlockedParameter,
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
 				proposed := time.Duration(1)
@@ -595,8 +595,8 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			err := suite.govHandler(suite.ctx, tc.proposal)
-			if tc.expectErr {
-				suite.Require().Error(err)
+			if tc.wantErr != nil {
+				suite.Require().ErrorIs(err, tc.wantErr)
 			} else {
 				suite.Require().NoError(err)
 			}
