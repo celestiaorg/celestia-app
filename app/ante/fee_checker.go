@@ -6,6 +6,7 @@ import (
 	errors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -29,7 +30,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
 		// convert the global minimum gas price to a big.Int
-		globalMinGasPrice, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.GlobalMinGasPrice))
+		globalMinGasPrice, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "invalid GlobalMinGasPrice")
 		}
