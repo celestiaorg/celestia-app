@@ -39,19 +39,19 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 // CheckTxFeeWithMinGasPrices validates that the provided transaction fee is sufficient given the provided minimum gas price.
 // It now also extracts the fee and gas from the FeeTx and returns them.
 func CheckTxFeeWithMinGasPrices(feeTx sdk.FeeTx, minGasPrice float64, errMsg string) error {
-    fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
-    gas := feeTx.GetGas()
+	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
+	gas := feeTx.GetGas()
 
-    minGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", minGasPrice))
-    if err != nil {
-        return errors.Wrap(err, "invalid minGasPrice: %s")
-    }
+	minGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", minGasPrice))
+	if err != nil {
+		return errors.Wrap(err, "invalid minGasPrice: %s")
+	}
 
-    minFee := minGasPriceDec.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
-    if !fee.GTE(minFee) {
-        return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required: %s", errMsg, fee, minFee)
-    }
-    return nil
+	minFee := minGasPriceDec.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
+	if !fee.GTE(minFee) {
+		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required: %s", errMsg, fee, minFee)
+	}
+	return nil
 }
 
 // getTxPriority returns a naive tx priority based on the amount of the smallest denomination of the gas price
