@@ -13,47 +13,54 @@ import (
 )
 
 func TestSubtreeRootThreshold(t *testing.T) {
-	type testCase struct {
-		version uint64
-		want    int
+	testCases := []struct {
+		version  uint64
+		expected int
+	}{
+		{
+			version:  v1.Version,
+			expected: v1.SubtreeRootThreshold,
+		},
+		{
+			version:  v2.Version,
+			expected: v2.SubtreeRootThreshold,
+		},
+		{
+			version:  testground.Version,
+			expected: testground.SubtreeRootThreshold,
+		},
 	}
-	testCases := []testCase{
-		{version: v1.Version, want: v1.SubtreeRootThreshold},
-		{version: v2.Version, want: v2.SubtreeRootThreshold},
-		{version: testground.Version, want: testground.SubtreeRootThreshold},
-	}
+
 	for _, tc := range testCases {
 		name := fmt.Sprintf("version %v", tc.version)
 		t.Run(name, func(t *testing.T) {
 			got := appconsts.SubtreeRootThreshold(tc.version)
-			require.Equal(t, tc.want, got)
+			require.Equal(t, tc.expected, got)
 		})
 	}
 }
 
 func TestGlobalMinGasPrice(t *testing.T) {
 	testCases := []struct {
-		name     string
 		version  uint64
 		expected float64
 		expErr   bool
 	}{
 		{
-			name:     "v2",
 			version:  v2.Version,
 			expected: v2.GlobalMinGasPrice,
 			expErr:   false,
 		},
 		{
-			name:     "undefined version",
-			version:  999,
+			version:  v1.Version,
 			expected: 0,
 			expErr:   true,
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		name := fmt.Sprintf("version %v", tc.version)
+		t.Run(name, func(t *testing.T) {
 			got, err := appconsts.GlobalMinGasPrice(tc.version)
 			if tc.expErr {
 				require.Error(t, err)
@@ -66,20 +73,29 @@ func TestGlobalMinGasPrice(t *testing.T) {
 }
 
 func TestSquareSizeUpperBound(t *testing.T) {
-	type testCase struct {
-		version uint64
-		want    int
+	testCases := []struct {
+		version  uint64
+		expected int
+	}{
+		{
+			version:  v1.Version,
+			expected: v1.SquareSizeUpperBound,
+		},
+		{
+			version:  v2.Version,
+			expected: v2.SquareSizeUpperBound,
+		},
+		{
+			version:  testground.Version,
+			expected: testground.SquareSizeUpperBound,
+		},
 	}
-	testCases := []testCase{
-		{version: v1.Version, want: v1.SquareSizeUpperBound},
-		{version: v2.Version, want: v2.SquareSizeUpperBound},
-		{version: testground.Version, want: testground.SquareSizeUpperBound},
-	}
+
 	for _, tc := range testCases {
 		name := fmt.Sprintf("version %v", tc.version)
 		t.Run(name, func(t *testing.T) {
 			got := appconsts.SquareSizeUpperBound(tc.version)
-			require.Equal(t, tc.want, got)
+			require.Equal(t, tc.expected, got)
 		})
 	}
 }
