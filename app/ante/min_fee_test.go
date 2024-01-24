@@ -31,7 +31,8 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	ctx := sdk.Context{}
 
-	globalMinGasPrice, _ := appconsts.GlobalMinGasPrice(appconsts.LatestVersion)
+	globalMinGasPrice, err := appconsts.GlobalMinGasPrice(appconsts.LatestVersion)
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name       string
