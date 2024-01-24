@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -32,6 +31,8 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	ctx := sdk.Context{}
 
+	globalMinGasPrice, _ := appconsts.GlobalMinGasPrice(appconsts.LatestVersion)
+
 	testCases := []struct {
 		name       string
 		fee        sdk.Coins
@@ -42,28 +43,28 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     true,
 		},
 		{
 			name:       "good tx; fee equal to required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     false,
 		},
 		{
 			name:       "good tx; fee above required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     false,
 		},
 		{
 			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(1),
 			expErr:     false,
 		},

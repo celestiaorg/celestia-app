@@ -1,6 +1,8 @@
 package appconsts
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
@@ -20,6 +22,17 @@ const (
 // The rationale for this value is described in more detail in ADR-013.
 func SubtreeRootThreshold(_ uint64) int {
 	return v1.SubtreeRootThreshold
+}
+
+// GlobalMinGasPrice is used in the processProposal to ensure
+// that all transactions have a gas price greater than or equal to this value.
+func GlobalMinGasPrice(version uint64) (float64, error) {
+	switch version {
+	case v2.Version:
+		return v2.GlobalMinGasPrice, nil
+	default:
+		return 0, fmt.Errorf("global min gas price not defined for version %d", version)
+	}
 }
 
 // SquareSizeUpperBound is the maximum original square width possible
