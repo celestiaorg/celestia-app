@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
@@ -26,10 +26,45 @@ func TestSubtreeRootThreshold(t *testing.T) {
 		name := fmt.Sprintf("version %v", tc.version)
 		t.Run(name, func(t *testing.T) {
 			got := appconsts.SubtreeRootThreshold(tc.version)
-			assert.Equal(t, tc.want, got)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
+
+func TestGlobalMinGasPrice(t *testing.T) {
+	testCases := []struct {
+		name     string
+		version  uint64
+		expected float64
+		expErr   bool
+	}{
+		{
+			name:     "v2",
+			version:  v2.Version,
+			expected: v2.GlobalMinGasPrice,
+			expErr:   false,
+		},
+		{
+			name:     "undefined version",
+			version:  999,
+			expected: 0,
+			expErr:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := appconsts.GlobalMinGasPrice(tc.version)
+			if tc.expErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, got)
+			}
+		})
+	}
+}
+
 
 func TestSquareSizeUpperBound(t *testing.T) {
 	type testCase struct {
@@ -45,7 +80,7 @@ func TestSquareSizeUpperBound(t *testing.T) {
 		name := fmt.Sprintf("version %v", tc.version)
 		t.Run(name, func(t *testing.T) {
 			got := appconsts.SquareSizeUpperBound(tc.version)
-			assert.Equal(t, tc.want, got)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
