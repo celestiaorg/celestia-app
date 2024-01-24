@@ -111,9 +111,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		accounts[0],
 		accounts[len(accounts)-3:],
 		testutil.ChainID,
-		user.SetGasLimit(uint64(float64(2000)/appconsts.DefaultMinGasPrice)),
-		user.SetFee(2000)),
-	).ToSliceOfBytes()
+	)).ToSliceOfBytes()
 
 	// create 3 MsgSend transactions with that are equal to the minimum fee
 	minFeeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
