@@ -111,10 +111,12 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		accounts[0],
 		accounts[len(accounts)-3:],
 		testutil.ChainID,
-	)).ToSliceOfBytes()
+		user.SetGasLimit(uint64(float64(2000)/appconsts.DefaultMinGasPrice)),
+		user.SetFee(2000)),
+	).ToSliceOfBytes()
 
-	//  create 3 MsgSend transactions with high fee
-	largeFeeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+	// create 3 MsgSend transactions with that are equal to the minimum fee
+	minFeeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
 		encConf.TxConfig,
@@ -123,10 +125,11 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		accounts[0],
 		accounts[3:6],
 		testutil.ChainID,
-		user.SetFee(20000000)),
+		user.SetGasLimit(uint64(float64(2000)/appconsts.DefaultMinGasPrice)),
+		user.SetFee(2000)),
 	).ToSliceOfBytes()
 
-	// set very small fee
+	// set small fee
 	smallFeeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
@@ -136,14 +139,15 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		accounts[0],
 		accounts[3:6],
 		testutil.ChainID,
-		user.SetFee(0)),
+		user.SetGasLimit(uint64(float64(2000)/appconsts.DefaultMinGasPrice)),
+		user.SetFee(1500)),
 	).ToSliceOfBytes()
 
 	validTxs := func() [][]byte {
-		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(largeFeeTxs))
+		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(minFeeTxs))
 		txs = append(txs, blobTxs...)
 		txs = append(txs, sendTxs...)
-		txs = append(txs, largeFeeTxs...)
+		txs = append(txs, minFeeTxs...)
 		return txs
 	}
 

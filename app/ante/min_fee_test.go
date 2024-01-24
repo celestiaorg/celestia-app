@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			expErr:     false,
 		},
 		{
-			name:       "bad tx; gas limit and fee are 0",
+			name:       "good tx; gas limit and fee are 0",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
 			gasLimit:   0,
 			appVersion: uint64(2),
@@ -100,11 +101,19 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 					App: tc.appVersion,
 				},
 			})
-			_, _, err := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx)
+
+			_, _, globalMinGasPriceErr := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx)
+			// test that the fee checking logic produces the same result as in CheckTxFeeWithMinGasPrices
+			minGasPriceErr := ante.CheckTxFeeWithMinGasPrice(tc.gasLimit, tc.fee.AmountOf(appconsts.BondDenom), appconsts.GlobalMinGasPrice, "insufficient global minimum fee")
+
 			if tc.expErr {
-				require.Error(t, err)
+				require.Error(t, globalMinGasPriceErr)
+				require.Error(t, minGasPriceErr)
+				require.Equal(t, globalMinGasPriceErr.Error(), minGasPriceErr.Error())
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, globalMinGasPriceErr)
+				require.NoError(t, minGasPriceErr)
+				require.Equal(t, globalMinGasPriceErr, minGasPriceErr)
 			}
 		})
 	}
