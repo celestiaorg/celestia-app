@@ -65,7 +65,6 @@ func TestGlobalMinGasPrice(t *testing.T) {
 	}
 }
 
-
 func TestSquareSizeUpperBound(t *testing.T) {
 	type testCase struct {
 		version uint64
