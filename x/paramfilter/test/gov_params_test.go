@@ -597,6 +597,8 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			err := suite.govHandler(suite.ctx, tc.proposal)
 			if tc.expectErr {
 				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
 			}
 			tc.postProposal()
 		})
