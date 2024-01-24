@@ -1,7 +1,7 @@
 package ante_test
 
 import (
-	"fmt"
+	// "fmt"
 	"math"
 	"testing"
 
@@ -104,7 +104,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 			_, _, globalMinGasPriceErr := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx)
 			// test that the fee checking logic produces the same result as in CheckTxFeeWithMinGasPrices
-			minGasPriceErr := ante.CheckTxFeeWithMinGasPrice(tc.gasLimit, tc.fee.AmountOf(appconsts.BondDenom), appconsts.GlobalMinGasPrice, "insufficient global minimum fee")
+			minGasPriceErr := ante.CheckTxFeeWithMinGasPrices(tx, appconsts.GlobalMinGasPrice, "insufficient global minimum fee")
 
 			if tc.expErr {
 				require.Error(t, globalMinGasPriceErr)

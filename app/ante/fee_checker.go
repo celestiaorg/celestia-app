@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	errors "cosmossdk.io/errors"
-	"cosmossdk.io/math"
+	// "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,33 +24,34 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
 	}
 
-	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
-	gas := feeTx.GetGas()
-
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
-		err := CheckTxFeeWithMinGasPrice(gas, fee, appconsts.GlobalMinGasPrice, "insufficient global minimum fee")
+		err := CheckTxFeeWithMinGasPrices(feeTx, appconsts.GlobalMinGasPrice, "insufficient global minimum fee")
 		if err != nil {
 			return nil, 0, err
 		}
 	}
 
-	priority := getTxPriority(feeTx.GetFee(), int64(gas))
+	priority := getTxPriority(feeTx.GetFee(), int64(feeTx.GetGas()))
 	return feeTx.GetFee(), priority, nil
 }
 
-// CheckTxFeeWithMinGasPrice validates that the provided transaction fee is sufficient given the provided minimum gas price.
-func CheckTxFeeWithMinGasPrice(gas uint64, fee math.Int, minGasPrice float64, errMsg string) error {
-	minGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", minGasPrice))
-	if err != nil {
-		return errors.Wrap(err, "invalid minGasPrice: %s")
-	}
+// CheckTxFeeWithMinGasPrices validates that the provided transaction fee is sufficient given the provided minimum gas price.
+// It now also extracts the fee and gas from the FeeTx and returns them.
+func CheckTxFeeWithMinGasPrices(feeTx sdk.FeeTx, minGasPrice float64, errMsg string) error {
+    fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
+    gas := feeTx.GetGas()
 
-	minFee := minGasPriceDec.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
-	if !fee.GTE(minFee) {
-		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required: %s", errMsg, fee, minFee)
-	}
-	return nil
+    minGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", minGasPrice))
+    if err != nil {
+        return errors.Wrap(err, "invalid minGasPrice: %s")
+    }
+
+    minFee := minGasPriceDec.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
+    if !fee.GTE(minFee) {
+        return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required: %s", errMsg, fee, minFee)
+    }
+    return nil
 }
 
 // getTxPriority returns a naive tx priority based on the amount of the smallest denomination of the gas price
