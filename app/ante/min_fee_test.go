@@ -8,13 +8,13 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 )
 
 func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
