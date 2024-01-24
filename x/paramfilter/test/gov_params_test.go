@@ -498,10 +498,18 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 }
 
 // TestUnmodifiableParams verifies that the params listed as non governance
-// modifiable in the specs params.md file cannot be modified via
-// governance.
+// modifiable in the specs params.md file cannot be modified via governance. It
+// does not include a test case for consensus.block.TimeIotaMs because
+// TimeIotaMs is not exposed to the application.
 func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	assert := suite.Assert()
+
+	// Record the initial values of all these parameters before any governance
+	// proposals are submitted.
+	wantSendEnabled := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
+	wantPubKeyTypes := *suite.app.BaseApp.GetConsensusParams(suite.ctx).Validator
+	wantBondDenom := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
+	wantUnbondingTime := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
 
 	testCases := []struct {
 		name         string
@@ -519,31 +527,10 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 			paramfilter.ErrBlockedParameter,
 			func() {
 				got := suite.app.BankKeeper.GetParams(suite.ctx).SendEnabled
+
 				proposed := []*banktypes.SendEnabled{banktypes.NewSendEnabled("test", false)}
 				assert.NotEqual(proposed, got)
-			},
-		},
-		{
-			"consensus.block.TimeIotaMs",
-			testProposal(proposal.ParamChange{
-				Subspace: baseapp.Paramspace,
-				Key:      string(baseapp.ParamStoreKeyBlockParams),
-				Value:    `{"max_bytes": "1", "max_gas": "1", "time_iota_ms": "1"}`,
-			}),
-			// TimeIotaMs is not blocked by the param filter but it isn't
-			// exposed from CometBFT to the application so it can not be
-			// modified by governance. Since it isn't blocked by the param
-			// filter, we expect no error if a governance proposal includes it.
-			// We do expect the value to not change.
-			nil,
-			func() {
-				got := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block
-				proposed := tmproto.BlockParams{
-					MaxBytes:   1,
-					MaxGas:     1,
-					TimeIotaMs: 1,
-				}
-				assert.NotEqual(proposed, got)
+				assert.Equal(wantSendEnabled, got)
 			},
 		},
 		{
@@ -560,6 +547,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 					PubKeyTypes: []string{"secp256k1"},
 				}
 				assert.NotEqual(proposed, got)
+				assert.Equal(wantPubKeyTypes, got)
 			},
 		},
 		{
@@ -574,6 +562,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).BondDenom
 				proposed := "test"
 				assert.NotEqual(proposed, got)
+				assert.Equal(wantBondDenom, got)
 			},
 		},
 		{
@@ -588,6 +577,7 @@ func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).UnbondingTime
 				proposed := time.Duration(1)
 				assert.NotEqual(proposed, got)
+				assert.Equal(wantUnbondingTime, got)
 			},
 		},
 	}
