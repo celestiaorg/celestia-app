@@ -8,9 +8,13 @@ import (
 // Name is the name of the application.
 const Name = "celestia-app"
 
-// CelestiaHome is the environment variable for the home directory of the application daemon.
-// If not set, the default user home directory will be used.
-const CelestiaHome = "CELESTIA_HOME"
+// appDirectory is the name of the application directory. This directory is used
+// to store configs, data, keyrings, etc.
+const appDirectory = ".celestia-app"
+
+// celestiaHome is an environment variable that sets where appDirectory will be placed.
+// If celestiaHome isn't specified, the default user home directory will be used.
+const celestiaHome = "CELESTIA_HOME"
 
 // DefaultNodeHome is the default home directory for the application daemon.
 // This gets set as a side-effect of the init() function.
@@ -21,17 +25,18 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	celestiaHome := os.Getenv(CelestiaHome)
+	celestiaHome := os.Getenv(celestiaHome)
 	DefaultNodeHome = getDefaultNodeHome(userHome, celestiaHome)
 }
 
-// getDefaultNodeHome computes the default node home directory based on the provided userHome and celestiaHome.
-// If celestiaHome is provided, it takes precedence and constructs the path by appending the application directory.
-// Otherwise, it falls back to using the userHome with the application directory appended.
+// getDefaultNodeHome computes the default node home directory based on the
+// provided userHome and celestiaHome. If celestiaHome is provided, it takes
+// precedence and constructs the path by appending the application directory.
+// Otherwise, it falls back to using the userHome with the application directory
+// appended.
 func getDefaultNodeHome(userHome string, celestiaHome string) string {
-	appDir := "." + Name
 	if celestiaHome != "" {
-		return filepath.Join(celestiaHome, appDir)
+		return filepath.Join(celestiaHome, appDirectory)
 	}
-	return filepath.Join(userHome, appDir)
+	return filepath.Join(userHome, appDirectory)
 }
