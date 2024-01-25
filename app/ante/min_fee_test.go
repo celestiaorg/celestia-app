@@ -31,6 +31,9 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	ctx := sdk.Context{}
 
+	globalMinGasPrice, err := appconsts.GlobalMinGasPrice(appconsts.LatestVersion)
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name       string
 		fee        sdk.Coins
@@ -41,28 +44,28 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     true,
 		},
 		{
 			name:       "good tx; fee equal to required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     false,
 		},
 		{
 			name:       "good tx; fee above required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(2),
 			expErr:     false,
 		},
 		{
 			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
 			appVersion: uint64(1),
 			expErr:     false,
 		},
