@@ -98,6 +98,11 @@ import (
 	bsmodule "github.com/celestiaorg/celestia-app/x/blobstream"
 	bsmodulekeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
+	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
+	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
@@ -158,6 +163,7 @@ var (
 		blobmodule.AppModuleBasic{},
 		bsmodule.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
+		ica.AppModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -173,6 +179,7 @@ var (
 		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+		icatypes.ModuleName:            nil,
 	}
 )
 
@@ -227,6 +234,7 @@ type App struct {
 	EvidenceKeeper   evidencekeeper.Keeper
 	TransferKeeper   ibctransferkeeper.Keeper
 	FeeGrantKeeper   feegrantkeeper.Keeper
+	ICAHostKeeper    icahostkeeper.Keeper
 
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
@@ -275,6 +283,7 @@ func New(
 		bsmoduletypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
+		icahosttypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -301,6 +310,7 @@ func New(
 	// grant capabilities for the ibc and ibc-transfer modules
 	scopedIBCKeeper := app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
 	scopedTransferKeeper := app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
+	scopedICAHostKeeper := app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
 
 	// add keepers
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
@@ -361,6 +371,14 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
+	app.ICAHostKeeper = icahostkeeper.NewKeeper(
+		appCodec, keys[icahosttypes.StoreKey], app.GetSubspace(icahosttypes.SubModuleName),
+		// TODO (@rootulp): investigate if the following argument is correct.
+		app.IBCKeeper.ChannelKeeper, // may be replaced with middleware such as ics29 fee
+		app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
+		app.AccountKeeper, scopedICAHostKeeper, app.MsgServiceRouter(),
+	)
+
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
 
 	// register the proposal types
@@ -404,10 +422,13 @@ func New(
 		app.GetSubspace(blobmoduletypes.ModuleName),
 	)
 	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
+	icaModule := ica.NewAppModule(nil, &app.ICAHostKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
+	icaHostIBCModule := icahost.NewIBCModule(app.ICAHostKeeper)
+	ibcRouter.AddRoute(icahosttypes.SubModuleName, icaHostIBCModule)
 	app.IBCKeeper.SetRouter(ibcRouter)
 
 	/****  Module Options ****/
@@ -443,6 +464,7 @@ func New(
 		blobmod,
 		bsmod,
 		upgrade.NewAppModule(app.UpgradeKeeper),
+		icaModule,
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -470,6 +492,7 @@ func New(
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
+		icatypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -493,6 +516,7 @@ func New(
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
+		icatypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -521,6 +545,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		upgradetypes.ModuleName,
+		icatypes.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -761,6 +786,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(blobmoduletypes.ModuleName)
 	paramsKeeper.Subspace(bsmoduletypes.ModuleName)
+	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 
 	return paramsKeeper
 }
