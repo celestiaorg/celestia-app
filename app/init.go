@@ -25,6 +25,9 @@ func init() {
 	DefaultNodeHome = getDefaultNodeHome(userHome, celestiaHome)
 }
 
+// getDefaultNodeHome computes the default node home directory based on the provided userHome and celestiaHome.
+// If celestiaHome is provided, it takes precedence and constructs the path by appending the application directory.
+// Otherwise, it falls back to using the userHome with the application directory appended.
 func getDefaultNodeHome(userHome string, celestiaHome string) string {
 	appDir := "." + Name
 	if celestiaHome != "" {
