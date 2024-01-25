@@ -2,8 +2,6 @@ package app
 
 import (
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
@@ -85,7 +83,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
@@ -101,39 +98,7 @@ import (
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
-const (
-	AccountAddressPrefix = "celestia"
-	Name                 = "celestia-app"
-	// BondDenom defines the native staking token denomination.
-	BondDenom = appconsts.BondDenom
-	// BondDenomAlias defines an alias for BondDenom.
-	BondDenomAlias = "microtia"
-	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
-	DisplayDenom = "TIA"
-)
-
-// These constants are derived from the above variables.
-// These are the ones we will want to use in the code, based on
-// any overrides above.
 var (
-	// Bech32PrefixAccAddr defines the Bech32 prefix of an account's address.
-	Bech32PrefixAccAddr = AccountAddressPrefix
-	// Bech32PrefixAccPub defines the Bech32 prefix of an account's public key.
-	Bech32PrefixAccPub = AccountAddressPrefix + sdk.PrefixPublic
-	// Bech32PrefixValAddr defines the Bech32 prefix of a validator's operator address.
-	Bech32PrefixValAddr = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixOperator
-	// Bech32PrefixValPub defines the Bech32 prefix of a validator's operator public key.
-	Bech32PrefixValPub = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixOperator + sdk.PrefixPublic
-	// Bech32PrefixConsAddr defines the Bech32 prefix of a consensus node address.
-	Bech32PrefixConsAddr = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixConsensus
-	// Bech32PrefixConsPub defines the Bech32 prefix of a consensus node public key.
-	Bech32PrefixConsPub = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixConsensus + sdk.PrefixPublic
-)
-
-var (
-	// DefaultNodeHome default home directories for the application daemon
-	DefaultNodeHome string
-
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as codec registration
 	// and genesis verification.
@@ -177,20 +142,6 @@ var (
 )
 
 var _ servertypes.Application = (*App)(nil)
-
-func init() {
-	userHomeDir := os.Getenv("CELESTIA_HOME")
-
-	if userHomeDir == "" {
-		var err error
-		userHomeDir, err = os.UserHomeDir()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)
-}
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
