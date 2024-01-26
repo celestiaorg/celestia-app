@@ -232,7 +232,9 @@ Note: to verify the number of SHA256 compression invocations, we analyzed the nu
 [^2]: <https://eager.io/blog/how-long-does-an-id-need-to-be/>
 [^3]: <https://kevingal.com/apps/collision.html>
 [^4]: <https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/>
+<!-- markdown-link-check-disable -->
 [^5]: <https://ycharts.com/indicators/ethereum_cumulative_unique_addresses>
+<!-- markdown-link-check-enable -->
 [^6]: <https://docs.google.com/spreadsheets/d/1vrRM4gAsmC142KrdUI1aCBS5IVFdJeU0q6gwwnM3Ekc/edit?usp=sharing>
 [^7]: <https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160>
 [^8]: <https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E64>
