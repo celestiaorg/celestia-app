@@ -86,15 +86,15 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
-	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
-	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
-	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
 
-	bsmodule "github.com/celestiaorg/celestia-app/x/blobstream"
-	bsmodulekeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
-	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream"
+	blobstreamkeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
@@ -120,8 +120,8 @@ var (
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
-		blobmodule.AppModuleBasic{},
-		bsmodule.AppModuleBasic{},
+		blob.AppModuleBasic{},
+		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 	)
 
@@ -183,8 +183,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper       blobmodulekeeper.Keeper
-	BlobstreamKeeper bsmodulekeeper.Keeper
+	BlobKeeper       blobkeeper.Keeper
+	BlobstreamKeeper blobstreamkeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -223,7 +223,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		bsmoduletypes.StoreKey,
+		blobstreamtypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
 	)
@@ -288,13 +288,12 @@ func New(
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
 	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, stakingKeeper)
 
-	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
+	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
-		keys[bsmoduletypes.StoreKey],
-		app.GetSubspace(bsmoduletypes.ModuleName),
+		keys[blobstreamtypes.StoreKey],
+		app.GetSubspace(blobstreamtypes.ModuleName),
 		&stakingKeeper,
 	)
-	bsmod := bsmodule.NewAppModule(appCodec, app.BlobstreamKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
@@ -327,8 +326,6 @@ func New(
 		tokenFilterKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
 	)
-	transferModule := transfer.NewAppModule(app.TransferKeeper)
-
 	// transfer stack contains (from top to bottom):
 	// - Token Filter
 	// - Transfer
@@ -350,11 +347,10 @@ func New(
 		&stakingKeeper, govRouter, bApp.MsgServiceRouter(), govConfig,
 	)
 
-	app.BlobKeeper = *blobmodulekeeper.NewKeeper(
+	app.BlobKeeper = *blobkeeper.NewKeeper(
 		appCodec,
-		app.GetSubspace(blobmoduletypes.ModuleName),
+		app.GetSubspace(blobtypes.ModuleName),
 	)
-	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -390,9 +386,9 @@ func New(
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
-		transferModule,
-		blobmod,
-		bsmod,
+		transfer.NewAppModule(app.TransferKeeper),
+		blob.NewAppModule(appCodec, app.BlobKeeper),
+		blobstream.NewAppModule(appCodec, app.BlobstreamKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper),
 	)
 
@@ -415,8 +411,8 @@ func New(
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
-		blobmoduletypes.ModuleName,
-		bsmoduletypes.ModuleName,
+		blobtypes.ModuleName,
+		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -438,8 +434,8 @@ func New(
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
-		blobmoduletypes.ModuleName,
-		bsmoduletypes.ModuleName,
+		blobtypes.ModuleName,
+		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -465,8 +461,8 @@ func New(
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
-		blobmoduletypes.ModuleName,
-		bsmoduletypes.ModuleName,
+		blobtypes.ModuleName,
+		blobstreamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
@@ -707,8 +703,8 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(crisistypes.ModuleName)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
-	paramsKeeper.Subspace(blobmoduletypes.ModuleName)
-	paramsKeeper.Subspace(bsmoduletypes.ModuleName)
+	paramsKeeper.Subspace(blobtypes.ModuleName)
+	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 
 	return paramsKeeper
 }
