@@ -133,10 +133,21 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 			nodes[i].CmtConfig.Instrumentation.InfluxTables = schema.RoundStateTable
 		}
 
-		// Trace all data from these nodes. We might want to make this more
-		// configurable in the future.
+		// Trace all data from these nodes, and keep track of which nodes are tracing.
+		tracingNodes := make(map[int]string)
 		for i := 0; i < tparams.Nodes; i++ {
 			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join(schema.AllTables(), ",")
+			tracingNodes[i] = nodes[i].PeerID
+		}
+
+		// ensure that all of the tracing nodes are persistent peers of each other.
+		for i := range tracingNodes {
+			for j := range tracingNodes {
+				if i == j {
+					continue
+				}
+				nodes[i].CmtConfig.P2P.PersistentPeers += "," + tracingNodes[j]
+			}
 		}
 
 		return nodes, nil
