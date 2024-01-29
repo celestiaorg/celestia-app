@@ -87,7 +87,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			addr := testfactory.GetAddress(cctx.Keyring, account)
 			signer, err := user.SetupSigner(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, addr, ecfg)
 			require.NoError(t, err)
-			res, err := signer.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(1))
+			res, err := signer.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
 			if tt.expectedCode != abci.CodeTypeOK {
 				require.Error(t, err)
 			} else {

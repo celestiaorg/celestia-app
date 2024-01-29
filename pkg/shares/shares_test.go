@@ -17,19 +17,21 @@ func TestSequenceLen(t *testing.T) {
 		wantLen uint32
 		wantErr bool
 	}
-	sparseNamespaceID := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
-	firstShare := append(sparseNamespaceID,
+	firstShare := append(bytes.Repeat([]byte{1},
+		appconsts.NamespaceSize),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	firstShareWithLongSequence := append(sparseNamespaceID,
+	firstShareWithLongSequence := append(bytes.Repeat([]byte{1},
+		appconsts.NamespaceSize),
 		[]byte{
 			1,           // info byte
 			0, 0, 1, 67, // sequence len
 		}...)
-	continuationShare := append(sparseNamespaceID,
+	continuationShare := append(bytes.Repeat([]byte{1},
+		appconsts.NamespaceSize),
 		[]byte{
 			0, // info byte
 		}...)
