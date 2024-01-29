@@ -23,6 +23,7 @@ jobs:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.3.1
     with:
       dockerfile: Dockerfile
+    secrets: inherit
 
   docker-txsim-build:
     permissions:
@@ -32,3 +33,4 @@ jobs:
     with:
       dockerfile: docker/Dockerfile_txsim
       packageName: txsim
+    secrets: inherit
