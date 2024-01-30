@@ -67,5 +67,9 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
+	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), treeName(squareSize))
+}
+
+func treeName(squareSize int) string {
+	return fmt.Sprintf("tree-%v", squareSize)
 }

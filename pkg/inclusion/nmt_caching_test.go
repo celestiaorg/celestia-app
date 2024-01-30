@@ -2,6 +2,7 @@ package inclusion
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"testing"
 
@@ -119,7 +120,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 	d := generateRandNamespacedRawData(squareSize * squareSize)
 	stc := NewSubtreeCacher(uint64(squareSize))
 
-	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), treeName(squareSize))
 	require.NoError(t, err)
 
 	dah, err := da.NewDataAvailabilityHeader(eds)
@@ -202,4 +203,8 @@ func generateRandNamespacedRawData(count int) (result [][]byte) {
 
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
+}
+
+func treeName(squareSize int) string {
+	return fmt.Sprintf("tree-%v", squareSize)
 }

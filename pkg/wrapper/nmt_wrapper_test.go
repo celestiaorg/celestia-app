@@ -3,6 +3,7 @@ package wrapper_test
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"sort"
 	"testing"
 
@@ -132,8 +133,12 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 	// data for a 4X4 square
 	data := testfactory.GenerateRandNamespacedRawData(squareSize * squareSize)
 
-	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
+	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), treeName(squareSize))
 	assert.NoError(t, err)
+}
+
+func treeName(squareSize int) string {
+	return fmt.Sprintf("tree-%v", squareSize)
 }
 
 // generateErasuredData generates random data and then erasure codes it. It

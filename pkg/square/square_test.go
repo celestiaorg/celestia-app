@@ -242,7 +242,7 @@ func TestSquareShareCommitments(t *testing.T) {
 	require.NoError(t, err)
 
 	cacher := inclusion.NewSubtreeCacher(uint64(dataSquare.Size()))
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), treeName(dataSquare.Size()))
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
@@ -284,4 +284,8 @@ func TestSize(t *testing.T) {
 		assert.Equal(t, tt.expect, res, i)
 		assert.True(t, shares.IsPowerOfTwo(res))
 	}
+}
+
+func treeName(squareSize int) string {
+	return fmt.Sprintf("tree-%v", squareSize)
 }
