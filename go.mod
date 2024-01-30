@@ -235,6 +235,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/rsmt2d => ../rsmt2d
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.20.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0

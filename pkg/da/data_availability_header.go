@@ -63,11 +63,15 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 }
 
 func init() {
-	for powerOfTwo := 1; powerOfTwo <= maxExtendedSquareWidth; powerOfTwo *= 2 {
-		treeCreatorFn := wrapper.NewConstructor(uint64(powerOfTwo))
-		fmt.Printf("Registering tree with square size %v\n", powerOfTwo)
-		rsmt2d.RegisterTree(fmt.Sprintf("%v", powerOfTwo), treeCreatorFn)
-	}
+	// for powerOfTwo := 1; powerOfTwo <= maxExtendedSquareWidth; powerOfTwo *= 2 {
+	// 	treeCreatorFn := wrapper.NewConstructor(uint64(powerOfTwo))
+	// 	fmt.Printf("Registering tree with square size %v\n", powerOfTwo)
+	// 	rsmt2d.RegisterTree(fmt.Sprintf("%v", powerOfTwo), treeCreatorFn)
+	// }
+	treeCreatorFn := wrapper.NewConstructor(uint64(1))
+	fmt.Printf("Registering tree with square size %v\n", 1)
+	rsmt2d.RegisterTree(fmt.Sprintf("%v", 1), treeCreatorFn)
+
 }
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
@@ -76,6 +80,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	squareSize := SquareSize(len(s))
+	fmt.Printf("Square size: %v\n", squareSize)
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
