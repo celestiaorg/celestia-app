@@ -65,7 +65,12 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 func init() {
 	for powerOfTwo := 1; powerOfTwo <= maxExtendedSquareWidth; powerOfTwo *= 2 {
 		treeCreatorFn := wrapper.NewConstructor(uint64(powerOfTwo))
-		rsmt2d.RegisterTree(treeName(powerOfTwo), treeCreatorFn)
+		err := rsmt2d.RegisterTree(treeName(powerOfTwo), treeCreatorFn)
+		if err != nil {
+			// ignore the error because rsmt2d has no way to check if a tree is already registered.
+			// TODO: fix this upstream
+			fmt.Printf("failed to register tree %v: %v\n", treeName(powerOfTwo), err)
+		}
 	}
 }
 
