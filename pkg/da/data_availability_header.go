@@ -62,6 +62,14 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 	return dah, nil
 }
 
+func init() {
+	for powerOfTwo := 1; powerOfTwo <= maxExtendedSquareWidth; powerOfTwo *= 2 {
+		treeCreatorFn := wrapper.NewConstructor(uint64(powerOfTwo))
+		fmt.Printf("Registering tree with square size %v\n", powerOfTwo)
+		rsmt2d.RegisterTree(fmt.Sprintf("%v", powerOfTwo), treeCreatorFn)
+	}
+}
+
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
 	if !shares.IsPowerOfTwo(len(s)) {
