@@ -63,15 +63,10 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 }
 
 func init() {
-	// for powerOfTwo := 1; powerOfTwo <= maxExtendedSquareWidth; powerOfTwo *= 2 {
-	// 	treeCreatorFn := wrapper.NewConstructor(uint64(powerOfTwo))
-	// 	fmt.Printf("Registering tree with square size %v\n", powerOfTwo)
-	// 	rsmt2d.RegisterTree(fmt.Sprintf("%v", powerOfTwo), treeCreatorFn)
-	// }
-	treeCreatorFn := wrapper.NewConstructor(uint64(1))
-	fmt.Printf("Registering tree with square size %v\n", 1)
-	rsmt2d.RegisterTree(treeName(1), treeCreatorFn)
-
+	for powerOfTwo := 1; powerOfTwo <= maxExtendedSquareWidth; powerOfTwo *= 2 {
+		treeCreatorFn := wrapper.NewConstructor(uint64(powerOfTwo))
+		rsmt2d.RegisterTree(treeName(powerOfTwo), treeCreatorFn)
+	}
 }
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
