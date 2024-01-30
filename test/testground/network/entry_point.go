@@ -18,6 +18,8 @@ func EntryPoint(runenv *runtime.RunEnv, initCtx *run.InitContext) error {
 	}
 	defer cancel()
 
+	runenv.RecordMessage("initialized experiment node, starting role")
+
 	// determine roles based only on the global sequence number. This allows for
 	// us to deterministically calculate the IP addresses of each node.
 	role, err := NewRole(runenv, initCtx)

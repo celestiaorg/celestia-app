@@ -5,25 +5,25 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 100
+total_instances = 10
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "l-150-fcontrol-11"
+chain_id = "l-150-control-17"
 timeout = "59m"
-halt_height = "200"
+halt_height = "2000"
 latency = "150"
 random_latency = "true"
-bandwidth = "1Gib"
-validators = "100"
+bandwidth = "1Gb"
+validators = "10"
 topology = "seed"
 pex = "true"
 timeout_propose = "120s"
 timeout_commit = "1s"
 per_peer_bandwidth = "5Mib"
-blob_sequences = "5"
+blob_sequences = "10"
 blob_sizes = "110000"
 blobs_per_sequence = "5"
 inbound_peer_count = "40"
@@ -32,7 +32,7 @@ gov_max_square_size = "1024"
 max_block_bytes = "2000000"
 mempool = "v1"
 broadcast_txs = "true"
-tracing_nodes = "0"
+tracing_nodes = "2"
 tracing_token = ""
 tracing_url = ""
 experiment = "unbounded"
@@ -41,10 +41,10 @@ experiment = "unbounded"
 id = "validators"
 builder = "docker:generic"
 [groups.resources]
-memory = "8Gi"
-cpu = "6"
+memory = "12Gi"
+cpu = "8"
 [groups.instances]
-count = 100
+count = 10
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.6"

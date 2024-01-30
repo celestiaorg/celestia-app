@@ -77,8 +77,8 @@ type TracingParams struct {
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
-		URL:   runenv.StringParam(TracingURLParam),
-		Token: runenv.StringParam(TracingTokenParam),
+		URL:   "http://51.158.232.250:8086/",
+		Token: "KSMO57rzvRhVQccJppzFriY-VX9OKwmrP5fTzcDo7-TutjwI7bDeO9xYFmyOYDu9VNSpYkPL5WBbYGKXSuAJ6A==",
 	}
 }
 
@@ -160,7 +160,7 @@ func (p *Params) NodeCount() int {
 
 func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg := app.DefaultConsensusConfig()
-	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
+	cmtcfg.Instrumentation.PrometheusListenAddr = ":26660"
 	cmtcfg.Instrumentation.Prometheus = false
 	cmtcfg.P2P.PexReactor = params.Pex
 	cmtcfg.P2P.SendRate = int64(params.PerPeerBandwidth)

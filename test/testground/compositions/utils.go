@@ -15,6 +15,7 @@ import (
 )
 
 func InitTest(runenv *runtime.RunEnv, initCtx *run.InitContext) (*run.InitContext, context.Context, context.CancelFunc, error) {
+	runenv.RecordMessage("starting init test")
 	syncclient := initCtx.SyncClient
 	netclient := network.NewClient(syncclient, runenv)
 	timeout, err := time.ParseDuration(runenv.TestInstanceParams["timeout"])
@@ -32,7 +33,7 @@ func InitTest(runenv *runtime.RunEnv, initCtx *run.InitContext) (*run.InitContex
 	}
 
 	err = initCtx.NetClient.ConfigureNetwork(ctx, &config)
-
+	runenv.RecordMessage("configured network")
 	return initCtx, ctx, cancel, err
 }
 
@@ -68,9 +69,14 @@ func CreateNetworkConfig(runenv *runtime.RunEnv, initCtx *run.InitContext) (netw
 	ipD := byte(initCtx.GlobalSeq)
 	config.IPv4.IP = append(config.IPv4.IP[0:2:2], ipC, ipD)
 
+	runenv.RecordMessage(fmt.Sprintf("setup node \n ip: %s", config.IPv4.IP.String()))
+
 	return config, nil
 }
 
+// parseBandwidth is a crude helper function to parse bandwidth strings. For
+// example Kib, Kb, or KB are all valid units. Kb and KB are treated as 1000.
+// Kib is 1024.
 func parseBandwidth(s string) (uint64, error) {
 	var multiplier uint64
 
@@ -83,13 +89,13 @@ func parseBandwidth(s string) (uint64, error) {
 		multiplier = 1 << 30
 	} else if strings.HasSuffix(s, "Tib") {
 		multiplier = 1 << 40
-	} else if strings.HasSuffix(s, "Kb") {
+	} else if strings.HasSuffix(s, "Kb") || strings.HasSuffix(s, "KB") {
 		multiplier = 1000
-	} else if strings.HasSuffix(s, "Mb") {
+	} else if strings.HasSuffix(s, "Mb") || strings.HasSuffix(s, "MB") {
 		multiplier = 1000 * 1000
-	} else if strings.HasSuffix(s, "Gb") {
+	} else if strings.HasSuffix(s, "Gb") || strings.HasSuffix(s, "GB") {
 		multiplier = 1000 * 1000 * 1000
-	} else if strings.HasSuffix(s, "Tb") {
+	} else if strings.HasSuffix(s, "Tb") || strings.HasSuffix(s, "TB") {
 		multiplier = 1000 * 1000 * 1000 * 1000
 	} else {
 		return 0, fmt.Errorf("unknown unit in string: %s", s)
