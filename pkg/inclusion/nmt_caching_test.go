@@ -120,7 +120,10 @@ func TestEDSSubRootCacher(t *testing.T) {
 	d := generateRandNamespacedRawData(squareSize * squareSize)
 	stc := NewSubtreeCacher(uint64(squareSize))
 
-	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), treeName(squareSize))
+	err := rsmt2d.RegisterTree(stc.TreeName(), stc.Constructor)
+	require.NoError(t, err)
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.TreeName())
 	require.NoError(t, err)
 
 	dah, err := da.NewDataAvailabilityHeader(eds)

@@ -126,3 +126,9 @@ func (stc *EDSSubTreeRootCacher) getSubTreeRoot(dah da.DataAvailabilityHeader, r
 	stc.mut.RUnlock()
 	return sbt, err
 }
+
+// TreeName returns the name of the tree that this EDS subtree root cacher
+// registers with rsmt2d.
+func (stc *EDSSubTreeRootCacher) TreeName() string {
+	return fmt.Sprintf("eds-subtree-root-cacher-%v", stc.squareSize)
+}

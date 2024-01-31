@@ -58,7 +58,8 @@ func FuzzSquare(f *testing.F) {
 		require.Equal(t, orderedTxs, recomputedTxs.ToSliceOfBytes())
 
 		cacher := inclusion.NewSubtreeCacher(uint64(s.Size()))
-		eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(s), appconsts.DefaultCodec(), treeName(s.Size()))
+		rsmt2d.RegisterTree(cacher.TreeName(), cacher.Constructor)
+		eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(s), appconsts.DefaultCodec(), cacher.TreeName())
 		require.NoError(t, err)
 		dah, err := da.NewDataAvailabilityHeader(eds)
 		require.NoError(t, err)
