@@ -171,7 +171,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.TxIndex.Indexer = "kv"
 	cmtcfg.Mempool.Version = params.Mempool
 	cmtcfg.Mempool.MaxTxsBytes = 1_000_000_000
-	cmtcfg.Mempool.MaxTxBytes = 100_000_000
+	cmtcfg.Mempool.MaxTxBytes = 1_000_000_000
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	return cmtcfg

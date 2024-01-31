@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "l-150-control-17"
+chain_id = "l-150-control-19"
 timeout = "59m"
 halt_height = "2000"
 latency = "150"
