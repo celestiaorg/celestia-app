@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.21.6
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240129204143-2152553fc2be
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240131175632-359baff36e27
 	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.34.28
@@ -212,7 +212,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => /home/evan/go/src/github.com/celestiaorg/cosmos-sdk // v1.20.0-sdk-v0.46.16
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.20.0-sdk-v0.46.16
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
