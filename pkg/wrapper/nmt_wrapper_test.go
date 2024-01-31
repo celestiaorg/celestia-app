@@ -15,6 +15,7 @@ import (
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -130,10 +131,13 @@ func TestErasureNamespacedMerkleTreePushErrors(t *testing.T) {
 
 func TestComputeExtendedDataSquare(t *testing.T) {
 	squareSize := 4
+	treeConstructor := wrapper.NewConstructor(uint64(squareSize))
+	err := rsmt2d.RegisterTree(treeName(squareSize), treeConstructor)
+	require.NoError(t, err)
 	// data for a 4X4 square
 	data := testfactory.GenerateRandNamespacedRawData(squareSize * squareSize)
 
-	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), treeName(squareSize))
+	_, err = rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), treeName(squareSize))
 	assert.NoError(t, err)
 }
 
