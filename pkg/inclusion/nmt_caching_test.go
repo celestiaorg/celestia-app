@@ -2,7 +2,6 @@ package inclusion
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"testing"
 
@@ -206,8 +205,4 @@ func generateRandNamespacedRawData(count int) (result [][]byte) {
 
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
-}
-
-func treeName(squareSize int) string {
-	return fmt.Sprintf("tree-%v", squareSize)
 }

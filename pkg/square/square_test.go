@@ -286,7 +286,3 @@ func TestSize(t *testing.T) {
 		assert.True(t, shares.IsPowerOfTwo(res))
 	}
 }
-
-func treeName(squareSize int) string {
-	return fmt.Sprintf("tree-%v", squareSize)
-}

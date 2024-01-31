@@ -79,7 +79,6 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	squareSize := SquareSize(len(s))
-	fmt.Printf("Square size: %v\n", squareSize)
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
