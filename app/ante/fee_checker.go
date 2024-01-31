@@ -29,10 +29,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 
 	// global minimum fee only applies to app versions greater than one
 	if appVersion > v1.Version {
-		globalMinGasPrice, err := appconsts.GlobalMinGasPrice(appVersion)
-		if err != nil {
-			return nil, 0, errors.Wrapf(err, "failed to get GlobalMinGasPrice for app version %d", appVersion)
-		}
+		globalMinGasPrice := appconsts.GlobalMinGasPrice(appVersion)
 
 		// convert the global minimum gas price to a big.Int
 		globalMinGasPriceInt, err := sdk.NewDecFromStr(fmt.Sprintf("%f", globalMinGasPrice))
