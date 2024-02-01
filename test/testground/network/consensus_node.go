@@ -144,7 +144,7 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 	cn.CmtConfig = mcfg.CmtConfig
 	cn.AppConfig = mcfg.AppConfig
 	cn.AppCreator = cmd.NewAppServer
-	cn.SuppressLogs = true
+	cn.SuppressLogs = false
 
 	// manually set the protocol version to the one used by the testground
 	appOpts := testnode.DefaultAppOptions()
