@@ -44,7 +44,7 @@ jobs:
         run: make test-coverage
 
       - name: Upload coverage.txt
-        uses: codecov/codecov-action@v3.1.6
+        uses: codecov/codecov-action@v4.0.1
         with:
           file: ./coverage.txt
 
