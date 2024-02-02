@@ -174,6 +174,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.MaxTxBytes = 1_000_000_000
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
+	cmtcfg.Mempool.MaxGossipDelay = 30 * time.Second
 	return cmtcfg
 }
 
