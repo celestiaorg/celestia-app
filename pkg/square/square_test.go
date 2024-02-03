@@ -242,7 +242,8 @@ func TestSquareShareCommitments(t *testing.T) {
 	require.NoError(t, err)
 
 	cacher := inclusion.NewSubtreeCacher(uint64(dataSquare.Size()))
-	rsmt2d.RegisterTree(cacher.TreeName(), cacher.Constructor)
+	err = rsmt2d.RegisterTree(cacher.TreeName(), cacher.Constructor)
+	require.NoError(t, err)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.TreeName())
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
