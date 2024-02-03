@@ -65,8 +65,8 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 func init() {
 	// Register an rsmt2d tree for all possible square sizes.
 	for squareSize := appconsts.MinSquareSize; squareSize <= appconsts.DefaultSquareSizeUpperBound; squareSize *= 2 {
-		treeConstructor := wrapper.NewConstructor(uint64(squareSize))
-		err := rsmt2d.RegisterTree(treeName(squareSize), treeConstructor)
+		treeName, treeConstructor := wrapper.NewConstructor(uint64(squareSize))
+		err := rsmt2d.RegisterTree(treeName, treeConstructor)
 		if err != nil {
 			panic(err)
 		}
@@ -79,10 +79,11 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	squareSize := SquareSize(len(s))
+	treeName, _ := wrapper.NewConstructor(uint64(squareSize))
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), treeName(squareSize))
+	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), treeName)
 }
 
 // String returns hex representation of merkle hash of the DAHeader.
@@ -224,8 +225,4 @@ func RoundUpPowerOfTwo[I constraints.Integer](input I) I {
 		result <<= 1
 	}
 	return result
-}
-
-func treeName(squareSize int) string {
-	return fmt.Sprintf("tree-%v", squareSize)
 }

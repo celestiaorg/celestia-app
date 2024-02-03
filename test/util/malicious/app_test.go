@@ -23,7 +23,7 @@ import (
 func TestOutOfOrderNMT(t *testing.T) {
 	squareSize := uint64(64)
 	c := NewConstructor(squareSize)
-	goodConstructor := wrapper.NewConstructor(squareSize)
+	_, goodConstructor := wrapper.NewConstructor(squareSize)
 
 	orderedTree := goodConstructor(0, 0)
 	maliciousOrderedTree := c(0, 0)

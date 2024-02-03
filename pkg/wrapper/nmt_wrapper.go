@@ -12,7 +12,7 @@ import (
 
 // Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
 var (
-	_ rsmt2d.TreeConstructorFn = NewConstructor(0)
+	_ rsmt2d.TreeConstructorFn = NewConstructor(0) // this line complains
 	_ rsmt2d.Tree              = &ErasuredNamespacedMerkleTree{}
 )
 
@@ -70,11 +70,12 @@ type constructor struct {
 // NewConstructor creates a tree constructor function as required by rsmt2d to
 // calculate the data root. It creates that tree using the
 // wrapper.ErasuredNamespacedMerkleTree.
-func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
-	return constructor{
+func NewConstructor(squareSize uint64, opts ...nmt.Option) (string, rsmt2d.TreeConstructorFn) {
+	c := constructor{
 		squareSize: squareSize,
 		opts:       opts,
-	}.NewTree
+	}
+	return c.TreeName(), c.NewTree
 }
 
 // NewTree creates a new rsmt2d.Tree using the
@@ -83,6 +84,12 @@ func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructo
 func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 	newTree := NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, c.opts...)
 	return &newTree
+}
+
+// TreeName returns a name for the constructor that can be used to register this
+// tree with rsmt2d.
+func (c constructor) TreeName() string {
+	return fmt.Sprintf("erasured-namespaced-merkle-tree-%s-%s", c.squareSize, c.opts)
 }
 
 // Push adds the provided data to the underlying NamespaceMerkleTree, and
