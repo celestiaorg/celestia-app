@@ -20,15 +20,17 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.8 # yamllint disable-line rule:line-length
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.3.1
     with:
       dockerfile: Dockerfile
+    secrets: inherit
 
   docker-txsim-build:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.8
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.3.1
     with:
       dockerfile: docker/Dockerfile_txsim
       packageName: txsim
+    secrets: inherit

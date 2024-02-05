@@ -40,7 +40,7 @@ func CreateCommitment(blob *blob.Blob) ([]byte, error) {
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {
 		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+treeSize])
-		cursor = cursor + treeSize
+		cursor += treeSize
 	}
 
 	// create the commitments by pushing each leaf set onto an nmt
@@ -99,14 +99,14 @@ func MerkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 		switch {
 		case totalSize >= maxTreeSize:
 			treeSizes = append(treeSizes, maxTreeSize)
-			totalSize = totalSize - maxTreeSize
+			totalSize -= maxTreeSize
 		case totalSize < maxTreeSize:
 			treeSize, err := appshares.RoundDownPowerOfTwo(totalSize)
 			if err != nil {
 				return treeSizes, err
 			}
 			treeSizes = append(treeSizes, treeSize)
-			totalSize = totalSize - treeSize
+			totalSize -= treeSize
 		}
 	}
 

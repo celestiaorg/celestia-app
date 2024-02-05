@@ -175,7 +175,7 @@ func (b *Builder) FlipSequenceStart() {
 
 	// the sequence start indicator is the last bit of the info byte so flip the
 	// last bit
-	b.rawShareData[infoByteIndex] = b.rawShareData[infoByteIndex] ^ 0x01
+	b.rawShareData[infoByteIndex] ^= 0x01
 }
 
 func (b *Builder) prepareCompactShare() error {

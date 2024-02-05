@@ -22,6 +22,12 @@ func SubtreeRootThreshold(_ uint64) int {
 	return v1.SubtreeRootThreshold
 }
 
+// GlobalMinGasPrice is used in the processProposal to ensure
+// that all transactions have a gas price greater than or equal to this value.
+func GlobalMinGasPrice(_ uint64) float64 {
+	return v2.GlobalMinGasPrice
+}
+
 // SquareSizeUpperBound is the maximum original square width possible
 // for a version of the state machine. The maximum is decided through
 // governance. See `DefaultGovMaxSquareSize`.
@@ -38,4 +44,5 @@ func SquareSizeUpperBound(v uint64) int {
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
+	DefaultGlobalMinGasPrice    = GlobalMinGasPrice(LatestVersion)
 )
