@@ -87,6 +87,10 @@ For additional information on the significance and application of the reserved n
 
 Applications MUST refrain from using the [reserved namespaces](#reserved-namespaces) for their blob data.
 
+## Implementation
+
+See [go-square/namespace](https://github.com/celestiaorg/go-square/tree/main/namespace).
+
 ## Go Definition
 
 ```go

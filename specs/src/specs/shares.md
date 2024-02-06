@@ -110,6 +110,10 @@ Share splitting is the process of converting a blob into a share sequence. The p
 
 - Shares are assumed to be byte slices of length 512. Parsing shares of a different length WILL result in an error.
 
+## Implementation
+
+See [go-square/shares](https://github.com/celestiaorg/go-square/tree/main/shares).
+
 ## References
 
 1. [ADR-012](../../../docs/architecture/adr-012-sequence-length-encoding.md)
