@@ -25,6 +25,9 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 		wantErr bool
 	}
 
+	singleByteBlobs := repeat(4095, 1)        // (64 * 64) - 1 = 4095 so this should fit
+	tooManySingleByteBlobs := repeat(4096, 1) // (64 * 64) = 4096 so this should not fit
+
 	testCases := []testCase{
 		// tests based on bytes
 		{
@@ -65,6 +68,20 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			},
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
+			wantErr: true,
+		},
+		{
+			name: "PFB with many single byte blobs should fit",
+			pfb: &blob.MsgPayForBlobs{
+				BlobSizes: singleByteBlobs,
+			},
+			wantErr: false,
+		},
+		{
+			name: "PFB with too many single byte blobs should not fit",
+			pfb: &blob.MsgPayForBlobs{
+				BlobSizes: tooManySingleByteBlobs,
+			},
 			wantErr: true,
 		},
 		// tests based on shares
@@ -138,4 +155,13 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 
 func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 	return ctx, nil
+}
+
+// repeat returns a slice of length n with each element set to val.
+func repeat(n int, val uint32) []uint32 {
+	result := make([]uint32, n)
+	for i := range result {
+		result[i] = val
+	}
+	return result
 }
