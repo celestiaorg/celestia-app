@@ -121,6 +121,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		{"multiBlobTxGen", multiBlobTxGen},
 		{"randomTxGen", randomTxGen},
 	}
+
+	cpav, err := s.cctx.ConsensusParamsAppVersion(2)
+	require.NoError(t, err)
+	fmt.Printf("consensus params app version %v\n", int64(cpav)) // returns 2
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			txs := tc.txGenerator(s.cctx.Context)
@@ -265,6 +269,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 // ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
 func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
+	fmt.Printf("app version in extend block test %v\n", block.Header.Version.App)
 	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
