@@ -163,6 +163,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				blockRes, err := node.Block(context.Background(), &height)
 				require.NoError(t, err)
 				size := blockRes.Block.Data.SquareSize
+				fmt.Printf("height %v app version %v\n", height, blockRes.Block.Header.Version.App)
 
 				// perform basic checks on the size of the square
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))

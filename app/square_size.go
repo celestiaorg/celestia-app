@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -19,6 +21,7 @@ func (app *App) GovSquareSizeUpperBound(ctx sdk.Context) int {
 	}
 
 	gmax := int(app.BlobKeeper.GovMaxSquareSize(ctx))
-	hardMax := appconsts.SquareSizeUpperBound(app.AppVersion(ctx))
+	fmt.Printf("app version %v block header %v\n", app.AppVersion(ctx), ctx.BlockHeader().Version.App)
+	hardMax := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
 	return min(gmax, hardMax)
 }
