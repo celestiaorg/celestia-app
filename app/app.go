@@ -347,6 +347,8 @@ func New(
 		&stakingKeeper, govRouter, bApp.MsgServiceRouter(), govConfig,
 	)
 
+	
+
 	app.BlobKeeper = *blobkeeper.NewKeeper(
 		appCodec,
 		app.GetSubspace(blobtypes.ModuleName),
@@ -694,6 +696,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
+	paramsKeeper.Subspace("minfee")
 
 	return paramsKeeper
 }

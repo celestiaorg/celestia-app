@@ -8,6 +8,8 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
+	params "github.com/cosmos/cosmos-sdk/x/params/types"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 )
 
 const (
@@ -17,10 +19,19 @@ const (
 
 // CheckTxFeeWithGlobalMinGasPrices implements the default fee logic, where the minimum price per
 // unit of gas is fixed and set globally, and the tx priority is computed from the gas price.
-func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams params.Subspace) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
+	}
+
+	// load the min gas price from the global param store
+	var globalMinFee sdk.Dec
+	minFeeParams.Get(ctx, minfee.KeyMinGasPrice, &globalMinFee)
+
+	if ctx.IsCheckTx() {
+		// also check the local minimum gas price
+		ctx.MinGasPrices()
 	}
 
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
