@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/knuu v0.10.0
 	github.com/celestiaorg/nmt v0.20.0
-	github.com/celestiaorg/rsmt2d v0.12.0-rc2
+	github.com/celestiaorg/rsmt2d v0.12.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/cosmos/gogoproto v1.4.11
