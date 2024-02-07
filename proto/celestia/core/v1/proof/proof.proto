@@ -1,8 +1,6 @@
 syntax = "proto3";
 package celestia.core.v1.proof;
 
-import "tendermint/crypto/proof.proto";
-
 option go_package = "github.com/celestiaorg/celestia-app/pkg/proof";
 
 // ShareProof is an NMT proof that a set of shares exist in a set of rows and a
@@ -19,7 +17,7 @@ message ShareProof {
 // given data root.
 message RowProof {
   repeated bytes row_roots = 1;
-  repeated tendermint.crypto.Proof proofs = 2;
+  repeated Proof proofs = 2;
   bytes root = 3;
   uint32 start_row = 4;
   uint32 end_row = 5;
@@ -45,4 +43,12 @@ message NMTProof {
   // hashes should consist of the namespace along with the actual hash,
   // resulting 40 bytes total.
   bytes leaf_hash = 4;
+}
+
+// Proof is taken from the merkle package
+message Proof {
+  int64          total     = 1;
+  int64          index     = 2;
+  bytes          leaf_hash = 3;
+  repeated bytes aunts     = 4;
 }

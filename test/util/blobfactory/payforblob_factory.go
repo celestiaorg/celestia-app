@@ -7,11 +7,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -31,14 +31,14 @@ var (
 func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, signer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*blob.Blob) {
 	blobs := make([]*blob.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
-		blob, err := blobtypes.NewBlob(appns.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
+		blob, err := blobtypes.NewBlob(testfactory.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
 		blobs[i] = blob
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(signer, blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blobs...)
 	if err != nil {
 		panic(err)
 	}
@@ -60,6 +60,7 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace,
 	}
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		signer,
+		appconsts.LatestVersion,
 		blob,
 	)
 	if err != nil {
@@ -69,9 +70,10 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace,
 }
 
 func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs, *blob.Blob) {
-	blob := blob.New(appns.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
+	blob := blob.New(testfactory.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 	msg, err := blobtypes.NewMsgPayForBlobs(
 		testfactory.TestAccAddr,
+		appconsts.LatestVersion,
 		blob,
 	)
 	if err != nil {
@@ -179,7 +181,7 @@ func RandBlobTxs(signer *user.Signer, rand *tmrand.Rand, count, blobsPerTx, size
 }
 
 func ManyRandBlobs(rand *tmrand.Rand, sizes ...int) []*blob.Blob {
-	return ManyBlobs(rand, appns.RandomBlobNamespaces(rand, len(sizes)), sizes)
+	return ManyBlobs(rand, testfactory.RandomBlobNamespaces(rand, len(sizes)), sizes)
 }
 
 func Repeat[T any](s T, count int) []T {
@@ -226,7 +228,7 @@ func ManyMultiBlobTx(
 	opts := DefaultTxOpts()
 	for i, acc := range accounts {
 		addr := testfactory.GetAddress(kr, acc)
-		signer, err := user.NewSigner(kr, nil, addr, enc, chainid, accInfos[i].AccountNum, accInfos[i].Sequence)
+		signer, err := user.NewSigner(kr, nil, addr, enc, chainid, accInfos[i].AccountNum, accInfos[i].Sequence, appconsts.LatestVersion)
 		require.NoError(t, err)
 		txs[i], err = signer.CreatePayForBlob(blobs[i], opts...)
 		require.NoError(t, err)
@@ -241,11 +243,11 @@ func IndexWrappedTxWithInvalidNamespace(
 	rand *tmrand.Rand,
 	signer *user.Signer,
 	index uint32,
-) (coretypes.Tx, blob.Blob) {
+) (coretypes.Tx, *blob.Blob) {
 	t.Helper()
 	addr := signer.Address()
 	blob := ManyRandBlobs(rand, 100)[0]
-	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blob)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blob)
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 
@@ -255,7 +257,7 @@ func IndexWrappedTxWithInvalidNamespace(
 	cTx, err := coretypes.MarshalIndexWrapper(rawTx, index)
 	require.NoError(t, err)
 
-	return cTx, *blob
+	return cTx, blob
 }
 
 func RandBlobTxsWithNamespacesAndSigner(
