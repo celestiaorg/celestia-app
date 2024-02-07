@@ -16,11 +16,11 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
 )
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
@@ -94,7 +94,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)

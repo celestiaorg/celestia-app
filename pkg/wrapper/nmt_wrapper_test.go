@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"

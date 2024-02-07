@@ -7,10 +7,11 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -46,7 +47,7 @@ func RandBlobTxsWithAccounts(
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
-		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, acc.GetAccountNumber(), acc.GetSequence())
+		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, acc.GetAccountNumber(), acc.GetSequence(), appconsts.LatestVersion)
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -101,7 +102,7 @@ func RandBlobTxsWithManualSequence(
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
-		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, accountNum, sequence)
+		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, accountNum, sequence, appconsts.LatestVersion)
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -205,7 +206,7 @@ func SendTxWithManualSequence(
 	opts ...user.TxOption,
 ) coretypes.Tx {
 	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
-	signer, err := user.NewSigner(kr, nil, fromAddr, cfg, chainid, accountNum, sequence)
+	signer, err := user.NewSigner(kr, nil, fromAddr, cfg, chainid, accountNum, sequence, appconsts.LatestVersion)
 	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))

@@ -19,15 +19,15 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 )
 
 func TestProcessProposal(t *testing.T) {
@@ -36,7 +36,7 @@ func TestProcessProposal(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 	addr := testfactory.GetAddress(kr, accounts[0])
-	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence)
+	signer, err := user.NewSigner(kr, nil, addr, enc, testutil.ChainID, infos[0].AccountNum, infos[0].Sequence, appconsts.LatestVersion)
 	require.NoError(t, err)
 
 	// create 4 single blob blobTxs that are signed with valid account numbers
@@ -45,7 +45,7 @@ func TestProcessProposal(t *testing.T) {
 		t, enc, kr, testutil.ChainID, accounts[:4], infos[:4],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(tmrand.NewRand(), 4),
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
 	)
@@ -127,7 +127,7 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceVersion: uint32(ns1.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
-				blobTxBytes, _ := blobTx.Marshal()
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			appVersion:     appconsts.LatestVersion,
@@ -144,7 +144,7 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
-				blobTxBytes, _ := blobTx.Marshal()
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			appVersion:     appconsts.LatestVersion,
@@ -161,7 +161,7 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceVersion: uint32(appns.TxNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
-				blobTxBytes, _ := blobTx.Marshal()
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			appVersion:     appconsts.LatestVersion,
@@ -178,7 +178,7 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
-				blobTxBytes, _ := blobTx.Marshal()
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			appVersion:     appconsts.LatestVersion,
@@ -195,7 +195,7 @@ func TestProcessProposal(t *testing.T) {
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 					NamespaceVersion: uint32(invalidNamespace.Version),
 				}
-				blobTxBytes, _ := blobTx.Marshal()
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 			},
 			appVersion:     appconsts.LatestVersion,
@@ -207,7 +207,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
-				blobTxBytes, _ := blobTx.Marshal()
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
@@ -220,7 +220,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				index := 4
 				tx, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
-				blobTx, err := blob.MarshalBlobTx(tx, &b)
+				blobTx, err := blob.MarshalBlobTx(tx, b)
 				require.NoError(t, err)
 
 				// Replace the data with new contents
@@ -310,7 +310,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
@@ -363,7 +363,7 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+	dataSquare, err := square.Construct(txs, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold)
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	require.NoError(t, err)

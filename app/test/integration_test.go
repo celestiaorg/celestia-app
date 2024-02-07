@@ -21,12 +21,12 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/square"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -243,7 +243,10 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.True(t, isBlobTx)
 
 		// get the blob shares
-		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0, appconsts.LatestVersion)
+		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0,
+			appconsts.DefaultSquareSizeUpperBound,
+			appconsts.DefaultSubtreeRootThreshold,
+		)
 		require.NoError(t, err)
 
 		// verify the blob shares proof
