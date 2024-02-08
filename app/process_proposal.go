@@ -46,6 +46,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.GetSubspace("GlobalMinGasPrice"),
 	)
 	sdkCtx := app.NewProposalContext(req.Header)
 	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx))

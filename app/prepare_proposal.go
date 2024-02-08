@@ -40,6 +40,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.GetSubspace("GlobalMinGasPrice"),
 	)
 
 	var txs [][]byte

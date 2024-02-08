@@ -9,6 +9,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	ibcante "github.com/cosmos/ibc-go/v6/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
+	params "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 func NewAnteHandler(
@@ -19,6 +20,7 @@ func NewAnteHandler(
 	signModeHandler signing.SignModeHandler,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
+	minFeeParmams params.Subspace,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -71,3 +73,13 @@ func NewAnteHandler(
 }
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
+
+func NewMinGasDecorator(minFeeParam params.Subspace) ante.Decorator {
+	return ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, NewFeeChecker(minFeeParam))
+}
+
+func NewTxFeeChecker(minFeeParam params.Subspace) ante.TxFeeChecker {
+	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+		return CheckTxFeeWithGlobalMinGasPrices(ctx, tx, minFeeParam)
+	}
+}
