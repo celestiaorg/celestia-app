@@ -121,7 +121,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		{"multiBlobTxGen", multiBlobTxGen},
 		{"randomTxGen", randomTxGen},
 	}
-
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			txs := tc.txGenerator(s.cctx.Context)
