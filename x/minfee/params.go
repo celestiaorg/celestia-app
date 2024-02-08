@@ -9,9 +9,7 @@ import (
 
 var _ paramtypes.ParamSet = (*Params)(nil)
 
-var (
-	KeyMinGasPrice = []byte("GlobalMinGasPrice")
-)
+var KeyMinGasPrice = []byte("GlobalMinGasPrice")
 
 func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	if !ps.HasKeyTable() {
@@ -19,7 +17,7 @@ func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	}
 }
 
-// ParamKeyTable returns the param key table for the blob module
+// ParamKeyTable returns the param key table for the global min gas price module
 func ParamKeyTable() paramtypes.KeyTable {
 	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }

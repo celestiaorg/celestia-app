@@ -4,13 +4,13 @@ import (
 	"fmt"
 
 	errors "cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	params "github.com/cosmos/cosmos-sdk/x/params/types"
-	"github.com/celestiaorg/celestia-app/x/minfee"
-	"cosmossdk.io/math"
 )
 
 const (
@@ -30,7 +30,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 	gas := feeTx.GetGas()
 
 	if ctx.IsCheckTx() {
-	    defaultMinGasPrice := appconsts.DefaultMinGasPrice
+		defaultMinGasPrice := appconsts.DefaultMinGasPrice
 		err := CheckTxFeeWithMinGasPrices(fee, gas, defaultMinGasPrice, "insufficient validator minimum fee")
 		if err != nil {
 			return nil, 0, err

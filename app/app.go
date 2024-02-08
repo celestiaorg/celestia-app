@@ -498,6 +498,7 @@ func New(
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.GetSubspace("minfee"),
 	))
 	app.SetPostHandler(posthandler.New())
 
