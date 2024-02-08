@@ -86,31 +86,31 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
 	// 600 KiB total per transaction.
-	// multiBlobTxGen := func(c client.Context) []coretypes.Tx {
-	// 	return blobfactory.RandBlobTxsWithAccounts(
-	// 		s.ecfg,
-	// 		tmrand.NewRand(),
-	// 		s.cctx.Keyring,
-	// 		c.GRPCClient,
-	// 		200*kibibyte,
-	// 		3,
-	// 		false,
-	// 		s.accounts[20:40],
-	// 	)
-	// }
+	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.ecfg,
+			tmrand.NewRand(),
+			s.cctx.Keyring,
+			c.GRPCClient,
+			200*kibibyte,
+			3,
+			false,
+			s.accounts[20:40],
+		)
+	}
 
-	// randomTxGen := func(c client.Context) []coretypes.Tx {
-	// 	return blobfactory.RandBlobTxsWithAccounts(
-	// 		s.ecfg,
-	// 		tmrand.NewRand(),
-	// 		s.cctx.Keyring,
-	// 		c.GRPCClient,
-	// 		50*kibibyte,
-	// 		8,
-	// 		true,
-	// 		s.accounts[40:120],
-	// 	)
-	// }
+	randomTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.ecfg,
+			tmrand.NewRand(),
+			s.cctx.Keyring,
+			c.GRPCClient,
+			50*kibibyte,
+			8,
+			true,
+			s.accounts[40:120],
+		)
+	}
 
 	type test struct {
 		name        string
@@ -118,13 +118,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	}
 	tests := []test{
 		{"singleBlobTxGen", singleBlobTxGen},
-		// {"multiBlobTxGen", multiBlobTxGen},
-		// {"randomTxGen", randomTxGen},
+		{"multiBlobTxGen", multiBlobTxGen},
+		{"randomTxGen", randomTxGen},
 	}
 
-	cpav, err := s.cctx.ConsensusParamsAppVersion(2)
-	require.NoError(t, err)
-	fmt.Printf("consensus params app version %v\n", int64(cpav)) // returns 2
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			txs := tc.txGenerator(s.cctx.Context)
@@ -167,7 +164,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				blockRes, err := node.Block(context.Background(), &height)
 				require.NoError(t, err)
 				size := blockRes.Block.Data.SquareSize
-				fmt.Printf("height %v app version %v\n", height, blockRes.Block.Header.Version.App)
 
 				// perform basic checks on the size of the square
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -176,7 +172,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
-				// ExtendBlockTest(t, blockRes.Block)
+				ExtendBlockTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -269,7 +265,6 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 // ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
 func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	fmt.Printf("app version in extend block test %v\n", block.Header.Version.App)
 	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)

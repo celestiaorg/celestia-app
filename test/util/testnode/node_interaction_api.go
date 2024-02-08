@@ -66,14 +66,6 @@ func (c *Context) GenesisTime() (time.Time, error) {
 	return status.Block.Time, nil
 }
 
-func (c *Context) ConsensusParamsAppVersion(height int64) (uint64, error) {
-	cp, err := c.Client.ConsensusParams(c.GoContext(), &height)
-	if err != nil {
-		return 0, err
-	}
-	return cp.ConsensusParams.Version.AppVersion, nil
-}
-
 // LatestHeight returns the latest height of the network or an error if the
 // query fails.
 func (c *Context) LatestHeight() (int64, error) {
