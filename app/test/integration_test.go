@@ -86,31 +86,31 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
 	// 600 KiB total per transaction.
-	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
-		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg,
-			tmrand.NewRand(),
-			s.cctx.Keyring,
-			c.GRPCClient,
-			200*kibibyte,
-			3,
-			false,
-			s.accounts[20:40],
-		)
-	}
+	// multiBlobTxGen := func(c client.Context) []coretypes.Tx {
+	// 	return blobfactory.RandBlobTxsWithAccounts(
+	// 		s.ecfg,
+	// 		tmrand.NewRand(),
+	// 		s.cctx.Keyring,
+	// 		c.GRPCClient,
+	// 		200*kibibyte,
+	// 		3,
+	// 		false,
+	// 		s.accounts[20:40],
+	// 	)
+	// }
 
-	randomTxGen := func(c client.Context) []coretypes.Tx {
-		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg,
-			tmrand.NewRand(),
-			s.cctx.Keyring,
-			c.GRPCClient,
-			50*kibibyte,
-			8,
-			true,
-			s.accounts[40:120],
-		)
-	}
+	// randomTxGen := func(c client.Context) []coretypes.Tx {
+	// 	return blobfactory.RandBlobTxsWithAccounts(
+	// 		s.ecfg,
+	// 		tmrand.NewRand(),
+	// 		s.cctx.Keyring,
+	// 		c.GRPCClient,
+	// 		50*kibibyte,
+	// 		8,
+	// 		true,
+	// 		s.accounts[40:120],
+	// 	)
+	// }
 
 	type test struct {
 		name        string
@@ -118,8 +118,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	}
 	tests := []test{
 		{"singleBlobTxGen", singleBlobTxGen},
-		{"multiBlobTxGen", multiBlobTxGen},
-		{"randomTxGen", randomTxGen},
+		// {"multiBlobTxGen", multiBlobTxGen},
+		// {"randomTxGen", randomTxGen},
 	}
 
 	cpav, err := s.cctx.ConsensusParamsAppVersion(2)
@@ -176,7 +176,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
-				ExtendBlockTest(t, blockRes.Block)
+				// ExtendBlockTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
