@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/app/posthandler"
@@ -531,6 +532,14 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.UpgradeKeeper.ResetTally(ctx, version)
 		}
 	}
+	return res
+}
+
+func (app *App) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	fmt.Println("InitChain")
+	fmt.Println("before", req.ConsensusParams.Version)
+	res := app.BaseApp.InitChain(req)
+	fmt.Println("after", res.ConsensusParams.Version)
 	return res
 }
 

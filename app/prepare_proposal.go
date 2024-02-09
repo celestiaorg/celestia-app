@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
@@ -28,6 +29,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		Height:  req.Height,
 		Time:    req.Time,
 	})
+	fmt.Println("Preparing proposal", app.AppVersion(sdkCtx), req.Height)
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
@@ -65,7 +67,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// The txs returned are the ones used in the square and block
 	dataSquare, txs, err := square.Build(txs,
 		app.GovSquareSizeUpperBound(sdkCtx),
-		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx)),
+		appconsts.SubtreeRootThreshold(app.AppVersion(sdkCtx)),
 	)
 	if err != nil {
 		panic(err)

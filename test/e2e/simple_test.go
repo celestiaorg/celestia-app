@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
 )
 
 const seed = 42
@@ -69,7 +70,7 @@ func TestE2ESimple(t *testing.T) {
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, v1.Version, block.Version.App)
+		assert.Equal(t, v1.Version, block.Version.App, block.Height)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
