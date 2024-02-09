@@ -6,16 +6,17 @@ import (
 
 	sdkerrors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	appns "github.com/celestiaorg/go-square/namespace"
+	shares "github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -168,7 +169,8 @@ func totalBlobSize(size int) int {
 func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
+	ns1 := appns.NamespaceVersionZeroPrefix
+	ns1 = append(ns1, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
 	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
 
 	pblob := &blob.Blob{
@@ -179,7 +181,7 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	}
 
 	addr := signer.Address()
-	pfb, err := types.NewMsgPayForBlobs(addr.String(), pblob)
+	pfb, err := types.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, pblob)
 	assert.NoError(t, err)
 
 	return pfb
@@ -188,7 +190,8 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
+	ns1 := appns.NamespaceVersionZeroPrefix
+	ns1 = append(ns1, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
 	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
 
 	pblob := &blob.Blob{
@@ -200,7 +203,7 @@ func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 
 	blobs := []*blob.Blob{pblob}
 
-	commitments, err := inclusion.CreateCommitments(blobs)
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	require.NoError(t, err)
 
 	namespaceVersions, namespaceIds, sizes, shareVersions := types.ExtractBlobComponents(blobs)
@@ -325,7 +328,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			msgPFB, err := types.NewMsgPayForBlobs(tc.signer, tc.blobs...)
+			msgPFB, err := types.NewMsgPayForBlobs(tc.signer, appconsts.LatestVersion, tc.blobs...)
 			if tc.expectedErr {
 				assert.Error(t, err)
 				return
@@ -338,7 +341,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 				assert.Equal(t, ns.ID, blob.NamespaceId)
 				assert.Equal(t, uint32(ns.Version), blob.NamespaceVersion)
 
-				expectedCommitment, err := inclusion.CreateCommitment(blob)
+				expectedCommitment, err := inclusion.CreateCommitment(blob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 				require.NoError(t, err)
 				assert.Equal(t, expectedCommitment, msgPFB.ShareCommitments[i])
 			}

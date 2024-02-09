@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/shares"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
 )

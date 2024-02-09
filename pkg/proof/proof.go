@@ -6,38 +6,35 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/merkle"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 )
 
 // NewTxInclusionProof returns a new share inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (types.ShareProof, error) {
+func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (ShareProof, error) {
 	if txIndex >= uint64(len(txs)) {
-		return types.ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
+		return ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
 	}
 
-	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appVersion, txs...)
+	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
-		return types.ShareProof{}, err
+		return ShareProof{}, err
 	}
 
 	dataSquare, err := builder.Export()
 	if err != nil {
-		return types.ShareProof{}, err
+		return ShareProof{}, err
 	}
 
 	shareRange, err := builder.FindTxShareRange(int(txIndex))
 	if err != nil {
-		return types.ShareProof{}, err
+		return ShareProof{}, err
 	}
 
 	namespace := getTxNamespace(txs[txIndex])
@@ -59,7 +56,7 @@ func NewShareInclusionProof(
 	dataSquare square.Square,
 	namespace appns.Namespace,
 	shareRange shares.Range,
-) (types.ShareProof, error) {
+) (ShareProof, error) {
 	squareSize := dataSquare.Size()
 	startRow := shareRange.Start / squareSize
 	endRow := (shareRange.End - 1) / squareSize
@@ -68,25 +65,30 @@ func NewShareInclusionProof(
 
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	if err != nil {
-		return types.ShareProof{}, err
+		return ShareProof{}, err
 	}
 
 	edsRowRoots, err := eds.RowRoots()
 	if err != nil {
-		return types.ShareProof{}, err
+		return ShareProof{}, err
 	}
 
 	edsColRoots, err := eds.ColRoots()
 	if err != nil {
-		return types.ShareProof{}, err
+		return ShareProof{}, err
 	}
 
 	// create the binary merkle inclusion proof for all the square rows to the data root
 	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, edsColRoots...))
-	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
-	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
+	rowProofs := make([]*Proof, endRow-startRow+1)
+	rowRoots := make([][]byte, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
-		rowProofs[i-startRow] = allProofs[i]
+		rowProofs[i-startRow] = &Proof{
+			Total:    allProofs[i].Total,
+			Index:    allProofs[i].Index,
+			LeafHash: allProofs[i].LeafHash,
+			Aunts:    allProofs[i].Aunts,
+		}
 		rowRoots[i-startRow] = edsRowRoots[i]
 	}
 
@@ -95,12 +97,12 @@ func NewShareInclusionProof(
 	for i := startRow; i <= endRow; i++ {
 		shares, err := shares.FromBytes(eds.Row(uint(i)))
 		if err != nil {
-			return types.ShareProof{}, err
+			return ShareProof{}, err
 		}
 		rows[i-startRow] = shares
 	}
 
-	var shareProofs []*tmproto.NMTProof //nolint:prealloc
+	var shareProofs []*NMTProof //nolint:prealloc
 	var rawShares [][]byte
 	for i, row := range rows {
 		// create an nmt to generate a proof.
@@ -111,17 +113,17 @@ func NewShareInclusionProof(
 				share.ToBytes(),
 			)
 			if err != nil {
-				return types.ShareProof{}, err
+				return ShareProof{}, err
 			}
 		}
 
 		// make sure that the generated root is the same as the eds row root.
 		root, err := tree.Root()
 		if err != nil {
-			return types.ShareProof{}, err
+			return ShareProof{}, err
 		}
-		if !bytes.Equal(rowRoots[i].Bytes(), root) {
-			return types.ShareProof{}, errors.New("eds row root is different than tree root")
+		if !bytes.Equal(rowRoots[i], root) {
+			return ShareProof{}, errors.New("eds row root is different than tree root")
 		}
 
 		startLeafPos := startLeaf
@@ -139,10 +141,10 @@ func NewShareInclusionProof(
 		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
 		proof, err := tree.ProveRange(startLeafPos, endLeafPos+1)
 		if err != nil {
-			return types.ShareProof{}, err
+			return ShareProof{}, err
 		}
 
-		shareProofs = append(shareProofs, &tmproto.NMTProof{
+		shareProofs = append(shareProofs, &NMTProof{
 			Start:    int32(proof.Start()),
 			End:      int32(proof.End()),
 			Nodes:    proof.Nodes(),
@@ -150,8 +152,8 @@ func NewShareInclusionProof(
 		})
 	}
 
-	return types.ShareProof{
-		RowProof: types.RowProof{
+	return ShareProof{
+		RowProof: &RowProof{
 			RowRoots: rowRoots,
 			Proofs:   rowProofs,
 			StartRow: uint32(startRow),
@@ -159,7 +161,7 @@ func NewShareInclusionProof(
 		},
 		Data:             rawShares,
 		ShareProofs:      shareProofs,
-		NamespaceID:      namespace.ID,
+		NamespaceId:      namespace.ID,
 		NamespaceVersion: uint32(namespace.Version),
 	}, nil
 }

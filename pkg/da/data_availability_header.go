@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/celestiaorg/go-square/merkle"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/core/v1/da"
+	"github.com/celestiaorg/go-square/shares"
 )
 
 var (
@@ -210,7 +210,7 @@ func SquareSize(len int) int {
 func RoundUpPowerOfTwo[I constraints.Integer](input I) I {
 	var result I = 1
 	for result < input {
-		result = result << 1
+		result <<= 1
 	}
 	return result
 }

@@ -2,9 +2,8 @@ package app
 
 import (
 	"io"
-	"os"
-	"path/filepath"
 
+	"github.com/celestiaorg/celestia-app/app/posthandler"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
@@ -25,7 +24,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/cosmos/cosmos-sdk/x/auth/posthandler"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
@@ -85,55 +83,22 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
-	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
-	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
-	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
 
-	bsmodule "github.com/celestiaorg/celestia-app/x/blobstream"
-	bsmodulekeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
-	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream"
+	blobstreamkeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
-const (
-	AccountAddressPrefix = "celestia"
-	Name                 = "celestia-app"
-	// BondDenom defines the native staking token denomination.
-	BondDenom = appconsts.BondDenom
-	// BondDenomAlias defines an alias for BondDenom.
-	BondDenomAlias = "microtia"
-	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
-	DisplayDenom = "TIA"
-)
-
-// These constants are derived from the above variables.
-// These are the ones we will want to use in the code, based on
-// any overrides above.
 var (
-	// Bech32PrefixAccAddr defines the Bech32 prefix of an account's address.
-	Bech32PrefixAccAddr = AccountAddressPrefix
-	// Bech32PrefixAccPub defines the Bech32 prefix of an account's public key.
-	Bech32PrefixAccPub = AccountAddressPrefix + sdk.PrefixPublic
-	// Bech32PrefixValAddr defines the Bech32 prefix of a validator's operator address.
-	Bech32PrefixValAddr = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixOperator
-	// Bech32PrefixValPub defines the Bech32 prefix of a validator's operator public key.
-	Bech32PrefixValPub = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixOperator + sdk.PrefixPublic
-	// Bech32PrefixConsAddr defines the Bech32 prefix of a consensus node address.
-	Bech32PrefixConsAddr = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixConsensus
-	// Bech32PrefixConsPub defines the Bech32 prefix of a consensus node public key.
-	Bech32PrefixConsPub = AccountAddressPrefix + sdk.PrefixValidator + sdk.PrefixConsensus + sdk.PrefixPublic
-)
-
-var (
-	// DefaultNodeHome default home directories for the application daemon
-	DefaultNodeHome string
-
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as codec registration
 	// and genesis verification.
@@ -155,8 +120,8 @@ var (
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
-		blobmodule.AppModuleBasic{},
-		bsmodule.AppModuleBasic{},
+		blob.AppModuleBasic{},
+		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 	)
 
@@ -177,20 +142,6 @@ var (
 )
 
 var _ servertypes.Application = (*App)(nil)
-
-func init() {
-	userHomeDir := os.Getenv("CELESTIA_HOME")
-
-	if userHomeDir == "" {
-		var err error
-		userHomeDir, err = os.UserHomeDir()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)
-}
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
@@ -232,8 +183,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper       blobmodulekeeper.Keeper
-	BlobstreamKeeper bsmodulekeeper.Keeper
+	BlobKeeper       blobkeeper.Keeper
+	BlobstreamKeeper blobstreamkeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -272,7 +223,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		bsmoduletypes.StoreKey,
+		blobstreamtypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
 	)
@@ -299,8 +250,8 @@ func New(
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
 
 	// grant capabilities for the ibc and ibc-transfer modules
-	scopedIBCKeeper := app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
-	scopedTransferKeeper := app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
+	app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
+	app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
 
 	// add keepers
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
@@ -337,13 +288,12 @@ func New(
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
 	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, stakingKeeper)
 
-	app.BlobstreamKeeper = *bsmodulekeeper.NewKeeper(
+	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
-		keys[bsmoduletypes.StoreKey],
-		app.GetSubspace(bsmoduletypes.ModuleName),
+		keys[blobstreamtypes.StoreKey],
+		app.GetSubspace(blobstreamtypes.ModuleName),
 		&stakingKeeper,
 	)
-	bsmod := bsmodule.NewAppModule(appCodec, app.BlobstreamKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
@@ -358,7 +308,7 @@ func New(
 
 	// Create IBC Keeper
 	app.IBCKeeper = ibckeeper.NewKeeper(
-		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
+		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, app.ScopedIBCKeeper,
 	)
 
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
@@ -374,10 +324,8 @@ func New(
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
 		tokenFilterKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
-		app.AccountKeeper, app.BankKeeper, scopedTransferKeeper,
+		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
 	)
-	transferModule := transfer.NewAppModule(app.TransferKeeper)
-
 	// transfer stack contains (from top to bottom):
 	// - Token Filter
 	// - Transfer
@@ -399,11 +347,10 @@ func New(
 		&stakingKeeper, govRouter, bApp.MsgServiceRouter(), govConfig,
 	)
 
-	app.BlobKeeper = *blobmodulekeeper.NewKeeper(
+	app.BlobKeeper = *blobkeeper.NewKeeper(
 		appCodec,
-		app.GetSubspace(blobmoduletypes.ModuleName),
+		app.GetSubspace(blobtypes.ModuleName),
 	)
-	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -439,9 +386,9 @@ func New(
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
-		transferModule,
-		blobmod,
-		bsmod,
+		transfer.NewAppModule(app.TransferKeeper),
+		blob.NewAppModule(appCodec, app.BlobKeeper),
+		blobstream.NewAppModule(appCodec, app.BlobstreamKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper),
 	)
 
@@ -464,8 +411,8 @@ func New(
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
-		blobmoduletypes.ModuleName,
-		bsmoduletypes.ModuleName,
+		blobtypes.ModuleName,
+		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -487,8 +434,8 @@ func New(
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
-		blobmoduletypes.ModuleName,
-		bsmoduletypes.ModuleName,
+		blobtypes.ModuleName,
+		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -514,8 +461,8 @@ func New(
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
-		blobmoduletypes.ModuleName,
-		bsmoduletypes.ModuleName,
+		blobtypes.ModuleName,
+		blobstreamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
@@ -549,16 +496,13 @@ func New(
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 	))
-	app.setPostHanders()
+	app.SetPostHandler(posthandler.New())
 
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
 		}
 	}
-
-	app.ScopedIBCKeeper = scopedIBCKeeper
-	app.ScopedTransferKeeper = scopedTransferKeeper
 
 	return app
 }
@@ -719,17 +663,6 @@ func (app *App) RegisterNodeService(clientCtx client.Context) {
 	nodeservice.RegisterNodeService(clientCtx, app.GRPCQueryRouter())
 }
 
-func (app *App) setPostHanders() {
-	postHandler, err := posthandler.NewPostHandler(
-		posthandler.HandlerOptions{},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	app.SetPostHandler(postHandler)
-}
-
 // BlockedParams are params that require a hardfork to change, and cannot be changed via
 // governance.
 func (*App) BlockedParams() [][2]string {
@@ -759,8 +692,8 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(crisistypes.ModuleName)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
-	paramsKeeper.Subspace(blobmoduletypes.ModuleName)
-	paramsKeeper.Subspace(bsmoduletypes.ModuleName)
+	paramsKeeper.Subspace(blobtypes.ModuleName)
+	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 
 	return paramsKeeper
 }

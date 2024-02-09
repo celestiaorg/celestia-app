@@ -7,8 +7,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -144,7 +144,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 func calculateSubTreeRoots(t *testing.T, row [][]byte, depth int) [][]byte {
 	subLeafRange := len(row)
 	for i := 0; i < depth; i++ {
-		subLeafRange = subLeafRange / 2
+		subLeafRange /= 2
 	}
 
 	if subLeafRange == 0 || subLeafRange%2 != 0 {

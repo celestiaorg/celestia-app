@@ -89,11 +89,16 @@ Applications MUST refrain from using the [reserved namespaces](#reserved-namespa
 
 ## Implementation
 
-See [pkg/namespace](../../../pkg/namespace).
+See [go-square/namespace](https://github.com/celestiaorg/go-square/tree/main/namespace).
 
-## Protobuf Definition
+## Go Definition
 
-<!-- TODO: Add protobuf definition for namespace -->
+```go
+type Namespace struct {
+	Version uint8
+	ID      []byte
+}
+```
 
 ## References
 

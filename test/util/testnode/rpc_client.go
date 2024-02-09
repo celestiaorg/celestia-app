@@ -39,10 +39,7 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 		if err = removeDir(path.Join([]string{cctx.HomeDir, "config"}...)); err != nil {
 			return err
 		}
-		if err = removeDir(path.Join([]string{cctx.HomeDir, tmNode.Config().DBPath}...)); err != nil {
-			return err
-		}
-		return nil
+		return removeDir(path.Join([]string{cctx.HomeDir, tmNode.Config().DBPath}...))
 	}
 
 	return cctx, cleanup, nil

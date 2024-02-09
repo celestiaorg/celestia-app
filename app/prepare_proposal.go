@@ -4,9 +4,10 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -62,7 +63,10 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(sdkCtx), app.GovSquareSizeUpperBound(sdkCtx))
+	dataSquare, txs, err := square.Build(txs,
+		app.GovSquareSizeUpperBound(sdkCtx),
+		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx)),
+	)
 	if err != nil {
 		panic(err)
 	}

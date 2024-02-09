@@ -19,10 +19,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
+	appns "github.com/celestiaorg/go-square/namespace"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -174,8 +174,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 
 			events := txResp.Logs[0].GetEvents()
 			for _, e := range events {
-				switch e.Type {
-				case types.EventTypePayForBlob:
+				if e.Type == types.EventTypePayForBlob {
 					signer := e.GetAttributes()[0].GetValue()
 					_, err = sdk.AccAddressFromBech32(signer)
 					require.NoError(err)
