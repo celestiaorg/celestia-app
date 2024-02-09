@@ -24,7 +24,7 @@ require (
 )
 
 require (
-	cosmossdk.io/errors v1.0.0-beta.7
+	cosmossdk.io/errors v1.0.0
 	cosmossdk.io/math v1.1.2
 	github.com/BurntSushi/toml v1.2.1
 	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2
@@ -35,19 +35,9 @@ require (
 	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/pflag v1.0.5
-<<<<<<< HEAD
-	github.com/tendermint/tendermint v0.34.28
+	github.com/tendermint/tendermint v0.34.29
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	google.golang.org/genproto/googleapis/api v0.0.0-20230920204549-e6e6cdab5c13
-=======
-	github.com/stretchr/testify v1.8.4
-	github.com/tendermint/tendermint v0.34.29
-	github.com/tendermint/tm-db v0.6.7
-	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb
-	google.golang.org/genproto/googleapis/api v0.0.0-20231120223509-83a465c0220f
-	google.golang.org/grpc v1.61.0
-	google.golang.org/protobuf v1.32.0
->>>>>>> 738bb9f (chore: update sdk and tm (#3093))
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -230,14 +220,10 @@ require (
 )
 
 replace (
-<<<<<<< HEAD
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14
-=======
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
->>>>>>> 738bb9f (chore: update sdk and tm (#3093))
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.33.0-tm-v0.34.29
