@@ -88,14 +88,14 @@ build-docker:
 build-ghcr-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT) -f Dockerfile .
-.PHONY: build-docker
+.PHONY: build-ghcr-docker
 
 ## publish-docker: Publish the celestia-appd docker image. Requires docker. 
 ## Make sure you are logged in and authenticated to the ghcr.io registry.
 publish-ghcr-docker:
 	@echo "--> Publishing Docker image"
 	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT)
-.PHONY: publish-docker
+.PHONY: publish-ghcr-docker
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
