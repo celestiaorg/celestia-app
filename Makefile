@@ -1,5 +1,6 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
+GH_COMMIT := $(shell echo $(COMMIT) | rev | cut -c 2- | rev)
 DOCKER := $(shell which docker)
 ALL_VERSIONS := $(shell git tag -l)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
@@ -77,11 +78,24 @@ proto-format:
 	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
 .PHONY: proto-format
 
-## build-docker: Build the celestia-appd docker image. Requires docker.
+## build-docker: Build the celestia-appd docker image from the current branch. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
+
+## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
+build-ghcr-docker:
+	@echo "--> Building Docker image"
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT) -f Dockerfile .
+.PHONY: build-docker
+
+## publish-docker: Publish the celestia-appd docker image. Requires docker. 
+## Make sure you are logged in and authenticated to the ghcr.io registry.
+publish-ghcr-docker:
+	@echo "--> Publishing Docker image"
+	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT)
+.PHONY: publish-docker
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
