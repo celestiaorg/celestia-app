@@ -537,9 +537,17 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 
 func (app *App) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
 	fmt.Println("InitChain")
-	fmt.Println("before", req.ConsensusParams.Version)
+	if req.ConsensusParams != nil {
+		fmt.Println("before", req.ConsensusParams.Version)
+	} else {
+		fmt.Println("before nil consensus params")
+	}
 	res := app.BaseApp.InitChain(req)
-	fmt.Println("after", res.ConsensusParams.Version)
+	if res.ConsensusParams != nil {
+		fmt.Println("after", res.ConsensusParams.Version)
+	} else {
+		fmt.Println("after nil consensus params")
+	}
 	return res
 }
 
