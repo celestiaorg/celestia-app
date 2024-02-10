@@ -48,7 +48,7 @@ COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
-# p2p, rpc and prometheus port
-EXPOSE 26656 26657 1317 9090
+# p2p, rpc,  prometheus, api and grpc ports
+EXPOSE 26656 26657 26660 1317 9090
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
