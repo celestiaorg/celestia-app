@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/celestiaorg/go-square/merkle"
 )
 
 // GetCommitment gets the share commitment for a blob in the original data

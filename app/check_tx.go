@@ -3,8 +3,9 @@ package app
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -37,7 +38,9 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		err := blobtypes.ValidateBlobTx(app.txConfig, btx)
+		// FIXME: we have a hardcoded subtree root threshold here. This is because we can't access
+		// the app version because the context is not initialized
+		err := blobtypes.ValidateBlobTx(app.txConfig, btx, appconsts.DefaultSubtreeRootThreshold)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}

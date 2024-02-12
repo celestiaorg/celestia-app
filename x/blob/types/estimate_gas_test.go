@@ -7,11 +7,12 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/stretchr/testify/require"
 
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -40,7 +41,7 @@ func TestPFBGasEstimation(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
 			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 			addr := testfactory.GetAddress(kr, accnts[0])
-			signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0)
+			signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0, appconsts.LatestVersion)
 			require.NoError(t, err)
 			blobs := blobfactory.ManyRandBlobs(rand, tc.blobSizes...)
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
@@ -85,7 +86,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 		addr := testfactory.GetAddress(kr, accnts[0])
-		signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0)
+		signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0, appconsts.LatestVersion)
 		require.NoError(t, err)
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
