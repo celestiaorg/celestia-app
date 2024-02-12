@@ -9,7 +9,7 @@ import (
 
 var _ paramtypes.ParamSet = (*Params)(nil)
 
-var KeyMinGasPrice = []byte("GlobalMinGasPrice")
+var KeyGlobalMinGasPrice = []byte("GlobalMinGasPrice")
 
 func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	if !ps.HasKeyTable() {
@@ -23,12 +23,12 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 type Params struct {
-	MinGasPrice sdk.Dec
+	GlobalMinGasPrice sdk.Dec
 }
 
 func (p Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(KeyMinGasPrice, &p.MinGasPrice, validateMinGasPrice),
+		paramtypes.NewParamSetPair(KeyGlobalMinGasPrice, &p.GlobalMinGasPrice, validateMinGasPrice),
 	}
 }
 

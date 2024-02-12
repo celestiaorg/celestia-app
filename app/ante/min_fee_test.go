@@ -9,11 +9,21 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cosmos/cosmos-sdk/store"
+	// tmdb "github.com/tendermint/tm-db"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
+	tmdb "github.com/tendermint/tm-db"
+	"fmt"
 )
 
 func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
@@ -29,10 +39,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	feeAmount := int64(1000)
 
-	ctx := sdk.Context{}
-
-	globalMinGasPrice := appconsts.DefaultGlobalMinGasPrice
-	require.NoError(t, err)
+	globalMinGasPrice := 0.002
 
 	testCases := []struct {
 		name       string
@@ -98,12 +105,40 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			builder.SetFeeAmount(tc.fee)
 			tx := builder.GetTx()
 
-			ctx = ctx.WithBlockHeader(tmproto.Header{
+			storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
+			tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
+		
+			db := tmdb.NewMemDB()
+			stateStore := store.NewCommitMultiStore(db)
+			stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+			stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
+			require.NoError(t, stateStore.LoadLatestVersion())
+		
+			registry := codectypes.NewInterfaceRegistry()
+			cdc := codec.NewProtoCodec(registry)
+
+			ctx := sdk.NewContext(stateStore, tmproto.Header{
 				Version: version.Consensus{
 					App: tc.appVersion,
 				},
-			})
-			_, _, err := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx)
+			}, false, nil)
+		
+			paramsSubspace := paramtypes.NewSubspace(cdc,
+				testutil.MakeTestCodec(),
+				storeKey,
+				tStoreKey,
+				"GlobalMinGasPrice",
+			)
+
+		    // Register the parameter in the subspace
+			minfeetypes.RegisterMinFeeParamTable(paramsSubspace)
+
+			// Set a mock value for the MinGasPrice
+			globalminGasPriceDec, _ := sdk.NewDecFromStr("0.002")
+			params := minfeetypes.Params{GlobalMinGasPrice: globalminGasPriceDec}
+			paramsSubspace.Set(ctx, minfeetypes.KeyGlobalMinGasPrice, &params.GlobalMinGasPrice)
+
+			_, _, err := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramsSubspace)
 			if tc.expErr {
 				require.Error(t, err)
 			} else {

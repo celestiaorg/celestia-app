@@ -30,8 +30,12 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 	gas := feeTx.GetGas()
 
 	if ctx.IsCheckTx() {
-		defaultMinGasPrice := appconsts.DefaultMinGasPrice
-		err := CheckTxFeeWithMinGasPrices(fee, gas, defaultMinGasPrice, "insufficient validator minimum fee")
+		defaultMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+		if err != nil {
+			return nil, 0, errors.Wrapf(err, "invalid defaultMinGasPrice: %f", defaultMinGasPriceDec) 
+		}
+
+		err = CheckTxFeeWithMinGasPrices(fee, gas, defaultMinGasPriceDec, "insufficient validator minimum fee")
 		if err != nil {
 			return nil, 0, err
 		}
@@ -39,10 +43,10 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
-		var globalMinFee sdk.Dec
-		minFeeParams.Get(ctx, minfee.KeyMinGasPrice, &globalMinFee)
+		var globalMinGasPrice sdk.Dec
+		minFeeParams.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
 
-		globalMinGasPrice := appconsts.GlobalMinGasPrice(ctx.BlockHeader().Version.App)
+		// globalMinGasPrice := appconsts.GlobalMinGasPrice(ctx.BlockHeader().Version.App)
 		err := CheckTxFeeWithMinGasPrices(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
 		if err != nil {
 			return nil, 0, err
@@ -54,13 +58,8 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 }
 
 // CheckTxFeeWithMinGasPrices validates that the provided transaction fee is sufficient given the provided minimum gas price.
-func CheckTxFeeWithMinGasPrices(fee math.Int, gas uint64, minGasPrice float64, errMsg string) error {
-	minGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", minGasPrice))
-	if err != nil {
-		return errors.Wrapf(err, "invalid minGasPrice: %f", minGasPriceDec)
-	}
-
-	minFee := minGasPriceDec.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
+func CheckTxFeeWithMinGasPrices(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
+	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
 	if fee.LT(minFee) {
 		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
 	}

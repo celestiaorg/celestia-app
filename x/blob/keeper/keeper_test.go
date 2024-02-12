@@ -90,7 +90,7 @@ func CreateKeeper(t *testing.T) (*keeper.Keeper, store.CommitMultiStore, sdk.Con
 			App:   1,
 		},
 	}, false, nil)
-
+ 
 	paramsSubspace := paramtypes.NewSubspace(cdc,
 		testutil.MakeTestCodec(),
 		storeKey,
