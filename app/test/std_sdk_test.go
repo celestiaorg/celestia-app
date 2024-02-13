@@ -22,12 +22,14 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	// params "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	// "fmt"
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
@@ -83,6 +85,24 @@ func (s *StandardSDKIntegrationTestSuite) getValidatorAccount() sdk.ValAddress {
 	s.Require().NoError(err)
 	return sdk.ValAddress(address)
 }
+
+// func (s *StandardSDKIntegrationTestSuite) TestDefaultGlobalMinFee() {
+// 	fmt.Println("HELLOOOOOO")
+// 	// setup grpc query client and retrieve parameter and assert that it matches the default
+// 	client := params.NewQueryClient(s.cctx.GRPCClient)
+// 	fmt.Println(client, "client")
+// 	res, err := client.Params(s.cctx.GoContext(), &params.QueryParamsRequest{
+// 		Subspace: "minfee",
+// 	})
+// 	if err != nil {
+// 		s.T().Fatal(err)
+// 	}
+
+// 	fmt.Println(res.Param, "res.Param")
+
+// 	assert.Equal(s.T(), "0.002000000000000000", res.Param)
+
+// }
 
 func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	t := s.T()

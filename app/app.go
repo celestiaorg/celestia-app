@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/module"
 	"github.com/celestiaorg/celestia-app/app/posthandler"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
@@ -479,6 +480,13 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	minfee.RegisterMinFeeParamTable(app.GetSubspace(minfee.ModuleName))
+	app.configurator.RegisterMigration("minfee", v2.Version, func(ctx sdk.Context) error {
+		subspace :=  app.GetSubspace(minfee.ModuleName)
+		subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, minfee.DefaultGlobalMinGasPrice)
+		return nil
+	})
+
 	app.mm.RegisterServices(app.configurator)
 
 	// initialize stores
@@ -498,7 +506,7 @@ func New(
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
-		app.GetSubspace("GlobalMinGasPrice"),
+		app.GetSubspace(minfee.ModuleName),
 	))
 	app.SetPostHandler(posthandler.New())
 
@@ -715,7 +723,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
-	paramsKeeper.Subspace("GlobalMinGasPrice")
+	paramsKeeper.Subspace(minfee.ModuleName)
 
 	return paramsKeeper
 }

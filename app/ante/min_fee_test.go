@@ -23,7 +23,7 @@ import (
 	// tmdb "github.com/tendermint/tm-db"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	tmdb "github.com/tendermint/tm-db"
-	"fmt"
+	// "fmt"
 )
 
 func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {

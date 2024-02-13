@@ -20,7 +20,7 @@ func NewAnteHandler(
 	signModeHandler signing.SignModeHandler,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
-	minFeeParmams params.Subspace,
+	minFeeParams params.Subspace,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -41,7 +41,7 @@ func NewAnteHandler(
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		NewMinGasDecorator(accountKeeper, bankKeeper, feegrantKeeper, minFeeParmams),
+		NewMinGasDecorator(accountKeeper, bankKeeper, feegrantKeeper, minFeeParams),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),

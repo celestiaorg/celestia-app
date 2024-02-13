@@ -3,13 +3,31 @@ package minfee
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
+const ModuleName = "MinFee"
+
 var _ paramtypes.ParamSet = (*Params)(nil)
 
-var KeyGlobalMinGasPrice = []byte("GlobalMinGasPrice")
+
+var (
+	KeyGlobalMinGasPrice = []byte("GlobalMinGasPrice")
+	DefaultGlobalMinGasPrice sdk.Dec 
+)
+
+
+func  init() {
+	var err error
+	DefaultGlobalMinGasPrice, err = sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+	fmt.Println(DefaultGlobalMinGasPrice, "DefaultGlobalMinGasPrice")
+	if err != nil {
+		panic(err)
+	}
+}
+
 
 func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	if !ps.HasKeyTable() {
