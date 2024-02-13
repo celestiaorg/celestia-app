@@ -584,6 +584,9 @@ For additional information on the significance and application of the reserved n
 </div>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <p>Applications MUST refrain from using the <a href="specs/namespace.html#reserved-namespaces">reserved namespaces</a> for their blob data.</p>
+<p>Celestia does not ensure the prevention of non-reserved namespace collisions. 
+Consequently, two distinct applications might use the same namespace.
+It is the responsibility of these applications to be cautious and manage the implications and consequences arising from such namespace collisions.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="https://github.com/celestiaorg/go-square/tree/main/namespace">go-square/namespace</a>.</p>
 <h2 id="go-definition"><a class="header" href="#go-definition">Go Definition</a></h2>
