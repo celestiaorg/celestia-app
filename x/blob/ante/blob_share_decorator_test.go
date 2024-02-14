@@ -141,7 +141,7 @@ func TestBlobShareDecorator(t *testing.T) {
 
 			if tc.wantErr {
 				assert.Error(t, err)
-				assert.ErrorIs(t, err, blob.ErrBlobTooLarge)
+				assert.ErrorIs(t, err, blob.ErrBlobsTooLarge)
 			} else {
 				assert.NoError(t, err)
 			}

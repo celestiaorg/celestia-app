@@ -54,8 +54,8 @@ func (s *BigBlobSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 }
 
-// TestErrBlobTooLarge verifies that submitting a 2 MiB blob hits ErrBlobTooLarge.
-func (s *BigBlobSuite) TestErrTotalBlobSizeTooLarge() {
+// TestErrBlobsTooLarge verifies that submitting a 2 MiB blob hits ErrBlobsTooLarge.
+func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 	t := s.T()
 
 	type testCase struct {
@@ -68,7 +68,7 @@ func (s *BigBlobSuite) TestErrTotalBlobSizeTooLarge() {
 		{
 			name: "2 mebibyte blob",
 			blob: newBlobWithSize(2 * mebibyte),
-			want: blobtypes.ErrBlobTooLarge.ABCICode(),
+			want: blobtypes.ErrBlobsTooLarge.ABCICode(),
 		},
 	}
 

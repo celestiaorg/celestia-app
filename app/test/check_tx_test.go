@@ -177,7 +177,7 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return tx
 			},
-			expectedABCICode: blobtypes.ErrBlobTooLarge.ABCICode(),
+			expectedABCICode: blobtypes.ErrBlobsTooLarge.ABCICode(),
 		},
 	}
 
