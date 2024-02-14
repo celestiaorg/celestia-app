@@ -45,7 +45,7 @@ func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 	squareSize := d.getMaxSquareSize(ctx)
 	totalShares := squareSize * squareSize
 	// The PFB tx share must occupy at least one share so the number of blob shares
-	// is at least one less than totalShares.
+	// is at most one less than totalShares.
 	blobShares := totalShares - 1
 	return blobShares
 }
