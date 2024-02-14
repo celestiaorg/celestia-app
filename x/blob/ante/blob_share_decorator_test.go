@@ -22,7 +22,7 @@ func TestBlobShareDecorator(t *testing.T) {
 	type testCase struct {
 		name    string
 		pfb     *blob.MsgPayForBlobs
-		wantErr bool
+		wantErr error
 	}
 
 	testCases := []testCase{
@@ -31,14 +31,12 @@ func TestBlobShareDecorator(t *testing.T) {
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that is 1 MiB",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{mebibyte},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that is 2 MiB",
@@ -48,14 +46,13 @@ func TestBlobShareDecorator(t *testing.T) {
 			// This test case should return an error because a square size of 64
 			// has exactly 2 MiB of total capacity so the total blob capacity
 			// will be slightly smaller than 2 MiB.
-			wantErr: true,
+			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 byte each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1, 1},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 MiB each",
@@ -64,7 +61,7 @@ func TestBlobShareDecorator(t *testing.T) {
 			},
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
-			wantErr: true,
+			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
 			name: "PFB with many single byte blobs should fit",
@@ -74,7 +71,6 @@ func TestBlobShareDecorator(t *testing.T) {
 				// blob shares so we don't expect an error for this test case.
 				BlobSizes: repeat(4095, 1),
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with too many single byte blobs should not fit",
@@ -84,21 +80,19 @@ func TestBlobShareDecorator(t *testing.T) {
 				// blob shares so we expect an error for this test case.
 				BlobSizes: repeat(4096, 1),
 			},
-			wantErr: true,
+			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
 			name: "PFB with 1 blob that is 1 share",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square - 1",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square",
@@ -108,7 +102,7 @@ func TestBlobShareDecorator(t *testing.T) {
 			// This test case should return an error because if the blob
 			// occupies the total square, there is no space for the PFB tx
 			// share.
-			wantErr: true,
+			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 share each",
@@ -118,7 +112,6 @@ func TestBlobShareDecorator(t *testing.T) {
 					uint32(shares.AvailableBytesFromSparseShares(1)),
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 2 blobs that occupy half the square each",
@@ -128,7 +121,7 @@ func TestBlobShareDecorator(t *testing.T) {
 					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
 				},
 			},
-			wantErr: true,
+			wantErr: blob.ErrBlobsTooLarge,
 		},
 	}
 
@@ -144,13 +137,7 @@ func TestBlobShareDecorator(t *testing.T) {
 
 			mbsd := ante.NewBlobShareDecorator(mockBlobKeeper{})
 			_, err := mbsd.AnteHandle(ctx, tx, false, mockNext)
-
-			if tc.wantErr {
-				assert.Error(t, err)
-				assert.ErrorIs(t, err, blob.ErrBlobsTooLarge)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.ErrorIs(t, tc.wantErr, err)
 		})
 	}
 }
