@@ -9,20 +9,21 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// MaxTotalBlobSizeDecorator helps to prevent a PFB from being included in a block
-// but not fitting in a data square.
-type MaxTotalBlobSizeDecorator struct {
+// BlobShareDecorator helps to prevent a PFB from being included in a block but
+// not fitting in a data square because the number of shares occupied by the PFB
+// exceeds the max number of shares available to blob data in a data square.
+type BlobShareDecorator struct {
 	k BlobKeeper
 }
 
-func NewMaxBlobSizeDecorator(k BlobKeeper) MaxTotalBlobSizeDecorator {
-	return MaxTotalBlobSizeDecorator{k}
+func NewBlobShareDecorator(k BlobKeeper) BlobShareDecorator {
+	return BlobShareDecorator{k}
 }
 
 // AnteHandle implements the Cosmos SDK AnteHandler function signature. It
-// returns an error if tx contains a MsgPayForBlobs where the blob sizes would
-// occupy more shares than the largest possible data square.
-func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+// returns an error if tx contains a MsgPayForBlobs where the shares occupied by
+// the PFB exceeds the max number of shares in a data square.
+func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
@@ -31,7 +32,7 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
 			if sharesNeeded := getSharesNeeded(pfb.BlobSizes); sharesNeeded > maxBlobShares {
-				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "shares needed %d exceeds max blob shares %d", sharesNeeded, maxBlobShares)
+				return ctx, errors.Wrapf(blobtypes.ErrBlobTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
 			}
 		}
 	}
@@ -40,18 +41,18 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 }
 
 // getMaxBlobShares returns the max the number of shares available for blob data.
-func (d MaxTotalBlobSizeDecorator) getMaxBlobShares(ctx sdk.Context) int {
+func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 	squareSize := d.getMaxSquareSize(ctx)
 	totalShares := squareSize * squareSize
-	// The PFB tx share must occupy at least one share so the # of blob shares
+	// The PFB tx share must occupy at least one share so the number of blob shares
 	// is at least one less than totalShares.
 	blobShares := totalShares - 1
 	return blobShares
 }
 
 // getMaxSquareSize returns the maximum square size based on the current values
-// for the relevant governance parameter and the versioned constant.
-func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
+// for the governance parameter and the versioned constant.
+func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to our fork of the sdk not initializing state before
 	// BeginBlock of the first block. This is remedied in versions of the sdk

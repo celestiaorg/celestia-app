@@ -18,18 +18,14 @@ const (
 	squareSize = 64
 )
 
-func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
+func TestBlobShareDecorator(t *testing.T) {
 	type testCase struct {
 		name    string
 		pfb     *blob.MsgPayForBlobs
 		wantErr bool
 	}
 
-	singleByteBlobs := repeat(4095, 1)        // (64 * 64) - 1 = 4095 so this should fit
-	tooManySingleByteBlobs := repeat(4096, 1) // (64 * 64) = 4096 so this should not fit
-
 	testCases := []testCase{
-		// tests based on bytes
 		{
 			name: "PFB with 1 blob that is 1 byte",
 			pfb: &blob.MsgPayForBlobs{
@@ -73,18 +69,17 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 		{
 			name: "PFB with many single byte blobs should fit",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: singleByteBlobs,
+				BlobSizes: repeat(4095, 1), // (64 * 64) - 1 = 4095 so this should fit
 			},
 			wantErr: false,
 		},
 		{
 			name: "PFB with too many single byte blobs should not fit",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: tooManySingleByteBlobs,
+				BlobSizes: repeat(4096, 1), // (64 * 64) = 4096 so this should not fit
 			},
 			wantErr: true,
 		},
-		// tests based on shares
 		{
 			name: "PFB with 1 blob that is 1 share",
 			pfb: &blob.MsgPayForBlobs{
@@ -141,11 +136,12 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
 			tx := txBuilder.GetTx()
 
-			mbsd := ante.NewMaxBlobSizeDecorator(mockBlobKeeper{})
+			mbsd := ante.NewBlobShareDecorator(mockBlobKeeper{})
 			_, err := mbsd.AnteHandle(ctx, tx, false, mockNext)
 
 			if tc.wantErr {
 				assert.Error(t, err)
+				assert.ErrorIs(t, err, blob.ErrBlobTooLarge)
 			} else {
 				assert.NoError(t, err)
 			}
