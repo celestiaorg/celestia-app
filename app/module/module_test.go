@@ -9,6 +9,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 
 	"github.com/celestiaorg/celestia-app/app/module"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -23,8 +24,8 @@ func TestManagerOrderSetters(t *testing.T) {
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 
-	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
-	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
+	mockAppModule1.EXPECT().Name().Times(6).Return("module1")
+	mockAppModule2.EXPECT().Name().Times(6).Return("module2")
 	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
 	require.NoError(t, err)
 	require.NotNil(t, mm)
@@ -143,7 +144,7 @@ func TestManager_InitGenesis(t *testing.T) {
 
 	// this should panic since the validator set is empty even after init genesis
 	mockAppModule1.EXPECT().InitGenesis(gomock.Eq(ctx), gomock.Eq(cdc), gomock.Eq(genesisData["module1"])).Times(1).Return(nil)
-	require.Panics(t, func() { mm.InitGenesis(ctx, cdc, genesisData) })
+	require.Panics(t, func() { mm.InitGenesis(ctx, cdc, genesisData, 1) })
 
 	// test panic
 	genesisData = map[string]json.RawMessage{
@@ -152,7 +153,7 @@ func TestManager_InitGenesis(t *testing.T) {
 	}
 	mockAppModule1.EXPECT().InitGenesis(gomock.Eq(ctx), gomock.Eq(cdc), gomock.Eq(genesisData["module1"])).Times(1).Return([]abci.ValidatorUpdate{{}})
 	mockAppModule2.EXPECT().InitGenesis(gomock.Eq(ctx), gomock.Eq(cdc), gomock.Eq(genesisData["module2"])).Times(1).Return([]abci.ValidatorUpdate{{}})
-	require.Panics(t, func() { mm.InitGenesis(ctx, cdc, genesisData) })
+	require.Panics(t, func() { mm.InitGenesis(ctx, cdc, genesisData, 1) })
 }
 
 func TestManager_ExportGenesis(t *testing.T) {
@@ -198,7 +199,10 @@ func TestManager_BeginBlock(t *testing.T) {
 
 	mockAppModule1.EXPECT().BeginBlock(gomock.Any(), gomock.Eq(req)).Times(1)
 	mockAppModule2.EXPECT().BeginBlock(gomock.Any(), gomock.Eq(req)).Times(1)
-	mm.BeginBlock(sdk.Context{}, req)
+	ctx := sdk.NewContext(nil, tmproto.Header{
+		Version: tmversion.Consensus{App: 1},
+	}, false, log.NewNopLogger())
+	mm.BeginBlock(ctx, req)
 }
 
 func TestManager_EndBlock(t *testing.T) {
@@ -218,11 +222,14 @@ func TestManager_EndBlock(t *testing.T) {
 
 	mockAppModule1.EXPECT().EndBlock(gomock.Any(), gomock.Eq(req)).Times(1).Return([]abci.ValidatorUpdate{{}})
 	mockAppModule2.EXPECT().EndBlock(gomock.Any(), gomock.Eq(req)).Times(1)
-	ret := mm.EndBlock(sdk.Context{}, req)
+	ctx := sdk.NewContext(nil, tmproto.Header{
+		Version: tmversion.Consensus{App: 1},
+	}, false, log.NewNopLogger())
+	ret := mm.EndBlock(ctx, req)
 	require.Equal(t, []abci.ValidatorUpdate{{}}, ret.ValidatorUpdates)
 
 	// test panic
 	mockAppModule1.EXPECT().EndBlock(gomock.Any(), gomock.Eq(req)).Times(1).Return([]abci.ValidatorUpdate{{}})
 	mockAppModule2.EXPECT().EndBlock(gomock.Any(), gomock.Eq(req)).Times(1).Return([]abci.ValidatorUpdate{{}})
-	require.Panics(t, func() { mm.EndBlock(sdk.Context{}, req) })
+	require.Panics(t, func() { mm.EndBlock(ctx, req) })
 }

@@ -3,6 +3,7 @@ package app
 import (
 	"io"
 
+	"github.com/celestiaorg/celestia-app/app/module"
 	"github.com/celestiaorg/celestia-app/app/posthandler"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
@@ -20,7 +21,6 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/celestiaorg/celestia-app/app/module"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -390,7 +390,7 @@ func New(
 		module.NewVersionedModule(transfer.NewAppModule(app.TransferKeeper), v1.Version, v2.Version),
 		module.NewVersionedModule(blob.NewAppModule(appCodec, app.BlobKeeper), v1.Version, v2.Version),
 		module.NewVersionedModule(blobstream.NewAppModule(appCodec, app.BlobstreamKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(upgrade.NewAppModule(app.UpgradeKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(upgrade.NewAppModule(app.UpgradeKeeper), v2.Version, v2.Version),
 	)
 	if err != nil {
 		panic(err)
@@ -550,7 +550,10 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
+		panic("no consensus params set")
+	}
+	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
 // LoadHeight loads a particular height

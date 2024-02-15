@@ -45,7 +45,7 @@ func (c configurator) QueryServer() grpc.Server {
 // RegisterMigration implements the Configurator.RegisterMigration method
 func (c configurator) RegisterMigration(moduleName string, fromVersion uint64, handler module.MigrationHandler) error {
 	if fromVersion == 0 {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidVersion, "module migration versions should start at 1")
+		return sdkerrors.ErrInvalidVersion.Wrap("module migration versions should start at 1")
 	}
 
 	if c.migrations[moduleName] == nil {
@@ -53,7 +53,7 @@ func (c configurator) RegisterMigration(moduleName string, fromVersion uint64, h
 	}
 
 	if c.migrations[moduleName][fromVersion] != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrLogic, "another migration for module %s and version %d already exists", moduleName, fromVersion)
+		return sdkerrors.ErrLogic.Wrapf("another migration for module %s and version %d already exists", moduleName, fromVersion)
 	}
 
 	c.migrations[moduleName][fromVersion] = handler

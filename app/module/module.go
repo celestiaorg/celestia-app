@@ -1,31 +1,3 @@
-/*
-Package module contains application module patterns and associated "manager" functionality.
-The module pattern has been broken down by:
-  - independent module functionality (AppModuleBasic)
-  - inter-dependent module genesis functionality (AppModuleGenesis)
-  - inter-dependent module simulation functionality (AppModuleSimulation)
-  - inter-dependent module full functionality (AppModule)
-
-inter-dependent module functionality is module functionality which somehow
-depends on other modules, typically through the module keeper.  Many of the
-module keepers are dependent on each other, thus in order to access the full
-set of module functionality we need to define all the keepers/params-store/keys
-etc. This full set of advanced functionality is defined by the AppModule interface.
-
-Independent module functions are separated to allow for the construction of the
-basic application structures required early on in the application definition
-and used to enable the definition of full module functionality later in the
-process. This separation is necessary, however we still want to allow for a
-high level pattern for modules to follow - for instance, such that we don't
-have to manually register all of the codecs for all the modules. This basic
-procedure as well as other basic patterns are handled through the use of
-BasicManager.
-
-Lastly the interface for genesis functionality (AppModuleGenesis) has been
-separated out from full module functionality (AppModule) so that modules which
-are only used for genesis can take advantage of the Module patterns without
-needlessly defining many placeholder functions
-*/
 package module
 
 import (
@@ -33,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/cosmos/cosmos-sdk/types/module"
+	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -44,8 +16,8 @@ import (
 // Manager defines a module manager that provides the high level utility for managing and executing
 // operations for a group of modules
 type Manager struct {
-	versionedModules   map[uint64]map[string]module.AppModule
-	allModules         []module.AppModule
+	versionedModules   map[uint64]map[string]sdkmodule.AppModule
+	allModules         []sdkmodule.AppModule
 	firstVersion       uint64
 	lastVersion        uint64
 	OrderInitGenesis   []string
@@ -56,11 +28,11 @@ type Manager struct {
 }
 
 type VersionedModule struct {
-	module                 module.AppModule
+	module                 sdkmodule.AppModule
 	fromVersion, toVersion uint64
 }
 
-func NewVersionedModule(module module.AppModule, fromVersion, toVersion uint64) VersionedModule {
+func NewVersionedModule(module sdkmodule.AppModule, fromVersion, toVersion uint64) VersionedModule {
 	return VersionedModule{
 		module:      module,
 		fromVersion: fromVersion,
@@ -70,21 +42,24 @@ func NewVersionedModule(module module.AppModule, fromVersion, toVersion uint64) 
 
 // NewManager creates a new Manager object
 func NewManager(modules ...VersionedModule) (*Manager, error) {
-	moduleMap := make(map[uint64]map[string]module.AppModule)
-	allModules := make([]module.AppModule, len(modules))
+	moduleMap := make(map[uint64]map[string]sdkmodule.AppModule)
+	allModules := make([]sdkmodule.AppModule, len(modules))
 	modulesStr := make([]string, 0, len(modules))
 	firstVersion, lastVersion := uint64(0), uint64(0)
-	for _, module := range modules {
+	for idx, module := range modules {
 		if module.fromVersion == 0 {
-			return nil, fmt.Errorf("v0 is not a valid version for module %s", module.module.Name())
+			return nil, sdkerrors.ErrInvalidVersion.Wrapf("v0 is not a valid version for module %s", module.module.Name())
 		}
 		if module.fromVersion > module.toVersion {
-			return nil, fmt.Errorf("toVersion can not be less than fromVersion for module %s", module.module.Name())
+			return nil, sdkerrors.ErrLogic.Wrapf("toVersion can not be less than fromVersion for module %s", module.module.Name())
 		}
 		for version := module.fromVersion; version <= module.toVersion; version++ {
+			if moduleMap[version] == nil {
+				moduleMap[version] = make(map[string]sdkmodule.AppModule)
+			}
 			moduleMap[version][module.module.Name()] = module.module
 		}
-		allModules = append(allModules, module.module)
+		allModules[idx] = module.module
 		modulesStr = append(modulesStr, module.module.Name())
 		if firstVersion == 0 || module.fromVersion < firstVersion {
 			firstVersion = module.fromVersion
@@ -157,7 +132,7 @@ func (m *Manager) RegisterRoutes(router sdk.Router, queryRouter sdk.QueryRouter,
 }
 
 // RegisterServices registers all module services
-func (m *Manager) RegisterServices(cfg module.Configurator) {
+func (m *Manager) RegisterServices(cfg sdkmodule.Configurator) {
 	for _, module := range m.allModules {
 		module.RegisterServices(cfg)
 	}
@@ -166,12 +141,18 @@ func (m *Manager) RegisterServices(cfg module.Configurator) {
 // InitGenesis performs init genesis functionality for modules. Exactly one
 // module must return a non-empty validator set update to correctly initialize
 // the chain.
-func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage) abci.ResponseInitChain {
+func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage, appVersion uint64) abci.ResponseInitChain {
 	var validatorUpdates []abci.ValidatorUpdate
 	ctx.Logger().Info("initializing blockchain state from genesis.json")
-	modules := m.versionedModules[m.firstVersion]
+	modules, versionSupported := m.versionedModules[appVersion]
+	if !versionSupported {
+		panic(fmt.Sprintf("version %d not supported", appVersion))
+	}
 	for _, moduleName := range m.OrderInitGenesis {
 		if genesisData[moduleName] == nil {
+			continue
+		}
+		if modules[moduleName] == nil {
 			continue
 		}
 		ctx.Logger().Debug("running initialization for module", "module", moduleName)
@@ -218,7 +199,7 @@ func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []
 	}
 	var missing []string
 	for _, m := range m.allModules {
-		if !ms[m.Name()] {
+		if _, ok := ms[m.Name()]; !ok {
 			missing = append(missing, m.Name())
 		}
 	}
@@ -236,10 +217,10 @@ type VersionMap map[string]uint64
 
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
-func (m Manager) RunMigrations(ctx sdk.Context, cfg module.Configurator, fromVersion, toVersion uint64) error {
+func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
 	c, ok := cfg.(configurator)
 	if !ok {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", configurator{}, cfg)
+		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", configurator{}, cfg)
 	}
 	modules := m.OrderMigrations
 	if modules == nil {
@@ -247,11 +228,11 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg module.Configurator, fromVer
 	}
 	currentVersionModules, exists := m.versionedModules[fromVersion]
 	if !exists {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidVersion, "version %d not supported", fromVersion)
+		return sdkerrors.ErrInvalidVersion.Wrapf("version %d not supported", fromVersion)
 	}
 	nextVersionModules, exists := m.versionedModules[toVersion]
 	if !exists {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidVersion, "version %d not supported", toVersion)
+		return sdkerrors.ErrInvalidVersion.Wrapf("version %d not supported", toVersion)
 	}
 
 	for _, moduleName := range modules {
@@ -270,7 +251,7 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg module.Configurator, fromVer
 			// The module manager assumes only one module will update the
 			// validator set, and it can't be a new module.
 			if len(moduleValUpdates) > 0 {
-				return sdkerrors.Wrapf(sdkerrors.ErrLogic, "validator InitGenesis update is already set by another module")
+				return sdkerrors.ErrLogic.Wrap("validator InitGenesis update is already set by another module")
 			}
 		}
 		// TODO: handle the case where a module is no longer supported (i.e. removed from the state machine)
@@ -287,7 +268,7 @@ func (m *Manager) BeginBlock(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 	modules := m.versionedModules[ctx.BlockHeader().Version.App]
 	for _, moduleName := range m.OrderBeginBlockers {
-		module, ok := modules[moduleName].(module.BeginBlockAppModule)
+		module, ok := modules[moduleName].(sdkmodule.BeginBlockAppModule)
 		if ok {
 			module.BeginBlock(ctx, req)
 		}
@@ -307,7 +288,7 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 
 	modules := m.versionedModules[ctx.BlockHeader().Version.App]
 	for _, moduleName := range m.OrderEndBlockers {
-		module, ok := modules[moduleName].(module.EndBlockAppModule)
+		module, ok := modules[moduleName].(sdkmodule.EndBlockAppModule)
 		if !ok {
 			continue
 		}
