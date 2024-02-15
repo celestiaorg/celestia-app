@@ -90,6 +90,7 @@ Applications MUST refrain from using the [reserved namespaces](#reserved-namespa
 Celestia does not ensure the prevention of non-reserved namespace collisions. 
 Consequently, two distinct applications might use the same namespace.
 It is the responsibility of these applications to be cautious and manage the implications and consequences arising from such namespace collisions.
+Among the potential consequences is the _Woods Attack_, as elaborated in this forum post: [Woods Attack on Celestia](https://forum.celestia.org/t/woods-attack-on-celestia/59).
 
 ## Implementation
 
