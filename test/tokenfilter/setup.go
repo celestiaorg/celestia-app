@@ -1,4 +1,4 @@
-package tokenfilter
+package tokenfilter_test
 
 import (
 	"encoding/json"
