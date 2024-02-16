@@ -25,6 +25,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 )
@@ -70,6 +72,7 @@ func init() {
 		v2moduleVersionMap[k] = v
 	}
 	v2moduleVersionMap[upgradetypes.ModuleName] = upgrade.AppModule{}.ConsensusVersion()
+	v2moduleVersionMap[packetforwardtypes.ModuleName] = packetforward.AppModule{}.ConsensusVersion()
 
 	for moduleName := range ModuleBasics {
 		isSupported := false
