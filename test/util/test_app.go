@@ -68,7 +68,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		encCfg,
 		emptyOpts,
 	)
-	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
+	testApp.GetBaseApp().SetAppVersion(sdk.Context{}, appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
