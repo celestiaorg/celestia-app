@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "control-redo-1"
+chain_id = "receive-prio-1"
 timeout = "59m"
 halt_height = "2000"
 latency = "150"
@@ -23,7 +23,7 @@ pex = "true"
 timeout_propose = "120s"
 timeout_commit = "1s"
 per_peer_bandwidth = "5Mib"
-blob_sequences = "8"
+blob_sequences = "5"
 blob_sizes = "99000"
 blobs_per_sequence = "5"
 inbound_peer_count = "40"

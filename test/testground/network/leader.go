@@ -262,6 +262,9 @@ func (l *Leader) changeParams(ctx context.Context, initCtx *run.InitContext, run
 	cmd := NewSubmitTxCommand("increase block size", time.Minute, SubmitTxCommandArgs{Tx: txBytes})
 
 	_, err = initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
+	if err != nil {
+		return err
+	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader: submitted successful proposal %+v", changes))
 
@@ -271,6 +274,7 @@ func (l *Leader) changeParams(ctx context.Context, initCtx *run.InitContext, run
 // subscribeAndRecordBlocks subscribes to the block event stream and records
 // the block times and sizes.
 func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.RunEnv) error {
+	runenv.RecordMessage("leader: subscribing to block events")
 	query := "tm.event = 'NewBlock'"
 	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 10)
 	if err != nil {

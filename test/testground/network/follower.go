@@ -108,7 +108,7 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 
 	signer, err := user.SetupSigner(ctx, f.cctx.Keyring, f.cctx.GRPCClient, addr, f.ecfg)
 	if err != nil {
-		runenv.RecordMessage(fmt.Sprintf("leader: failed to setup signer %+v", err))
+		runenv.RecordMessage(fmt.Sprintf("follower: failed to setup signer %+v", err))
 		return err
 	}
 	f.signer = signer
