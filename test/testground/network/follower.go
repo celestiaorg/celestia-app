@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 )
@@ -16,12 +19,13 @@ import (
 // data from the leader node.
 type Follower struct {
 	*ConsensusNode
-	op *Operator
+	op     *Operator
+	signer *user.Signer
 }
 
 // NewFollower creates a new follower role.
 func NewFollower() *Follower {
-	f := &Follower{&ConsensusNode{}, nil}
+	f := &Follower{&ConsensusNode{}, nil, nil}
 	// all of the commands that the follower can receive have to be registered
 	// at some point. This is currently done here.
 	op := NewOperator()
@@ -35,6 +39,19 @@ func NewFollower() *Follower {
 			}
 			runenv.RecordMessage("running txsim")
 			return f.RunTxSim(ctx, a)
+		},
+	)
+	op.RegisterCommand(
+		SubmitTxCommandID,
+		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args json.RawMessage) error {
+			var a SubmitTxCommandArgs
+			err := json.Unmarshal(args, &a)
+			if err != nil {
+				return err
+			}
+			runenv.RecordMessage("submitting tx")
+			err = f.SubmitTx(ctx, a)
+			return err
 		},
 	)
 
@@ -87,6 +104,15 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 
 	runenv.RecordMessage("follower waiting for start height")
 
+	addr := testfactory.GetAddress(f.cctx.Keyring, f.Name)
+
+	signer, err := user.SetupSigner(ctx, f.cctx.Keyring, f.cctx.GRPCClient, addr, f.ecfg)
+	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to setup signer %+v", err))
+		return err
+	}
+	f.signer = signer
+
 	_, err = f.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
 	if err != nil {
 		return err
@@ -128,8 +154,7 @@ func (f *Follower) ListenForCommands(ctx context.Context, runenv *runtime.RunEnv
 }
 
 const (
-	RunTxSimCommandID   = "run_txsim"
-	RunSubmitRandomPFBs = "submit-random-pfbs"
+	RunTxSimCommandID = "run_txsim"
 )
 
 func NewRunTxSimCommand(id string, timeout time.Duration, args RunTxSimCommandArgs) Command {
@@ -166,4 +191,43 @@ func (f *Follower) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
 	grpcEndpoint := "127.0.0.1:9090"
 	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
 	return txsim.Run(ctx, grpcEndpoint, f.kr, f.ecfg, opts, c.Sequences()...)
+}
+
+const (
+	SubmitTxCommandID = "submit_tx"
+)
+
+type SubmitTxCommandArgs struct {
+	Tx []byte `json:"tx"`
+}
+
+func NewSubmitTxCommand(id string, timeout time.Duration, args SubmitTxCommandArgs) Command {
+	bz, err := json.Marshal(args)
+	if err != nil {
+		panic(err)
+	}
+	cmd := Command{
+		ID:          id,
+		Name:        SubmitTxCommandID,
+		Args:        bz,
+		Timeout:     timeout,
+		TargetGroup: "all",
+	}
+	return cmd
+}
+
+// SubmitTx submits a transaction to the follower node.
+func (f *Follower) SubmitTx(ctx context.Context, c SubmitTxCommandArgs) error {
+	resp, err := f.signer.BroadcastTx(ctx, c.Tx)
+	if err != nil {
+		return err
+	}
+	if resp.Code != 0 {
+		return fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+	}
+	resp, err = f.signer.ConfirmTx(ctx, resp.TxHash)
+	if resp.Code != 0 {
+		return fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+	}
+	return err
 }
