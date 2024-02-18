@@ -16,14 +16,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestMaxTotalBlobSizeSuite(t *testing.T) {
+func TestBigBlobSuite(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping max total blob size suite in short mode.")
+		t.Skip("skipping big blob suite in short mode.")
 	}
-	suite.Run(t, &MaxTotalBlobSizeSuite{})
+	suite.Run(t, &BigBlobSuite{})
 }
 
-type MaxTotalBlobSizeSuite struct {
+type BigBlobSuite struct {
 	suite.Suite
 
 	ecfg     encoding.Config
@@ -31,7 +31,7 @@ type MaxTotalBlobSizeSuite struct {
 	cctx     testnode.Context
 }
 
-func (s *MaxTotalBlobSizeSuite) SetupSuite() {
+func (s *BigBlobSuite) SetupSuite() {
 	t := s.T()
 
 	s.accounts = testfactory.GenerateAccounts(1)
@@ -54,9 +54,8 @@ func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 }
 
-// TestErrTotalBlobSizeTooLarge verifies that submitting a 2 MiB blob hits
-// ErrTotalBlobSizeTooLarge.
-func (s *MaxTotalBlobSizeSuite) TestErrTotalBlobSizeTooLarge() {
+// TestErrBlobsTooLarge verifies that submitting a 2 MiB blob hits ErrBlobsTooLarge.
+func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 	t := s.T()
 
 	type testCase struct {
@@ -69,7 +68,7 @@ func (s *MaxTotalBlobSizeSuite) TestErrTotalBlobSizeTooLarge() {
 		{
 			name: "2 mebibyte blob",
 			blob: newBlobWithSize(2 * mebibyte),
-			want: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
+			want: blobtypes.ErrBlobsTooLarge.ABCICode(),
 		},
 	}
 

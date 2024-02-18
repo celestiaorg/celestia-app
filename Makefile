@@ -89,7 +89,7 @@ build-ghcr-docker:
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT) -f Dockerfile .
 .PHONY: build-ghcr-docker
 
-## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker. 
+## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
 ## Make sure you are logged in and authenticated to the ghcr.io registry.
 publish-ghcr-docker:
 	@echo "--> Publishing Docker image"
@@ -138,7 +138,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_LATEST_VERSION=$(shell git rev-parse --short main) E2E_VERSIONS="$(ALL_VERSIONS)" E2E=true go test ./test/e2e/... -timeout 20m -v
+	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_LATEST_VERSION=$(shell git rev-parse --short main) E2E_VERSIONS="$(ALL_VERSIONS)" go test ./test/e2e/... -timeout 20m -v
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
@@ -146,7 +146,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestMaxTotalBlobSizeSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
