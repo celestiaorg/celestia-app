@@ -20,9 +20,12 @@ func TestNew(t *testing.T) {
 	upgradeHeight := int64(0)
 	appOptions := NoopAppOptions{}
 
-	app := app.New(logger, db, traceStore, loadLatest, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
-	assert.NotNil(t, app.ICAHostKeeper)
-	assert.NotNil(t, app.ScopedICAHostKeeper)
+	got := app.New(logger, db, traceStore, loadLatest, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+
+	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
+		assert.NotNil(t, got.ICAHostKeeper)
+		assert.NotNil(t, got.ScopedICAHostKeeper)
+	})
 }
 
 // NoopWriter is a no-op implementation of a writer.

@@ -25,6 +25,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 )
@@ -65,11 +67,13 @@ func init() {
 	}
 
 	// v2 has all the same modules as v1 with the addition of an upgrade module
+	// and the interchain accounts module.
 	v2moduleVersionMap = make(module.VersionMap)
 	for k, v := range v1moduleVersionMap {
 		v2moduleVersionMap[k] = v
 	}
 	v2moduleVersionMap[upgradetypes.ModuleName] = upgrade.AppModule{}.ConsensusVersion()
+	v2moduleVersionMap[icatypes.ModuleName] = ica.AppModule{}.ConsensusVersion()
 
 	for moduleName := range ModuleBasics {
 		isSupported := false
