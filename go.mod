@@ -11,7 +11,7 @@ require (
 	github.com/celestiaorg/knuu v0.10.0
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.12.0
-	github.com/cosmos/cosmos-proto v1.0.0-alpha8
+	github.com/cosmos/cosmos-proto v1.0.0-beta.4
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/cosmos/ibc-go/v6 v6.2.1
@@ -222,7 +222,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gotest.tools/v3 v3.5.1 // indirect
 	k8s.io/api v0.28.3 // indirect
 	k8s.io/apimachinery v0.28.3 // indirect
 	k8s.io/client-go v0.28.3 // indirect
