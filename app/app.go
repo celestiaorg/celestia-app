@@ -95,7 +95,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blobstream"
 	blobstreamkeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
-	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
 	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
 	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
@@ -372,11 +371,9 @@ func New(
 		app.GetSubspace(blobtypes.ModuleName),
 	)
 
-	// Create static IBC router, add transfer route, then set and seal it
-	ibcRouter := ibcporttypes.NewRouter()
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
-	icaHostIBCModule := icahost.NewIBCModule(app.ICAHostKeeper)
-	ibcRouter.AddRoute(icahosttypes.SubModuleName, icaHostIBCModule)
+	ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
+	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
 	app.IBCKeeper.SetRouter(ibcRouter)
 
 	/****  Module Options ****/
@@ -723,7 +720,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(crisistypes.ModuleName)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
-	paramsKeeper.Subspace(bsmoduletypes.ModuleName)
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
