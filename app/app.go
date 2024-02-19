@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/app/module"
@@ -541,7 +542,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 
 func (app *App) Upgrade(ctx sdk.Context, version uint64) error {
 	app.SetAppVersion(ctx, version)
-	return app.mm.RunMigrations(ctx, app.configurator, version, version)
+	return app.mm.RunMigrations(ctx, app.configurator, app.AppVersion(ctx), version)
 }
 
 // InitChainer application update at chain initialization
@@ -550,8 +551,13 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
+	// genesis must always contain the consensus params. The validator set howerver is derived from the
+	// initial genesis state
 	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
 		panic("no consensus params set")
+	}
+	if !IsSupported(req.ConsensusParams.Version.AppVersion) {
+		panic(fmt.Sprintf("version %d is not supported. Supported versions are %v", req.ConsensusParams.Version.AppVersion, supportedVersions))
 	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
