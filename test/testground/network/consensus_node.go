@@ -202,7 +202,7 @@ func (cn *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
 	}
 
 	cn.cmtNode = tmNode
-	cctx := testnode.NewContext(ctx, cn.kr, ucfg.TmConfig, cn.params.ChainID)
+	cctx := testnode.NewContext(ctx, cn.kr, ucfg.TmConfig, cn.params.ChainID, ucfg.AppConfig.API.Address)
 
 	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
 	cn.stopFuncs = append(cn.stopFuncs, stopNode)

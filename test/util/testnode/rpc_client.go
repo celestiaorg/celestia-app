@@ -4,10 +4,13 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/cosmos/cosmos-sdk/server/api"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvgrpc "github.com/cosmos/cosmos-sdk/server/grpc"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/rpc/client/local"
 	"google.golang.org/grpc"
@@ -98,4 +101,23 @@ func removeDir(rootDir string) error {
 		}
 	}
 	return os.RemoveAll(rootDir)
+}
+
+func StartAPIServer(app srvtypes.Application, appCfg srvconfig.Config, cctx Context) (*api.Server, error) {
+	apiSrv := api.New(cctx.Context, log.NewNopLogger())
+	app.RegisterAPIRoutes(apiSrv, appCfg.API)
+	errCh := make(chan error)
+	go func() {
+		if err := apiSrv.Start(appCfg); err != nil {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		return nil, err
+
+	case <-time.After(srvtypes.ServerStartTime): // assume server started successfully
+	}
+	return apiSrv, nil
 }

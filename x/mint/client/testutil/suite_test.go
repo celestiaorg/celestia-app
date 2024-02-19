@@ -10,43 +10,30 @@ import (
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
 	"github.com/celestiaorg/celestia-app/x/mint/client/cli"
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 
-	appnetwork "github.com/celestiaorg/celestia-app/test/util/network"
-	"github.com/cosmos/cosmos-sdk/testutil/network"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 )
 
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cfg     network.Config
-	network *network.Network
+	cfg  *testnode.Config
+	cctx testnode.Context
 }
 
-func NewIntegrationTestSuite(cfg network.Config) *IntegrationTestSuite {
+func NewIntegrationTestSuite(cfg *testnode.Config) *IntegrationTestSuite {
 	return &IntegrationTestSuite{cfg: cfg}
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up x/mint integration test suite")
 
-	genesisState := s.cfg.GenesisState
-	var mintData minttypes.GenesisState
-	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
+	s.cctx, _, _ = testnode.NewNetwork(s.T(), s.cfg)
 
-	var err error
-	s.network, err = network.New(s.T(), s.T().TempDir(), s.cfg)
+	_, err := s.cctx.WaitForHeight(1)
 	s.Require().NoError(err)
-
-	_, err = s.network.WaitForHeight(1)
-	s.Require().NoError(err)
-}
-
-func (s *IntegrationTestSuite) TearDownSuite() {
-	s.T().Log("tearing down x/mint integration test suite")
-	s.network.Cleanup()
 }
 
 func (s *IntegrationTestSuite) jsonArgs() []string {
@@ -54,15 +41,13 @@ func (s *IntegrationTestSuite) jsonArgs() []string {
 }
 
 func (s *IntegrationTestSuite) textArgs() []string {
-	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
+	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)}
 }
 
 // TestGetCmdQueryInflationRate tests that the CLI query command for inflation
 // rate returns the correct value. This test assumes that the initial inflation
 // rate is 0.08.
 func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
-	val := s.network.Validators[0]
-
 	testCases := []struct {
 		name string
 		args []string
@@ -85,9 +70,8 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryInflationRate()
-			clientCtx := val.ClientCtx
 
-			got, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
+			got, err := clitestutil.ExecTestCLICmd(s.cctx.Context, cmd, tc.args)
 			s.Require().NoError(err)
 			s.Require().Equal(tc.want, strings.TrimSpace(got.String()))
 		})
@@ -100,8 +84,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 //
 // TODO assert that total supply is 500_000_000 utia.
 func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
-	val := s.network.Validators[0]
-
 	testCases := []struct {
 		name string
 		args []string
@@ -124,9 +106,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryAnnualProvisions()
-			clientCtx := val.ClientCtx
-
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
+			out, err := clitestutil.ExecTestCLICmd(s.cctx.Context, cmd, tc.args)
 			s.Require().NoError(err)
 			s.Require().Equal(tc.want, strings.TrimSpace(out.String()))
 		})
@@ -137,8 +117,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 // returns the same time that is set in the genesis state. The CLI command to
 // query genesis time looks like: `celestia-appd query mint genesis-time`
 func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
-	val := s.network.Validators[0]
-
 	testCases := []struct {
 		name string
 		args []string
@@ -158,9 +136,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryGenesisTime()
-			clientCtx := val.ClientCtx
-
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
+			out, err := clitestutil.ExecTestCLICmd(s.cctx.Context, cmd, tc.args)
 			s.Require().NoError(err)
 
 			trimmed := strings.TrimSpace(out.String())
@@ -185,6 +161,6 @@ func TestMintIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestMintIntegrationTestSuite in short mode.")
 	}
-	cfg := appnetwork.DefaultConfig()
+	cfg := testnode.DefaultConfig()
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }

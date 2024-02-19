@@ -13,8 +13,7 @@ import (
 )
 
 func (s *IntegrationTestSuite) TestQueryGRPC() {
-	val := s.network.Validators[0]
-	baseURL := val.APIAddress
+	baseURL := s.cctx.APIAddress()
 	testCases := []struct {
 		name     string
 		url      string
@@ -47,7 +46,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 		resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)
 		s.Run(tc.name, func() {
 			s.Require().NoError(err)
-			s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(resp, tc.respType))
+			s.Require().NoError(s.cctx.Context.Codec.UnmarshalJSON(resp, tc.respType))
 			s.Require().Equal(tc.expected.String(), tc.respType.String())
 		})
 	}

@@ -34,9 +34,10 @@ const (
 type Context struct {
 	rootCtx context.Context
 	client.Context
+	apiAddress string
 }
 
-func NewContext(goCtx context.Context, kr keyring.Keyring, tmCfg *tmconfig.Config, chainID string) Context {
+func NewContext(goCtx context.Context, kr keyring.Keyring, tmCfg *tmconfig.Config, chainID, apiAddress string) Context {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cctx := client.Context{}.
 		WithKeyring(kr).
@@ -48,7 +49,7 @@ func NewContext(goCtx context.Context, kr keyring.Keyring, tmCfg *tmconfig.Confi
 		WithTxConfig(ecfg.TxConfig).
 		WithAccountRetriever(authtypes.AccountRetriever{})
 
-	return Context{rootCtx: goCtx, Context: cctx}
+	return Context{rootCtx: goCtx, Context: cctx, apiAddress: apiAddress}
 }
 
 func (c *Context) GoContext() context.Context {
@@ -96,13 +97,19 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	ctx, cancel := context.WithTimeout(c.rootCtx, t)
 	defer cancel()
 
-	var latestHeight int64
+	var (
+		latestHeight int64
+		err          error
+	)
 	for {
 		select {
 		case <-ctx.Done():
-			return latestHeight, fmt.Errorf("timeout (%v) exceeded waiting for network to reach height", t)
+			if c.rootCtx.Err() != nil {
+				return latestHeight, c.rootCtx.Err()
+			}
+			return latestHeight, fmt.Errorf("timeout (%v) exceeded waiting for network to reach height %d. Got to height %d", t, h, latestHeight)
 		case <-ticker.C:
-			latestHeight, err := c.LatestHeight()
+			latestHeight, err = c.LatestHeight()
 			if err != nil {
 				return 0, err
 			}
@@ -312,4 +319,8 @@ func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
 		}
 	}
 	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
+}
+
+func (c *Context) APIAddress() string {
+	return c.apiAddress
 }
