@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"math/rand"
 
-	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	ns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gogo/protobuf/grpc"
 )
@@ -84,7 +85,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	// generate the blobs
 	blobs := blobfactory.RandBlobsWithNamespace(namespaces, sizes)
 	// derive the pay for blob message
-	msg, err := blob.NewMsgPayForBlobs(s.account.String(), blobs...)
+	msg, err := blob.NewMsgPayForBlobs(s.account.String(), appconsts.LatestVersion, blobs...)
 	if err != nil {
 		return Operation{}, err
 	}

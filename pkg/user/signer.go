@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -34,6 +34,7 @@ type Signer struct {
 	pk            cryptotypes.PubKey
 	chainID       string
 	accountNumber uint64
+	appVersion    uint64
 	pollTime      time.Duration
 
 	mtx                   sync.RWMutex
@@ -48,8 +49,8 @@ func NewSigner(
 	address sdktypes.AccAddress,
 	enc client.TxConfig,
 	chainID string,
-	accountNumber uint64,
-	sequence uint64,
+	accountNumber, sequence,
+	appVersion uint64,
 ) (*Signer, error) {
 	// check that the address exists
 	record, err := keys.KeyByAddress(address)
@@ -70,6 +71,7 @@ func NewSigner(
 		pk:                    pk,
 		chainID:               chainID,
 		accountNumber:         accountNumber,
+		appVersion:            appVersion,
 		lastSignedSequence:    sequence,
 		lastConfirmedSequence: sequence,
 		pollTime:              DefaultPollTime,
@@ -113,12 +115,13 @@ func SetupSigner(
 	}
 
 	chainID := resp.SdkBlock.Header.ChainID
+	appVersion := resp.SdkBlock.Header.Version.App
 	accNum, seqNum, err := QueryAccount(ctx, conn, encCfg, address.String())
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum)
+	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum, appVersion)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -175,7 +178,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 }
 
 func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte, error) {
-	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), s.appVersion, blobs...)
 	if err != nil {
 		return nil, err
 	}

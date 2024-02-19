@@ -6,10 +6,11 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/merkle"
+	appns "github.com/celestiaorg/go-square/namespace"
+	appshares "github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -44,12 +45,12 @@ const (
 // See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlobs(signer string, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
-	commitments, err := inclusion.CreateCommitments(blobs)
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(version))
 	if err != nil {
 		return nil, err
 	}

@@ -72,27 +72,6 @@ sed -i'.bak' 's#"null"#"kv"#g' "${CELESTIA_APP_HOME}"/config/config.toml
 # Override the VotingPeriod from 1 week to 1 minute
 sed -i'.bak' 's#"604800s"#"60s"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
 
-# Register the validator EVM address
-{
-  # Wait for block 1
-  sleep 20
-
-  VALIDATOR_ADDRESS=$(celestia-appd keys show ${KEY_NAME} --home "${CELESTIA_APP_HOME}" --bech val --address)
-  EVM_ADDRESS=0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 # private key: da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
-  echo "Registering an EVM address for validator..."
-  celestia-appd tx qgb register \
-    ${VALIDATOR_ADDRESS} \
-    ${EVM_ADDRESS} \
-    --from ${KEY_NAME} \
-    --home "${CELESTIA_APP_HOME}" \
-    --fees 30000utia \
-    --broadcast-mode block \
-    --yes \
-    &> /dev/null # Hide output to reduce terminal noise
-
-  echo "Registered EVM address."
-} &
-
 # Start celestia-app
 echo "Starting celestia-app..."
 celestia-appd start \

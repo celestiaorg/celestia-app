@@ -10,12 +10,12 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -232,7 +232,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	}
 
 	// use the key for accounts[i] to create a singer used for a single PFB
-	signer, err := user.NewSigner(c.Keyring, c.GRPCClient, addr, c.TxConfig, c.ChainID, acc, seq)
+	signer, err := user.NewSigner(c.Keyring, c.GRPCClient, addr, c.TxConfig, c.ChainID, acc, seq, appconsts.LatestVersion)
 	if err != nil {
 		return nil, err
 	}

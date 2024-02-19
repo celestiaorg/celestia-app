@@ -23,7 +23,7 @@ import (
 const MajorVersion = 1
 
 func TestMinorVersionCompatibility(t *testing.T) {
-	if os.Getenv("E2E") != "true" {
+	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
 

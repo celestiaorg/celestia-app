@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -47,6 +48,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.IBCKeeper,
 	)
 	sdkCtx := app.NewProposalContext(req.Header)
+	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx))
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
@@ -100,7 +102,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx); err != nil {
+		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold); err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject()
 		}
@@ -115,7 +117,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	}
 
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(req.BlockData.Txs, app.GetBaseApp().AppVersion(sdkCtx), app.GovSquareSizeUpperBound(sdkCtx))
+	dataSquare, err := square.Construct(
+		req.BlockData.Txs,
+		app.GovSquareSizeUpperBound(sdkCtx),
+		subtreeRootThreshold,
+	)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
 		return reject()

@@ -62,8 +62,8 @@ func Document(
 	state[banktypes.ModuleName] = ecfg.Codec.MustMarshalJSON(bankGenState)
 	state[genutiltypes.ModuleName] = ecfg.Codec.MustMarshalJSON(genutilGenState)
 
-	for _, modifer := range mods {
-		state = modifer(state)
+	for _, modifier := range mods {
+		state = modifier(state)
 	}
 
 	stateBz, err := json.MarshalIndent(state, "", "  ")

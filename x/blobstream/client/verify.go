@@ -7,12 +7,13 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/celestiaorg/go-square/merkle"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/tendermint/tendermint/crypto/merkle"
 
 	wrapper "github.com/celestiaorg/blobstream-contracts/v3/wrappers/Blobstream.sol"
-	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/go-square/square"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -79,7 +80,11 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index), blockRes.Block.Header.Version.App)
+			version := blockRes.Block.Header.Version.App
+			maxSquareSize := appconsts.SquareSizeUpperBound(version)
+			subtreeRootThreshold := appconsts.SubtreeRootThreshold(version)
+
+			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index), maxSquareSize, subtreeRootThreshold)
 			if err != nil {
 				return err
 			}
@@ -141,7 +146,10 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex), blockRes.Block.Header.Version.App)
+			version := blockRes.Block.Header.Version.App
+			maxSquareSize := appconsts.SquareSizeUpperBound(version)
+			subtreeRootThreshold := appconsts.SubtreeRootThreshold(version)
+			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex), maxSquareSize, subtreeRootThreshold)
 			if err != nil {
 				return err
 			}
@@ -292,7 +300,12 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		resp.DataCommitment.Nonce,
 		height,
 		block.Block.DataHash,
-		dcProof.Proof,
+		merkle.Proof{
+			Total:    dcProof.Proof.Total,
+			Index:    dcProof.Proof.Index,
+			LeafHash: dcProof.Proof.LeafHash,
+			Aunts:    dcProof.Proof.Aunts,
+		},
 	)
 	if err != nil {
 		return false, err
