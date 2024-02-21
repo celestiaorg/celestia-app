@@ -1415,7 +1415,7 @@ constrained light clients must be able to detect when a subset of these validity
 rules have not been followed in order to avoid making an honest majority
 assumption on the consensus network. This has a significant impact on their
 design. More information on how light clients can check the invalidity of a
-block can be foud in the <a href="specs/./fraud_proofs.html">Fraud Proofs</a> spec.</p>
+block can be found in the <a href="specs/./fraud_proofs.html">Fraud Proofs</a> spec.</p>
 <blockquote>
 <p><strong>Note</strong> Celestia relies on CometBFT (formerly tendermint) for consensus,
 meaning that it has single slot finality and is fork-free. Therefore, in order
@@ -1431,7 +1431,7 @@ validation
 rules</a>
 must be followed.</p>
 <p>Notably, this includes verifying data availability. Consensus nodes verify data
-availabily by simply downloading the entire block.</p>
+availability by simply downloading the entire block.</p>
 <blockquote>
 <p><strong>Note</strong> Light clients only sample a fraction of the block. More details on
 how sampling actually works can be found in the seminal <a href="https://arxiv.org/abs/1809.09044">&quot;Fraud and Data
@@ -1467,7 +1467,7 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <li>The tx's count of signatures &lt;= the max number of signatures. The max number of signatures is <a href="https://github.com/cosmos/cosmos-sdk/blob/a429238fc267da88a8548bfebe0ba7fb28b82a13/x/auth/README.md?plain=1#L231"><code>TxSigLimit = 7</code></a>.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the tx's signatures.</li>
 <li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/types/tx/signing/signature.go#L10-L26">signatures</a> are valid. For each signature, ensure that the signature's sequence number (a.k.a nonce) matches the account sequence number of the signer.</li>
-<li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the blob size(s). Since blobs are charged based on the number of shares they occupy, the gas consumed is calculated as follows: <code>gasToConsume = sharesNeeded(blob) * bytesPerShare * gasPerBlobByte</code>. Where <code>bytesPerShare</code> is a a global constant (an alias for <a href="https://github.com/celestiaorg/celestia-app/blob/c90e61d5a2d0c0bd0e123df4ab416f6f0d141b7f/pkg/appconsts/global_consts.go#L27-L28"><code>ShareSize = 512</code></a>) and <code>gasPerBlobByte</code> is a governance parameter that can be modified (the <a href="https://github.com/celestiaorg/celestia-app/blob/c90e61d5a2d0c0bd0e123df4ab416f6f0d141b7f/pkg/appconsts/initial_consts.go#L16-L18"><code>DefaultGasPerBlobByte = 8</code></a>).</li>
+<li>The tx's <a href="https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L211-L213">gas_limit</a> is &gt; the gas consumed based on the blob size(s). Since blobs are charged based on the number of shares they occupy, the gas consumed is calculated as follows: <code>gasToConsume = sharesNeeded(blob) * bytesPerShare * gasPerBlobByte</code>. Where <code>bytesPerShare</code> is a global constant (an alias for <a href="https://github.com/celestiaorg/celestia-app/blob/c90e61d5a2d0c0bd0e123df4ab416f6f0d141b7f/pkg/appconsts/global_consts.go#L27-L28"><code>ShareSize = 512</code></a>) and <code>gasPerBlobByte</code> is a governance parameter that can be modified (the <a href="https://github.com/celestiaorg/celestia-app/blob/c90e61d5a2d0c0bd0e123df4ab416f6f0d141b7f/pkg/appconsts/initial_consts.go#L16-L18"><code>DefaultGasPerBlobByte = 8</code></a>).</li>
 <li>The tx's total blob size is &lt;= the max blob size. The max blob size is derived from the maximum valid square size. The max valid square size is the minimum of: <code>GovMaxSquareSize</code> and <code>SquareSizeUpperBound</code>.</li>
 <li>The tx does not contain a message of type <a href="https://github.com/cosmos/cosmos-sdk/blob/d6d929843bbd331b885467475bcb3050788e30ca/proto/cosmos/gov/v1/tx.proto#L33-L43">MsgSubmitProposal</a> with zero proposal messages.</li>
 <li>The tx is not an IBC packet or update message that has already been processed.</li>
@@ -1475,7 +1475,7 @@ src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src
 <p>In addition to the above criteria, the AnteHandler also has a number of side-effects:</p>
 <ul>
 <li>Tx fees are deducted from the tx's feepayer and added to the fee collector module account.</li>
-<li>Tx priority is calculated based on the the smallest denomination of gas price in the tx and set in context.</li>
+<li>Tx priority is calculated based on the smallest denomination of gas price in the tx and set in context.</li>
 <li>The nonce of all tx signers is incremented by 1.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="fraud-proofs"><a class="header" href="#fraud-proofs">Fraud Proofs</a></h1>
