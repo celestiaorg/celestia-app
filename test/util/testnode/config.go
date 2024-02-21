@@ -154,5 +154,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// chosen only as an arbitrary large number).
 	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
 
+	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
+
 	return tmCfg
 }

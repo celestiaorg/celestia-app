@@ -69,12 +69,9 @@ func (s *LegacyUpgradeTestSuite) SetupSuite() {
 		accounts[i] = tmrand.Str(9)
 	}
 
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.Consensus.TimeoutCommit = 3 * time.Second
-
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTendermintConfig(tmCfg).
+		WithTendermintConfig(testnode.DefaultTendermintConfig()).
 		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
