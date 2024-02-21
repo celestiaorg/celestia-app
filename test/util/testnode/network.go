@@ -32,12 +32,10 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
 	require.NoError(t, err)
 
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-	// t.Cleanup(func() {
-	// 	cancel()
-	// })
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+	})
 
 	appCfg := cfg.AppConfig
 	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
