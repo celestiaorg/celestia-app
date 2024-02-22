@@ -72,7 +72,7 @@ func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balan
 
 	for i, addr := range addresses {
 		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(99999999999999999)),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(DefaultInitialBalance)),
 		)
 
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}

@@ -4,10 +4,14 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/server/api"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvgrpc "github.com/cosmos/cosmos-sdk/server/grpc"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/rpc/client/local"
 	"google.golang.org/grpc"
@@ -56,13 +60,23 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 	// Add the tendermint queries service in the gRPC router.
 	app.RegisterTendermintService(cctx.Context)
 
+	if a, ok := app.(srvtypes.ApplicationQueryService); ok {
+		a.RegisterNodeService(cctx.Context)
+	}
+
 	grpcSrv, err := srvgrpc.StartGRPCServer(cctx.Context, app, appCfg.GRPC)
 	if err != nil {
 		return Context{}, emptycleanup, err
 	}
 
 	nodeGRPCAddr := strings.Replace(appCfg.GRPC.Address, "0.0.0.0", "localhost", 1)
-	conn, err := grpc.Dial(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(
+		nodeGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.ForceCodec(codec.NewProtoCodec(cctx.InterfaceRegistry).GRPCCodec()),
+		),
+	)
 	if err != nil {
 		return Context{}, emptycleanup, err
 	}
@@ -98,4 +112,23 @@ func removeDir(rootDir string) error {
 		}
 	}
 	return os.RemoveAll(rootDir)
+}
+
+func StartAPIServer(app srvtypes.Application, appCfg srvconfig.Config, cctx Context) (*api.Server, error) {
+	apiSrv := api.New(cctx.Context, log.NewNopLogger())
+	app.RegisterAPIRoutes(apiSrv, appCfg.API)
+	errCh := make(chan error)
+	go func() {
+		if err := apiSrv.Start(appCfg); err != nil {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		return nil, err
+
+	case <-time.After(srvtypes.ServerStartTime): // assume server started successfully
+	}
+	return apiSrv, nil
 }
