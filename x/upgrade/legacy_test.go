@@ -71,7 +71,6 @@ func (s *LegacyUpgradeTestSuite) SetupSuite() {
 
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(accounts...).
-		WithTendermintConfig(testnode.DefaultTendermintConfig()).
 		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
