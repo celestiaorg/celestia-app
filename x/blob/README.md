@@ -52,9 +52,8 @@ value is set below that of normal transaction gas consumption, which is 10.
 
 #### `GovMaxSquareSize`
 
-`GovMaxSquareSize` is the maximum size of a data square that is considered valid
-by the validator set. This value is superseded by the `MaxSquareSize`, which is
-hardcoded and cannot change without hardforking the chain. See
+`GovMaxSquareSize` is a governance modifiable parameter that is used to
+determine the max effective square size. See
 [ADR021](../../docs/architecture/adr-021-restricted-block-size.md) for more
 details.
 
@@ -197,7 +196,7 @@ function can be reverse engineered to submit blobs programmatically.
 
 Q: Why do the PFB transactions in the response from Comet BFT API endpoints fail to decode to valid transaction hashes?
 
-The response of CometBFT API endpoints (e.g. `/cosmos/base/tendermint/v1beta1/blocks/{block_number}`) will contain a field called `txs` with base64 encoded transactions. In Celestia, transactions may have one of the two possible types of `sdk.Tx` or `BlobTx` (which wraps around a `sdk.Tx`). As such, each transaction should be first decoded and then gets unmarshalled according to its type, as explained below: 
+The response of CometBFT API endpoints (e.g. `/cosmos/base/tendermint/v1beta1/blocks/{block_number}`) will contain a field called `txs` with base64 encoded transactions. In Celestia, transactions may have one of the two possible types of `sdk.Tx` or `BlobTx` (which wraps around a `sdk.Tx`). As such, each transaction should be first decoded and then gets unmarshalled according to its type, as explained below:
 
 1. Base64 decode the transaction
 1. Check to see if the transaction is a `BlobTx` by unmarshalling it into a `BlobTx` type.

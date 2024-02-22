@@ -28,9 +28,7 @@ func GlobalMinGasPrice(_ uint64) float64 {
 	return v2.GlobalMinGasPrice
 }
 
-// SquareSizeUpperBound is the maximum original square width possible
-// for a version of the state machine. The maximum is decided through
-// governance. See `DefaultGovMaxSquareSize`.
+// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 func SquareSizeUpperBound(v uint64) int {
 	switch v {
 	case testground.Version:
