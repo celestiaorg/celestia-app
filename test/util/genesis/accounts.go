@@ -15,6 +15,10 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 )
 
+const (
+	DefaultInitialBalance = 1e15 // 1 billion TIA
+)
+
 type Account struct {
 	Name          string
 	InitialTokens int64
@@ -55,9 +59,9 @@ func NewDefaultValidator(name string) Validator {
 	return Validator{
 		Account: Account{
 			Name:          name,
-			InitialTokens: 999_999_999_999_999_999,
+			InitialTokens: DefaultInitialBalance,
 		},
-		Stake:        99_999_999_999_999_999, // save some tokens for fees
+		Stake:        DefaultInitialBalance / 2, // save some tokens for fees
 		ConsensusKey: GenerateEd25519(NewSeed(r)),
 		NetworkKey:   GenerateEd25519(NewSeed(r)),
 	}
