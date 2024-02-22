@@ -328,8 +328,9 @@ func New(
 		appCodec,
 		keys[icahosttypes.StoreKey],
 		app.GetSubspace(icahosttypes.SubModuleName),
-		// TODO (@rootulp): investigate if the following argument is correct.
-		app.IBCKeeper.ChannelKeeper, // may be replaced with middleware such as ics29 fee
+		// TODO: when we add ICS-29 relayer incentivization, we likely need to
+		// replace the next argument.
+		app.IBCKeeper.ChannelKeeper,
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		app.AccountKeeper,
