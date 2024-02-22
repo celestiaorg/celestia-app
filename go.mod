@@ -232,7 +232,6 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.18.3-sdk-v0.46.14
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/pyroscope-io/godeltaprof => github.com/grafana/pyroscope-go/godeltaprof v0.1.7
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/faddat/celestia-core v1.29.0-tm-v0.34.29.0.20240221225107-acff1e186d7b
 	github.com/tendermint/tm-db => github.com/faddat/tm-db v0.6.6-0.20240221221500-fc0fbd3cc893
