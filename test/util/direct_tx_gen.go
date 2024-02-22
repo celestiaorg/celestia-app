@@ -175,6 +175,9 @@ func SendTxsWithAccounts(
 
 		// update the account info in the signer so the signature is valid
 		acc := DirectQueryAccount(capp, signingAddr)
+		if acc == nil {
+			t.Fatalf("account %s not found", signingAddr)
+		}
 
 		txs[i] = SendTxWithManualSequence(
 			t,
