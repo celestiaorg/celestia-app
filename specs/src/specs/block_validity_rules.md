@@ -9,7 +9,7 @@ constrained light clients must be able to detect when a subset of these validity
 rules have not been followed in order to avoid making an honest majority
 assumption on the consensus network. This has a significant impact on their
 design. More information on how light clients can check the invalidity of a
-block can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
+block can be found in the [Fraud Proofs](./fraud_proofs.md) spec.
 
 > **Note** Celestia relies on CometBFT (formerly tendermint) for consensus,
 > meaning that it has single slot finality and is fork-free. Therefore, in order
@@ -27,7 +27,7 @@ rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structu
 must be followed.
 
 Notably, this includes verifying data availability. Consensus nodes verify data
-availabily by simply downloading the entire block.
+availability by simply downloading the entire block.
 
 > **Note** Light clients only sample a fraction of the block. More details on
 > how sampling actually works can be found in the seminal ["Fraud and Data
