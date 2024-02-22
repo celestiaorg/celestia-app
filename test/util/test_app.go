@@ -51,6 +51,25 @@ func (ao EmptyAppOptions) Get(_ string) interface{} {
 // is bonded with a delegation of one consensus engine unit in the default token
 // of the app from first genesis account. A no-op logger is set in app.
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp, valSet, kr := NewTestAppWithGenesisSet(cparams, genAccounts...)
+
+	// commit genesis changes
+	testApp.Commit()
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            ChainID,
+		Height:             testApp.LastBlockHeight() + 1,
+		AppHash:            testApp.LastCommitID().Hash,
+		ValidatorsHash:     valSet.Hash(),
+		NextValidatorsHash: valSet.Hash(),
+		Version: tmversion.Consensus{
+			App: cparams.Version.AppVersion,
+		},
+	}})
+
+	return testApp, kr
+}
+
+func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := EmptyAppOptions{}
@@ -98,21 +117,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 			ChainId:         ChainID,
 		},
 	)
-
-	// commit genesis changes
-	testApp.Commit()
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		ChainID:            ChainID,
-		Height:             testApp.LastBlockHeight() + 1,
-		AppHash:            testApp.LastCommitID().Hash,
-		ValidatorsHash:     valSet.Hash(),
-		NextValidatorsHash: valSet.Hash(),
-		Version: tmversion.Consensus{
-			App: cparams.Version.AppVersion,
-		},
-	}})
-
-	return testApp, kr
+	return testApp, valSet, kr
 }
 
 // AddAccount mimics the cli addAccount command, providing an
