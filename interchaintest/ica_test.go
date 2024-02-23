@@ -26,8 +26,8 @@ func TestICA(t *testing.T) {
 	client, network := interchaintest.DockerSetup(t)
 	rep := testreporter.NewNopReporter()
 	eRep := rep.RelayerExecReporter(t)
-	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{celestiaSpec, cosmosSpec})
-	chains, err := cf.Chains(t.Name())
+	chainFactory := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), chainSpecs)
+	chains, err := chainFactory.Chains(t.Name())
 	require.NoError(t, err)
 	chain1, chain2 := chains[0].(*cosmos.CosmosChain), chains[1].(*cosmos.CosmosChain)
 
@@ -52,4 +52,5 @@ func TestICA(t *testing.T) {
 		NetworkID:        network,
 		SkipPathCreation: true,
 	}))
+
 }

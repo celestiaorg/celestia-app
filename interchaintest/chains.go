@@ -6,6 +6,7 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v6/ibc"
 )
 
+var chainSpecs = []*interchaintest.ChainSpec{celestiaSpec, cosmosSpec}
 var celestiaSpec = &interchaintest.ChainSpec{
 	Name: "celestia",
 	ChainConfig: ibc.ChainConfig{
