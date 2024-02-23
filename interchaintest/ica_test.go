@@ -13,49 +13,65 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const relayerName = "relayer"
+const path = "test-path"
+
+// TestICA verifies that Interchain Accounts work as expected.
 func TestICA(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestICA in short mode.")
 	}
 
-	client, network := interchaintest.DockerSetup(t)
 	ctx := context.Background()
+	client, network := interchaintest.DockerSetup(t)
 	rep := testreporter.NewNopReporter()
 	eRep := rep.RelayerExecReporter(t)
+	celestiaChainConfig := ibc.ChainConfig{
+		Type:           "cosmos",
+		Name:           "celestia-app",
+		ChainID:        "celestia",
+		Images:         []ibc.DockerImage{{Repository: "ghcr.io/celestiaorg/celestia-app", Version: "v1.6.0", UidGid: "10001:10001"}},
+		Bin:            "celestia-appd",
+		Bech32Prefix:   "celestia",
+		Denom:          "utia",
+		GasPrices:      "0.002utia",
+		GasAdjustment:  1.5,
+		TrustingPeriod: "336hours",
+	}
+	celestiaChainSpec := &interchaintest.ChainSpec{
+		Name:        "celestia",
+		ChainConfig: celestiaChainConfig,
+		Version:     "v1.6.0",
+	}
+	cosmosChainConfig := cosmos.NewCosmosHeighlinerChainConfig("gaia", "gaiad", "cosmos", "uatom", "0.01uatom", 1.3, "504h", false)
+	cosmosChainSpec := &interchaintest.ChainSpec{
+		Name:        "gaia",
+		ChainConfig: cosmosChainConfig,
+		Version:     "v14.1.0",
+	}
+
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
-		{
-			Name: "icad",
-			ChainConfig: ibc.ChainConfig{
-				Images: []ibc.DockerImage{{Repository: "ghcr.io/cosmos/ibc-go-icad", Version: "v0.5.0", UidGid: "1025:1025"}},
-			},
-		},
-		{
-			Name: "icad",
-			ChainConfig: ibc.ChainConfig{
-				Images: []ibc.DockerImage{{Repository: "ghcr.io/cosmos/ibc-go-icad", Version: "v0.5.0", UidGid: "1025:1025"}},
-			},
-		},
+		celestiaChainSpec,
+		cosmosChainSpec,
 	})
 	chains, err := cf.Chains(t.Name())
 	require.NoError(t, err)
-
 	chain1, chain2 := chains[0].(*cosmos.CosmosChain), chains[1].(*cosmos.CosmosChain)
-	r := interchaintest.NewBuiltinRelayerFactory(
+
+	relayer := interchaintest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
 		zaptest.NewLogger(t),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-p", "events", "-b", "100"}},
 	).Build(t, client, network)
-	const pathName = "test-path"
-	const relayerName = "relayer"
 	ic := interchaintest.NewInterchain().
 		AddChain(chain1).
 		AddChain(chain2).
-		AddRelayer(r, relayerName).
+		AddRelayer(relayer, relayerName).
 		AddLink(interchaintest.InterchainLink{
 			Chain1:  chain1,
 			Chain2:  chain2,
-			Relayer: r,
-			Path:    pathName,
+			Relayer: relayer,
+			Path:    path,
 		})
 	require.NoError(t, ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
 		TestName:         t.Name(),

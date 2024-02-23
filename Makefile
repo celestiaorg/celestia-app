@@ -165,6 +165,12 @@ test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
 
+## test-interchain: Run interchain tests in verbose mode.
+test-interchain:
+	@echo "--> Running interchain tests"
+	@go test ./interchaintest -v
+.PHONY: test-interchain
+
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"

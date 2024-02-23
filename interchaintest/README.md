@@ -10,6 +10,6 @@ This folder contains tests that use [interchaintest](https://github.com/strangel
 
 To run these tests locally, you must have a Docker image of Celestia. Run `make build-docker` to create a celestia-appd docker image from the current branch.
 
-```go
-go test ./...
+```bash
+make test-interchain
 ```
