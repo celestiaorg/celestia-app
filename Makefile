@@ -161,6 +161,7 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
+## test-fuzz: Run all fuzz tests.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
