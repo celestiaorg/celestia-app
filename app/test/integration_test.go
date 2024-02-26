@@ -155,7 +155,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for i, tx := range txs {
 				res, err := s.cctx.Context.BroadcastTxSync(tx)
 				require.NoError(t, err)
-				assert.Equal(t, abci.CodeTypeOK, res.Code)
+				assert.Equal(t, abci.CodeTypeOK, res.Code, res)
 				if res.Code != abci.CodeTypeOK {
 					continue
 				}

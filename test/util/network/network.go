@@ -83,7 +83,7 @@ func DefaultConfig() network.Config {
 				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
 				func(b *baseapp.BaseApp) {
-					b.SetProtocolVersion(appconsts.LatestVersion)
+					b.SetAppVersion(sdk.Context{}, appconsts.LatestVersion)
 				},
 			)
 		},
