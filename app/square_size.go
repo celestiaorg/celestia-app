@@ -5,8 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// GovSquareSizeUpperBound returns the maximum square size that can be used for a block
-// using the governance parameter blob.GovMaxSquareSize.
+// GovSquareSizeUpperBound returns the max effective square size.
 func (app *App) GovSquareSizeUpperBound(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to our fork of the sdk not initializing state before

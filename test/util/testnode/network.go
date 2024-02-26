@@ -32,16 +32,24 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
 	require.NoError(t, err)
 
-	cctx = NewContext(context.Background(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
-
-	cctx, stopNode, err := StartNode(tmNode, cctx)
-	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+	})
 
 	appCfg := cfg.AppConfig
 	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
 	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
+	cctx = NewContext(ctx, cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID, appCfg.API.Address)
+
+	cctx, stopNode, err := StartNode(tmNode, cctx)
+	require.NoError(t, err)
+
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
+	require.NoError(t, err)
+
+	apiServer, err := StartAPIServer(app, *appCfg, cctx)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -57,6 +65,12 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 			// the test has already completed so just log the error instead of
 			// failing the test.
 			t.Logf("error when cleaning up GRPC %v", err)
+		}
+		err = apiServer.Close()
+		if err != nil {
+			// the test has already completed so just log the error instead of
+			// failing the test.
+			t.Logf("error when closing API server %v", err)
 		}
 	})
 

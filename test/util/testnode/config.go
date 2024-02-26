@@ -17,6 +17,7 @@ const (
 	kibibyte                    = 1024      // bytes
 	mebibyte                    = 1_048_576 // bytes
 	DefaultValidatorAccountName = "validator"
+	DefaultInitialBalance       = genesis.DefaultInitialBalance
 )
 
 type UniversalTestingConfig struct {
@@ -83,7 +84,7 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 // WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithAccounts(
-		genesis.NewAccounts(999999999999999999, accounts...)...,
+		genesis.NewAccounts(DefaultInitialBalance, accounts...)...,
 	)
 	return c
 }
@@ -152,6 +153,8 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// transactions and respond to queries with large responses (200 MiB was
 	// chosen only as an arbitrary large number).
 	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
+
+	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
 
 	return tmCfg
 }

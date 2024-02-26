@@ -2,15 +2,15 @@ package client_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/blobstream/client"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 )
 
 func (s *CLITestSuite) TestQueryAttestationByNonce() {
-	_, err := s.network.WaitForHeight(402)
+	_, err := s.cctx.WaitForHeightWithTimeout(402, 2*time.Minute)
 	s.Require().NoError(err)
-	val := s.network.Validators[0]
 	testCases := []struct {
 		name      string
 		nonce     string
@@ -46,9 +46,7 @@ func (s *CLITestSuite) TestQueryAttestationByNonce() {
 	for _, tc := range testCases {
 		s.T().Run(tc.name, func(t *testing.T) {
 			cmd := client.CmdQueryAttestationByNonce()
-			clientCtx := val.ClientCtx
-
-			_, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, []string{tc.nonce})
+			_, err := clitestutil.ExecTestCLICmd(s.cctx.Context, cmd, []string{tc.nonce})
 			if tc.expectErr {
 				s.Assert().Error(err)
 			} else {
