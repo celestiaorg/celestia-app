@@ -22,8 +22,8 @@ instances = { min = 1, max = 200, default = 3 }
 [testcases.params]
 chain_id = { type = "string", default = "testground" }
 timeout = { type = "string", default = "21m" }
-latency = { type = "int", default = 0 }
-random_latency = { type = "bool", default = false }
+latency = { type = "int", default = 150 }
+random_latency = { type = "bool", default = true }
 bandwidth = { type = "string", default = "420Mib" }
 per_peer_bandwidth = { type = "string", default = "5Mib" }
 validators = { type = "int", default = 2 }

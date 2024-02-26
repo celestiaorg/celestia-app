@@ -81,6 +81,8 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 	}
 	cn.params = params
 
+	runenv.RecordMessage(fmt.Sprintf("params: %+V", cn.params))
+
 	nodeID := NodeID(initCtx.GlobalSeq)
 	cn.Name = nodeID
 

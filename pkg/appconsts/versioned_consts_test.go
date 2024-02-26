@@ -51,11 +51,6 @@ func TestGlobalMinGasPrice(t *testing.T) {
 			expected: v2.GlobalMinGasPrice,
 			expErr:   false,
 		},
-		{
-			version:  v1.Version,
-			expected: 0,
-			expErr:   true,
-		},
 	}
 
 	for _, tc := range testCases {

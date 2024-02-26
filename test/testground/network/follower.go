@@ -104,6 +104,11 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 
 	runenv.RecordMessage("follower waiting for start height")
 
+	_, err = f.cctx.WaitForHeightWithTimeout(int64(3), time.Minute*7)
+	if err != nil {
+		return err
+	}
+
 	addr := testfactory.GetAddress(f.cctx.Keyring, f.Name)
 
 	signer, err := user.SetupSigner(ctx, f.cctx.Keyring, f.cctx.GRPCClient, addr, f.ecfg)
@@ -112,11 +117,6 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 	f.signer = signer
-
-	_, err = f.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
-	if err != nil {
-		return err
-	}
 
 	return err
 }
