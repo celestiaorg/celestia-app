@@ -162,5 +162,3 @@ Date       | Auditor                                       | Version            
 ## Careers
 
 We are hiring Go engineers! Join us in building the future of blockchain scaling and interoperability. [Apply here](https://jobs.lever.co/celestia).
-
-foo
