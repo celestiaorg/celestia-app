@@ -102,12 +102,21 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 
+	if f.CmtConfig.Instrumentation.PyroscopeTrace {
+		runenv.RecordMessage("pyroscope: follower starting pyroscope")
+	}
+
 	runenv.RecordMessage("follower waiting for start height")
 
 	_, err = f.cctx.WaitForHeightWithTimeout(int64(3), time.Minute*7)
 	if err != nil {
 		return err
 	}
+
+	// if f.CmtConfig.Instrumentation.Prometheus {
+	// 	runenv.RecordMessage("profiling: follower starting prometheus")
+	// 	go ScrapeMetrics(ctx, "http://51.159.176.205:8080/store_packets", f.cctx.ChainID, initCtx.GlobalSeq, runenv)
+	// }
 
 	addr := testfactory.GetAddress(f.cctx.Keyring, f.Name)
 

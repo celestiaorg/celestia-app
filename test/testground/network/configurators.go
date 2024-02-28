@@ -44,6 +44,7 @@ func GetConfigurators(runenv *runtime.RunEnv) ([]Configurator, error) {
 	}
 
 	ops = append(ops, TracingConfigurator(runenv, ParseTracingParams(runenv)))
+	ops = append(ops, ProfilingConfigurator())
 
 	return ops, nil
 }
@@ -150,6 +151,29 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 			}
 		}
 
+		return nodes, nil
+	}
+}
+
+// ProfilingConfigurator configures the last node to connect to a specific
+// pyroscope instance.
+func ProfilingConfigurator() Configurator {
+	return func(nodes []RoleConfig) ([]RoleConfig, error) {
+		nodes[len(nodes)-2].CmtConfig.Instrumentation.Prometheus = true
+
+		nodes[len(nodes)-1].CmtConfig.Instrumentation.PyroscopeTrace = true
+		nodes[len(nodes)-1].CmtConfig.Instrumentation.PyroscopeURL = "http://51.159.176.205:4040"
+		// nodes[len(nodes)-1].CmtConfig.Instrumentation.PyroscopeProfileTypes = strings.Join([]string{
+		// 	"cpu",
+		// 	"alloc_objects",
+		// 	"inuse_objects",
+		// 	"goroutines",
+		// 	"mutex_count",
+		// 	"mutex_duration",
+		// 	"block_count",
+		// 	"block_duration",
+		// },
+		// 	",")
 		return nodes, nil
 	}
 }

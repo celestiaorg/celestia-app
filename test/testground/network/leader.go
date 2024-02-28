@@ -89,6 +89,10 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
+	if l.CmtConfig.Instrumentation.PyroscopeTrace {
+		runenv.RecordMessage("pyroscope: follower starting pyroscope")
+	}
+
 	err = addPeersToAddressBook(l.CmtConfig.P2P.AddrBookFile(), packets)
 	if err != nil {
 		return err
