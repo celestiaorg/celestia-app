@@ -255,6 +255,9 @@ func (m *Manager) BeginBlock(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 	ctx = ctx.WithEventManager(sdk.NewEventManager())
 
 	modules := m.versionedModules[ctx.BlockHeader().Version.App]
+	if modules == nil {
+		panic(fmt.Sprintf("no modules for version %d", ctx.BlockHeader().Version.App))
+	}
 	for _, moduleName := range m.OrderBeginBlockers {
 		module, ok := modules[moduleName].(sdkmodule.BeginBlockAppModule)
 		if ok {
@@ -275,6 +278,9 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	validatorUpdates := []abci.ValidatorUpdate{}
 
 	modules := m.versionedModules[ctx.BlockHeader().Version.App]
+	if modules == nil {
+		panic(fmt.Sprintf("no modules for version %d", ctx.BlockHeader().Version.App))
+	}
 	for _, moduleName := range m.OrderEndBlockers {
 		module, ok := modules[moduleName].(sdkmodule.EndBlockAppModule)
 		if !ok {
@@ -313,6 +319,16 @@ func (m *Manager) ModuleNames(version uint64) []string {
 		i++
 	}
 	return ms
+}
+
+func (m *Manager) SupportedVersions() []uint64 {
+	output := make([]uint64, 0, m.lastVersion-m.firstVersion+1)
+	for version := m.firstVersion; version <= m.lastVersion; version++ {
+		if _, ok := m.versionedModules[version]; ok {
+			output = append(output, version)
+		}
+	}
+	return output
 }
 
 // DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,

@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -22,6 +23,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
@@ -79,7 +81,10 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 	header := tmproto.Header{
 		ChainID: chainID,
 		Height:  1,
-		Time:    coord.CurrentTime.UTC(),
+		Version: tmversion.Consensus{
+			App: appconsts.LatestVersion,
+		},
+		Time: coord.CurrentTime.UTC(),
 	}
 
 	txConfig := app.GetTxConfig()
@@ -224,7 +229,10 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	app.BeginBlock(
 		abci.RequestBeginBlock{
 			Header: tmproto.Header{
-				ChainID:            chainID,
+				ChainID: chainID,
+				Version: tmversion.Consensus{
+					App: appconsts.LatestVersion,
+				},
 				Height:             app.LastBlockHeight() + 1,
 				AppHash:            app.LastCommitID().Hash,
 				ValidatorsHash:     valSet.Hash(),

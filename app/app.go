@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/app/module"
@@ -142,6 +141,8 @@ var (
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	}
 )
+
+const DefaultInitialVersion = v1.Version
 
 var _ servertypes.Application = (*App)(nil)
 
@@ -555,15 +556,18 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
 		panic("no consensus params set")
 	}
-	if !IsSupported(req.ConsensusParams.Version.AppVersion) {
-		panic(fmt.Sprintf("version %d is not supported. Supported versions are %v", req.ConsensusParams.Version.AppVersion, supportedVersions))
-	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
 // LoadHeight loads a particular height
 func (app *App) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
+}
+
+// SupportedVersions returns all the state machines that the
+// application supports
+func (app *App) SupportedVersions() []uint64 {
+	return app.mm.SupportedVersions()
 }
 
 // ModuleAccountAddrs returns all the app's module account addresses.
