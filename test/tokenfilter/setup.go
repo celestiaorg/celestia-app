@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -198,11 +199,22 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
 
+	params := testnode.DefaultConsensusParams()
+
 	// init chain will set the validator set and initialize the genesis accounts
 	app.InitChain(
 		abci.RequestInitChain{
-			ChainId:       chainID,
-			Validators:    []abci.ValidatorUpdate{},
+			ChainId:    chainID,
+			Validators: []abci.ValidatorUpdate{},
+			ConsensusParams: &abci.ConsensusParams{
+				Block: &abci.BlockParams{
+					MaxBytes: params.Block.MaxBytes,
+					MaxGas:   params.Block.MaxGas,
+				},
+				Evidence:  &params.Evidence,
+				Validator: &params.Validator,
+				Version:   &params.Version,
+			},
 			AppStateBytes: stateBytes,
 		},
 	)

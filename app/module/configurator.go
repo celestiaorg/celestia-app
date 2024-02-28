@@ -71,7 +71,7 @@ func (c configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fr
 
 	moduleMigrationsMap, found := c.migrations[moduleName]
 	if !found {
-		return sdkerrors.Wrapf(sdkerrors.ErrNotFound, "no migrations found for module %s", moduleName)
+		return sdkerrors.ErrNotFound.Wrapf("no migrations found for module %s", moduleName)
 	}
 
 	// Run in-place migrations for the module sequentially until toVersion.

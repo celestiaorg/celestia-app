@@ -99,7 +99,7 @@ func (m *Manager) SetOrderBeginBlockers(moduleNames ...string) {
 	m.OrderBeginBlockers = moduleNames
 }
 
-// SetOrderEndBlockers sets the order of set end-blocker calls
+// SetOrderEndBlockers sets the order of end-blocker calls
 func (m *Manager) SetOrderEndBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderEndBlockers", moduleNames)
 	m.OrderEndBlockers = moduleNames
@@ -116,18 +116,6 @@ func (m *Manager) SetOrderMigrations(moduleNames ...string) {
 func (m *Manager) RegisterInvariants(ir sdk.InvariantRegistry) {
 	for _, module := range m.allModules {
 		module.RegisterInvariants(ir)
-	}
-}
-
-// RegisterRoutes registers all module routes and module querier routes
-func (m *Manager) RegisterRoutes(router sdk.Router, queryRouter sdk.QueryRouter, legacyQuerierCdc *codec.LegacyAmino) {
-	for _, module := range m.allModules {
-		if r := module.Route(); !r.Empty() {
-			router.AddRoute(r)
-		}
-		if r := module.QuerierRoute(); r != "" {
-			queryRouter.AddRoute(r, module.LegacyQuerierHandler(legacyQuerierCdc))
-		}
 	}
 }
 
