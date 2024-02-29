@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "prrofiling-12"
+chain_id = "pprof-no-wal-2"
 timeout = "59m"
 halt_height = "2000"
 latency = "150"
@@ -23,7 +23,7 @@ pex = "true"
 timeout_propose = "120s"
 timeout_commit = "1s"
 per_peer_bandwidth = "5Mb"
-blob_sequences = "50"
+blob_sequences = "5"
 blob_sizes = "99000"
 blobs_per_sequence = "5"
 inbound_peer_count = "40"
@@ -32,7 +32,7 @@ gov_max_square_size = "1024"
 max_block_bytes = "2000000"
 mempool = "v1"
 broadcast_txs = "true"
-tracing_nodes = "2"
+tracing_nodes = "0"
 tracing_token = ""
 tracing_url = ""
 experiment = "unbounded"
@@ -44,7 +44,7 @@ builder = "docker:generic"
 memory = "12Gi"
 cpu = "8"
 [groups.instances]
-count = 10
+count = 9
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.6"
@@ -54,3 +54,22 @@ go_version = "1.21"
 [groups.build]
 [groups.run]
 artifact = ""
+
+[[groups]]
+id = "profiled-vals"
+builder = "docker:generic"
+[groups.resources]
+memory = "12Gi"
+cpu = "8"
+[groups.instances]
+count = 1
+percentage = 0.0
+[groups.build_config]
+build_base_image = "golang:1.21.6"
+enable_go_build_cache = true
+enabled = true
+go_version = "1.21"
+[groups.build]
+[groups.run]
+artifact = ""
+profiles = { cpu = "true", block = "5s" }
