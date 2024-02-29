@@ -51,7 +51,7 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 			return nil, sdkerrors.ErrInvalidVersion.Wrapf("v0 is not a valid version for module %s", module.module.Name())
 		}
 		if module.fromVersion > module.toVersion {
-			return nil, sdkerrors.ErrLogic.Wrapf("toVersion can not be less than fromVersion for module %s", module.module.Name())
+			return nil, sdkerrors.ErrLogic.Wrapf("fromVersion can not be greater than toVersion for module %s", module.module.Name())
 		}
 		for version := module.fromVersion; version <= module.toVersion; version++ {
 			if moduleMap[version] == nil {
@@ -93,7 +93,7 @@ func (m *Manager) SetOrderExportGenesis(moduleNames ...string) {
 	m.OrderExportGenesis = moduleNames
 }
 
-// SetOrderBeginBlockers sets the order of set begin-blocker calls
+// SetOrderBeginBlockers sets the order of begin-blocker calls
 func (m *Manager) SetOrderBeginBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderBeginBlockers", moduleNames)
 	m.OrderBeginBlockers = moduleNames
@@ -216,11 +216,11 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 	}
 	currentVersionModules, exists := m.versionedModules[fromVersion]
 	if !exists {
-		return sdkerrors.ErrInvalidVersion.Wrapf("version %d not supported", fromVersion)
+		return sdkerrors.ErrInvalidVersion.Wrapf("fromVersion %d not supported", fromVersion)
 	}
 	nextVersionModules, exists := m.versionedModules[toVersion]
 	if !exists {
-		return sdkerrors.ErrInvalidVersion.Wrapf("version %d not supported", toVersion)
+		return sdkerrors.ErrInvalidVersion.Wrapf("toVersion %d not supported", toVersion)
 	}
 
 	for _, moduleName := range modules {
