@@ -116,7 +116,6 @@ func (s *SignerTestSuite) TestConfirmTx() {
 
 func (s *SignerTestSuite) TestGasEstimation() {
 	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-	// reset the sequence
 	gas, err := s.signer.EstimateGas(context.Background(), []sdk.Msg{msg})
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), gas, uint64(0))
