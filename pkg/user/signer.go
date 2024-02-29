@@ -170,7 +170,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 		return nil, err
 	}
 
-	if err := s.signTransaction(txBuilder); err != nil {
+	if err := s.signTransaction(txBuilder, s.getAndIncrementSequence()); err != nil {
 		return nil, err
 	}
 
@@ -243,7 +243,21 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 	}
 }
 
-func (s *Signer) EstimateGas(ctx context.Context, txBytes []byte) (uint64, error) {
+func (s *Signer) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
+	txBuilder := s.txBuilder(opts...)
+	if err := txBuilder.SetMsgs(msgs...); err != nil {
+		return 0, err
+	}
+
+	if err := s.signTransaction(txBuilder, s.Sequence()); err != nil {
+		return 0, err
+	}
+
+	txBytes, err := s.enc.TxEncoder()(txBuilder.GetTx())
+	if err != nil {
+		return 0, err
+	}
+
 	resp, err := tx.NewServiceClient(s.grpc).Simulate(ctx, &tx.SimulateRequest{
 		TxBytes: txBytes,
 	})
@@ -319,7 +333,7 @@ func (s *Signer) Keyring() keyring.Keyring {
 	return s.keys
 }
 
-func (s *Signer) signTransaction(builder client.TxBuilder) error {
+func (s *Signer) signTransaction(builder client.TxBuilder, sequence uint64) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
 		return fmt.Errorf("expected 1 signer, got %d", len(signers))
@@ -328,8 +342,6 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	if !s.address.Equals(signers[0]) {
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
-
-	sequence := s.getAndIncrementSequence()
 
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
