@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/test/testground
 
-go 1.21.6
+go 1.22
 
 require (
 	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20231219172024-f57f5c104ea0
