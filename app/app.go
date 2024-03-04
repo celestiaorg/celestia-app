@@ -665,7 +665,7 @@ func (app *App) RegisterNodeService(clientCtx client.Context) {
 
 // BlockedParams are params that require a hardfork to change, and cannot be changed via
 // governance.
-func (*App) BlockedParams() [][2]string {
+func (app *App) BlockedParams() [][2]string {
 	return [][2]string{
 		// bank.SendEnabled
 		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},

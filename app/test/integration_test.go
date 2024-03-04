@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -171,7 +172,9 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
-				ExtendBlockTest(t, blockRes.Block)
+				// TODO: populate this sdkCtx
+				sdkCtx := sdk.Context{}
+				ExtendBlockTest(t, blockRes.Block, sdkCtx)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -263,10 +266,9 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 // ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
-func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	// TODO: fetch this from the app
-	maxEffectiveSquareSize := 64
-	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App, maxEffectiveSquareSize)
+func ExtendBlockTest(t *testing.T, block *coretypes.Block, sdkCtx sdk.Context) {
+	// TODO: need an app here.
+	eds, err := app.ExtendBlock(block.Data, sdkCtx)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
@@ -285,7 +287,9 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
 		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
-		ExtendBlockTest(t, blockRes.Block)
+		// TODO: populate this sdkCtx
+		sdkCtx := sdk.Context{}
+		ExtendBlockTest(t, blockRes.Block, sdkCtx)
 	}
 }
 

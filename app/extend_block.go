@@ -6,16 +6,18 @@ import (
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/celestiaorg/rsmt2d"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // ExtendBlock extends the given block data into a data square for a given app
 // version.
-func ExtendBlock(data coretypes.Data, appVersion uint64, maxEffectiveSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
+func (app *App) ExtendBlock(data coretypes.Data, sdkCtx sdk.Context) (*rsmt2d.ExtendedDataSquare, error) {
+	appVersion := app.GetBaseApp().AppVersion(sdkCtx)
 	// Construct the data square from the block's transactions
 	dataSquare, err := square.Construct(
 		data.Txs.ToSliceOfBytes(),
-		maxEffectiveSquareSize,
+		app.GovSquareSizeUpperBound(sdkCtx),
 		appconsts.SubtreeRootThreshold(appVersion),
 	)
 	if err != nil {
