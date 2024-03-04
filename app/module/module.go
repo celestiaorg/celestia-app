@@ -14,7 +14,9 @@ import (
 )
 
 // Manager defines a module manager that provides the high level utility for managing and executing
-// operations for a group of modules
+// operations for a group of modules. This implemention maps the state machine version to different
+// versions of the module. It also provides a way to run migrations between different versions of a
+// module.
 type Manager struct {
 	versionedModules   map[uint64]map[string]sdkmodule.AppModule
 	allModules         []sdkmodule.AppModule
@@ -28,7 +30,10 @@ type Manager struct {
 }
 
 type VersionedModule struct {
-	module                 sdkmodule.AppModule
+	module sdkmodule.AppModule
+	// fromVersion and toVersion indicate the continuous range of app versions that the particular
+	// module is part of. The range is inclusive. `fromVersion` should not be smaller than `toVersion`
+	// 0 is not a valid app version
 	fromVersion, toVersion uint64
 }
 
@@ -45,6 +50,8 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 	moduleMap := make(map[uint64]map[string]sdkmodule.AppModule)
 	allModules := make([]sdkmodule.AppModule, len(modules))
 	modulesStr := make([]string, 0, len(modules))
+	// firstVersion and lastVersion are quicker ways of working out the range of
+	// versions the state machine supports
 	firstVersion, lastVersion := uint64(0), uint64(0)
 	for idx, module := range modules {
 		if module.fromVersion == 0 {

@@ -189,10 +189,8 @@ type App struct {
 	BlobKeeper       blobkeeper.Keeper
 	BlobstreamKeeper blobstreamkeeper.Keeper
 
-	// the module manager
 	mm *module.Manager
 
-	// module configurator
 	configurator sdkmodule.Configurator
 }
 
