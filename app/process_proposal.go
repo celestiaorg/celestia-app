@@ -48,6 +48,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.IBCKeeper,
 	)
 	sdkCtx := app.NewProposalContext(req.Header)
+	fmt.Printf("app version in process proposal %v\n", sdkCtx.ConsensusParams().Version.GetAppVersion())
 	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx))
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non

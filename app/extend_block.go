@@ -11,11 +11,11 @@ import (
 
 // ExtendBlock extends the given block data into a data square for a given app
 // version.
-func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSquare, error) {
+func ExtendBlock(data coretypes.Data, appVersion uint64, maxEffectiveSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
 	// Construct the data square from the block's transactions
 	dataSquare, err := square.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appVersion),
+		maxEffectiveSquareSize,
 		appconsts.SubtreeRootThreshold(appVersion),
 	)
 	if err != nil {

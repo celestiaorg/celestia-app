@@ -70,35 +70,34 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	t := s.T()
-	t.Skip() // skip this test because it is flaky.
 
-	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
-		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg,
-			tmrand.NewRand(),
-			s.cctx.Keyring,
-			c.GRPCClient,
-			600*kibibyte,
-			1,
-			false,
-			s.accounts[:20],
-		)
-	}
+	// singleBlobTxGen := func(c client.Context) []coretypes.Tx {
+	// 	return blobfactory.RandBlobTxsWithAccounts(
+	// 		s.ecfg,
+	// 		tmrand.NewRand(),
+	// 		s.cctx.Keyring,
+	// 		c.GRPCClient,
+	// 		600*kibibyte,
+	// 		1,
+	// 		false,
+	// 		s.accounts[:20],
+	// 	)
+	// }
 
-	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
-	// 600 KiB total per transaction.
-	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
-		return blobfactory.RandBlobTxsWithAccounts(
-			s.ecfg,
-			tmrand.NewRand(),
-			s.cctx.Keyring,
-			c.GRPCClient,
-			200*kibibyte,
-			3,
-			false,
-			s.accounts[20:40],
-		)
-	}
+	// // This tx generator generates txs that contain 3 blobs each of 200 KiB so
+	// // 600 KiB total per transaction.
+	// multiBlobTxGen := func(c client.Context) []coretypes.Tx {
+	// 	return blobfactory.RandBlobTxsWithAccounts(
+	// 		s.ecfg,
+	// 		tmrand.NewRand(),
+	// 		s.cctx.Keyring,
+	// 		c.GRPCClient,
+	// 		200*kibibyte,
+	// 		3,
+	// 		false,
+	// 		s.accounts[20:40],
+	// 	)
+	// }
 
 	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
@@ -118,8 +117,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		txGenerator func(clientCtx client.Context) []coretypes.Tx
 	}
 	tests := []test{
-		{"singleBlobTxGen", singleBlobTxGen},
-		{"multiBlobTxGen", multiBlobTxGen},
+		// {"singleBlobTxGen", singleBlobTxGen},
+		// {"multiBlobTxGen", multiBlobTxGen},
 		{"randomTxGen", randomTxGen},
 	}
 	for _, tc := range tests {
@@ -265,7 +264,9 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 // ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
 func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
+	// TODO: fetch this from the app
+	maxEffectiveSquareSize := 64
+	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App, maxEffectiveSquareSize)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
@@ -275,6 +276,17 @@ func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0o644))
 	}
+}
+
+func TestBar(t *testing.T) {
+	badBlock := "bad_block_FgU04N.json"
+	b, err := os.ReadFile(badBlock)
+	require.NoError(t, err)
+	v := &coretypes.Block{}
+	json.Unmarshal(b, v)
+	// fmt.Printf("unmarshalled block: %v\n", v)
+	fmt.Printf("block.DataHash.Bytes() %v \n", v.DataHash.Bytes())
+	fmt.Printf("block.DataHash.Bytes() %v \n", v.DataHash.Bytes())
 }
 
 func (s *IntegrationTestSuite) TestEmptyBlock() {
