@@ -71,33 +71,33 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	t := s.T()
 
-	// singleBlobTxGen := func(c client.Context) []coretypes.Tx {
-	// 	return blobfactory.RandBlobTxsWithAccounts(
-	// 		s.ecfg,
-	// 		tmrand.NewRand(),
-	// 		s.cctx.Keyring,
-	// 		c.GRPCClient,
-	// 		600*kibibyte,
-	// 		1,
-	// 		false,
-	// 		s.accounts[:20],
-	// 	)
-	// }
+	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.ecfg,
+			tmrand.NewRand(),
+			s.cctx.Keyring,
+			c.GRPCClient,
+			600*kibibyte,
+			1,
+			false,
+			s.accounts[:20],
+		)
+	}
 
-	// // This tx generator generates txs that contain 3 blobs each of 200 KiB so
-	// // 600 KiB total per transaction.
-	// multiBlobTxGen := func(c client.Context) []coretypes.Tx {
-	// 	return blobfactory.RandBlobTxsWithAccounts(
-	// 		s.ecfg,
-	// 		tmrand.NewRand(),
-	// 		s.cctx.Keyring,
-	// 		c.GRPCClient,
-	// 		200*kibibyte,
-	// 		3,
-	// 		false,
-	// 		s.accounts[20:40],
-	// 	)
-	// }
+	// This tx generator generates txs that contain 3 blobs each of 200 KiB so
+	// 600 KiB total per transaction.
+	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.ecfg,
+			tmrand.NewRand(),
+			s.cctx.Keyring,
+			c.GRPCClient,
+			200*kibibyte,
+			3,
+			false,
+			s.accounts[20:40],
+		)
+	}
 
 	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
@@ -117,8 +117,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		txGenerator func(clientCtx client.Context) []coretypes.Tx
 	}
 	tests := []test{
-		// {"singleBlobTxGen", singleBlobTxGen},
-		// {"multiBlobTxGen", multiBlobTxGen},
+		{"singleBlobTxGen", singleBlobTxGen},
+		{"multiBlobTxGen", multiBlobTxGen},
 		{"randomTxGen", randomTxGen},
 	}
 	for _, tc := range tests {
