@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -13,10 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/test/util/sdkutil"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -157,22 +156,10 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize, maxBytes int) {
 	account := "validator"
 
-	bparams := &abci.BlockParams{
-		MaxBytes: int64(maxBytes),
-		MaxGas:   -1,
-	}
-
 	// create and submit a new param change proposal for both params
-	change1 := proposal.NewParamChange(
-		blobtypes.ModuleName,
-		string(blobtypes.KeyGovMaxSquareSize),
-		fmt.Sprintf("\"%d\"", squareSize),
-	)
-	change2 := proposal.NewParamChange(
-		baseapp.Paramspace,
-		string(baseapp.ParamStoreKeyBlockParams),
-		string(s.cctx.Codec.MustMarshalJSON(bparams)),
-	)
+	change1 := sdkutil.GovMaxSquareSizeParamChange(squareSize)
+	change2 := sdkutil.MaxBlockBytesParamChange(s.ecfg.Codec, maxBytes)
+
 	content := proposal.NewParameterChangeProposal(
 		"title",
 		"description",

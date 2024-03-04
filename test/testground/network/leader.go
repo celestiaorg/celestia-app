@@ -8,9 +8,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
 	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
@@ -21,6 +28,7 @@ import (
 // creating the genesis block and distributing it to all nodes.
 type Leader struct {
 	*ConsensusNode
+	signer *user.Signer
 }
 
 // Plan is the method that creates and distributes the genesis, configurations,
@@ -35,7 +43,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 	runenv.RecordMessage("got packets, using parts for the genesis")
 
 	// create Genesis and distribute it to all nodes
-	genesis, err := l.GenesisEvent(ctx, l.params, packets)
+	genesis, err := l.GenesisEvent(l.params, packets)
 	if err != nil {
 		return err
 	}
@@ -98,8 +106,18 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
+	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
+
+	signer, err := user.SetupSigner(ctx, l.cctx.Keyring, l.cctx.GRPCClient, addr, l.ecfg)
+	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to setup signer %+v", err))
+		return err
+	}
+	l.signer = signer
+
 	// this is a helpful sanity check that logs the blocks from the POV of the
 	// leader in a testground viewable way.
+	//nolint:errcheck
 	go l.subscribeAndRecordBlocks(ctx, runenv)
 
 	return nil
@@ -113,24 +131,26 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 		}
 	}()
 
-	seqs := runenv.IntParam(BlobSequencesParam)
-	size := runenv.IntParam(BlobSizesParam)
-	count := runenv.IntParam(BlobsPerSeqParam)
-
-	cmd := NewRunTxSimCommand("txsim-0", time.Minute*10, RunTxSimCommandArgs{
-		BlobSequences: seqs,
-		BlobSize:      size,
-		BlobCount:     count,
-	})
-
-	_, err := initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
-	if err != nil {
-		return err
+	switch l.params.Experiment {
+	case UnboundedBlockSize:
+		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
+		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 10)
+		if err != nil {
+			runenv.RecordMessage(fmt.Sprintf("error unbounded block size test: %v", err))
+		}
+	case ConsistentFill:
+		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
+		err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+		if err != nil {
+			runenv.RecordMessage(fmt.Sprintf("error consistent fill block size test: %v", err))
+		}
+	default:
+		return fmt.Errorf("unknown experiment %s", l.params.Experiment)
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader waiting for halt height %d", l.params.HaltHeight))
 
-	_, err = l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*30)
+	_, err := l.cctx.WaitForHeightWithTimeout(int64(l.params.HaltHeight), time.Minute*50)
 	if err != nil {
 		return err
 	}
@@ -141,16 +161,17 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 // Retro collects standard data from the leader node and saves it as a file.
 // This data includes the block times, rounds required to reach consensus, and
 // the block sizes.
-func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext) error {
+	//nolint:errcheck
 	defer l.ConsensusNode.Stop()
 
-	blockRes, err := l.cctx.Client.Block(ctx, nil)
+	blockRes, err := l.cctx.Client.Header(ctx, nil)
 	if err != nil {
 		return err
 	}
 
 	maxBlockSize := 0
-	for i := int64(1); i < blockRes.Block.Height; i++ {
+	for i := int64(1); i < blockRes.Header.Height; i++ {
 		blockRes, err := l.cctx.Client.Block(ctx, nil)
 		if err != nil {
 			return err
@@ -161,12 +182,12 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run
 		}
 	}
 
-	runenv.RecordMessage(fmt.Sprintf("leader retro: height %d max block size bytes %d", blockRes.Block.Height, maxBlockSize))
+	runenv.RecordMessage(fmt.Sprintf("leader retro: height %d max block size bytes %d", blockRes.Header.Height, maxBlockSize))
 
 	return nil
 }
 
-func (l *Leader) GenesisEvent(ctx context.Context, params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
+func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
 	pubKeys := make([]cryptotypes.PubKey, 0)
 	addrs := make([]string, 0)
 	gentxs := make([]json.RawMessage, 0, len(packets))
@@ -214,11 +235,46 @@ func DeserializeAccountPublicKey(hexPubKey string) (cryptotypes.PubKey, error) {
 	return &pubKey, nil
 }
 
+// changeParams submits a parameter change proposal to the network. Errors are
+// thrown if the proposal is not submitted successfully.
+func (l *Leader) changeParams(ctx context.Context, runenv *runtime.RunEnv, propID uint64, changes ...proposal.ParamChange) error {
+	content := proposal.NewParameterChangeProposal("title", "description", changes)
+	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
+
+	propMsg, err := oldgov.NewMsgSubmitProposal(
+		content,
+		sdk.NewCoins(
+			sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+		addr,
+	)
+	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to create proposal msg %+v", err))
+		return err
+	}
+
+	voteMsg := v1.NewMsgVote(addr, propID, v1.VoteOption_VOTE_OPTION_YES, "")
+
+	resp, err := l.signer.SubmitTx(ctx, []sdk.Msg{propMsg, voteMsg}, user.SetGasLimitAndFee(1000000, 0.2))
+	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to submit tx %+v, %v", changes, err))
+		return err
+	}
+
+	if resp.Code != 0 {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to submit tx %+v, %v %v", changes, resp.Code, resp.Codespace))
+		return fmt.Errorf("proposal failed with code %d: %s", resp.Code, resp.RawLog)
+	}
+
+	runenv.RecordMessage(fmt.Sprintf("leader: submitted successful proposal %+v", changes))
+
+	return nil
+}
+
 // subscribeAndRecordBlocks subscribes to the block event stream and records
 // the block times and sizes.
 func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.RunEnv) error {
 	query := "tm.event = 'NewBlock'"
-	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 100)
+	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 10)
 	if err != nil {
 		return err
 	}

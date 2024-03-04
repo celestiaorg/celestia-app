@@ -38,8 +38,9 @@ const (
 	MempoolParam           = "mempool"
 	BroadcastTxsParam      = "broadcast_txs"
 	TracingTokenParam      = "tracing_token"
-	TracingUrlParam        = "tracing_url"
+	TracingURLParam        = "tracing_url"
 	TracingNodesParam      = "tracing_nodes"
+	ExperimentParam        = "experiment"
 )
 
 type Params struct {
@@ -64,18 +65,19 @@ type Params struct {
 	Mempool           string
 	BroadcastTxs      bool
 	TracingParams
+	Experiment string
 }
 
 type TracingParams struct {
 	Nodes int
-	Url   string
+	URL   string
 	Token string
 }
 
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
-		Url:   runenv.StringParam(TracingUrlParam),
+		URL:   runenv.StringParam(TracingURLParam),
 		Token: runenv.StringParam(TracingTokenParam),
 	}
 }
@@ -136,6 +138,8 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 
 	p.TracingParams = ParseTracingParams(runenv)
 
+	p.Experiment = runenv.StringParam(ExperimentParam)
+
 	return p, p.ValidateBasic()
 }
 
@@ -157,7 +161,7 @@ func (p *Params) NodeCount() int {
 func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg := app.DefaultConsensusConfig()
 	cmtcfg.Instrumentation.PrometheusListenAddr = "0.0.0.0:26660"
-	cmtcfg.Instrumentation.Prometheus = true
+	cmtcfg.Instrumentation.Prometheus = false
 	cmtcfg.P2P.PexReactor = params.Pex
 	cmtcfg.P2P.SendRate = int64(params.PerPeerBandwidth)
 	cmtcfg.P2P.RecvRate = int64(params.PerPeerBandwidth)
@@ -168,6 +172,8 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.Version = params.Mempool
 	cmtcfg.Mempool.MaxTxsBytes = 1_000_000_000
 	cmtcfg.Mempool.MaxTxBytes = 100_000_000
+	cmtcfg.Mempool.TTLNumBlocks = 100
+	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	return cmtcfg
 }
 
