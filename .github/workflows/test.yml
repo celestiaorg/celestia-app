@@ -3,7 +3,7 @@ on:
   workflow_call:
 
 env:
-  GO_VERSION: '1.21.6'
+  GO_VERSION: '1.22.0'
 
 jobs:
   test-short:
@@ -44,7 +44,7 @@ jobs:
         run: make test-coverage
 
       - name: Upload coverage.txt
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4.1.0
         with:
           file: ./coverage.txt
 
