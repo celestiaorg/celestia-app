@@ -178,10 +178,10 @@
 </tbody></table>
 </div>
 <h2 id="leader-selection"><a class="header" href="#leader-selection">Leader Selection</a></h2>
-<p>TODO</p>
+<p>Refer to the CometBFT specifications for <a href="https://docs.cometbft.com/v0.34/spec/consensus/proposer-selection">proposer selection procedure</a>.</p>
 <h2 id="fork-choice"><a class="header" href="#fork-choice">Fork Choice</a></h2>
 <p>The Tendermint consensus protocol is fork-free by construction under an honest majority of stake assumption.</p>
-<p>If a block has a <a href="#blocklastcommit">valid commit</a>, it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt.</p>
+<p>If a block has a <a href="#blocklastcommit">valid commit</a>, it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See <a href="https://docs.cometbft.com/v0.34/spec/consensus/consensus#proof-of-fork-accountability">proof of fork accountability</a>.</p>
 <h2 id="block-validity"><a class="header" href="#block-validity">Block Validity</a></h2>
 <p>The validity of a newly-seen block, <code>block</code>, is determined by two components, detailed in subsequent sections:</p>
 <ol>
