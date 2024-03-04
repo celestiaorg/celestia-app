@@ -278,17 +278,6 @@ func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 	}
 }
 
-func TestBar(t *testing.T) {
-	badBlock := "bad_block_FgU04N.json"
-	b, err := os.ReadFile(badBlock)
-	require.NoError(t, err)
-	v := &coretypes.Block{}
-	json.Unmarshal(b, v)
-	// fmt.Printf("unmarshalled block: %v\n", v)
-	fmt.Printf("block.DataHash.Bytes() %v \n", v.DataHash.Bytes())
-	fmt.Printf("block.DataHash.Bytes() %v \n", v.DataHash.Bytes())
-}
-
 func (s *IntegrationTestSuite) TestEmptyBlock() {
 	t := s.T()
 	emptyHeights := []int64{1, 2, 3}

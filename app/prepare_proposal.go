@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/ante"
@@ -29,7 +28,6 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		Height:  req.Height,
 		Time:    req.Time,
 	})
-	fmt.Printf("app version in prepare proposal %v\n", sdkCtx.ConsensusParams().Version.GetAppVersion())
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
