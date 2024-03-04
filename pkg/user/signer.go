@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -34,6 +34,7 @@ type Signer struct {
 	pk            cryptotypes.PubKey
 	chainID       string
 	accountNumber uint64
+	appVersion    uint64
 	pollTime      time.Duration
 
 	mtx                   sync.RWMutex
@@ -48,8 +49,8 @@ func NewSigner(
 	address sdktypes.AccAddress,
 	enc client.TxConfig,
 	chainID string,
-	accountNumber uint64,
-	sequence uint64,
+	accountNumber, sequence,
+	appVersion uint64,
 ) (*Signer, error) {
 	// check that the address exists
 	record, err := keys.KeyByAddress(address)
@@ -70,6 +71,7 @@ func NewSigner(
 		pk:                    pk,
 		chainID:               chainID,
 		accountNumber:         accountNumber,
+		appVersion:            appVersion,
 		lastSignedSequence:    sequence,
 		lastConfirmedSequence: sequence,
 		pollTime:              DefaultPollTime,
@@ -116,12 +118,13 @@ func SetupSigner(
 	}
 
 	chainID := resp.SdkBlock.Header.ChainID
+	appVersion := resp.SdkBlock.Header.Version.App
 	accNum, seqNum, err := QueryAccount(ctx, conn, encCfg, address.String())
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum)
+	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum, appVersion)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -170,7 +173,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 		return nil, err
 	}
 
-	if err := s.signTransaction(txBuilder); err != nil {
+	if err := s.signTransaction(txBuilder, s.getAndIncrementSequence()); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +181,7 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 }
 
 func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte, error) {
-	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), s.appVersion, blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -241,6 +244,31 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		case <-pollTicker.C:
 		}
 	}
+}
+
+func (s *Signer) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
+	txBuilder := s.txBuilder(opts...)
+	if err := txBuilder.SetMsgs(msgs...); err != nil {
+		return 0, err
+	}
+
+	if err := s.signTransaction(txBuilder, s.Sequence()); err != nil {
+		return 0, err
+	}
+
+	txBytes, err := s.enc.TxEncoder()(txBuilder.GetTx())
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := tx.NewServiceClient(s.grpc).Simulate(ctx, &tx.SimulateRequest{
+		TxBytes: txBytes,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.GasInfo.GasUsed, nil
 }
 
 // ChainID returns the chain ID of the signer.
@@ -308,7 +336,7 @@ func (s *Signer) Keyring() keyring.Keyring {
 	return s.keys
 }
 
-func (s *Signer) signTransaction(builder client.TxBuilder) error {
+func (s *Signer) signTransaction(builder client.TxBuilder, sequence uint64) error {
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
 		return fmt.Errorf("expected 1 signer, got %d", len(signers))
@@ -318,20 +346,9 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
 
-	sequence := s.getAndIncrementSequence()
-
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
-	draftsigV2 := signing.SignatureV2{
-		PubKey: s.pk,
-		Data: &signing.SingleSignatureData{
-			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-			Signature: nil,
-		},
-		Sequence: sequence,
-	}
-
-	err := builder.SetSignatures(draftsigV2)
+	err := builder.SetSignatures(s.getSignatureV2(sequence, nil))
 	if err != nil {
 		return fmt.Errorf("error setting draft signatures: %w", err)
 	}
@@ -341,16 +358,8 @@ func (s *Signer) signTransaction(builder client.TxBuilder) error {
 	if err != nil {
 		return fmt.Errorf("error creating signature: %w", err)
 	}
-	sigV2 := signing.SignatureV2{
-		PubKey: s.pk,
-		Data: &signing.SingleSignatureData{
-			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-			Signature: signature,
-		},
-		Sequence: sequence,
-	}
 
-	err = builder.SetSignatures(sigV2)
+	err = builder.SetSignatures(s.getSignatureV2(sequence, signature))
 	if err != nil {
 		return fmt.Errorf("error setting signatures: %w", err)
 	}
@@ -412,4 +421,18 @@ func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg encoding.Co
 
 	accNum, seqNum = acc.GetAccountNumber(), acc.GetSequence()
 	return accNum, seqNum, nil
+}
+
+func (s *Signer) getSignatureV2(sequence uint64, signature []byte) signing.SignatureV2 {
+	sigV2 := signing.SignatureV2{
+		Data: &signing.SingleSignatureData{
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+			Signature: signature,
+		},
+		Sequence: sequence,
+	}
+	if sequence == 0 {
+		sigV2.PubKey = s.pk
+	}
+	return sigV2
 }

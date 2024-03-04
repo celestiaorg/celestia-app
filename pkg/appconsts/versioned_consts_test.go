@@ -44,30 +44,26 @@ func TestGlobalMinGasPrice(t *testing.T) {
 	testCases := []struct {
 		version  uint64
 		expected float64
-		expErr   bool
 	}{
 		{
 			version:  v2.Version,
 			expected: v2.GlobalMinGasPrice,
-			expErr:   false,
 		},
 		{
 			version:  v1.Version,
-			expected: 0,
-			expErr:   true,
+			expected: v2.GlobalMinGasPrice,
+		},
+		{
+			version:  testground.Version,
+			expected: v2.GlobalMinGasPrice,
 		},
 	}
 
 	for _, tc := range testCases {
 		name := fmt.Sprintf("version %v", tc.version)
 		t.Run(name, func(t *testing.T) {
-			got, err := appconsts.GlobalMinGasPrice(tc.version)
-			if tc.expErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, got)
-			}
+			got := appconsts.GlobalMinGasPrice(tc.version)
+			require.Equal(t, tc.expected, got)
 		})
 	}
 }

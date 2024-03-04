@@ -23,7 +23,7 @@ var latestVersion = "latest"
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func TestE2ESimple(t *testing.T) {
-	if os.Getenv("E2E") != "true" {
+	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
 

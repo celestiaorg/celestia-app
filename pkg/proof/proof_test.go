@@ -12,11 +12,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/go-square/square"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,7 +103,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound(appconsts.LatestVersion))
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound(appconsts.LatestVersion), appconsts.SubtreeRootThreshold(appconsts.LatestVersion))
 	if err != nil {
 		panic(err)
 	}
@@ -185,21 +185,21 @@ func TestNewShareInclusionProof(t *testing.T) {
 		{
 			name:          "shares from PFB namespace",
 			startingShare: 53,
-			endingShare:   56,
+			endingShare:   55,
 			namespaceID:   appns.PayForBlobNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "blob shares for first namespace",
-			startingShare: 56,
-			endingShare:   58,
+			startingShare: 55,
+			endingShare:   57,
 			namespaceID:   ns1,
 			expectErr:     false,
 		},
 		{
 			name:          "blob shares for third namespace",
-			startingShare: 60,
-			endingShare:   62,
+			startingShare: 59,
+			endingShare:   61,
 			namespaceID:   ns3,
 			expectErr:     false,
 		},
@@ -231,7 +231,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 func TestAllSharesInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(243, 500)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, 128)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound(appconsts.LatestVersion), appconsts.SubtreeRootThreshold(appconsts.LatestVersion))
 	require.NoError(t, err)
 	assert.Equal(t, 256, len(dataSquare))
 

@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.21.6-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.0-alpine3.18 as builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -21,7 +21,7 @@ RUN uname -a &&\
     make build
 
 # stage 2
-FROM docker.io/alpine:3.19.0
+FROM docker.io/alpine:3.19.1
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
@@ -48,7 +48,7 @@ COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
-# p2p, rpc and prometheus port
-EXPOSE 26656 26657 1317 9090
+# p2p, rpc,  prometheus, api and grpc ports
+EXPOSE 26656 26657 26660 1317 9090
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]

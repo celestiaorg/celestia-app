@@ -6,11 +6,12 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
+	"google.golang.org/protobuf/proto"
 )
 
 type ExportFn func(builder *square.Builder) (square.Square, error)
@@ -21,7 +22,7 @@ type ExportFn func(builder *square.Builder) (square.Square, error)
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
 func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (square.Square, [][]byte, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appVersion)
+	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -48,7 +49,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (sq
 // square. This mimics the functionality of the normal Construct function, but
 // acts maliciously by not following some of the block validity rules.
 func Construct(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (square.Square, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appVersion, txs...)
+	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +137,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	// appropriate shares as the starting index of each blob needs to be included in the PFB transaction
 	pfbWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
 	for _, iw := range b.Pfbs {
-		iwBytes, err := iw.Marshal()
+		iwBytes, err := proto.Marshal(iw)
 		if err != nil {
 			return nil, fmt.Errorf("marshaling pay for blob tx: %w", err)
 		}

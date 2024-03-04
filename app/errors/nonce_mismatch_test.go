@@ -8,11 +8,11 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/go-square/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
@@ -32,13 +32,13 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 	// set the sequence to an incorrect value
-	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), 2)
+	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), 2, appconsts.LatestVersion)
 	require.NoError(t, err)
 
 	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
-	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), b)
+	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), appconsts.LatestVersion, b)
 	require.NoError(t, err)
 
 	tx, err := signer.CreateTx([]sdk.Msg{msg})

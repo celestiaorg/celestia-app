@@ -99,7 +99,7 @@ func accountsToSDKTypes(addrs []string, pubkeys []cryptotypes.PubKey) ([]banktyp
 		pubKey := pubkeys[i]
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(999_999_999_999_999_999)),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(DefaultInitialBalance)),
 		)
 
 		genBals[i] = banktypes.Balance{Address: addr, Coins: balances.Sort()}

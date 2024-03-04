@@ -16,11 +16,11 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
 )
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
@@ -94,7 +94,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
@@ -216,4 +216,26 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 		}
 	}
 	return infos
+}
+
+func TestPrepareProposalZeroTxsInFirstBlock(t *testing.T) {
+	accounts := testfactory.GenerateAccounts(6)
+	testApp, _, kr := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams(), accounts...)
+	require.Equal(t, int64(0), testApp.LastBlockHeight())
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	sendTxs := coretypes.Txs{testutil.SendTxWithManualSequence(
+		t,
+		encCfg.TxConfig,
+		kr,
+		accounts[0],
+		accounts[1],
+		1000,
+		testutil.ChainID,
+		1,
+		1,
+	)}.ToSliceOfBytes()
+	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{Txs: sendTxs},
+	})
+	require.Len(t, resp.BlockData.Txs, 0)
 }
