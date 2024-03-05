@@ -6,11 +6,6 @@
 # considerably smaller because it doesn't need to have Golang installed.
 ARG BUILDER_IMAGE=docker.io/golang:1.22.0-alpine3.18
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19.1
-
-# Use UID 10,001 because UIDs below 10,000 are a security risk.
-# Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
-ARG UID=10001
-ARG USER_NAME=celestia
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -21,7 +16,6 @@ ARG TARGETARCH
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
-
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
@@ -41,10 +35,11 @@ RUN uname -a &&\
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM ${RUNTIME_IMAGE} AS runtime
+# Use UID 10,001 because UIDs below 10,000 are a security risk.
+# Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
+ARG UID=10001
+ARG USER_NAME=celestia
 ENV CELESTIA_HOME=/home/${USER_NAME}
-ENV USER_NAME=${USER_NAME}
-ENV UID=${UID}
-
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \
@@ -56,22 +51,17 @@ RUN apk update && apk add --no-cache \
     -h ${CELESTIA_HOME} \
     -s /sbin/nologin \
     -u ${UID}
-
 # Copy the celestia-appd binary from the builder into the final image.
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 # Copy the entrypoint script into the final image.
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 # Set the user to celestia.
 USER ${USER_NAME}
-# 26656 is the default node p2p port.
-EXPOSE 26656
-# 26657 is the default RPC port.
-EXPOSE 26657
-# 26660 is the port used for Prometheus.
-EXPOSE 26660
+# Expose ports:
 # 1317 is the default API server port.
-EXPOSE 1317
 # 9090 is the default GRPC server port.
-EXPOSE 9090
-
+# 26656 is the default node p2p port.
+# 26657 is the default RPC port.
+# 26660 is the port used for Prometheus.
+EXPOSE 1317 9090 26656 26657 26660
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
