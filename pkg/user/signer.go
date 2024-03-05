@@ -109,7 +109,10 @@ func SetupSigner(
 	address sdktypes.AccAddress,
 	encCfg encoding.Config,
 ) (*Signer, error) {
-	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
+	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(
+		ctx,
+		&tmservice.GetLatestBlockRequest{},
+	)
 	if err != nil {
 		return nil, err
 	}

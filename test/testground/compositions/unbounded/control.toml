@@ -1,4 +1,5 @@
 [metadata]
+name = "standard"
 author = "core-app"
 
 [global]
@@ -10,31 +11,31 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "standard-100MB"
-timeout = "25m"
-halt_height = "50"
-latency = "0"
-random_latency = "false"
+chain_id = "l-150-fcontrol-11"
+timeout = "59m"
+halt_height = "200"
+latency = "150"
+random_latency = "true"
 bandwidth = "1Gib"
-validators = "40"
+validators = "100"
 topology = "seed"
 pex = "true"
-timeout_propose = "10s"
-timeout_commit = "11s"
+timeout_propose = "120s"
+timeout_commit = "1s"
 per_peer_bandwidth = "5Mib"
-blob_sequences = "2"
-blob_sizes = "100000"
-blobs_per_sequence = "10"
-inbound_peer_count = "15"
+blob_sequences = "5"
+blob_sizes = "110000"
+blobs_per_sequence = "5"
+inbound_peer_count = "40"
 outbound_peer_count = "10"
-gov_max_square_size = "512"
-max_block_bytes = "99000000"
+gov_max_square_size = "1024"
+max_block_bytes = "2000000"
 mempool = "v1"
 broadcast_txs = "true"
 tracing_nodes = "0"
 tracing_token = ""
 tracing_url = ""
-experiment = "consistent-fill"
+experiment = "unbounded"
 
 [[groups]]
 id = "validators"
@@ -46,11 +47,10 @@ cpu = "6"
 count = 100
 percentage = 0.0
 [groups.build_config]
-build_base_image = "golang:1.22.0"
+build_base_image = "golang:1.21.6"
 enable_go_build_cache = true
 enabled = true
-go_version = "1.22.0"
+go_version = "1.21"
 [groups.build]
 [groups.run]
 artifact = ""
-name = "standard"

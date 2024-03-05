@@ -23,6 +23,7 @@ instances = { min = 1, max = 200, default = 3 }
 chain_id = { type = "string", default = "testground" }
 timeout = { type = "string", default = "21m" }
 latency = { type = "int", default = 0 }
+random_latency = { type = "bool", default = false }
 bandwidth = { type = "string", default = "420Mib" }
 per_peer_bandwidth = { type = "string", default = "5Mib" }
 validators = { type = "int", default = 2 }
@@ -44,3 +45,4 @@ broadcast_txs = { type = "bool", default = true }
 tracing_nodes = { type = "int", default = 0 }
 tracing_url = { type = "string", default = "" }
 tracing_token = { type = "string", default = "" }
+experiment = { type = "experiment", default = "consistent-fill" }
