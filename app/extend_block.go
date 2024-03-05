@@ -16,6 +16,7 @@ func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSq
 	dataSquare, err := square.Construct(
 		data.Txs.ToSliceOfBytes(),
 		appconsts.SquareSizeUpperBound(appVersion),
+		appconsts.SquareSizeUpperBound(appVersion),
 		appconsts.SubtreeRootThreshold(appVersion),
 	)
 	if err != nil {

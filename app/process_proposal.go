@@ -120,6 +120,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	dataSquare, err := square.Construct(
 		req.BlockData.Txs,
 		app.GovSquareSizeUpperBound(sdkCtx),
+		appconsts.SquareSizeUpperBound(app.GetBaseApp().AppVersion(sdkCtx)),
 		subtreeRootThreshold,
 	)
 	if err != nil {

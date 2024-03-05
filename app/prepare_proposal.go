@@ -65,6 +65,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// The txs returned are the ones used in the square and block
 	dataSquare, txs, err := square.Build(txs,
 		app.GovSquareSizeUpperBound(sdkCtx),
+		appconsts.SquareSizeUpperBound(app.GetBaseApp().AppVersion(sdkCtx)),
 		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx)),
 	)
 	if err != nil {

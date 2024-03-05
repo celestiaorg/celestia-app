@@ -90,7 +90,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	// construct the data square from the block data. As we don't have
 	// access to the application's state machine we use the upper bound
 	// square size instead of the square size dictated from governance
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound(pbb.Header.Version.App), appconsts.SubtreeRootThreshold(pbb.Header.Version.App))
+	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound(pbb.Header.Version.App), appconsts.SquareSizeUpperBound(pbb.Header.Version.App), appconsts.SubtreeRootThreshold(pbb.Header.Version.App))
 	if err != nil {
 		return nil, err
 	}

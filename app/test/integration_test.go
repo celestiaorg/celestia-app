@@ -70,7 +70,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	t := s.T()
-	t.Skip() // skip this test because it is flaky.
 
 	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
@@ -245,6 +244,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 		// get the blob shares
 		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0,
+			appconsts.DefaultSquareSizeUpperBound,
 			appconsts.DefaultSquareSizeUpperBound,
 			appconsts.DefaultSubtreeRootThreshold,
 		)

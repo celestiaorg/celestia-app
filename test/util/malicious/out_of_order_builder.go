@@ -22,7 +22,7 @@ type ExportFn func(builder *square.Builder) (square.Square, error)
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
 func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (square.Square, [][]byte, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion))
+	builder, err := square.NewBuilder(maxSquareSize, appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,7 +49,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (sq
 // square. This mimics the functionality of the normal Construct function, but
 // acts maliciously by not following some of the block validity rules.
 func Construct(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (square.Square, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion), txs...)
+	builder, err := square.NewBuilder(maxSquareSize, appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return nil, err
 	}
