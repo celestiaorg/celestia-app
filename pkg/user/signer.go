@@ -293,8 +293,19 @@ func (s *Signer) PubKey() cryptotypes.PubKey {
 	return s.pk
 }
 
-// GetSequencer gets the lastest signed sequnce and increments the local sequence number
+func (s *Signer) Sequence() uint64 {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	return s.lastSignedSequence
+}
+
+// DEPRECATED: use Sequence instead
 func (s *Signer) GetSequence() uint64 {
+	return s.getAndIncrementSequence()
+}
+
+// getAndIncrementSequence gets the lastest signed sequnce and increments the local sequence number
+func (s *Signer) getAndIncrementSequence() uint64 {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	defer func() { s.lastSignedSequence++ }()
@@ -310,16 +321,12 @@ func (s *Signer) ForceSetSequence(seq uint64) {
 	s.lastSignedSequence = seq
 }
 
-<<<<<<< HEAD
-func (s *Signer) signTransaction(builder client.TxBuilder) error {
-=======
 // Keyring exposes the signers underlying keyring
 func (s *Signer) Keyring() keyring.Keyring {
 	return s.keys
 }
 
 func (s *Signer) signTransaction(builder client.TxBuilder, sequence uint64) error {
->>>>>>> 2b135332 (feat: add gas estimation to the signer (#3017))
 	signers := builder.GetTx().GetSigners()
 	if len(signers) != 1 {
 		return fmt.Errorf("expected 1 signer, got %d", len(signers))
@@ -329,11 +336,6 @@ func (s *Signer) signTransaction(builder client.TxBuilder, sequence uint64) erro
 		return fmt.Errorf("expected signer %s, got %s", s.address.String(), signers[0].String())
 	}
 
-<<<<<<< HEAD
-	sequence := s.GetSequence()
-
-=======
->>>>>>> 2b135332 (feat: add gas estimation to the signer (#3017))
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
 	err := builder.SetSignatures(s.getSignatureV2(sequence, nil))

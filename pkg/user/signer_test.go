@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,8 +14,10 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -68,14 +71,6 @@ func (s *SignerTestSuite) TestSubmitTx() {
 	require.EqualValues(t, 0, resp.Code)
 }
 
-<<<<<<< HEAD
-func (s *SignerTestSuite) ConfirmTxTimeout() {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := s.signer.ConfirmTx(ctx, string("E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728"))
-	require.Error(s.T(), err)
-	require.Equal(s.T(), err, context.DeadlineExceeded)
-=======
 func (s *SignerTestSuite) TestConfirmTx() {
 	t := s.T()
 
@@ -98,7 +93,7 @@ func (s *SignerTestSuite) TestConfirmTx() {
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
-		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := bank.NewMsgSend(s.signer.Address(), testfactory.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
@@ -110,7 +105,7 @@ func (s *SignerTestSuite) TestConfirmTx() {
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
 		balance := s.queryCurrentBalance(t)
 		// Create a msg send with out of balance, ensure this tx fails
-		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
+		msg := bank.NewMsgSend(s.signer.Address(), testfactory.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
 		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
@@ -121,7 +116,7 @@ func (s *SignerTestSuite) TestConfirmTx() {
 }
 
 func (s *SignerTestSuite) TestGasEstimation() {
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	msg := bank.NewMsgSend(s.signer.Address(), testfactory.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 	gas, err := s.signer.EstimateGas(context.Background(), []sdk.Msg{msg})
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), gas, uint64(0))
@@ -135,7 +130,7 @@ func (s *SignerTestSuite) TestGasConsumption() {
 	t := s.T()
 
 	utiaToSend := int64(1)
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
+	msg := bank.NewMsgSend(s.signer.Address(), testfactory.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
 
 	gasPrice := int64(1)
 	gasLimit := uint64(1e6)
@@ -183,5 +178,4 @@ func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdk.Msg, opts ...user.Tx
 		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 	return resp, nil
->>>>>>> 2b135332 (feat: add gas estimation to the signer (#3017))
 }
