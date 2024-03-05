@@ -46,13 +46,13 @@
 
 ## Leader Selection
 
-TODO
+Refer to the CometBFT specifications for [proposer selection procedure](https://docs.cometbft.com/v0.34/spec/consensus/proposer-selection).
 
 ## Fork Choice
 
 The Tendermint consensus protocol is fork-free by construction under an honest majority of stake assumption.
 
-If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt.
+If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See [proof of fork accountability](https://docs.cometbft.com/v0.34/spec/consensus/consensus#proof-of-fork-accountability).
 
 ## Block Validity
 
