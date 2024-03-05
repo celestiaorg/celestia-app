@@ -2,7 +2,7 @@
 # to compile the celestia-appd binary. RUNTIME_IMAGE is the image that will be
 # returned with the final celestia-appd binary.
 #
-# Seperating the builder and runtime image allows the runtime image to be
+# Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
 ARG BUILDER_IMAGE=docker.io/golang:1.22.0-alpine3.18
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19.1
