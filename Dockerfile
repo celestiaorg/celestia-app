@@ -15,7 +15,10 @@ ARG TARGETOS
 ARG TARGETARCH
 
 # Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
-FROM --platform=$BUILDPLATFORM BUILDER_IMAGE AS builder
+# Ignore hadolint rule because hadolint can't parse the variable.
+# See https://github.com/hadolint/hadolint/issues/339
+# hadolint ignore=DL3006
+FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 
@@ -34,8 +37,13 @@ RUN uname -a &&\
     make build
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
-FROM RUNTIME_IMAGE AS runtime
+# Ignore hadolint rule because hadolint can't parse the variable.
+# See https://github.com/hadolint/hadolint/issues/339
+# hadolint ignore=DL3006
+FROM ${RUNTIME_IMAGE} AS runtime
 ENV CELESTIA_HOME=/home/${USER_NAME}
+ENV USER_NAME=${USER_NAME}
+ENV UID=${UID}
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
