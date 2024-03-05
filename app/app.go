@@ -3,6 +3,7 @@ package app
 import (
 	"io"
 
+	"github.com/celestiaorg/celestia-app/app/module"
 	"github.com/celestiaorg/celestia-app/app/posthandler"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
@@ -20,7 +21,7 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/module"
+	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
@@ -102,7 +103,7 @@ var (
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as codec registration
 	// and genesis verification.
-	ModuleBasics = module.NewBasicManager(
+	ModuleBasics = sdkmodule.NewBasicManager(
 		auth.AppModuleBasic{},
 		genutil.AppModuleBasic{},
 		bankModule{},
@@ -140,6 +141,8 @@ var (
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	}
 )
+
+const DefaultInitialVersion = v1.Version
 
 var _ servertypes.Application = (*App)(nil)
 
@@ -186,11 +189,9 @@ type App struct {
 	BlobKeeper       blobkeeper.Keeper
 	BlobstreamKeeper blobstreamkeeper.Keeper
 
-	// the module manager
 	mm *module.Manager
 
-	// module configurator
-	configurator module.Configurator
+	configurator sdkmodule.Configurator
 }
 
 // New returns a reference to an initialized celestia app.
@@ -365,32 +366,35 @@ func New(
 
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
-
-	app.mm = module.NewManager(
-		genutil.NewAppModule(
+	var err error
+	app.mm, err = module.NewManager(
+		module.NewVersionedModule(genutil.NewAppModule(
 			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
 			encodingConfig.TxConfig,
-		),
-		auth.NewAppModule(appCodec, app.AccountKeeper, nil),
-		vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-		bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
-		capability.NewAppModule(appCodec, *app.CapabilityKeeper),
-		feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-		crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-		gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-		mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
-		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-		evidence.NewAppModule(app.EvidenceKeeper),
-		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-		ibc.NewAppModule(app.IBCKeeper),
-		params.NewAppModule(app.ParamsKeeper),
-		transfer.NewAppModule(app.TransferKeeper),
-		blob.NewAppModule(appCodec, app.BlobKeeper),
-		blobstream.NewAppModule(appCodec, app.BlobstreamKeeper),
-		upgrade.NewAppModule(app.UpgradeKeeper),
+		), v1.Version, v2.Version),
+		module.NewVersionedModule(auth.NewAppModule(appCodec, app.AccountKeeper, nil), v1.Version, v2.Version),
+		module.NewVersionedModule(vesting.NewAppModule(app.AccountKeeper, app.BankKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(capability.NewAppModule(appCodec, *app.CapabilityKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry), v1.Version, v2.Version),
+		module.NewVersionedModule(crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants), v1.Version, v2.Version),
+		module.NewVersionedModule(gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(evidence.NewAppModule(app.EvidenceKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry), v1.Version, v2.Version),
+		module.NewVersionedModule(ibc.NewAppModule(app.IBCKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(params.NewAppModule(app.ParamsKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(transfer.NewAppModule(app.TransferKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(blob.NewAppModule(appCodec, app.BlobKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(blobstream.NewAppModule(appCodec, app.BlobstreamKeeper), v1.Version, v2.Version),
+		module.NewVersionedModule(upgrade.NewAppModule(app.UpgradeKeeper), v2.Version, v2.Version),
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -474,7 +478,6 @@ func New(
 	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
-	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.mm.RegisterServices(app.configurator)
 
@@ -519,19 +522,25 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
-	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) {
-		if app.AppVersion(ctx) == v1.Version {
-			app.SetAppVersion(ctx, v2.Version)
+	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion(ctx) == v1.Version {
+		if err := app.Upgrade(ctx, v2.Version); err != nil {
+			panic(err)
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
 	} else if shouldUpgrade, version := app.UpgradeKeeper.ShouldUpgrade(); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if version > app.AppVersion(ctx) {
-			app.SetAppVersion(ctx, version)
-			app.UpgradeKeeper.ResetTally(ctx, version)
+			if err := app.Upgrade(ctx, version); err != nil {
+				panic(err)
+			}
 		}
 	}
 	return res
+}
+
+func (app *App) Upgrade(ctx sdk.Context, version uint64) error {
+	app.SetAppVersion(ctx, version)
+	return app.mm.RunMigrations(ctx, app.configurator, app.AppVersion(ctx), version)
 }
 
 // InitChainer application update at chain initialization
@@ -540,12 +549,23 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	// genesis must always contain the consensus params. The validator set howerver is derived from the
+	// initial genesis state
+	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
+		panic("no consensus params set")
+	}
+	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
 // LoadHeight loads a particular height
 func (app *App) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
+}
+
+// SupportedVersions returns all the state machines that the
+// application supports
+func (app *App) SupportedVersions() []uint64 {
+	return app.mm.SupportedVersions()
 }
 
 // ModuleAccountAddrs returns all the app's module account addresses.
@@ -700,7 +720,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 
 // extractRegisters isolates the encoding module registers from the module
 // manager, and appends any solo registers.
-func extractRegisters(m module.BasicManager, soloRegisters ...encoding.ModuleRegister) []encoding.ModuleRegister {
+func extractRegisters(m sdkmodule.BasicManager, soloRegisters ...encoding.ModuleRegister) []encoding.ModuleRegister {
 	// TODO: might be able to use some standard generics in go 1.18
 	s := make([]encoding.ModuleRegister, len(m)+len(soloRegisters))
 	i := 0
