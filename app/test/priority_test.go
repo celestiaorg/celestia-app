@@ -86,7 +86,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		require.NoError(t, err)
 		resp, err := signer.BroadcastTx(s.cctx.GoContext(), btx)
 		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 		hashes = append(hashes, resp.TxHash)
 	}
 
