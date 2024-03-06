@@ -34,6 +34,9 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	if err != nil {
 		return nil, err
 	}
+	if index < 0 {
+		return nil, fmt.Errorf("path[0] element: %q produced a negative value: %d", path[0], index)
+	}
 
 	// unmarshal the block data that is passed from the ABCI client
 	pbb := new(tmproto.Block)

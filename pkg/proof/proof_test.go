@@ -2,8 +2,11 @@ package proof_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -255,4 +258,22 @@ func TestAllSharesInclusionProof(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.NoError(t, proof.Validate(dataRoot))
+}
+
+// Ensure that we reject negative index values and avoid overflows.
+// https://github.com/celestiaorg/celestia-app/issues/3140
+func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
+	path := []string{"-2"}
+	req := abci.RequestQuery{Data: []byte{}}
+	ctx := sdk.Context{}
+	rawProof, err := proof.QueryTxInclusionProof(ctx, path, req)
+	if err == nil {
+		t.Fatal("expected a non-nil error")
+	}
+	if !strings.Contains(err.Error(), "negative") {
+		t.Fatalf("The error should reject negative values and report such, but did not\n\tGot: %v", err)
+	}
+	if len(rawProof) != 0 {
+		t.Fatal("no rawProof expected")
+	}
 }
