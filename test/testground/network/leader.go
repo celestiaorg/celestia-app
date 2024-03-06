@@ -241,7 +241,7 @@ func DeserializeAccountPublicKey(hexPubKey string) (cryptotypes.PubKey, error) {
 
 // changeParams submits a parameter change proposal to the network. Errors are
 // thrown if the proposal is not submitted successfully.
-func (l *Leader) changeParams(ctx context.Context, initCtx *run.InitContext, runenv *runtime.RunEnv, propID uint64, changes ...proposal.ParamChange) error {
+func (l *Leader) changeParams(ctx context.Context, runenv *runtime.RunEnv, propID uint64, changes ...proposal.ParamChange) error {
 	content := proposal.NewParameterChangeProposal("title", "description", changes)
 	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
 
@@ -258,16 +258,15 @@ func (l *Leader) changeParams(ctx context.Context, initCtx *run.InitContext, run
 
 	voteMsg := v1.NewMsgVote(addr, propID, v1.VoteOption_VOTE_OPTION_YES, "")
 
-	txBytes, err := l.signer.CreateTx([]sdk.Msg{propMsg, voteMsg}, user.SetGasLimitAndFee(1000000, 0.2))
+	resp, err := l.signer.SubmitTx(ctx, []sdk.Msg{propMsg, voteMsg}, user.SetGasLimitAndFee(1000000, 0.2))
 	if err != nil {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to submit tx %+v, %v", changes, err))
 		return err
 	}
 
-	cmd := NewSubmitTxCommand("increase block size", time.Minute, SubmitTxCommandArgs{Tx: txBytes})
-
-	_, err = initCtx.SyncClient.Publish(ctx, CommandTopic, cmd)
-	if err != nil {
-		return err
+	if resp.Code != 0 {
+		runenv.RecordMessage(fmt.Sprintf("leader: failed to submit tx %+v, %v %v", changes, resp.Code, resp.Codespace))
+		return fmt.Errorf("proposal failed with code %d: %s", resp.Code, resp.RawLog)
 	}
 
 	runenv.RecordMessage(fmt.Sprintf("leader: submitted successful proposal %+v", changes))

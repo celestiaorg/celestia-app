@@ -2,7 +2,6 @@ package testnode
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"testing"
 
@@ -20,28 +19,27 @@ import (
 func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
-	tmCfg := cfg.TmConfig
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-
 	// initialize the genesis file and validator files for the first validator.
-	baseDir, err := genesis.InitFiles(t.TempDir(), tmCfg, cfg.Genesis, 0)
+	baseDir, err := genesis.InitFiles(t.TempDir(), cfg.TmConfig, cfg.Genesis, 0)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
 	require.NoError(t, err)
 
-	cctx = NewContext(context.Background(), cfg.Genesis.Keyring(), tmCfg, cfg.Genesis.ChainID)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() {
+		cancel()
+	})
+
+	cctx = NewContext(ctx, cfg.Genesis.Keyring(), cfg.TmConfig, cfg.Genesis.ChainID, cfg.AppConfig.API.Address)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	appCfg := cfg.AppConfig
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	cctx, cleanupGRPC, err := StartGRPCServer(app, cfg.AppConfig, cctx)
+	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
+	apiServer, err := StartAPIServer(app, *cfg.AppConfig, cctx)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -58,9 +56,15 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 			// failing the test.
 			t.Logf("error when cleaning up GRPC %v", err)
 		}
+		err = apiServer.Close()
+		if err != nil {
+			// the test has already completed so just log the error instead of
+			// failing the test.
+			t.Logf("error when closing API server %v", err)
+		}
 	})
 
-	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
+	return cctx, cfg.TmConfig.RPC.ListenAddress, cfg.AppConfig.GRPC.Address
 }
 
 // getFreePort returns a free port and optionally an error.

@@ -76,7 +76,7 @@ func (l *Leader) unboundedBlockSize(
 					continue
 				}
 
-				err = l.changeParams(ctx, initCtx, runenv, proposalCount, sdkutil.MaxBlockBytesParamChange(cdc, blockSize))
+				err = l.changeParams(ctx, runenv, proposalCount, sdkutil.MaxBlockBytesParamChange(cdc, blockSize))
 				if err != nil {
 					runenv.RecordMessage("leader: failure to increase the blocksize %d, %v", blockSize, err)
 					runenv.RecordFailure(err)

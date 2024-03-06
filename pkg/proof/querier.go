@@ -6,10 +6,10 @@ import (
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/square"
 
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	appns "github.com/celestiaorg/go-square/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -34,6 +34,9 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	if err != nil {
 		return nil, err
 	}
+	if index < 0 {
+		return nil, fmt.Errorf("path[0] element: %q produced a negative value: %d", path[0], index)
+	}
 
 	// unmarshal the block data that is passed from the ABCI client
 	pbb := new(tmproto.Block)
@@ -51,8 +54,8 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	if err != nil {
 		return nil, err
 	}
-	pShareProof := shareProof.ToProto()
-	rawShareProof, err := pShareProof.Marshal()
+
+	rawShareProof, err := shareProof.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +93,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	// construct the data square from the block data. As we don't have
 	// access to the application's state machine we use the upper bound
 	// square size instead of the square size dictated from governance
-	dataSquare, err := square.Construct(pbb.Data.Txs, pbb.Header.Version.App, appconsts.SquareSizeUpperBound(pbb.Header.Version.App))
+	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound(pbb.Header.Version.App), appconsts.SubtreeRootThreshold(pbb.Header.Version.App))
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +112,8 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	if err != nil {
 		return nil, err
 	}
-	pShareProof := shareProof.ToProto()
-	rawShareProof, err := pShareProof.Marshal()
+
+	rawShareProof, err := shareProof.Marshal()
 	if err != nil {
 		return nil, err
 	}

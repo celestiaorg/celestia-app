@@ -4,7 +4,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/go-square/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -36,7 +36,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(sdkCtx), a.GovSquareSizeUpperBound(sdkCtx), OutOfOrderExport)
+	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(sdkCtx), a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
 	if err != nil {
 		panic(err)
 	}
