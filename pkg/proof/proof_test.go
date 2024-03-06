@@ -2,8 +2,11 @@ package proof_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -221,3 +224,56 @@ func TestNewShareInclusionProof(t *testing.T) {
 		})
 	}
 }
+<<<<<<< HEAD
+=======
+
+// TestAllSharesInclusionProof creates a proof for all shares in the data
+// square. Since we can't prove multiple namespaces at the moment, all the
+// shares use the same namespace.
+func TestAllSharesInclusionProof(t *testing.T) {
+	txs := testfactory.GenerateRandomTxs(243, 500)
+
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound(appconsts.LatestVersion), appconsts.SubtreeRootThreshold(appconsts.LatestVersion))
+	require.NoError(t, err)
+	assert.Equal(t, 256, len(dataSquare))
+
+	// erasure the data square which we use to create the data root.
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	require.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+	dataRoot := dah.Hash()
+
+	actualNamespace, err := proof.ParseNamespace(dataSquare, 0, 256)
+	require.NoError(t, err)
+	require.Equal(t, appns.TxNamespace, actualNamespace)
+	proof, err := proof.NewShareInclusionProof(
+		dataSquare,
+		appns.TxNamespace,
+		shares.NewRange(0, 256),
+	)
+	require.NoError(t, err)
+	assert.NoError(t, proof.Validate(dataRoot))
+}
+
+// Ensure that we reject negative index values and avoid overflows.
+// https://github.com/celestiaorg/celestia-app/issues/3140
+func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
+	path := []string{"-2"}
+	req := abci.RequestQuery{Data: []byte{}}
+	ctx := sdk.Context{}
+	rawProof, err := proof.QueryTxInclusionProof(ctx, path, req)
+	if err == nil {
+		t.Fatal("expected a non-nil error")
+	}
+	if !strings.Contains(err.Error(), "negative") {
+		t.Fatalf("The error should reject negative values and report such, but did not\n\tGot: %v", err)
+	}
+	if len(rawProof) != 0 {
+		t.Fatal("no rawProof expected")
+	}
+}
+>>>>>>> adb7a570 (fix(pkg/proof): reject negative indices in QueryTxInclusionProof (#3141))
