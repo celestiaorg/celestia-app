@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "no-alloc-3"
+chain_id = "metrics-1"
 timeout = "59m"
 halt_height = "2000"
 latency = "150"
@@ -72,4 +72,4 @@ go_version = "1.21"
 [groups.build]
 [groups.run]
 artifact = ""
-profiles = { cpu = "true", block = "5s", allocs = "10s" }
+profiles = { mutex = "10s" }
