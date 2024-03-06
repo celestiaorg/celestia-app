@@ -159,7 +159,7 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 // pyroscope instance.
 func ProfilingConfigurator() Configurator {
 	return func(nodes []RoleConfig) ([]RoleConfig, error) {
-		// nodes[len(nodes)-2].CmtConfig.Instrumentation.Prometheus = true
+		nodes[len(nodes)-2].CmtConfig.Instrumentation.Prometheus = true
 
 		// nodes[len(nodes)-1].CmtConfig.Instrumentation.PyroscopeTrace = true
 		// nodes[len(nodes)-1].CmtConfig.Instrumentation.PyroscopeURL = "http://51.159.176.205:4040"

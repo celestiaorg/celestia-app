@@ -612,6 +612,7 @@ github.com/celestiaorg/celestia-core v1.33.0-tm-v0.34.29.0.20240219093009-3ea3de
 github.com/celestiaorg/celestia-core v1.33.0-tm-v0.34.29.0.20240219093009-3ea3de399db6/go.mod h1:ime8Wp2TLrncpFuduj5rzDZZs/KEo+dM5xWr6p70mgk=
 github.com/celestiaorg/celestia-core v1.33.0-tm-v0.34.29.0.20240226193853-bc48a3d902f5 h1:Dv4FzBbl5ULqS+5ZeitreopMtC3KZdYrxurAoRYdubg=
 github.com/celestiaorg/celestia-core v1.33.0-tm-v0.34.29.0.20240226193853-bc48a3d902f5/go.mod h1:ime8Wp2TLrncpFuduj5rzDZZs/KEo+dM5xWr6p70mgk=
+github.com/celestiaorg/celestia-core v1.33.0-tm-v0.34.29.0.20240306135004-40dc81b59c48/go.mod h1:ime8Wp2TLrncpFuduj5rzDZZs/KEo+dM5xWr6p70mgk=
 github.com/celestiaorg/nmt v0.19.0/go.mod h1:Oz15Ub6YPez9uJV0heoU4WpFctxazuIhKyUtaYNio7E=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 h1:Q8nr5SAtDW5gocrBwqwDJcSS/JedqU58WwQA2SP+nXw=
 github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2/go.mod h1:s/LzLUw0WeYPJ6qdk4q46jKLOq7rc9Z5Mdrxtfpcigw=

@@ -5,13 +5,13 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 10
+total_instances = 100
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "pprof-no-wal-2"
+chain_id = "no-alloc-3"
 timeout = "59m"
 halt_height = "2000"
 latency = "150"
@@ -44,7 +44,7 @@ builder = "docker:generic"
 memory = "12Gi"
 cpu = "8"
 [groups.instances]
-count = 9
+count = 99
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.21.6"
@@ -72,4 +72,4 @@ go_version = "1.21"
 [groups.build]
 [groups.run]
 artifact = ""
-profiles = { cpu = "true", block = "5s" }
+profiles = { cpu = "true", block = "5s", allocs = "10s" }
