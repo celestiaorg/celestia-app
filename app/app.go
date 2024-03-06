@@ -84,8 +84,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
+	appv1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	appv2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -142,7 +142,11 @@ var (
 	}
 )
 
-const DefaultInitialVersion = v1.Version
+const (
+	v1                    = appv1.Version
+	v2                    = appv2.Version
+	DefaultInitialVersion = v1
+)
 
 var _ servertypes.Application = (*App)(nil)
 
@@ -191,7 +195,9 @@ type App struct {
 
 	mm *module.Manager
 
-	configurator sdkmodule.Configurator
+	configurator module.VersionedConfigurator
+	// used to define what messages are accepted for a given app version
+	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
 // New returns a reference to an initialized celestia app.
@@ -367,31 +373,88 @@ func New(
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
 	var err error
-	app.mm, err = module.NewManager(
-		module.NewVersionedModule(genutil.NewAppModule(
-			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
-			encodingConfig.TxConfig,
-		), v1.Version, v2.Version),
-		module.NewVersionedModule(auth.NewAppModule(appCodec, app.AccountKeeper, nil), v1.Version, v2.Version),
-		module.NewVersionedModule(vesting.NewAppModule(app.AccountKeeper, app.BankKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(capability.NewAppModule(appCodec, *app.CapabilityKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry), v1.Version, v2.Version),
-		module.NewVersionedModule(crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants), v1.Version, v2.Version),
-		module.NewVersionedModule(gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(evidence.NewAppModule(app.EvidenceKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry), v1.Version, v2.Version),
-		module.NewVersionedModule(ibc.NewAppModule(app.IBCKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(params.NewAppModule(app.ParamsKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(transfer.NewAppModule(app.TransferKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(blob.NewAppModule(appCodec, app.BlobKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(blobstream.NewAppModule(appCodec, app.BlobstreamKeeper), v1.Version, v2.Version),
-		module.NewVersionedModule(upgrade.NewAppModule(app.UpgradeKeeper), v2.Version, v2.Version),
-	)
+	app.mm, err = module.NewManager([]module.VersionedModule{
+		{
+			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, encodingConfig.TxConfig),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      auth.NewAppModule(appCodec, app.AccountKeeper, nil),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      capability.NewAppModule(appCodec, *app.CapabilityKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      evidence.NewAppModule(app.EvidenceKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      ibc.NewAppModule(app.IBCKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      params.NewAppModule(app.ParamsKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      transfer.NewAppModule(app.TransferKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      blob.NewAppModule(appCodec, app.BlobKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      blobstream.NewAppModule(appCodec, app.BlobstreamKeeper),
+			FromVersion: v1, ToVersion: v2,
+		},
+		{
+			Module:      upgrade.NewAppModule(app.UpgradeKeeper),
+			FromVersion: v2, ToVersion: v2,
+		},
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -481,6 +544,12 @@ func New(
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.mm.RegisterServices(app.configurator)
 
+	// extract the accepted message list from the configurator and create a gatekeeper
+	// which will be used both as the antehandler and as part of the circuit breaker in
+	// the msg service router
+	app.MsgGateKeeper = ante.NewMsgVersioningGateKeeper(app.configurator.GetAcceptedMessages())
+	app.MsgServiceRouter().SetCircuit(app.MsgGateKeeper)
+
 	// initialize stores
 	app.MountKVStores(keys)
 	app.MountTransientStores(tkeys)
@@ -498,6 +567,7 @@ func New(
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.MsgGateKeeper,
 	))
 	app.SetPostHandler(posthandler.New())
 
@@ -522,8 +592,8 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
-	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion(ctx) == v1.Version {
-		if err := app.Upgrade(ctx, v2.Version); err != nil {
+	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion(ctx) == v1 {
+		if err := app.Upgrade(ctx, v2); err != nil {
 			panic(err)
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism

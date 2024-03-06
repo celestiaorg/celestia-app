@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
@@ -46,6 +45,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.MsgGateKeeper,
 	)
 	sdkCtx := app.NewProposalContext(req.Header)
 	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx))
@@ -61,7 +61,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
-			if req.Header.Version.App == v1.Version {
+			if req.Header.Version.App == v1 {
 				// For appVersion 1, there was no block validity rule that all
 				// transactions must be decodable.
 				continue

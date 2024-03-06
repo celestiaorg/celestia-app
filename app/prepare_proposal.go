@@ -27,6 +27,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ChainID: req.ChainId,
 		Height:  req.Height,
 		Time:    req.Time,
+		// TODO: we are missing the version which needs to be added to the context
 	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
@@ -40,6 +41,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.MsgGateKeeper,
 	)
 
 	var txs [][]byte
