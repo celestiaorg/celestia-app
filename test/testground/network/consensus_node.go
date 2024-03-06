@@ -81,7 +81,7 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 	}
 	cn.params = params
 
-	runenv.RecordMessage(fmt.Sprintf("params: %+V", cn.params))
+	runenv.RecordMessage(fmt.Sprintf("params: %+v", cn.params))
 
 	nodeID := NodeID(initCtx.GlobalSeq)
 	cn.Name = nodeID
@@ -146,7 +146,7 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 	cn.CmtConfig = mcfg.CmtConfig
 	cn.AppConfig = mcfg.AppConfig
 	cn.AppCreator = cmd.NewAppServer
-	cn.SuppressLogs = true
+	cn.SuppressLogs = false
 
 	// manually set the protocol version to the one used by the testground
 	appOpts := testnode.DefaultAppOptions()
