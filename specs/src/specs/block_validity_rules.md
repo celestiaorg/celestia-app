@@ -35,7 +35,11 @@ availability by simply downloading the entire block.
 > with Dishonest Majorities"](https://arxiv.org/abs/1809.09044) and in the
 > [`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
 
-Celestia specific validity rules can be categorized into two groups:
+Celestia specific validity rules can be categorized into multiple groups:
+
+### Block Rules
+
+1. In `Block.Data.Txs`, all `BlobTx` transactions must be ordered after non-`BlobTx` transactions.
 
 ### Transaction Validity Rules
 
