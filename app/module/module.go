@@ -264,7 +264,7 @@ func (m *Manager) BeginBlock(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 	modules := m.versionedModules[ctx.BlockHeader().Version.App]
 	if modules == nil {
-		panic(fmt.Sprintf("no modules for version %d", ctx.BlockHeader().Version.App))
+		modules = m.versionedModules[appconsts.LatestVersion]
 	}
 	for _, moduleName := range m.OrderBeginBlockers {
 		module, ok := modules[moduleName].(sdkmodule.BeginBlockAppModule)
@@ -287,7 +287,7 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 
 	modules := m.versionedModules[ctx.BlockHeader().Version.App]
 	if modules == nil {
-		panic(fmt.Sprintf("no modules for version %d", ctx.BlockHeader().Version.App))
+		modules = m.versionedModules[appconsts.LatestVersion]
 	}
 	for _, moduleName := range m.OrderEndBlockers {
 		module, ok := modules[moduleName].(sdkmodule.EndBlockAppModule)
