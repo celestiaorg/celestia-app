@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.0-alpine3.18 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.1-alpine3.18 as builder
 
 ARG TARGETOS
 ARG TARGETARCH
