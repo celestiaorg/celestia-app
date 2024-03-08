@@ -119,7 +119,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// Construct the data square from the block's transactions
 	dataSquare, err := square.Construct(
 		req.BlockData.Txs,
-		app.GovSquareSizeUpperBound(sdkCtx),
+		app.MaxEffectiveSquareSize(sdkCtx),
 		subtreeRootThreshold,
 	)
 	if err != nil {
