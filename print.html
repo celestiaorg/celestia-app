@@ -1439,11 +1439,26 @@ Availability Proofs: Maximising Light Client Security and Scaling Blockchains
 with Dishonest Majorities&quot;</a> and in the
 <a href="https://github.com/celestiaorg/celestia-node"><code>celestia-node</code></a> repo.</p>
 </blockquote>
-<p>Celestia specific validity rules can be categorized into two groups:</p>
+<p>Celestia specific validity rules can be categorized into multiple groups:</p>
+<h3 id="block-rules"><a class="header" href="#block-rules">Block Rules</a></h3>
+<ol>
+<li>In <code>Block.Data.Txs</code>, all <code>BlobTx</code> transactions must be ordered after non-<code>BlobTx</code> transactions.</li>
+</ol>
 <h3 id="transaction-validity-rules"><a class="header" href="#transaction-validity-rules">Transaction Validity Rules</a></h3>
-<p>All <code>BlobTx</code> transactions must be valid according to the <a href="specs/../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</p>
-<p>All remaining transactions must be decodable and pass all <a href="specs/./ante_handler.html">AnteHandler</a> checks.</p>
-<p>For a complete list of modules see <a href="specs/./state_machine_modules.html">state machine modules</a>.</p>
+<h4 id="app-version-1"><a class="header" href="#app-version-1">App Version 1</a></h4>
+<p>There is no validity rule that transactions must be decodable so the following rules only apply to transactions that are decodable.</p>
+<ol>
+<li>Decodable transactions must pass all <a href="specs/./ante_handler.html">AnteHandler</a> checks.</li>
+<li>Decodable non-<code>BlobTx</code> transactions must not contain a <code>MsgPayForBlobs</code> message.</li>
+<li>Decodable <code>BlobTx</code> transactions must be valid according to the <a href="specs/../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
+</ol>
+<h4 id="app-version-2"><a class="header" href="#app-version-2">App Version 2</a></h4>
+<ol>
+<li>All transactions must be decodable.</li>
+<li>All transactions must pass all <a href="specs/./ante_handler.html">AnteHandler</a> checks.</li>
+<li>Non-<code>BlobTx</code> transactions must not contain a <code>MsgPayForBlobs</code> message.</li>
+<li><code>BlobTx</code> transactions must be valid according to the <a href="specs/../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
+</ol>
 <h3 id="data-root-construction"><a class="header" href="#data-root-construction">Data Root Construction</a></h3>
 <p>The data root must be calculated from a correctly constructed data square per the <a href="specs/./data_square_layout.html">data square layout rules</a></p>
 <p><img src="specs/./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
