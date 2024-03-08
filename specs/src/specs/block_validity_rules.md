@@ -35,15 +35,28 @@ availability by simply downloading the entire block.
 > with Dishonest Majorities"](https://arxiv.org/abs/1809.09044) and in the
 > [`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
 
-Celestia specific validity rules can be categorized into two groups:
+Celestia specific validity rules can be categorized into multiple groups:
+
+### Block Rules
+
+1. In `Block.Data.Txs`, all `BlobTx` transactions must be ordered after non-`BlobTx` transactions.
 
 ### Transaction Validity Rules
 
-All `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
+#### App Version 1
 
-All remaining transactions must be decodable and pass all [AnteHandler](./ante_handler.md) checks.
+There is no validity rule that transactions must be decodable so the following rules only apply to transactions that are decodable.
 
-For a complete list of modules see [state machine modules](./state_machine_modules.md).
+1. Decodable transactions must pass all [AnteHandler](./ante_handler.md) checks.
+1. Decodable non-`BlobTx` transactions must not contain a `MsgPayForBlobs` message.
+1. Decodable `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
+
+#### App Version 2
+
+1. All transactions must be decodable.
+1. All transactions must pass all [AnteHandler](./ante_handler.md) checks.
+1. Non-`BlobTx` transactions must not contain a `MsgPayForBlobs` message.
+1. `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
 
 ### Data Root Construction
 
