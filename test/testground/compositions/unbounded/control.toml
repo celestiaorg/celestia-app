@@ -42,7 +42,7 @@ id = "validators"
 builder = "docker:generic"
 [groups.resources]
 memory = "12Gi"
-cpu = "8"
+cpu = "12"
 [groups.instances]
 count = 99
 percentage = 0.0

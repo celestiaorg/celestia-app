@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	gorun "runtime"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	testgroundconsts "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
@@ -12,11 +14,18 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	tmconfig "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
 )
+
+func init() {
+	consensus.UseWAL = false
+	gorun.SetMutexProfileFraction(2)
+	gorun.SetCPUProfileRate(1)
+}
 
 const (
 	TimeoutParam           = "timeout"
@@ -77,8 +86,8 @@ type TracingParams struct {
 func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
-		URL:   "http://51.158.232.250:8086/",
-		Token: "KSMO57rzvRhVQccJppzFriY-VX9OKwmrP5fTzcDo7-TutjwI7bDeO9xYFmyOYDu9VNSpYkPL5WBbYGKXSuAJ6A==",
+		URL:   "http://51.158.232.250:8086",
+		Token: "vTSBjYYO06Boxsb4tD27j3eBg5HQeOBjs3VIYCZe4TMD_AGTyeKCFrbZTNMpKZQ9LpdBgOSZZ9jgNVPPMODDWw==",
 	}
 }
 
