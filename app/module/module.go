@@ -360,10 +360,11 @@ func (m *Manager) checkUgradeSchedule() error {
 			if !exists {
 				continue
 			}
-			if module.ConsensusVersion() < lastConsensusVersion {
-				return fmt.Errorf("error: module %s in appVersion %d goes from moduleVersion %d to %d", moduleName, appVersion, lastConsensusVersion, module.ConsensusVersion())
+			moduleVersion := module.ConsensusVersion()
+			if moduleVersion < lastConsensusVersion+1 {
+				return fmt.Errorf("error: module %s in appVersion %d goes from moduleVersion %d to %d", moduleName, appVersion, lastConsensusVersion, moduleVersion)
 			}
-			lastConsensusVersion = module.ConsensusVersion()
+			lastConsensusVersion = moduleVersion
 		}
 	}
 	return nil
