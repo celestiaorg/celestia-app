@@ -349,6 +349,10 @@ func (m *Manager) SupportedVersions() []uint64 {
 // checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
 // for a module domain i.e. auth, always increments for each module that uses the auth domain name
 func (m *Manager) checkUgradeSchedule() error {
+	if m.firstVersion == m.lastVersion {
+		// there are no upgrades to check
+		return nil
+	}
 	for _, moduleName := range m.OrderInitGenesis {
 		lastConsensusVersion := uint64(0)
 		for appVersion := m.firstVersion; appVersion <= m.lastVersion; appVersion++ {
