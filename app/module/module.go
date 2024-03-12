@@ -86,7 +86,7 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 		OrderBeginBlockers: modulesStr,
 		OrderEndBlockers:   modulesStr,
 	}
-	return m, m.checkUgradeSchedule()
+	return m, m.checkUpgradeSchedule()
 }
 
 // SetOrderInitGenesis sets the order of init genesis calls
@@ -348,7 +348,7 @@ func (m *Manager) SupportedVersions() []uint64 {
 
 // checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
 // for a module domain i.e. auth, always increments for each module that uses the auth domain name
-func (m *Manager) checkUgradeSchedule() error {
+func (m *Manager) checkUpgradeSchedule() error {
 	if m.firstVersion == m.lastVersion {
 		// there are no upgrades to check
 		return nil
@@ -361,7 +361,7 @@ func (m *Manager) checkUgradeSchedule() error {
 				continue
 			}
 			moduleVersion := module.ConsensusVersion()
-			if moduleVersion < lastConsensusVersion+1 {
+			if moduleVersion < lastConsensusVersion {
 				return fmt.Errorf("error: module %s in appVersion %d goes from moduleVersion %d to %d", moduleName, appVersion, lastConsensusVersion, moduleVersion)
 			}
 			lastConsensusVersion = moduleVersion
