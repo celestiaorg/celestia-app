@@ -34,7 +34,7 @@ func (mgk MsgVersioningGateKeeper) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		msgTypeURL := sdk.MsgTypeURL(msg)
 		_, exists := acceptedMsgs[msgTypeURL]
 		if !exists {
-			return ctx, sdkerrors.ErrNotSupported.Wrapf("transaction type %s is not supported in version %d", msgTypeURL, ctx.BlockHeader().Version.App)
+			return ctx, sdkerrors.ErrNotSupported.Wrapf("message type %s is not supported in version %d", msgTypeURL, ctx.BlockHeader().Version.App)
 		}
 	}
 

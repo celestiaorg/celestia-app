@@ -620,9 +620,13 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 		panic(err)
 	}
 	// genesis must always contain the consensus params. The validator set howerver is derived from the
-	// initial genesis state
+	// initial genesis state. The genesis must always contain a non zero app version which is the initial
+	// version that the chain starts on
 	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
 		panic("no consensus params set")
+	}
+	if req.ConsensusParams.Version.AppVersion == 0 {
+		panic("app version 0 is not accepted. Please set an app version in the genesis")
 	}
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }

@@ -9,8 +9,10 @@ import (
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -27,7 +29,10 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ChainID: req.ChainId,
 		Height:  req.Height,
 		Time:    req.Time,
-		// TODO: we are missing the version which needs to be added to the context
+		// This is a bit hacky as we need the context to set the appVersion to create the context.
+		Version: version.Consensus{
+			App: app.BaseApp.AppVersion(sdktypes.Context{}),
+		},
 	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification

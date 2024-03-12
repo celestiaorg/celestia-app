@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -55,6 +57,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 				"error", err,
 				"msgs", msgTypes(sdkTx),
 			)
+			fmt.Println(err)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			continue
 		}
