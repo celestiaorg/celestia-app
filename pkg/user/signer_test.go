@@ -178,3 +178,40 @@ func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdk.Msg, opts ...user.Tx
 	}
 	return resp, nil
 }
+
+func TestConcurrentTxSubmission(t *testing.T) {
+	numTxs := 1000
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithFundedAccounts("a"))
+	_, err := ctx.WaitForHeight(1)
+	require.NoError(t, err)
+	rec, err := ctx.Keyring.Key("a")
+	require.NoError(t, err)
+	addr, err := rec.GetAddress()
+	require.NoError(t, err)
+	signer, err := user.SetupSigner(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, addr, encCfg)
+	require.NoError(t, err)
+
+	blobs := blobfactory.ManyRandBlobs(rand.NewRand(), 1e3, 1e4)
+	fee := user.SetFee(1e5)
+	gas := user.SetGasLimit(1e6)
+	msg := bank.NewMsgSend(signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	errCh := make(chan error)
+	for i := 0; i < numTxs; i++ {
+		if i%2 == 1 {
+			go func() {
+				_, err := signer.SubmitPayForBlob(ctx.GoContext(), blobs, fee, gas)
+				errCh <- err
+			}()
+		} else {
+			go func() {
+				_, err := signer.SubmitTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+				errCh <- err
+			}()
+		}
+	}
+	for i := 0; i < numTxs; i++ {
+		err := <-errCh
+		require.NoError(t, err)
+	}
+}
