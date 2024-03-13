@@ -245,11 +245,11 @@ func TestManager_UpgradeSchedule(t *testing.T) {
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("blob")
 	mockAppModule2.EXPECT().Name().Times(2).Return("blob")
-	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(3))
-	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(2))
-	_, err := module.NewManager(
-		module.NewVersionedModule(mockAppModule1, 1, 1),
-		module.NewVersionedModule(mockAppModule2, 2, 2),
-	)
+	mockAppModule1.EXPECT().ConsensusVersion().Times(2).Return(uint64(3))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(2).Return(uint64(2))
+	_, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 2, ToVersion: 2},
+	})
 	require.Error(t, err)
 }

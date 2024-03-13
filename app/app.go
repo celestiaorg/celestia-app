@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/app/module"
@@ -193,9 +194,9 @@ type App struct {
 	BlobKeeper       blobkeeper.Keeper
 	BlobstreamKeeper blobstreamkeeper.Keeper
 
-	mm *module.Manager
-
-	configurator module.VersionedConfigurator
+	mm            *module.Manager
+	configurator  module.VersionedConfigurator
+	upgradeHeight int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
@@ -293,7 +294,8 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], upgradeHeight, stakingKeeper)
+	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], stakingKeeper)
+	app.upgradeHeight = upgradeHeight
 
 	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
@@ -591,16 +593,19 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
+	currentVersion := app.AppVersion()
 	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
-	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion() == v1 {
-		if err := app.Upgrade(ctx, v2); err != nil {
-			panic(err)
+	if currentVersion == v1 {
+		if req.Height == app.upgradeHeight-1 {
+			if err := app.Upgrade(ctx, currentVersion, currentVersion+1); err != nil {
+				panic(err)
+			}
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
-	} else if shouldUpgrade, version := app.UpgradeKeeper.ShouldUpgrade(); shouldUpgrade {
+	} else if shouldUpgrade, newVersion := app.UpgradeKeeper.ShouldUpgrade(); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if version > app.AppVersion() {
-			if err := app.Upgrade(ctx, version); err != nil {
+		if newVersion > currentVersion {
+			if err := app.Upgrade(ctx, currentVersion, newVersion); err != nil {
 				panic(err)
 			}
 		}
@@ -608,9 +613,16 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	return res
 }
 
-func (app *App) Upgrade(ctx sdk.Context, version uint64) error {
-	app.SetAppVersion(ctx, version)
-	return app.mm.RunMigrations(ctx, app.configurator, app.AppVersion(), version)
+func (app *App) Upgrade(ctx sdk.Context, fromVersion, toVersion uint64) error {
+	if err := app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion); err != nil {
+		return err
+	}
+	fmt.Println("upgraded to version", toVersion)
+	if toVersion == v2 {
+		app.SetInitialAppVersionInConsensusParams(ctx, toVersion)
+	}
+	app.SetAppVersion(ctx, toVersion)
+	return nil
 }
 
 // InitChainer application update at chain initialization

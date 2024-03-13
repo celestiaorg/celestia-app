@@ -93,7 +93,7 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 		OrderBeginBlockers:   modulesStr,
 		OrderEndBlockers:     modulesStr,
 	}
-	if err := m.checkUgradeSchedule(); err != nil {
+	if err := m.checkUpgradeSchedule(); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -168,7 +168,6 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 		}
 		ctx.Logger().Debug("running initialization for module", "module", moduleName)
 
-		fmt.Println(moduleName)
 		moduleValUpdates := modules[moduleName].InitGenesis(ctx, cdc, genesisData[moduleName])
 
 		// use these validator updates if provided, the module manager assumes

@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -71,7 +70,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// The txs returned are the ones used in the square and block
 	dataSquare, txs, err := square.Build(txs,
 		app.MaxEffectiveSquareSize(sdkCtx),
-		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx)),
+		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 	)
 	if err != nil {
 		panic(err)
