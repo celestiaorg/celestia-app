@@ -155,6 +155,7 @@ github.com/breml/errchkjson v0.3.1/go.mod h1:XroxrzKjdiutFyW3nWhw34VGg7kiMsDQox7
 github.com/bufbuild/buf v1.15.1/go.mod h1:TQeGKam1QMfHy/xsSnnMpxN3JK5HBb6aNvZj4m52gkE=
 github.com/bufbuild/connect-go v1.5.2/go.mod h1:GmMJYR6orFqD0Y6ZgX8pwQ8j9baizDrIQMm1/a6LnHk=
 github.com/butuzov/ireturn v0.1.1/go.mod h1:Wh6Zl3IMtTpaIKbmwzqi6olnM9ptYQxxVacMsOEFPoc=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240311210218-09ff561e1a12/go.mod h1:meRe/tjDG61ui2g8KwiXTFEyJOkLkVFNz4eR2qsZqHM=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240309165752-eff08dcf2f98/go.mod h1:cH+AztynabfHFhK7F0RdI4mR+xBI7Qstj+H6rOtCZEU=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240311200142-79f760b2da60/go.mod h1:cH+AztynabfHFhK7F0RdI4mR+xBI7Qstj+H6rOtCZEU=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
