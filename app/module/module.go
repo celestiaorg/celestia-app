@@ -175,7 +175,7 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 	}
 }
 
-// performs export genesis functionality for modules
+// ExportGenesis performs export genesis functionality for modules
 func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version uint64) map[string]json.RawMessage {
 	genesisData := make(map[string]json.RawMessage)
 	modules := m.versionedModules[version]

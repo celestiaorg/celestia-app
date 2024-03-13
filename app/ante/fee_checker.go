@@ -28,7 +28,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
-    
+
 	// Ensure that the provided fee meets a minimum threshold for the validator.
 	// This is only for local mempool purposes, and thus
 	// is only ran on check tx.

@@ -84,7 +84,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, math.MaxInt64)),
 			gasLimit:   math.MaxUint64,
 			appVersion: uint64(2),
-			isCheckTx: false,
+			isCheckTx:  false,
 			expErr:     false,
 		},
 		{

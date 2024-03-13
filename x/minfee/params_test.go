@@ -9,29 +9,29 @@ import (
 )
 
 func TestValidateMinGasPrice(t *testing.T) {
-    // Test valid min gas price type (sdk.Dec)
-    validMinGasPrice := sdk.NewDec(1)
-    err := minfee.ValidateMinGasPrice(validMinGasPrice)
-    require.NoError(t, err)
+	// Test valid min gas price type (sdk.Dec)
+	validMinGasPrice := sdk.NewDec(1)
+	err := minfee.ValidateMinGasPrice(validMinGasPrice)
+	require.NoError(t, err)
 
-    // Test invalid min gas price
-    invalidMinGasPrice := 1
-    err = minfee.ValidateMinGasPrice(invalidMinGasPrice)
-    require.Error(t, err)
+	// Test invalid min gas price
+	invalidMinGasPrice := 1
+	err = minfee.ValidateMinGasPrice(invalidMinGasPrice)
+	require.Error(t, err)
 }
 
 func TestValidateGenesis(t *testing.T) {
-    // Test valid genesis state
-    validGenesis := &minfee.GenesisState{
-        GlobalMinGasPrice: 1,
-    }
-    err := minfee.ValidateGenesis(validGenesis)
-    require.NoError(t, err)
+	// Test valid genesis state
+	validGenesis := &minfee.GenesisState{
+		GlobalMinGasPrice: 1,
+	}
+	err := minfee.ValidateGenesis(validGenesis)
+	require.NoError(t, err)
 
-    // Test invalid genesis state
-    invalidGenesis := &minfee.GenesisState{
-        GlobalMinGasPrice: -1,
-    }
-    err = minfee.ValidateGenesis(invalidGenesis)
-    require.Error(t, err)
+	// Test invalid genesis state
+	invalidGenesis := &minfee.GenesisState{
+		GlobalMinGasPrice: -1,
+	}
+	err = minfee.ValidateGenesis(invalidGenesis)
+	require.Error(t, err)
 }

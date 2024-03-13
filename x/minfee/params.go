@@ -69,4 +69,3 @@ func ValidateGenesis(genesis *GenesisState) error {
 
 	return nil
 }
-

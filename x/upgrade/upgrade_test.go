@@ -2,6 +2,7 @@ package upgrade_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	dbm "github.com/tendermint/tm-db"
-	"fmt"
 )
 
 func TestUpgradeAppVersion(t *testing.T) {
@@ -27,20 +27,12 @@ func TestUpgradeAppVersion(t *testing.T) {
 	supportedVersions := []uint64{v1.Version, v2.Version}
 
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
-<<<<<<< HEAD
 
-=======
-	
->>>>>>> 65c100c9 (chore: cleanup)
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		Height:  2,
 		Version: tmversion.Consensus{App: 1},
 	}})
-<<<<<<< HEAD
-=======
-	
-	
->>>>>>> 65c100c9 (chore: cleanup)
+
 	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion(sdk.Context{}))
 	fmt.Println(testApp.AppVersion(sdk.Context{}), "VERSIONN")

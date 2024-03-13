@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	// "strconv"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
-	"strings"
 )
 
 func TestUpgradeAppVersion(t *testing.T) {
@@ -52,7 +52,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	}})
 
 	// app version should not have changed yet
-	
+
 	// _, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 	// 	Subspace: minfee.ModuleName,
 	// 	Key:      string(minfee.KeyGlobalMinGasPrice),
@@ -61,7 +61,6 @@ func TestUpgradeAppVersion(t *testing.T) {
 
 	// fmt.Println(response, "RES FROM INITGENESIS")
 	// testApp.Commit()
-
 
 	// now the app version changes
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
@@ -76,7 +75,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-    want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+	want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 	require.Equal(t, want.String(), strings.Trim(got.Param.Value, "\""))
 }
 

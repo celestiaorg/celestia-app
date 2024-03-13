@@ -496,16 +496,12 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `"0.002000000000000000"`,
 			}),
 			func() {
-				fmt.Println("HERE IN GLOBALMINGASPRICE GOV TEST")
-
-				var got sdk.Dec
+				got := new(sdk.Dec)
 				subspace := suite.app.GetSubspace(minfeetypes.ModuleName)
 				subspace.Get(suite.ctx, minfeetypes.KeyGlobalMinGasPrice, &got)
 
 				want, err := sdk.NewDecFromStr("0.002")
-				fmt.Println(want, "want")
-				fmt.Println(got, "got")
-				fmt.Println(err, "err")
+				assert.NoError(err)
 				assert.Equal(want, got)
 			},
 		},

@@ -2,12 +2,11 @@ package minfee
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-
-	"fmt"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -109,7 +108,7 @@ func (am AppModule) RegisterServices(configurator sdkmodule.Configurator) {}
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
 	var genesisState GenesisState
 	cdc.MustUnmarshalJSON(gs, &genesisState)
-    
+
 	// Set the global min gas price initial value
 	subspace, _ := am.paramsKeeper.GetSubspace(ModuleName)
 	RegisterMinFeeParamTable(subspace)
