@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -20,10 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
-	// tmdb "github.com/tendermint/tm-db"
-	testutil "github.com/celestiaorg/celestia-app/test/util"
 	tmdb "github.com/tendermint/tm-db"
-	// "fmt"
 )
 
 func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
@@ -39,41 +39,44 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	feeAmount := int64(1000)
 
-	globalMinGasPrice := 0.002
-
 	testCases := []struct {
 		name       string
 		fee        sdk.Coins
 		gasLimit   uint64
 		appVersion uint64
+		isCheckTx  bool
 		expErr     bool
 	}{
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
 			appVersion: uint64(2),
+			isCheckTx:  false,
 			expErr:     true,
 		},
 		{
 			name:       "good tx; fee equal to required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
 			appVersion: uint64(2),
+			isCheckTx:  false,
 			expErr:     false,
 		},
 		{
 			name:       "good tx; fee above required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
 			appVersion: uint64(2),
+			isCheckTx:  false,
 			expErr:     false,
 		},
 		{
 			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / globalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
 			appVersion: uint64(1),
+			isCheckTx:  false,
 			expErr:     false,
 		},
 		{
@@ -81,6 +84,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, math.MaxInt64)),
 			gasLimit:   math.MaxUint64,
 			appVersion: uint64(2),
+			isCheckTx: false,
 			expErr:     false,
 		},
 		{
@@ -88,6 +92,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 0)),
 			gasLimit:   0,
 			appVersion: uint64(2),
+			isCheckTx:  false,
 			expErr:     false,
 		},
 		{
@@ -95,7 +100,24 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
 			gasLimit:   400,
 			appVersion: uint64(2),
+			isCheckTx:  false,
 			expErr:     false,
+		},
+		{
+			name:       "good tx; fee above node's required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultGlobalMinGasPrice),
+			appVersion: uint64(1),
+			isCheckTx:  true,
+			expErr:     false,
+		},
+		{
+			name:       "bad tx; fee below node's required minimum",
+			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultGlobalMinGasPrice),
+			appVersion: uint64(1),
+			isCheckTx:  true,
+			expErr:     true,
 		},
 	}
 
@@ -121,7 +143,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 				Version: version.Consensus{
 					App: tc.appVersion,
 				},
-			}, false, nil)
+			}, tc.isCheckTx, nil)
 
 			paramsSubspace := paramtypes.NewSubspace(cdc,
 				testutil.MakeTestCodec(),
@@ -133,8 +155,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			// Register the parameter in the subspace
 			minfeetypes.RegisterMinFeeParamTable(paramsSubspace)
 
-			// Set a mock value for the MinGasPrice
-			globalminGasPriceDec, _ := sdk.NewDecFromStr("0.002")
+			globalminGasPriceDec, _ := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 			params := minfeetypes.Params{GlobalMinGasPrice: globalminGasPriceDec}
 			paramsSubspace.Set(ctx, minfeetypes.KeyGlobalMinGasPrice, &params.GlobalMinGasPrice)
 

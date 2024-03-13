@@ -28,7 +28,10 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
-
+    
+	// Ensure that the provided fee meets a minimum threshold for the validator.
+	// This is only for local mempool purposes, and thus
+	// is only ran on check tx.
 	if ctx.IsCheckTx() {
 		defaultMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
 		if err != nil {
@@ -44,9 +47,10 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
 		var globalMinGasPrice sdk.Dec
+		// gets the global minimum gas price from the param store
+		// panics if not configured properly
 		minFeeParams.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
 
-		// globalMinGasPrice := appconsts.GlobalMinGasPrice(ctx.BlockHeader().Version.App)
 		err := CheckTxFeeWithMinGasPrices(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
 		if err != nil {
 			return nil, 0, err
