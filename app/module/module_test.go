@@ -201,3 +201,20 @@ func TestManager_EndBlock(t *testing.T) {
 	mockAppModule2.EXPECT().EndBlock(gomock.Any(), gomock.Eq(req)).Times(1).Return([]abci.ValidatorUpdate{{}})
 	require.Panics(t, func() { mm.EndBlock(ctx, req) })
 }
+
+func TestManager_UpgradeSchedule(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	t.Cleanup(mockCtrl.Finish)
+
+	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
+	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+	mockAppModule1.EXPECT().Name().Times(2).Return("blob")
+	mockAppModule2.EXPECT().Name().Times(2).Return("blob")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(3))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(2))
+	_, err := module.NewManager(
+		module.NewVersionedModule(mockAppModule1, 1, 1),
+		module.NewVersionedModule(mockAppModule2, 2, 2),
+	)
+	require.Error(t, err)
+}

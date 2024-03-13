@@ -76,7 +76,7 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 		}
 	}
 
-	return &Manager{
+	m := &Manager{
 		versionedModules:   moduleMap,
 		allModules:         allModules,
 		firstVersion:       firstVersion,
@@ -85,7 +85,8 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 		OrderExportGenesis: modulesStr,
 		OrderBeginBlockers: modulesStr,
 		OrderEndBlockers:   modulesStr,
-	}, nil
+	}
+	return m, m.checkUpgradeSchedule()
 }
 
 // SetOrderInitGenesis sets the order of init genesis calls
@@ -231,12 +232,19 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 	}
 
 	for _, moduleName := range modules {
-		_, currentModuleExists := currentVersionModules[moduleName]
+		currentModule, currentModuleExists := currentVersionModules[moduleName]
 		nextModule, nextModuleExists := nextVersionModules[moduleName]
 
 		// if the module exists for both upgrades
 		if currentModuleExists && nextModuleExists {
-			err := c.runModuleMigrations(ctx, moduleName, fromVersion, toVersion)
+			// by using consensus version instead of app version we support the SDK's legacy method
+			// of migrating modules which were made of several versions and consisted of a mapping of
+			// app version to module version. Now, using go.mod, each module will have only a single
+			// consensus version and each breaking upgrade will result in a new module and a new consensus
+			// version.
+			fromModuleVersion := currentModule.ConsensusVersion()
+			toModuleVersion := nextModule.ConsensusVersion()
+			err := c.runModuleMigrations(ctx, moduleName, fromModuleVersion, toModuleVersion)
 			if err != nil {
 				return err
 			}
@@ -336,6 +344,30 @@ func (m *Manager) SupportedVersions() []uint64 {
 		}
 	}
 	return output
+}
+
+// checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
+// for a module domain i.e. auth, always increments for each module that uses the auth domain name
+func (m *Manager) checkUpgradeSchedule() error {
+	if m.firstVersion == m.lastVersion {
+		// there are no upgrades to check
+		return nil
+	}
+	for _, moduleName := range m.OrderInitGenesis {
+		lastConsensusVersion := uint64(0)
+		for appVersion := m.firstVersion; appVersion <= m.lastVersion; appVersion++ {
+			module, exists := m.versionedModules[appVersion][moduleName]
+			if !exists {
+				continue
+			}
+			moduleVersion := module.ConsensusVersion()
+			if moduleVersion < lastConsensusVersion {
+				return fmt.Errorf("error: module %s in appVersion %d goes from moduleVersion %d to %d", moduleName, appVersion, lastConsensusVersion, moduleVersion)
+			}
+			lastConsensusVersion = moduleVersion
+		}
+	}
+	return nil
 }
 
 // DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
