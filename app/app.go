@@ -592,14 +592,14 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
-	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion(ctx) == v1 {
+	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion() == v1 {
 		if err := app.Upgrade(ctx, v2); err != nil {
 			panic(err)
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
 	} else if shouldUpgrade, version := app.UpgradeKeeper.ShouldUpgrade(); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if version > app.AppVersion(ctx) {
+		if version > app.AppVersion() {
 			if err := app.Upgrade(ctx, version); err != nil {
 				panic(err)
 			}
@@ -610,7 +610,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 
 func (app *App) Upgrade(ctx sdk.Context, version uint64) error {
 	app.SetAppVersion(ctx, version)
-	return app.mm.RunMigrations(ctx, app.configurator, app.AppVersion(ctx), version)
+	return app.mm.RunMigrations(ctx, app.configurator, app.AppVersion(), version)
 }
 
 // InitChainer application update at chain initialization

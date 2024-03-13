@@ -164,6 +164,7 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 		}
 		ctx.Logger().Debug("running initialization for module", "module", moduleName)
 
+		fmt.Println(moduleName)
 		moduleValUpdates := modules[moduleName].InitGenesis(ctx, cdc, genesisData[moduleName])
 
 		// use these validator updates if provided, the module manager assumes

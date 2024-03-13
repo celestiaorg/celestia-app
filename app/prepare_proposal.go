@@ -29,9 +29,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ChainID: req.ChainId,
 		Height:  req.Height,
 		Time:    req.Time,
-		// This is a bit hacky as we need the context to set the appVersion to create the context.
 		Version: version.Consensus{
-			App: app.BaseApp.AppVersion(sdktypes.Context{}),
+			App: app.BaseApp.AppVersion(),
 		},
 	})
 	// filter out invalid transactions.
