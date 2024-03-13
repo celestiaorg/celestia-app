@@ -24,7 +24,7 @@ func init() {
 // RegisterMinFeeParamTable attaches a key table to the provided subspace if it doesn't have one
 func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	if !ps.HasKeyTable() {
-		ps = ps.WithKeyTable(ParamKeyTable())
+		ps.WithKeyTable(ParamKeyTable())
 	}
 }
 

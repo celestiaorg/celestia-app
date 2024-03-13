@@ -27,7 +27,7 @@ var (
 type AppModuleBasic struct{}
 
 // RegisterInterfaces registers the module's interfaces with the interface registry.
-func (AppModuleBasic) RegisterInterfaces(registry cdctypes.InterfaceRegistry) {}
+func (AppModuleBasic) RegisterInterfaces(_ cdctypes.InterfaceRegistry) {}
 
 // Name returns the minfee module's name.
 func (AppModuleBasic) Name() string {
@@ -43,7 +43,7 @@ func (AppModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 }
 
 // ValidateGenesis performs genesis state validation for the minfee module.
-func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingConfig, bz json.RawMessage) error {
+func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
 	var data GenesisState
 	if err := cdc.UnmarshalJSON(bz, &data); err != nil {
 		return fmt.Errorf("failed to unmarshal %s genesis state: %w", ModuleName, err)
@@ -55,7 +55,7 @@ func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncod
 func (AppModuleBasic) RegisterRESTRoutes(_ client.Context, _ *mux.Router) {}
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {}
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 // GetTxCmd returns the minfee module's root tx command.
 func (a AppModuleBasic) GetTxCmd() *cobra.Command {
@@ -84,7 +84,7 @@ func NewAppModule(k params.Keeper) AppModule {
 }
 
 // RegisterInvariants registers the minfee module invariants.
-func (am AppModule) RegisterInvariants(ir sdk.InvariantRegistry) {}
+func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
 // Route returns the message routing key for the minfee module.
 func (am AppModule) Route() sdk.Route {
@@ -102,7 +102,7 @@ func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 }
 
 // RegisterServices registers module services.
-func (am AppModule) RegisterServices(configurator sdkmodule.Configurator) {}
+func (am AppModule) RegisterServices(_ sdkmodule.Configurator) {}
 
 // InitGenesis performs genesis initialization for the minfee module. It returns no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
@@ -126,11 +126,11 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.Raw
 
 // ExportGenesis returns the capability module's exported genesis.
 func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
-	globalMinGasPrice, bool := k.GetSubspace(ModuleName)
+	globalMinGasPrice, ok := k.GetSubspace(ModuleName)
 
 	var minGasPrice sdk.Dec
 	globalMinGasPrice.Get(ctx, KeyGlobalMinGasPrice, &minGasPrice)
-	if !bool {
+	if !ok {
 		panic("global min gas price not found")
 	}
 
@@ -138,10 +138,10 @@ func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
 }
 
 // BeginBlock returns the begin blocker for the minfee module.
-func (am AppModule) BeginBlock(ctx sdk.Context, req abci.RequestBeginBlock) {}
+func (am AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}
 
 // EndBlock returns the end blocker for the minfee module. It returns no validator updates.
-func (am AppModule) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) []abci.ValidatorUpdate {
+func (am AppModule) EndBlock(_ sdk.Context, _ abci.RequestEndBlock) []abci.ValidatorUpdate {
 	return []abci.ValidatorUpdate{}
 }
 

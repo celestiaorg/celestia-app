@@ -28,10 +28,8 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	dbm "github.com/tendermint/tm-db"
-
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
+	dbm "github.com/tendermint/tm-db"
 )
 
 func TestUpgradeAppVersion(t *testing.T) {
@@ -48,7 +46,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	})
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		Height:  2,
-		Version: tmversion.Consensus{App: 1},
+		Version: version.Consensus{App: 1},
 	}})
 
 	// app version should not have changed yet
@@ -76,6 +74,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+	require.NoError(t, err)
 	require.Equal(t, want.String(), strings.Trim(got.Param.Value, "\""))
 }
 
