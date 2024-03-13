@@ -18,16 +18,10 @@ var (
 )
 
 func init() {
-	var err error
-	// DefaultGlobalMinGasPrice, err = sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
-
 	DefaultGlobalMinGasPrice = appconsts.DefaultMinGasPrice
-	fmt.Println(DefaultGlobalMinGasPrice, "DefaultGlobalMinGasPrice")
-	if err != nil {
-		panic(err)
-	}
 }
 
+// RegisterMinFeeParamTable attaches a key table to the provided subspace if it doesn't have one
 func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	if !ps.HasKeyTable() {
 		ps = ps.WithKeyTable(ParamKeyTable())
@@ -43,13 +37,15 @@ type Params struct {
 	GlobalMinGasPrice sdk.Dec
 }
 
-func (p Params) ParamSetPairs() paramtypes.ParamSetPairs {
+// ParamSetPairs gets the param key-value pair
+func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(KeyGlobalMinGasPrice, &p.GlobalMinGasPrice, validateMinGasPrice),
+		paramtypes.NewParamSetPair(KeyGlobalMinGasPrice, &p.GlobalMinGasPrice, ValidateMinGasPrice),
 	}
 }
 
-func validateMinGasPrice(i interface{}) error {
+// Validate validates the param type
+func ValidateMinGasPrice(i interface{}) error {
 	_, ok := i.(sdk.Dec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -58,12 +54,14 @@ func validateMinGasPrice(i interface{}) error {
 	return nil
 }
 
+// DefaultParams returns a default set of parameters
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		GlobalMinGasPrice: DefaultGlobalMinGasPrice,
 	}
 }
 
+// ValidateGenesis performs basic validation of genesis data returning an error for any failed validation criteria.
 func ValidateGenesis(genesis *GenesisState) error {
 	if genesis.GlobalMinGasPrice < 0 {
 		return fmt.Errorf("global min gas price cannot be negative: %g", genesis.GlobalMinGasPrice)

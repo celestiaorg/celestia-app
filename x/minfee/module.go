@@ -2,18 +2,20 @@ package minfee
 
 import (
 	"encoding/json"
+
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
+	"fmt"
+
 	abci "github.com/tendermint/tendermint/abci/types"
-    "fmt"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
-	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
@@ -45,26 +47,24 @@ func (AppModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 func (AppModuleBasic) ValidateGenesis(cdc codec.JSONCodec, config client.TxEncodingConfig, bz json.RawMessage) error {
 	var data GenesisState
 	if err := cdc.UnmarshalJSON(bz, &data); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal %s genesis state: %w", ModuleName, err)
 	}
 	return ValidateGenesis(&data)
 }
 
-// RegisterRESTRoutes registers the capability module's REST service handlers.
-func (AppModuleBasic) RegisterRESTRoutes(_ client.Context, _ *mux.Router) {
-}
+// RegisterRESTRoutes registers the REST service handlers for the module.
+func (AppModuleBasic) RegisterRESTRoutes(_ client.Context, _ *mux.Router) {}
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
-}
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {}
 
-// GetTxCmd returns the capability module's root tx command.
+// GetTxCmd returns the minfee module's root tx command.
 func (a AppModuleBasic) GetTxCmd() *cobra.Command {
 	// Return a dummy command
 	return &cobra.Command{}
 }
 
-// GetQueryCmd returns the capability module's root query command.
+// GetQueryCmd returns the minfee module's root query command.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 	// Return a dummy command
 	return &cobra.Command{}
@@ -80,7 +80,7 @@ type AppModule struct {
 func NewAppModule(k params.Keeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
-        paramsKeeper: k,
+		paramsKeeper:   k,
 	}
 }
 
@@ -97,7 +97,7 @@ func (am AppModule) QuerierRoute() string {
 	return ""
 }
 
-// LegacyQuerierHandler returns the capability module's Querier.
+// LegacyQuerierHandler returns the minfee module's Querier.
 func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 	return nil
 }
@@ -107,15 +107,14 @@ func (am AppModule) RegisterServices(configurator sdkmodule.Configurator) {}
 
 // InitGenesis performs genesis initialization for the minfee module. It returns no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
-	fmt.Println("HELLOOOOOO FROM MIN FEE")
 	var genesisState GenesisState
 	cdc.MustUnmarshalJSON(gs, &genesisState)
-
-	// set the global min gas price in the min fee subspace
+    
+	// Set the global min gas price initial value
 	subspace, _ := am.paramsKeeper.GetSubspace(ModuleName)
-	subspace.Set(ctx, KeyGlobalMinGasPrice, genesisState.GlobalMinGasPrice)
-
-	// fmt.Println("VALUE WAS SET WOOHOO")
+	RegisterMinFeeParamTable(subspace)
+	globalMinGasPriceDec, _ := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
+	subspace.Set(ctx, KeyGlobalMinGasPrice, globalMinGasPriceDec)
 
 	return []abci.ValidatorUpdate{}
 }
@@ -130,12 +129,13 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.Raw
 func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
 	globalMinGasPrice, bool := k.GetSubspace(ModuleName)
 
-	var minGasPrice float64
+	var minGasPrice sdk.Dec
 	globalMinGasPrice.Get(ctx, KeyGlobalMinGasPrice, &minGasPrice)
 	if !bool {
 		panic("global min gas price not found")
 	}
-	return &GenesisState{GlobalMinGasPrice: minGasPrice}
+
+	return &GenesisState{GlobalMinGasPrice: minGasPrice.MustFloat64()}
 }
 
 // BeginBlock returns the begin blocker for the minfee module.

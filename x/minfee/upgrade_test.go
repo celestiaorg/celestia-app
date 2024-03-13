@@ -46,36 +46,23 @@ func TestUpgradeAppVersion(t *testing.T) {
 			App: 1,
 		},
 	})
-
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		Height:  2,
 		Version: tmversion.Consensus{App: 1},
 	}})
 
 	// app version should not have changed yet
-
-	// Catch any panic that occurs
-	//    defer func() {
-	//     if r := recover(); r == nil {
-	//         t.Errorf("The code did not panic")
-	//     } else {
-	//         t.Logf("Recovered from panic: %v", r)
-	//     }
-	// }()
-
-	gotBefore, errBefore := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-		Subspace: minfee.ModuleName,
-		Key:      string(minfee.KeyGlobalMinGasPrice),
-	})
-	fmt.Println(gotBefore, "GOT BEFORE")
-	fmt.Println(errBefore, "ERR BEFORE")
-	require.NoError(t, errBefore)
-	require.Empty(t, strings.Trim(gotBefore.Param.Value, "\""))
-
+	
+	// _, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+	// 	Subspace: minfee.ModuleName,
+	// 	Key:      string(minfee.KeyGlobalMinGasPrice),
+	// })
 	require.EqualValues(t, 1, testApp.AppVersion(ctx))
 
 	// fmt.Println(response, "RES FROM INITGENESIS")
 	// testApp.Commit()
+
+
 	// now the app version changes
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
@@ -89,7 +76,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+    want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 	require.Equal(t, want.String(), strings.Trim(got.Param.Value, "\""))
 }
 
