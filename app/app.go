@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/app/module"
@@ -194,8 +193,9 @@ type App struct {
 	BlobKeeper       blobkeeper.Keeper
 	BlobstreamKeeper blobstreamkeeper.Keeper
 
-	mm            *module.Manager
-	configurator  module.VersionedConfigurator
+	mm           *module.Manager
+	configurator module.VersionedConfigurator
+	// used as a coordination mechanism for height based upgrades
 	upgradeHeight int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
@@ -594,8 +594,9 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
-	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
+	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
+		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeight-1 {
 			if err := app.Upgrade(ctx, currentVersion, currentVersion+1); err != nil {
 				panic(err)
@@ -617,8 +618,8 @@ func (app *App) Upgrade(ctx sdk.Context, fromVersion, toVersion uint64) error {
 	if err := app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion); err != nil {
 		return err
 	}
-	fmt.Println("upgraded to version", toVersion)
 	if toVersion == v2 {
+		// we need to set the app version in the param store for the first time
 		app.SetInitialAppVersionInConsensusParams(ctx, toVersion)
 	}
 	app.SetAppVersion(ctx, toVersion)
