@@ -32,7 +32,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 	if ctx.IsCheckTx() {
 		defaultMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
 		if err != nil {
-			return nil, 0, errors.Wrapf(err, "invalid defaultMinGasPrice: %f", defaultMinGasPriceDec) 
+			return nil, 0, errors.Wrapf(err, "invalid defaultMinGasPrice: %f", defaultMinGasPriceDec)
 		}
 
 		err = CheckTxFeeWithMinGasPrices(fee, gas, defaultMinGasPriceDec, "insufficient validator minimum fee")

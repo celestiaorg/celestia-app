@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # This Dockerfile performs a multi-stage build. BUILDER_IMAGE is the image used
 # to compile the celestia-appd binary. RUNTIME_IMAGE is the image that will be
 # returned with the final celestia-appd binary.
@@ -6,6 +7,11 @@
 # considerably smaller because it doesn't need to have Golang installed.
 ARG BUILDER_IMAGE=docker.io/golang:1.22.1-alpine3.18
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19.1
+=======
+# stage 1 Generate celestia-appd Binary
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.1-alpine3.18 as builder
+
+>>>>>>> 65c100c9 (chore: cleanup)
 ARG TARGETOS
 ARG TARGETARCH
 

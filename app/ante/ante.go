@@ -41,7 +41,7 @@ func NewAnteHandler(
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		NewMinGasDecorator(accountKeeper, bankKeeper, feegrantKeeper, minFeeParams),
+		NewDeductFeeDecoratorWrapper(accountKeeper, bankKeeper, feegrantKeeper, minFeeParams),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
@@ -74,7 +74,7 @@ func NewAnteHandler(
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
-func NewMinGasDecorator(accountKeeper ante.AccountKeeper, bankKeeper authtypes.BankKeeper, feegrantKeeper ante.FeegrantKeeper, minFeeParam params.Subspace) ante.DeductFeeDecorator {
+func NewDeductFeeDecoratorWrapper(accountKeeper ante.AccountKeeper, bankKeeper authtypes.BankKeeper, feegrantKeeper ante.FeegrantKeeper, minFeeParam params.Subspace) ante.DeductFeeDecorator {
 	return ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, NewTxFeeChecker(minFeeParam))
 }
 

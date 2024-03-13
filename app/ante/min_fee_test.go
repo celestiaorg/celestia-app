@@ -12,14 +12,14 @@ import (
 	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/store"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/cosmos/cosmos-sdk/store"
 	// tmdb "github.com/tendermint/tm-db"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	tmdb "github.com/tendermint/tm-db"
@@ -107,13 +107,13 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 			storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
 			tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
-		
+
 			db := tmdb.NewMemDB()
 			stateStore := store.NewCommitMultiStore(db)
 			stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 			stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
 			require.NoError(t, stateStore.LoadLatestVersion())
-		
+
 			registry := codectypes.NewInterfaceRegistry()
 			cdc := codec.NewProtoCodec(registry)
 
@@ -122,7 +122,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 					App: tc.appVersion,
 				},
 			}, false, nil)
-		
+
 			paramsSubspace := paramtypes.NewSubspace(cdc,
 				testutil.MakeTestCodec(),
 				storeKey,
@@ -130,7 +130,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 				"GlobalMinGasPrice",
 			)
 
-		    // Register the parameter in the subspace
+			// Register the parameter in the subspace
 			minfeetypes.RegisterMinFeeParamTable(paramsSubspace)
 
 			// Set a mock value for the MinGasPrice

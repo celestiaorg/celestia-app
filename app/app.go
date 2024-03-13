@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/app/module"
@@ -392,6 +393,10 @@ func New(
 		module.NewVersionedModule(blob.NewAppModule(appCodec, app.BlobKeeper), v1.Version, v2.Version),
 		module.NewVersionedModule(blobstream.NewAppModule(appCodec, app.BlobstreamKeeper), v1.Version, v2.Version),
 		module.NewVersionedModule(upgrade.NewAppModule(app.UpgradeKeeper), v2.Version, v2.Version),
+<<<<<<< HEAD
+=======
+		module.NewVersionedModule(minfee.NewAppModule(app.ParamsKeeper), v1.Version, v2.Version),
+>>>>>>> 65c100c9 (chore: cleanup)
 	)
 	if err != nil {
 		panic(err)
@@ -422,7 +427,10 @@ func New(
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
+		minfee.ModuleName,
 	)
+
+	fmt.Println(app.mm.ModuleNames(1))
 
 	app.mm.SetOrderEndBlockers(
 		crisistypes.ModuleName,
@@ -445,6 +453,7 @@ func New(
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
+		minfee.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -473,6 +482,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		upgradetypes.ModuleName,
+		minfee.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -480,12 +490,13 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	minfee.RegisterMinFeeParamTable(app.GetSubspace(minfee.ModuleName))
-	app.configurator.RegisterMigration("minfee", v2.Version, func(ctx sdk.Context) error {
-		subspace :=  app.GetSubspace(minfee.ModuleName)
-		subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, minfee.DefaultGlobalMinGasPrice)
-		return nil
-	})
+	// minfee.RegisterMinFeeParamTable(app.GetSubspace(minfee.ModuleName))
+	// app.configurator.RegisterMigration(minfee.ModuleName, v2.Version, func(ctx sdk.Context) error {
+	// 	// fmt.Println("Migrating minfee")
+	// 	subspace := app.GetSubspace(minfee.ModuleName)
+	// 	subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, minfee.DefaultGlobalMinGasPrice)
+	// 	return nil
+	// })
 
 	app.mm.RegisterServices(app.configurator)
 
@@ -531,6 +542,10 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	// NOTE: this is a specific feature for upgrading from v1 to v2. It will be deprecated in v3
+<<<<<<< HEAD
+=======
+	fmt.Println("CALLED HERE")
+>>>>>>> 65c100c9 (chore: cleanup)
 	if app.UpgradeKeeper.ShouldUpgradeToV2(req.Height) && app.AppVersion(ctx) == v1.Version {
 		if err := app.Upgrade(ctx, v2.Version); err != nil {
 			panic(err)
@@ -540,6 +555,10 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		// Version changes must be increasing. Downgrades are not permitted
 		if version > app.AppVersion(ctx) {
 			if err := app.Upgrade(ctx, version); err != nil {
+<<<<<<< HEAD
+=======
+
+>>>>>>> 65c100c9 (chore: cleanup)
 				panic(err)
 			}
 		}
@@ -549,6 +568,12 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 
 func (app *App) Upgrade(ctx sdk.Context, version uint64) error {
 	app.SetAppVersion(ctx, version)
+<<<<<<< HEAD
+=======
+	fmt.Println(app.mm.ModuleNames(version), "APP MM")
+	fmt.Print(app.AppVersion(ctx), "APP VERSION CTX")
+	fmt.Println(version, "VERSION")
+>>>>>>> 65c100c9 (chore: cleanup)
 	return app.mm.RunMigrations(ctx, app.configurator, app.AppVersion(ctx), version)
 }
 
@@ -563,6 +588,14 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
 		panic("no consensus params set")
 	}
+<<<<<<< HEAD
+=======
+
+	// subspace := app.GetSubspace(minfee.ModuleName)
+	// subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, minfee.DefaultGlobalMinGasPrice)
+	// fmt.Println("APP MM", app.mm)
+     fmt.Println(app.mm.ModuleNames(req.ConsensusParams.Version.AppVersion), "MODULES AT INITGENESIS")
+>>>>>>> 65c100c9 (chore: cleanup)
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 

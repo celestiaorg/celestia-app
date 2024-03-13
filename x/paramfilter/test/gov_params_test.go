@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,8 +13,8 @@ import (
 
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -27,7 +28,6 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
-	"fmt"
 )
 
 type GovParamsTestSuite struct {
@@ -496,12 +496,12 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `"0.002000000000000000"`,
 			}),
 			func() {
-				fmt.Println("HERE IN GLOBALMINGASPRICE GOV TEST") 
+				fmt.Println("HERE IN GLOBALMINGASPRICE GOV TEST")
 
 				var got sdk.Dec
 				subspace := suite.app.GetSubspace(minfeetypes.ModuleName)
 				subspace.Get(suite.ctx, minfeetypes.KeyGlobalMinGasPrice, &got)
-		
+
 				want, err := sdk.NewDecFromStr("0.002")
 				fmt.Println(want, "want")
 				fmt.Println(got, "got")

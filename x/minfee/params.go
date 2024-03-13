@@ -8,26 +8,25 @@ import (
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
-const ModuleName = "MinFee"
+const ModuleName = "minfee"
 
 var _ paramtypes.ParamSet = (*Params)(nil)
 
-
 var (
-	KeyGlobalMinGasPrice = []byte("GlobalMinGasPrice")
-	DefaultGlobalMinGasPrice sdk.Dec 
+	KeyGlobalMinGasPrice     = []byte("GlobalMinGasPrice")
+	DefaultGlobalMinGasPrice float64
 )
 
-
-func  init() {
+func init() {
 	var err error
-	DefaultGlobalMinGasPrice, err = sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+	// DefaultGlobalMinGasPrice, err = sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+
+	DefaultGlobalMinGasPrice = appconsts.DefaultMinGasPrice
 	fmt.Println(DefaultGlobalMinGasPrice, "DefaultGlobalMinGasPrice")
 	if err != nil {
 		panic(err)
 	}
 }
-
 
 func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
 	if !ps.HasKeyTable() {
@@ -58,3 +57,18 @@ func validateMinGasPrice(i interface{}) error {
 
 	return nil
 }
+
+func DefaultGenesis() *GenesisState {
+	return &GenesisState{
+		GlobalMinGasPrice: DefaultGlobalMinGasPrice,
+	}
+}
+
+func ValidateGenesis(genesis *GenesisState) error {
+	if genesis.GlobalMinGasPrice < 0 {
+		return fmt.Errorf("global min gas price cannot be negative: %g", genesis.GlobalMinGasPrice)
+	}
+
+	return nil
+}
+

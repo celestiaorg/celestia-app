@@ -1,0 +1,11 @@
+syntax = "proto3";
+package celestia.minfee.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
+
+// GenesisState defines the minfee module's genesis state.
+message GenesisState {
+    double global_min_gas_price = 1;
+}

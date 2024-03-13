@@ -76,7 +76,11 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 		}
 	}
 
+<<<<<<< HEAD
 	m := &Manager{
+=======
+	return &Manager{
+>>>>>>> 65c100c9 (chore: cleanup)
 		versionedModules:   moduleMap,
 		allModules:         allModules,
 		firstVersion:       firstVersion,
@@ -85,8 +89,12 @@ func NewManager(modules ...VersionedModule) (*Manager, error) {
 		OrderExportGenesis: modulesStr,
 		OrderBeginBlockers: modulesStr,
 		OrderEndBlockers:   modulesStr,
+<<<<<<< HEAD
 	}
 	return m, m.checkUpgradeSchedule()
+=======
+	}, nil
+>>>>>>> 65c100c9 (chore: cleanup)
 }
 
 // SetOrderInitGenesis sets the order of init genesis calls
@@ -214,12 +222,22 @@ type VersionMap map[string]uint64
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
+<<<<<<< HEAD
+=======
+    fmt.Println("FROM VERSION", fromVersion)
+	fmt.Println("TO VERSION", toVersion)
+    fromVersion = 1
+>>>>>>> 65c100c9 (chore: cleanup)
 	c, ok := cfg.(configurator)
 	if !ok {
 		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", configurator{}, cfg)
 	}
 	modules := m.OrderMigrations
 	if modules == nil {
+<<<<<<< HEAD
+=======
+		fmt.Println("MODULES ARE NIL")
+>>>>>>> 65c100c9 (chore: cleanup)
 		modules = DefaultMigrationsOrder(m.ModuleNames(toVersion))
 	}
 	currentVersionModules, exists := m.versionedModules[fromVersion]
@@ -232,11 +250,19 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 	}
 
 	for _, moduleName := range modules {
+<<<<<<< HEAD
 		currentModule, currentModuleExists := currentVersionModules[moduleName]
+=======
+		fmt.Println(moduleName, "module name")
+		_, currentModuleExists := currentVersionModules[moduleName]
+		fmt.Println(currentVersionModules[moduleName].Name(), "current version modules !!!!!!")
+		fmt.Println(nextVersionModules[moduleName].Name(), "next version modules !!!!!!")
+>>>>>>> 65c100c9 (chore: cleanup)
 		nextModule, nextModuleExists := nextVersionModules[moduleName]
 
 		// if the module exists for both upgrades
 		if currentModuleExists && nextModuleExists {
+<<<<<<< HEAD
 			// by using consensus version instead of app version we support the SDK's legacy method
 			// of migrating modules which were made of several versions and consisted of a mapping of
 			// app version to module version. Now, using go.mod, each module will have only a single
@@ -245,10 +271,19 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 			fromModuleVersion := currentModule.ConsensusVersion()
 			toModuleVersion := nextModule.ConsensusVersion()
 			err := c.runModuleMigrations(ctx, moduleName, fromModuleVersion, toModuleVersion)
+=======
+			fmt.Println("MODULE EXISTS FOR BOTH UPGRADES")
+			fmt.Println(currentModuleExists)
+			err := c.runModuleMigrations(ctx, moduleName, fromVersion, toVersion)
+>>>>>>> 65c100c9 (chore: cleanup)
 			if err != nil {
 				return err
 			}
 		} else if !currentModuleExists && nextModuleExists {
+<<<<<<< HEAD
+=======
+			fmt.Println("CONFIRMING THAT DID NOT MAKE IT HERE")
+>>>>>>> 65c100c9 (chore: cleanup)
 			ctx.Logger().Info(fmt.Sprintf("adding a new module: %s", moduleName))
 			moduleValUpdates := nextModule.InitGenesis(ctx, c.cdc, nextModule.DefaultGenesis(c.cdc))
 			// The module manager assumes only one module will update the
@@ -346,6 +381,7 @@ func (m *Manager) SupportedVersions() []uint64 {
 	return output
 }
 
+<<<<<<< HEAD
 // checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
 // for a module domain i.e. auth, always increments for each module that uses the auth domain name
 func (m *Manager) checkUpgradeSchedule() error {
@@ -370,6 +406,8 @@ func (m *Manager) checkUpgradeSchedule() error {
 	return nil
 }
 
+=======
+>>>>>>> 65c100c9 (chore: cleanup)
 // DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
 // except x/auth which will run last, see:
 // https://github.com/cosmos/cosmos-sdk/issues/10591

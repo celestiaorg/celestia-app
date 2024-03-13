@@ -201,6 +201,7 @@ func TestManager_EndBlock(t *testing.T) {
 	mockAppModule2.EXPECT().EndBlock(gomock.Any(), gomock.Eq(req)).Times(1).Return([]abci.ValidatorUpdate{{}})
 	require.Panics(t, func() { mm.EndBlock(ctx, req) })
 }
+<<<<<<< HEAD
 
 func TestManager_UpgradeSchedule(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
@@ -218,3 +219,5 @@ func TestManager_UpgradeSchedule(t *testing.T) {
 	)
 	require.Error(t, err)
 }
+=======
+>>>>>>> 65c100c9 (chore: cleanup)
