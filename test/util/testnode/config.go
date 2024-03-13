@@ -120,7 +120,8 @@ func DefaultConfig() *Config {
 	return cfg.
 		WithGenesis(
 			genesis.NewDefaultGenesis().
-				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)),
+				WithValidators(genesis.NewDefaultValidator(DefaultValidatorAccountName)).
+				WithConsensusParams(DefaultConsensusParams()),
 		).
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).
