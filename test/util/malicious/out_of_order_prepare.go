@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/go-square/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // OutOfOrderPrepareProposal fulfills the celestia-core version of the ABCI
@@ -17,7 +18,14 @@ import (
 func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
-	sdkCtx := a.NewProposalContext(core.Header{ChainID: a.GetChainID(), Height: a.LastBlockHeight() + 1})
+	sdkCtx := a.NewProposalContext(core.Header{
+		ChainID: req.ChainId,
+		Height:  req.Height,
+		Time:    req.Time,
+		Version: version.Consensus{
+			App: a.BaseApp.AppVersion(),
+		},
+	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
@@ -30,13 +38,14 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 		a.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		a.IBCKeeper,
+		a.MsgGateKeeper,
 	)
 
 	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.BlockData.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(sdkCtx), a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
+	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
 	if err != nil {
 		panic(err)
 	}
