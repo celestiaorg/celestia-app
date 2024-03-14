@@ -83,7 +83,6 @@ func TestConfiguratorRegistersAllMessageTypes(t *testing.T) {
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 	require.NoError(t, stateStore.LoadLatestVersion())
 
-	// ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
 	keeper := upgrade.NewKeeper(storeKey, nil)
 	upgradeModule := upgrade.NewAppModule(keeper)
 	mm, err := module.NewManager([]module.VersionedModule{
