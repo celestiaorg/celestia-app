@@ -86,6 +86,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		},
 		Evidence:  &cparams.Evidence,
 		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
