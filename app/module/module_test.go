@@ -25,8 +25,13 @@ func TestManagerOrderSetters(t *testing.T) {
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 
 	mockAppModule1.EXPECT().Name().Times(6).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(6).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -55,8 +60,13 @@ func TestManager_RegisterInvariants(t *testing.T) {
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -74,9 +84,14 @@ func TestManager_RegisterQueryServices(t *testing.T) {
 
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
-	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
-	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule1.EXPECT().Name().Times(3).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(2).Return(uint64(1))
+	mockAppModule2.EXPECT().Name().Times(3).Return("module2")
+	mockAppModule2.EXPECT().ConsensusVersion().Times(2).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -86,8 +101,8 @@ func TestManager_RegisterQueryServices(t *testing.T) {
 	interfaceRegistry := types.NewInterfaceRegistry()
 	cdc := codec.NewProtoCodec(interfaceRegistry)
 	cfg := module.NewConfigurator(cdc, msgRouter, queryRouter)
-	mockAppModule1.EXPECT().RegisterServices(cfg).Times(1)
-	mockAppModule2.EXPECT().RegisterServices(cfg).Times(1)
+	mockAppModule1.EXPECT().RegisterServices(gomock.Any()).Times(1)
+	mockAppModule2.EXPECT().RegisterServices(gomock.Any()).Times(1)
 
 	mm.RegisterServices(cfg)
 }
@@ -99,8 +114,13 @@ func TestManager_InitGenesis(t *testing.T) {
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -131,8 +151,13 @@ func TestManager_ExportGenesis(t *testing.T) {
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -157,8 +182,13 @@ func TestManager_BeginBlock(t *testing.T) {
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -180,8 +210,13 @@ func TestManager_EndBlock(t *testing.T) {
 	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mm, err := module.NewManager(module.NewVersionedModule(mockAppModule1, 1, 1), module.NewVersionedModule(mockAppModule2, 1, 1))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
 	require.NoError(t, err)
 	require.NotNil(t, mm)
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
@@ -210,11 +245,11 @@ func TestManager_UpgradeSchedule(t *testing.T) {
 	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("blob")
 	mockAppModule2.EXPECT().Name().Times(2).Return("blob")
-	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(3))
-	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(2))
-	_, err := module.NewManager(
-		module.NewVersionedModule(mockAppModule1, 1, 1),
-		module.NewVersionedModule(mockAppModule2, 2, 2),
-	)
+	mockAppModule1.EXPECT().ConsensusVersion().Times(2).Return(uint64(3))
+	mockAppModule2.EXPECT().ConsensusVersion().Times(2).Return(uint64(2))
+	_, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 2, ToVersion: 2},
+	})
 	require.Error(t, err)
 }
