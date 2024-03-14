@@ -24,6 +24,8 @@ func TestNew(t *testing.T) {
 
 	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ICAHostKeeper)
+	})
+	t.Run("initializes ScopedICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ScopedICAHostKeeper)
 	})
 }
