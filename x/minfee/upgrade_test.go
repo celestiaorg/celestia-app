@@ -1,9 +1,7 @@
 package minfee_test
 
 import (
-	// "context"
 	"encoding/json"
-	// "strconv"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,12 +15,10 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/util"
 
-	// "github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	// params "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -50,24 +46,34 @@ func TestUpgradeAppVersion(t *testing.T) {
 	}})
 
 	// app version should not have changed yet
-
-	// _, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-	// 	Subspace: minfee.ModuleName,
-	// 	Key:      string(minfee.KeyGlobalMinGasPrice),
-	// })
 	require.EqualValues(t, 1, testApp.AppVersion(ctx))
+    
+	// global min gas price should not have been set yet 
+	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+		Subspace: minfee.ModuleName,
+		Key:      string(minfee.KeyGlobalMinGasPrice),
+	})
+	require.Equal(t, "", gotBefore.Param.Value)
+	require.NoError(t, err)
 
-	// fmt.Println(response, "RES FROM INITGENESIS")
-	// testApp.Commit()
 
 	// now the app version changes
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	testApp.Commit()
+
 	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
 	require.EqualValues(t, 2, testApp.AppVersion(ctx))
-	testApp.Commit()
-
-	got, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+    
+	// create a new context after endBlock
+	newCtx := testApp.NewContext(true, tmproto.Header{
+		Version: version.Consensus{
+			App: 2,
+		},
+	})
+    
+	// global min gas price should be set 
+	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
 		Subspace: minfee.ModuleName,
 		Key:      string(minfee.KeyGlobalMinGasPrice),
 	})

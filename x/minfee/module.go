@@ -108,11 +108,13 @@ func (am AppModule) RegisterServices(_ sdkmodule.Configurator) {}
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
 	var genesisState GenesisState
 	cdc.MustUnmarshalJSON(gs, &genesisState)
-
+	
+	
 	// Set the global min gas price initial value
 	subspace, _ := am.paramsKeeper.GetSubspace(ModuleName)
 	RegisterMinFeeParamTable(subspace)
 	globalMinGasPriceDec, _ := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
+	fmt.Println("min fee init genesis", globalMinGasPriceDec)
 	subspace.Set(ctx, KeyGlobalMinGasPrice, globalMinGasPriceDec)
 
 	return []abci.ValidatorUpdate{}
