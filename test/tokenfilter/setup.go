@@ -8,6 +8,8 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -21,6 +23,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
@@ -78,7 +81,10 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 	header := tmproto.Header{
 		ChainID: chainID,
 		Height:  1,
-		Time:    coord.CurrentTime.UTC(),
+		Version: tmversion.Consensus{
+			App: appconsts.LatestVersion,
+		},
+		Time: coord.CurrentTime.UTC(),
 	}
 
 	txConfig := app.GetTxConfig()
@@ -198,11 +204,22 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
 
+	params := testnode.DefaultConsensusParams()
+
 	// init chain will set the validator set and initialize the genesis accounts
 	app.InitChain(
 		abci.RequestInitChain{
-			ChainId:       chainID,
-			Validators:    []abci.ValidatorUpdate{},
+			ChainId:    chainID,
+			Validators: []abci.ValidatorUpdate{},
+			ConsensusParams: &abci.ConsensusParams{
+				Block: &abci.BlockParams{
+					MaxBytes: params.Block.MaxBytes,
+					MaxGas:   params.Block.MaxGas,
+				},
+				Evidence:  &params.Evidence,
+				Validator: &params.Validator,
+				Version:   &params.Version,
+			},
 			AppStateBytes: stateBytes,
 		},
 	)
@@ -212,7 +229,10 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	app.BeginBlock(
 		abci.RequestBeginBlock{
 			Header: tmproto.Header{
-				ChainID:            chainID,
+				ChainID: chainID,
+				Version: tmversion.Consensus{
+					App: appconsts.LatestVersion,
+				},
 				Height:             app.LastBlockHeight() + 1,
 				AppHash:            app.LastCommitID().Hash,
 				ValidatorsHash:     valSet.Hash(),

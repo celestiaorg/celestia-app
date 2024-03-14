@@ -2,9 +2,6 @@ name: test
 on:
   workflow_call:
 
-env:
-  GO_VERSION: '1.21.6'
-
 jobs:
   test-short:
     runs-on: ubuntu-latest
@@ -13,7 +10,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run tests in short mode
         run: make test-short
@@ -26,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run tests
         run: make test
@@ -38,13 +35,13 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Generate coverage.txt
         run: make test-coverage
 
       - name: Upload coverage.txt
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v4.1.0
         with:
           file: ./coverage.txt
 
@@ -55,7 +52,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run tests in race mode
         run: make test-race
@@ -67,7 +64,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Run fuzz tests
         run: make test-fuzz

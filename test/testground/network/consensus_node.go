@@ -24,7 +24,6 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmtos "github.com/tendermint/tendermint/libs/os"
-	tmos "github.com/tendermint/tendermint/libs/os"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
@@ -168,18 +167,18 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 		return err
 	}
 	pvStateFile := cn.CmtConfig.PrivValidatorStateFile()
-	if err := tmos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
+	if err := cmtos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
 		return err
 	}
 	pvKeyFile := cn.CmtConfig.PrivValidatorKeyFile()
-	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
+	if err := cmtos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
 		return err
 	}
 	filePV := privval.NewFilePV(cn.consensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 
 	nodeKeyFile := cn.CmtConfig.NodeKeyFile()
-	if err := tmos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
+	if err := cmtos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
 		return err
 	}
 	nodeKey := &p2p.NodeKey{
@@ -202,7 +201,7 @@ func (cn *ConsensusNode) StartNode(ctx context.Context, baseDir string) error {
 	}
 
 	cn.cmtNode = tmNode
-	cctx := testnode.NewContext(ctx, cn.kr, ucfg.TmConfig, cn.params.ChainID)
+	cctx := testnode.NewContext(ctx, cn.kr, ucfg.TmConfig, cn.params.ChainID, ucfg.AppConfig.API.Address)
 
 	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
 	cn.stopFuncs = append(cn.stopFuncs, stopNode)

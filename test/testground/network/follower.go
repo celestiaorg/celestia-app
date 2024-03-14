@@ -87,7 +87,7 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 
 	runenv.RecordMessage("follower waiting for start height")
 
-	_, err = f.cctx.WaitForHeightWithTimeout(int64(10), time.Minute*7)
+	_, err = f.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,8 @@ func (f *Follower) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx 
 // Retro collects standard data from the follower node and saves it as a file.
 // This data includes the block times, rounds required to reach consensus, and
 // the block sizes.
-func (f *Follower) Retro(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
+func (f *Follower) Retro(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext) error {
+	//nolint:errcheck
 	defer f.ConsensusNode.Stop()
 
 	res, err := f.cctx.Client.Status(ctx)

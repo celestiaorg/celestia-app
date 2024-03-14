@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -9,12 +10,14 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	mint "github.com/celestiaorg/celestia-app/x/mint/types"
 )
 
 func (s *IntegrationTestSuite) TestQueryGRPC() {
-	val := s.network.Validators[0]
-	baseURL := val.APIAddress
+	baseURL := s.cctx.APIAddress()
+	baseURL = strings.Replace(baseURL, "tcp", "http", 1)
+	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(sdk.NewInt(testnode.DefaultInitialBalance))
 	testCases := []struct {
 		name     string
 		url      string
@@ -26,8 +29,8 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			"gRPC request inflation rate",
 			fmt.Sprintf("%s/cosmos/mint/v1beta1/inflation_rate", baseURL),
 			map[string]string{},
-			&minttypes.QueryInflationRateResponse{},
-			&minttypes.QueryInflationRateResponse{
+			&mint.QueryInflationRateResponse{},
+			&mint.QueryInflationRateResponse{
 				InflationRate: sdk.NewDecWithPrec(8, 2),
 			},
 		},
@@ -37,17 +40,17 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			map[string]string{
 				grpctypes.GRPCBlockHeightHeader: "1",
 			},
-			&minttypes.QueryAnnualProvisionsResponse{},
-			&minttypes.QueryAnnualProvisionsResponse{
-				AnnualProvisions: sdk.NewDec(40_000_000),
+			&mint.QueryAnnualProvisionsResponse{},
+			&mint.QueryAnnualProvisionsResponse{
+				AnnualProvisions: expectedAnnualProvision,
 			},
 		},
 	}
 	for _, tc := range testCases {
-		resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)
 		s.Run(tc.name, func() {
+			resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)
 			s.Require().NoError(err)
-			s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(resp, tc.respType))
+			s.Require().NoError(s.cctx.Context.Codec.UnmarshalJSON(resp, tc.respType))
 			s.Require().Equal(tc.expected.String(), tc.respType.String())
 		})
 	}

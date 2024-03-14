@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -39,11 +41,19 @@ func CreateNetworkConfig(runenv *runtime.RunEnv, initCtx *run.InitContext) (netw
 	if err != nil {
 		return network.Config{}, err
 	}
+	l := runenv.IntParam("latency")
+	// rand.Intn will panic if l == 0
+	if l == 0 {
+		l = 1
+	}
+	if runenv.BooleanParam("random_latency") {
+		l = tmrand.Intn(l)
+	}
 	config := network.Config{
 		Network: "default",
 		Enable:  true,
 		Default: network.LinkShape{
-			Latency:   time.Millisecond * time.Duration(runenv.IntParam("latency")),
+			Latency:   time.Millisecond * time.Duration(l),
 			Bandwidth: bandwidth,
 		},
 		CallbackState: "network-configured",
@@ -85,7 +95,7 @@ func parseBandwidth(s string) (uint64, error) {
 		return 0, fmt.Errorf("unknown unit in string: %s", s)
 	}
 
-	numberStr := strings.TrimRight(s, "KibMibGibTibKBMGBT")
+	numberStr := strings.TrimRight(s, "KMGTib")
 	number, err := strconv.ParseFloat(numberStr, 64)
 	if err != nil {
 		return 0, err

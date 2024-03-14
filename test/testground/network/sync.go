@@ -140,7 +140,7 @@ type GenesisWrapper struct {
 
 // PublishGenesis publishes the genesis to the sync service. It splits the
 // genesis into 10 parts and publishes each part separately. This gets around the
-// 32Kb limit the underlying websocket has.
+// 32Kb limit the underlying websocket has
 func PublishGenesis(ctx context.Context, initCtx *run.InitContext, gen *coretypes.GenesisDoc) error {
 	genBytes, err := cmtjson.Marshal(gen)
 	if err != nil {
@@ -173,8 +173,6 @@ func PublishGenesis(ctx context.Context, initCtx *run.InitContext, gen *coretype
 	return nil
 }
 
-// DownloadGenesis downloads the genesis from the sync service. It downloads
-// each part of the genesis and concatenates them together.
 func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMessage, error) {
 	rawGens, err := DownloadSync(ctx, initCtx, GenesisTopic, GenesisWrapper{}, wrapperParts)
 	if err != nil {
@@ -198,7 +196,7 @@ func DownloadGenesis(ctx context.Context, initCtx *run.InitContext) (json.RawMes
 // DownloadSync downloads the given topic from the sync service. It will
 // download the given number of messages from the topic. If the topic is closed
 // before the expected number of messages are received, an error is returned.
-func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, t T, count int) ([]T, error) {
+func DownloadSync[T any](ctx context.Context, initCtx *run.InitContext, topic *sync.Topic, _ T, count int) ([]T, error) {
 	ch := make(chan T)
 	sub, err := initCtx.SyncClient.Subscribe(ctx, topic, ch)
 	if err != nil {

@@ -78,7 +78,7 @@ can be found in the [testground](https://github.com/testground/testground) repo.
 
 ```sh
 cd ./test/testground
-testground plan import --from . --name celestia
+testground plan import --from . --name core-app
 
 # This command should be executed in the 1st terminal
 testground daemon
