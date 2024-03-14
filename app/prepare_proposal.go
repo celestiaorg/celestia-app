@@ -71,7 +71,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(sdkCtx), app.GovSquareSizeUpperBound(sdkCtx))
+	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion(), app.GovSquareSizeUpperBound(sdkCtx))
 	if err != nil {
 		panic(err)
 	}
