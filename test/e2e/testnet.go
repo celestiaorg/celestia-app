@@ -34,11 +34,14 @@ func New(name string, seed int64) (*Testnet, error) {
 	}, nil
 }
 
-func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64) error {
+func (t *Testnet) CreateGenesisNode(version string, selfDelegation,
+	upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
+		selfDelegation, nil, signerKey, networkKey, accountKey,
+		upgradeHeight, resources)
 	if err != nil {
 		return err
 	}
@@ -46,9 +49,10 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64) error {
+func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation,
+	upgradeHeight int64, resources Resources) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight); err != nil {
+		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
 			return err
 		}
 	}
@@ -59,7 +63,8 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64) e
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
+		startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight, Resources{"200Mi", "200Mi", "300m", ""})
 	if err != nil {
 		return err
 	}

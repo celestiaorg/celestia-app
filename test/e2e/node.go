@@ -40,12 +40,20 @@ type Node struct {
 	grpcProxyPort int
 }
 
+type Resources struct {
+	memoryRequest string //"200Mi"
+	memoryLimit   string //"200Mi"
+	cpu           string //"300m"
+	bandwidth     string
+}
+
 func NewNode(
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
 	signerKey, networkKey, accountKey crypto.PrivKey,
 	upgradeHeight int64,
+	resources Resources,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -64,11 +72,11 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-	err = instance.SetMemory("200Mi", "200Mi")
+	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU("300m")
+	err = instance.SetCPU(resources.cpu)
 	if err != nil {
 		return nil, err
 	}

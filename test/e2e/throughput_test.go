@@ -15,14 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const seed = 42
+//const seed = 42
+//
+//var latestVersion = "latest"
 
-var latestVersion = "latest"
-
-// This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
-// and MsgSends over 30 seconds and then asserts that at least 10 transactions were
-// committed.
-func TestE2ESimple(t *testing.T) {
+func TestE2EThroughput(t *testing.T) {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
@@ -41,7 +38,7 @@ func TestE2ESimple(t *testing.T) {
 			t.Fatalf("unrecognised version: %s", latestVersion)
 		}
 	}
-	t.Log("Running simple e2e test", "version", latestVersion)
+	t.Log("Running throughput test", "version", latestVersion)
 
 	testnet, err := New(t.Name(), seed)
 	require.NoError(t, err)
