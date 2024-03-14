@@ -15,8 +15,8 @@ var (
 
 // MsgVersioningGateKeeper dictates which transactions are accepted for an app version
 type MsgVersioningGateKeeper struct {
-	// acceptedMsgs is a map from appVersion -> msgTypeURL -> struct{}. 
-	// If a msgTypeURL is present in the map it should be accepted for that appVersion. 
+	// acceptedMsgs is a map from appVersion -> msgTypeURL -> struct{}.
+	// If a msgTypeURL is present in the map it should be accepted for that appVersion.
 	acceptedMsgs map[uint64]map[string]struct{}
 }
 
