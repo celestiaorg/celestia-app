@@ -125,6 +125,7 @@ var (
 		blob.AppModuleBasic{},
 		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
+		minfee.AppModuleBasic{}, 
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -504,7 +505,7 @@ func New(
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
-		app.GetSubspace(minfee.ModuleName),
+		app.ParamsKeeper,
 	))
 	app.SetPostHandler(posthandler.New())
 

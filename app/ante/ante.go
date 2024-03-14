@@ -7,7 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	params "github.com/cosmos/cosmos-sdk/x/params/types"
+	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	ibcante "github.com/cosmos/ibc-go/v6/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
 )
@@ -20,7 +20,7 @@ func NewAnteHandler(
 	signModeHandler signing.SignModeHandler,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
-	minFeeParams params.Subspace,
+	paramKeeper paramkeeper.Keeper,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -41,7 +41,7 @@ func NewAnteHandler(
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		NewDeductFeeDecoratorWrapper(accountKeeper, bankKeeper, feegrantKeeper, minFeeParams),
+		NewDeductFeeDecoratorWrapper(accountKeeper, bankKeeper, feegrantKeeper, paramKeeper),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
@@ -74,12 +74,12 @@ func NewAnteHandler(
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
-func NewDeductFeeDecoratorWrapper(accountKeeper ante.AccountKeeper, bankKeeper authtypes.BankKeeper, feegrantKeeper ante.FeegrantKeeper, minFeeParam params.Subspace) ante.DeductFeeDecorator {
-	return ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, NewTxFeeChecker(minFeeParam))
+func NewDeductFeeDecoratorWrapper(accountKeeper ante.AccountKeeper, bankKeeper authtypes.BankKeeper, feegrantKeeper ante.FeegrantKeeper, paramKeeper paramkeeper.Keeper) ante.DeductFeeDecorator {
+	return ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, NewTxFeeChecker(paramKeeper))
 }
 
-func NewTxFeeChecker(minFeeParam params.Subspace) ante.TxFeeChecker {
+func NewTxFeeChecker(paramKeeper paramkeeper.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
-		return CheckTxFeeWithGlobalMinGasPrices(ctx, tx, minFeeParam)
+		return CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramKeeper)
 	}
 }

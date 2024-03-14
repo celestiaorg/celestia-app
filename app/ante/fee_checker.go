@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
-	params "github.com/cosmos/cosmos-sdk/x/params/types"
+	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 
 // CheckTxFeeWithGlobalMinGasPrices implements the default fee logic, where the minimum price per
 // unit of gas is fixed and set globally, and the tx priority is computed from the gas price.
-func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams params.Subspace) (sdk.Coins, int64, error) {
+func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
@@ -46,11 +46,20 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, minFeeParams p
 
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
+		minFeeParams, exists := paramKeeper.GetSubspace(minfee.ModuleName)
+		if !exists {
+			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
+		}
+
+		if !minFeeParams.Has(ctx, minfee.KeyGlobalMinGasPrice) {
+			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "GlobalMinimumGasPrice")
+		}
+
 		var globalMinGasPrice sdk.Dec
 		// gets the global minimum gas price from the param store
 		// panics if not configured properly
 		minFeeParams.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
-
+		
 		err := CheckTxFeeWithMinGasPrices(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
 		if err != nil {
 			return nil, 0, err
