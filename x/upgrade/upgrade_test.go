@@ -58,7 +58,7 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	infoResp := testApp.Info(abci.RequestInfo{})
 	require.EqualValues(t, 0, infoResp.AppVersion)
 
-	cp := app.DefaultConsensusParams()
+	cp := app.DefaultInitialConsensusParams()
 	abciParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			MaxBytes: cp.Block.MaxBytes,
@@ -81,7 +81,7 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 
 	// assert that the chain starts with version provided in genesis
 	infoResp = testApp.Info(abci.RequestInfo{})
-	require.EqualValues(t, app.DefaultConsensusParams().Version.AppVersion, infoResp.AppVersion)
+	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
 
 	_ = testApp.Commit()
 	return testApp, kr

@@ -10,15 +10,15 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -137,7 +137,6 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			require.NoError(t, stateStore.LoadLatestVersion())
 
 			registry := codectypes.NewInterfaceRegistry()
-			cdc := codec.NewProtoCodec(registry)
 
 			ctx := sdk.NewContext(stateStore, tmproto.Header{
 				Version: version.Consensus{
@@ -145,21 +144,17 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 				},
 			}, tc.isCheckTx, nil)
 
-			paramsSubspace := paramtypes.NewSubspace(cdc,
-				testutil.MakeTestCodec(),
-				storeKey,
-				tStoreKey,
-				"GlobalMinGasPrice",
-			)
 
-			// Register the parameter in the subspace
-			minfeetypes.RegisterMinFeeParamTable(paramsSubspace)
+			globalminGasPriceDec, decError := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+			require.NoError(t, decError)
 
-			globalminGasPriceDec, _ := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
-			params := minfeetypes.Params{GlobalMinGasPrice: globalminGasPriceDec}
-			paramsSubspace.Set(ctx, minfeetypes.KeyGlobalMinGasPrice, &params.GlobalMinGasPrice)
+			paramskeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
+			paramskeeper.Subspace(minfee.ModuleName)
+			subspaceMinFee, _ := paramskeeper.GetSubspace(minfee.ModuleName)
+			minfee.RegisterMinFeeParamTable(subspaceMinFee)
+			subspaceMinFee.Set(ctx, minfee.KeyGlobalMinGasPrice, &globalminGasPriceDec)
 
-			_, _, err := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramsSubspace)
+			_, _, err := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramskeeper)
 			if tc.expErr {
 				require.Error(t, err)
 			} else {
