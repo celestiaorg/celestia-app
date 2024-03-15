@@ -45,6 +45,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"
 	@(cd ./test/testground && go mod tidy)
+	@echo "--> Updating go.mod in ./interchaintest"
+	@(cd ./interchaintest && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
