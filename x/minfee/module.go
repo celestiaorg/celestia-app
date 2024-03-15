@@ -106,7 +106,6 @@ func (am AppModule) RegisterServices(_ sdkmodule.Configurator) {}
 
 // InitGenesis performs genesis initialization for the minfee module. It returns no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
-	fmt.Println("min fee init genesis")
 	var genesisState GenesisState
 	cdc.MustUnmarshalJSON(gs, &genesisState)
 
@@ -114,9 +113,9 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 	if !exists {
 		panic("minfee subspace not set")
 	}
-	
+
 	RegisterMinFeeParamTable(subspace)
-	
+
 	// Set the global min gas price initial value
 	globalMinGasPriceDec, _ := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
 	subspace.SetParamSet(ctx, &Params{GlobalMinGasPrice: globalMinGasPriceDec})

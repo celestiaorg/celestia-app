@@ -1,11 +1,11 @@
 package minfee
 
 import (
- "fmt"
- sdk "github.com/cosmos/cosmos-sdk/types"
- params "github.com/cosmos/cosmos-sdk/x/params/keeper"
-)
+	"fmt"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
+)
 
 // DefaultParams returns a default set of parameters
 func DefaultGenesis() *GenesisState {

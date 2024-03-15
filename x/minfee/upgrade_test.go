@@ -47,15 +47,14 @@ func TestUpgradeAppVersion(t *testing.T) {
 
 	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion())
-    
-	// global min gas price should not have been set yet 
+
+	// global min gas price should not have been set yet
 	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: minfee.ModuleName,
 		Key:      string(minfee.KeyGlobalMinGasPrice),
 	})
 	require.Equal(t, "", gotBefore.Param.Value)
 	require.NoError(t, err)
-
 
 	// now the app version changes
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
@@ -64,15 +63,15 @@ func TestUpgradeAppVersion(t *testing.T) {
 	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
 	require.EqualValues(t, 2, testApp.AppVersion())
-    
+
 	// create a new context after endBlock
 	newCtx := testApp.NewContext(true, tmproto.Header{
 		Version: version.Consensus{
 			App: 2,
 		},
 	})
-    
-	// global min gas price should be set 
+
+	// global min gas price should be set
 	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
 		Subspace: minfee.ModuleName,
 		Key:      string(minfee.KeyGlobalMinGasPrice),

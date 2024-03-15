@@ -15,7 +15,6 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"fmt"
 )
 
 func init() {
@@ -103,7 +102,6 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {
 
 // InitGenesis is ignored, no sense in serializing future upgrades
 func (am AppModule) InitGenesis(_ sdk.Context, _ codec.JSONCodec, _ json.RawMessage) []abci.ValidatorUpdate {
-	fmt.Println("InitGenesis UPGRADE")
 	return []abci.ValidatorUpdate{}
 }
 

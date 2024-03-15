@@ -144,7 +144,6 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 				},
 			}, tc.isCheckTx, nil)
 
-
 			globalminGasPriceDec, decError := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 			require.NoError(t, decError)
 

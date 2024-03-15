@@ -60,7 +60,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper pa
 		// gets the global minimum gas price from the param store
 		// panics if not configured properly
 		minFeeParams.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
-		
+
 		err := CheckTxFeeWithMinGasPrices(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
 		if err != nil {
 			return nil, 0, err

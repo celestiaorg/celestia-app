@@ -49,7 +49,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.MsgGateKeeper,
 	)
 	sdkCtx := app.NewProposalContext(req.Header)
-	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion(sdkCtx))
+	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion())
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present

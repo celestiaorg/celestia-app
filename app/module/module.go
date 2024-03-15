@@ -160,19 +160,16 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 		panic(fmt.Sprintf("version %d not supported", appVersion))
 	}
 
-	fmt.Println(m.OrderInitGenesis, "order init genesis")
-	
+	// fmt.Println(m.OrderInitGenesis, "order init genesis")
+
 	for _, moduleName := range m.OrderInitGenesis {
 		if genesisData[moduleName] == nil {
-			fmt.Println("genesis data is nil", moduleName)
 			continue
 		}
 		if modules[moduleName] == nil {
-			fmt.Println("module is nil", moduleName)
 			continue
 		}
 		ctx.Logger().Debug("running initialization for module", "module", moduleName)
-
 		moduleValUpdates := modules[moduleName].InitGenesis(ctx, cdc, genesisData[moduleName])
 
 		// use these validator updates if provided, the module manager assumes

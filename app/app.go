@@ -125,7 +125,7 @@ var (
 		blob.AppModuleBasic{},
 		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
-		minfee.AppModuleBasic{}, 
+		minfee.AppModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -524,6 +524,8 @@ func New(
 	// NOTE: Capability module must occur first so that it can initialize any capabilities
 	// so that other modules that want to create or claim capabilities afterwards in InitChain
 	// can do so safely.
+	// NOTE: The minfee module must occur before genutil so DeliverTx can
+	// successfully pass the fee checking logic
 	app.mm.SetOrderInitGenesis(
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
@@ -535,6 +537,7 @@ func New(
 		minttypes.ModuleName,
 		crisistypes.ModuleName,
 		ibchost.ModuleName,
+		minfee.ModuleName,
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
@@ -545,7 +548,6 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		upgradetypes.ModuleName,
-		minfee.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
