@@ -720,11 +720,6 @@ func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
 	return app.ScopedIBCKeeper
 }
 
-// GetScopedICAHostKeeper implements the TestingApp interface.
-func (app *App) GetScopedICAHostKeeper() capabilitykeeper.ScopedKeeper {
-	return app.ScopedICAHostKeeper
-}
-
 // GetTxConfig implements the TestingApp interface.
 func (app *App) GetTxConfig() client.TxConfig {
 	return app.txConfig
