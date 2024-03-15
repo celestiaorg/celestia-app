@@ -5,13 +5,13 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 100
+total_instances = 10
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "metrics-1"
+chain_id = "no-wal-hbp-1"
 timeout = "59m"
 halt_height = "2000"
 latency = "150"
@@ -32,7 +32,7 @@ gov_max_square_size = "1024"
 max_block_bytes = "2000000"
 mempool = "v1"
 broadcast_txs = "true"
-tracing_nodes = "0"
+tracing_nodes = "2"
 tracing_token = ""
 tracing_url = ""
 experiment = "unbounded"
@@ -44,32 +44,13 @@ builder = "docker:generic"
 memory = "12Gi"
 cpu = "8"
 [groups.instances]
-count = 99
+count = 10
 percentage = 0.0
 [groups.build_config]
-build_base_image = "golang:1.21.6"
+build_base_image = "golang:1.22.0"
 enable_go_build_cache = true
 enabled = true
-go_version = "1.21"
+go_version = "1.22"
 [groups.build]
 [groups.run]
 artifact = ""
-
-[[groups]]
-id = "profiled-vals"
-builder = "docker:generic"
-[groups.resources]
-memory = "12Gi"
-cpu = "8"
-[groups.instances]
-count = 1
-percentage = 0.0
-[groups.build_config]
-build_base_image = "golang:1.21.6"
-enable_go_build_cache = true
-enabled = true
-go_version = "1.21"
-[groups.build]
-[groups.run]
-artifact = ""
-profiles = { mutex = "10s" }
