@@ -10,13 +10,18 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const (
+	DockerRepository = "ghcr.io/celestiaorg/celestia-app"
+	DockerTag        = "pr-3182"
+)
+
 var celestiaSpec = &interchaintest.ChainSpec{
 	Name: "celestia",
 	ChainConfig: ibc.ChainConfig{
 		Type:           "cosmos",
 		Name:           "celestia-app",
 		ChainID:        "celestia",
-		Images:         []ibc.DockerImage{{Repository: "ghcr.io/celestiaorg/celestia-app", Version: "pr-3182", UidGid: "10001:10001"}},
+		Images:         []ibc.DockerImage{{Repository: DockerRepository, Version: DockerTag, UidGid: "10001:10001"}},
 		Bin:            "celestia-appd",
 		Bech32Prefix:   "celestia",
 		Denom:          "utia",
@@ -24,7 +29,7 @@ var celestiaSpec = &interchaintest.ChainSpec{
 		GasAdjustment:  1.5,
 		TrustingPeriod: "336hours",
 	},
-	Version: "v1.6.0",
+	Version: DockerTag,
 }
 var cosmosSpec = &interchaintest.ChainSpec{
 	Name:        "gaia",
