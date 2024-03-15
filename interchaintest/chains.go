@@ -16,7 +16,7 @@ var celestiaSpec = &interchaintest.ChainSpec{
 		Type:           "cosmos",
 		Name:           "celestia-app",
 		ChainID:        "celestia",
-		Images:         []ibc.DockerImage{{Repository: "ghcr.io/celestiaorg/celestia-app", Version: "v1.6.0", UidGid: "10001:10001"}},
+		Images:         []ibc.DockerImage{{Repository: "ghcr.io/celestiaorg/celestia-app", Version: "pr-3182", UidGid: "10001:10001"}},
 		Bin:            "celestia-appd",
 		Bech32Prefix:   "celestia",
 		Denom:          "utia",
