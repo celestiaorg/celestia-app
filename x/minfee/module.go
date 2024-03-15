@@ -63,7 +63,7 @@ func (a AppModuleBasic) GetTxCmd() *cobra.Command {
 	return &cobra.Command{}
 }
 
-// GetQueryCmd returns the minfee module's root query command.
+// GetQueryCmd returns the a dummy command.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 	// Return a dummy command
 	return &cobra.Command{}
@@ -106,16 +106,20 @@ func (am AppModule) RegisterServices(_ sdkmodule.Configurator) {}
 
 // InitGenesis performs genesis initialization for the minfee module. It returns no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
+	fmt.Println("min fee init genesis")
 	var genesisState GenesisState
 	cdc.MustUnmarshalJSON(gs, &genesisState)
+
+	subspace, exists := am.paramsKeeper.GetSubspace(ModuleName)
+	if !exists {
+		panic("minfee subspace not set")
+	}
 	
+	RegisterMinFeeParamTable(subspace)
 	
 	// Set the global min gas price initial value
-	subspace, _ := am.paramsKeeper.GetSubspace(ModuleName)
-	RegisterMinFeeParamTable(subspace)
 	globalMinGasPriceDec, _ := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
-	fmt.Println("min fee init genesis", globalMinGasPriceDec)
-	subspace.Set(ctx, KeyGlobalMinGasPrice, globalMinGasPriceDec)
+	subspace.SetParamSet(ctx, &Params{GlobalMinGasPrice: globalMinGasPriceDec})
 
 	return []abci.ValidatorUpdate{}
 }
@@ -124,19 +128,6 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
 	gs := ExportGenesis(ctx, am.paramsKeeper)
 	return cdc.MustMarshalJSON(gs)
-}
-
-// ExportGenesis returns the capability module's exported genesis.
-func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
-	globalMinGasPrice, ok := k.GetSubspace(ModuleName)
-
-	var minGasPrice sdk.Dec
-	globalMinGasPrice.Get(ctx, KeyGlobalMinGasPrice, &minGasPrice)
-	if !ok {
-		panic("global min gas price not found")
-	}
-
-	return &GenesisState{GlobalMinGasPrice: minGasPrice.MustFloat64()}
 }
 
 // BeginBlock returns the begin blocker for the minfee module.

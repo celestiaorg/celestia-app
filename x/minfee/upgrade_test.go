@@ -46,7 +46,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 	}})
 
 	// app version should not have changed yet
-	require.EqualValues(t, 1, testApp.AppVersion(ctx))
+	require.EqualValues(t, 1, testApp.AppVersion())
     
 	// global min gas price should not have been set yet 
 	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
@@ -63,7 +63,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 
 	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
-	require.EqualValues(t, 2, testApp.AppVersion(ctx))
+	require.EqualValues(t, 2, testApp.AppVersion())
     
 	// create a new context after endBlock
 	newCtx := testApp.NewContext(true, tmproto.Header{

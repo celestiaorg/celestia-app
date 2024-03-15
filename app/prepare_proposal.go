@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -27,6 +28,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ChainID: req.ChainId,
 		Height:  req.Height,
 		Time:    req.Time,
+		Version: version.Consensus{
+			App: app.BaseApp.AppVersion(),
+		},
 	})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
@@ -41,6 +45,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 		app.ParamsKeeper,
+		app.MsgGateKeeper,
 	)
 
 	var txs [][]byte

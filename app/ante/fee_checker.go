@@ -46,13 +46,14 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper pa
 
 	// global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
+		// fmt.Println("GOT HEREEEEEEE")
 		minFeeParams, exists := paramKeeper.GetSubspace(minfee.ModuleName)
 		if !exists {
 			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
 		}
 
 		if !minFeeParams.Has(ctx, minfee.KeyGlobalMinGasPrice) {
-			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "GlobalMinimumGasPrice")
+			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "GlobalMinGasPrice")
 		}
 
 		var globalMinGasPrice sdk.Dec

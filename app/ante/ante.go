@@ -21,10 +21,14 @@ func NewAnteHandler(
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
 	paramKeeper paramkeeper.Keeper,
+	msgVersioningGateKeeper *MsgVersioningGateKeeper,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
 		NewHandlePanicDecorator(),
+		// Prevents messages that don't belong to the correct app version
+		// from being executed
+		msgVersioningGateKeeper,
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),

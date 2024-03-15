@@ -219,7 +219,7 @@ func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
 		},
 	)
 
-	upgradeKeeper := upgrade.NewKeeper(upgradeStore, 0, mockStakingKeeper)
+	upgradeKeeper := upgrade.NewKeeper(upgradeStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }
 
