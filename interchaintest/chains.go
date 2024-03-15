@@ -6,6 +6,7 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v6"
 	"github.com/strangelove-ventures/interchaintest/v6/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v6/ibc"
+	"github.com/strangelove-ventures/interchaintest/v6/testutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -15,21 +16,33 @@ const (
 	DockerTag        = "pr-3182"
 )
 
+func configFileOverrides() map[string]any {
+	txIndexOverrides := make(testutil.Toml)
+	txIndexOverrides["indexer"] = "kv"
+
+	configTomlOverrides := make(testutil.Toml)
+	configTomlOverrides["tx_index"] = txIndexOverrides
+
+	result := make(map[string]any)
+	result["config/config.toml"] = configTomlOverrides
+	return result
+}
+
 var celestiaSpec = &interchaintest.ChainSpec{
 	Name: "celestia",
 	ChainConfig: ibc.ChainConfig{
-		Type:           "cosmos",
-		Name:           "celestia-app",
-		ChainID:        "celestia",
-		Images:         []ibc.DockerImage{{Repository: DockerRepository, Version: DockerTag, UidGid: "10001:10001"}},
-		Bin:            "celestia-appd",
-		Bech32Prefix:   "celestia",
-		Denom:          "utia",
-		GasPrices:      "0.002utia",
-		GasAdjustment:  1.5,
-		TrustingPeriod: "336hours",
+		Type:                "cosmos",
+		Name:                "celestia-app",
+		ChainID:             "celestia",
+		Images:              []ibc.DockerImage{{Repository: DockerRepository, Version: DockerTag, UidGid: "10001:10001"}},
+		Bin:                 "celestia-appd",
+		Bech32Prefix:        "celestia",
+		Denom:               "utia",
+		GasPrices:           "0.002utia",
+		GasAdjustment:       1.5,
+		TrustingPeriod:      "336hours",
+		ConfigFileOverrides: configFileOverrides(),
 	},
-	Version: DockerTag,
 }
 var cosmosSpec = &interchaintest.ChainSpec{
 	Name:        "gaia",

@@ -61,7 +61,6 @@ func TestICA(t *testing.T) {
 	require.NoError(t, err)
 
 	err = relayer.CreateClients(ctx, reporter, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
-	// TODO: enable tx indexing on celestia before this line.
 	require.NoError(t, err)
 
 	err = testutil.WaitForBlocks(ctx, 2, celestia, gaia)
