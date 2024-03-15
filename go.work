@@ -4,5 +4,3 @@ use (
 	.
 	./test/testground
 )
-
-replace github.com/cosmos/cosmos-sdk => /Users/ninabarbakadze/go/src/github.com/ninabarbakadze/cosmos-sdk
