@@ -67,7 +67,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper pa
 		}
 	}
 
-	priority := getTxPriority(feeTx.GetFee(), int64(feeTx.GetGas()))
+	priority := getTxPriority(feeTx.GetFee(), int64(gas))
 	return feeTx.GetFee(), priority, nil
 }
 

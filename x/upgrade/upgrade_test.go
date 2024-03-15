@@ -30,7 +30,6 @@ func TestUpgradeAppVersion(t *testing.T) {
 		Height:  2,
 		Version: tmversion.Consensus{App: 1},
 	}})
-
 	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion())
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})

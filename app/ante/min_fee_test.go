@@ -39,6 +39,8 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 	feeAmount := int64(1000)
 
+	paramsKeeper, stateStore := setUp(t)
+
 	testCases := []struct {
 		name       string
 		fee        sdk.Coins
@@ -127,33 +129,20 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			builder.SetFeeAmount(tc.fee)
 			tx := builder.GetTx()
 
-			storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
-			tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
-
-			db := tmdb.NewMemDB()
-			stateStore := store.NewCommitMultiStore(db)
-			stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
-			stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
-			require.NoError(t, stateStore.LoadLatestVersion())
-
-			registry := codectypes.NewInterfaceRegistry()
-
 			ctx := sdk.NewContext(stateStore, tmproto.Header{
 				Version: version.Consensus{
 					App: tc.appVersion,
 				},
 			}, tc.isCheckTx, nil)
 
-			globalminGasPriceDec, decError := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
-			require.NoError(t, decError)
+			globalminGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+			require.NoError(t, err)
 
-			paramskeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
-			paramskeeper.Subspace(minfee.ModuleName)
-			subspaceMinFee, _ := paramskeeper.GetSubspace(minfee.ModuleName)
-			minfee.RegisterMinFeeParamTable(subspaceMinFee)
-			subspaceMinFee.Set(ctx, minfee.KeyGlobalMinGasPrice, &globalminGasPriceDec)
+			minFeeSubSpace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
+			minfee.RegisterMinFeeParamTable(minFeeSubSpace)
+			minFeeSubSpace.Set(ctx, minfee.KeyGlobalMinGasPrice, globalminGasPriceDec)
 
-			_, _, err := ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramskeeper)
+			_, _, err = ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramsKeeper)
 			if tc.expErr {
 				require.Error(t, err)
 			} else {
@@ -161,4 +150,23 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setUp(t *testing.T) (paramkeeper.Keeper, storetypes.CommitMultiStore) {
+	storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
+	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
+
+	// Create the state store
+	db := tmdb.NewMemDB()
+	stateStore := store.NewCommitMultiStore(db)
+	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
+	require.NoError(t, stateStore.LoadLatestVersion())
+
+	registry := codectypes.NewInterfaceRegistry()
+
+	// Create a params keeper and set the global min gas price
+	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
+	paramsKeeper.Subspace(minfee.ModuleName)
+	return paramsKeeper, stateStore
 }
