@@ -164,6 +164,19 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			},
 		},
 		{
+			"blobstream.DataCommitmentWindow",
+			testProposal(proposal.ParamChange{
+				Subspace: bsmoduletypes.ModuleName,
+				Key:      string(bsmoduletypes.ParamsStoreKeyDataCommitmentWindow),
+				Value:    `"10000"`,
+			}),
+			func() {
+				got := suite.app.BlobstreamKeeper.GetParams(suite.ctx).DataCommitmentWindow
+				want := uint64(10000)
+				assert.Equal(want, got)
+			},
+		},
+		{
 			"consensus.block",
 			testProposal(proposal.ParamChange{
 				Subspace: baseapp.Paramspace,
