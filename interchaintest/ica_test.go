@@ -69,6 +69,12 @@ func TestICA(t *testing.T) {
 	err = relayer.CreateConnections(ctx, reporter, path)
 	require.NoError(t, err)
 
+	err = relayer.StartRelayer(ctx, reporter, path)
+	require.NoError(t, err)
+
+	err = testutil.WaitForBlocks(ctx, 2, celestia, gaia)
+	require.NoError(t, err)
+
 	connections, err := relayer.GetConnections(ctx, reporter, celestia.Config().ChainID)
 	require.NoError(t, err)
 	require.Len(t, connections, 1)
@@ -76,9 +82,6 @@ func TestICA(t *testing.T) {
 	connections, err = relayer.GetConnections(ctx, reporter, gaia.Config().ChainID)
 	require.NoError(t, err)
 	require.Len(t, connections, 1)
-
-	err = relayer.StartRelayer(ctx, reporter, path)
-	require.NoError(t, err)
 
 	amount := math.NewIntFromUint64(uint64(10_000_000_000))
 	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), amount, celestia, gaia)

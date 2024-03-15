@@ -28,6 +28,16 @@ func configFileOverrides() map[string]any {
 	return result
 }
 
+func NumValidators() *int {
+	numValidators := 1
+	return &numValidators
+}
+
+func NumFullNodes() *int {
+	numValidators := 0
+	return &numValidators
+}
+
 var celestiaSpec = &interchaintest.ChainSpec{
 	Name: "celestia",
 	ChainConfig: ibc.ChainConfig{
@@ -43,6 +53,8 @@ var celestiaSpec = &interchaintest.ChainSpec{
 		TrustingPeriod:      "336hours",
 		ConfigFileOverrides: configFileOverrides(),
 	},
+	NumValidators: NumValidators(),
+	NumFullNodes:  NumFullNodes(),
 }
 var cosmosSpec = &interchaintest.ChainSpec{
 	Name:        "gaia",
