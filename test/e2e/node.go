@@ -44,7 +44,7 @@ type Resources struct {
 	memoryRequest string //"200Mi"
 	memoryLimit   string //"200Mi"
 	cpu           string //"300m"
-	bandwidth     string
+	volume        string
 }
 
 func NewNode(

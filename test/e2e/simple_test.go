@@ -47,7 +47,7 @@ func TestE2ESimple(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
-		0, Resources{"200Mi", "200Mi", "300m", ""}))
+		0, defaultResources))
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
 	require.NoError(t, err)

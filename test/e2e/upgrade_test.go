@@ -57,7 +57,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		t.Log("Starting node", "node", i, "version", v)
-		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0, Resources{"200Mi", "200Mi", "300m", ""}))
+		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0, defaultResources))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
@@ -161,7 +161,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 
 	for i := 0; i < numNodes; i++ {
 		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000,
-			upgradeHeight, Resources{"200Mi", "200Mi", "300m", ""}))
+			upgradeHeight, defaultResources))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12)

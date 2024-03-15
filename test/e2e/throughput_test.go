@@ -44,12 +44,12 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
-		0, Resources{"200Mi", "200Mi", "300m", ""}))
+		0, Resources{"200Mi", "200Mi", "300m", "1Gi"}))
 
 	kr, err := testnet.CreateAccount("alice", 1e12)
 	require.NoError(t, err)
 
-	require.NoError(t, testnet.Setup())
+	require.NoError(t, testnet.Setup()) // configs, genesis files, etc.
 	require.NoError(t, testnet.Start())
 
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
