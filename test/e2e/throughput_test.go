@@ -56,7 +56,8 @@ func TestE2EThroughput(t *testing.T) {
 
 	require.NoError(t, testnet.Setup()) // configs, genesis files, etc.
 	require.NoError(t, testnet.Start())
-	
+	// TODO New txsim instance with args including nodes endpoints
+	// docker pull ghcr.io/celestiaorg/txsim:be5a146
 	t.Log("Starting txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(50*1024, 50*1024),
 		txsim.NewRange(1, 1)).Clone(50)
@@ -100,7 +101,7 @@ func throughput(blockchain []*types.Block) ([]float64, []float64, []float64) {
 
 	for _, block := range blockchain[1:] {
 		blockTime := float64(block.Header.Time.Sub(lastBlockTs) / 1e9) // Convert time from nanoseconds to seconds
-		blockSize := float64(block.Size())
+		blockSize := float64(block.Size() / (1024 * 1024))             // Convert size from bytes to MiB
 		thput := blockSize / blockTime
 
 		blockTimes = append(blockTimes, blockTime)
