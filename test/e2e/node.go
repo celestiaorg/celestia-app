@@ -41,9 +41,9 @@ type Node struct {
 }
 
 type Resources struct {
-	memoryRequest string //"200Mi"
-	memoryLimit   string //"200Mi"
-	cpu           string //"300m"
+	memoryRequest string
+	memoryLimit   string
+	cpu           string
 	volume        string
 }
 
