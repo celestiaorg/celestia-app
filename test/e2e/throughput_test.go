@@ -59,7 +59,7 @@ func TestE2EThroughput(t *testing.T) {
 	
 	t.Log("Starting txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(50*1024, 50*1024),
-		txsim.NewRange(1, 1)).Clone(5)
+		txsim.NewRange(1, 1)).Clone(50)
 	//sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
