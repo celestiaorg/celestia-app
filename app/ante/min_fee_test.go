@@ -138,9 +138,9 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			globalminGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 			require.NoError(t, err)
 
-			minFeeSubSpace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
-			minfee.RegisterMinFeeParamTable(minFeeSubSpace)
-			minFeeSubSpace.Set(ctx, minfee.KeyGlobalMinGasPrice, globalminGasPriceDec)
+			minfee, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
+			minfee.RegisterMinFeeParamTable(minfee)
+			minfee.Set(ctx, minfee.KeyGlobalMinGasPrice, globalminGasPriceDec)
 
 			_, _, err = ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramsKeeper)
 			if tc.expErr {
