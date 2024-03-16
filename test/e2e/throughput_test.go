@@ -56,8 +56,7 @@ func TestE2EThroughput(t *testing.T) {
 
 	require.NoError(t, testnet.Setup()) // configs, genesis files, etc.
 	require.NoError(t, testnet.Start())
-	// TODO New txsim instance with args including nodes endpoints
-	// docker pull ghcr.io/celestiaorg/txsim:be5a146
+
 	t.Log("Starting txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(50*1024, 50*1024),
 		txsim.NewRange(1, 1)).Clone(50)
