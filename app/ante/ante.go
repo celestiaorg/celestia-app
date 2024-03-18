@@ -81,6 +81,6 @@ var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 // The purpose of this wrapper is to ensure that CheckTxFeeWithGlobalMinGasPrices complies with the ante.TxFeeChecker type.
 func CheckTxFeeWithGlobalMinGasPricesWrapper(paramKeeper paramkeeper.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
-		return CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramKeeper)
+		return CheckTxFeeWithMinGasPrices(ctx, tx, paramKeeper)
 	}
 }

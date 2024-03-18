@@ -142,7 +142,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			minfee.RegisterMinFeeParamTable(subspace)
 			subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, globalminGasPriceDec)
 
-			_, _, err = ante.CheckTxFeeWithGlobalMinGasPrices(ctx, tx, paramsKeeper)
+			_, _, err = ante.CheckTxFeeWithMinGasPrices(ctx, tx, paramsKeeper)
 			if tc.expErr {
 				require.Error(t, err)
 			} else {

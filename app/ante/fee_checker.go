@@ -18,9 +18,10 @@ const (
 	priorityScalingFactor = 1_000_000
 )
 
-// CheckTxFeeWithGlobalMinGasPrices implements the default fee logic, where the minimum price per
-// unit of gas is fixed and set globally, and the tx priority is computed from the gas price.
-func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
+// CheckTxFeeWithMinGasPrices implements default fee validation logic for transactions.
+// It ensures that the provided transaction fee meets a minimum threshold for the validator
+// as well as a global minimum threshold and computes the tx priority based on the gas price.
+func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
@@ -38,7 +39,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper pa
 			return nil, 0, errors.Wrapf(err, "invalid defaultMinGasPrice: %f", defaultMinGasPriceDec)
 		}
 
-		err = CheckTxFeeWithMinGasPrices(fee, gas, defaultMinGasPriceDec, "insufficient validator minimum fee")
+		err = verifyMinFee(fee, gas, defaultMinGasPriceDec, "insufficient validator minimum fee")
 		if err != nil {
 			return nil, 0, err
 		}
@@ -61,7 +62,7 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper pa
 		// panics if not configured properly
 		subspace.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
 
-		err := CheckTxFeeWithMinGasPrices(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
+		err := verifyMinFee(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
 		if err != nil {
 			return nil, 0, err
 		}
@@ -71,8 +72,8 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper pa
 	return feeTx.GetFee(), priority, nil
 }
 
-// CheckTxFeeWithMinGasPrices validates that the provided transaction fee is sufficient given the provided minimum gas price.
-func CheckTxFeeWithMinGasPrices(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
+// verifyMinFee validates that the provided transaction fee is sufficient given the provided minimum gas price.
+func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
 	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
 	if fee.LT(minFee) {
 		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
