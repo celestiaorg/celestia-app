@@ -7,7 +7,7 @@ import (
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
-// DefaultParams returns a default set of parameters
+// DefaultGenesis returns the default genesis state.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		GlobalMinGasPrice: DefaultGlobalMinGasPrice,
