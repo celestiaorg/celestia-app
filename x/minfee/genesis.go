@@ -23,7 +23,7 @@ func ValidateGenesis(genesis *GenesisState) error {
 	return nil
 }
 
-// ExportGenesis returns the capability module's exported genesis.
+// ExportGenesis returns the minfee module's exported genesis.
 func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
 	globalMinGasPrice, exists := k.GetSubspace(ModuleName)
 
