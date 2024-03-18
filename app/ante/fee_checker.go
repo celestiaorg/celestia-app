@@ -62,7 +62,7 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 		// panics if not configured properly
 		subspace.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
 
-		err := verifyMinFee(fee, gas, globalMinGasPrice, "insufficient global minimum fee")
+		err := verifyMinFee(fee, gas, globalMinGasPrice, "insufficient gas price for the network")
 		if err != nil {
 			return nil, 0, err
 		}
