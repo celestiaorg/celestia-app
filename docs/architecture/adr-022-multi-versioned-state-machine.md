@@ -10,7 +10,7 @@ Implemented
 
 ## Context
 
-The Celestia application required a modification from the existing Cosmos SDK to support multiple versions of the state machine simultaneously. This capability is crucial for single binary syncs and ensuring a smooth transitions during upgrades, allowing nodes to upgrade independently and then switch to the next state machine without any downtime to the network. This is important for a network which is depended on by a large number of rollups and users.
+The Celestia application required a modification from the existing Cosmos SDK to support multiple versions of the state machine simultaneously. This capability is crucial for single binary syncs and ensuring a smooth transition during upgrades, allowing nodes to upgrade independently and then switch to the next state machine without any downtime to the network. This is important for a network which is depended on by a large number of rollups and users.
 
 ## Decision
 
@@ -22,11 +22,11 @@ There are several parts of the protocol that were modified.
 
 ### Loading and Setting the App Version
 
-The app version was previously never persisted to disk, but was simply hardcoded into the application (as 1). An application with multiple versions needs to be able to persist them to disk and load them in the case the node crashes or is shutdown. The `Info` abci call must pass the app version to Comet for Comet to generate headers with it. The decision was made to always require the app version to be set in the consensus params of Genesis (prior `ConsensusParams` wasn't mandatory). Upon first use, `Info` will return 0 (as no app version has been persisted) and then take the app version passed in `InitChain` to initialize the app version. It is persisted both to disk in the `ParamStore` and in memory in the `BaseApp` struct. Upon later startups, `Info` will load the app version from disk, set it in memory and also return it to Comet. The `AppVersion` is only later adjusted when `Upgrade` is called on the `Application`. Upgrading is no longer a module but is more a native part of the application. Modules register migrations and `Upgrade`, which is executed in `EndBlock` will trigger those migrations and then set the new version. Upgrading needs to happen in `EndBlock`, such that `PrepareProposal` for the following height already is run with the logic of the new version.
+The app version was previously never persisted to disk, but was simply hardcoded into the application (as 1). An application with multiple versions needs to be able to persist them to disk and load them in the case the node crashes or is shutdown. The `Info` ABCI call must pass the app version to Comet for Comet to generate headers with it. The decision was made to always require the app version to be set in the consensus params of Genesis (prior `ConsensusParams` wasn't mandatory). Upon first use, `Info` will return 0 (as no app version has been persisted) and then take the app version passed in `InitChain` to initialize the app version. It is persisted both to disk in the `ParamStore` and in memory in the `BaseApp` struct. Upon later startups, `Info` will load the app version from disk, set it in memory and also return it to Comet. The `AppVersion` is only later adjusted when `Upgrade` is called on the `Application`. Upgrading is no longer a module but is more a native part of the application. Modules register migrations and `Upgrade`, which is executed in `EndBlock` will trigger those migrations and then set the new version. Upgrading needs to happen in `EndBlock`, such that `PrepareProposal` for the following height already is run with the logic of the new version.
 
 ### SDK Context
 
-The `sdk.Context` type is passed to almost every component in the application and is thus ideal for storing and accessing the current app version. It already contains the app version in the block header. However this is not always populated. Thus `InitChain` and `PrepareProposal` were modified to include the app version as either passed from the genesis file or loaded from the application itself.
+The `sdk.Context` type is passed to almost every component in the application and is thus ideal for storing and accessing the current app version. It already contains the app version in the block header. However, this is not always populated. Thus `InitChain` and `PrepareProposal` were modified to include the app version as either passed from the genesis file or loaded from the application itself.
 
 ### Module Manager Changes
 
@@ -39,7 +39,7 @@ type Manager struct {
 }
 ```
 
-Each module has a `Name` and a `ConsensusVersion` that marks it unique. No two modules can have the same `Name` within a single app version. When constructing the application, we specify the contiguous range (inclusive) of versions that the module is part of:
+Each module has a `Name` and a `ConsensusVersion` that marks it unique. No two modules can have the same `Name` within a single app version. When constructing the application, we specify the contiguous range (inclusive) of app versions that the module is part of:
 
 ```go
 app.mm, err = module.NewManager([]module.VersionedModule{
@@ -69,13 +69,13 @@ acceptedMessages map[uint64]map[string]struct{}
 
 ### Transaction Filtering through the `MsgVersioningGateKeeper`
 
-The messages within a transactions are filtered based on the app version. The map constructed from the configurator is passed to a new AnteHandler which will reject transactions of a different app version in `CheckTx` so that clients get an immediate response. The `MsgVersioningGateKeeper` is also passed to the `MsgServiceRouter` to reject transactions upon execution. The reason for needing both is that another module may try to execute a transaction for a module that is not part of the app version.
+The messages within a transaction are filtered based on the app version. The map constructed from the configurator is passed to a new AnteHandler which will reject transactions of a different app version in `CheckTx` so that clients get an immediate response. The `MsgVersioningGateKeeper` is also passed to the `MsgServiceRouter` to reject transactions upon execution. The reason for needing both is that another module may try to execute a transaction for a module that is not part of the app version.
 
 ## Alternative Approaches
 
 At the broadest level, the handling of multiple state machines does not have to be done within a single binary but could be orchestrated by a binary manager that upon some trigger, stops one state machine and starts up the next.
 
-However, having it in a single binary provides less surface area for mistakes by the node operator. It also makes it very easy to test upgrades and to make the transition more reliable. In the event of a failed migration, it is easy to simply continue with the old version.
+However, having it in a single binary provides less surface area for mistakes by the node operator. It also makes it straightforward to test upgrades and to make the transition more reliable. In the event of a failed migration, it is easy to simply continue with the old version.
 
 ## Consequences
 
