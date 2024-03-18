@@ -39,7 +39,7 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 			return nil, 0, errors.Wrapf(err, "invalid defaultMinGasPrice: %f", defaultMinGasPriceDec)
 		}
 
-		err = verifyMinFee(fee, gas, defaultMinGasPriceDec, "insufficient validator minimum fee")
+		err = verifyMinFee(fee, gas, defaultMinGasPriceDec, "insufficient minimum gas price for this validator")
 		if err != nil {
 			return nil, 0, err
 		}
