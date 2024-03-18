@@ -119,7 +119,7 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 	// Set the global min gas price initial value
 	globalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
 	if err != nil {
-		fmt.Errorf("failed to convert GlobalMinGasPrice to Dec: %w", err)
+		panic("failed to convert GlobalMinGasPrice to sdk.Dec")
 	}
 
 	subspace.SetParamSet(ctx, &Params{GlobalMinGasPrice: globalMinGasPriceDec})
