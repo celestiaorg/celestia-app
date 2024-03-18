@@ -1,13 +1,11 @@
 package ante
 
 import (
-	"fmt"
-
 	errors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	minfee "github.com/celestiaorg/celestia-app/x/minfee"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
@@ -34,14 +32,12 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 	// This is only for local mempool purposes, and thus
 	// is only ran on check tx.
 	if ctx.IsCheckTx() {
-		defaultMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
-		if err != nil {
-			return nil, 0, errors.Wrapf(err, "invalid defaultMinGasPrice: %f", defaultMinGasPriceDec)
-		}
-
-		err = verifyMinFee(fee, gas, defaultMinGasPriceDec, "insufficient minimum gas price for this validator")
-		if err != nil {
-			return nil, 0, err
+		minGasPrice := ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
+		if !minGasPrice.IsZero() {
+			err := verifyMinFee(fee, gas, minGasPrice, "insufficient minimum gas price for this validator")
+			if err != nil {
+				return nil, 0, err
+			}
 		}
 	}
 
@@ -76,8 +72,8 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
 	// Determine the required fee by multiplying required minimum gas
 	// price by the gas limit, where fee = minGasPrice * gas.
-	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
-	if fee.LT(minFee) {
+	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).Ceil()
+	if fee.LT(minFee.TruncateInt()) {
 		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
 	}
 	return nil

@@ -14,11 +14,15 @@ var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
 	KeyGlobalMinGasPrice     = []byte("GlobalMinGasPrice")
-	DefaultGlobalMinGasPrice float64
+	DefaultGlobalMinGasPrice sdk.Dec
 )
 
 func init() {
-	DefaultGlobalMinGasPrice = appconsts.DefaultMinGasPrice
+	DefaultGlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+	if err != nil {
+		panic(err)
+	}
+	DefaultGlobalMinGasPrice = DefaultGlobalMinGasPriceDec
 }
 
 type Params struct {

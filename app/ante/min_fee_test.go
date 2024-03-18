@@ -37,6 +37,12 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// Set the validator's fee
+	validatorMinGasPrice := 0.8
+	validatorMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", validatorMinGasPrice))
+	require.NoError(t, err)
+	validatorMinGasPriceCoin := sdk.NewDecCoinFromDec(appconsts.BondDenom, validatorMinGasPriceDec)
+
 	feeAmount := int64(1000)
 
 	paramsKeeper, stateStore := setUp(t)
@@ -108,7 +114,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "good tx; fee above node's required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultGlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / validatorMinGasPrice),
 			appVersion: uint64(1),
 			isCheckTx:  true,
 			expErr:     false,
@@ -116,7 +122,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "bad tx; fee below node's required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultGlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / validatorMinGasPrice),
 			appVersion: uint64(1),
 			isCheckTx:  true,
 			expErr:     true,
@@ -134,6 +140,8 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 					App: tc.appVersion,
 				},
 			}, tc.isCheckTx, nil)
+
+			ctx = ctx.WithMinGasPrices(sdk.DecCoins{validatorMinGasPriceCoin})
 
 			globalminGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 			require.NoError(t, err)

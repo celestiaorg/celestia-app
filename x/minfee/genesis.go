@@ -16,7 +16,7 @@ func DefaultGenesis() *GenesisState {
 
 // ValidateGenesis performs basic validation of genesis data returning an error for any failed validation criteria.
 func ValidateGenesis(genesis *GenesisState) error {
-	if genesis.GlobalMinGasPrice < 0 {
+	if genesis.GlobalMinGasPrice.IsNegative() || genesis.GlobalMinGasPrice.IsZero() {
 		return fmt.Errorf("global min gas price cannot be negative: %g", genesis.GlobalMinGasPrice)
 	}
 
@@ -33,5 +33,5 @@ func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
 		panic("minfee subspace not set")
 	}
 
-	return &GenesisState{GlobalMinGasPrice: minGasPrice.MustFloat64()}
+	return &GenesisState{GlobalMinGasPrice: minGasPrice}
 }

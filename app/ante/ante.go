@@ -78,7 +78,8 @@ func NewAnteHandler(
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
-// The purpose of this wrapper is to pass the paramKeeper into the ante.TxFeeChecker function.
+// The purpose of this wrapper is to enable the passing of an additional paramKeeper parameter
+// whilst still satisfying the ante.TxFeeChecker type.
 func CheckTxFeeWithGlobalMinGasPricesWrapper(paramKeeper paramkeeper.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
 		return CheckTxFeeWithMinGasPrices(ctx, tx, paramKeeper)

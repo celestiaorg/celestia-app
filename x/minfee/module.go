@@ -93,7 +93,7 @@ func (am AppModule) Route() sdk.Route {
 
 // QuerierRoute returns the minfee module's querier route name.
 func (am AppModule) QuerierRoute() string {
-	return ""
+	return ModuleName
 }
 
 // LegacyQuerierHandler returns the minfee module's Querier.

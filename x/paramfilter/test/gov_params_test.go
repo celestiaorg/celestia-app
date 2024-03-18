@@ -492,14 +492,14 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			testProposal(proposal.ParamChange{
 				Subspace: minfeetypes.ModuleName,
 				Key:      string(minfeetypes.KeyGlobalMinGasPrice),
-				Value:    `"0.002000000000000000"`,
+				Value:    `"0.1"`,
 			}),
 			func() {
 				var got sdk.Dec
 				subspace := suite.app.GetSubspace(minfeetypes.ModuleName)
 				subspace.Get(suite.ctx, minfeetypes.KeyGlobalMinGasPrice, &got)
 
-				want, err := sdk.NewDecFromStr("0.002")
+				want, err := sdk.NewDecFromStr("0.1")
 				assert.NoError(err)
 				assert.Equal(want, got)
 			},
