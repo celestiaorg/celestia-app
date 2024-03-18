@@ -45,9 +45,9 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 		}
 	}
 
-	// global minimum fee only applies to app versions greater than one
+	// Ensure that the provided fee meets a global minimum threshold.
+	// Global minimum fee only applies to app versions greater than one
 	if ctx.BlockHeader().Version.App > v1.Version {
-		// fmt.Println("GOT HEREEEEEEE")
 		subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
 		if !exists {
 			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
@@ -58,7 +58,7 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 		}
 
 		var globalMinGasPrice sdk.Dec
-		// gets the global minimum gas price from the param store
+		// Gets the global minimum gas price from the param store
 		// panics if not configured properly
 		subspace.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
 
@@ -74,6 +74,8 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 
 // verifyMinFee validates that the provided transaction fee is sufficient given the provided minimum gas price.
 func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
+	// Determine the required fee by multiplying required minimum gas
+	// price by the gas limit, where fee = minGasPrice * gas.
 	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).RoundInt()
 	if fee.LT(minFee) {
 		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
