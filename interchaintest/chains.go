@@ -17,14 +17,18 @@ const (
 )
 
 func configFileOverrides() map[string]any {
-	txIndexOverrides := make(testutil.Toml)
-	txIndexOverrides["indexer"] = "kv"
+	txIndex := make(testutil.Toml)
+	txIndex["indexer"] = "kv"
 
-	configTomlOverrides := make(testutil.Toml)
-	configTomlOverrides["tx_index"] = txIndexOverrides
+	storage := make(testutil.Toml)
+	storage["discard_abci_responses"] = false
+
+	configToml := make(testutil.Toml)
+	configToml["tx_index"] = txIndex
+	configToml["storage"] = storage
 
 	result := make(map[string]any)
-	result["config/config.toml"] = configTomlOverrides
+	result["config/config.toml"] = configToml
 	return result
 }
 
