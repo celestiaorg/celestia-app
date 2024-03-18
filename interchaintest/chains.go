@@ -63,7 +63,7 @@ var celestiaSpec = &interchaintest.ChainSpec{
 var cosmosSpec = &interchaintest.ChainSpec{
 	Name:        "gaia",
 	ChainConfig: cosmos.NewCosmosHeighlinerChainConfig("gaia", "gaiad", "cosmos", "uatom", "0.01uatom", 1.3, "504h", false),
-	Version:     "v14.1.0",
+	Version:     "v14.2.0",
 }
 
 // getChains returns two chains for testing: celestia and gaia.
