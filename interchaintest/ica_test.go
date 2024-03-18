@@ -2,6 +2,7 @@ package interchaintest_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -85,10 +86,14 @@ func TestICA(t *testing.T) {
 
 	amount := math.NewIntFromUint64(uint64(10_000_000_000))
 	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), amount, celestia, gaia)
-	// celestiaUser := users[0]
-	gaiaUser := users[1]
-	gaiaAddr := gaiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(gaia.Config().Bech32Prefix)
 
+	celestiaUser, gaiaUser := users[0], users[1]
+	celestiaAddr := celestiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(celestia.Config().Bech32Prefix)
+	gaiaAddr := gaiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(gaia.Config().Bech32Prefix)
+	fmt.Printf("celestiaAddr: %s, gaiaAddr: %v\n", celestiaAddr, gaiaAddr)
+
+	// The registerICA command below is broken because gaiad doesn't contain an intertx subcommand.
+	// msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, controllerAddress, version, channeltypes.ORDERED)
 	registerICA := []string{
 		gaia.Config().Bin, "tx", "intertx", "register",
 		"--from", gaiaAddr,
@@ -113,7 +118,7 @@ func TestICA(t *testing.T) {
 
 	// Query for the newly registered interchain account
 	queryICA := []string{
-		gaia.Config().Bin, "query", "intertx", "interchainaccounts", connections[0].ID, gaiaAddr,
+		gaia.Config().Bin, "query", "interchain-accounts", "controller", "interchain-account", gaiaAddr, connections[0].ID,
 		"--chain-id", gaia.Config().ChainID,
 		"--home", gaia.HomeDir(),
 		"--node", gaia.GetRPCAddress(),
