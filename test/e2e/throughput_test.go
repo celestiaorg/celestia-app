@@ -22,7 +22,7 @@ import (
 //var latestVersion = "latest"
 
 func TestE2EThroughput(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
+	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
 
@@ -59,6 +59,7 @@ func TestE2EThroughput(t *testing.T) {
 
 	t.Log("Starting txsim")
 	// TODO pull the latest version if possible
+	// TODO increase blob size range
 	err = testnet.SetupTxsimNode("txsim", "65c1a8e",
 		testnet.GRPCEndpoints()[0], seed, 5, 50*1024, 3,
 		Resources{"200Mi", "200Mi", "300m", "1Gi"},
