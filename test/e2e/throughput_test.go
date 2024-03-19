@@ -22,9 +22,9 @@ import (
 //var latestVersion = "latest"
 
 func TestE2EThroughput(t *testing.T) {
-	//if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
-	//	t.Skip("skipping e2e test")
-	//}
+	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
+		t.Skip("skipping e2e test")
+	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
