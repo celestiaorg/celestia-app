@@ -127,12 +127,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		return reject()
 	}
 
-	// Assert that the square size stated by the proposer is correct
-	if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-		return reject()
-	}
-
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
