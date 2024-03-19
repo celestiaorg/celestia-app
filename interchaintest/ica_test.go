@@ -18,8 +18,10 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-const relayerName = "relayer"
-const path = "test-path"
+const (
+	relayerName = "relayerName"
+	path        = "path"
+)
 
 // TestICA verifies that Interchain Accounts work as expected.
 func TestICA(t *testing.T) {
@@ -50,16 +52,12 @@ func TestICA(t *testing.T) {
 	ctx := context.Background()
 	reporter := testreporter.NewNopReporter().RelayerExecReporter(t)
 	err := ic.Build(ctx, reporter, interchaintest.InterchainBuildOptions{
-		TestName:         t.Name(),
-		Client:           client,
-		NetworkID:        network,
-		SkipPathCreation: true,
+		TestName:  t.Name(),
+		Client:    client,
+		NetworkID: network,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ic.Close() })
-
-	err = relayer.GeneratePath(ctx, reporter, celestia.Config().ChainID, gaia.Config().ChainID, path)
-	require.NoError(t, err)
 
 	err = relayer.CreateClients(ctx, reporter, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
 	require.NoError(t, err)

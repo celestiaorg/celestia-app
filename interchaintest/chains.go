@@ -61,9 +61,21 @@ var celestiaSpec = &interchaintest.ChainSpec{
 	NumFullNodes:  NumFullNodes(),
 }
 var cosmosSpec = &interchaintest.ChainSpec{
-	Name:        "gaia",
-	ChainConfig: cosmos.NewCosmosHeighlinerChainConfig("gaia", "gaiad", "cosmos", "uatom", "0.01uatom", 1.3, "504h", false),
-	Version:     "v14.2.0",
+	Name: "gaia",
+	ChainConfig: ibc.ChainConfig{
+		Type:           "cosmos",
+		Name:           "gaia",
+		Images:         []ibc.DockerImage{{Repository: "ghcr.io/strangelove-ventures/heighliner/gaia", Version: "v14.1.0", UidGid: "1025:1025"}},
+		Bin:            "gaiad",
+		Bech32Prefix:   "cosmos",
+		Denom:          "uatom",
+		GasPrices:      "0.01uatom",
+		GasAdjustment:  1.3,
+		TrustingPeriod: "504hours",
+		NoHostMount:    false,
+	},
+	NumValidators: NumValidators(),
+	NumFullNodes:  NumFullNodes(),
 }
 
 // getChains returns two chains for testing: celestia and gaia.
