@@ -220,23 +220,16 @@ require (
 )
 
 replace (
-	// interchaintest/v6 depends on this replace statement.
-	github.com/ChainSafe/go-schnorrkel => github.com/ChainSafe/go-schnorrkel v1.0.0
-	// interchaintest/v6 depends on this replace statement.
-	github.com/ChainSafe/go-schnorrkel/1 => github.com/ChainSafe/go-schnorrkel v1.1.0
-	// interchaintest/v6 depends on this replace statement.
+	// These replace statements were inspired by interchaintest/v6:
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.2
-	// Inspired by the replace in celestia-app's go.mod
+	github.com/ChainSafe/go-schnorrkel => github.com/ChainSafe/go-schnorrkel v1.0.0
+	github.com/ChainSafe/go-schnorrkel/1 => github.com/ChainSafe/go-schnorrkel v1.1.0
+
+	// These replace statements were inspired by celestia-app:
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.20.2-sdk-v0.46.16
-	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
-	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
-	// Inspired by the replace in celestia-app's go.mod
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	// Inspired by the replace in celestia-app's go.mod
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	// Inspired by the replace in celestia-app's go.mod
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29
-	// interchaintest/v6 depends on this replace statement.
 	github.com/vedhavyas/go-subkey => github.com/strangelove-ventures/go-subkey v1.0.7
 )
