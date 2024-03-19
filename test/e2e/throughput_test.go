@@ -2,15 +2,12 @@ package e2e
 
 import (
 	"context"
-	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
@@ -25,9 +22,9 @@ import (
 //var latestVersion = "latest"
 
 func TestE2EThroughput(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
-		t.Skip("skipping e2e test")
-	}
+	//if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
+	//	t.Skip("skipping e2e test")
+	//}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
@@ -49,25 +46,29 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
-		0, Resources{"200Mi", "200Mi", "300m", "1Gi"}))
+		0, Resources{"200Mi", "200Mi", "300m", "200Mi"}))
 
-	kr, err := testnet.CreateAccount("alice", 1e12)
+	// create an account, store it in a temp directory and add the account as genesis account
+	txsimKeyringDir := filepath.Join(os.TempDir(), "txsim")
+	_, err = testnet.CreateTxSimAccount("alice", 1e12, txsimKeyringDir)
 	require.NoError(t, err)
 
+	// start the testnet
 	require.NoError(t, testnet.Setup()) // configs, genesis files, etc.
 	require.NoError(t, testnet.Start())
 
 	t.Log("Starting txsim")
-	sequences := txsim.NewBlobSequence(txsim.NewRange(50*1024, 50*1024),
-		txsim.NewRange(1, 1)).Clone(5)
-	//sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	// TODO pull the latest version if possible
+	err = testnet.SetupTxsimNode("txsim", "65c1a8e",
+		testnet.GRPCEndpoints()[0], seed, 5, 50*1024, 3,
+		Resources{"200Mi", "200Mi", "300m", "1Gi"},
+		txsimRootDir, txsimKeyringDir)
+	require.NoError(t, err)
 
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
-	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
+	err = testnet.StartTxSimNode()
+	require.NoError(t, err)
+
+	time.Sleep(30 * time.Second)
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
