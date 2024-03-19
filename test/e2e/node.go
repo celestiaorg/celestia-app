@@ -26,6 +26,8 @@ const (
 	remoteRootDir = "/home/celestia/.celestia-app"
 )
 
+var testVar = justAVar
+
 type Node struct {
 	Name           string
 	Version        string
