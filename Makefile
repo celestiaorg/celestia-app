@@ -169,11 +169,11 @@ test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
 
-## test-interchain: Run interchain tests in verbose mode.
-test-interchain:
+## test-ic: Run interchain tests in verbose mode. Requires Docker.
+test-ic:
 	@echo "--> Running interchain tests"
 	@go test ./interchaintest -v
-.PHONY: test-interchain
+.PHONY: test-ic
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
