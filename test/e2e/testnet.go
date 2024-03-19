@@ -41,9 +41,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation,
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
-		selfDelegation, nil, signerKey, networkKey, accountKey,
-		upgradeHeight, resources)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight, resources)
 	if err != nil {
 		return err
 	}
