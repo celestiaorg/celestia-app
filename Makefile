@@ -37,7 +37,7 @@ install: go.sum
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
-## Update go.mod
+## mod: Update all go.mod files.
 mod:
 	@echo "--> Syncing workspaces"
 	@go work sync
@@ -71,7 +71,7 @@ proto-check-breaking:
 	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
 .PHONY: proto-check-breaking
 
-## proto-format: Format protobuf files. Requires docker.
+## proto-format: Format protobuf files. Requires Docker.
 proto-format:
 	@echo "--> Formatting Protobuf files"
 	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
@@ -90,8 +90,8 @@ build-ghcr-docker:
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
-## Make sure you are logged in and authenticated to the ghcr.io registry.
 publish-ghcr-docker:
+# Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
 	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT)
 .PHONY: publish-ghcr-docker
@@ -185,7 +185,7 @@ txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
 .PHONY: txsim-build-docker
 
-## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
+## adr-gen: Download the ADR template from the celestiaorg/.github repo.
 adr-gen:
 	@echo "--> Downloading ADR template"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
