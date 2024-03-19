@@ -56,6 +56,28 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 	return nil
 }
 
+func (t *Testnet) CreateTxSimAccount(name string, tokens int64, rootDir string) (keyring.Keyring, error) {
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	kr, err := keyring.New(app.Name, keyring.BackendTest, rootDir, nil, cdc)
+	if err != nil {
+		return nil, err
+	}
+	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return nil, err
+	}
+
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+	t.genesisAccounts = append(t.genesisAccounts, &Account{
+		PubKey:        pk,
+		InitialTokens: tokens,
+	})
+	return kr, nil
+}
+
 func (t *Testnet) SetupTxsimNode(
 	name, version string,
 	endpoint string,
@@ -109,28 +131,6 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, error) {
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kr := keyring.NewInMemory(cdc)
-	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return nil, err
-	}
-
-	pk, err := key.GetPubKey()
-	if err != nil {
-		return nil, err
-	}
-	t.genesisAccounts = append(t.genesisAccounts, &Account{
-		PubKey:        pk,
-		InitialTokens: tokens,
-	})
-	return kr, nil
-}
-
-func (t *Testnet) CreateTxSimAccount(name string, tokens int64, rootDir string) (keyring.Keyring, error) {
-	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	kr, err := keyring.New(app.Name, keyring.BackendTest, rootDir, nil, cdc)
-	if err != nil {
-		return nil, err
-	}
 	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		return nil, err
