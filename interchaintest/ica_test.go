@@ -6,8 +6,15 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/tx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	controllertypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/controller/types"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	chantypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
+	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	"github.com/strangelove-ventures/interchaintest/v6"
 	"github.com/strangelove-ventures/interchaintest/v6/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v6/ibc"
@@ -19,8 +26,9 @@ import (
 )
 
 const (
-	relayerName = "relayerName"
-	path        = "path"
+	relayerName     = "relayerName"
+	path            = "path"
+	DefaultGasValue = 500_000_0000
 )
 
 // TestICA verifies that Interchain Accounts work as expected.
@@ -90,20 +98,9 @@ func TestICA(t *testing.T) {
 	gaiaAddr := gaiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(gaia.Config().Bech32Prefix)
 	fmt.Printf("celestiaAddr: %s, gaiaAddr: %v\n", celestiaAddr, gaiaAddr)
 
-	// The registerICA command below is broken because gaiad doesn't contain an intertx subcommand.
-	// msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, controllerAddress, version, channeltypes.ORDERED)
-	registerICA := []string{
-		gaia.Config().Bin, "tx", "intertx", "register",
-		"--from", gaiaAddr,
-		"--connection-id", connections[0].ID,
-		"--chain-id", gaia.Config().ChainID,
-		"--home", gaia.HomeDir(),
-		"--node", gaia.GetRPCAddress(),
-		"--keyring-backend", keyring.BackendTest,
-		"-y",
-	}
-	_, _, err = gaia.Exec(ctx, registerICA, nil)
-	require.NoError(t, err)
+	version := icatypes.NewDefaultMetadataString(ibctesting.FirstConnectionID, ibctesting.FirstConnectionID)
+	msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, gaiaAddr, version)
+	RegisterInterchainAccount(t, ctx, celestia, gaia, gaiaUser, msgRegisterInterchainAccount)
 
 	celestiaHeight, err := celestia.Height(ctx)
 	require.NoError(t, err)
@@ -124,4 +121,49 @@ func TestICA(t *testing.T) {
 	stdout, _, err := gaia.Exec(ctx, queryICA, nil)
 	require.NoError(t, err)
 	t.Log(stdout)
+}
+
+func RegisterInterchainAccount(t *testing.T, ctx context.Context, celestia ibc.Chain, gaia ibc.Chain, user ibc.Wallet, msgRegisterAccount *controllertypes.MsgRegisterInterchainAccount) {
+	txResp := BroadcastMessages(t, ctx, celestia, gaia, user, msgRegisterAccount)
+	AssertTxSuccess(t, txResp)
+}
+
+func AssertTxSuccess(t *testing.T, txResp sdk.TxResponse) {
+	fmt.Printf("txResp %v\n", txResp)
+	require.Equal(t, uint32(0), txResp.Code)
+	require.NotEmpty(t, txResp.TxHash)
+	require.NotEqual(t, int64(0), txResp.GasUsed)
+	require.NotEqual(t, int64(0), txResp.GasWanted)
+	require.NotEmpty(t, txResp.Events)
+	require.NotEmpty(t, txResp.Data)
+}
+
+func BroadcastMessages(t *testing.T, ctx context.Context, celestia ibc.Chain, gaia ibc.Chain, user ibc.Wallet, msgs ...sdk.Msg) sdk.TxResponse {
+	cosmosChain, ok := gaia.(*cosmos.CosmosChain)
+	require.True(t, ok, "BroadcastMessages expects a cosmos.CosmosChain")
+
+	broadcaster := cosmos.NewBroadcaster(t, cosmosChain)
+	broadcaster.ConfigureClientContextOptions(func(clientContext client.Context) client.Context {
+		// use a codec with all the types our tests care about registered.
+		// BroadcastTx will deserialize the response and will not be able to otherwise.
+		cdc := Codec()
+		return clientContext.WithCodec(cdc).WithTxConfig(authtx.NewTxConfig(cdc, []signingtypes.SignMode{signingtypes.SignMode_SIGN_MODE_DIRECT}))
+	})
+
+	broadcaster.ConfigureFactoryOptions(func(factory tx.Factory) tx.Factory {
+		return factory.WithGas(DefaultGasValue)
+	})
+
+	// Retry the operation a few times if the user signing the transaction is a relayer. (See issue #3264)
+	var resp sdk.TxResponse
+	var err error
+	broadcastFunc := func() (sdk.TxResponse, error) {
+		return cosmos.BroadcastTx(ctx, broadcaster, user, msgs...)
+	}
+	resp, err = broadcastFunc()
+	require.NoError(t, err)
+
+	err = testutil.WaitForBlocks(ctx, 2, celestia, gaia)
+	require.NoError(t, err)
+	return resp
 }
