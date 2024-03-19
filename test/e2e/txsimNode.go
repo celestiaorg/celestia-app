@@ -49,7 +49,8 @@ func CreateTxSimNode(
 	if err != nil {
 		return nil, err
 	}
-	args := []string{fmt.Sprintf("-k %d", 0),
+	args := []string{
+		fmt.Sprintf("-k %d", 0),
 		fmt.Sprintf("-g %s", endpoint),
 		fmt.Sprintf("-t %ds", pollTime),
 		fmt.Sprintf("-b %d ", sequences),

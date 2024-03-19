@@ -112,11 +112,11 @@ func throughput(blockchain []*types.Block) ([]float64, []float64, []float64) {
 		lastBlockTs = block.Header.Time // update lastBlockTs for the next block
 	}
 	return blockTimes, blockSizes, throughputs
-
 }
 
 func plotData(data []float64, fileName string, title, xLabel,
-	yLabel string) {
+	yLabel string,
+) {
 	pts := make(plotter.XYs, len(data))
 	for i := range data {
 		pts[i].X = float64(i)
@@ -142,7 +142,7 @@ func plotData(data []float64, fileName string, title, xLabel,
 	}
 }
 
-func TestPlotBlockSize(t *testing.T) {
+func TestPlotBlockSize(_ *testing.T) {
 	blockSizes := []float64{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
 	plotData(blockSizes, "blocksize.png", "Block Size in bytes",
 		"Block Height", "Size in bytes")

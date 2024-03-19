@@ -36,7 +36,8 @@ func New(name string, seed int64) (*Testnet, error) {
 }
 
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation,
-	upgradeHeight int64, resources Resources) error {
+	upgradeHeight int64, resources Resources,
+) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
@@ -51,7 +52,8 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation,
 }
 
 func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation,
-	upgradeHeight int64, resources Resources) error {
+	upgradeHeight int64, resources Resources,
+) error {
 	for i := 0; i < num; i++ {
 		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
 			return err
@@ -99,7 +101,8 @@ func (t *Testnet) StartTxSimNode() error {
 }
 
 func (t *Testnet) CreateNode(version string, startHeight,
-	upgradeHeight int64, resources Resources) error {
+	upgradeHeight int64, resources Resources,
+) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
@@ -153,6 +156,7 @@ func (t *Testnet) CreateTxSimAccount(name string, tokens int64, rootDir string) 
 	})
 	return kr, nil
 }
+
 func (t *Testnet) Setup() error {
 	genesisNodes := make([]*Node, 0)
 	for _, node := range t.nodes {
