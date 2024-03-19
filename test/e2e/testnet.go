@@ -18,6 +18,7 @@ type Testnet struct {
 	nodes           []*Node
 	genesisAccounts []*Account
 	keygen          *keyGenerator
+	txSimNode       *TxSim
 }
 
 func New(name string, seed int64) (*Testnet, error) {
@@ -34,11 +35,14 @@ func New(name string, seed int64) (*Testnet, error) {
 	}, nil
 }
 
-func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64) error {
+func (t *Testnet) CreateGenesisNode(version string, selfDelegation,
+	upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
+		selfDelegation, nil, signerKey, networkKey, accountKey,
+		upgradeHeight, resources)
 	if err != nil {
 		return err
 	}
@@ -46,20 +50,62 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64) error {
+func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation,
+	upgradeHeight int64, resources Resources) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight); err != nil {
+		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64) error {
+func (t *Testnet) SetupTxsimNode(
+	name, version string,
+	endpoint string,
+	seed int,
+	sequences int,
+	blobRange int,
+	pollTime int,
+	resources Resources,
+	volumePath string,
+	keyringPath string,
+) error {
+	txsim, err := CreateTxSimNode(name, version, endpoint, seed, sequences,
+		blobRange, pollTime, resources, volumePath)
+	if err != nil {
+		return err
+	}
+	err = txsim.Instance.AddFolder(keyringPath, volumePath, "10001:10001")
+	if err != nil {
+		return err
+	}
+
+	err = txsim.Instance.Commit()
+	if err != nil {
+		return err
+	}
+
+	t.txSimNode = txsim
+	return nil
+}
+
+func (t *Testnet) StartTxSimNode() error {
+	err := t.txSimNode.Instance.Start()
+	if err != nil {
+		return err
+	}
+	return t.txSimNode.Instance.WaitInstanceIsRunning()
+}
+
+func (t *Testnet) CreateNode(version string, startHeight,
+	upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
+		startHeight, 0, nil, signerKey, networkKey, accountKey,
+		upgradeHeight, resources)
 	if err != nil {
 		return err
 	}
@@ -74,6 +120,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 	if err != nil {
 		return nil, err
 	}
+
 	pk, err := key.GetPubKey()
 	if err != nil {
 		return nil, err
@@ -85,6 +132,27 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 	return kr, nil
 }
 
+func (t *Testnet) CreateTxSimAccount(name string, tokens int64, rootDir string) (keyring.Keyring, error) {
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	kr, err := keyring.New(app.Name, keyring.BackendTest, rootDir, nil, cdc)
+	if err != nil {
+		return nil, err
+	}
+	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return nil, err
+	}
+
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+	t.genesisAccounts = append(t.genesisAccounts, &Account{
+		PubKey:        pk,
+		InitialTokens: tokens,
+	})
+	return kr, nil
+}
 func (t *Testnet) Setup() error {
 	genesisNodes := make([]*Node, 0)
 	for _, node := range t.nodes {
@@ -176,6 +244,12 @@ func (t *Testnet) Cleanup() {
 		err := node.Instance.Destroy()
 		if err != nil {
 			log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+		}
+	}
+	if t.txSimNode.Instance != nil {
+		err := t.txSimNode.Instance.Destroy()
+		if err != nil {
+			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to cleanup", t.txSimNode.Name))
 		}
 	}
 }

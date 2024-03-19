@@ -24,6 +24,7 @@ const (
 	secp256k1Type = "secp256k1"
 	ed25519Type   = "ed25519"
 	remoteRootDir = "/home/celestia/.celestia-app"
+	txsimRootDir  = "/home/celestia"
 )
 
 type Node struct {
@@ -41,12 +42,20 @@ type Node struct {
 	grpcProxyPort int
 }
 
+type Resources struct {
+	memoryRequest string
+	memoryLimit   string
+	cpu           string
+	volume        string
+}
+
 func NewNode(
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
 	signerKey, networkKey, accountKey crypto.PrivKey,
 	upgradeHeight int64,
+	resources Resources,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -68,11 +77,11 @@ func NewNode(
 	if err := instance.AddPortUDP(metricsPort); err != nil {
 		return nil, err
 	}
-	err = instance.SetMemory("200Mi", "200Mi")
+	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU("300m")
+	err = instance.SetCPU(resources.cpu)
 	if err != nil {
 		return nil, err
 	}
