@@ -65,7 +65,7 @@ var cosmosSpec = &interchaintest.ChainSpec{
 	ChainConfig: ibc.ChainConfig{
 		Type:           "cosmos",
 		Name:           "gaia",
-		Images:         []ibc.DockerImage{{Repository: "ghcr.io/strangelove-ventures/heighliner/gaia", Version: "v14.1.0", UidGid: "1025:1025"}},
+		Images:         []ibc.DockerImage{{Repository: "ghcr.io/strangelove-ventures/heighliner/gaia", Version: "v14.2.0", UidGid: "1025:1025"}},
 		Bin:            "gaiad",
 		Bech32Prefix:   "cosmos",
 		Denom:          "uatom",
