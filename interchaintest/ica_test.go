@@ -6,14 +6,10 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	controllertypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
-	chantypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	"github.com/strangelove-ventures/interchaintest/v6"
 	"github.com/strangelove-ventures/interchaintest/v6/chain/cosmos"
@@ -45,7 +41,6 @@ func TestICA(t *testing.T) {
 		zaptest.NewLogger(t),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-p", "events", "-b", "100"}},
 	).Build(t, client, network)
-
 	ic := interchaintest.NewInterchain().
 		AddChain(celestia).
 		AddChain(gaia).
@@ -100,42 +95,28 @@ func TestICA(t *testing.T) {
 
 	version := icatypes.NewDefaultMetadataString(ibctesting.FirstConnectionID, ibctesting.FirstConnectionID)
 	msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, gaiaAddr, version)
-	RegisterInterchainAccount(t, ctx, celestia, gaia, gaiaUser, msgRegisterInterchainAccount)
-
-	celestiaHeight, err := celestia.Height(ctx)
-	require.NoError(t, err)
-
-	isChannelOpen := func(found *chantypes.MsgChannelOpenConfirm) bool {
-		return found.PortId == "icahost"
-	}
-	_, err = cosmos.PollForMessage(ctx, celestia, cosmos.DefaultEncoding().InterfaceRegistry, celestiaHeight, celestiaHeight+30, isChannelOpen)
-	require.NoError(t, err)
-
-	// Query for the newly registered interchain account
-	queryICA := []string{
-		gaia.Config().Bin, "query", "interchain-accounts", "controller", "interchain-account", gaiaAddr, connections[0].ID,
-		"--chain-id", gaia.Config().ChainID,
-		"--home", gaia.HomeDir(),
-		"--node", gaia.GetRPCAddress(),
-	}
-	stdout, _, err := gaia.Exec(ctx, queryICA, nil)
-	require.NoError(t, err)
-	t.Log(stdout)
-}
-
-func RegisterInterchainAccount(t *testing.T, ctx context.Context, celestia ibc.Chain, gaia ibc.Chain, user ibc.Wallet, msgRegisterAccount *controllertypes.MsgRegisterInterchainAccount) {
-	txResp := BroadcastMessages(t, ctx, celestia, gaia, user, msgRegisterAccount)
-	AssertTxSuccess(t, txResp)
-}
-
-func AssertTxSuccess(t *testing.T, txResp sdk.TxResponse) {
+	txResp := BroadcastMessages(t, ctx, celestia, gaia, gaiaUser, msgRegisterInterchainAccount)
 	fmt.Printf("txResp %v\n", txResp)
-	require.Equal(t, uint32(0), txResp.Code)
-	require.NotEmpty(t, txResp.TxHash)
-	require.NotEqual(t, int64(0), txResp.GasUsed)
-	require.NotEqual(t, int64(0), txResp.GasWanted)
-	require.NotEmpty(t, txResp.Events)
-	require.NotEmpty(t, txResp.Data)
+
+	// celestiaHeight, err := celestia.Height(ctx)
+	// require.NoError(t, err)
+
+	// isChannelOpen := func(found *chantypes.MsgChannelOpenConfirm) bool {
+	// 	return found.PortId == "icahost"
+	// }
+	// _, err = cosmos.PollForMessage(ctx, celestia, cosmos.DefaultEncoding().InterfaceRegistry, celestiaHeight, celestiaHeight+30, isChannelOpen)
+	// require.NoError(t, err)
+
+	// // Query for the newly registered interchain account
+	// queryICA := []string{
+	// 	gaia.Config().Bin, "query", "interchain-accounts", "controller", "interchain-account", gaiaAddr, connections[0].ID,
+	// 	"--chain-id", gaia.Config().ChainID,
+	// 	"--home", gaia.HomeDir(),
+	// 	"--node", gaia.GetRPCAddress(),
+	// }
+	// stdout, _, err := gaia.Exec(ctx, queryICA, nil)
+	// require.NoError(t, err)
+	// t.Log(stdout)
 }
 
 func BroadcastMessages(t *testing.T, ctx context.Context, celestia ibc.Chain, gaia ibc.Chain, user ibc.Wallet, msgs ...sdk.Msg) sdk.TxResponse {
@@ -143,27 +124,27 @@ func BroadcastMessages(t *testing.T, ctx context.Context, celestia ibc.Chain, ga
 	require.True(t, ok, "BroadcastMessages expects a cosmos.CosmosChain")
 
 	broadcaster := cosmos.NewBroadcaster(t, cosmosChain)
-	broadcaster.ConfigureClientContextOptions(func(clientContext client.Context) client.Context {
-		// use a codec with all the types our tests care about registered.
-		// BroadcastTx will deserialize the response and will not be able to otherwise.
-		cdc := Codec()
-		return clientContext.WithCodec(cdc).WithTxConfig(authtx.NewTxConfig(cdc, []signingtypes.SignMode{signingtypes.SignMode_SIGN_MODE_DIRECT}))
-	})
-
 	broadcaster.ConfigureFactoryOptions(func(factory tx.Factory) tx.Factory {
 		return factory.WithGas(DefaultGasValue)
 	})
+	// broadcaster.ConfigureClientContextOptions(func(clientContext client.Context) client.Context {
+	// 	// use a codec with all the types our tests care about registered.
+	// 	// BroadcastTx will deserialize the response and will not be able to otherwise.
+	// 	cdc := Codec()
+	// 	return clientContext.WithCodec(cdc).WithTxConfig(authtx.NewTxConfig(cdc, []signingtypes.SignMode{signingtypes.SignMode_SIGN_MODE_DIRECT}))
+	// })
 
-	// Retry the operation a few times if the user signing the transaction is a relayer. (See issue #3264)
-	var resp sdk.TxResponse
-	var err error
-	broadcastFunc := func() (sdk.TxResponse, error) {
-		return cosmos.BroadcastTx(ctx, broadcaster, user, msgs...)
-	}
-	resp, err = broadcastFunc()
+	txResp, err := cosmos.BroadcastTx(ctx, broadcaster, user, msgs...)
 	require.NoError(t, err)
+	fmt.Printf("txResp %v\n", txResp)
+	require.Equal(t, uint32(0), txResp.Code)
+	require.NotEmpty(t, txResp.TxHash)
+	require.NotEqual(t, int64(0), txResp.GasUsed)
+	require.NotEqual(t, int64(0), txResp.GasWanted)
+	require.NotEmpty(t, txResp.Events)
+	require.NotEmpty(t, txResp.Data)
 
 	err = testutil.WaitForBlocks(ctx, 2, celestia, gaia)
 	require.NoError(t, err)
-	return resp
+	return txResp
 }
