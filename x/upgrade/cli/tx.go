@@ -62,10 +62,10 @@ func CmdTryUpgrade() *cobra.Command {
 		Use:   "try-upgrade",
 		Short: "Try to perform a software upgrade",
 		Long: `This command will submit a TryUpgrade message to tally all
-the signal votes. If a quorum has been reached, the network will upgrade 
+the signal votes. If a quorum has been reached, the network will upgrade
 to the signalled version at the following height.
 `,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err

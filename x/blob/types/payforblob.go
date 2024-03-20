@@ -55,10 +55,10 @@ func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*Msg
 		return nil, err
 	}
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := ExtractBlobComponents(blobs)
+	namespaceVersions, namespaceIDs, sizes, shareVersions := ExtractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -241,18 +241,18 @@ func ValidateBlobs(blobs ...*blob.Blob) error {
 
 // ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func ExtractBlobComponents(pblobs []*blob.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func ExtractBlobComponents(pblobs []*blob.Blob) (namespaceVersions []uint32, namespaceIDs [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
-	namespaceIds = make([][]byte, len(pblobs))
+	namespaceIDs = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
 	shareVersions = make([]uint32, len(pblobs))
 
 	for i, pblob := range pblobs {
 		namespaceVersions[i] = pblob.NamespaceVersion
-		namespaceIds[i] = pblob.NamespaceId
+		namespaceIDs[i] = pblob.NamespaceId
 		sizes[i] = uint32(len(pblob.Data))
 		shareVersions[i] = pblob.ShareVersion
 	}
 
-	return namespaceVersions, namespaceIds, sizes, shareVersions
+	return namespaceVersions, namespaceIDs, sizes, shareVersions
 }

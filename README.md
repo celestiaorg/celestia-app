@@ -118,7 +118,7 @@ This repo attempts to conform to [conventional commits](https://www.conventional
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.55.2
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.57.0
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
