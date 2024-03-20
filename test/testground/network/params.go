@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	gorun "runtime"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	testgroundconsts "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
@@ -16,6 +14,7 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
@@ -23,8 +22,8 @@ import (
 
 func init() {
 	consensus.UseWAL = false
-	gorun.SetMutexProfileFraction(2)
-	gorun.SetCPUProfileRate(1)
+	node.PushGateWayURL = "http://51.159.176.205:9191"
+	node.PushMetrics = true
 }
 
 const (
@@ -184,6 +183,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
+	cmtcfg.Mempool.Version = "v2" // force the mempool to v2 as a sanity check
 	return cmtcfg
 }
 
