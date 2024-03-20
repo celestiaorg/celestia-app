@@ -63,8 +63,8 @@ func TestE2ESimple(t *testing.T) {
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
-	expectedAppVersion, err := testnode.ReadAppVersion(context.Background(),
-		testnet.Node(0).AddressRPC())
+	expectedAppVersion, err := testnode.ReadAppVersionFromGenesis(context.Background(),
+		testnet.Node(1).AddressRPC())
 	require.NoError(t, err)
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
