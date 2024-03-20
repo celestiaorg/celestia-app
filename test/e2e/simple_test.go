@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,7 @@ var latestVersion = "latest"
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func TestE2ESimple(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
+	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
 		t.Skip("skipping e2e test")
 	}
 
@@ -64,12 +63,16 @@ func TestE2ESimple(t *testing.T) {
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
+	expectedAppVersion, err := testnode.ReadAppVersion(context.Background(),
+		testnet.Node(0).AddressRPC())
+	require.NoError(t, err)
+
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, v1.Version, block.Version.App)
+		require.Equal(t, expectedAppVersion, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
