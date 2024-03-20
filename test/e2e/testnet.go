@@ -244,7 +244,7 @@ func (t *Testnet) Cleanup() {
 	if t.txSimNode.Instance != nil {
 		err := t.txSimNode.Instance.Stop()
 		if err != nil {
-			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", t.txSimNode.Name)
+			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", t.txSimNode.Name))
 		}
 		err = t.txSimNode.Instance.Destroy()
 		if err != nil {
