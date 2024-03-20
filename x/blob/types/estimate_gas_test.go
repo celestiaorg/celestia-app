@@ -39,7 +39,7 @@ func TestPFBGasEstimation(t *testing.T) {
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
-			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
+			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), accnts...)
 			addr := testfactory.GetAddress(kr, accnts[0])
 			signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0, appconsts.LatestVersion)
 			require.NoError(t, err)
