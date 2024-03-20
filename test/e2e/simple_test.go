@@ -34,7 +34,7 @@ func TestE2ESimple(t *testing.T) {
 		case isSemVer:
 		case latestVersion == "latest":
 		case len(latestVersion) == 7:
-		case len(latestVersion) == 8:
+		case len(latestVersion) >= 8:
 			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
 			latestVersion = latestVersion[:7]
 		default:

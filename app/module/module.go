@@ -18,74 +18,85 @@ import (
 // versions of the module. It also provides a way to run migrations between different versions of a
 // module.
 type Manager struct {
-	versionedModules   map[uint64]map[string]sdkmodule.AppModule
-	allModules         []sdkmodule.AppModule
-	firstVersion       uint64
-	lastVersion        uint64
-	OrderInitGenesis   []string
-	OrderExportGenesis []string
-	OrderBeginBlockers []string
-	OrderEndBlockers   []string
-	OrderMigrations    []string
+	versionedModules map[uint64]map[string]sdkmodule.AppModule
+	// this is a mapping of module name to module consensus version to the range of
+	// app versions this particular module operates over. The first element in the
+	// array represent the fromVersion and the last the toVersion (this is inclusive)
+	uniqueModuleVersions map[string]map[uint64][2]uint64
+	allModules           []sdkmodule.AppModule
+	firstVersion         uint64
+	lastVersion          uint64
+	OrderInitGenesis     []string
+	OrderExportGenesis   []string
+	OrderBeginBlockers   []string
+	OrderEndBlockers     []string
+	OrderMigrations      []string
 }
 
 type VersionedModule struct {
-	module sdkmodule.AppModule
+	Module sdkmodule.AppModule
 	// fromVersion and toVersion indicate the continuous range of app versions that the particular
 	// module is part of. The range is inclusive. `fromVersion` should not be smaller than `toVersion`
 	// 0 is not a valid app version
-	fromVersion, toVersion uint64
-}
-
-func NewVersionedModule(module sdkmodule.AppModule, fromVersion, toVersion uint64) VersionedModule {
-	return VersionedModule{
-		module:      module,
-		fromVersion: fromVersion,
-		toVersion:   toVersion,
-	}
+	FromVersion, ToVersion uint64
 }
 
 // NewManager creates a new Manager object
-func NewManager(modules ...VersionedModule) (*Manager, error) {
+func NewManager(modules []VersionedModule) (*Manager, error) {
 	moduleMap := make(map[uint64]map[string]sdkmodule.AppModule)
 	allModules := make([]sdkmodule.AppModule, len(modules))
 	modulesStr := make([]string, 0, len(modules))
+	uniqueModuleVersions := make(map[string]map[uint64][2]uint64)
 	// firstVersion and lastVersion are quicker ways of working out the range of
 	// versions the state machine supports
 	firstVersion, lastVersion := uint64(0), uint64(0)
 	for idx, module := range modules {
-		if module.fromVersion == 0 {
-			return nil, sdkerrors.ErrInvalidVersion.Wrapf("v0 is not a valid version for module %s", module.module.Name())
+		name := module.Module.Name()
+		moduleVersion := module.Module.ConsensusVersion()
+		if module.FromVersion == 0 {
+			return nil, sdkerrors.ErrInvalidVersion.Wrapf("v0 is not a valid version for module %s", module.Module.Name())
 		}
-		if module.fromVersion > module.toVersion {
-			return nil, sdkerrors.ErrLogic.Wrapf("fromVersion can not be greater than toVersion for module %s", module.module.Name())
+		if module.FromVersion > module.ToVersion {
+			return nil, sdkerrors.ErrLogic.Wrapf("FromVersion cannot be greater than ToVersion for module %s", module.Module.Name())
 		}
-		for version := module.fromVersion; version <= module.toVersion; version++ {
+		for version := module.FromVersion; version <= module.ToVersion; version++ {
 			if moduleMap[version] == nil {
 				moduleMap[version] = make(map[string]sdkmodule.AppModule)
 			}
-			moduleMap[version][module.module.Name()] = module.module
+			if _, exists := moduleMap[version][name]; exists {
+				return nil, sdkerrors.ErrLogic.Wrapf("Two different modules with domain %s are registered with the same version %d", name, version)
+			}
+			moduleMap[version][module.Module.Name()] = module.Module
 		}
-		allModules[idx] = module.module
-		modulesStr = append(modulesStr, module.module.Name())
-		if firstVersion == 0 || module.fromVersion < firstVersion {
-			firstVersion = module.fromVersion
+		allModules[idx] = module.Module
+		modulesStr = append(modulesStr, name)
+		if _, exists := uniqueModuleVersions[name]; !exists {
+			uniqueModuleVersions[name] = make(map[uint64][2]uint64)
 		}
-		if lastVersion == 0 || module.toVersion > lastVersion {
-			lastVersion = module.toVersion
+		uniqueModuleVersions[name][moduleVersion] = [2]uint64{module.FromVersion, module.ToVersion}
+		if firstVersion == 0 || module.FromVersion < firstVersion {
+			firstVersion = module.FromVersion
+		}
+		if lastVersion == 0 || module.ToVersion > lastVersion {
+			lastVersion = module.ToVersion
 		}
 	}
 
-	return &Manager{
-		versionedModules:   moduleMap,
-		allModules:         allModules,
-		firstVersion:       firstVersion,
-		lastVersion:        lastVersion,
-		OrderInitGenesis:   modulesStr,
-		OrderExportGenesis: modulesStr,
-		OrderBeginBlockers: modulesStr,
-		OrderEndBlockers:   modulesStr,
-	}, nil
+	m := &Manager{
+		versionedModules:     moduleMap,
+		uniqueModuleVersions: uniqueModuleVersions,
+		allModules:           allModules,
+		firstVersion:         firstVersion,
+		lastVersion:          lastVersion,
+		OrderInitGenesis:     modulesStr,
+		OrderExportGenesis:   modulesStr,
+		OrderBeginBlockers:   modulesStr,
+		OrderEndBlockers:     modulesStr,
+	}
+	if err := m.checkUpgradeSchedule(); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // SetOrderInitGenesis sets the order of init genesis calls
@@ -127,10 +138,15 @@ func (m *Manager) RegisterInvariants(ir sdk.InvariantRegistry) {
 }
 
 // RegisterServices registers all module services
-func (m *Manager) RegisterServices(cfg sdkmodule.Configurator) {
+func (m *Manager) RegisterServices(cfg VersionedConfigurator) {
 	for _, module := range m.allModules {
-		module.RegisterServices(cfg)
+		fromVersion, toVersion := m.getAppVersionsForModule(module.Name(), module.ConsensusVersion())
+		module.RegisterServices(cfg.WithVersions(fromVersion, toVersion))
 	}
+}
+
+func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
+	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
 }
 
 // InitGenesis performs init genesis functionality for modules. Exactly one
@@ -213,9 +229,9 @@ type VersionMap map[string]uint64
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
-	c, ok := cfg.(configurator)
+	c, ok := cfg.(VersionedConfigurator)
 	if !ok {
-		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", configurator{}, cfg)
+		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", VersionedConfigurator{}, cfg)
 	}
 	modules := m.OrderMigrations
 	if modules == nil {
@@ -231,12 +247,19 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 	}
 
 	for _, moduleName := range modules {
-		_, currentModuleExists := currentVersionModules[moduleName]
+		currentModule, currentModuleExists := currentVersionModules[moduleName]
 		nextModule, nextModuleExists := nextVersionModules[moduleName]
 
 		// if the module exists for both upgrades
 		if currentModuleExists && nextModuleExists {
-			err := c.runModuleMigrations(ctx, moduleName, fromVersion, toVersion)
+			// by using consensus version instead of app version we support the SDK's legacy method
+			// of migrating modules which were made of several versions and consisted of a mapping of
+			// app version to module version. Now, using go.mod, each module will have only a single
+			// consensus version and each breaking upgrade will result in a new module and a new consensus
+			// version.
+			fromModuleVersion := currentModule.ConsensusVersion()
+			toModuleVersion := nextModule.ConsensusVersion()
+			err := c.runModuleMigrations(ctx, moduleName, fromModuleVersion, toModuleVersion)
 			if err != nil {
 				return err
 			}
@@ -336,6 +359,30 @@ func (m *Manager) SupportedVersions() []uint64 {
 		}
 	}
 	return output
+}
+
+// checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
+// for a module domain i.e. auth, always increments for each module that uses the auth domain name
+func (m *Manager) checkUpgradeSchedule() error {
+	if m.firstVersion == m.lastVersion {
+		// there are no upgrades to check
+		return nil
+	}
+	for _, moduleName := range m.OrderInitGenesis {
+		lastConsensusVersion := uint64(0)
+		for appVersion := m.firstVersion; appVersion <= m.lastVersion; appVersion++ {
+			module, exists := m.versionedModules[appVersion][moduleName]
+			if !exists {
+				continue
+			}
+			moduleVersion := module.ConsensusVersion()
+			if moduleVersion < lastConsensusVersion {
+				return fmt.Errorf("error: module %s in appVersion %d goes from moduleVersion %d to %d", moduleName, appVersion, lastConsensusVersion, moduleVersion)
+			}
+			lastConsensusVersion = moduleVersion
+		}
+	}
+	return nil
 }
 
 // DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,

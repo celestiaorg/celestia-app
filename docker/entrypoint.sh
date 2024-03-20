@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script creates the necessary files before starting Celestia-appd
+# This script creates the necessary files before starting celestia-appd
 
 # only create the priv_validator_state.json if it doesn't exist and the command is start
 if [[ $1 == "start" && ! -f ${CELESTIA_HOME}/data/priv_validator_state.json ]]
