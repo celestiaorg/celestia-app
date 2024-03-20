@@ -13,6 +13,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -483,6 +484,23 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).MinCommissionRate
 				want := sdk.NewDec(1)
+				assert.Equal(want, got)
+			},
+		},
+		{
+			"minfee.GlobalMinGasPrice",
+			testProposal(proposal.ParamChange{
+				Subspace: minfeetypes.ModuleName,
+				Key:      string(minfeetypes.KeyGlobalMinGasPrice),
+				Value:    `"0.1"`,
+			}),
+			func() {
+				var got sdk.Dec
+				subspace := suite.app.GetSubspace(minfeetypes.ModuleName)
+				subspace.Get(suite.ctx, minfeetypes.KeyGlobalMinGasPrice, &got)
+
+				want, err := sdk.NewDecFromStr("0.1")
+				assert.NoError(err)
 				assert.Equal(want, got)
 			},
 		},
