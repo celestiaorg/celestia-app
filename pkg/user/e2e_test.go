@@ -17,6 +17,10 @@ import (
 )
 
 func TestConcurrentTxSubmission(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
 	// Setup network
 	tmConfig := testnode.DefaultTendermintConfig()
 	tmConfig.Consensus.TimeoutCommit = 10 * time.Second
@@ -66,6 +70,10 @@ func TestConcurrentTxSubmission(t *testing.T) {
 }
 
 func TestSignerTwins(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
 	// Setup network
 	tmConfig := testnode.DefaultTendermintConfig()
 	tmConfig.Consensus.TimeoutCommit = 10 * time.Second
