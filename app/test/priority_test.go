@@ -76,15 +76,14 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		blobSize := uint32(100)
 		gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
 		gasPrice := s.rand.Float64()
-		btx, err := signer.CreatePayForBlob(
+		resp, err := signer.SubmitPayForBlob(
+			s.cctx.GoContext(),
 			blobfactory.ManyBlobs(
 				s.rand,
 				[]namespace.Namespace{namespace.RandomBlobNamespace()},
 				[]int{100}),
 			user.SetGasLimitAndFee(gasLimit, gasPrice),
 		)
-		require.NoError(t, err)
-		resp, err := signer.BroadcastTx(s.cctx.GoContext(), btx)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 		hashes = append(hashes, resp.TxHash)

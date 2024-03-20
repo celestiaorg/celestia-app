@@ -40,12 +40,17 @@ type Signer struct {
 	// appVersion that the signer does not support
 	appVersion uint64
 
-	mtx                    sync.RWMutex
-	pollTime               time.Duration
-	earliestNonce          uint64
-	latestNonce            uint64
-	outboundTxs            map[uint64][]byte
-	reverseHashSequenceMap map[string]uint64
+	mtx sync.RWMutex
+	// how often to poll the network for confirmation of a transaction
+	pollTime time.Duration
+	// the signers local view of the sequence number
+	localSequence uint64
+	// the chains last known sequence number
+	networkSequence uint64
+	// lookup map of all pending and yet to be confirmed outbound transactions
+	outboundSequences map[uint64]struct{}
+	// a reverse map for confirming which sequence numbers have been committed
+	reverseTxHashSequenceMap map[string]uint64
 }
 
 // NewSigner returns a new signer using the provided keyring
@@ -70,17 +75,19 @@ func NewSigner(
 	}
 
 	return &Signer{
-		keys:          keys,
-		address:       address,
-		grpc:          conn,
-		enc:           enc,
-		pk:            pk,
-		chainID:       chainID,
-		accountNumber: accountNumber,
-		appVersion:    appVersion,
-		earliestNonce: sequence,
-		latestNonce:   sequence,
-		pollTime:      DefaultPollTime,
+		keys:                     keys,
+		address:                  address,
+		grpc:                     conn,
+		enc:                      enc,
+		pk:                       pk,
+		chainID:                  chainID,
+		accountNumber:            accountNumber,
+		appVersion:               appVersion,
+		localSequence:            sequence,
+		networkSequence:          sequence,
+		pollTime:                 DefaultPollTime,
+		outboundSequences:        make(map[uint64]struct{}),
+		reverseTxHashSequenceMap: make(map[string]uint64),
 	}, nil
 }
 
@@ -155,6 +162,17 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	resp, err := s.broadcastPayForBlob(ctx, blobs, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ConfirmTx(ctx, resp.TxHash)
+}
+
+func (s *Signer) broadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	txBytes, seqNum, err := s.createPayForBlobs(blobs, opts...)
 	if err != nil {
 		return nil, err
@@ -167,8 +185,7 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts 
 	if resp.Code != 0 {
 		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
 	}
-
-	return s.ConfirmTx(ctx, resp.TxHash)
+	return resp, nil
 }
 
 // CreateTx forms a transaction from the provided messages and signs it. TxOptions may be optionally
@@ -196,7 +213,7 @@ func (s *Signer) createTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx
 func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	blobTx, _, err := s.createPayForBlobs(blobs)
+	blobTx, _, err := s.createPayForBlobs(blobs, opts...)
 	return blobTx, err
 }
 
@@ -258,16 +275,13 @@ func (s *Signer) BroadcastTx(ctx context.Context, tx authsigning.Tx) (*sdktypes.
 
 // CONTRACT: assumes the caller has the lock
 func (s *Signer) broadcastTx(ctx context.Context, txBytes []byte, sequence uint64) (*sdktypes.TxResponse, error) {
-	if _, exists := s.outboundTxs[sequence]; exists {
-		// there is already a pending tx with that sequence number. Update it to the latest
-		s.retryBroadcastingTx(ctx, txBytes, s.latestNonce+1)
+	if _, exists := s.outboundSequences[sequence]; exists {
+		return s.retryBroadcastingTx(ctx, txBytes, sequence+1)
 	}
-	// update the map recording all pending transactions
-	s.outboundTxs[sequence] = txBytes
-	if s.latestNonce < sequence {
-		s.latestNonce = sequence
-	} else if sequence < s.earliestNonce {
-		s.earliestNonce = sequence
+
+	if sequence < s.networkSequence {
+		s.localSequence = s.networkSequence
+		return s.retryBroadcastingTx(ctx, txBytes, s.localSequence)
 	}
 
 	txClient := sdktx.NewServiceClient(s.grpc)
@@ -279,27 +293,25 @@ func (s *Signer) broadcastTx(ctx context.Context, txBytes []byte, sequence uint6
 		},
 	)
 	if err != nil {
-		// check if the transaction failed due to a nonce mismatch
-		if apperrors.IsNonceMismatch(err) {
-			// extract what the lastCommittedNonce on chain is
-			latestCommittedNonce, err := apperrors.ParseNonceMismatch(err)
-			if err != nil {
-				return nil, fmt.Errorf("parsing nonce mismatch upon retry: %w", err)
-			}
-			nextSequence := latestCommittedNonce + 1
-			delete(s.outboundTxs, sequence)
-			if nextSequence < s.earliestNonce || nextSequence > s.latestNonce {
-				return s.retryBroadcastingTx(ctx, txBytes, nextSequence)
-			} else {
-
-			}
-		}
 		return nil, err
 	}
-	s.reverseHashSequenceMap[string(resp.TxResponse.TxHash)] = sequence
+	if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
+		// extract what the lastCommittedNonce on chain is
+		nextSequence, err := apperrors.ParseExpectedSequence(resp.TxResponse.RawLog)
+		if err != nil {
+			return nil, fmt.Errorf("parsing nonce mismatch upon retry: %w", err)
+		}
+		s.networkSequence = nextSequence
+		s.localSequence = nextSequence
+		return s.retryBroadcastingTx(ctx, txBytes, nextSequence)
+	}
+	s.outboundSequences[sequence] = struct{}{}
+	s.reverseTxHashSequenceMap[resp.TxResponse.TxHash] = sequence
 	return resp.TxResponse, nil
 }
 
+// retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
+// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
 func (s *Signer) retryBroadcastingTx(ctx context.Context, txBytes []byte, newSequenceNumber uint64) (*sdktypes.TxResponse, error) {
 	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
@@ -309,8 +321,44 @@ func (s *Signer) retryBroadcastingTx(ctx context.Context, txBytes []byte, newSeq
 	if err != nil {
 		return nil, err
 	}
+	txBuilder := s.txBuilder()
+	if err := txBuilder.SetMsgs(tx.GetMsgs()...); err != nil {
+		return nil, err
+	}
+	if granter := tx.FeeGranter(); granter != nil {
+		txBuilder.SetFeeGranter(granter)
+	}
+	if payer := tx.FeePayer(); payer != nil {
+		txBuilder.SetFeePayer(payer)
+	}
+	if memo := tx.GetMemo(); memo != "" {
+		txBuilder.SetMemo(memo)
+	}
+	if fee := tx.GetFee(); fee != nil {
+		txBuilder.SetFeeAmount(fee)
+	}
+	if gas := tx.GetGas(); gas > 0 {
+		txBuilder.SetGasLimit(gas)
+	}
 
-	return nil, nil
+	if err := s.signTransaction(txBuilder, newSequenceNumber); err != nil {
+		return nil, fmt.Errorf("resigning transaction: %w", err)
+	}
+
+	newTxBytes, err := s.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return nil, err
+	}
+
+	// rewrap the blob tx if it was originally a blob tx
+	if isBlobTx {
+		newTxBytes, err = blob.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.broadcastTx(ctx, newTxBytes, newSequenceNumber)
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
@@ -326,10 +374,10 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 		if err == nil {
 			if resp.TxResponse.Code != 0 {
-				s.confirmCommittedTx(txHash, false)
+				s.updateNetworkSequence(txHash, false)
 				return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 			}
-			s.confirmCommittedTx(txHash, true)
+			s.updateNetworkSequence(txHash, true)
 			return resp.TxResponse, nil
 		}
 		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
@@ -354,7 +402,7 @@ func (s *Signer) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...T
 		return 0, err
 	}
 
-	if err := s.signTransaction(txBuilder, s.Sequence()); err != nil {
+	if err := s.signTransaction(txBuilder, s.LocalSequence()); err != nil {
 		return 0, err
 	}
 
@@ -406,26 +454,51 @@ func (s *Signer) PubKey() cryptotypes.PubKey {
 	return s.pk
 }
 
-// Sequence returns the last signed sequence number of the signer
-func (s *Signer) Sequence() uint64 {
+// LocalSequence returns the next sequence number of the signers
+// locally saved
+func (s *Signer) LocalSequence() uint64 {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	return s.latestNonce
+	return s.localSequence
 }
 
-// getAndIncrementSequence gets the latest signed sequence and increments the local sequence number
+func (s *Signer) NetworkSequence() uint64 {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.networkSequence
+}
+
+// getAndIncrementSequence gets the latest signed sequence and increments the
+// local sequence number
 func (s *Signer) getAndIncrementSequence() uint64 {
-	defer func() { s.latestNonce++ }()
-	return s.latestNonce
+	defer func() { s.localSequence++ }()
+	return s.localSequence
 }
 
-// ForceSetSequence manually overrides the current sequence number. Be careful when
-// invoking this as it may cause the transactions to reject the sequence if
-// it doesn't match the one in state
+// ForceSetSequence manually overrides the current local and network level
+// sequence number. Be careful when invoking this as it may cause the
+// transactions to reject the sequence if it doesn't match the one in state
 func (s *Signer) ForceSetSequence(seq uint64) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	s.latestNonce = seq
+	s.localSequence = seq
+	s.networkSequence = seq
+}
+
+// updateNetworkSequence is called once a transaction is confirmed
+// and updates the chains last known sequence number
+func (s *Signer) updateNetworkSequence(txHash string, success bool) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	sequence, exists := s.reverseTxHashSequenceMap[txHash]
+	if !exists {
+		return
+	}
+	if success && sequence >= s.networkSequence {
+		s.networkSequence = sequence + 1
+	}
+	delete(s.outboundSequences, sequence)
+	delete(s.reverseTxHashSequenceMap, txHash)
 }
 
 // Keyring exposes the signers underlying keyring
@@ -497,27 +570,6 @@ func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
 		builder = opt(builder)
 	}
 	return builder
-}
-
-func (s *Signer) confirmCommittedTx(txHash string, success bool) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	txNonce, exists := s.reverseHashSequenceMap[txHash]
-	if !exists {
-		return
-	}
-	if success && txNonce == s.earliestNonce {
-		s.earliestNonce++
-		for nonce := s.earliestNonce; nonce <= s.latestNonce; nonce++ {
-			if _, exists := s.outboundTxs[nonce]; !exists {
-				s.earliestNonce++
-			}
-		}
-	}
-	// TODO: what about other pending transactions that are now rejected because of a nonce
-	// mismatch. We need to track how they fail and possibly resubmit them
-	delete(s.reverseHashSequenceMap, txHash)
-	delete(s.outboundTxs, txNonce)
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
