@@ -206,10 +206,10 @@ func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	require.NoError(t, err)
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := types.ExtractBlobComponents(blobs)
+	namespaceVersions, namespaceIDs, sizes, shareVersions := types.ExtractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
 		require.NoError(t, err)
 		namespaces = append(namespaces, namespace)
 	}
