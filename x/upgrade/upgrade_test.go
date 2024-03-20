@@ -11,7 +11,6 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/util"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -32,12 +31,12 @@ func TestUpgradeAppVersion(t *testing.T) {
 		Version: tmversion.Consensus{App: 1},
 	}})
 	// app version should not have changed yet
-	require.EqualValues(t, 1, testApp.AppVersion(sdk.Context{}))
+	require.EqualValues(t, 1, testApp.AppVersion())
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	// now the app version changes
 	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
-	require.EqualValues(t, 2, testApp.AppVersion(sdk.Context{}))
+	require.EqualValues(t, 2, testApp.AppVersion())
 }
 
 func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {

@@ -38,10 +38,6 @@ type Keeper struct {
 	// safely be ported over without any migration
 	storeKey storetypes.StoreKey
 
-	// in memory copy of the upgrade height if any. This is local per node
-	// and configured from the config. Used just for V2
-	upgradeHeight int64
-
 	// quorumVersion is the version that has received a quorum of validators
 	// to signal for it. This variable is relevant just for the scope of the
 	// lifetime of the block
@@ -55,12 +51,10 @@ type Keeper struct {
 // NewKeeper constructs an upgrade keeper
 func NewKeeper(
 	storeKey storetypes.StoreKey,
-	upgradeHeight int64,
 	stakingKeeper StakingKeeper,
 ) Keeper {
 	return Keeper{
 		storeKey:      storeKey,
-		upgradeHeight: upgradeHeight,
 		stakingKeeper: stakingKeeper,
 	}
 }
@@ -184,14 +178,6 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 		return product.QuoRaw(thresholdFraction.Denominator)
 	}
 	return product.QuoRaw(thresholdFraction.Denominator).AddRaw(1)
-}
-
-// ShouldUpgradeToV2 returns true if the current height is one before
-// the locally provided upgrade height that is passed as a flag
-// NOTE: This is only used to upgrade to v2 and should be deprecated
-// in v3
-func (k Keeper) ShouldUpgradeToV2(height int64) bool {
-	return k.upgradeHeight == height+1
 }
 
 // ShouldUpgrade returns true if the signalling mechanism has concluded
