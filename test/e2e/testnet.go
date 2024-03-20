@@ -240,8 +240,13 @@ func (t *Testnet) Cleanup() {
 			log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
 		}
 	}
+	// stop and cleanup txsim
 	if t.txSimNode.Instance != nil {
-		err := t.txSimNode.Instance.Destroy()
+		err := t.txSimNode.Instance.Stop()
+		if err != nil {
+			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", t.txSimNode.Name)
+		}
+		err = t.txSimNode.Instance.Destroy()
 		if err != nil {
 			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to cleanup", t.txSimNode.Name))
 		}
