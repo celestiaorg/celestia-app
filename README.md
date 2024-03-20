@@ -87,7 +87,7 @@ celestia-appd --help
 ### Environment variables
 
 | Variable        | Explanation                        | Default value                                            | Required |
-| --------------- | ---------------------------------- | -------------------------------------------------------- | -------- |
+|-----------------|------------------------------------|----------------------------------------------------------|----------|
 | `CELESTIA_HOME` | Home directory for the application | User home dir. [Ref](https://pkg.go.dev/os#UserHomeDir). | Optional |
 
 ### Create your own single node devnet
@@ -119,7 +119,7 @@ This repo attempts to conform to [conventional commits](https://www.conventional
 ### Tools
 
 1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.57.0
-1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
 1. Install [markdown-link-check](https://github.com/tcort/markdown-link-check)
@@ -154,10 +154,11 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 ## Audits
 
-Date       | Auditor                                       | Version                                                                             | Report
------------|-----------------------------------------------|-------------------------------------------------------------------------------------|--------------------------------------------------------
-2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf)
-2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)
+| Date        | Auditor                                         | Version                                                                               | Report                                                   |
+|-------------|-------------------------------------------------|---------------------------------------------------------------------------------------|----------------------------------------------------------|
+| ----------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 2023/9/15   | [Informal Systems](https://informal.systems/)   | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)     | [informal-systems.pdf](docs/audit/informal-systems.pdf)  |
+| 2023/10/17  | [Binary Builders](https://binary.builders/)     | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)   | [binary-builders.pdf](docs/audit/binary-builders.pdf)    |
 
 ## Careers
 
