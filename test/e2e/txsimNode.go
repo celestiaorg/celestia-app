@@ -24,7 +24,7 @@ func CreateTxSimNode(
 	endpoint string,
 	seed int,
 	sequences int,
-	blobRange int,
+	blobRange string,
 	pollTime int,
 	resources Resources,
 	volumePath string,
@@ -56,7 +56,7 @@ func CreateTxSimNode(
 		fmt.Sprintf("-b %d ", sequences),
 		fmt.Sprintf("-d %d ", seed),
 		fmt.Sprintf("-a %d ", 5),
-		fmt.Sprintf("-s %d ", blobRange),
+		fmt.Sprintf("-s %s ", blobRange),
 	}
 
 	err = instance.SetArgs(args...)

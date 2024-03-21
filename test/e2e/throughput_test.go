@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,8 +62,12 @@ func TestE2EThroughput(t *testing.T) {
 	t.Log("Starting txsim")
 	// TODO pull the latest version if possible
 	// TODO increase blob size range
+	IP, err := testnet.nodes[0].Instance.GetIP()
+	require.NoError(t, err)
+	endpoint := fmt.Sprintf("%s:9090", IP)
+	t.Log("GRPC endpoint", endpoint)
 	err = testnet.SetupTxsimNode("txsim", "65c1a8e",
-		testnet.GRPCEndpoints()[0], seed, 5, 50*1024, 3,
+		endpoint, seed, 5, fmt.Sprintf("%d-%d", 50*1024, 100*1024), 3,
 		Resources{"200Mi", "200Mi", "300m", "1Gi"},
 		txsimRootDir, txsimKeyringDir)
 	require.NoError(t, err)
@@ -70,7 +75,7 @@ func TestE2EThroughput(t *testing.T) {
 	err = testnet.StartTxSimNode()
 	require.NoError(t, err)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(3 * time.Minute)
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)

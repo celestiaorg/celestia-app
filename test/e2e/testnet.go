@@ -83,7 +83,7 @@ func (t *Testnet) SetupTxsimNode(
 	endpoint string,
 	seed int,
 	sequences int,
-	blobRange int,
+	blobRange string,
 	pollTime int,
 	resources Resources,
 	volumePath string,
@@ -113,6 +113,7 @@ func (t *Testnet) StartTxSimNode() error {
 	if err != nil {
 		return err
 	}
+
 	return t.txSimNode.Instance.WaitInstanceIsRunning()
 }
 
