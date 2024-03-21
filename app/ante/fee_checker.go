@@ -16,10 +16,10 @@ const (
 	priorityScalingFactor = 1_000_000
 )
 
-// CheckTxFeeWithMinGasPrices implements default fee validation logic for transactions.
-// It ensures that the provided transaction fee meets a minimum threshold for the validator
+// ValidateTxFee implements default fee validation logic for transactions.
+// It ensures that the provided transaction fee meets a minimum threshold for the node
 // as well as a global minimum threshold and computes the tx priority based on the gas price.
-func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
+func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
@@ -28,13 +28,13 @@ func CheckTxFeeWithMinGasPrices(ctx sdk.Context, tx sdk.Tx, paramKeeper params.K
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
 
-	// Ensure that the provided fee meets a minimum threshold for the validator.
+	// Ensure that the provided fee meets a minimum threshold for the node.
 	// This is only for local mempool purposes, and thus
 	// is only ran on check tx.
 	if ctx.IsCheckTx() {
 		minGasPrice := ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
 		if !minGasPrice.IsZero() {
-			err := verifyMinFee(fee, gas, minGasPrice, "insufficient minimum gas price for this validator")
+			err := verifyMinFee(fee, gas, minGasPrice, "insufficient minimum gas price for this node")
 			if err != nil {
 				return nil, 0, err
 			}
