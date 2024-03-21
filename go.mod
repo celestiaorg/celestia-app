@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.0.1
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/knuu v0.11.0
+	github.com/celestiaorg/knuu v0.11.1
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.12.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.4
@@ -55,7 +55,7 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
-	github.com/celestiaorg/bittwister v0.0.0-20231207100307-b76451880378 // indirect
+	github.com/celestiaorg/bittwister v0.0.0-20231211182706-b065de784c03 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -146,7 +146,7 @@ require (
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/klauspost/compress v1.17.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
 	github.com/klauspost/reedsolomon v1.12.1 // indirect
 	github.com/lib/pq v1.10.7 // indirect
@@ -216,13 +216,13 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
-	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
@@ -234,8 +234,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.29.2 // indirect
-	k8s.io/apimachinery v0.29.2 // indirect
+	k8s.io/api v0.29.3 // indirect
+	k8s.io/apimachinery v0.29.3 // indirect
 	k8s.io/client-go v0.29.2 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
