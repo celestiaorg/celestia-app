@@ -3,6 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -56,45 +58,41 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 	return nil
 }
 
-func (t *Testnet) CreateTxSimAccount(name string, tokens int64, rootDir string) (keyring.Keyring, error) {
-	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	kr, err := keyring.New(app.Name, keyring.BackendTest, rootDir, nil, cdc)
-	if err != nil {
-		return nil, err
-	}
-	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return nil, err
-	}
-
-	pk, err := key.GetPubKey()
-	if err != nil {
-		return nil, err
-	}
-	t.genesisAccounts = append(t.genesisAccounts, &Account{
-		PubKey:        pk,
-		InitialTokens: tokens,
-	})
-	return kr, nil
-}
-
-func (t *Testnet) SetupTxsimNode(
-	name, version string,
-	endpoint string,
+// CreateAndSetupTxSimNode creates a txsim node and sets it up
+// name: name of the txsim knuu instance
+// version: version of the txsim docker image to be pulled from the registry
+// specified by txsimDockerSrcURL
+// seed: seed for the txsim
+// sequences: number of sequences to be run by the txsim
+// blobRange: range of blob sizes to be used by the txsim in bytes
+// pollTime: time in seconds between each sequence
+// resources: resources to be allocated to the txsim
+// grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
+func (t *Testnet) CreateAndSetupTxSimNode(name,
+	version string,
 	seed int,
 	sequences int,
 	blobRange string,
 	pollTime int,
 	resources Resources,
-	volumePath string,
-	keyringPath string,
-) error {
-	txsim, err := CreateTxSimNode(name, version, endpoint, seed, sequences,
-		blobRange, pollTime, resources, volumePath)
+	grpcEndpoint string) error {
+	// create an account,
+	//store it in a temp directory and add the account as genesis account to
+	//the testnet
+	txsimKeyringDir := filepath.Join(os.TempDir(), "txsim")
+	_, err := t.CreateAndAddAccountToGenesis("alice", 1e12, txsimKeyringDir)
 	if err != nil {
 		return err
 	}
-	err = txsim.Instance.AddFolder(keyringPath, volumePath, "10001:10001")
+
+	// Create a txsim node using the key stored in the txsimKeyringDir
+	txsim, err := CreateTxSimNode(name, version, grpcEndpoint, seed, sequences,
+		blobRange, pollTime, resources, txsimRootDir)
+	if err != nil {
+		return err
+	}
+	// copy over the keyring directory to the txsim instance
+	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
 		return err
 	}
@@ -113,8 +111,32 @@ func (t *Testnet) StartTxSimNode() error {
 	if err != nil {
 		return err
 	}
-
 	return t.txSimNode.Instance.WaitInstanceIsRunning()
+}
+
+// CreateAndAddAccountToGenesis creates an account and adds it to the
+// testnet genesis. The account is created with the given name and tokens and
+// is persisted in the given txsimKeyringDir.
+func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimKeyringDir string) (keyring.Keyring, error) {
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	kr, err := keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, cdc)
+	if err != nil {
+		return nil, err
+	}
+	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return nil, err
+	}
+
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+	t.genesisAccounts = append(t.genesisAccounts, &Account{
+		PubKey:        pk,
+		InitialTokens: tokens,
+	})
+	return kr, nil
 }
 
 func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources) error {
@@ -191,6 +213,17 @@ func (t *Testnet) GRPCEndpoints() []string {
 		grpcEndpoints[idx] = node.AddressGRPC()
 	}
 	return grpcEndpoints
+}
+func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
+	grpcEndpoints := make([]string, len(t.nodes))
+	for idx, node := range t.nodes {
+		grpcEP, err := node.RemoteAddressGRPC()
+		if err != nil {
+			return nil, err
+		}
+		grpcEndpoints[idx] = grpcEP
+	}
+	return grpcEndpoints, nil
 }
 
 func (t *Testnet) Start() error {

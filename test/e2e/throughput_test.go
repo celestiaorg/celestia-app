@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,12 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// const seed = 42
-//
-// var latestVersion = "latest"
-
 func TestE2EThroughput(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
+	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
 		t.Skip("skipping e2e throughput test")
 	}
 
@@ -36,36 +31,43 @@ func TestE2EThroughput(t *testing.T) {
 			t.Fatalf("unrecognised version: %s", latestVersion)
 		}
 	}
+
 	t.Log("Running throughput test", "version", latestVersion)
 
+	// create a new testnet
 	testnet, err := New(t.Name(), seed)
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
+
+	// add 4 validators
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
 		0, Resources{"200Mi", "200Mi", "300m", "200Mi"}))
 
-	// create an account, store it in a temp directory and add the account as genesis account
-	txsimKeyringDir := filepath.Join(os.TempDir(), "txsim")
-	_, err = testnet.CreateTxSimAccount("alice", 1e12, txsimKeyringDir)
+	// obtain the GRPC endpoints of the validators
+	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
+	require.NoError(t, err)
+	t.Log("txsim GRPC endpoint", gRPCEndpoints[0])
+
+	// create a txsim node and points it to the first validator
+	txsimGRPEndPoint := gRPCEndpoints[0]
+	txsimVersion := "65c1a8e" // TODO pull the latest version of txsim if possible
+	err = testnet.CreateAndSetupTxSimNode(
+		"txsim",
+		txsimVersion,
+		seed,
+		1,
+		fmt.Sprintf("%d-%d", 50*1024, 100*1024),
+		3,
+		Resources{"200Mi", "200Mi", "300m", "1Gi"},
+		txsimGRPEndPoint)
 	require.NoError(t, err)
 
 	// start the testnet
 	require.NoError(t, testnet.Setup()) // configs, genesis files, etc.
 	require.NoError(t, testnet.Start())
 
+	// once the testnet is up, start the txsim
 	t.Log("Starting txsim")
-	// TODO pull the latest version if possible
-	// TODO increase blob size range
-	IP, err := testnet.nodes[0].Instance.GetIP()
-	require.NoError(t, err)
-	endpoint := fmt.Sprintf("%s:9090", IP)
-	t.Log("GRPC endpoint", endpoint)
-	err = testnet.SetupTxsimNode("txsim", "65c1a8e",
-		endpoint, seed, 1, fmt.Sprintf("%d-%d", 50*1024, 100*1024), 3,
-		Resources{"200Mi", "200Mi", "300m", "1Gi"},
-		txsimRootDir, txsimKeyringDir)
-	require.NoError(t, err)
-
 	err = testnet.StartTxSimNode()
 	require.NoError(t, err)
 
