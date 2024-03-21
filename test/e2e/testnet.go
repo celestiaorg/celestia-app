@@ -241,7 +241,7 @@ func (t *Testnet) Cleanup() {
 		}
 	}
 	// stop and cleanup txsim
-	if t.txSimNode.Instance != nil {
+	if t.txSimNode.Instance != nil && t.txSimNode.Instance.IsInState(knuu.Started) {
 		err := t.txSimNode.Instance.Stop()
 		if err != nil {
 			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", t.txSimNode.Name))
