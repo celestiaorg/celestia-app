@@ -76,9 +76,8 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	pollTime int,
 	resources Resources,
 	grpcEndpoint string) error {
-	// create an account,
-	//store it in a temp directory and add the account as genesis account to
-	//the testnet
+	// create an account, and store it in a temp directory and add the account as genesis account to
+	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), "txsim")
 	_, err := t.CreateAndAddAccountToGenesis("alice", 1e12, txsimKeyringDir)
 	if err != nil {
