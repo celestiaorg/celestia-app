@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
 
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
@@ -67,7 +67,7 @@ func TestE2EThroughput(t *testing.T) {
 	endpoint := fmt.Sprintf("%s:9090", IP)
 	t.Log("GRPC endpoint", endpoint)
 	err = testnet.SetupTxsimNode("txsim", "65c1a8e",
-		endpoint, seed, 5, fmt.Sprintf("%d-%d", 50*1024, 100*1024), 3,
+		endpoint, seed, 1, fmt.Sprintf("%d-%d", 50*1024, 100*1024), 3,
 		Resources{"200Mi", "200Mi", "300m", "1Gi"},
 		txsimRootDir, txsimKeyringDir)
 	require.NoError(t, err)
@@ -75,7 +75,8 @@ func TestE2EThroughput(t *testing.T) {
 	err = testnet.StartTxSimNode()
 	require.NoError(t, err)
 
-	time.Sleep(3 * time.Minute)
+	// wait some time for the txsim to submit transactions
+	time.Sleep(30 * time.Second)
 
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
@@ -93,7 +94,7 @@ func TestE2EThroughput(t *testing.T) {
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, v1.Version, block.Version.App)
+		require.Equal(t, v2.Version, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
@@ -108,7 +109,7 @@ func throughput(blockchain []*types.Block) ([]float64, []float64, []float64) {
 
 	for _, block := range blockchain[1:] {
 		blockTime := float64(block.Header.Time.Sub(lastBlockTS) / 1e9) // Convert time from nanoseconds to seconds
-		blockSize := float64(block.Size() / (1024 * 1024))             // Convert size from bytes to MiB
+		blockSize := float64(block.Size() / (1024))                    // Convert size from bytes to KiB
 		thput := blockSize / blockTime
 
 		blockTimes = append(blockTimes, blockTime)
