@@ -33,7 +33,6 @@ var strideSpec = &interchaintest.ChainSpec{
 		TrustingPeriod: TrustingPeriod,
 		GasAdjustment:  1.1,
 		ModifyGenesis:  ModifyGenesisStride(),
-		// EncodingConfig: StrideEncoding(),
 	},
 }
 
@@ -134,11 +133,6 @@ type UserRedemptionRecord struct {
 	EpochNumber    string `json:"epochNumber"`
 	ClaimIsPending bool   `json:"claimIsPending"`
 }
-
-// func StrideEncoding() *simappparams.EncodingConfig {
-// 	cfg := cosmos.DefaultEncoding()
-// 	return &cfg
-// }
 
 func ModifyGenesisStride() func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(cfg ibc.ChainConfig, genbz []byte) ([]byte, error) {

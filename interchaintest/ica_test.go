@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/strangelove-ventures/interchaintest/v6"
@@ -58,37 +59,46 @@ func TestICA(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ic.Close() })
 
-	// err = relayer.CreateClients(ctx, reporter, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
-	// require.NoError(t, err)
+	err = relayer.CreateClients(ctx, reporter, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
+	require.NoError(t, err)
 
-	// err = testutil.WaitForBlocks(ctx, 2, celestia, stride)
-	// require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, celestia, stride)
+	require.NoError(t, err)
 
-	// err = relayer.CreateConnections(ctx, reporter, path)
-	// require.NoError(t, err)
+	err = relayer.CreateConnections(ctx, reporter, path)
+	require.NoError(t, err)
 
-	// err = relayer.StartRelayer(ctx, reporter, path)
-	// require.NoError(t, err)
+	err = relayer.StartRelayer(ctx, reporter, path)
+	require.NoError(t, err)
 
-	// err = testutil.WaitForBlocks(ctx, 2, celestia, stride)
-	// require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, celestia, stride)
+	require.NoError(t, err)
 
-	// connections, err := relayer.GetConnections(ctx, reporter, celestia.Config().ChainID)
-	// require.NoError(t, err)
-	// require.Len(t, connections, 1)
+	connections, err := relayer.GetConnections(ctx, reporter, celestia.Config().ChainID)
+	require.NoError(t, err)
+	require.Len(t, connections, 1)
 
-	// connections, err = relayer.GetConnections(ctx, reporter, stride.Config().ChainID)
-	// require.NoError(t, err)
-	// require.Len(t, connections, 1)
+	connections, err = relayer.GetConnections(ctx, reporter, stride.Config().ChainID)
+	require.NoError(t, err)
+	require.Len(t, connections, 1)
 
-	// amount := math.NewIntFromUint64(uint64(10_000_000_000))
-	// users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), amount, celestia, stride)
+	amount := math.NewIntFromUint64(uint64(10_000_000_000))
+	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), amount, celestia, stride)
 
-	// celestiaUser, strideUser := users[0], users[1]
-	// celestiaAddr := celestiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(celestia.Config().Bech32Prefix)
-	// strideAddr := strideUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(stride.Config().Bech32Prefix)
-	// fmt.Printf("celestiaAddr: %s, strideAddr: %v\n", celestiaAddr, strideAddr)
+	celestiaUser, strideUser := users[0], users[1]
+	celestiaAddr := celestiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(celestia.Config().Bech32Prefix)
+	strideAddr := strideUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(stride.Config().Bech32Prefix)
+	fmt.Printf("celestiaAddr: %s, strideAddr: %v\n", celestiaAddr, strideAddr)
 
+	registerICA := []string{
+		"strided", "tx", "interchain-accounts", "controller", "register", connections[0].ID,
+		"--chain-id", stride.Config().ChainID,
+		"--home", stride.HomeDir(),
+		"--node", stride.GetRPCAddress(),
+	}
+	stdout, _, err := stride.Exec(ctx, registerICA, nil)
+	require.NoError(t, err)
+	t.Log(stdout)
 	// version := icatypes.NewDefaultMetadataString(ibctesting.FirstConnectionID, ibctesting.FirstConnectionID)
 	// msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, strideAddr, version)
 	// txResp := BroadcastMessages(t, ctx, celestia, stride, strideUser, msgRegisterInterchainAccount)
@@ -102,17 +112,6 @@ func TestICA(t *testing.T) {
 	// }
 	// _, err = cosmos.PollForMessage(ctx, celestia, cosmos.DefaultEncoding().InterfaceRegistry, celestiaHeight, celestiaHeight+30, isChannelOpen)
 	// require.NoError(t, err)
-
-	// // Query for the newly registered interchain account
-	// queryICA := []string{
-	// 	gaia.Config().Bin, "query", "interchain-accounts", "controller", "interchain-account", gaiaAddr, connections[0].ID,
-	// 	"--chain-id", gaia.Config().ChainID,
-	// 	"--home", gaia.HomeDir(),
-	// 	"--node", gaia.GetRPCAddress(),
-	// }
-	// stdout, _, err := gaia.Exec(ctx, queryICA, nil)
-	// require.NoError(t, err)
-	// t.Log(stdout)
 }
 
 func BroadcastMessages(t *testing.T, ctx context.Context, celestia ibc.Chain, gaia ibc.Chain, user ibc.Wallet, msgs ...sdk.Msg) sdk.TxResponse {
