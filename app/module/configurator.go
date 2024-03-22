@@ -79,7 +79,6 @@ func (c VersionedConfigurator) QueryServer() pbgrpc.Server {
 
 // RegisterMigration implements the Configurator.RegisterMigration method
 func (c VersionedConfigurator) RegisterMigration(moduleName string, fromVersion uint64, handler module.MigrationHandler) error {
-	fmt.Printf("registering migration for module %s from version %d\n", moduleName, fromVersion)
 	if fromVersion == 0 {
 		return sdkerrors.ErrInvalidVersion.Wrap("module migration versions should start at 1")
 	}
@@ -89,9 +88,6 @@ func (c VersionedConfigurator) RegisterMigration(moduleName string, fromVersion 
 	}
 
 	if c.migrations[moduleName][fromVersion] != nil {
-		fmt.Printf("moduleName: %v\n", moduleName)
-		fmt.Printf("fromVersion: %v\n", fromVersion)
-		fmt.Printf("c.migrations[moduleName][fromVersion]: %#v\n", c.migrations[moduleName][fromVersion])
 		return sdkerrors.ErrLogic.Wrapf("another migration for module %s and version %d already exists", moduleName, fromVersion)
 	}
 
