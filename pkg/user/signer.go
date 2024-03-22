@@ -21,6 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 )
 
@@ -164,7 +165,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := s.broadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
@@ -178,14 +179,7 @@ func (s *Signer) broadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, op
 		return nil, err
 	}
 
-	resp, err := s.broadcastTx(ctx, txBytes, seqNum)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
-	}
-	return resp, nil
+	return s.broadcastTx(ctx, txBytes, seqNum)
 }
 
 // CreateTx forms a transaction from the provided messages and signs it. TxOptions may be optionally
@@ -305,9 +299,12 @@ func (s *Signer) broadcastTx(ctx context.Context, txBytes []byte, sequence uint6
 		s.localSequence = nextSequence
 		return s.retryBroadcastingTx(ctx, txBytes, nextSequence)
 	}
-	s.outboundSequences[sequence] = struct{}{}
-	s.reverseTxHashSequenceMap[resp.TxResponse.TxHash] = sequence
-	return resp.TxResponse, nil
+	if resp.TxResponse.Code == abci.CodeTypeOK {
+		s.outboundSequences[sequence] = struct{}{}
+		s.reverseTxHashSequenceMap[resp.TxResponse.TxHash] = sequence
+		return resp.TxResponse, nil
+	}
+	return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 }
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
@@ -375,7 +372,7 @@ func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResp
 		if err == nil {
 			if resp.TxResponse.Code != 0 {
 				s.updateNetworkSequence(txHash, false)
-				return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 			}
 			s.updateNetworkSequence(txHash, true)
 			return resp.TxResponse, nil

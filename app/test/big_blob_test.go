@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
@@ -79,8 +80,8 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 		s.Run(tc.name, func() {
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()
-			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimit(1e9), user.SetFee(2000000))
-			require.NoError(t, err)
+			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimitAndFee(1e9, appconsts.DefaultGlobalMinGasPrice))
+			require.Error(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.want, res.Code, res.Logs)
 		})
