@@ -261,6 +261,7 @@ func (t *Testnet) Start() error {
 }
 
 func (t *Testnet) Cleanup() {
+	fmt.Println("Clean up started...	")
 	for _, node := range t.nodes {
 		if node.Instance.IsInState(knuu.Started) {
 			if err := node.Instance.Stop(); err != nil {

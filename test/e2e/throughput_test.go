@@ -48,6 +48,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("txsim GRPC endpoint", gRPCEndpoints[0])
 
+	t.Log("Creating txsim node")
 	// create a txsim node and points it to the first validator
 	txsimGRPEndPoint := gRPCEndpoints[0]
 	txsimVersion := "65c1a8e" // TODO pull the latest version of txsim if possible
@@ -63,7 +64,9 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// start the testnet
+	t.Log("Setting up testnet")
 	require.NoError(t, testnet.Setup()) // configs, genesis files, etc.
+	t.Log("Starting testnet")
 	require.NoError(t, testnet.Start())
 
 	// once the testnet is up, start the txsim
@@ -74,6 +77,7 @@ func TestE2EThroughput(t *testing.T) {
 	// wait some time for the txsim to submit transactions
 	time.Sleep(30 * time.Second)
 
+	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
 
