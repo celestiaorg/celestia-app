@@ -131,7 +131,7 @@ var (
 		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		minfee.AppModuleBasic{},
-		ica.AppModuleBasic{},
+		icaModule{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -588,6 +588,8 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	// TODO: register a migration to set the icahost params
+	// app.configurator.RegisterMigration(icatypes.ModuleName, v1, icaMigrationWrapper(app.ICAHostKeeper))
 	app.mm.RegisterServices(app.configurator)
 
 	// extract the accepted message list from the configurator and create a gatekeeper
@@ -625,6 +627,17 @@ func New(
 	}
 
 	return app
+}
+
+func icaMigrationWrapper(keeper icahostkeeper.Keeper) sdkmodule.MigrationHandler {
+	return func(ctx sdk.Context) error {
+		params := icahosttypes.Params{
+			HostEnabled:   true,
+			AllowMessages: icaAllowMessages(),
+		}
+		keeper.SetParams(ctx, params)
+		return nil
+	}
 }
 
 // Name returns the name of the App
