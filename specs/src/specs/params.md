@@ -66,5 +66,4 @@ are blocked by the `x/paramfilter` module.
 | staking.MinCommissionRate                     | 0.05 (5%)                                   | Minimum commission rate used by all validators.                                                                                                                                                 | True                      |
 | staking.UnbondingTime                         | 1814400 (21 days)                           | Duration of time for unbonding in seconds.                                                                                                                                                      | False                     |
 
-
 Note: none of the mint module parameters are governance modifiable because they have been converted into hardcoded constants. See the x/mint README.md for more details.

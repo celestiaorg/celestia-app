@@ -627,17 +627,6 @@ func New(
 	return app
 }
 
-func icaMigrationWrapper(keeper icahostkeeper.Keeper) sdkmodule.MigrationHandler {
-	return func(ctx sdk.Context) error {
-		params := icahosttypes.Params{
-			HostEnabled:   true,
-			AllowMessages: icaAllowMessages(),
-		}
-		keeper.SetParams(ctx, params)
-		return nil
-	}
-}
-
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
 
