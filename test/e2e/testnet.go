@@ -20,7 +20,7 @@ type Testnet struct {
 	nodes           []*Node
 	genesisAccounts []*Account
 	keygen          *keyGenerator
-	txSimNode       *TxSim
+	txSimNodes      []*TxSim
 }
 
 func New(name string, seed int64) (*Testnet, error) {
@@ -52,6 +52,23 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64, resources Resources) error {
 	for i := 0; i < num; i++ {
 		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *Testnet) CreateAndSetupTxSimNodes(version string,
+	seed int,
+	sequences int,
+	blobRange string,
+	pollTime int,
+	resources Resources,
+	grpcEndpoints []string) error {
+	for i, grpcEndpoint := range grpcEndpoints {
+		name := fmt.Sprintf("txsim%d", i)
+		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences, blobRange, pollTime, resources, grpcEndpoint)
+		if err != nil {
 			return err
 		}
 	}
@@ -101,16 +118,22 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 		return err
 	}
 
-	t.txSimNode = txsim
+	t.txSimNodes = append(t.txSimNodes, txsim)
 	return nil
 }
 
-func (t *Testnet) StartTxSimNode() error {
-	err := t.txSimNode.Instance.Start()
-	if err != nil {
-		return err
+func (t *Testnet) StartTxSimNodes() error {
+	for _, txsim := range t.txSimNodes {
+		err := txsim.Instance.Start()
+		if err != nil {
+			return err
+		}
+		err = txsim.Instance.WaitInstanceIsRunning()
+		if err != nil {
+			return err
+		}
 	}
-	return t.txSimNode.Instance.WaitInstanceIsRunning()
+	return nil
 }
 
 // CreateAndAddAccountToGenesis creates an account and adds it to the
@@ -275,16 +298,19 @@ func (t *Testnet) Cleanup() {
 		}
 	}
 	// stop and cleanup txsim
-	if t.txSimNode.Instance != nil && t.txSimNode.Instance.IsInState(knuu.Started) {
-		err := t.txSimNode.Instance.Stop()
-		if err != nil {
-			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", t.txSimNode.Name))
-		}
-		err = t.txSimNode.Instance.Destroy()
-		if err != nil {
-			log.Err(err).Msg(fmt.Sprintf("txsim %s failed to cleanup", t.txSimNode.Name))
+	for _, txsim := range t.txSimNodes {
+		if txsim.Instance.IsInState(knuu.Started) {
+			err := txsim.Instance.Stop()
+			if err != nil {
+				log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", txsim.Name))
+			}
+			err = txsim.Instance.Destroy()
+			if err != nil {
+				log.Err(err).Msg(fmt.Sprintf("txsim %s failed to cleanup", txsim.Name))
+			}
 		}
 	}
+
 }
 
 func (t *Testnet) Node(i int) *Node {

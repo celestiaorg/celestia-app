@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -52,21 +51,13 @@ func TestE2EThroughput(t *testing.T) {
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
 	require.NoError(t, err)
-	t.Log("txsim GRPC endpoint", gRPCEndpoints[0])
+	t.Log("txsim GRPC endpoint", gRPCEndpoints)
 
-	t.Log("Creating txsim node")
-	// create a txsim node and points it to the first validator
-	txsimGRPEndPoint := gRPCEndpoints[0]
+	t.Log("Creating txsim nodes")
+	// create txsim nodes and point them to the validators
 	txsimVersion := "65c1a8e" // TODO pull the latest version of txsim if possible
-	err = testnet.CreateAndSetupTxSimNode(
-		"txsim0",
-		txsimVersion,
-		seed,
-		3,
-		fmt.Sprintf("%d-%d", 50*1024, 100*1024),
-		3,
-		Resources{"200Mi", "200Mi", "300m", "1Gi"},
-		txsimGRPEndPoint)
+
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1, "50000-100000", 3, Resources{"200Mi", "200Mi", "300m", "1Gi"}, gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
@@ -77,7 +68,7 @@ func TestE2EThroughput(t *testing.T) {
 
 	// once the testnet is up, start the txsim
 	t.Log("Starting txsim")
-	err = testnet.StartTxSimNode()
+	err = testnet.StartTxSimNodes()
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
