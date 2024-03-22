@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/client/tx"
+	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	controllertypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
@@ -34,7 +34,7 @@ func TestICA(t *testing.T) {
 	}
 
 	client, network := interchaintest.DockerSetup(t)
-	celestia, gaia := getChains(t)
+	celestia, stride := getChains(t)
 
 	relayer := interchaintest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
@@ -43,11 +43,11 @@ func TestICA(t *testing.T) {
 	).Build(t, client, network)
 	ic := interchaintest.NewInterchain().
 		AddChain(celestia).
-		AddChain(gaia).
+		AddChain(stride).
 		AddRelayer(relayer, relayerName).
 		AddLink(interchaintest.InterchainLink{
 			Chain1:  celestia,
-			Chain2:  gaia,
+			Chain2:  stride,
 			Relayer: relayer,
 			Path:    path,
 		})
@@ -65,7 +65,7 @@ func TestICA(t *testing.T) {
 	err = relayer.CreateClients(ctx, reporter, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
 	require.NoError(t, err)
 
-	err = testutil.WaitForBlocks(ctx, 2, celestia, gaia)
+	err = testutil.WaitForBlocks(ctx, 2, celestia, stride)
 	require.NoError(t, err)
 
 	err = relayer.CreateConnections(ctx, reporter, path)
@@ -74,28 +74,28 @@ func TestICA(t *testing.T) {
 	err = relayer.StartRelayer(ctx, reporter, path)
 	require.NoError(t, err)
 
-	err = testutil.WaitForBlocks(ctx, 2, celestia, gaia)
+	err = testutil.WaitForBlocks(ctx, 2, celestia, stride)
 	require.NoError(t, err)
 
 	connections, err := relayer.GetConnections(ctx, reporter, celestia.Config().ChainID)
 	require.NoError(t, err)
 	require.Len(t, connections, 1)
 
-	connections, err = relayer.GetConnections(ctx, reporter, gaia.Config().ChainID)
+	connections, err = relayer.GetConnections(ctx, reporter, stride.Config().ChainID)
 	require.NoError(t, err)
 	require.Len(t, connections, 1)
 
 	amount := math.NewIntFromUint64(uint64(10_000_000_000))
-	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), amount, celestia, gaia)
+	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), amount, celestia, stride)
 
-	celestiaUser, gaiaUser := users[0], users[1]
+	celestiaUser, strideUser := users[0], users[1]
 	celestiaAddr := celestiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(celestia.Config().Bech32Prefix)
-	gaiaAddr := gaiaUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(gaia.Config().Bech32Prefix)
-	fmt.Printf("celestiaAddr: %s, gaiaAddr: %v\n", celestiaAddr, gaiaAddr)
+	strideAddr := strideUser.(*cosmos.CosmosWallet).FormattedAddressWithPrefix(stride.Config().Bech32Prefix)
+	fmt.Printf("celestiaAddr: %s, strideAddr: %v\n", celestiaAddr, strideAddr)
 
 	version := icatypes.NewDefaultMetadataString(ibctesting.FirstConnectionID, ibctesting.FirstConnectionID)
-	msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, gaiaAddr, version)
-	txResp := BroadcastMessages(t, ctx, celestia, gaia, gaiaUser, msgRegisterInterchainAccount)
+	msgRegisterInterchainAccount := controllertypes.NewMsgRegisterInterchainAccount(ibctesting.FirstConnectionID, strideAddr, version)
+	txResp := BroadcastMessages(t, ctx, celestia, stride, strideUser, msgRegisterInterchainAccount)
 	fmt.Printf("txResp %v\n", txResp)
 
 	// celestiaHeight, err := celestia.Height(ctx)
@@ -124,8 +124,17 @@ func BroadcastMessages(t *testing.T, ctx context.Context, celestia ibc.Chain, ga
 	require.True(t, ok, "BroadcastMessages expects a cosmos.CosmosChain")
 
 	broadcaster := cosmos.NewBroadcaster(t, cosmosChain)
-	broadcaster.ConfigureFactoryOptions(func(factory tx.Factory) tx.Factory {
-		return factory.WithGas(DefaultGasValue)
+	// broadcaster.ConfigureFactoryOptions(func(factory tx.Factory) tx.Factory {
+	// 	return factory.WithGas(DefaultGasValue)
+	// })
+
+	broadcaster.ConfigureClientContextOptions(func(clientContext client.Context) client.Context {
+		// use a codec with all the types our tests care about registered.
+		// BroadcastTx will deserialize the response and will not be able to otherwise.
+		cdc := cosmosChain.Config().EncodingConfig.Codec
+		fmt.Printf("cdc %#v\n", cdc)
+		// cosmosChain.Config().EncodingConfig.TxConfig
+		return clientContext.WithCodec(cdc)
 	})
 	// broadcaster.ConfigureClientContextOptions(func(clientContext client.Context) client.Context {
 	// 	// use a codec with all the types our tests care about registered.
