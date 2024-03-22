@@ -28,6 +28,9 @@ func TestNew(t *testing.T) {
 	t.Run("initializes ScopedICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ScopedICAHostKeeper)
 	})
+	t.Run("registers a v1 -> v2 migration for the ICA module", func(t *testing.T) {
+		// TODO
+	})
 }
 
 // NoopWriter is a no-op implementation of a writer.

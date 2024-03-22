@@ -56,6 +56,11 @@ func TestModuleManagerMigration(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+	// err = cfg.RegisterMigration("differentModule", 1, func(_ sdk.Context) error {
+	// 	isCalled = true
+	// 	return nil
+	// })
+	// require.NoError(t, err)
 
 	err = mm.RunMigrations(sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger()), cfg, 1, 2)
 	require.NoError(t, err)
