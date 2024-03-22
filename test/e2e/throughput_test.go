@@ -72,7 +72,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(30 * time.Second)
+	time.Sleep(1 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
