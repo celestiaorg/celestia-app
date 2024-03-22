@@ -45,7 +45,7 @@ func TestE2EThroughput(t *testing.T) {
 	t.Cleanup(testnet.Cleanup)
 
 	// add 4 validators
-	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
+	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,
 		0, Resources{"200Mi", "200Mi", "300m", "200Mi"}))
 
 	// obtain the GRPC endpoints of the validators
