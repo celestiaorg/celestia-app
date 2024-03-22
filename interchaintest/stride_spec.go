@@ -23,7 +23,7 @@ var strideSpec = &interchaintest.ChainSpec{
 			Repository: "ghcr.io/strangelove-ventures/heighliner/stride",
 			// TODO: Update this to the latest version
 			// See https://github.com/cosmos/relayer/issues/1432
-			Version: "andrew-test_admin_v5.1.1",
+			Version: "v19.0.0",
 			UidGid:  "1025:1025",
 		}},
 		Bin:            "strided",
@@ -165,12 +165,12 @@ func ModifyGenesisStride() func(ibc.ChainConfig, []byte) ([]byte, error) {
 		if err := dyno.Set(g, IntervalLen, "app_state", "stakeibc", "params", "reinvest_interval"); err != nil {
 			return nil, err
 		}
-		if err := dyno.Set(g, VotingPeriod, "app_state", "gov", "voting_params", "voting_period"); err != nil {
-			return nil, fmt.Errorf("failed to set voting period in genesis json: %w", err)
-		}
-		if err := dyno.Set(g, MaxDepositPeriod, "app_state", "gov", "deposit_params", "max_deposit_period"); err != nil {
-			return nil, fmt.Errorf("failed to set voting period in genesis json: %w", err)
-		}
+		// if err := dyno.Set(g, VotingPeriod, "app_state", "gov", "voting_params", "voting_period"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set voting period in genesis json: %w", err)
+		// }
+		// if err := dyno.Set(g, MaxDepositPeriod, "app_state", "gov", "deposit_params", "max_deposit_period"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set max deposit period in genesis json: %w", err)
+		// }
 
 		out, err := json.Marshal(g)
 		if err != nil {
