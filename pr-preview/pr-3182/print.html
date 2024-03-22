@@ -584,7 +584,7 @@ For additional information on the significance and application of the reserved n
 </div>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <p>Applications MUST refrain from using the <a href="specs/namespace.html#reserved-namespaces">reserved namespaces</a> for their blob data.</p>
-<p>Celestia does not ensure the prevention of non-reserved namespace collisions. 
+<p>Celestia does not ensure the prevention of non-reserved namespace collisions.
 Consequently, two distinct applications might use the same namespace.
 It is the responsibility of these applications to be cautious and manage the implications and consequences arising from such namespace collisions.
 Among the potential consequences is the <em>Woods Attack</em>, as elaborated in this forum post: <a href="https://forum.celestia.org/t/woods-attack-on-celestia/59">Woods Attack on Celestia</a>.</p>
@@ -1957,6 +1957,7 @@ the cost of the blob.</p>
 <ul>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md">blob</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/blobstream/README.md">blobstream</a></li>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md">minfee</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md">mint</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md">paramfilter</a></li>
 <li><a href="https://github.com/celestiaorg/celestia-app/blob/main/x/upgrade/README.md">upgrade</a></li>
@@ -2027,6 +2028,7 @@ are blocked by the <code>x/paramfilter</code> module.</p>
 <tr><td>ibc.ConnectionGenesis.MaxExpectedTimePerBlock</td><td>7500000000000 (75 seconds)</td><td>Maximum expected time per block in nanoseconds under normal operation.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.ReceiveEnabled</td><td>true</td><td>Enable receiving tokens via IBC.</td><td>True</td></tr>
 <tr><td>ibc.Transfer.SendEnabled</td><td>true</td><td>Enable sending tokens via IBC.</td><td>True</td></tr>
+<tr><td>minfee.GlobalMinGasPrice</td><td>0.002</td><td>All transactions must have a gas price greater than or equal to this value.</td><td>True</td></tr>
 <tr><td>mint.BondDenom</td><td>utia</td><td>Denomination that is inflated and sent to the distribution module account.</td><td>False</td></tr>
 <tr><td>mint.DisinflationRate</td><td>0.10 (10%)</td><td>The rate at which the inflation rate decreases each year.</td><td>False</td></tr>
 <tr><td>mint.InitialInflationRate</td><td>0.08 (8%)</td><td>The inflation rate the network starts at.</td><td>False</td></tr>
