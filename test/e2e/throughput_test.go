@@ -67,7 +67,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, testnet.Start())
 
 	// once the testnet is up, start the txsim
-	t.Log("Starting txsim")
+	t.Log("Starting txsim nodes")
 	err = testnet.StartTxSimNodes()
 	require.NoError(t, err)
 
