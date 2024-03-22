@@ -94,7 +94,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:           "valid untouched data",
 			input:          validData(),
-			mutator:        func(d *tmproto.Data) {},
+			mutator:        func(_ *tmproto.Data) {},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
