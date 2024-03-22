@@ -7,6 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	ibcante "github.com/cosmos/ibc-go/v6/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
 )
@@ -19,6 +20,7 @@ func NewAnteHandler(
 	signModeHandler signing.SignModeHandler,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
+	paramKeeper paramkeeper.Keeper,
 	msgVersioningGateKeeper *MsgVersioningGateKeeper,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
@@ -43,7 +45,7 @@ func NewAnteHandler(
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, CheckTxFeeWithGlobalMinGasPrices),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
@@ -75,3 +77,11 @@ func NewAnteHandler(
 }
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
+
+// The purpose of this wrapper is to enable the passing of an additional paramKeeper parameter
+// whilst still satisfying the ante.TxFeeChecker type.
+func ValidateTxFeeWrapper(paramKeeper paramkeeper.Keeper) ante.TxFeeChecker {
+	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+		return ValidateTxFee(ctx, tx, paramKeeper)
+	}
+}

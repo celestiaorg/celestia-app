@@ -19,6 +19,7 @@ const (
 	rpcPort       = 26657
 	p2pPort       = 26656
 	grpcPort      = 9090
+	metricsPort   = 26660
 	dockerSrcURL  = "ghcr.io/celestiaorg/celestia-app"
 	secp256k1Type = "secp256k1"
 	ed25519Type   = "ed25519"
@@ -62,6 +63,9 @@ func NewNode(
 		return nil, err
 	}
 	if err := instance.AddPortTCP(grpcPort); err != nil {
+		return nil, err
+	}
+	if err := instance.AddPortUDP(metricsPort); err != nil {
 		return nil, err
 	}
 	err = instance.SetMemory("200Mi", "200Mi")

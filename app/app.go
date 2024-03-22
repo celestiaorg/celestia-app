@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/module"
 	"github.com/celestiaorg/celestia-app/app/posthandler"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
@@ -129,6 +130,7 @@ var (
 		blob.AppModuleBasic{},
 		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
+		minfee.AppModuleBasic{},
 		ica.AppModuleBasic{},
 	)
 
@@ -485,6 +487,10 @@ func New(
 			FromVersion: v2, ToVersion: v2,
 		},
 		{
+			Module:      minfee.NewAppModule(app.ParamsKeeper),
+			FromVersion: v2, ToVersion: v2,
+		},
+		{
 			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
@@ -518,6 +524,7 @@ func New(
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
+		minfee.ModuleName,
 		icatypes.ModuleName,
 	)
 
@@ -542,6 +549,7 @@ func New(
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
+		minfee.ModuleName,
 		icatypes.ModuleName,
 	)
 
@@ -550,6 +558,8 @@ func New(
 	// NOTE: Capability module must occur first so that it can initialize any capabilities
 	// so that other modules that want to create or claim capabilities afterwards in InitChain
 	// can do so safely.
+	// NOTE: The minfee module must occur before genutil so DeliverTx can
+	// successfully pass the fee checking logic
 	app.mm.SetOrderInitGenesis(
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
@@ -561,6 +571,7 @@ func New(
 		minttypes.ModuleName,
 		crisistypes.ModuleName,
 		ibchost.ModuleName,
+		minfee.ModuleName,
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
@@ -604,6 +615,7 @@ func New(
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	))
 	app.SetPostHandler(posthandler.New())
@@ -837,6 +849,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
+	paramsKeeper.Subspace(minfee.ModuleName)
 
 	return paramsKeeper
 }
