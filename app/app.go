@@ -340,9 +340,7 @@ func New(
 		appCodec,
 		keys[icahosttypes.StoreKey],
 		app.GetSubspace(icahosttypes.SubModuleName),
-		// TODO: when we add ICS-29 relayer incentivization, we likely need to
-		// replace the next argument.
-		app.IBCKeeper.ChannelKeeper,
+		app.IBCKeeper.ChannelKeeper, // ICS4Wrapper
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		app.AccountKeeper,
