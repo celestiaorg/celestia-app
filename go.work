@@ -2,6 +2,5 @@ go 1.22.1
 
 use (
 	.
-	./interchaintest
 	./test/testground
 )

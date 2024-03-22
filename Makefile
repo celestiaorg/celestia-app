@@ -6,7 +6,6 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
-GH_COMMIT := $(shell git rev-parse --short HEAD)
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app
 GOLANG_CROSS_VERSION  ?= v1.22.1
@@ -46,8 +45,6 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"
 	@(cd ./test/testground && go mod tidy)
-	@echo "--> Updating go.mod in ./interchaintest"
-	@(cd ./interchaintest && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -88,14 +85,14 @@ build-docker:
 
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
-	@echo "--> Building Docker image at commit $(GH_COMMIT)"
+	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT) -f Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
-	@echo "--> Publishing Docker image with commit $(GH_COMMIT)"
+	@echo "--> Publishing Docker image"
 	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT)
 .PHONY: publish-ghcr-docker
 
@@ -164,16 +161,9 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
-## test-fuzz: Run all fuzz tests.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
-
-## test-ic: Run interchain tests in verbose mode. Requires Docker.
-test-ic:
-	@echo "--> Running interchain tests"
-	@go test ./interchaintest -v
-.PHONY: test-ic
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
