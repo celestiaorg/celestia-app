@@ -12,7 +12,7 @@
 
 ## 🐳 Docker setup
 
-This documentation provides a step by step guide on how to start up a celestia
+This documentation provides a step-by-step guide on how to start up a celestia
 app using a docker image. Docker provides a seamless setup for celestia-app
 in an isolated environment on your machine. With Docker,
 you do not have to worry about the manual configuration of the required
