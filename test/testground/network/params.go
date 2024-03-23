@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	gorun "runtime"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	testgroundconsts "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
@@ -23,8 +21,6 @@ import (
 
 func init() {
 	consensus.UseWAL = false
-	gorun.SetMutexProfileFraction(2)
-	gorun.SetCPUProfileRate(1)
 }
 
 const (
