@@ -1,10 +1,5 @@
 # Celestia `txsim` Docker Image Usage Guide
 
----
-Sidebar_label: Docker images
-Description: Running Celestia-App using Docker.
----
-
 ## Table of Contents
 
   1. [Docker Setup](#docker-setup)
