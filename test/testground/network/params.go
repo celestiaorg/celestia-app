@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	gorun "runtime"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	testgroundconsts "github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
@@ -23,8 +21,6 @@ import (
 
 func init() {
 	consensus.UseWAL = false
-	gorun.SetMutexProfileFraction(2)
-	gorun.SetCPUProfileRate(1)
 }
 
 const (
@@ -87,7 +83,7 @@ func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
 		URL:   "http://51.158.232.250:8086",
-		Token: "vTSBjYYO06Boxsb4tD27j3eBg5HQeOBjs3VIYCZe4TMD_AGTyeKCFrbZTNMpKZQ9LpdBgOSZZ9jgNVPPMODDWw==",
+		Token: "qT-Qiun-R0CCX3NyVnTPrAynSfoWKRt3zrL8C2PIJBoaaTEZEzOVpxPwsgp9zynFELcKP9Cc5zdItU67I_mcMg==",
 	}
 }
 
