@@ -137,7 +137,7 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 		// Trace all data from these nodes, and keep track of which nodes are tracing.
 		tracingNodes := make(map[int]string)
 		for i := 0; i < tparams.Nodes; i++ {
-			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.RoundStateTable, schema.BlockPartsTable, schema.HasBlockPartTable}, ",")
+			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.RoundStateTable, schema.BlockPartsTable, schema.HasBlockPartTable, schema.BlockTable}, ",")
 			tracingNodes[i] = nodes[i].PeerID
 		}
 

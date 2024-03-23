@@ -86,7 +86,7 @@ func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
 		URL:   "http://51.158.232.250:8086",
-		Token: "vTSBjYYO06Boxsb4tD27j3eBg5HQeOBjs3VIYCZe4TMD_AGTyeKCFrbZTNMpKZQ9LpdBgOSZZ9jgNVPPMODDWw==",
+		Token: "xGI8ADk57PGEufFl23V1WqlQOE8G1vXbQP2GmyumImDF4b7d737RnzIEXKNQCJF-ZMF-ZVoRp-ouqKZfbY1uIw==",
 	}
 }
 
@@ -183,7 +183,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
-	cmtcfg.Consensus.PeerGossipIntraloopSleepDuration = 300 * time.Millisecond
+	cmtcfg.Consensus.PeerGossipIntraloopSleepDuration = 200 * time.Millisecond
 	return cmtcfg
 }
 
