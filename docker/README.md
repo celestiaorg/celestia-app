@@ -3,11 +3,11 @@
 ## Table of Contents
 
   1. [Docker Setup](#docker-setup)
-  2. [Overview of celestia-app txsim](#overview-of-celestial-app-txsim)
+  2. [Overview of celestia-app txsim](#overview-of-celestia-app-txsim)
   3. [Prerequisites](#prerequisites)
   4. [Quick-Start](#quick-start)
   5. [Docker Compose](#docker-compose)
-  6. [Kubernetes Deployments](#kubernetes-deployments)
+  6. [Kubernetes Deployments](#kubernetes-deployment)
   7. [Flag Breakdown](#flag-breakdown)
 
 ## 🐳 Docker setup
@@ -18,7 +18,7 @@ in an isolated environment on your machine. With Docker,
 you do not have to worry about the manual configuration of the required
 dependencies, which can be a pain.
 
-## Overview of celestia-app txsim
+## Overview of celestia app txsim
 
 The celestia-app `txsim` binary is a tool that can be
 used to simulate transactions on the Celestia network.
