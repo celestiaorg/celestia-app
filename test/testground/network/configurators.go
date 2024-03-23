@@ -160,7 +160,6 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 func ProfilingConfigurator() Configurator {
 	return func(nodes []RoleConfig) ([]RoleConfig, error) {
 		nodes[len(nodes)-2].CmtConfig.Instrumentation.Prometheus = true
-		nodes[len(nodes)-3].CmtConfig.Instrumentation.Prometheus = true
 		return nodes, nil
 	}
 }
