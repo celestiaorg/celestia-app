@@ -128,7 +128,6 @@ func TestMinorVersionCompatibility(t *testing.T) {
 }
 
 func TestMajorUpgradeToV2(t *testing.T) {
-	t.Skip()
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}

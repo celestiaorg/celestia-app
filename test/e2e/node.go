@@ -66,19 +66,20 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-	if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "1m"); err != nil {
-		return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
-	}
-	if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
-		return nil, fmt.Errorf("error setting jaeger endpoint: %v", err)
-	}
 	if grafana != nil {
+		// add support for metrics
+		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "1m"); err != nil {
+			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
+		}
+		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
+			return nil, fmt.Errorf("error setting jaeger endpoint: %v", err)
+		}
 		if err := instance.SetOtlpExporter(grafana.Endpoint, grafana.Username, grafana.Token); err != nil {
 			return nil, fmt.Errorf("error setting otlp exporter: %v", err)
 		}
-	}
-	if err := instance.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
-		return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
+		if err := instance.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
+			return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
+		}
 	}
 	err = instance.SetMemory("200Mi", "200Mi")
 	if err != nil {
