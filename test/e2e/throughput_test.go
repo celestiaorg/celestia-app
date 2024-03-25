@@ -46,20 +46,20 @@ func TestE2EThroughput(t *testing.T) {
 
 	// add 4 validators
 	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,
-		0, Resources{"200Mi", "200Mi", "300m", "200Mi"}))
+		0, defaultResources))
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
 	require.NoError(t, err)
-	t.Log("txsim GRPC endpoint", gRPCEndpoints)
+	t.Log("txsim GRPC endpoint", gRPCEndpoints[:1])
 
 	t.Log("Creating txsim nodes")
 	// create txsim nodes and point them to the validators
 	txsimVersion := "cf79f55" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1,
-		"50000-100000", 3, Resources{"1Gi", "1Gi", "2", "1Gi"},
-		gRPCEndpoints)
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 4,
+		"5000-100000", 3, defaultResources,
+		gRPCEndpoints[:1])
 	require.NoError(t, err)
 
 	// start the testnet
