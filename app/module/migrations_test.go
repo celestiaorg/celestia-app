@@ -51,7 +51,7 @@ func TestModuleManagerMigration(t *testing.T) {
 
 	isCalled := false
 	cfg := module.NewConfigurator(cdc.Codec, mockServer, mockServer)
-	err = cfg.RegisterMigration("testModule", 1, func(ctx sdk.Context) error {
+	err = cfg.RegisterMigration("testModule", 1, func(_ sdk.Context) error {
 		isCalled = true
 		return nil
 	})
