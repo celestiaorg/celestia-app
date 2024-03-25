@@ -151,10 +151,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 
 	resp, err := s.BroadcastTx(ctx, tx)
 	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
+		return resp, err
 	}
 
 	return s.ConfirmTx(ctx, resp.TxHash)
