@@ -96,7 +96,7 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	// create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
-	_, err := t.CreateAndAddAccountToGenesis(name, 1e12, txsimKeyringDir)
+	_, err := t.CreateAndAddAccountToGenesis(name, 1e16, txsimKeyringDir)
 	if err != nil {
 		return err
 	}
