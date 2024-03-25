@@ -174,10 +174,16 @@ func (t *Testnet) Cleanup() {
 				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
 				continue
 			}
+			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
+				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
+				continue
+			}
 		}
-		err := node.Instance.Destroy()
-		if err != nil {
-			log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
+			err := node.Instance.Destroy()
+			if err != nil {
+				log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+			}
 		}
 	}
 }

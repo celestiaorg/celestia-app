@@ -70,15 +70,15 @@ func NewNode(
 		return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
 	}
 	if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
-		return nil, fmt.Errorf("Error setting jaeger endpoint: %v", err)
+		return nil, fmt.Errorf("error setting jaeger endpoint: %v", err)
 	}
 	if grafana != nil {
 		if err := instance.SetOtlpExporter(grafana.Endpoint, grafana.Username, grafana.Token); err != nil {
-			return nil, fmt.Errorf("Error setting otlp exporter: %v", err)
+			return nil, fmt.Errorf("error setting otlp exporter: %v", err)
 		}
 	}
 	if err := instance.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
-		return nil, fmt.Errorf("Error setting jaeger exporter: %v", err)
+		return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
 	}
 	err = instance.SetMemory("200Mi", "200Mi")
 	if err != nil {
