@@ -83,7 +83,7 @@ func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
 		URL:   "http://51.158.232.250:8086",
-		Token: "qT-Qiun-R0CCX3NyVnTPrAynSfoWKRt3zrL8C2PIJBoaaTEZEzOVpxPwsgp9zynFELcKP9Cc5zdItU67I_mcMg==",
+		Token: "SgmlSaqxiR6ZTmBhyR5E0C9Nf_x35AoxeLyn4NE5jYBlMFIPDHmNBE_levqq4UBnjfoJXXYYxkha7F3GUWki9w==",
 	}
 }
 
@@ -174,6 +174,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Consensus.TimeoutCommit = params.TimeoutCommit
 	cmtcfg.Consensus.TimeoutPropose = params.TimeoutPropose
 	cmtcfg.TxIndex.Indexer = "kv"
+	cmtcfg.Mempool.Broadcast = params.BroadcastTxs
 	cmtcfg.Mempool.Version = params.Mempool
 	cmtcfg.Mempool.MaxTxsBytes = 1_000_000_000
 	cmtcfg.Mempool.MaxTxBytes = 1_000_000_000

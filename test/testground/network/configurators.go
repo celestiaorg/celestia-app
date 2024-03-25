@@ -131,13 +131,13 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 			nodes[i].CmtConfig.Instrumentation.InfluxBatchSize = 200
 			nodes[i].CmtConfig.Instrumentation.InfluxURL = tparams.URL
 			nodes[i].CmtConfig.Instrumentation.InfluxToken = tparams.Token
-			nodes[i].CmtConfig.Instrumentation.InfluxTables = schema.RoundStateTable
+			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.MempoolTxTable, schema.MempoolPeerStateTable, schema.MempoolRejectedTable, schema.RoundStateTable}, ",")
 		}
 
 		// Trace all data from these nodes, and keep track of which nodes are tracing.
 		tracingNodes := make(map[int]string)
 		for i := 0; i < tparams.Nodes; i++ {
-			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join(schema.AllTables(), ",")
+			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.MempoolTxTable, schema.MempoolPeerStateTable, schema.MempoolRejectedTable, schema.RoundStateTable, schema.BlockTable}, ",")
 			tracingNodes[i] = nodes[i].PeerID
 		}
 
