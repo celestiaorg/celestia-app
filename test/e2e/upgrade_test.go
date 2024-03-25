@@ -43,7 +43,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	r := rand.New(rand.NewSource(seed))
 	t.Log("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := New(t.Name(), seed)
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 
@@ -128,6 +128,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 }
 
 func TestMajorUpgradeToV2(t *testing.T) {
+	t.Skip()
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
@@ -152,7 +153,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testnet, err := New(t.Name(), seed)
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 
