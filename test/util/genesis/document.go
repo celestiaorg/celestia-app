@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -23,26 +22,25 @@ func Document(
 	params *tmproto.ConsensusParams,
 	chainID string,
 	gentxs []json.RawMessage,
-	addrs []string,
-	pubkeys []cryptotypes.PubKey,
+	accounts []Account,
 	mods ...Modifier,
 ) (*coretypes.GenesisDoc, error) {
 	genutilGenState := genutiltypes.DefaultGenesisState()
 	genutilGenState.GenTxs = gentxs
 
-	genBals, genAccs, err := accountsToSDKTypes(addrs, pubkeys)
+	genBals, genAccs, err := accountsToSDKTypes(accounts)
 	if err != nil {
 		return nil, err
 	}
 
-	accounts, err := authtypes.PackAccounts(genAccs)
+	sdkAccounts, err := authtypes.PackAccounts(genAccs)
 	if err != nil {
 		return nil, err
 	}
 
 	authGenState := authtypes.DefaultGenesisState()
 	bankGenState := banktypes.DefaultGenesisState()
-	authGenState.Accounts = append(authGenState.Accounts, accounts...)
+	authGenState.Accounts = append(authGenState.Accounts, sdkAccounts...)
 	bankGenState.Balances = append(bankGenState.Balances, genBals...)
 	bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
 
@@ -83,20 +81,19 @@ func Document(
 }
 
 // accountsToSDKTypes converts the genesis accounts to native SDK types.
-func accountsToSDKTypes(addrs []string, pubkeys []cryptotypes.PubKey) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
-	if len(addrs) != len(pubkeys) {
-		return nil, nil, fmt.Errorf("length of addresses and public keys are not equal")
-	}
-	genBals := make([]banktypes.Balance, len(addrs))
-	genAccs := make([]authtypes.GenesisAccount, len(addrs))
+func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
+	genBals := make([]banktypes.Balance, len(accounts))
+	genAccs := make([]authtypes.GenesisAccount, len(accounts))
 	hasMap := make(map[string]bool)
-	for i, addr := range addrs {
+	for i, account := range accounts {
+		if err := account.ValidateBasic(); err != nil {
+			return nil, nil, fmt.Errorf("invalid account %d: %v", i, err)
+		}
+		addr := account.PubKey.Address().String()
 		if hasMap[addr] {
 			return nil, nil, fmt.Errorf("duplicate account address %s", addr)
 		}
 		hasMap[addr] = true
-
-		pubKey := pubkeys[i]
 
 		balances := sdk.NewCoins(
 			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(DefaultInitialBalance)),
@@ -109,7 +106,7 @@ func accountsToSDKTypes(addrs []string, pubkeys []cryptotypes.PubKey) ([]banktyp
 			return nil, nil, err
 		}
 
-		genAccs[i] = authtypes.NewBaseAccount(parsedAddress, pubKey, uint64(i), 0)
+		genAccs[i] = authtypes.NewBaseAccount(parsedAddress, account.PubKey, uint64(i), 0)
 	}
 	return genBals, genAccs, nil
 }
