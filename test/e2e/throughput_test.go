@@ -57,7 +57,9 @@ func TestE2EThroughput(t *testing.T) {
 	// create txsim nodes and point them to the validators
 	txsimVersion := "ebc7f8d" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1, "50000-100000", 3, Resources{"200Mi", "200Mi", "300m", "1Gi"}, gRPCEndpoints)
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1,
+		"50000-100000", 3, Resources{"200Mi", "200Mi", "300m", "1Gi"},
+		gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
@@ -72,7 +74,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(1 * time.Minute)
+	time.Sleep(5 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
@@ -82,12 +84,12 @@ func TestE2EThroughput(t *testing.T) {
 	t.Log("blockTimes", blockTimes)
 	t.Log("blockSizes", blockSizes)
 	t.Log("thputs", thputs)
-	plotData(blockSizes, "blocksizes.png", "Block Size in bytes", "Height",
+	plotData(blockSizes, "blocksizes.png", "Block Size", "Height",
 		"Block Size")
 	plotData(blockTimes, "blockTimes.png", "Block Time in seconds", "Height",
 		"Block Time in seconds")
-	plotData(thputs, "thputs.png", "Throughput in bytes/second",
-		"Height", "Throughput in bytes/second")
+	plotData(thputs, "thputs.png", "Throughput",
+		"Height", "Throughput")
 
 	totalTxs := 0
 	for _, block := range blockchain {
