@@ -58,7 +58,7 @@ func TestE2EThroughput(t *testing.T) {
 	txsimVersion := "cf79f55" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
 	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 4,
-		"5000-100000", 3, defaultResources,
+		"5000-10000", 3, defaultResources,
 		gRPCEndpoints[:1])
 	require.NoError(t, err)
 
