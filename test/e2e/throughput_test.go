@@ -57,7 +57,7 @@ func TestE2EThroughput(t *testing.T) {
 	// create txsim nodes and point them to the validators
 	txsimVersion := "cf79f55" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 4,
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 5,
 		"5000-10000", 3, defaultResources,
 		gRPCEndpoints[:1])
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(2 * time.Minute)
+	time.Sleep(1 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
