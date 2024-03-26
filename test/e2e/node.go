@@ -120,6 +120,7 @@ func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
 	// Initialize file directories
 	rootDir := os.TempDir()
 	nodeDir := filepath.Join(rootDir, n.Name)
+	fmt.Println(nodeDir)
 	for _, dir := range []string{
 		filepath.Join(nodeDir, "config"),
 		filepath.Join(nodeDir, "data"),
