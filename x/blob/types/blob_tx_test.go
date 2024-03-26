@@ -127,7 +127,10 @@ func TestValidateBlobTx(t *testing.T) {
 
 				msg.ShareCommitments[0] = badCommit
 
-				rawTx, err := signer.CreateTx([]sdk.Msg{msg})
+				tx, err := signer.CreateTx([]sdk.Msg{msg})
+				require.NoError(t, err)
+
+				rawTx, err := signer.EncodeTx(tx)
 				require.NoError(t, err)
 
 				btx := &blob.BlobTx{
