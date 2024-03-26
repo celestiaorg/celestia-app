@@ -24,6 +24,7 @@ const (
 	secp256k1Type = "secp256k1"
 	ed25519Type   = "ed25519"
 	remoteRootDir = "/home/celestia/.celestia-app"
+	txsimRootDir  = "/home/celestia"
 )
 
 type Node struct {
@@ -41,12 +42,20 @@ type Node struct {
 	grpcProxyPort int
 }
 
+type Resources struct {
+	memoryRequest string
+	memoryLimit   string
+	cpu           string
+	volume        string
+}
+
 func NewNode(
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
 	signerKey, networkKey, accountKey crypto.PrivKey,
 	upgradeHeight int64,
+	resources Resources,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -68,11 +77,11 @@ func NewNode(
 	if err := instance.AddPortUDP(metricsPort); err != nil {
 		return nil, err
 	}
-	err = instance.SetMemory("200Mi", "200Mi")
+	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU("300m")
+	err = instance.SetCPU(resources.cpu)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +120,7 @@ func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
 	// Initialize file directories
 	rootDir := os.TempDir()
 	nodeDir := filepath.Join(rootDir, n.Name)
+	fmt.Println(nodeDir)
 	for _, dir := range []string{
 		filepath.Join(nodeDir, "config"),
 		filepath.Join(nodeDir, "data"),
@@ -238,6 +248,16 @@ func (n Node) AddressRPC() string {
 // local proxy port that can be used to communicate with the node
 func (n Node) AddressGRPC() string {
 	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
+}
+
+// RemoteAddressGRPC returns the GRPC endpoint address for the node in the
+// cluster.
+func (n Node) RemoteAddressGRPC() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", ip, grpcPort), nil
 }
 
 func (n Node) IsValidator() bool {

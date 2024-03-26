@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ import (
 
 const seed = 42
 
-var latestVersion = "latest"
+var latestVersion = "4868c53"
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
@@ -46,14 +46,21 @@ func TestE2ESimple(t *testing.T) {
 	testnet, err := New(t.Name(), seed)
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
-	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0))
 
+	t.Log("Creating testnet validators")
+	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
+		0, defaultResources))
+
+	t.Log("Creating account")
 	kr, err := testnet.CreateAccount("alice", 1e12)
 	require.NoError(t, err)
 
+	t.Log("Setting up testnet")
 	require.NoError(t, testnet.Setup())
+	t.Log("Starting testnet")
 	require.NoError(t, testnet.Start())
 
+	t.Log("Running txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
 	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
@@ -64,12 +71,17 @@ func TestE2ESimple(t *testing.T) {
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
+	//expectedAppVersion, err := testnode.ReadAppVersionFromGenesis(context.Background(),
+	//	testnet.Node(1).AddressRPC())
+	//require.NoError(t, err)
+
+	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, v1.Version, block.Version.App)
+		require.Equal(t, v2.Version, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
