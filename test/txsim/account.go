@@ -260,7 +260,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	return nil
 }
 
-// Generate the pending accounts by sending the adequate funds. This operation
+// GenerateAccounts generates the pending accounts by sending the adequate funds. This operation
 // is not concurrently safe.
 func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	if len(am.pending) == 0 {
