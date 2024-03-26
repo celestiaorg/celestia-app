@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -202,7 +201,7 @@ func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]by
 }
 
 func (s *Signer) createPayForBlobs(blobs []*tmproto.Blob, opts ...TxOption) ([]byte, uint64, error) {
-	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), blobs...)
+	msg, err := blob.NewMsgPayForBlobs(s.address.String(), blobs...)
 	if err != nil {
 		return nil, 0, err
 	}

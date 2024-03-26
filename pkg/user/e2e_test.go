@@ -103,5 +103,13 @@ func TestSignerTwins(t *testing.T) {
 
 func newSingleSignerFromContext(ctx testnode.Context) (*user.Signer, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	return user.SetupSingleSigner(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
+	record, err := ctx.Keyring.Key("validator")
+	if err != nil {
+		return nil, err
+	}
+	address, err := record.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	return user.SetupSigner(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, address, encCfg)
 }
