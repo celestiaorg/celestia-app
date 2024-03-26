@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -63,16 +64,12 @@ func TestE2ESimple(t *testing.T) {
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
-	expectedAppVersion, err := testnode.ReadAppVersionFromGenesis(context.Background(),
-		testnet.Node(1).AddressRPC())
-	require.NoError(t, err)
-
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, expectedAppVersion, block.Version.App)
+		require.Equal(t, v2.Version, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)

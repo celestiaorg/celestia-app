@@ -39,30 +39,6 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 	return ReadBlockHeights(ctx, rpcAddress, 1, status.SyncInfo.LatestBlockHeight)
 }
 
-func ReadAppVersion(ctx context.Context, rpcAddress string) (uint64, error) {
-	client, err := http.New(rpcAddress, "/abci_info")
-	if err != nil {
-		return 0, err
-	}
-	resp, err := client.ABCIInfo(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return resp.Response.AppVersion, nil
-}
-
-func ReadAppVersionFromGenesis(ctx context.Context, rpcAddress string) (uint64, error) {
-	client, err := http.New(rpcAddress, "/genesis")
-	if err != nil {
-		return 0, err
-	}
-	resp, err := client.Genesis(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return resp.Genesis.ConsensusParams.Version.AppVersion, nil
-}
-
 func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) ([]*types.Block, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
