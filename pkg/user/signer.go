@@ -9,13 +9,9 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-<<<<<<< HEAD
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
-=======
 	apperrors "github.com/celestiaorg/celestia-app/app/errors"
+	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -25,12 +21,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-<<<<<<< HEAD
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
-=======
-	abci "github.com/tendermint/tendermint/abci/types"
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	"google.golang.org/grpc"
 )
 
@@ -45,14 +38,6 @@ type Signer struct {
 	pk            cryptotypes.PubKey
 	chainID       string
 	accountNumber uint64
-<<<<<<< HEAD
-	pollTime      time.Duration
-=======
-	// FIXME: the signer is currently incapable of detecting an appversion
-	// change and could produce incorrect PFBs if it the network is at an
-	// appVersion that the signer does not support
-	appVersion uint64
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 
 	mtx sync.RWMutex
 	// how often to poll the network for confirmation of a transaction
@@ -89,18 +74,6 @@ func NewSigner(
 	}
 
 	return &Signer{
-<<<<<<< HEAD
-		keys:                  keys,
-		address:               address,
-		grpc:                  conn,
-		enc:                   enc,
-		pk:                    pk,
-		chainID:               chainID,
-		accountNumber:         accountNumber,
-		lastSignedSequence:    sequence,
-		lastConfirmedSequence: sequence,
-		pollTime:              DefaultPollTime,
-=======
 		keys:                     keys,
 		address:                  address,
 		grpc:                     conn,
@@ -108,13 +81,11 @@ func NewSigner(
 		pk:                       pk,
 		chainID:                  chainID,
 		accountNumber:            accountNumber,
-		appVersion:               appVersion,
 		localSequence:            sequence,
 		networkSequence:          sequence,
 		pollTime:                 DefaultPollTime,
 		outboundSequences:        make(map[uint64]struct{}),
 		reverseTxHashSequenceMap: make(map[string]uint64),
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	}, nil
 }
 
@@ -181,13 +152,8 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-<<<<<<< HEAD
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*tmproto.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	txBytes, err := s.CreatePayForBlob(blobs, opts...)
-=======
-func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := s.broadcastPayForBlob(ctx, blobs, opts...)
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	if err != nil {
 		return resp, err
 	}
@@ -228,20 +194,15 @@ func (s *Signer) createTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx
 	return txBuilder.GetTx(), nil
 }
 
-<<<<<<< HEAD
 func (s *Signer) CreatePayForBlob(blobs []*tmproto.Blob, opts ...TxOption) ([]byte, error) {
-	msg, err := blob.NewMsgPayForBlobs(s.address.String(), blobs...)
-=======
-func (s *Signer) CreatePayForBlob(blobs []*blob.Blob, opts ...TxOption) ([]byte, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	blobTx, _, err := s.createPayForBlobs(blobs, opts...)
 	return blobTx, err
 }
 
-func (s *Signer) createPayForBlobs(blobs []*blob.Blob, opts ...TxOption) ([]byte, uint64, error) {
-	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), s.appVersion, blobs...)
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
+func (s *Signer) createPayForBlobs(blobs []*tmproto.Blob, opts ...TxOption) ([]byte, uint64, error) {
+	msg, err := blobtypes.NewMsgPayForBlobs(s.address.String(), blobs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -261,7 +222,7 @@ func (s *Signer) createPayForBlobs(blobs []*blob.Blob, opts ...TxOption) ([]byte
 		return nil, 0, err
 	}
 
-	blobTx, err := blob.MarshalBlobTx(txBytes, blobs...)
+	blobTx, err := tmtypes.MarshalBlobTx(txBytes, blobs...)
 	return blobTx, seqNum, err
 }
 
@@ -274,16 +235,11 @@ func (s *Signer) DecodeTx(txBytes []byte) (authsigning.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< HEAD
-
-	return tmtypes.MarshalBlobTx(txBytes, blobs...)
-=======
 	authTx, ok := tx.(authsigning.Tx)
 	if !ok {
 		return nil, errors.New("not an authsigning transaction")
 	}
 	return authTx, nil
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 }
 
 // BroadcastTx submits the provided transaction bytes to the chain and returns the response.
@@ -344,7 +300,7 @@ func (s *Signer) broadcastTx(ctx context.Context, txBytes []byte, sequence uint6
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
 func (s *Signer) retryBroadcastingTx(ctx context.Context, txBytes []byte, newSequenceNumber uint64) (*sdktypes.TxResponse, error) {
-	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
+	blobTx, isBlobTx := tmtypes.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
 		txBytes = blobTx.Tx
 	}
@@ -383,7 +339,7 @@ func (s *Signer) retryBroadcastingTx(ctx context.Context, txBytes []byte, newSeq
 
 	// rewrap the blob tx if it was originally a blob tx
 	if isBlobTx {
-		newTxBytes, err = blob.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		newTxBytes, err = tmtypes.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
 		if err != nil {
 			return nil, err
 		}
@@ -396,58 +352,34 @@ func (s *Signer) retryBroadcastingTx(ctx context.Context, txBytes []byte, newSeq
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (s *Signer) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-<<<<<<< HEAD
-	txClient := tx.NewServiceClient(s.grpc)
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-	for {
-=======
 	txClient := sdktx.NewServiceClient(s.grpc)
 
-	pollTicker := time.NewTicker(s.getPollTime())
-	defer pollTicker.Stop()
+	pollTime := s.getPollTime()
+	timer := time.NewTimer(0)
+	defer timer.Stop()
 
 	for {
-		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
-		if err == nil {
-			if resp.TxResponse.Code != 0 {
-				s.updateNetworkSequence(txHash, false)
-				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-			}
-			s.updateNetworkSequence(txHash, true)
-			return resp.TxResponse, nil
-		}
-		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
-		// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
-		// signer more information on the status of their transaction and then update the logic here
-		if !strings.Contains(err.Error(), "not found") {
-			return &sdktypes.TxResponse{}, err
-		}
-
-		// Wait for the next round.
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 		select {
 		case <-ctx.Done():
 			return &sdktypes.TxResponse{}, ctx.Err()
 		case <-timer.C:
-			resp, err := txClient.GetTx(
-				ctx,
-				&tx.GetTxRequest{
-					Hash: txHash,
-				},
-			)
+			resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 			if err == nil {
 				if resp.TxResponse.Code != 0 {
-					return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+					s.updateNetworkSequence(txHash, false)
+					return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 				}
+				s.updateNetworkSequence(txHash, true)
 				return resp.TxResponse, nil
 			}
-
+			// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
+			// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
+			// signer more information on the status of their transaction and then update the logic here
 			if !strings.Contains(err.Error(), "not found") {
 				return &sdktypes.TxResponse{}, err
 			}
 
-			timer.Reset(s.pollTime)
+			timer.Reset(pollTime)
 		}
 	}
 }
@@ -510,20 +442,11 @@ func (s *Signer) PubKey() cryptotypes.PubKey {
 	return s.pk
 }
 
-<<<<<<< HEAD
-func (s *Signer) Sequence() uint64 {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	return s.lastSignedSequence
-}
-
 // DEPRECATED: use Sequence instead
 func (s *Signer) GetSequence() uint64 {
 	return s.getAndIncrementSequence()
 }
 
-// getAndIncrementSequence gets the lastest signed sequnce and increments the local sequence number
-=======
 // LocalSequence returns the next sequence number of the signers
 // locally saved
 func (s *Signer) LocalSequence() uint64 {
@@ -540,7 +463,6 @@ func (s *Signer) NetworkSequence() uint64 {
 
 // getAndIncrementSequence gets the latest signed sequence and increments the
 // local sequence number
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 func (s *Signer) getAndIncrementSequence() uint64 {
 	defer func() { s.localSequence++ }()
 	return s.localSequence

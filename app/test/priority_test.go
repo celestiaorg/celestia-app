@@ -77,24 +77,6 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
 	wg := &sync.WaitGroup{}
 	for _, signer := range s.signers {
-<<<<<<< HEAD
-		blobSize := uint32(100)
-		gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
-		gasPrice := s.rand.Float64()
-		btx, err := signer.CreatePayForBlob(
-			blobfactory.ManyBlobs(
-				t,
-				s.rand,
-				[]namespace.Namespace{namespace.RandomBlobNamespace()},
-				[]int{100}),
-			user.SetGasLimitAndFee(gasLimit, gasPrice),
-		)
-		require.NoError(t, err)
-		resp, err := signer.BroadcastTx(s.cctx.GoContext(), btx)
-		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		hashes = append(hashes, resp.TxHash)
-=======
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -102,6 +84,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 			resp, err := signer.SubmitPayForBlob(
 				s.cctx.GoContext(),
 				blobfactory.ManyBlobs(
+					t,
 					s.rand,
 					[]namespace.Namespace{namespace.RandomBlobNamespace()},
 					[]int{100}),
@@ -111,7 +94,6 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 			hashes <- resp.TxHash
 		}()
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	}
 
 	wg.Wait()

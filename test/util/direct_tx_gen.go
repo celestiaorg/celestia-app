@@ -111,7 +111,7 @@ func DirectQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
 // provided configuration. One blob transaction is generated per account
 // provided. The sequence and account numbers are set manually using the provided values.
 func RandBlobTxsWithManualSequence(
-	_ *testing.T,
+	t *testing.T,
 	_ sdk.TxEncoder,
 	kr keyring.Keyring,
 	size int,
@@ -165,7 +165,6 @@ func RandBlobTxsWithManualSequence(
 			}
 		}
 		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
-<<<<<<< HEAD
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -173,52 +172,19 @@ func RandBlobTxsWithManualSequence(
 		}
 		if invalidSignature {
 			invalidSig, err := builder.GetTx().GetSignaturesV2()
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 			invalidSig[0].Data.(*signing.SingleSignatureData).Signature = []byte("invalid signature")
 
-			if err := builder.SetSignatures(invalidSig...); err != nil {
-				panic(err)
-			}
+			err = builder.SetSignatures(invalidSig...)
+			require.NoError(t, err)
 
 			stx = builder.GetTx()
 		}
 		rawTx, err := signer.EncodeTx(stx)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
+
 		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
-=======
-		tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 		require.NoError(t, err)
-		if invalidSignature {
-			builder := cfg.NewTxBuilder()
-			for _, opt := range opts {
-				builder = opt(builder)
-			}
-			require.NoError(t, builder.SetMsgs(msg))
-			err := builder.SetSignatures(signing.SignatureV2{
-				PubKey: signer.PubKey(),
-				Data: &signing.SingleSignatureData{
-					SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-					Signature: []byte("invalid signature"),
-				},
-				Sequence: signer.LocalSequence(),
-			})
-			require.NoError(t, err)
-
-			tx = builder.GetTx()
-			require.NoError(t, err)
-		}
-		rawTx, err := signer.EncodeTx(tx)
-		require.NoError(t, err)
-
-		cTx, err := blob.MarshalBlobTx(rawTx, blobs...)
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
-		if err != nil {
-			panic(err)
-		}
 		txs[i] = cTx
 	}
 
@@ -300,10 +266,7 @@ func SendTxWithManualSequence(
 
 	rawTx, err := signer.EncodeTx(stx)
 	require.NoError(t, err)
-<<<<<<< HEAD
 
-=======
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	return rawTx
 }
 

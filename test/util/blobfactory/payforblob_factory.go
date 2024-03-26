@@ -420,18 +420,11 @@ func IndexWrappedTxWithInvalidNamespace(
 
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 
-<<<<<<< HEAD
 	builder := signer.NewTxBuilder(opts...)
 	stx, err := signer.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
 
 	rawTx, err := enc(stx)
-=======
-	tx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
-	require.NoError(t, err)
-
-	rawTx, err := signer.EncodeTx(tx)
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	require.NoError(t, err)
 
 	cTx, err := coretypes.MarshalIndexWrapper(rawTx, index)
@@ -483,21 +476,9 @@ func RandBlobTxsWithNamespacesAndSigner(
 	return txs
 }
 
-<<<<<<< HEAD
 func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, kr keyring.Keyring, enc sdk.TxEncoder, chainid, account string, msgs ...sdk.Msg) coretypes.Tx {
 	signer := blobtypes.NewKeyringSigner(kr, account, chainid)
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
-=======
-func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Signer, msgs ...sdk.Msg) coretypes.Tx {
-	t.Helper()
-	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signer.Address().String(), 100, 1)
-	msgs = append(msgs, pfb)
-
-	tx, err := signer.CreateTx(msgs, DefaultTxOpts()...)
-	require.NoError(t, err)
-
-	rawTx, err := signer.EncodeTx(tx)
->>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	require.NoError(t, err)
 
 	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signerAddr.String(), 100, 1)
