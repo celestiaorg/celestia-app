@@ -69,9 +69,10 @@ func TestE2ESimple(t *testing.T) {
 
 	totalTxs := 0
 	for _, block := range blockchain {
+		// the app version in the genesis is set to the latest version,
+		// so we should see this in the blocks
 		require.Equal(t, appconsts.LatestVersion,
-			block.Version.App) // the app version in the genesis is set to the
-		// latest version, so we should see this in the blocks
+			block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
