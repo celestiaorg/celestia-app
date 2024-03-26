@@ -51,15 +51,20 @@ func TestE2EThroughput(t *testing.T) {
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
 	require.NoError(t, err)
-	t.Log("txsim GRPC endpoint", gRPCEndpoints[:1])
+	t.Log("txsim GRPC endpoint", gRPCEndpoints)
 
 	t.Log("Creating txsim nodes")
 	// create txsim nodes and point them to the validators
 	txsimVersion := "cf79f55" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 5,
-		"5000-10000", 3, defaultResources,
-		gRPCEndpoints[:1])
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 10,
+		"10000-50000", 3, Resources{
+			memoryRequest: "400Mi",
+			memoryLimit:   "1Gi",
+			cpu:           "2",
+			volume:        "1Gi",
+		},
+		gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
@@ -74,7 +79,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(1 * time.Minute)
+	time.Sleep(2 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
