@@ -18,9 +18,10 @@ type Testnet struct {
 	nodes           []*Node
 	genesisAccounts []*Account
 	keygen          *keyGenerator
+	grafana         *GrafanaInfo
 }
 
-func New(name string, seed int64) (*Testnet, error) {
+func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithIdentifier(identifier); err != nil {
 		return nil, err
@@ -31,6 +32,7 @@ func New(name string, seed int64) (*Testnet, error) {
 		nodes:           make([]*Node, 0),
 		genesisAccounts: make([]*Account, 0),
 		keygen:          newKeyGenerator(seed),
+		grafana:         grafana,
 	}, nil
 }
 
@@ -38,7 +40,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight, t.grafana)
 	if err != nil {
 		return err
 	}
@@ -59,7 +61,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64) e
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight, t.grafana)
 	if err != nil {
 		return err
 	}
@@ -172,10 +174,16 @@ func (t *Testnet) Cleanup() {
 				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
 				continue
 			}
+			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
+				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
+				continue
+			}
 		}
-		err := node.Instance.Destroy()
-		if err != nil {
-			log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
+			err := node.Instance.Destroy()
+			if err != nil {
+				log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+			}
 		}
 	}
 }
