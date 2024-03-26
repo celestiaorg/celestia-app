@@ -165,6 +165,7 @@ func RandBlobTxsWithManualSequence(
 			}
 		}
 		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
+<<<<<<< HEAD
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -188,6 +189,33 @@ func RandBlobTxsWithManualSequence(
 			panic(err)
 		}
 		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
+=======
+		tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+		require.NoError(t, err)
+		if invalidSignature {
+			builder := cfg.NewTxBuilder()
+			for _, opt := range opts {
+				builder = opt(builder)
+			}
+			require.NoError(t, builder.SetMsgs(msg))
+			err := builder.SetSignatures(signing.SignatureV2{
+				PubKey: signer.PubKey(),
+				Data: &signing.SingleSignatureData{
+					SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+					Signature: []byte("invalid signature"),
+				},
+				Sequence: signer.LocalSequence(),
+			})
+			require.NoError(t, err)
+
+			tx = builder.GetTx()
+			require.NoError(t, err)
+		}
+		rawTx, err := signer.EncodeTx(tx)
+		require.NoError(t, err)
+
+		cTx, err := blob.MarshalBlobTx(rawTx, blobs...)
+>>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 		if err != nil {
 			panic(err)
 		}
@@ -272,7 +300,10 @@ func SendTxWithManualSequence(
 
 	rawTx, err := signer.EncodeTx(stx)
 	require.NoError(t, err)
+<<<<<<< HEAD
 
+=======
+>>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	return rawTx
 }
 

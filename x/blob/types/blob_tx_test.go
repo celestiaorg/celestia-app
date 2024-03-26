@@ -70,8 +70,16 @@ func TestVerifySignature(t *testing.T) {
 	uwTx, isMal := coretypes.UnmarshalIndexWrapper(wTx)
 	require.True(t, isMal)
 
+<<<<<<< HEAD
 	sTx, err := encCfg.TxConfig.TxDecoder()(uwTx.Tx)
 	require.NoError(t, err)
+=======
+				tx, err := signer.CreateTx([]sdk.Msg{msg})
+				require.NoError(t, err)
+
+				rawTx, err := signer.EncodeTx(tx)
+				require.NoError(t, err)
+>>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 
 	sigTx, ok := sTx.(authsigning.SigVerifiableTx)
 	require.True(t, ok)

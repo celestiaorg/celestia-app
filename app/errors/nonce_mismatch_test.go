@@ -40,7 +40,11 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	pfb, err := blob.NewMsgPayForBlobs(address.String(), b)
 	require.NoError(t, err, address)
 
+<<<<<<< HEAD
 	tx, err := signer.BuildSignedTx(builder, pfb)
+=======
+	sdkTx, err := signer.CreateTx([]sdk.Msg{msg})
+>>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	require.NoError(t, err)
 
 	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, encCfg.TxConfig.SignModeHandler())

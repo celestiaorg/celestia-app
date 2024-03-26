@@ -42,7 +42,19 @@ func GenerateRawSendTx(txConfig client.TxConfig, signer *blobtypes.KeyringSigner
 		Amount: sdk.NewInt(amount),
 	}
 
+<<<<<<< HEAD
 	addr, err := signer.GetSignerInfo().GetAddress()
+=======
+	addr := signer.Address()
+	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(amountCoin))
+
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	if err != nil {
+		panic(err)
+	}
+
+	rawTx, err := signer.EncodeTx(tx)
+>>>>>>> deefb542 (feat: nonce handling with signer (#3196))
 	if err != nil {
 		panic(err)
 	}
