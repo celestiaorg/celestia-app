@@ -45,7 +45,7 @@ func NewAnteHandler(
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, CheckTxFeeWithGlobalMinGasPricesWrapper(paramKeeper)),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
@@ -80,8 +80,8 @@ var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
 // The purpose of this wrapper is to enable the passing of an additional paramKeeper parameter
 // whilst still satisfying the ante.TxFeeChecker type.
-func CheckTxFeeWithGlobalMinGasPricesWrapper(paramKeeper paramkeeper.Keeper) ante.TxFeeChecker {
+func ValidateTxFeeWrapper(paramKeeper paramkeeper.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
-		return CheckTxFeeWithMinGasPrices(ctx, tx, paramKeeper)
+		return ValidateTxFee(ctx, tx, paramKeeper)
 	}
 }

@@ -57,6 +57,8 @@ COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 # Set the user to celestia.
 USER ${USER_NAME}
+# Set the working directory to the home directory.
+WORKDIR ${CELESTIA_HOME}
 # Expose ports:
 # 1317 is the default API server port.
 # 9090 is the default GRPC server port.

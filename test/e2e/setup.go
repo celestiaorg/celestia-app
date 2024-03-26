@@ -124,7 +124,7 @@ func MakeGenesis(nodes []*Node, accounts []*Account) (types.GenesisDoc, error) {
 
 	// Validator set and app hash are set in InitChain
 	return types.GenesisDoc{
-		ChainID:         "testnet",
+		ChainID:         "test", // this should match the namespace
 		GenesisTime:     time.Now().UTC(),
 		ConsensusParams: app.DefaultConsensusParams(),
 		AppState:        appState,
