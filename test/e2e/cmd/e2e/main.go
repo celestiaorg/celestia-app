@@ -27,7 +27,7 @@ func NewCLI() *CLI {
 		Use:          "e2e",
 		Short:        "Command line runner for celestia app e2e framework",
 		SilenceUsage: true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			file, err := cmd.Flags().GetString("file")
 			if err != nil {
 				return err
@@ -46,7 +46,7 @@ func NewCLI() *CLI {
 			cli.testnet = testnet
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			if err := e2e.Cleanup(ctx, cli.testnet); err != nil {
 				return fmt.Errorf("preparing testnet: %w", err)
@@ -79,7 +79,7 @@ func NewCLI() *CLI {
 	cli.root.AddCommand(&cobra.Command{
 		Use:   "setup",
 		Short: "Setups a testnet",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return e2e.Setup(cmd.Context(), cli.testnet)
 		},
 	})
@@ -87,7 +87,7 @@ func NewCLI() *CLI {
 	cli.root.AddCommand(&cobra.Command{
 		Use:   "start",
 		Short: "Starts a testnet",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return e2e.Start(cmd.Context(), cli.testnet)
 		},
 	})
@@ -95,7 +95,7 @@ func NewCLI() *CLI {
 	cli.root.AddCommand(&cobra.Command{
 		Use:   "stop",
 		Short: "Stops a testnet",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return e2e.Stop(cmd.Context(), cli.testnet)
 		},
 	})
@@ -103,7 +103,7 @@ func NewCLI() *CLI {
 	cli.root.AddCommand(&cobra.Command{
 		Use:   "cleanup",
 		Short: "Tears down network and removes all resources",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return e2e.Cleanup(cmd.Context(), cli.testnet)
 		},
 	})

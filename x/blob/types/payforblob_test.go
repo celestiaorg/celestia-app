@@ -297,10 +297,10 @@ func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *MsgPayForBlobs {
 	commitments, err := CreateCommitments(blobs)
 	require.NoError(t, err)
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaceVersions, namespaceIDs, sizes, shareVersions := extractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
 		require.NoError(t, err)
 		namespaces = append(namespaces, namespace)
 	}
