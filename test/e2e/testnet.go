@@ -134,10 +134,6 @@ func (t *Testnet) StartTxSimNodes() error {
 		if err != nil {
 			return err
 		}
-		err = txsim.Instance.WaitInstanceIsRunning()
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
