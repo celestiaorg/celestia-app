@@ -41,7 +41,7 @@ jobs:
       - name: Deploy PR preview
         # Only run this job if the PR was created from a branch on celestiaorg/celestia-app
         # because this job will fail for branches from forks.
-        # https://github.com/celestiaorg/celestia-app/v2/issues/1506
+        # https://github.com/celestiaorg/celestia-app/issues/1506
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: rossjrw/pr-preview-action@v1
         with:
