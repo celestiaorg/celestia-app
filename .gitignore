@@ -17,3 +17,5 @@ square/testdata
 .release-env
 **/*.DS_Store
 vendor
+go.work
+go.work.sum
