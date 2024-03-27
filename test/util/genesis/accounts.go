@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/crypto"
@@ -19,8 +20,12 @@ const (
 	DefaultInitialBalance = 1e15 // 1 billion TIA
 )
 
+// Account represents a user account on the Celestia network.
+// Either the name, if using the genesis keyring, or an address
+// needs to be provided
 type Account struct {
 	Name          string
+	PubKey        cryptotypes.PubKey
 	InitialTokens int64
 }
 
@@ -35,9 +40,20 @@ func NewAccounts(initBal int64, names ...string) []Account {
 	return accounts
 }
 
+func NewAccountsFromPubKeys(initBal int64, pubKeys ...cryptotypes.PubKey) []Account {
+	accounts := make([]Account, len(pubKeys))
+	for i, pubKey := range pubKeys {
+		accounts[i] = Account{
+			PubKey:        pubKey,
+			InitialTokens: initBal,
+		}
+	}
+	return accounts
+}
+
 func (ga *Account) ValidateBasic() error {
-	if ga.Name == "" {
-		return fmt.Errorf("name cannot be empty")
+	if ga.Name == "" && ga.PubKey == nil {
+		return fmt.Errorf("both name and pubkey cannot be empty")
 	}
 	if ga.InitialTokens <= 0 {
 		return fmt.Errorf("initial tokens must be positive")
