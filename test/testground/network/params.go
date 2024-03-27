@@ -14,13 +14,22 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
 )
 
+var (
+	suppressLogs    = true
+	peerGossipSleep = 100 * time.Millisecond
+)
+
 func init() {
 	consensus.UseWAL = false
+	suppressLogs = true
+	node.PushGateWayURL = "http://51.159.176.205:9191"
+	node.PushMetrics = true
 }
 
 const (
@@ -181,6 +190,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
+	cmtcfg.Consensus.PeerGossipSleepDuration = peerGossipSleep
 	return cmtcfg
 }
 

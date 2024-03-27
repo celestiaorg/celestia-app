@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -144,10 +145,11 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 		}
 	case ConsistentFill:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+		args, err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
 		if err != nil {
 			runenv.RecordMessage(fmt.Sprintf("error consistent fill block size test: %v", err))
 		}
+		go l.RunTxSim(ctx, args) // also run txsim on the leader
 	default:
 		return fmt.Errorf("unknown experiment %s", l.params.Experiment)
 	}
@@ -300,4 +302,11 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 			return nil
 		}
 	}
+}
+
+// RunTxSim runs the txsim tool on the follower node.
+func (l *Leader) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
+	grpcEndpoint := "127.0.0.1:9090"
+	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
+	return txsim.Run(ctx, grpcEndpoint, l.kr, l.ecfg, opts, c.Sequences()...)
 }
