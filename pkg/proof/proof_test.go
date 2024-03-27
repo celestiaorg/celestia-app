@@ -261,7 +261,7 @@ func TestAllSharesInclusionProof(t *testing.T) {
 }
 
 // Ensure that we reject negative index values and avoid overflows.
-// https://github.com/celestiaorg/celestia-app/v2/issues/3140
+// https://github.com/celestiaorg/celestia-app/issues/3140
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	path := []string{"-2"}
 	req := abci.RequestQuery{Data: []byte{}}
