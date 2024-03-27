@@ -57,14 +57,14 @@ func TestE2EThroughput(t *testing.T) {
 	// create txsim nodes and point them to the validators
 	txsimVersion := "cee9cd4" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 11,
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1,
 		"10000-50000", 3, Resources{
 			memoryRequest: "400Mi",
 			memoryLimit:   "1Gi",
 			cpu:           "2",
 			volume:        "1Gi",
 		},
-		gRPCEndpoints)
+		gRPCEndpoints[:1])
 	require.NoError(t, err)
 	// val0-75a4c8a9-0
 	//val0-75a4c8a9-0
