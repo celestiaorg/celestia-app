@@ -5,7 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
@@ -33,7 +37,7 @@ type Node struct {
 	InitialPeers   []string
 	SignerKey      crypto.PrivKey
 	NetworkKey     crypto.PrivKey
-	AccountKey     crypto.PrivKey
+	AccountPubKey  cryptotypes.PubKey
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
@@ -45,8 +49,9 @@ func NewNode(
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
-	signerKey, networkKey, accountKey crypto.PrivKey,
+	signerKey, networkKey crypto.PrivKey,
 	upgradeHeight int64,
+	keys keyring.Keyring,
 	grafana *GrafanaInfo,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
@@ -57,6 +62,15 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
+	record, _, err := keys.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return nil, err
+	}
+	pubKey, err := record.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+
 	if err := instance.AddPortTCP(rpcPort); err != nil {
 		return nil, err
 	}
@@ -111,12 +125,12 @@ func NewNode(
 		InitialPeers:   peers,
 		SignerKey:      signerKey,
 		NetworkKey:     networkKey,
-		AccountKey:     accountKey,
+		AccountPubKey:  pubKey,
 		SelfDelegation: selfDelegation,
 	}, nil
 }
 
-func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
+func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -242,6 +256,17 @@ func (n *Node) Start() error {
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
 	return nil
+}
+
+func (n *Node) GenesisValidator() genesis.Validator {
+	return genesis.Validator{
+		Account: genesis.Account{
+			PubKey:        n.AccountPubKey,
+			InitialTokens: n.SelfDelegation,
+		},
+		ConsensusKey: n.SignerKey,
+		NetworkKey:   n.NetworkKey,
+	}
 }
 
 func (n *Node) Upgrade(version string) error {
