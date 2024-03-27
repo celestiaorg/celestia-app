@@ -49,7 +49,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 		wg.Add(1)
 		go func(b *blob.Blob) {
 			defer wg.Done()
-			_, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{b}, user.SetGasLimitAndFee(500_000, appconsts.DefaultGlobalMinGasPrice))
+			_, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{b}, user.SetGasLimitAndFee(500_000, appconsts.DefaultMinGasPrice))
 			if err != nil && !errors.Is(err, context.Canceled) {
 				// only catch the first error
 				select {
@@ -88,13 +88,13 @@ func TestSignerTwins(t *testing.T) {
 
 	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), blobfactory.Repeat(2048, 8)...)
 
-	_, err = signer1.SubmitPayForBlob(ctx.GoContext(), blobs[:1], user.SetGasLimitAndFee(500_000, appconsts.DefaultGlobalMinGasPrice))
+	_, err = signer1.SubmitPayForBlob(ctx.GoContext(), blobs[:1], user.SetGasLimitAndFee(500_000, appconsts.DefaultMinGasPrice))
 	require.NoError(t, err)
 
-	_, err = signer2.SubmitPayForBlob(ctx.GoContext(), blobs[1:3], user.SetGasLimitAndFee(500_000, appconsts.DefaultGlobalMinGasPrice))
+	_, err = signer2.SubmitPayForBlob(ctx.GoContext(), blobs[1:3], user.SetGasLimitAndFee(500_000, appconsts.DefaultMinGasPrice))
 	require.NoError(t, err)
 
 	signer1.ForceSetSequence(4)
-	_, err = signer1.SubmitPayForBlob(ctx.GoContext(), blobs[3:5], user.SetGasLimitAndFee(500_000, appconsts.DefaultGlobalMinGasPrice))
+	_, err = signer1.SubmitPayForBlob(ctx.GoContext(), blobs[3:5], user.SetGasLimitAndFee(500_000, appconsts.DefaultMinGasPrice))
 	require.NoError(t, err)
 }
