@@ -111,7 +111,7 @@ func DirectQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
 // provided configuration. One blob transaction is generated per account
 // provided. The sequence and account numbers are set manually using the provided values.
 func RandBlobTxsWithManualSequence(
-	_ *testing.T,
+	t *testing.T,
 	_ sdk.TxEncoder,
 	kr keyring.Keyring,
 	size int,
@@ -172,25 +172,19 @@ func RandBlobTxsWithManualSequence(
 		}
 		if invalidSignature {
 			invalidSig, err := builder.GetTx().GetSignaturesV2()
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 			invalidSig[0].Data.(*signing.SingleSignatureData).Signature = []byte("invalid signature")
 
-			if err := builder.SetSignatures(invalidSig...); err != nil {
-				panic(err)
-			}
+			err = builder.SetSignatures(invalidSig...)
+			require.NoError(t, err)
 
 			stx = builder.GetTx()
 		}
 		rawTx, err := signer.EncodeTx(stx)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
+
 		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 		txs[i] = cTx
 	}
 
