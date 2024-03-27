@@ -154,11 +154,10 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 ## Audits
 
-| Date        | Auditor                                         | Version                                                                               | Report                                                   |
-|-------------|-------------------------------------------------|---------------------------------------------------------------------------------------|----------------------------------------------------------|
-| ----------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 2023/9/15   | [Informal Systems](https://informal.systems/)   | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)     | [informal-systems.pdf](docs/audit/informal-systems.pdf)  |
-| 2023/10/17  | [Binary Builders](https://binary.builders/)     | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)   | [binary-builders.pdf](docs/audit/binary-builders.pdf)    |
+| Date       | Auditor                                       | Version                                                                             | Report                                                  |
+|------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------|
+| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf) |
+| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)   |
 
 ## Careers
 

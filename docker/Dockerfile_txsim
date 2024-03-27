@@ -53,6 +53,9 @@ COPY --chown=${USER_NAME}:${USER_NAME} docker/txsim.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
+# Set the working directory to the home directory.
+WORKDIR ${CELESTIA_HOME}
+
 # grpc, rpc, api ports
 EXPOSE 26657 1317 9090
 
