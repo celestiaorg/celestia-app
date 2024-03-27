@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -81,7 +82,8 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			gasPrice := float64(s.rand.Intn(1000)+1) / 1000
+			// ensure that it is greater than the min gas price
+			gasPrice := float64(s.rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
 			resp, err := signer.SubmitPayForBlob(
 				s.cctx.GoContext(),
 				blobfactory.ManyBlobs(
