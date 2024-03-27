@@ -40,34 +40,6 @@ func TestSubtreeRootThreshold(t *testing.T) {
 	}
 }
 
-func TestGlobalMinGasPrice(t *testing.T) {
-	testCases := []struct {
-		version  uint64
-		expected float64
-	}{
-		{
-			version:  v2.Version,
-			expected: v2.GlobalMinGasPrice,
-		},
-		{
-			version:  v1.Version,
-			expected: v2.GlobalMinGasPrice,
-		},
-		{
-			version:  testground.Version,
-			expected: v2.GlobalMinGasPrice,
-		},
-	}
-
-	for _, tc := range testCases {
-		name := fmt.Sprintf("version %v", tc.version)
-		t.Run(name, func(t *testing.T) {
-			got := appconsts.GlobalMinGasPrice(tc.version)
-			require.Equal(t, tc.expected, got)
-		})
-	}
-}
-
 func TestSquareSizeUpperBound(t *testing.T) {
 	testCases := []struct {
 		version  uint64
