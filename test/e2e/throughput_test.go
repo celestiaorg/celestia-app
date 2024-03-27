@@ -53,6 +53,10 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("txsim GRPC endpoint", gRPCEndpoints)
 
+	rPCEndPoints, err := testnet.RemoteRPCEndpoints()
+	require.NoError(t, err)
+	t.Log("RPC endpoint", rPCEndPoints)
+
 	t.Log("Creating txsim nodes")
 	// create txsim nodes and point them to the validators
 	txsimVersion := "cee9cd4" // "65c1a8e" // TODO pull the latest version of txsim if possible
@@ -64,7 +68,7 @@ func TestE2EThroughput(t *testing.T) {
 			cpu:           "2",
 			volume:        "1Gi",
 		},
-		gRPCEndpoints[:1])
+		gRPCEndpoints[:1], rPCEndPoints[:1])
 	require.NoError(t, err)
 	// val0-75a4c8a9-0
 	//val0-75a4c8a9-0

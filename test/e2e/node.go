@@ -260,6 +260,16 @@ func (n Node) RemoteAddressGRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, grpcPort), nil
 }
 
+// RemoteAddressRPC returns the GRPC endpoint address for the node in the
+// cluster.
+func (n Node) RemoteAddressRPC() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
+}
+
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
 }

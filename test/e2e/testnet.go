@@ -64,10 +64,11 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 	blobRange string,
 	pollTime int,
 	resources Resources,
-	grpcEndpoints []string) error {
+	grpcEndpoints, rpcEndpoints []string) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences, blobRange, pollTime, resources, grpcEndpoint)
+		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences,
+			blobRange, pollTime, resources, grpcEndpoint, rpcEndpoints[i])
 		fmt.Println("txsim created", name, grpcEndpoint)
 		if err != nil {
 			fmt.Println("error creating txsim", name, err)
@@ -94,7 +95,7 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	blobRange string,
 	pollTime int,
 	resources Resources,
-	grpcEndpoint string) error {
+	grpcEndpoint, rpcEndpoint string) error {
 	// create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
@@ -105,7 +106,7 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	}
 
 	// Create a txsim node using the key stored in the txsimKeyringDir
-	txsim, err := CreateTxSimNode(name, version, grpcEndpoint, seed, sequences,
+	txsim, err := CreateTxSimNode(name, version, grpcEndpoint, rpcEndpoint, seed, sequences,
 		blobRange, pollTime, resources, txsimRootDir)
 	if err != nil {
 		fmt.Println("error creating txsim", err)
@@ -249,6 +250,18 @@ func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
 		grpcEndpoints[idx] = grpcEP
 	}
 	return grpcEndpoints, nil
+}
+
+func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
+	rpcEndpoints := make([]string, len(t.nodes))
+	for idx, node := range t.nodes {
+		grpcEP, err := node.RemoteAddressRPC()
+		if err != nil {
+			return nil, err
+		}
+		rpcEndpoints[idx] = grpcEP
+	}
+	return rpcEndpoints, nil
 }
 
 func (t *Testnet) Start() error {

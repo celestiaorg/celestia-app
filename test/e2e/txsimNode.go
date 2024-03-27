@@ -22,6 +22,7 @@ type TxSim struct {
 func CreateTxSimNode(
 	name, version string,
 	endpoint string,
+	rpcEndpoint string,
 	seed int,
 	sequences int,
 	blobRange string,
@@ -59,6 +60,7 @@ func CreateTxSimNode(
 		fmt.Sprintf("-d %d ", seed),
 		fmt.Sprintf("-a %d ", 10),
 		fmt.Sprintf("-s %s ", blobRange),
+		fmt.Sprintf("-r %s", rpcEndpoint),
 	}
 
 	err = instance.SetArgs(args...)
