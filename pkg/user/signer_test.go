@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -77,28 +76,30 @@ func (s *SignerTestSuite) TestConfirmTx() {
 	gas := user.SetGasLimit(1e6)
 
 	t.Run("deadline exceeded when the context times out", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(s.ctx.GoContext(), time.Second)
 		defer cancel()
 		_, err := s.signer.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), context.DeadlineExceeded.Error())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 	})
 
 	t.Run("should error when tx is not found", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(s.ctx.GoContext(), 5*time.Second)
 		defer cancel()
 		_, err := s.signer.ConfirmTx(ctx, "not found tx")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
 		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
-		resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
-		assert.NoError(t, err)
-		assert.Equal(t, abci.CodeTypeOK, resp.Code)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		ctx, cancel := context.WithTimeout(s.ctx.GoContext(), 30*time.Second)
+		defer cancel()
+		resp, err = s.signer.ConfirmTx(ctx, resp.TxHash)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
 
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
@@ -106,17 +107,17 @@ func (s *SignerTestSuite) TestConfirmTx() {
 		// Create a msg send with out of balance, ensure this tx fails
 		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
 		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 		resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
-		assert.Error(t, err)
-		assert.NotEqual(t, abci.CodeTypeOK, resp.Code)
+		require.Error(t, err)
+		require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 	})
 }
 
 func (s *SignerTestSuite) TestGasEstimation() {
 	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-	gas, err := s.signer.EstimateGas(context.Background(), []sdk.Msg{msg})
+	gas, err := s.signer.EstimateGas(s.ctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), gas, uint64(0))
 }
@@ -147,13 +148,13 @@ func (s *SignerTestSuite) TestGasConsumption() {
 
 	// verify that the amount deducted depends on the fee set in the tx.
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
-	assert.Equal(t, int64(fee), amountDeducted)
+	require.Equal(t, int64(fee), amountDeducted)
 
 	// verify that the amount deducted does not depend on the actual gas used.
 	gasUsedBasedDeduction := resp.GasUsed * gasPrice
-	assert.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
+	require.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
 	// The gas used based deduction should be less than the fee because the fee is 1 TIA.
-	assert.Less(t, gasUsedBasedDeduction, int64(fee))
+	require.Less(t, gasUsedBasedDeduction, int64(fee))
 }
 
 func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {

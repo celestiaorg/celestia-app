@@ -43,7 +43,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	r := rand.New(rand.NewSource(seed))
 	t.Log("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := New(t.Name(), seed)
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 
@@ -152,7 +152,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testnet, err := New(t.Name(), seed)
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 

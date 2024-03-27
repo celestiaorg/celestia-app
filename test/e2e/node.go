@@ -16,14 +16,14 @@ import (
 )
 
 const (
-	rpcPort       = 26657
-	p2pPort       = 26656
-	grpcPort      = 9090
-	metricsPort   = 26660
-	dockerSrcURL  = "ghcr.io/celestiaorg/celestia-app"
-	secp256k1Type = "secp256k1"
-	ed25519Type   = "ed25519"
-	remoteRootDir = "/home/celestia/.celestia-app"
+	rpcPort        = 26657
+	p2pPort        = 26656
+	grpcPort       = 9090
+	prometheusPort = 26660
+	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
+	secp256k1Type  = "secp256k1"
+	ed25519Type    = "ed25519"
+	remoteRootDir  = "/home/celestia/.celestia-app"
 )
 
 type Node struct {
@@ -47,6 +47,7 @@ func NewNode(
 	peers []string,
 	signerKey, networkKey, accountKey crypto.PrivKey,
 	upgradeHeight int64,
+	grafana *GrafanaInfo,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -65,8 +66,20 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-	if err := instance.AddPortUDP(metricsPort); err != nil {
-		return nil, err
+	if grafana != nil {
+		// add support for metrics
+		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "1m"); err != nil {
+			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
+		}
+		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
+			return nil, fmt.Errorf("error setting jaeger endpoint: %v", err)
+		}
+		if err := instance.SetOtlpExporter(grafana.Endpoint, grafana.Username, grafana.Token); err != nil {
+			return nil, fmt.Errorf("error setting otlp exporter: %v", err)
+		}
+		if err := instance.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
+			return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
+		}
 	}
 	err = instance.SetMemory("200Mi", "200Mi")
 	if err != nil {
@@ -166,48 +179,8 @@ func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/config", remoteRootDir))
-	if err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/data", remoteRootDir))
-	if err != nil {
-		return fmt.Errorf("creating data directory: %w", err)
-	}
-
-	err = n.Instance.AddFile(configFilePath, filepath.Join(remoteRootDir, "config", "config.toml"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding config file: %w", err)
-	}
-
-	err = n.Instance.AddFile(genesisFilePath, filepath.Join(remoteRootDir, "config", "genesis.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding genesis file: %w", err)
-	}
-
-	err = n.Instance.AddFile(appConfigFilePath, filepath.Join(remoteRootDir, "config", "app.toml"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding app config file: %w", err)
-	}
-
-	err = n.Instance.AddFile(pvKeyPath, filepath.Join(remoteRootDir, "config", "priv_validator_key.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding priv_validator_key file: %w", err)
-	}
-
-	err = n.Instance.AddFile(pvStatePath, filepath.Join(remoteRootDir, "data", "priv_validator_state.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding priv_validator_state file: %w", err)
-	}
-
-	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join(remoteRootDir, "config", "node_key.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding node_key file: %w", err)
-	}
-
-	err = n.Instance.AddFile(addrBookFile, filepath.Join(remoteRootDir, "config", "addrbook.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding addrbook file: %w", err)
+	if err := n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
 
 	return n.Instance.Commit()

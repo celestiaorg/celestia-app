@@ -43,7 +43,7 @@ func TestE2ESimple(t *testing.T) {
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := New(t.Name(), seed)
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0))
