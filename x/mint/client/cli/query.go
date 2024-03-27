@@ -36,7 +36,7 @@ func GetCmdQueryInflationRate() *cobra.Command {
 		Use:   "inflation",
 		Short: "Query the current inflation rate",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
@@ -65,7 +65,7 @@ func GetCmdQueryAnnualProvisions() *cobra.Command {
 		Use:   "annual-provisions",
 		Short: "Query the current annual provisions",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
@@ -93,7 +93,7 @@ func GetCmdQueryGenesisTime() *cobra.Command {
 		Use:   "genesis-time",
 		Short: "Query the genesis time",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err

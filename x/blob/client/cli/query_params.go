@@ -14,7 +14,7 @@ func CmdQueryParams() *cobra.Command {
 		Use:   "params",
 		Short: "shows the parameters of the module",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
 			queryClient := types.NewQueryClient(clientCtx)

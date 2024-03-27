@@ -47,7 +47,7 @@ func CmdPayForBlob() *cobra.Command {
 			// TODO: allow for more than one blob to be sumbmitted via the CLI
 			"This command currently only supports a single blob per invocation.\n",
 		Aliases: []string{"PayForBlob"},
-		Args: func(cmd *cobra.Command, args []string) error {
+		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) < 2 {
 				return fmt.Errorf("PayForBlobs requires two arguments: namespaceID and blob")
 			}
