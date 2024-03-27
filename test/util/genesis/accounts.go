@@ -53,7 +53,7 @@ func NewAccountsFromPubKeys(initBal int64, pubKeys ...cryptotypes.PubKey) []Acco
 
 func (ga *Account) ValidateBasic() error {
 	if ga.Name == "" && ga.PubKey == nil {
-		return fmt.Errorf("both name and address cannot be empty")
+		return fmt.Errorf("both name and pubkey cannot be empty")
 	}
 	if ga.InitialTokens <= 0 {
 		return fmt.Errorf("initial tokens must be positive")

@@ -30,12 +30,12 @@ func Document(
 
 	genBals, genAccs, err := accountsToSDKTypes(accounts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("converting accounts into sdk types: %w", err)
 	}
 
 	sdkAccounts, err := authtypes.PackAccounts(genAccs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("packing accounts: %w", err)
 	}
 
 	authGenState := authtypes.DefaultGenesisState()
@@ -66,7 +66,7 @@ func Document(
 
 	stateBz, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshalling genesis state: %w", err)
 	}
 
 	// Create the genesis doc
@@ -84,29 +84,24 @@ func Document(
 func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
 	genBals := make([]banktypes.Balance, len(accounts))
 	genAccs := make([]authtypes.GenesisAccount, len(accounts))
-	hasMap := make(map[string]bool)
+	hasMap := make(map[string]struct{})
 	for i, account := range accounts {
 		if err := account.ValidateBasic(); err != nil {
 			return nil, nil, fmt.Errorf("invalid account %d: %v", i, err)
 		}
-		addr := account.PubKey.Address().String()
-		if hasMap[addr] {
+		addr := sdk.AccAddress(account.PubKey.Address())
+		if _, ok := hasMap[addr.String()]; ok {
 			return nil, nil, fmt.Errorf("duplicate account address %s", addr)
 		}
-		hasMap[addr] = true
+		hasMap[addr.String()] = struct{}{}
 
 		balances := sdk.NewCoins(
 			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(DefaultInitialBalance)),
 		)
 
-		genBals[i] = banktypes.Balance{Address: addr, Coins: balances.Sort()}
+		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 
-		parsedAddress, err := sdk.AccAddressFromBech32(addr)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		genAccs[i] = authtypes.NewBaseAccount(parsedAddress, account.PubKey, uint64(i), 0)
+		genAccs[i] = authtypes.NewBaseAccount(addr, account.PubKey, uint64(i), 0)
 	}
 	return genBals, genAccs, nil
 }
