@@ -24,5 +24,5 @@ done
 cd ..
 
 # move proto files to the right places
-cp -r github.com/celestiaorg/celestia-app/v2/* ./
+cp -r github.com/celestiaorg/celestia-app/* ./
 rm -rf github.com

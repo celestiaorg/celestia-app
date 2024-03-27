@@ -18,6 +18,6 @@ added to the application.
 
 ## Resources
 
-1. <https://github.com/celestiaorg/celestia-app/v2/pull/1491>
+1. <https://github.com/celestiaorg/celestia-app/pull/1491>
 1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/upgrade/README.md>
 1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/gov/README.md>

@@ -76,17 +76,17 @@ One namespace ID is located in the first `NamespaceIDSize` bytes, while the othe
 ## References
 
 - Namespaced Merkle tree specifications: <https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md>
-- Celestia original data square specification: <https://github.com/celestiaorg/celestia-app/v2/blob/main/specs/src/specs/data_structures.md#arranging-available-data-into-shares>
-- Celestia constants: <https://github.com/celestiaorg/celestia-app/v2/blob/main/specs/src/specs/consensus.md#constants>
-- Celestia reserved namespace IDs: <https://github.com/celestiaorg/celestia-app/v2/blob/main/specs/src/specs/consensus.md#reserved-namespace-ids>
+- Celestia original data square specification: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/data_structures.md#arranging-available-data-into-shares>
+- Celestia constants: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/consensus.md#constants>
+- Celestia reserved namespace IDs: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/consensus.md#reserved-namespace-ids>
 
 [nmtlink]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md
-[nmtwrapper-link]: https://github.com/celestiaorg/celestia-app/v2/blob/main/pkg/wrapper/nmt_wrapper.go
+[nmtwrapper-link]: https://github.com/celestiaorg/celestia-app/blob/main/pkg/wrapper/nmt_wrapper.go
 [nmt-ds-link]:  https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#nmt-data-structure
 [nmt-hash-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#namespaced-hash
 [nmt-ignoremax-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#ignore-max-namespace
 [nmt-add-leaves-link]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md#add-leaves
-[celestia-constants-link]: https://github.com/celestiaorg/celestia-app/v2/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/consensus.md#constants
-[celestia-consensus-link]: https://github.com/celestiaorg/celestia-app/v2/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/consensus.md#reserved-namespace-ids
-[reedsolomon-link]: https://github.com/celestiaorg/celestia-app/v2/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/data_structures.md#2d-reed-solomon-encoding-scheme
-[originalds-link]: https://github.com/celestiaorg/celestia-app/v2/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/data_structures.md?plain=1#L494
+[celestia-constants-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/consensus.md#constants
+[celestia-consensus-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/consensus.md#reserved-namespace-ids
+[reedsolomon-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/data_structures.md#2d-reed-solomon-encoding-scheme
+[originalds-link]: https://github.com/celestiaorg/celestia-app/blob/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/data_structures.md?plain=1#L494

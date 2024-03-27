@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-app/v2/pull/1419> and revised in <https://github.com/celestiaorg/celestia-app/v2/pull/1771>
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1419> and revised in <https://github.com/celestiaorg/celestia-app/pull/1771>
 
 ## Changelog
 
@@ -126,7 +126,7 @@ Note: if the NMT proof is an absence proof, an additional leaf node is included 
 
 ### Blob inclusion proof size
 
-Blob inclusion proofs haven't yet been implemented so this proposal can't precisely determine the impact on blob inclusion proofs. A naive implementation of blob inclusion proofs may return NMT proofs for all shares that a blob occupies, in other words one NMT proof per row that a blob spans. Assuming shares are 512 bytes, square size is 128, and a blob is less than 128 shares, a blob would occupy a maximum of 2 rows. Therefore, the namespace size's impact on blob inclusion proofs would be approximately 2 * the impact on NMT proofs. A [blob size independent inclusion proof](https://github.com/celestiaorg/celestia-app/v2/blob/6d27b78aa64a749a808e84ea682352b8b551fbd7/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md?plain=1#L19) is likely smaller than this naive implementation because it depends on the number of shares that a PFB transaction spans (likely significantly fewer than 2 rows).
+Blob inclusion proofs haven't yet been implemented so this proposal can't precisely determine the impact on blob inclusion proofs. A naive implementation of blob inclusion proofs may return NMT proofs for all shares that a blob occupies, in other words one NMT proof per row that a blob spans. Assuming shares are 512 bytes, square size is 128, and a blob is less than 128 shares, a blob would occupy a maximum of 2 rows. Therefore, the namespace size's impact on blob inclusion proofs would be approximately 2 * the impact on NMT proofs. A [blob size independent inclusion proof](https://github.com/celestiaorg/celestia-app/blob/6d27b78aa64a749a808e84ea682352b8b551fbd7/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md?plain=1#L19) is likely smaller than this naive implementation because it depends on the number of shares that a PFB transaction spans (likely significantly fewer than 2 rows).
 
 ### Share size
 
@@ -191,8 +191,8 @@ Note: to verify the number of SHA256 compression invocations, we analyzed the nu
       - The optimization would require changes to celestia-app's `nmt_wrapper.go` and nmt's `Hasher` to interpolate the 24 bytes of leading zeros when presented with `namespaceVersion=1`. This would enable clients to compress the 24 bytes of leading zeros in NMT proofs.
 1. What changes need to be made to in order to support namespaces of a different length (e.g. 16 bytes)?
     - celestia-app
-      - [x] Stop using the namespace ID defined by NMT [celestia-app#1385](https://github.com/celestiaorg/celestia-app/v2/pull/1385)
-      - [ ] Increase `appconsts.NamespaceSize` to 16 [celestia-app#1419](https://github.com/celestiaorg/celestia-app/v2/pull/1419)
+      - [x] Stop using the namespace ID defined by NMT [celestia-app#1385](https://github.com/celestiaorg/celestia-app/pull/1385)
+      - [ ] Increase `appconsts.NamespaceSize` to 16 [celestia-app#1419](https://github.com/celestiaorg/celestia-app/pull/1419)
     - celestia-core
       - [ ] Modify `TxNamespaceID`
     - nmt
@@ -226,7 +226,7 @@ Note: to verify the number of SHA256 compression invocations, we analyzed the nu
 
 ## References
 
-- <https://github.com/celestiaorg/celestia-app/v2/issues/1308>
+- <https://github.com/celestiaorg/celestia-app/issues/1308>
 
 [^1]: This assumes a user uses sufficient entropy to generate the namespace ID and isn't front-run by an adversary prior to actually using the namespace.
 [^2]: <https://eager.io/blog/how-long-does-an-id-need-to-be/>

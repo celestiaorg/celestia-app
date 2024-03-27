@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-app/v2/pull/1772>
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1772>
 
 ## Changelog
 
@@ -40,7 +40,7 @@ exceed `MaxBytes`, due to encoding overhead, it's possible for a significantly
 smaller block to require a square size larger than 64. This results in only ever
 confidently achieving a soft block of squares over size 64. Implementation and
 fuzzing test for this option can be found at
-[#1743](https://github.com/celestiaorg/celestia-app/v2/pull/1743).
+[#1743](https://github.com/celestiaorg/celestia-app/pull/1743).
 
 ### Introduce a new Governance Parameter
 
@@ -49,7 +49,7 @@ The second suggestion is to create a new governance parameter,
 lowest of 4 values to determine the size of a block at a given height. This has
 the benefit of allowing for the most flexibility in terms of options, however it
 has the downside of exposing a rather technical parameter to governance. Full
-implementation in [#1772](https://github.com/celestiaorg/celestia-app/v2/pull/1772)
+implementation in [#1772](https://github.com/celestiaorg/celestia-app/pull/1772)
 
 ### Use `MaxBytes` Governance Parameter to Limit Square Size
 
@@ -64,7 +64,7 @@ it makes the result of the currently exposed parameter, `MaxBytes`, more
 complicated. It also eliminates the possibility to allow for small blocks with a
 lot of encoding overhead, since the only way to increase the square size is to
 also increase the `MaxBytes`.Full implementation in
-[#1765](https://github.com/celestiaorg/celestia-app/v2/pull/1765)
+[#1765](https://github.com/celestiaorg/celestia-app/pull/1765)
 
 Note that there is technically a fourth solution, where the `GovMaxSquareSize`
 is added, and it determines the value for `MaxBytes`. The result of this
@@ -85,7 +85,7 @@ Option 2: Introduce a new parameter, `GovMaxSquareSize`. After implemented, the 
 ## Detailed Design
 
 code copied from the full implementation in
-[#1772](https://github.com/celestiaorg/celestia-app/v2/pull/1772)
+[#1772](https://github.com/celestiaorg/celestia-app/pull/1772)
 
 we first introduce a new parameter
 
@@ -149,9 +149,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 ## References
 
-- Option 1 was implemented in [#1743](https://github.com/celestiaorg/celestia-app/v2/pull/1743)
-- Option 2 was implemented in [#1772](https://github.com/celestiaorg/celestia-app/v2/pull/1772)
-- Option 3 was implemented in [#1765](https://github.com/celestiaorg/celestia-app/v2/pull/1765)
-- Issue to restrict the block size in a configurable way [#1592](https://github.com/celestiaorg/celestia-app/v2/issues/1592)
-- Decision to limit the block size [#1737](https://github.com/celestiaorg/celestia-app/v2/issues/1737)
-- Original issues to add `MaxBlockSize` parameters [#183](https://github.com/celestiaorg/celestia-app/v2/issues/183)
+- Option 1 was implemented in [#1743](https://github.com/celestiaorg/celestia-app/pull/1743)
+- Option 2 was implemented in [#1772](https://github.com/celestiaorg/celestia-app/pull/1772)
+- Option 3 was implemented in [#1765](https://github.com/celestiaorg/celestia-app/pull/1765)
+- Issue to restrict the block size in a configurable way [#1592](https://github.com/celestiaorg/celestia-app/issues/1592)
+- Decision to limit the block size [#1737](https://github.com/celestiaorg/celestia-app/issues/1737)
+- Original issues to add `MaxBlockSize` parameters [#183](https://github.com/celestiaorg/celestia-app/issues/183)

@@ -94,7 +94,7 @@ specs](../../specs/src/specs/data_square_layout.md).
 
 1. Split the blob into shares of size [`shareSize`](../../specs/src/specs/data_structures.md#consensus-parameters)
 1. Determine the
-   [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/v2/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
+   [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
    by dividing the length in shares by the `SubtreeRootThreshold`.
 1. Generate each subtree root by diving the blob shares into `SubtreeWidth`
    sized sets, then take the binary [namespaced merkle tree
@@ -105,7 +105,7 @@ specs](../../specs/src/specs/data_square_layout.md).
    step.
 
 See
-[`CreateCommitment`](https://github.com/celestiaorg/celestia-app/v2/blob/v1.0.0-rc2/x/blob/types/payforblob.go#L169-L236)
+[`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/types/payforblob.go#L169-L236)
 for an implementation. See [data square
 layout](../../specs/src/specs/data_square_layout.md) and
 [ADR013](../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md)
@@ -187,7 +187,7 @@ For submitting PFB transaction via a light client's rpc, see [celestia-node's
 documentation](https://docs.celestia.org/developers/node-tutorial#submitting-data).
 
 The steps in the
-[`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/v2/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)
+[`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)
 function can be reverse engineered to submit blobs programmatically.
 
 <!-- markdownlint-enable MD010 -->

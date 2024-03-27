@@ -6,7 +6,7 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
-HTTPS_GIT := https://github.com/celestiaorg/celestia-app/v2.git
+HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
 GOLANG_CROSS_VERSION  ?= v1.22.1
 
@@ -144,7 +144,7 @@ test-e2e:
 ## test-race: Run tests in race mode.
 test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
-# https://github.com/celestiaorg/celestia-app/v2/issues/1369
+# https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
 	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission"
 .PHONY: test-race

@@ -14,7 +14,7 @@ Optimization 1 & 2 **Declined** as it is currently not worth it to introduce ext
 
 The blob inclusion verification game is between the verifier and a prover. The verifier has the blob or its commitment and access to the Celestia block header. The prover wants to prove the inclusion of the blob in this block.
 
-Validators check if the commitment in the PFB transaction matches the commitment that is referenced in [ProcessProposal](https://github.com/celestiaorg/celestia-app/v2/blob/3473000a9ff04fccfbba83929711fe11643b782c/app/process_proposal.go#L113). Given that 2/3 of validators can collude and break this consensus rule, we want a fraud-proof to inform light clients of violations of this rule. If we assume that we have this fraud-proof then we can use the check in `ProcessProposal` to our advantage for an optimistic blob size independent inclusion proof.
+Validators check if the commitment in the PFB transaction matches the commitment that is referenced in [ProcessProposal](https://github.com/celestiaorg/celestia-app/blob/3473000a9ff04fccfbba83929711fe11643b782c/app/process_proposal.go#L113). Given that 2/3 of validators can collude and break this consensus rule, we want a fraud-proof to inform light clients of violations of this rule. If we assume that we have this fraud-proof then we can use the check in `ProcessProposal` to our advantage for an optimistic blob size independent inclusion proof.
 
 ## Blob size independent inclusion proof - PFB inclusion proof
 

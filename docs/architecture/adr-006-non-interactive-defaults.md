@@ -84,17 +84,17 @@ Arranging the messages in the block to maximize fees and optimize square space i
 To meet the above constraints, there are multiple refactors required.
 
 - Add metadata to wrapped transactions, connecting that transaction with a message that it pays for.
-- Refactor share splitting and merging to use the above metadata when decoding and encoding the square. [#462](https://github.com/celestiaorg/celestia-core/issues/462) [#819](https://github.com/celestiaorg/celestia-core/pull/819) [#637](https://github.com/celestiaorg/celestia-app/v2/pull/637)
-- Implement the non-interactive default logic. [#680](https://github.com/celestiaorg/celestia-app/v2/pull/680)
-- Implement the ability to traverse nmt tree to find subtree roots. [#621](https://github.com/celestiaorg/celestia-app/v2/pull/621) [#545](https://github.com/celestiaorg/celestia-app/v2/pull/549) [#681](https://github.com/celestiaorg/celestia-app/v2/pull/681)
-- Refactor `PrepareProposal` to arrange the shares such that each message has the appropriate subtree roots, and so that the metadata connection between transactions and messages is correct. [#692](https://github.com/celestiaorg/celestia-app/v2/pull/692)
-- Refactor `ProcessProposal` to check for message inclusion using only subtree roots to row roots. [#747](https://github.com/celestiaorg/celestia-app/v2/pull/747)
+- Refactor share splitting and merging to use the above metadata when decoding and encoding the square. [#462](https://github.com/celestiaorg/celestia-core/issues/462) [#819](https://github.com/celestiaorg/celestia-core/pull/819) [#637](https://github.com/celestiaorg/celestia-app/pull/637)
+- Implement the non-interactive default logic. [#680](https://github.com/celestiaorg/celestia-app/pull/680)
+- Implement the ability to traverse nmt tree to find subtree roots. [#621](https://github.com/celestiaorg/celestia-app/pull/621) [#545](https://github.com/celestiaorg/celestia-app/pull/549) [#681](https://github.com/celestiaorg/celestia-app/pull/681)
+- Refactor `PrepareProposal` to arrange the shares such that each message has the appropriate subtree roots, and so that the metadata connection between transactions and messages is correct. [#692](https://github.com/celestiaorg/celestia-app/pull/692)
+- Refactor `ProcessProposal` to check for message inclusion using only subtree roots to row roots. [#747](https://github.com/celestiaorg/celestia-app/pull/747)
 
 ### Add metadata to wrapped transactions [#819](https://github.com/celestiaorg/celestia-core/pull/819)
 
 In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForBlob` transaction to its corresponding message by adding the index of the share that the message starts on as metadata. Since users cannot know this ahead of time, block producers have to add this metadata before the transaction gets included in the block.
 
-We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder(...)`](https://github.com/celestiaorg/celestia-app/v2/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx(...)`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
+We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder(...)`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx(...)`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
 
 ```proto
 message MalleatedTx {

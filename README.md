@@ -2,7 +2,7 @@
 
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-app/v2)
 [![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
-[![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/v2/releases/latest)
+[![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app/v2)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app/v2)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
@@ -45,9 +45,9 @@ node            |  |                               |  |
 
 ### Prebuilt binary
 
-If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/v2/releases) page.
+If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
 
-1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/v2/releases>.
+1. Navigate to the latest release on <https://github.com/celestiaorg/celestia-app/releases>.
 1. Download the binary for your platform (e.g. `celestia-app_Linux_x86_64.tar.gz`) from the **Assets** section. Tip: if you're not sure what platform you're on, you can run `uname -a` and look for the operating system (e.g. `Linux`, `Darwin`) and architecture (e.g. `x86_64`, `arm64`).
 1. Extract the archive
 
@@ -108,7 +108,7 @@ celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 
 <!-- markdown-link-check-disable -->
 <!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
-<!-- See https://github.com/celestiaorg/celestia-app/v2/actions/runs/3296219513/jobs/5439416229#step:4:185 -->
+<!-- See https://github.com/celestiaorg/celestia-app/actions/runs/3296219513/jobs/5439416229#step:4:185 -->
 See <https://docs.celestia.org/category/celestia-app> for more information
 <!-- markdown-link-check-enable -->
 
@@ -156,8 +156,8 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 | Date       | Auditor                                       | Version                                                                             | Report                                                  |
 |------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------|
-| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/v2/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf) |
-| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/v2/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)   |
+| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf) |
+| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)   |
 
 ## Careers
 

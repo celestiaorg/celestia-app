@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-app/v2/pull/1578>
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1578>
 
 ## Changelog
 
@@ -76,7 +76,7 @@ Note: a time-based inflation schedule implemented isn't as battle-tested as the 
 1. Every block
     1. Calculate block provision based on the annual provisions and the number of seconds elapsed between the current and previous block
 
-Note: all time-based calculations use nanosecond precision. Additionally time-based calculations assume 365.2425 [`DaysPerYear`](https://github.com/celestiaorg/celestia-app/v2/blob/ddaa261b9b0dec5f5ea10dbfab4c8a03c95d7e72/x/mint/types/constants.go#LL13C23-L13C31) to account for leap years.
+Note: all time-based calculations use nanosecond precision. Additionally time-based calculations assume 365.2425 [`DaysPerYear`](https://github.com/celestiaorg/celestia-app/blob/ddaa261b9b0dec5f5ea10dbfab4c8a03c95d7e72/x/mint/types/constants.go#LL13C23-L13C31) to account for leap years.
 
 ### FAQ
 
