@@ -9,15 +9,15 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
 	"github.com/celestiaorg/go-square/square"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/stretchr/testify/assert"
@@ -261,7 +261,7 @@ func TestAllSharesInclusionProof(t *testing.T) {
 }
 
 // Ensure that we reject negative index values and avoid overflows.
-// https://github.com/celestiaorg/celestia-app/issues/3140
+// https://github.com/celestiaorg/celestia-app/v2/issues/3140
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	path := []string{"-2"}
 	req := abci.RequestQuery{Data: []byte{}}

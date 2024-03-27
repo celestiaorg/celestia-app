@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/spf13/cobra"
 )

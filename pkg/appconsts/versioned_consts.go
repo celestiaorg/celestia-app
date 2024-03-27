@@ -1,9 +1,9 @@
 package appconsts
 
 import (
-	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts/testground"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 )
 
 const (

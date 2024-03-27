@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-app/pull/1690>
+Implemented in <https://github.com/celestiaorg/celestia-app/v2/pull/1690>
 
 ## Changelog
 
@@ -66,7 +66,7 @@ The new algorithm will no longer need to check that the blobs are ordered by nam
 
 ### Positive
 
-- By staging transactions in order of priority, we prevent the removal of a higher priority transaction that had a higher namespace than a transaction with a lower namespace and lower priority. [#1519](https://github.com/celestiaorg/celestia-app/issues/1519)
+- By staging transactions in order of priority, we prevent the removal of a higher priority transaction that had a higher namespace than a transaction with a lower namespace and lower priority. [#1519](https://github.com/celestiaorg/celestia-app/v2/issues/1519)
 - Block proposers aren't able to spam the network with unnecessarily large squares filled with padding as they no longer have control over the size of the square insofar as the amount of transactions included.
 - Gossiping of data can be condensed to just an ordered list of transactions. This more easily enables a compact blocks style of consensus.
 
@@ -81,5 +81,5 @@ The new algorithm will no longer need to check that the blobs are ordered by nam
 ## References
 
 - [ADR013](./adr-013-non-interactive-default-rules-for-zero-padding.md)
-- [PoC: iterative and deterministic square construction](https://github.com/celestiaorg/celestia-app/pull/1301)
+- [PoC: iterative and deterministic square construction](https://github.com/celestiaorg/celestia-app/v2/pull/1301)
 - [ADR006](./adr-006-non-interactive-defaults.md)

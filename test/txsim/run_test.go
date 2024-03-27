@@ -1,7 +1,7 @@
 //go:build !race
 
 // known race in testnode
-// ref: https://github.com/celestiaorg/celestia-app/issues/1369
+// ref: https://github.com/celestiaorg/celestia-app/v2/issues/1369
 package txsim_test
 
 import (
@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/test/txsim"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/test/txsim"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	blob "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"

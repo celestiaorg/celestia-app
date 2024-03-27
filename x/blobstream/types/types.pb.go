@@ -88,7 +88,7 @@ func (m *BridgeValidator) GetEvmAddress() string {
 // ETH because of the significant gas savings
 type Valset struct {
 	// Universal nonce defined under:
-	// https://github.com/celestiaorg/celestia-app/pull/464
+	// https://github.com/celestiaorg/celestia-app/v2/pull/464
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	// List of BridgeValidator containing the current validator set.
 	Members []BridgeValidator `protobuf:"bytes,2,rep,name=members,proto3" json:"members"`
@@ -167,7 +167,7 @@ func (m *Valset) GetTime() time.Time {
 // The range defined by begin_block and end_block is end exclusive.
 type DataCommitment struct {
 	// Universal nonce defined under:
-	// https://github.com/celestiaorg/celestia-app/pull/464
+	// https://github.com/celestiaorg/celestia-app/v2/pull/464
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	// First block defining the ordered set of blocks used to create the
 	// commitment.

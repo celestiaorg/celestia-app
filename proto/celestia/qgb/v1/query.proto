@@ -8,7 +8,7 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
+option go_package = "github.com/celestiaorg/celestia-app/v2/x/blobstream/types";
 
 // Query defines the gRPC querier service.
 service Query {
@@ -87,7 +87,7 @@ message QueryAttestationRequestByNonceRequest { uint64 nonce = 1; }
 message QueryAttestationRequestByNonceResponse {
   // AttestationRequestI is either a Data Commitment or a Valset.
   // This was decided as part of the universal nonce approach under:
-  // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
+  // https://github.com/celestiaorg/celestia-app/v2/issues/468#issuecomment-1156887715
   google.protobuf.Any attestation = 1
       [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
 }

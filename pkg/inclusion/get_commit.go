@@ -3,7 +3,7 @@ package inclusion
 import (
 	"errors"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/go-square/merkle"
 )
 

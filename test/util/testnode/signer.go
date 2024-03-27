@@ -1,11 +1,11 @@
 package testnode
 
 import (
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 )
 
 func NewOfflineSigner() (*user.Signer, error) {

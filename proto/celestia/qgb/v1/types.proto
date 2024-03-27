@@ -5,7 +5,7 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
+option go_package = "github.com/celestiaorg/celestia-app/v2/x/blobstream/types";
 
 // BridgeValidator represents a validator's ETH address and its power
 message BridgeValidator {
@@ -21,7 +21,7 @@ message BridgeValidator {
 message Valset {
   option (cosmos_proto.implements_interface) = "AttestationRequestI";
   // Universal nonce defined under:
-  // https://github.com/celestiaorg/celestia-app/pull/464
+  // https://github.com/celestiaorg/celestia-app/v2/pull/464
   uint64 nonce = 1;
   // List of BridgeValidator containing the current validator set.
   repeated BridgeValidator members = 2 [ (gogoproto.nullable) = false ];
@@ -41,7 +41,7 @@ message Valset {
 message DataCommitment {
   option (cosmos_proto.implements_interface) = "AttestationRequestI";
   // Universal nonce defined under:
-  // https://github.com/celestiaorg/celestia-app/pull/464
+  // https://github.com/celestiaorg/celestia-app/v2/pull/464
   uint64 nonce = 1;
   // First block defining the ordered set of blocks used to create the
   // commitment.

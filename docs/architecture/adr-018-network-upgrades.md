@@ -74,4 +74,4 @@ Similarly, if a migration occurred between the two versions, a reverse migration
 
 ## References
 
-- [EPIC: Social Upgrades](https://github.com/celestiaorg/celestia-app/issues/1014)
+- [EPIC: Social Upgrades](https://github.com/celestiaorg/celestia-app/v2/issues/1014)

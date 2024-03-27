@@ -3,10 +3,10 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/blobstream"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
 
-	testutil "github.com/celestiaorg/celestia-app/test/util"
-	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

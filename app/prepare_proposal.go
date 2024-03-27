@@ -3,9 +3,9 @@ package app
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app/ante"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/app/ante"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -54,7 +54,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// an empty set of transactions. However, even without this validation,
 	// the initial block is anticipated to be devoid of transactions, as
 	// established by the findings presented in
-	// https://github.com/celestiaorg/celestia-app/issues/1899;
+	// https://github.com/celestiaorg/celestia-app/v2/issues/1899;
 	// The inclusion of this check is out of an abundance of caution.
 	// The rationale behind having an empty first block revolves around the fact
 	// that no transactions can enter the mempool since no committed state exists

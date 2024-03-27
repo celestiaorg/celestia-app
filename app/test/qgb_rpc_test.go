@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

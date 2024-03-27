@@ -11,8 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -198,7 +198,7 @@ func broadcastPFB(cmd *cobra.Command, b ...*blob.Blob) error {
 	}
 
 	// TODO: allow the user to override the share version via a new flag
-	// See https://github.com/celestiaorg/celestia-app/issues/1041
+	// See https://github.com/celestiaorg/celestia-app/v2/issues/1041
 	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), appconsts.LatestVersion, b...)
 	if err != nil {
 		return err

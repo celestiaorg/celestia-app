@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"

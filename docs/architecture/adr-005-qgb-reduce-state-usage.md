@@ -8,10 +8,10 @@ Deprecated in favor of [orchestrator-relayer#65](https://github.com/celestiaorg/
 
 The first design for the QGB was to use the state extensively to store all the QGB-related data: Attestations, `Valset Confirms` and `DataCommitment Confirms`.
 As a direct consequence of this, we needed to add thorough checks on the state machine level to be sure that any proposed attestation is correct and will eventually be relayed to the target EVM chain.
-The following issue lists these checks: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/issues/631) and here is their [implementation](https://github.com/celestiaorg/celestia-app/blob/d63b99891023d153ea5937e4f3c1907a784654d8/x/qgb/keeper/msg_server.go#L28-L262).
+The following issue lists these checks: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/v2/issues/631) and here is their [implementation](https://github.com/celestiaorg/celestia-app/v2/blob/d63b99891023d153ea5937e4f3c1907a784654d8/x/qgb/keeper/msg_server.go#L28-L262).
 Also, the state machine for the QGB module became complex and more prone to bugs that might end up halting/forking the chain.
 
-In addition to this, with the gas leak issue discussed in this [comment](https://github.com/celestiaorg/celestia-app/issues/631#issuecomment-1220848130), we ended up removing the sanitizing checks we used to run on the submitted `Valset Confirms` and `DataCommitment Confirms`.
+In addition to this, with the gas leak issue discussed in this [comment](https://github.com/celestiaorg/celestia-app/v2/issues/631#issuecomment-1220848130), we ended up removing the sanitizing checks we used to run on the submitted `Valset Confirms` and `DataCommitment Confirms`.
 This was done with the goal of not charging orchestrators increasing gas fees for every posted attestation.
 A simple benchmark showed that the gas usage multiplied 2 times from `~50 000` to `100 000` after submitting 16 attestations.
 Also, even if removing the checks was the most practical solution, it ended up opening new attack vectors on the QGB module state, such as flooding the network with incorrect attestations from users who are not even validators. Which would increase the burden on validators to handle all of that state.
@@ -29,10 +29,10 @@ We propose to keep the `Valset Confirms` and `DataCommitment Confirms` transacti
 
 Keeping the current design would entail using the state extensively.
 This proves bad when the state grows after a few hundred attestations, and performing checks on the `Valset Confirms` and `DataCommitment Confirms`, which run queries on the state, becomes too expensive.
-An example of such an issue is here: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/issues/631) and [Investigate the QGB transactions cost #603](https://github.com/celestiaorg/celestia-app/issues/603).
+An example of such an issue is here: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/v2/issues/631) and [Investigate the QGB transactions cost #603](https://github.com/celestiaorg/celestia-app/v2/issues/603).
 
 The approach that we were planning to take is to prune the state after the unbonding period.
-This way, we will always have a fixed-sized state, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
+This way, we will always have a fixed-sized state, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/v2/issues/309).
 
 ### Separate P2P network
 
@@ -42,11 +42,11 @@ However, slashing will be very difficult, especially for liveness, i.e. an orche
 
 ### Dump the QGB state in a namespace
 
-Remove the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49)
+Remove the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/v2/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49)
 And also, the `MsgDataCommitmentConfirm` defined in [here](
-<https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>).
+<https://github.com/celestiaorg/celestia-app/v2/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>).
 Which were the way orchestrators were able to post confirms to the QGB module.
-Then, keep only the state that is created in [EndBlocker](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/x/qgb/abci.go#L12-L16).
+Then, keep only the state that is created in [EndBlocker](https://github.com/celestiaorg/celestia-app/v2/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/x/qgb/abci.go#L12-L16).
 Which are `Attestations`, i.e. `Valset`s and `DataCommitmentRequest`s.
 
 ### QGB Rollup
@@ -66,8 +66,8 @@ We will need to decide on two things:
 
 ## Detailed Design
 
-The proposed design consists of keeping the same transaction types we currently have : the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49), and the `MsgDataCommitmentConfirm` defined in [here](
-<https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>). However, remove  all the message server checks defined in the [msg_server.go](https://github.com/celestiaorg/celestia-app/blob/9867b653b2a253ba01cb7889e2dbfa6c9ff67909/x/qgb/keeper/msg_server.go) :
+The proposed design consists of keeping the same transaction types we currently have : the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/v2/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49), and the `MsgDataCommitmentConfirm` defined in [here](
+<https://github.com/celestiaorg/celestia-app/v2/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>). However, remove  all the message server checks defined in the [msg_server.go](https://github.com/celestiaorg/celestia-app/v2/blob/9867b653b2a253ba01cb7889e2dbfa6c9ff67909/x/qgb/keeper/msg_server.go) :
 
 ```go
 // ValsetConfirm handles MsgValsetConfirm.

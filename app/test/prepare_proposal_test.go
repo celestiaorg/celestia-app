@@ -13,12 +13,12 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/test/util"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 )

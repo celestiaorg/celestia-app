@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
-	"github.com/celestiaorg/celestia-app/x/mint/client/cli"
-	mint "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v2/x/mint/client/cli"
+	mint "github.com/celestiaorg/celestia-app/v2/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
 type IntegrationTestSuite struct {

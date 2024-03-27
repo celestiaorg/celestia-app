@@ -1,6 +1,6 @@
 package app
 
-import "github.com/celestiaorg/celestia-app/pkg/appconsts"
+import "github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 
 const (
 	// BondDenom defines the native staking token denomination.

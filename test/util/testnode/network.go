@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/stretchr/testify/require"
 )
 

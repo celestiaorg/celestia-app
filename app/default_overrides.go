@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -241,7 +241,7 @@ func DefaultEvidenceParams() tmproto.EvidenceParams {
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
-	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
+	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/v2/issues/1034
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 

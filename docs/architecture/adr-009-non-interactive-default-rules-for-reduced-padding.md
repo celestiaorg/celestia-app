@@ -23,7 +23,7 @@ Proposed
 The upside of this proposal is that it reduces the inter-message padding. The downside is that a message inclusion proof will not be as efficient for large square sizes so the proof will be larger.
 
 > **Note**
-> This analysis assumes the implementation of [celestia-app#1004](https://github.com/celestiaorg/celestia-app/issues/1004). If the tree over the subtree roots is not a Namespace Merkle Tree then both methods have the same proof size.
+> This analysis assumes the implementation of [celestia-app#1004](https://github.com/celestiaorg/celestia-app/v2/issues/1004). If the tree over the subtree roots is not a Namespace Merkle Tree then both methods have the same proof size.
 
 As an example, take the diagram below. Message 1 is 3 shares long and message 2 is 11 shares long.
 
@@ -208,4 +208,4 @@ The proof size increases a bit.
 
 ## References
 
-[Related Question](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-008-square-size-independent-message-commitments.md#positive-celestia-app-changes)
+[Related Question](https://github.com/celestiaorg/celestia-app/v2/blob/main/docs/architecture/adr-008-square-size-independent-message-commitments.md#positive-celestia-app-changes)

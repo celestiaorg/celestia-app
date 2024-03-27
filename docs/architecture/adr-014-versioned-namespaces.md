@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-app/pull/1557>
+Implemented in <https://github.com/celestiaorg/celestia-app/v2/pull/1557>
 
 ## Changelog
 
@@ -35,7 +35,7 @@ currentBlobShare := []byte{
 
 The current schema poses a challenge for the following scenarios:
 
-1. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)
+1. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/v2/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celestia-app/v2/pull/1161)
     - After mainnet launch, if we want to change the non-interactive default rules but retain the previous non-interactive default rules for backwards compatibility, it isn't possible to differentiate the namespaces that want to use the old rules vs the new rules.
 1. Changes to the format of a padding share.
 1. Changes to the format of PFB transaction serialization.
@@ -51,7 +51,7 @@ An approach that addresses these issues is to prefix the namespace ID with versi
 | Namespace Version | 1 | the version of the namespace ID |
 | Namespace ID | 8 if Namespace Version=0, 32 if Namespace Version=1 | namespace ID of the share |
 
-For example, consider the scenario where at mainnet launch blobs are laid out according to the existing non-interactive default rules. In this scenario, blobs always start at an index aligned with the `BlobMinSquareSize`. The only supported namespace ID is `0`. At some point in the future, if we introduce new non-interactive default rules (e.g. [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)), we may also expand the range of available namespaces to include namespaces that start with a leading `0` or `1` byte. Users may opt in to using the new non-interactive default rules by submitting PFB transactions with a namespace ID version of `1`.
+For example, consider the scenario where at mainnet launch blobs are laid out according to the existing non-interactive default rules. In this scenario, blobs always start at an index aligned with the `BlobMinSquareSize`. The only supported namespace ID is `0`. At some point in the future, if we introduce new non-interactive default rules (e.g. [celestia-app#1161](https://github.com/celestiaorg/celestia-app/v2/pull/1161)), we may also expand the range of available namespaces to include namespaces that start with a leading `0` or `1` byte. Users may opt in to using the new non-interactive default rules by submitting PFB transactions with a namespace ID version of `1`.
 
 - When the namespace starts with `0`, all blobs in the namespace conform to the previous set of non-interactive default rules.
 - When a namespace starts with `1`, all blobs in the namespace conform to the new set of non-interactive default rules.
@@ -185,11 +185,11 @@ When a user creates a PFB, concatenate the namespace version with the namespace 
 
 ## Decision
 
-Option A with a prerequisite of [celestia-app#1308](https://github.com/celestiaorg/celestia-app/issues/1308)
+Option A with a prerequisite of [celestia-app#1308](https://github.com/celestiaorg/celestia-app/v2/issues/1308)
 
 ## References
 
-- [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282)
+- [celestia-app#1282](https://github.com/celestiaorg/celestia-app/v2/issues/1282)
 - IPFS CIDs
   - [https://docs.ipfs.tech/concepts/content-addressing/#what-is-a-cid](https://docs.ipfs.tech/concepts/content-addressing/#what-is-a-cid)
   - [https://proto.school/anatomy-of-a-cid](https://proto.school/anatomy-of-a-cid)

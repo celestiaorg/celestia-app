@@ -93,7 +93,7 @@ With the universal share prefix: if a client is provided share 11, they know fro
 
 ## Alternative Approaches
 
-We briefly considered adding the info byte to only sparse shares, see <https://github.com/celestiaorg/celestia-app/pull/651>. This approach was a miscommunication for an earlier proposal and was deprecated in favor of this ADR.
+We briefly considered adding the info byte to only sparse shares, see <https://github.com/celestiaorg/celestia-app/v2/pull/651>. This approach was a miscommunication for an earlier proposal and was deprecated in favor of this ADR.
 
 ## Decision
 
@@ -101,13 +101,13 @@ Accepted
 
 ## Implementation Details
 
-A share version must be specified by a user when authoring a `MsgWirePayForBlob` because if a user doesn't specify a share version, a block producer may construct message shares associated with their `MsgWirePayForBlob` using a different share version. Different share versions will lead to different share layouts which will lead to different `MessageShareCommitment`s. As a result, message inclusion proofs would fail. [See celestia-app#936](https://github.com/celestiaorg/celestia-app/issues/936).
+A share version must be specified by a user when authoring a `MsgWirePayForBlob` because if a user doesn't specify a share version, a block producer may construct message shares associated with their `MsgWirePayForBlob` using a different share version. Different share versions will lead to different share layouts which will lead to different `MessageShareCommitment`s. As a result, message inclusion proofs would fail. [See celestia-app#936](https://github.com/celestiaorg/celestia-app/v2/issues/936).
 
 Constants
 
 1. Define a new constant for `InfoBytes = 1`.
-1. Update [`CompactShareContentSize`](https://github.com/celestiaorg/celestia-app/blob/566b3d41d2bf097ac49f1a925cb56a3abeabadc8/pkg/appconsts/appconsts.go#L29) to account for one less byte available
-1. Update [`SparseShareContentSize`](https://github.com/celestiaorg/celestia-app/blob/566b3d41d2bf097ac49f1a925cb56a3abeabadc8/pkg/appconsts/appconsts.go#L32) to account for one less byte available
+1. Update [`CompactShareContentSize`](https://github.com/celestiaorg/celestia-app/v2/blob/566b3d41d2bf097ac49f1a925cb56a3abeabadc8/pkg/appconsts/appconsts.go#L29) to account for one less byte available
+1. Update [`SparseShareContentSize`](https://github.com/celestiaorg/celestia-app/v2/blob/566b3d41d2bf097ac49f1a925cb56a3abeabadc8/pkg/appconsts/appconsts.go#L32) to account for one less byte available
 
 Types
 
@@ -145,4 +145,4 @@ If 127 versions are smaller than required, the share format can be updated (in a
 - <https://github.com/celestiaorg/celestia-core/issues/839>
 - <https://github.com/celestiaorg/celestia-core/issues/759>
 - <https://github.com/celestiaorg/celestia-core/issues/757>
-- <https://github.com/celestiaorg/celestia-app/issues/659>
+- <https://github.com/celestiaorg/celestia-app/v2/issues/659>

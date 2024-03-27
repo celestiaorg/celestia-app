@@ -33,7 +33,7 @@ Technically, we don’t have to use ABCI++ yet, we could still test some needed 
 
 While the adoption of ABCI++ is inevitable given the already made decision by upstream to implement it, here are some alternatives to the features that we need that do not use ABCI++:
 
-- [Alternatives for Message Inclusion.](https://github.com/celestiaorg/celestia-app/blob/92341dd68ee6e555ec6c0bb780afa3a1c8243a93/adrs/adr008:adopt-ABC%2B%2B-early.md#alternative-approaches)
+- [Alternatives for Message Inclusion.](https://github.com/celestiaorg/celestia-app/v2/blob/92341dd68ee6e555ec6c0bb780afa3a1c8243a93/adrs/adr008:adopt-ABC%2B%2B-early.md#alternative-approaches)
 - [Alternatives for Picking a square size.](https://github.com/celestiaorg/celestia-core/issues/454)
 
 ## Detailed Design
@@ -146,11 +146,11 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 For those interested in how to incorporate these methods into the cosmos-sdk and the app, we do that in the following PRs.
 
 - celestiaorg/cosmos-sdk [#63](https://github.com/celestiaorg/cosmos-sdk/pull/63)
-- celestiaorg/celestia-app [#214](https://github.com/celestiaorg/celestia-app/pull/214)
+- celestiaorg/celestia-app [#214](https://github.com/celestiaorg/celestia-app/v2/pull/214)
 
-### PrepareProposal [#637](https://github.com/celestiaorg/celestia-core/pull/637) and [#224](https://github.com/celestiaorg/celestia-app/pull/224)
+### PrepareProposal [#637](https://github.com/celestiaorg/celestia-core/pull/637) and [#224](https://github.com/celestiaorg/celestia-app/v2/pull/224)
 
-The way that we create proposal blocks will be refactored (previously [`PrePreprocessTxs`](https://github.com/celestiaorg/celestia-app/blob/0363f0410d9d6bf0e51ac92afcaa9be7c0d1ba07/app/abci.go#L17-L108)) to accommodate the new features.
+The way that we create proposal blocks will be refactored (previously [`PrePreprocessTxs`](https://github.com/celestiaorg/celestia-app/v2/blob/0363f0410d9d6bf0e51ac92afcaa9be7c0d1ba07/app/abci.go#L17-L108)) to accommodate the new features.
 
 ```go
 // PrepareProposal separates messages from transactions, malleates those transactions,
@@ -180,7 +180,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 }
 ```
 
-We estimate the square size by assuming that all the malleable transactions in the block have a valid commitment for whatever square size that we end up picking, and then quickly iterating through the block data to add up the expected lengths of each message/transaction. Please see [here](https://github.com/celestiaorg/celestia-app/blob/e18d8d2301a96702e1bf684735a3620eb059b12f/app/prepare_proposal.go#L47-L130) for more details.
+We estimate the square size by assuming that all the malleable transactions in the block have a valid commitment for whatever square size that we end up picking, and then quickly iterating through the block data to add up the expected lengths of each message/transaction. Please see [here](https://github.com/celestiaorg/celestia-app/v2/blob/e18d8d2301a96702e1bf684735a3620eb059b12f/app/prepare_proposal.go#L47-L130) for more details.
 
 In order to efficiently fill the data square and ensure that each message included in the block is paid for, we progressively generate the data square using a few new types. More details can be found in [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 
@@ -330,7 +330,7 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 
 Lastly, the data availability header is used to create the `DataHash` in the `Header` in the application instead of in tendermint. This is done by modifying the protobuf version of the block data to retain the cached hash and setting it during `ProcessProposal`. Later, in `ProcessProposal` other full nodes check that the `DataHash` matches the block data by recomputing it. Previously, this extra check was performed inside the `ValidateBasic` method of `types.Data`, where is was computed each time it was decoded. Not only is this more efficient as it saves significant computational resources and keeps `ValidateBasic` light, it is also much more explicit. This approach does not however dramatically change any existing code in tendermint, as the code to compute the hash of the block data remains there. Ideally, we would move all of the code that computes erasure encoding to the app. This approach allows us to keep the intuitiveness of the `Hash` method for `types.Data`, along with not forcing us to change many tests in tendermint, which rely on this functionality.
 
-### ProcessProposal [#214](https://github.com/celestiaorg/celestia-app/pull/214), [#216](https://github.com/celestiaorg/celestia-app/pull/216), and [#224](https://github.com/celestiaorg/celestia-app/pull/224)
+### ProcessProposal [#214](https://github.com/celestiaorg/celestia-app/v2/pull/214), [#216](https://github.com/celestiaorg/celestia-app/v2/pull/216), and [#224](https://github.com/celestiaorg/celestia-app/v2/pull/224)
 
 During `ProcessProposal`, we
 
@@ -392,20 +392,20 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 [#626](https://github.com/celestiaorg/celestia-core/issues/626)
 [#636](https://github.com/celestiaorg/celestia-core/issues/636)
 
-[#156](https://github.com/celestiaorg/celestia-app/issues/156)
-[#204](https://github.com/celestiaorg/celestia-app/issues/204)
+[#156](https://github.com/celestiaorg/celestia-app/v2/issues/156)
+[#204](https://github.com/celestiaorg/celestia-app/v2/issues/204)
 
 ### Open PRs in order of which need to be reviewed/merged first
 
 [#631](https://github.com/celestiaorg/celestia-core/pull/631)
 [#63](https://github.com/celestiaorg/cosmos-sdk/pull/63)
-[#214](https://github.com/celestiaorg/celestia-app/pull/214)
+[#214](https://github.com/celestiaorg/celestia-app/v2/pull/214)
 
-[#216](https://github.com/celestiaorg/celestia-app/pull/216)
+[#216](https://github.com/celestiaorg/celestia-app/v2/pull/216)
 [#637](https://github.com/celestiaorg/celestia-core/pull/637)
-[#224](https://github.com/celestiaorg/celestia-app/pull/224)
+[#224](https://github.com/celestiaorg/celestia-app/v2/pull/224)
 
 ### Other related unmerged ADRs that we can close after merging this ADR
 
 [#559](https://github.com/celestiaorg/celestia-core/pull/559)
-[#157](https://github.com/celestiaorg/celestia-app/pull/157)
+[#157](https://github.com/celestiaorg/celestia-app/v2/pull/157)

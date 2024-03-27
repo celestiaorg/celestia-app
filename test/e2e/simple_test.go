@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/test/txsim"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/v2/test/txsim"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
 )
 

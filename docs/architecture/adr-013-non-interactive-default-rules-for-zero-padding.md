@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented in <https://github.com/celestiaorg/celestia-app/pull/1604>. `SubtreeRootThreshold` decreased from 128 to 64 in <https://github.com/celestiaorg/celestia-app/pull/1766>.
+Implemented in <https://github.com/celestiaorg/celestia-app/v2/pull/1604>. `SubtreeRootThreshold` decreased from 128 to 64 in <https://github.com/celestiaorg/celestia-app/v2/pull/1766>.
 
 ## Changelog
 

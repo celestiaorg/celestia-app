@@ -3,9 +3,9 @@ package test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
-	testutil "github.com/celestiaorg/celestia-app/test/util"
-	"github.com/celestiaorg/celestia-app/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"

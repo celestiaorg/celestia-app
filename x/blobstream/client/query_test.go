@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/blobstream/client"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/client"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 )
 
