@@ -39,8 +39,6 @@ install: go.sum
 
 ## mod: Update all go.mod files.
 mod:
-	@echo "--> Syncing workspaces"
-	@go work sync
 	@echo "--> Updating go.mod"
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"

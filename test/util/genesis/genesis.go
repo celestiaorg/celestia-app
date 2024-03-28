@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -99,16 +98,23 @@ func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
 }
 
 func (g *Genesis) AddAccount(acc Account) error {
-	_, err := g.kr.Key(acc.Name)
-	if err == nil {
-		return fmt.Errorf("account with name %s already exists", acc.Name)
-	}
 	if err := acc.ValidateBasic(); err != nil {
 		return err
 	}
-	_, _, err = g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return err
+	if acc.Name != "" {
+		_, err := g.kr.Key(acc.Name)
+		if err == nil {
+			return fmt.Errorf("account with name %s already exists", acc.Name)
+		}
+		record, _, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+		if err != nil {
+			return err
+		}
+		pk, err := record.GetPubKey()
+		if err != nil {
+			return fmt.Errorf("retrieving pubkey: %v", err)
+		}
+		acc.PubKey = pk
 	}
 	g.accounts = append(g.accounts, acc)
 	return nil
@@ -141,31 +147,7 @@ func (g *Genesis) Accounts() []Account {
 }
 
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
-	addrs := make([]string, 0, len(g.accounts))
-	pubKeys := make([]cryptotypes.PubKey, 0, len(g.accounts))
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
-
-	for _, acc := range g.Accounts() {
-		rec, err := g.kr.Key(acc.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		addr, err := rec.GetAddress()
-		if err != nil {
-			return nil, err
-		}
-
-		addrs = append(addrs, addr.String())
-
-		pubK, err := rec.GetPubKey()
-		if err != nil {
-			return nil, err
-		}
-
-		pubKeys = append(pubKeys, pubK)
-	}
-
 	for _, genTx := range g.genTxs {
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
 		if err != nil {
@@ -180,8 +162,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		g.ConsensusParams,
 		g.ChainID,
 		gentxs,
-		addrs,
-		pubKeys,
+		g.Accounts(),
 		g.genOps...,
 	)
 }
