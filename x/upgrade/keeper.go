@@ -90,7 +90,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 // which the application can use as signal to upgrade to that version.
 func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	threshold := k.GetVotingPowerThreshold(sdkCtx)
+	threshold, err := k.GetVotingPowerThreshold(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
 	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
 	if hasQuorum {
 		k.quorumVersion = version
@@ -114,7 +117,10 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
-	threshold := k.GetVotingPowerThreshold(sdkCtx)
+	threshold, err := k.GetVotingPowerThreshold(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),
 		ThresholdPower:   threshold.Uint64(),
@@ -169,15 +175,25 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 
 // GetVotingPowerThreshold returns the voting power threshold required to
 // upgrade to a new version.
-func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
-	// contract: totalVotingPower should not exceed MaxUint64
+func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) (sdkmath.Int, error) {
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
 	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
-	product := totalVotingPower.MulRaw(thresholdFraction.Numerator)
-	if product.ModRaw(thresholdFraction.Denominator).IsZero() {
-		return product.QuoRaw(thresholdFraction.Denominator)
+	product, err := totalVotingPower.SafeMul(sdkmath.NewInt(thresholdFraction.Numerator))
+	if err != nil {
+		return sdkmath.ZeroInt(), err
 	}
-	return product.QuoRaw(thresholdFraction.Denominator).AddRaw(1)
+	res, err := product.SafeQuo(sdkmath.NewInt(thresholdFraction.Denominator))
+	if err != nil {
+		return sdkmath.ZeroInt(), err
+	}
+	mod, err := product.SafeMod(sdkmath.NewInt(thresholdFraction.Denominator))
+	if err != nil {
+		return sdkmath.ZeroInt(), err
+	}
+	if mod.IsZero() {
+		return res, nil
+	}
+	return res.AddRaw(1), nil
 }
 
 // ShouldUpgrade returns true if the signalling mechanism has concluded
