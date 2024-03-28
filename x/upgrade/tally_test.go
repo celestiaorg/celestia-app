@@ -140,7 +140,7 @@ func TestTallyingLogic(t *testing.T) {
 	// remove one of the validators from the set
 	delete(mockStakingKeeper.validators, testutil.ValAddrs[1].String())
 	// the validator had 1 voting power, so we deduct it from the total
-	mockStakingKeeper.totalVotingPower.SubRaw(1)
+	mockStakingKeeper.totalVotingPower = mockStakingKeeper.totalVotingPower.SubRaw(1)
 
 	res, err = upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
