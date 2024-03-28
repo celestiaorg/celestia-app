@@ -5,10 +5,13 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -16,6 +19,53 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+// Create an ordered list of transactions,
+// construct a square,
+// then deconstruct to a list of transactions.
+func reconstruct(testApp *app.App, height int64, blockTime time.Time, txs [][]byte, txConf client.TxConfig) [][]byte {
+	// Setup
+	sdkCtx := testApp.NewProposalContext(core.Header{
+		ChainID: testutil.ChainID,
+		Height:  height,
+		Time:    blockTime,
+	})
+	handler := ante.NewAnteHandler(
+		testApp.AccountKeeper,
+		testApp.BankKeeper,
+		testApp.BlobKeeper,
+		testApp.FeeGrantKeeper,
+		testApp.GetTxConfig().SignModeHandler(),
+		ante.DefaultSigVerificationGasConsumer,
+		testApp.IBCKeeper,
+	)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	decoder := encCfg.TxConfig.TxDecoder()
+	filteredTxs := app.FilterTxs(testApp.Logger(), sdkCtx, handler, txConf, txs)
+	appVersion := testApp.GetBaseApp().AppVersion(sdkCtx)
+	maxSquareSize := testApp.GovSquareSizeUpperBound(sdkCtx)
+
+	// 1. Create ordered txs
+	// Note this is called from PrepareProposal, the implementation under test, therefore this differential test cannot test square.Build.
+	_, orderedTxs, err := square.Build(filteredTxs, appVersion, maxSquareSize)
+	if err != nil {
+		panic(err)
+	}
+
+	// 2. Construct a square
+	dataSquare, err := square.Construct(orderedTxs, appVersion, maxSquareSize)
+	if err != nil {
+		panic(err)
+	}
+
+	// 3. Deconstruct to a list of txs
+	txs1, err := square.Deconstruct(dataSquare, decoder)
+	if err != nil {
+		panic(err)
+	}
+
+	return txs1.ToSliceOfBytes()
+}
 
 // TestPrepareProposalConsistency produces blocks with random data using
 // PrepareProposal and then tests those blocks by calling ProcessProposal. All
@@ -152,6 +202,13 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// change if PFB transactions are not separated and put into
 					// their own namespace
 					require.GreaterOrEqual(t, len(resp.BlockData.Txs), sendTxCount+1)
+
+					// Differentially test the length of transactions returned by testApp.PrepareProposal.
+					// Essentially, test by extracting the txs from a second data square made with square.Construct
+					// then compare the length of this list and the list returned by testApp.PrepareProposal.
+					// Discussion: https://github.com/celestiaorg/celestia-app/issues/2519
+					reconstrucedTxs := reconstruct(testApp, height, blockTime, coretypes.Txs(txs).ToSliceOfBytes(), encConf.TxConfig)
+					require.Equal(t, len(reconstrucedTxs), len(resp.BlockData.Txs))
 				}
 			})
 		}
