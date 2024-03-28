@@ -11,7 +11,7 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	"github.com/cosmos/ibc-go/v6/modules/core/exported"
 
-	"github.com/celestiaorg/celestia-app/x/tokenfilter"
+	"github.com/celestiaorg/celestia-app/v2/x/tokenfilter"
 )
 
 func TestOnRecvPacket(t *testing.T) {

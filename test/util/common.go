@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/blobstream"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
 
 	cosmosmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/x/blobstream/keeper"
-	bstypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
+	bstypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"

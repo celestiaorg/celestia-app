@@ -3,9 +3,9 @@ package ante
 import (
 	errors "cosmossdk.io/errors"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	"github.com/celestiaorg/celestia-app/x/minfee"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"

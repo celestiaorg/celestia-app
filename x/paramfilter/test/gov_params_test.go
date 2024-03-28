@@ -4,16 +4,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
 	"github.com/stretchr/testify/suite"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	testutil "github.com/celestiaorg/celestia-app/test/util"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	bsmoduletypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/x/minfee"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	bsmoduletypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v2/x/minfee"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"

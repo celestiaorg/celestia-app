@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

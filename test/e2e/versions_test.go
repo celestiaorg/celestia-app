@@ -3,7 +3,7 @@ package e2e_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/test/e2e"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e"
 	"github.com/stretchr/testify/require"
 )
 
