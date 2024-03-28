@@ -19,7 +19,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 )
 
@@ -32,6 +32,7 @@ type AccountManager struct {
 	encCfg      encoding.Config
 	pollTime    time.Duration
 	useFeegrant bool
+	logger      zerolog.Logger
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
@@ -50,6 +51,7 @@ func NewAccountManager(
 	conn *grpc.ClientConn,
 	pollTime time.Duration,
 	useFeegrant bool,
+	logger zerolog.Logger,
 ) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
@@ -68,6 +70,7 @@ func NewAccountManager(
 		conn:        conn,
 		pollTime:    pollTime,
 		useFeegrant: useFeegrant,
+		logger:      logger,
 	}
 
 	if masterAccName == "" {
@@ -107,7 +110,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 		// search for the account on chain
 		balance, err := am.getBalance(ctx, address)
 		if err != nil {
-			log.Err(err).Str("account", record.Name).Msg("error getting initial account balance")
+			am.logger.Err(err).Str("account", record.Name).Msg("error getting initial account balance")
 			continue
 		}
 
@@ -149,7 +152,7 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return err
 	}
 
-	log.Info().
+	am.logger.Info().
 		Str("address", am.master.Address().String()).
 		Uint64("balance", am.balance).
 		Msg("set master account")
@@ -251,7 +254,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	// update the latest latestHeight
 	am.setLatestHeight(res.Height)
 
-	log.Info().
+	am.logger.Info().
 		Int64("height", res.Height).
 		Str("address", address.String()).
 		Str("msgs", msgsToString(op.Msgs)).
@@ -299,7 +302,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	for _, acc := range am.pending {
 		signer, err := user.SetupSigner(ctx, am.keys, am.conn, acc.address, am.encCfg)
 		if err != nil {
-			return err
+			return fmt.Errorf("setting up signer: %w", err)
 		}
 
 		signer.SetPollTime(am.pollTime)
@@ -308,7 +311,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 		am.mtx.Lock()
 		am.subaccounts[acc.address.String()] = signer
 		am.mtx.Unlock()
-		log.Info().
+		am.logger.Info().
 			Str("address", acc.address.String()).
 			Uint64("balance", acc.balance).
 			Uint64("account number", signer.AccountNumber()).
@@ -340,7 +343,7 @@ func (am *AccountManager) getSubAccount(address types.AccAddress) (*user.Signer,
 		if bytes.Equal(am.master.Address(), address) {
 			return am.master, nil
 		}
-		return nil, fmt.Errorf("account %s does not exist", address)
+		return nil, fmt.Errorf("account %s does not exist", address.String())
 	}
 	return signer, nil
 }

@@ -2,16 +2,18 @@ package txsim
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -44,13 +46,16 @@ func Run(
 		return fmt.Errorf("dialing %s: %w", grpcEndpoint, err)
 	}
 
-	if opts.suppressLogger {
-		// TODO (@cmwaters): we can do better than setting this globally
-		zerolog.SetGlobalLevel(zerolog.Disabled)
+	logger := zerolog.Nop()
+	if !opts.suppressLogger {
+		hash := sha256.Sum256([]byte(opts.masterAcc + grpcEndpoint))
+		id := hex.EncodeToString(hash[:10])
+		logger = zerolog.New(os.Stdout).With().Str("id", id).Logger()
+		logger.Info().Int64("seed", opts.seed).Str("master", opts.masterAcc).Str("grpc", grpcEndpoint).Msg("starting txsim")
 	}
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
+	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant, logger)
 	if err != nil {
 		return err
 	}
@@ -98,13 +103,13 @@ func Run(
 			continue
 		}
 		if errors.Is(err, ErrEndOfSequence) {
-			log.Info().Err(err).Msg("sequence terminated")
+			logger.Info().Err(err).Msg("sequence terminated")
 			continue
 		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			continue
 		}
-		log.Error().Err(err).Msg("sequence failed")
+		logger.Error().Err(err).Msg("sequence failed")
 		finalErr = err
 	}
 

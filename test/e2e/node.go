@@ -68,7 +68,7 @@ func NewNode(
 	}
 	if grafana != nil {
 		// add support for metrics
-		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "5s"); err != nil {
+		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "15s"); err != nil {
 			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
 		}
 		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
