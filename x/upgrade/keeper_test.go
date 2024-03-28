@@ -44,7 +44,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 			want:       sdkmath.NewInt(7686143364045646506),
 		},
 		{
-			name:       "multiple validators have voting power of math.MaxInt64",
+			name:       "multiple validators with voting power of math.MaxInt64",
 			validators: map[string]int64{"a": math.MaxInt64, "b": math.MaxInt64, "c": math.MaxInt64},
 			want:       sdkmath.NewIntFromBigInt(bigInt),
 		},
