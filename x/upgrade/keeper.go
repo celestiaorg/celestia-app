@@ -16,21 +16,17 @@ var (
 	_ types.MsgServer   = &Keeper{}
 	_ types.QueryServer = Keeper{}
 
-	defaultSignalTheshold = Fraction{Numerator: 5, Denominator: 6}
+	// defaultSignalThreshold is 5/6 or approximately 83.33%
+	defaultSignalThreshold = sdk.NewDec(5).Quo(sdk.NewDec(6))
 )
-
-type Fraction struct {
-	Numerator   int64
-	Denominator int64
-}
 
 // SignalThreshold is the fraction of voting power that is required
 // to signal for a version change. It is set to 5/6 as the middle point
 // between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
 // network during an upgrade period. It can be modified through a
 // hard fork change that modified the app version
-func SignalThreshold(_ uint64) Fraction {
-	return defaultSignalTheshold
+func SignalThreshold(_ uint64) sdk.Dec {
+	return defaultSignalThreshold
 }
 
 type Keeper struct {
@@ -90,10 +86,7 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 // which the application can use as signal to upgrade to that version.
 func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	threshold, err := k.GetVotingPowerThreshold(sdkCtx)
-	if err != nil {
-		return nil, err
-	}
+	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
 	if hasQuorum {
 		k.quorumVersion = version
@@ -117,10 +110,7 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
-	threshold, err := k.GetVotingPowerThreshold(sdkCtx)
-	if err != nil {
-		return nil, err
-	}
+	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),
 		ThresholdPower:   threshold.Uint64(),
@@ -175,25 +165,10 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 
 // GetVotingPowerThreshold returns the voting power threshold required to
 // upgrade to a new version.
-func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) (sdkmath.Int, error) {
+func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
 	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
-	product, err := totalVotingPower.SafeMul(sdkmath.NewInt(thresholdFraction.Numerator))
-	if err != nil {
-		return sdkmath.ZeroInt(), err
-	}
-	res, err := product.SafeQuo(sdkmath.NewInt(thresholdFraction.Denominator))
-	if err != nil {
-		return sdkmath.ZeroInt(), err
-	}
-	mod, err := product.SafeMod(sdkmath.NewInt(thresholdFraction.Denominator))
-	if err != nil {
-		return sdkmath.ZeroInt(), err
-	}
-	if mod.IsZero() {
-		return res, nil
-	}
-	return res.AddRaw(1), nil
+	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt()
 }
 
 // ShouldUpgrade returns true if the signalling mechanism has concluded

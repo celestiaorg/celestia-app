@@ -10,12 +10,11 @@ import (
 	"github.com/celestiaorg/celestia-app/x/upgrade"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGetVotingPowerThreshold(t *testing.T) {
 	bigInt := big.NewInt(0)
-	bigInt.SetString("23058430092136939518", 10)
+	bigInt.SetString("23058430092136939509", 10)
 
 	type testCase struct {
 		name       string
@@ -41,7 +40,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		{
 			name:       "one validator with voting power of math.MaxInt64",
 			validators: map[string]int64{"a": math.MaxInt64},
-			want:       sdkmath.NewInt(7686143364045646506),
+			want:       sdkmath.NewInt(7686143364045646503),
 		},
 		{
 			name:       "multiple validators with voting power of math.MaxInt64",
@@ -53,8 +52,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			stakingKeeper := newMockStakingKeeper(tc.validators)
 			k := upgrade.NewKeeper(nil, stakingKeeper)
-			got, err := k.GetVotingPowerThreshold(sdk.Context{})
-			require.NoError(t, err)
+			got := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
 	}

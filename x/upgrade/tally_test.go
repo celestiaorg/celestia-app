@@ -193,8 +193,7 @@ func TestThresholdVotingPower(t *testing.T) {
 		{total: 59, threshold: 50},
 	} {
 		mockStakingKeeper.totalVotingPower = math.NewInt(tc.total)
-		threshold, err := upgradeKeeper.GetVotingPowerThreshold(ctx)
-		require.NoError(t, err)
+		threshold := upgradeKeeper.GetVotingPowerThreshold(ctx)
 		require.EqualValues(t, tc.threshold, threshold.Int64())
 	}
 }
