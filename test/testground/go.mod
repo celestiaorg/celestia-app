@@ -3,13 +3,14 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.22.0
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240327210720-048e6478e1cc
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240329210123-1c4673094986
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/gogo/protobuf v1.3.3
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
 	github.com/testground/sdk-go v0.3.0
 	gonum.org/v1/plot v0.14.0
+	google.golang.org/grpc v1.62.0
 )
 
 require (
@@ -219,7 +220,6 @@ require (
 	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
-	google.golang.org/grpc v1.62.0 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
