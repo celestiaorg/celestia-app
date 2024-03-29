@@ -37,9 +37,9 @@ func TestLegacyUpgrade(t *testing.T) {
 // proposals.
 func TestRemoval(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	sftwrUpgrd := types.MsgSoftwareUpgrade{}
+	msgSoftwareUpgrade := types.MsgSoftwareUpgrade{}
 	router := app.MsgServiceRouter()
-	handler := router.Handler(&sftwrUpgrd)
+	handler := router.Handler(&msgSoftwareUpgrade)
 	require.Nil(t, handler)
 }
 

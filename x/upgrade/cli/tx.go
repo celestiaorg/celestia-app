@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// GetTxCmd returns the transaction commands for this module
+// GetTxCmd returns the transaction commands for this module.
 func GetTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
@@ -24,7 +24,6 @@ func GetTxCmd() *cobra.Command {
 
 	cmd.AddCommand(CmdSignalVersion())
 	cmd.AddCommand(CmdTryUpgrade())
-
 	return cmd
 }
 
@@ -46,9 +45,7 @@ func CmdSignalVersion() *cobra.Command {
 
 			addr := clientCtx.GetFromAddress().Bytes()
 			valAddr := sdk.ValAddress(addr)
-
 			msg := types.NewMsgSignalVersion(valAddr, version)
-
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -70,9 +67,7 @@ to the signalled version at the following height.
 			if err != nil {
 				return err
 			}
-
 			msg := types.NewMsgTryUpgrade(clientCtx.GetFromAddress())
-
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}

@@ -28,8 +28,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// QueryVersionTallyRequest is the request type for the UpgradeStatus RPC
-// method.
+// QueryVersionTallyRequest is the request type for the VersionTally query.
 type QueryVersionTallyRequest struct {
 	Version uint64 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 }
@@ -74,8 +73,7 @@ func (m *QueryVersionTallyRequest) GetVersion() uint64 {
 	return 0
 }
 
-// QueryVersionTallyResponse is the response type for the UpgradeStatus RPC
-// method.
+// QueryVersionTallyResponse is the response type for the VersionTally query.
 type QueryVersionTallyResponse struct {
 	VotingPower      uint64 `protobuf:"varint,1,opt,name=voting_power,json=votingPower,proto3" json:"voting_power,omitempty"`
 	ThresholdPower   uint64 `protobuf:"varint,2,opt,name=threshold_power,json=thresholdPower,proto3" json:"threshold_power,omitempty"`
@@ -180,8 +178,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
-	// VersionTally allows the querying of the tally of voting power by all
-	// validators that have signalled for each version
+	// VersionTally enables a client to query for the tally of voting power has
+	// signalled for a particular version.
 	VersionTally(ctx context.Context, in *QueryVersionTallyRequest, opts ...grpc.CallOption) (*QueryVersionTallyResponse, error)
 }
 
@@ -204,8 +202,8 @@ func (c *queryClient) VersionTally(ctx context.Context, in *QueryVersionTallyReq
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
-	// VersionTally allows the querying of the tally of voting power by all
-	// validators that have signalled for each version
+	// VersionTally enables a client to query for the tally of voting power has
+	// signalled for a particular version.
 	VersionTally(context.Context, *QueryVersionTallyRequest) (*QueryVersionTallyResponse, error)
 }
 

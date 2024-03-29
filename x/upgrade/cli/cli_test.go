@@ -23,7 +23,7 @@ type CLITestSuite struct {
 }
 
 func (s *CLITestSuite) SetupSuite() {
-	s.T().Log("setting up integration test suite")
+	s.T().Log("setting up CLI test suite")
 	ctx, _, _ := testnode.NewNetwork(s.T(), testnode.DefaultConfig())
 	s.ctx = ctx
 	_, err := s.ctx.WaitForHeight(1)

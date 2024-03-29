@@ -8,14 +8,16 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
-// RegisterLegacyAminoCodec registers the upgrade types on the LegacyAmino codec.
+// RegisterLegacyAminoCodec registers the upgrade types on the provided
+// LegacyAmino codec.
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(upgradetypes.Plan{}, "cosmos-sdk/Plan", nil)
 	cdc.RegisterConcrete(&MsgTryUpgrade{}, URLMsgTryUpgrade, nil)
 	cdc.RegisterConcrete(&MsgSignalVersion{}, URLMsgSignalVersion, nil)
 }
 
-// RegisterInterfaces registers the upgrade module types.
+// RegisterInterfaces registers the upgrade module types on the provided
+// registry.
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgTryUpgrade{})
 	registry.RegisterImplementations((*sdk.Msg)(nil), &MsgSignalVersion{})

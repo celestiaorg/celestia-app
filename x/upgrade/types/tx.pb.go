@@ -28,7 +28,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgSignalVersion signals for an upgrade
+// MsgSignalVersion signals for an upgrade.
 type MsgSignalVersion struct {
 	ValidatorAddress string `protobuf:"bytes,1,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
 	Version          uint64 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
@@ -81,8 +81,7 @@ func (m *MsgSignalVersion) GetVersion() uint64 {
 	return 0
 }
 
-// MsgSignalVersionResponse describes the response returned after the submission
-// of a SignalVersion
+// MsgSignalVersionResponse is the response type for the SignalVersion method.
 type MsgSignalVersionResponse struct {
 }
 
@@ -119,7 +118,7 @@ func (m *MsgSignalVersionResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgSignalVersionResponse proto.InternalMessageInfo
 
-// MsgTryUpgrade tries to upgrade the chain
+// MsgTryUpgrade tries to upgrade the chain.
 type MsgTryUpgrade struct {
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 }
@@ -164,7 +163,7 @@ func (m *MsgTryUpgrade) GetSigner() string {
 	return ""
 }
 
-// MsgTryUpgradeResponse describes the response returned after the submission
+// MsgTryUpgradeResponse is the response type for the TryUpgrade method.
 type MsgTryUpgradeResponse struct {
 }
 
@@ -248,10 +247,10 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// SignalVersion allows the validator to signal for an upgrade
+	// SignalVersion allows a validator to signal for an upgrade.
 	SignalVersion(ctx context.Context, in *MsgSignalVersion, opts ...grpc.CallOption) (*MsgSignalVersionResponse, error)
 	// TryUpgrade tallies all the votes and if a quorum is reached, it will
-	// trigger an upgrade for the following height
+	// trigger an upgrade for the following height.
 	TryUpgrade(ctx context.Context, in *MsgTryUpgrade, opts ...grpc.CallOption) (*MsgTryUpgradeResponse, error)
 }
 
@@ -283,10 +282,10 @@ func (c *msgClient) TryUpgrade(ctx context.Context, in *MsgTryUpgrade, opts ...g
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// SignalVersion allows the validator to signal for an upgrade
+	// SignalVersion allows a validator to signal for an upgrade.
 	SignalVersion(context.Context, *MsgSignalVersion) (*MsgSignalVersionResponse, error)
 	// TryUpgrade tallies all the votes and if a quorum is reached, it will
-	// trigger an upgrade for the following height
+	// trigger an upgrade for the following height.
 	TryUpgrade(context.Context, *MsgTryUpgrade) (*MsgTryUpgradeResponse, error)
 }
 
