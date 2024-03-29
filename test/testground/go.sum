@@ -346,8 +346,8 @@ github.com/campoy/embedmd v1.0.0/go.mod h1:oxyr9RCiSXg0M3VJ3ks0UGfp98BpSSGr0kpiX
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240329211055-81b34b0a25b8 h1:60WPDBza658HOS942bg9qWMDqNyo5ShSguKieGdRmEI=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240329211055-81b34b0a25b8/go.mod h1:4tcV0NhTXGLNHusZ7E1sbp8AexvSKX2OIoxa561pec0=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240329212042-8c0ca4c918f3 h1:ijLNl3dEfTIB9Pjd0m2mpMsfH1nRcC/w6nRvDSmfQhs=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240329212042-8c0ca4c918f3/go.mod h1:4tcV0NhTXGLNHusZ7E1sbp8AexvSKX2OIoxa561pec0=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240327181930-fe38251332f4 h1:vlVyUB3iLsHDU3UZWFWHJ6kaJZLoablA6BQJ2Uml40o=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240327181930-fe38251332f4/go.mod h1:cH+AztynabfHFhK7F0RdI4mR+xBI7Qstj+H6rOtCZEU=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16 h1:9U9UthIJSOyVjabD5PkD6aczvqlWOyAFTOXw0duPT5k=
