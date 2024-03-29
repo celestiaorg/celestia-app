@@ -94,7 +94,6 @@ func NewAppModule(keeper Keeper) AppModule {
 func (AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
 // Route returns an empty route for this module.
-// Deprecated in favor of RegisterServices.
 func (AppModule) Route() sdk.Route {
 	return sdk.Route{}
 }
