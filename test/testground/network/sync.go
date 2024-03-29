@@ -42,6 +42,7 @@ var (
 // network.
 type PeerPacket struct {
 	PeerID          string          `json:"peer_id"`
+	RPC             string          `json:"rpc"`
 	GroupID         string          `json:"group_id"`
 	GlobalSequence  int64           `json:"global_sequence"`
 	GenesisAccounts []string        `json:"genesis_accounts"`
@@ -77,6 +78,9 @@ func NewConfigSet(params *Params, pps []PeerPacket) []RoleConfig {
 	nodeConfigs := make([]RoleConfig, 0, len(pps))
 
 	for _, pp := range pps {
+		if pp.GroupID == TxSimGroupID {
+			continue
+		}
 		nodeConfigs = append(nodeConfigs, RoleConfig{
 			CmtConfig:      StandardCometConfig(params),
 			AppConfig:      StandardAppConfig(params),
@@ -126,7 +130,7 @@ func PublishNodeConfigs(ctx context.Context, initCtx *run.InitContext, nodes []R
 }
 
 func DownloadNodeConfigs(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) ([]RoleConfig, error) {
-	return DownloadSync(ctx, initCtx, MetaConfigTopic, RoleConfig{}, runenv.TestInstanceCount)
+	return DownloadSync(ctx, initCtx, MetaConfigTopic, RoleConfig{}, runenv.TestInstanceCount/2) // divide by 2 to account for txsims
 }
 
 // GenesisWrapper is a simple struct wrapper that makes it easier testground to

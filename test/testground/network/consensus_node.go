@@ -102,7 +102,7 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 	cn.networkKey = nkey
 
 	var bz []byte
-	if runenv.TestGroupID == ValidatorGroupID {
+	if runenv.TestGroupID == LeaderGroupID || runenv.TestGroupID == FollowerGroupID {
 		gentx, err := val.GenTx(cn.ecfg, cn.kr, cn.params.ChainID)
 		if err != nil {
 			return nil, err
@@ -120,6 +120,7 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 
 	pp := PeerPacket{
 		PeerID:          peerID(ip.String(), cn.networkKey),
+		RPC:             ip.String(),
 		GroupID:         runenv.TestGroupID,
 		GlobalSequence:  initCtx.GlobalSeq,
 		GenesisAccounts: addrsToStrings(addrs...),
@@ -135,6 +136,10 @@ func (cn *ConsensusNode) Bootstrap(ctx context.Context, runenv *runtime.RunEnv, 
 	packets, err := DownloadSync(ctx, initCtx, PeerPacketTopic, PeerPacket{}, runenv.TestInstanceCount)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, packet := range packets {
+		runenv.RecordMessage(fmt.Sprintf("packet: %+v", packet.PeerID))
 	}
 
 	return packets, nil
@@ -267,7 +272,7 @@ func getPublicKeys(kr keyring.Keyring, accounts ...string) ([]string, error) {
 	return keys, nil
 }
 
-func addPeersToAddressBook(path string, peers []PeerPacket) error {
+func addPeersToAddressBook(re *runtime.RunEnv, path string, peers []PeerPacket) error {
 	err := os.MkdirAll(strings.Replace(path, "addrbook.json", "", -1), os.ModePerm)
 	if err != nil {
 		return err
@@ -282,7 +287,8 @@ func addPeersToAddressBook(path string, peers []PeerPacket) error {
 	for _, peer := range peers {
 		id, ip, port, err := parsePeerID(peer.PeerID)
 		if err != nil {
-			return err
+			re.RecordMessage(fmt.Sprintf("leader: error parsing peer ID: %s", err))
+			continue
 		}
 
 		netAddr := p2p.NetAddress{
@@ -290,6 +296,8 @@ func addPeersToAddressBook(path string, peers []PeerPacket) error {
 			IP:   ip,
 			Port: uint16(port),
 		}
+
+		re.RecordMessage(fmt.Sprintf("leader: adding peer: %s", netAddr.String()))
 
 		err = addrBook.AddAddress(&netAddr, &netAddr)
 		if err != nil {
@@ -307,7 +315,7 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 	match := re.FindStringSubmatch(input)
 
 	if len(match) != 4 {
-		return "", nil, 0, fmt.Errorf("invalid input format")
+		return "", nil, 0, fmt.Errorf("invalid input format: %s", input)
 	}
 
 	// Extract the components from the regex match.

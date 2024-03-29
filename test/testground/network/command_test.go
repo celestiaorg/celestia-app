@@ -93,7 +93,7 @@ func TestAddrBookLoading(t *testing.T) {
 	tmcfg := app.DefaultConsensusConfig()
 	tmcfg = tmcfg.SetRoot(temp)
 
-	err := addPeersToAddressBook(tmcfg.P2P.AddrBookFile(), []PeerPacket{peerPacket})
+	err := addPeersToAddressBook(nil, tmcfg.P2P.AddrBookFile(), []PeerPacket{peerPacket})
 	require.NoError(t, err)
 
 	addrBook := pex.NewAddrBook(tmcfg.P2P.AddrBookFile(), false)

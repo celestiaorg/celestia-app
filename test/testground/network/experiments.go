@@ -17,7 +17,7 @@ const (
 	ConsistentFill     = "consistent-fill"
 )
 
-func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, timeout time.Duration) (RunTxSimCommandArgs, error) {
+func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext, timeout time.Duration, sims map[int]string) (RunTxSimCommandArgs, error) {
 	seqs := runenv.IntParam(BlobSequencesParam)
 	size := runenv.IntParam(BlobSizesParam)
 	count := runenv.IntParam(BlobsPerSeqParam)
@@ -26,6 +26,7 @@ func fillBlocks(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitCo
 		BlobSequences: seqs,
 		BlobSize:      size,
 		BlobCount:     count,
+		IPs:           sims,
 	}
 
 	cmd := NewRunTxSimCommand("txsim-0", timeout, args)
@@ -45,12 +46,10 @@ func (l *Leader) unboundedBlockSize(
 	cdc codec.Codec,
 	heightStepSize int64,
 ) error {
-	args, err := fillBlocks(ctx, runenv, initCtx, time.Minute*59)
+	_, err := fillBlocks(ctx, runenv, initCtx, time.Minute*59, l.sims)
 	if err != nil {
 		return err
 	}
-
-	go l.RunTxSim(ctx, args)
 
 	query := "tm.event = 'NewBlockHeader'"
 	events, err := l.cctx.Client.Subscribe(ctx, "leader", query, 10)
@@ -61,10 +60,10 @@ func (l *Leader) unboundedBlockSize(
 	go func() {
 		// blockSize is the starting block size limit in bytes. This is
 		// incremented by blockIncrement each loop.
-		blockSize := 2000000
+		blockSize := 20000000
 		// blockIncrement is the amount the block size limit is increased in
 		// bytes by each loop. This is incremented by 5000000 each loop.
-		blockIncrement := 5000000
+		blockIncrement := 10000000
 		proposalCount := uint64(1)
 		for {
 			select {
@@ -88,7 +87,6 @@ func (l *Leader) unboundedBlockSize(
 				}
 				runenv.RecordMessage("leader: changed max block size to %d", blockSize)
 				blockSize += blockIncrement
-				blockIncrement += 5000000
 				proposalCount++
 			}
 		}

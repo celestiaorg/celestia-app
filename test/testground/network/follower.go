@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -29,18 +28,6 @@ func NewFollower() *Follower {
 	// all of the commands that the follower can receive have to be registered
 	// at some point. This is currently done here.
 	op := NewOperator()
-	op.RegisterCommand(
-		RunTxSimCommandID,
-		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args json.RawMessage) error {
-			var a RunTxSimCommandArgs
-			err := json.Unmarshal(args, &a)
-			if err != nil {
-				return err
-			}
-			runenv.RecordMessage("running txsim")
-			return f.RunTxSim(ctx, a)
-		},
-	)
 	op.RegisterCommand(
 		SubmitTxCommandID,
 		func(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitContext, args json.RawMessage) error {
@@ -92,18 +79,16 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 		return err
 	}
 
-	err = addPeersToAddressBook(f.CmtConfig.P2P.AddrBookFile(), packets)
+	err = addPeersToAddressBook(runenv, f.CmtConfig.P2P.AddrBookFile(), packets)
 	if err != nil {
+		runenv.RecordMessage("follower saddtart node err", err)
 		return err
 	}
 
 	err = f.ConsensusNode.StartNode(ctx, f.baseDir)
 	if err != nil {
+		runenv.RecordMessage("follower start node err", err)
 		return err
-	}
-
-	if f.CmtConfig.Instrumentation.PyroscopeTrace {
-		runenv.RecordMessage("pyroscope: follower starting pyroscope")
 	}
 
 	runenv.RecordMessage("follower waiting for start height")
@@ -112,11 +97,6 @@ func (f *Follower) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *ru
 	if err != nil {
 		return err
 	}
-
-	// if f.CmtConfig.Instrumentation.Prometheus {
-	// 	runenv.RecordMessage("profiling: follower starting prometheus")
-	// 	go ScrapeMetrics(ctx, "http://51.159.176.205:8080/store_packets", f.cctx.ChainID, initCtx.GlobalSeq, runenv)
-	// }
 
 	addr := testfactory.GetAddress(f.cctx.Keyring, f.Name)
 
@@ -160,46 +140,6 @@ func (f *Follower) ListenForCommands(ctx context.Context, runenv *runtime.RunEnv
 	// run will block until the context is canceled or the leader sends a
 	// command to stop.
 	return f.op.Run(ctx, runenv, initCtx, cmds)
-}
-
-const (
-	RunTxSimCommandID = "run_txsim"
-)
-
-func NewRunTxSimCommand(id string, timeout time.Duration, args RunTxSimCommandArgs) Command {
-	bz, err := json.Marshal(args)
-	if err != nil {
-		panic(err)
-	}
-	cmd := Command{
-		ID:          id,
-		Name:        RunTxSimCommandID,
-		Args:        bz,
-		Timeout:     timeout,
-		TargetGroup: "all",
-	}
-	return cmd
-}
-
-type RunTxSimCommandArgs struct {
-	// BlobSequences is the number of blob sequences to run
-	BlobSequences int `json:"blob_sequences"`
-	BlobSize      int `json:"blob_size"`
-	BlobCount     int `json:"blob_count"`
-}
-
-func (c *RunTxSimCommandArgs) Sequences() []txsim.Sequence {
-	return txsim.NewBlobSequence(
-		txsim.NewRange(c.BlobSize, c.BlobSize),
-		txsim.NewRange(c.BlobCount, c.BlobCount)).
-		Clone(c.BlobSequences)
-}
-
-// RunTxSim runs the txsim tool on the follower node.
-func (f *Follower) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
-	grpcEndpoint := "127.0.0.1:9090"
-	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
-	return txsim.Run(ctx, grpcEndpoint, f.kr, f.ecfg, opts, c.Sequences()...)
 }
 
 const (

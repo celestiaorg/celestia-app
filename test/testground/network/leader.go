@@ -23,6 +23,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Leader is the role for the leader node in a test. It is responsible for
@@ -30,18 +32,22 @@ import (
 type Leader struct {
 	*ConsensusNode
 	signer *user.Signer
+
+	sims map[int]string
 }
 
 // Plan is the method that creates and distributes the genesis, configurations,
 // and keys for all of the other nodes in the network.
 func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.InitContext) error {
-	runenv.RecordMessage("Bootstrapping")
+	runenv.RecordMessage("leader Bootstrapping")
 	packets, err := l.Bootstrap(ctx, runenv, initCtx)
 	if err != nil {
 		return err
 	}
 
-	runenv.RecordMessage("got packets, using parts for the genesis")
+	l.sims = matchTxSim(packets)
+
+	runenv.RecordMessage("leader got packets, using parts for the genesis and sims", len(l.sims))
 
 	// create Genesis and distribute it to all nodes
 	genesis, err := l.GenesisEvent(l.params, packets)
@@ -51,11 +57,11 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	err = PublishGenesis(ctx, initCtx, genesis)
 	if err != nil {
-		runenv.RecordMessage("it is the genesis publications")
+		runenv.RecordMessage("leader: it is the genesis publications")
 		return err
 	}
 
-	runenv.RecordMessage("published genesis")
+	runenv.RecordMessage("leader: published genesis")
 
 	nodes := NewConfigSet(l.params, packets)
 
@@ -77,7 +83,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	node, has := searchNodes(nodes, initCtx.GlobalSeq)
 	if !has {
-		return errors.New("node not found")
+		return errors.New("leader: node not found")
 	}
 
 	genBytes, err := cmtjson.MarshalIndent(genesis, "", "  ")
@@ -90,25 +96,38 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 		return err
 	}
 
-	if l.CmtConfig.Instrumentation.PyroscopeTrace {
-		runenv.RecordMessage("pyroscope: follower starting pyroscope")
-	}
-
-	err = addPeersToAddressBook(l.CmtConfig.P2P.AddrBookFile(), packets)
+	runenv.RecordMessage("leader: adding peers to address book %v", len(packets))
+	err = addPeersToAddressBook(runenv, l.CmtConfig.P2P.AddrBookFile(), packets)
 	if err != nil {
+		runenv.RecordMessage("leader:err 1")
 		return err
 	}
 
 	err = l.ConsensusNode.StartNode(ctx, l.baseDir)
 	if err != nil {
+		runenv.RecordMessage("leader:err 2")
 		return err
 	}
 
-	runenv.RecordMessage("waiting for initial height")
+	runenv.RecordMessage("leader: waiting for initial height")
 
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
 	if err != nil {
+		runenv.RecordMessage("leader:err 3")
 		return err
+	}
+
+	ip, err := initCtx.NetClient.GetDataNetworkIP()
+	if err != nil {
+		return err
+	}
+
+	grpcEndpoint := ip.String() + ":9090"
+	runenv.RecordMessage("leader:err ip string %s", grpcEndpoint)
+
+	_, err = grpc.Dial(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("dialing %s: %w", grpcEndpoint, err)
 	}
 
 	addr := testfactory.GetAddress(l.cctx.Keyring, l.Name)
@@ -139,17 +158,16 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	switch l.params.Experiment {
 	case UnboundedBlockSize:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 10)
+		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 20)
 		if err != nil {
 			runenv.RecordMessage(fmt.Sprintf("error unbounded block size test: %v", err))
 		}
 	case ConsistentFill:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		args, err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+		_, err := fillBlocks(ctx, runenv, initCtx, time.Minute*20, l.sims)
 		if err != nil {
 			runenv.RecordMessage(fmt.Sprintf("error consistent fill block size test: %v", err))
 		}
-		go l.RunTxSim(ctx, args) // also run txsim on the leader
 	default:
 		return fmt.Errorf("unknown experiment %s", l.params.Experiment)
 	}
@@ -205,7 +223,13 @@ func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.
 		}
 		pubKeys = append(pubKeys, pks...)
 		addrs = append(addrs, packet.GenesisAccounts...)
-		if packet.GroupID == ValidatorGroupID {
+		if packet.GroupID == LeaderGroupID {
+			continue
+		}
+		if packet.GenTx == nil {
+			continue
+		}
+		if packet.GroupID == LeaderGroupID || packet.GroupID == FollowerGroupID {
 			gentxs = append(gentxs, packet.GenTx)
 		}
 	}
@@ -309,4 +333,22 @@ func (l *Leader) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
 	grpcEndpoint := "127.0.0.1:9090"
 	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
 	return txsim.Run(ctx, grpcEndpoint, l.kr, l.ecfg, opts, c.Sequences()...)
+}
+
+func matchTxSim(pp []PeerPacket) map[int]string {
+	ips := make(map[int]string)
+	txsims := []int{}
+	rps := []string{}
+	for _, pp := range pp {
+		if pp.GroupID == TxSimGroupID {
+			txsims = append(txsims, int(pp.GlobalSequence))
+			continue
+		}
+		rps = append(rps, pp.RPC)
+
+	}
+	for i, txsim := range txsims {
+		ips[txsim] = rps[i]
+	}
+	return ips
 }

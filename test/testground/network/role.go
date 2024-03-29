@@ -12,6 +12,9 @@ const (
 	homeDir              = "/.celestia-app"
 	TxSimAccountName     = "txsim"
 	ValidatorGroupID     = "validators"
+	LeaderGroupID        = "leeader"
+	FollowerGroupID      = "foollower"
+	TxSimGroupID         = "txxsim"
 	LeaderGlobalSequence = 1
 )
 
@@ -41,13 +44,18 @@ var _ Role = (*Follower)(nil)
 
 // NewRole creates a new role based on the role name.
 func NewRole(runenv *runtime.RunEnv, initCtx *run.InitContext) (Role, error) {
-	seq := initCtx.GlobalSeq
-	switch seq {
-	case 1:
+	group := runenv.TestGroupID
+	switch group {
+	case LeaderGroupID:
 		runenv.RecordMessage("leader standing by: group %s", runenv.TestGroupID)
 		return &Leader{ConsensusNode: &ConsensusNode{}}, nil
-	default:
-		runenv.RecordMessage(fmt.Sprintf("follower %d standing by: group %s", seq, runenv.TestGroupID))
+	case FollowerGroupID:
+		runenv.RecordMessage(fmt.Sprintf("follower standing by: group %s", runenv.TestGroupID))
 		return NewFollower(), nil
+	case TxSimGroupID:
+		runenv.RecordMessage(fmt.Sprintf("txsim standing by: group %s", runenv.TestGroupID))
+		return NewTxSim(), nil
+	default:
+		return nil, fmt.Errorf("unknown role: %s", group)
 	}
 }

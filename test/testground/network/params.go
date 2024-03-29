@@ -30,6 +30,7 @@ func init() {
 	suppressLogs = true
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	node.PushMetrics = true
+	// types.BlockPartSizeBytes = 1_000_000
 }
 
 const (
@@ -191,11 +192,21 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
 	cmtcfg.Consensus.PeerGossipSleepDuration = peerGossipSleep
+	cmtcfg.RPC.GRPCMaxOpenConnections = 200
+	cmtcfg.RPC.MaxSubscriptionClients = 200
+	cmtcfg.RPC.TimeoutBroadcastTxCommit = 60 * time.Second
 	return cmtcfg
 }
 
 func StandardAppConfig(_ *Params) *srvconfig.Config {
-	return app.DefaultAppConfig()
+	cfg := app.DefaultAppConfig()
+	cfg.API.Enable = true
+	cfg.GRPC.Enable = true
+	cfg.GRPC.Address = "0.0.0.0:9090"
+	cfg.MinGasPrices = "0.0utia"
+	cfg.GRPC.MaxRecvMsgSize = 10_000_000
+	cfg.GRPC.MaxSendMsgSize = 10_000_000
+	return cfg
 }
 
 func TestgroundConsensusParams(params *Params) *tmproto.ConsensusParams {
