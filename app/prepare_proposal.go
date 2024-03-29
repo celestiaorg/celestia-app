@@ -21,6 +21,9 @@ import (
 // immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
+	if req.Height < 10 {
+		time.Sleep(1 * time.Second)
+	}
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
 	sdkCtx := app.NewProposalContext(core.Header{
