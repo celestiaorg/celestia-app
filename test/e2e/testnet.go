@@ -204,6 +204,8 @@ func (t *Testnet) Setup() error {
 		}
 	}
 	genesis, err := MakeGenesis(genesisNodes, t.genesisAccounts)
+	// TODO to increase hardcoded block size
+	genesis.ConsensusParams.Version.AppVersion = testground.Version
 	if err != nil {
 		return err
 	}
