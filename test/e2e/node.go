@@ -261,7 +261,6 @@ func (n *Node) Start() error {
 func (n *Node) GenesisValidator() genesis.Validator {
 	return genesis.Validator{
 		Account: genesis.Account{
-			Name:          n.Name,
 			PubKey:        n.AccountPubKey,
 			InitialTokens: n.SelfDelegation,
 		},
