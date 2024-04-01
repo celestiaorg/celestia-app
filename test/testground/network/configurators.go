@@ -131,7 +131,7 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 			nodes[i].CmtConfig.Instrumentation.InfluxBatchSize = 200
 			nodes[i].CmtConfig.Instrumentation.InfluxURL = tparams.URL
 			nodes[i].CmtConfig.Instrumentation.InfluxToken = tparams.Token
-			nodes[i].CmtConfig.Instrumentation.InfluxTables = schema.RoundStateTable
+			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.RoundStateTable, schema.BlockPartsTable, schema.VoteTable}, ",")
 		}
 
 		// Trace all data from these nodes, and keep track of which nodes are tracing.

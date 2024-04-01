@@ -166,7 +166,7 @@ func (c *RunTxSimCommandArgs) Sequences() []txsim.Sequence {
 
 // RunTxSim runs the txsim tool on the follower node.
 func (t *TxSim) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
-	time.Sleep(5 * time.Second) // magic wait time. Testground takes a while.
+	time.Sleep(10 * time.Second) // magic wait time. Testground takes a while.
 	grpcEndpoint, has := c.IPs[t.gs]
 	if !has {
 		return fmt.Errorf("no grpc endpoint found for txsim global sequence %d", t.gs)

@@ -223,9 +223,6 @@ func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.
 		}
 		pubKeys = append(pubKeys, pks...)
 		addrs = append(addrs, packet.GenesisAccounts...)
-		if packet.GroupID == FollowerGroupID {
-			continue
-		}
 		if packet.GenTx == nil {
 			continue
 		}

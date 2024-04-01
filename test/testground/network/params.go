@@ -17,6 +17,7 @@ import (
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
 )
 
@@ -30,7 +31,7 @@ func init() {
 	suppressLogs = true
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	node.PushMetrics = true
-	// types.BlockPartSizeBytes = 1_000_000
+	types.BlockPartSizeBytes = 1_000_000
 }
 
 const (
