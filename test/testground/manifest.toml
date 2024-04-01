@@ -46,3 +46,34 @@ tracing_nodes = { type = "int", default = 0 }
 tracing_url = { type = "string", default = "" }
 tracing_token = { type = "string", default = "" }
 experiment = { type = "experiment", default = "consistent-fill" }
+
+[[testcases]]
+name = "sanity"
+instances = { min = 1, max = 200, default = 3 }
+[testcases.params]
+chain_id = { type = "string", default = "testground" }
+timeout = { type = "string", default = "21m" }
+latency = { type = "int", default = 150 }
+random_latency = { type = "bool", default = true }
+bandwidth = { type = "string", default = "420Mib" }
+per_peer_bandwidth = { type = "string", default = "5Mib" }
+validators = { type = "int", default = 2 }
+full_nodes = { type = "int", default = 0 }
+timeout_propose = { type = "string", default = "10s" }
+timeout_commit = { type = "string", default = "11s" }
+halt_height = { type = "int", default = 50 }
+pex = { type = "bool", default = true }
+topology = { type = "string", default = "seed" }
+blob_sequences = { type = "int", default = 10 }
+blob_sizes = { type = "int", default = 100000 }
+blobs_per_sequence = { type = "int", default = 1 }
+inbound_peer_count = { type = "int", default = 40 }
+outbound_peer_count = { type = "int", default = 10 }
+gov_max_square_size = { type = "int", default = 256 }
+max_block_bytes = { type = "int", default = 100000000 }
+mempool = { type = "string", default = "v1" }
+broadcast_txs = { type = "bool", default = true }
+tracing_nodes = { type = "int", default = 0 }
+tracing_url = { type = "string", default = "" }
+tracing_token = { type = "string", default = "" }
+experiment = { type = "experiment", default = "consistent-fill" }

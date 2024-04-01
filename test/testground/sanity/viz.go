@@ -108,6 +108,27 @@ func bandwidth(elapsed time.Duration, size int) float64 {
 	return MBSize / float64(elapsed.Seconds())
 }
 
+func CalculateBandwdiths(data []Trace) map[byte]float64 {
+	totalBytesUsed := make(map[byte]int)
+	starts := findStarts(data)
+	ends := findEnds(data)
+	for _, msg := range data {
+		totalBytesUsed[msg.Channel] += msg.Size
+	}
+
+	bandwidths := make(map[byte]float64)
+
+	for ch, bytes := range totalBytesUsed {
+		start := starts[ch]
+		end := ends[ch]
+		elapsed := end.Sub(start)
+		b := bandwidth(elapsed, bytes)
+		bandwidths[ch] = b
+	}
+
+	return bandwidths
+}
+
 func VizTotalBandwidth(filename string, data []Trace) {
 	// Create a new plot
 	p := plot.New()

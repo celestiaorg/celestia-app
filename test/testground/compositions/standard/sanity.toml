@@ -1,0 +1,56 @@
+[metadata]
+name = "standard"
+author = "core-app"
+
+[global]
+plan = "core-app"
+case = "sanity"
+total_instances = 2
+builder = "docker:generic"
+runner = "cluster:k8s"
+disable_metrics = true
+
+[global.run.test_params]
+chain_id = "sanity"
+timeout = "20m"
+halt_height = "1000000"
+latency = "0"
+random_latency = "false"
+bandwidth = "1Gb"
+validators = "2"
+topology = "seed"
+pex = "true"
+timeout_propose = "10s"
+timeout_commit = "3s"
+per_peer_bandwidth = "100MB"
+blob_sequences = "40"
+blob_sizes = "1800000"
+blobs_per_sequence = "1"
+inbound_peer_count = "40"
+outbound_peer_count = "10"
+gov_max_square_size = "1024"
+max_block_bytes = "50000000"
+mempool = "v1"
+broadcast_txs = "false"
+tracing_nodes = "0"
+tracing_token = ""
+tracing_url = ""
+experiment = "unbounded"
+
+[[groups]]
+id = "leeader"
+builder = "docker:generic"
+[groups.resources]
+memory = "12Gi"
+cpu = "8"
+[groups.instances]
+count = 2
+percentage = 0.0
+[groups.build_config]
+build_base_image = "golang:1.21.6"
+enable_go_build_cache = true
+enabled = true
+go_version = "1.21"
+[groups.build]
+[groups.run]
+artifact = ""

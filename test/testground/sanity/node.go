@@ -2,10 +2,12 @@ package sanity
 
 import (
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
 
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
-	cmtnet "github.com/tendermint/tendermint/libs/net"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/conn"
 	"github.com/tendermint/tendermint/version"
@@ -17,8 +19,13 @@ var defaultProtocolVersion = p2p.NewProtocolVersion(
 	0,
 )
 
+const (
+	Port = 26656
+)
+
 type Node struct {
 	key ed25519.PrivKey
+	ip  net.IP
 	id  p2p.ID
 	// cfg    peerConfig
 	p2pCfg config.P2PConfig
@@ -28,19 +35,16 @@ type Node struct {
 }
 
 // newNode creates a new local peer with a random key.
-func NewNode(p2pCfg config.P2PConfig, mcfg conn.MConnConfig, rs ...p2p.Reactor) (*Node, error) {
-	port, err := cmtnet.GetFreePort()
-	if err != nil {
-		return nil, err
-	}
-	p2pCfg.ListenAddress = fmt.Sprintf("tcp://localhost:%d", port)
+func NewNode(p2pCfg config.P2PConfig, mcfg conn.MConnConfig, ip net.IP, rs ...p2p.Reactor) (*Node, error) {
+	p2pCfg.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", Port)
 	key := ed25519.GenPrivKey()
 	n := &Node{
-		key: key,
-		id:  p2p.PubKeyToID(key.PubKey()),
-		// cfg:    cfg,
+		key:    key,
+		id:     p2p.PubKeyToID(key.PubKey()),
+		ip:     ip,
 		p2pCfg: p2pCfg,
 	}
+
 	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(n.id, p2pCfg.ListenAddress))
 	if err != nil {
 		return nil, err
@@ -90,6 +94,19 @@ func (n *Node) start() error {
 	return nil
 }
 
+func (n *Node) Key() ed25519.PrivKey {
+	return n.key
+}
+
+func (n *Node) PeerAddress() string {
+	return peerID(n.ip, n.key)
+}
+
+func peerID(ip net.IP, networkKey ed25519.PrivKey) string {
+	nodeID := string(p2p.PubKeyToID(networkKey.PubKey()))
+	return fmt.Sprintf("%s@%s:%d", nodeID, ip, Port)
+}
+
 func (n *Node) stop() {
 	_ = n.sw.Stop()
 	_ = n.mt.Close()
@@ -101,4 +118,36 @@ func newSwitch(cfg config.P2PConfig, mt *p2p.MultiplexTransport, rs ...p2p.React
 		sw.AddReactor(fmt.Sprintf("reactor%d", i), r)
 	}
 	return sw
+}
+
+// parsePeerID takes a string in the format "nodeID@ip:port" and returns the nodeID, ip, and port.
+func parsePeerID(peerID string) (nodeID string, ip net.IP, port int, err error) {
+	// Split the string by '@' to separate nodeID and the rest.
+	atSplit := strings.SplitN(peerID, "@", 2)
+	if len(atSplit) != 2 {
+		err = fmt.Errorf("invalid format, missing '@'")
+		return
+	}
+	nodeID = atSplit[0]
+
+	// Split the second part by ':' to separate IP and port.
+	colonSplit := strings.SplitN(atSplit[1], ":", 2)
+	if len(colonSplit) != 2 {
+		err = fmt.Errorf("invalid format, missing ':'")
+		return
+	}
+
+	ip = net.ParseIP(colonSplit[0])
+	if ip == nil {
+		err = fmt.Errorf("invalid IP address")
+		return
+	}
+
+	port, err = strconv.Atoi(colonSplit[1])
+	if err != nil {
+		err = fmt.Errorf("invalid port: %w", err)
+		return
+	}
+
+	return
 }
