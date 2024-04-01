@@ -2,10 +2,12 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -46,7 +48,12 @@ func TestE2EThroughput(t *testing.T) {
 
 	// add 4 validators
 	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,
-		0, defaultResources))
+		0, Resources{
+			memoryRequest: "10Gi",
+			memoryLimit:   "12Gi",
+			cpu:           "6",
+			volume:        "1Gi",
+		}))
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
@@ -61,14 +68,20 @@ func TestE2EThroughput(t *testing.T) {
 	// create txsim nodes and point them to the validators
 	txsimVersion := "cee9cd4" // "65c1a8e" // TODO pull the latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1,
-		"10000-50000", 3, Resources{
-			memoryRequest: "400Mi",
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 40,
+		"99000-99000", 3, Resources{
+			memoryRequest: "1Gi",
 			memoryLimit:   "1Gi",
 			cpu:           "2",
 			volume:        "1Gi",
 		},
-		gRPCEndpoints[:1], rPCEndPoints[:1])
+		gRPCEndpoints[:], rPCEndPoints[:])
+	//Resources{
+	//			memoryRequest: "400Mi",
+	//			memoryLimit:   "1Gi",
+	//			cpu:           "2",
+	//			volume:        "1Gi",
+	//		}
 	require.NoError(t, err)
 	// val0-75a4c8a9-0
 	//val0-75a4c8a9-0
@@ -86,21 +99,26 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(2 * time.Minute)
+	//kubectl delete statefulsets,replicasets --all -n <namespace>
+	time.Sleep(1 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
 
-	blockTimes, blockSizes, thputs := throughput(blockchain)
+	blockTimes, blockSizes, thputs, blockTimesNano := throughput(blockchain)
 	t.Log("blockTimes", blockTimes)
+	t.Log("blockTimesNano", blockTimesNano)
 	t.Log("blockSizes", blockSizes)
 	t.Log("thputs", thputs)
-	plotData(blockSizes, "blocksizes.png", "Block Size", "Height",
+	plotData(blockSizes, fmt.Sprintf("blocksizes-%d.png", appconsts.DefaultGovMaxSquareSize),
+		"Block Size", "Height",
 		"Block Size")
-	plotData(blockTimes, "blockTimes.png", "Block Time in seconds", "Height",
+	plotData(blockTimes, fmt.Sprintf("blocktimes-%d.png",
+		appconsts.DefaultGovMaxSquareSize), "Block Time in seconds", "Height",
 		"Block Time in seconds")
-	plotData(thputs, "thputs.png", "Throughput",
+	plotData(thputs, fmt.Sprintf("throughputs-%d.png",
+		appconsts.DefaultGovMaxSquareSize), "Throughput",
 		"Height", "Throughput")
 
 	totalTxs := 0
@@ -111,25 +129,29 @@ func TestE2EThroughput(t *testing.T) {
 	require.Greater(t, totalTxs, 10)
 }
 
-func throughput(blockchain []*types.Block) ([]float64, []float64, []float64) {
+func throughput(blockchain []*types.Block) ([]float64, []float64, []float64,
+	[]float64) {
 	blockTimes := make([]float64, 0, len(blockchain)-1)
+	blockTimesNano := make([]float64, 0, len(blockchain)-1)
 	blockSizes := make([]float64, 0, len(blockchain)-1)
 	throughputs := make([]float64, 0, len(blockchain)-1)
 	// timestamp of the last processed block
 	lastBlockTS := blockchain[0].Header.Time
 
 	for _, block := range blockchain[1:] {
+		blockTimeNano := float64(block.Header.Time.Sub(lastBlockTS))
 		blockTime := float64(block.Header.Time.Sub(lastBlockTS) / 1e9) // Convert time from nanoseconds to seconds
 		blockSize := float64(block.Size() / (1024))                    // Convert size from bytes to KiB
 		thput := blockSize / blockTime
 
+		blockTimesNano = append(blockTimesNano, blockTimeNano)
 		blockTimes = append(blockTimes, blockTime)
 		blockSizes = append(blockSizes, blockSize)
 		throughputs = append(throughputs, thput)
 
 		lastBlockTS = block.Header.Time // update lastBlockTS for the next block
 	}
-	return blockTimes, blockSizes, throughputs
+	return blockTimes, blockSizes, throughputs, blockTimesNano
 }
 
 func plotData(data []float64, fileName string, title, xLabel, yLabel string) {
