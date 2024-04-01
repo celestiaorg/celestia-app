@@ -66,7 +66,8 @@ func TestE2EThroughput(t *testing.T) {
 
 	t.Log("Creating txsim nodes")
 	// create txsim nodes and point them to the validators
-	txsimVersion := "cee9cd4" // "65c1a8e" // TODO pull the latest version of txsim if possible
+	txsimVersion := "a954bc1" // old: "cee9cd4" // "65c1a8e" // TODO pull the
+	// latest version of txsim if possible
 
 	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 40,
 		"99000-99000", 3, Resources{
