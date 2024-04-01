@@ -20,7 +20,7 @@ const (
 	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
 	// The min gas price acts as a filter. Transactions below that limit will not pass
 	// a nodes `CheckTx` and thus not be proposed by that node.
-	DefaultMinGasPrice = 0.002
+	DefaultMinGasPrice = 0.002 // utia
 
 	// DefaultUnbondingTime is the default time a validator must wait
 	// to unbond in a proof of stake system. Any validator within this
