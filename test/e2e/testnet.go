@@ -7,18 +7,20 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type Testnet struct {
-	seed            int64
-	nodes           []*Node
-	genesisAccounts []*Account
-	keygen          *keyGenerator
-	grafana         *GrafanaInfo
+	seed    int64
+	nodes   []*Node
+	genesis *genesis.Genesis
+	keygen  *keyGenerator
+	grafana *GrafanaInfo
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
@@ -28,20 +30,26 @@ func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 	}
 
 	return &Testnet{
-		seed:            seed,
-		nodes:           make([]*Node, 0),
-		genesisAccounts: make([]*Account, 0),
-		keygen:          newKeyGenerator(seed),
-		grafana:         grafana,
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID("test"),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
+}
+
+func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
+	t.genesis.WithConsensusParams(params)
 }
 
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight, t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeight, t.genesis.Keyring(), t.grafana)
 	if err != nil {
+		return err
+	}
+	if err := t.genesis.AddValidator(node.GenesisValidator()); err != nil {
 		return err
 	}
 	t.nodes = append(t.nodes, node)
@@ -60,8 +68,7 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight, t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, t.genesis.Keyring(), t.grafana)
 	if err != nil {
 		return err
 	}
@@ -80,24 +87,22 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 	if err != nil {
 		return nil, err
 	}
-	t.genesisAccounts = append(t.genesisAccounts, &Account{
+	err = t.genesis.AddAccount(genesis.Account{
 		PubKey:        pk,
 		InitialTokens: tokens,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return kr, nil
 }
 
 func (t *Testnet) Setup() error {
-	genesisNodes := make([]*Node, 0)
-	for _, node := range t.nodes {
-		if node.StartHeight == 0 && node.SelfDelegation > 0 {
-			genesisNodes = append(genesisNodes, node)
-		}
-	}
-	genesis, err := MakeGenesis(genesisNodes, t.genesisAccounts)
+	genesis, err := t.genesis.Export()
 	if err != nil {
 		return err
 	}
+
 	for _, node := range t.nodes {
 		// nodes are initialized with the addresses of all other
 		// nodes in their addressbook
@@ -108,7 +113,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err = node.Init(genesis, peers)
+		err := node.Init(genesis, peers)
 		if err != nil {
 			return err
 		}
@@ -130,6 +135,14 @@ func (t *Testnet) GRPCEndpoints() []string {
 		grpcEndpoints[idx] = node.AddressGRPC()
 	}
 	return grpcEndpoints
+}
+
+func (t *Testnet) GetGenesisValidators() []genesis.Validator {
+	validators := make([]genesis.Validator, len(t.nodes))
+	for i, node := range t.nodes {
+		validators[i] = node.GenesisValidator()
+	}
+	return validators
 }
 
 func (t *Testnet) Start() error {

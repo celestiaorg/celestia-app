@@ -21,7 +21,7 @@ import (
 )
 
 // This will only run tests within the v1 major release cycle
-const MajorVersion = 1
+const MajorVersion = v1.Version
 
 func TestMinorVersionCompatibility(t *testing.T) {
 	// FIXME: This test currently panics in InitGenesis
@@ -46,6 +46,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
+	testnet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
 	preloader, err := knuu.NewPreloader()
