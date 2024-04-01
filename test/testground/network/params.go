@@ -14,13 +14,16 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
 )
 
 func init() {
-	consensus.UseWAL = false
+	consensus.UseWAL = true
+	node.PushMetrics = true
+	node.PushGateWayURL = "http://51.159.176.205:9191"
 }
 
 const (
