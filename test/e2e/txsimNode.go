@@ -58,9 +58,9 @@ func CreateTxSimNode(
 		fmt.Sprintf("-t %ds", pollTime),
 		fmt.Sprintf("-b %d ", sequences),
 		fmt.Sprintf("-d %d ", seed),
-		fmt.Sprintf("-a %d ", 10),
+		fmt.Sprintf("-a %d ", 5),
 		fmt.Sprintf("-s %s ", blobRange),
-		fmt.Sprintf("-r %s", rpcEndpoint),
+		//fmt.Sprintf("-r %s", rpcEndpoint),
 	}
 
 	err = instance.SetArgs(args...)
