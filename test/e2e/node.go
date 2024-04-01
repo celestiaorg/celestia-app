@@ -266,7 +266,7 @@ func (n *Node) GenesisValidator() genesis.Validator {
 		},
 		ConsensusKey: n.SignerKey,
 		NetworkKey:   n.NetworkKey,
-		Stake:        100,
+		Stake:        n.SelfDelegation / 2,
 	}
 }
 
