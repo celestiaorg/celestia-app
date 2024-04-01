@@ -126,11 +126,9 @@ func (g *Genesis) AddValidator(val Validator) error {
 	}
 
 	// Add the validator's genesis account
-	//if err := g.AddAccount(val.Account); err != nil {
-	//	return err
-	//}
-
-	g.accounts = append(g.accounts, val.Account)
+	if err := g.AddAccount(val.Account); err != nil {
+		return err
+	}
 
 	// Add the validator's genesis transaction
 	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
