@@ -36,7 +36,7 @@ func InitFiles(
 	}
 	gDoc, err := g.Export()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("exporting genesis: %w", err)
 	}
 	err = gDoc.SaveAs(tmCfg.GenesisFile())
 	if err != nil {

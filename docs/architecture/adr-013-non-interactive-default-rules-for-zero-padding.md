@@ -49,12 +49,12 @@ To recap, the `SubtreeRootThreshold` determines the index of where a blob must s
 
 For example, assume `SubtreeRootThreshold = 64`. This would mean that the blobs smaller than the `64` can start at an index that is a multiple of one and therefore introduce zero padding. Blobs that are larger than `64` but smaller than `64 * 2 = 128` can use an index that is a multiple of 2 to get a maximum of 1 padding share. Blobs that are larger than `64 * 2 = 128` but smaller than `64 * 4 = 256` can use an index that is a multiple of 4 to get a maximum of 3 padding shares and so on.
 
-Blob size (in number of shares) | Subtree root width[^2] | Index in square | Worst case padding
---------------------------------|------------------------|-----------------|-------------------
-blob <= 64                      | 1                      | multiple of 1   | 0
-64 < blob <= 128                | 2                      | multiple of 2   | 1
-128 < blob <= 256               | 4                      | multiple of 4   | 3
-256 < blob <= 512               | 8                      | multiple of 8   | 7
+| Blob size (in number of shares) | Subtree root width[^2] | Index in square | Worst case padding |
+|---------------------------------|------------------------|-----------------|--------------------|
+| blob <= 64                      | 1                      | multiple of 1   | 0                  |
+| 64 < blob <= 128                | 2                      | multiple of 2   | 1                  |
+| 128 < blob <= 256               | 4                      | multiple of 4   | 3                  |
+| 256 < blob <= 512               | 8                      | multiple of 8   | 7                  |
 
 Note: the threshold doesn't need to be `64` and the implementation versions this constant so that it is possible to modify over time.
 

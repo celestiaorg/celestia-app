@@ -15,7 +15,7 @@ jobs:
           node-version: 18
 
       - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli@0.32.1
+        run: npm install -g markdownlint-cli@0.39.0
         shell: bash
 
       - name: Run markdownlint

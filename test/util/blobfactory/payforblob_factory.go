@@ -251,7 +251,10 @@ func IndexWrappedTxWithInvalidNamespace(
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
+	require.NoError(t, err)
+
+	rawTx, err := signer.EncodeTx(tx)
 	require.NoError(t, err)
 
 	cTx, err := coretypes.MarshalIndexWrapper(rawTx, index)
@@ -285,7 +288,10 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Si
 	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, signer.Address().String(), 100, 1)
 	msgs = append(msgs, pfb)
 
-	rawTx, err := signer.CreateTx(msgs, DefaultTxOpts()...)
+	tx, err := signer.CreateTx(msgs, DefaultTxOpts()...)
+	require.NoError(t, err)
+
+	rawTx, err := signer.EncodeTx(tx)
 	require.NoError(t, err)
 
 	btx, err := blob.MarshalBlobTx(rawTx, blobs...)

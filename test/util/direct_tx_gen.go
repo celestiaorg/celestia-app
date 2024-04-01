@@ -136,14 +136,17 @@ func RandBlobTxsWithManualSequence(
 					SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 					Signature: []byte("invalid signature"),
 				},
-				Sequence: signer.GetSequence(),
+				Sequence: signer.LocalSequence(),
 			})
 			require.NoError(t, err)
 
-			tx, err = cfg.TxEncoder()(builder.GetTx())
+			tx = builder.GetTx()
 			require.NoError(t, err)
 		}
-		cTx, err := blob.MarshalBlobTx(tx, blobs...)
+		rawTx, err := signer.EncodeTx(tx)
+		require.NoError(t, err)
+
+		cTx, err := blob.MarshalBlobTx(rawTx, blobs...)
 		if err != nil {
 			panic(err)
 		}
@@ -215,7 +218,10 @@ func SendTxWithManualSequence(
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
 	stx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
-	return stx
+
+	rawTx, err := signer.EncodeTx(stx)
+	require.NoError(t, err)
+	return rawTx
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {

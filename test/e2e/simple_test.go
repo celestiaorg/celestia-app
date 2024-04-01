@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,7 @@ func TestE2ESimple(t *testing.T) {
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := New(t.Name(), seed)
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 
@@ -81,7 +81,7 @@ func TestE2ESimple(t *testing.T) {
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, v2.Version, block.Version.App)
+		require.Equal(t, appconsts.LatestVersion, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)

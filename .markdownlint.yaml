@@ -3,3 +3,5 @@
   "code_blocks": false # Disable rule for hard tabs in code blocks
 "MD013": false # Disable rule for line length
 "MD033": false # Disable rule banning inline HTML
+"MD055":
+  "style": "leading_and_trailing" # Instead of "consistent" (default) which can vary per file, use one style across the entire project

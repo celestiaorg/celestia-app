@@ -10,40 +10,52 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type Testnet struct {
-	seed            int64
-	nodes           []*Node
-	genesisAccounts []*Account
-	keygen          *keyGenerator
-	txSimNodes      []*TxSim
+	seed       int64
+	nodes      []*Node
+	genesis    *genesis.Genesis
+	keygen     *keyGenerator
+	grafana    *GrafanaInfo
+	txSimNodes []*TxSim
 }
 
-func New(name string, seed int64) (*Testnet, error) {
+func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithIdentifier(identifier); err != nil {
 		return nil, err
 	}
 
 	return &Testnet{
-		seed:            seed,
-		nodes:           make([]*Node, 0),
-		genesisAccounts: make([]*Account, 0),
-		keygen:          newKeyGenerator(seed),
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID("test"),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
+}
+
+func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
+	t.genesis.WithConsensusParams(params)
 }
 
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, accountKey, upgradeHeight, resources)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
+		selfDelegation, nil, signerKey, networkKey, upgradeHeight,
+		resources, t.genesis.Keyring(), t.grafana)
 	if err != nil {
+		return err
+	}
+	if err := t.genesis.AddValidator(node.GenesisValidator()); err != nil {
 		return err
 	}
 	t.nodes = append(t.nodes, node)
@@ -158,10 +170,6 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 	if err != nil {
 		return nil, err
 	}
-	t.genesisAccounts = append(t.genesisAccounts, &Account{
-		PubKey:        pk,
-		InitialTokens: tokens,
-	})
 	fmt.Println("txsim account created and added to genesis", pk)
 	return kr, nil
 }
@@ -169,8 +177,9 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	accountKey := t.keygen.Generate(secp256k1Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, accountKey, upgradeHeight, resources)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
+		startHeight, 0, nil, signerKey, networkKey, upgradeHeight,
+		resources, t.genesis.Keyring(), t.grafana)
 	if err != nil {
 		return err
 	}
@@ -190,26 +199,23 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 	if err != nil {
 		return nil, err
 	}
-	t.genesisAccounts = append(t.genesisAccounts, &Account{
+	err = t.genesis.AddAccount(genesis.Account{
 		PubKey:        pk,
 		InitialTokens: tokens,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return kr, nil
 }
 
 func (t *Testnet) Setup() error {
-	genesisNodes := make([]*Node, 0)
-	for _, node := range t.nodes {
-		if node.StartHeight == 0 && node.SelfDelegation > 0 {
-			genesisNodes = append(genesisNodes, node)
-		}
-	}
-	genesis, err := MakeGenesis(genesisNodes, t.genesisAccounts)
-	// TODO to increase hardcoded block size
+	genesis, err := t.genesis.Export()
 	genesis.ConsensusParams.Version.AppVersion = testground.Version
 	if err != nil {
 		return err
 	}
+
 	for _, node := range t.nodes {
 		// nodes are initialized with the addresses of all other
 		// nodes in their addressbook
@@ -220,7 +226,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err = node.Init(genesis, peers)
+		err := node.Init(genesis, peers)
 		if err != nil {
 			return err
 		}
@@ -253,6 +259,14 @@ func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
 		grpcEndpoints[idx] = grpcEP
 	}
 	return grpcEndpoints, nil
+}
+
+func (t *Testnet) GetGenesisValidators() []genesis.Validator {
+	validators := make([]genesis.Validator, len(t.nodes))
+	for i, node := range t.nodes {
+		validators[i] = node.GenesisValidator()
+	}
+	return validators
 }
 
 func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
@@ -310,10 +324,16 @@ func (t *Testnet) Cleanup() {
 				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
 				continue
 			}
+			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
+				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
+				continue
+			}
 		}
-		err := node.Instance.Destroy()
-		if err != nil {
-			log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
+			err := node.Instance.Destroy()
+			if err != nil {
+				log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+			}
 		}
 	}
 	// stop and cleanup txsim

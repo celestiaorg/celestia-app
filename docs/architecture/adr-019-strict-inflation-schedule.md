@@ -119,8 +119,8 @@ Q: What is the skew between `BlocksPerYear` on popular Cosmos SDK chains and the
 
 Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [here](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86). Cosmos Hub has a block time 6.353 ms. Numia data doesn't have complete data for 2021 so we'll examine 2022:
 
-Year | BlocksPerYear | Actual # of Blocks | Skew
------|---------------|--------------------|------
-2022 | 4,360,000     | 4,580,463          | 5.05%
+| Year | BlocksPerYear | Actual # of Blocks | Skew  |
+|------|---------------|--------------------|-------|
+| 2022 | 4,360,000     | 4,580,463          | 5.05% |
 
 Source: [Numia query](https://console.cloud.google.com/bigquery?sq=611612269782:f0c42f9584c448c78a4ec5f118c2091c)

@@ -47,9 +47,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), appconsts.LatestVersion, b)
 	require.NoError(t, err)
 
-	tx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))
-	require.NoError(t, err)
-	sdkTx, err := enc.TxConfig.TxDecoder()(tx)
+	sdkTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))
 	require.NoError(t, err)
 
 	decorator := ante.NewDeductFeeDecorator(testApp.AccountKeeper, testApp.BankKeeper, testApp.FeeGrantKeeper, nil)

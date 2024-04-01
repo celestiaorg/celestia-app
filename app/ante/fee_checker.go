@@ -1,13 +1,14 @@
 package ante
 
 import (
-	"fmt"
-
 	errors "cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
+	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
 const (
@@ -15,9 +16,10 @@ const (
 	priorityScalingFactor = 1_000_000
 )
 
-// CheckTxFeeWithGlobalMinGasPrices implements the default fee logic, where the minimum price per
-// unit of gas is fixed and set globally, and the tx priority is computed from the gas price.
-func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+// ValidateTxFee implements default fee validation logic for transactions.
+// It ensures that the provided transaction fee meets a minimum threshold for the node
+// as well as a global minimum threshold and computes the tx priority based on the gas price.
+func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
@@ -25,28 +27,56 @@ func CheckTxFeeWithGlobalMinGasPrices(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, in
 
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
-	appVersion := ctx.BlockHeader().Version.App
 
-	// global minimum fee only applies to app versions greater than one
-	if appVersion > v1.Version {
-		globalMinGasPrice := appconsts.GlobalMinGasPrice(appVersion)
+	// Ensure that the provided fee meets a minimum threshold for the node.
+	// This is only for local mempool purposes, and thus
+	// is only ran on check tx.
+	if ctx.IsCheckTx() {
+		minGasPrice := ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
+		if !minGasPrice.IsZero() {
+			err := verifyMinFee(fee, gas, minGasPrice, "insufficient minimum gas price for this node")
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
 
-		// convert the global minimum gas price to a big.Int
-		globalMinGasPriceInt, err := sdk.NewDecFromStr(fmt.Sprintf("%f", globalMinGasPrice))
-		if err != nil {
-			return nil, 0, errors.Wrap(err, "invalid GlobalMinGasPrice")
+	// Ensure that the provided fee meets a global minimum threshold.
+	// Global minimum fee only applies to app versions greater than one
+	if ctx.BlockHeader().Version.App > v1.Version {
+		subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
+		if !exists {
+			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
 		}
 
-		gasInt := sdk.NewIntFromUint64(gas)
-		minFee := globalMinGasPriceInt.MulInt(gasInt).RoundInt()
+		if !subspace.Has(ctx, minfee.KeyGlobalMinGasPrice) {
+			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "GlobalMinGasPrice")
+		}
 
-		if !fee.GTE(minFee) {
-			return nil, 0, errors.Wrapf(sdkerror.ErrInsufficientFee, "insufficient fees; got: %s required: %s", fee, minFee)
+		var globalMinGasPrice sdk.Dec
+		// Gets the global minimum gas price from the param store
+		// panics if not configured properly
+		subspace.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
+
+		err := verifyMinFee(fee, gas, globalMinGasPrice, "insufficient gas price for the network")
+		if err != nil {
+			return nil, 0, err
 		}
 	}
 
 	priority := getTxPriority(feeTx.GetFee(), int64(gas))
 	return feeTx.GetFee(), priority, nil
+}
+
+// verifyMinFee validates that the provided transaction fee is sufficient given the provided minimum gas price.
+func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
+	// Determine the required fee by multiplying required minimum gas
+	// price by the gas limit, where fee = minGasPrice * gas.
+	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).Ceil()
+	if fee.LT(minFee.TruncateInt()) {
+		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
+	}
+	return nil
 }
 
 // getTxPriority returns a naive tx priority based on the amount of the smallest denomination of the gas price

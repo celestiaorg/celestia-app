@@ -17,3 +17,7 @@ You can optionally set a global timeout using `KNUU_TIMEOUT` (default is 60m).
 ## Observation
 
 Logs of each of the nodes are posted to Grafana and can be accessed through Celestia's dashboard (using the `test` namespace).
+
+### Metrics
+
+To view the metrics from the testnet, you should set the `GRAFANA_ENDPOINT`, `GRAFANA_USERNAME`, and `GRAFANA_TOKEN` environment variables. This uses Prometheus alongside the Jaeger and Otlp Exporter.

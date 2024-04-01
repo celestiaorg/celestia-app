@@ -3,11 +3,13 @@ package app_test
 import (
 	"encoding/hex"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -71,24 +73,33 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	t := s.T()
 
 	// quickly submit blobs with a random fee
-	hashes := make([]string, 0, len(s.signers))
+
+	hashes := make(chan string, len(s.signers))
+	blobSize := uint32(100)
+	gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
+	wg := &sync.WaitGroup{}
 	for _, signer := range s.signers {
-		blobSize := uint32(100)
-		gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
-		gasPrice := s.rand.Float64()
-		btx, err := signer.CreatePayForBlob(
-			blobfactory.ManyBlobs(
-				s.rand,
-				[]namespace.Namespace{namespace.RandomBlobNamespace()},
-				[]int{100}),
-			user.SetGasLimitAndFee(gasLimit, gasPrice),
-		)
-		require.NoError(t, err)
-		resp, err := signer.BroadcastTx(s.cctx.GoContext(), btx)
-		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
-		hashes = append(hashes, resp.TxHash)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// ensure that it is greater than the min gas price
+			gasPrice := float64(s.rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
+			resp, err := signer.SubmitPayForBlob(
+				s.cctx.GoContext(),
+				blobfactory.ManyBlobs(
+					s.rand,
+					[]namespace.Namespace{namespace.RandomBlobNamespace()},
+					[]int{100}),
+				user.SetGasLimitAndFee(gasLimit, gasPrice),
+			)
+			require.NoError(t, err)
+			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+			hashes <- resp.TxHash
+		}()
 	}
+
+	wg.Wait()
+	close(hashes)
 
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(t, err)
@@ -96,17 +107,13 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	// get the responses for each tx for analysis and sort by height
 	// note: use rpc types because they contain the tx index
 	heightMap := make(map[int64][]*rpctypes.ResultTx)
-	for _, hash := range hashes {
-		resp, err := s.signers[0].ConfirmTx(s.cctx.GoContext(), hash)
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
+	for hash := range hashes {
 		// use the core rpc type because it contains the tx index
 		hash, err := hex.DecodeString(hash)
 		require.NoError(t, err)
 		coreRes, err := s.cctx.Client.Tx(s.cctx.GoContext(), hash, false)
 		require.NoError(t, err)
-		heightMap[resp.Height] = append(heightMap[resp.Height], coreRes)
+		heightMap[coreRes.Height] = append(heightMap[coreRes.Height], coreRes)
 	}
 	require.GreaterOrEqual(t, len(heightMap), 1)
 
@@ -123,7 +130,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 
 	// check that there was at least one block with more than three transactions
 	// in it. This is more of a sanity check than a test.
-	require.True(t, highestNumOfTxsPerBlock > 3)
+	require.Greater(t, highestNumOfTxsPerBlock, 3)
 }
 
 func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx {
@@ -135,14 +142,14 @@ func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx {
 
 func isSortedByFee(t *testing.T, ecfg encoding.Config, responses []*rpctypes.ResultTx) bool {
 	for i := 0; i < len(responses)-1; i++ {
-		if gasPrice(t, ecfg, responses[i]) <= gasPrice(t, ecfg, responses[i+1]) {
+		if getGasPrice(t, ecfg, responses[i]) <= getGasPrice(t, ecfg, responses[i+1]) {
 			return false
 		}
 	}
 	return true
 }
 
-func gasPrice(t *testing.T, ecfg encoding.Config, resp *rpctypes.ResultTx) float64 {
+func getGasPrice(t *testing.T, ecfg encoding.Config, resp *rpctypes.ResultTx) float64 {
 	sdkTx, err := ecfg.TxConfig.TxDecoder()(resp.Tx)
 	require.NoError(t, err)
 	feeTx := sdkTx.(sdk.FeeTx)

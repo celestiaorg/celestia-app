@@ -203,6 +203,17 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Evidence:  DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
+			AppVersion: appconsts.LatestVersion,
+		},
+	}
+}
+
+func DefaultInitialConsensusParams() *tmproto.ConsensusParams {
+	return &tmproto.ConsensusParams{
+		Block:     DefaultBlockParams(),
+		Evidence:  DefaultEvidenceParams(),
+		Validator: coretypes.DefaultValidatorParams(),
+		Version: tmproto.VersionParams{
 			AppVersion: DefaultInitialVersion,
 		},
 	}

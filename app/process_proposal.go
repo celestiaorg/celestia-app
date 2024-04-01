@@ -45,6 +45,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
+		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	)
 	sdkCtx := app.NewProposalContext(req.Header)

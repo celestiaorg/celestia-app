@@ -2,7 +2,7 @@
 
 ## Test Instance Communication and Experiment Flow
 
-https://github.com/celestiaorg/celestia-app/blob/d698845db9b28cbacef2e5bde57ef9dc443fc21a/test/testground/network/role.go#L18-L36
+[Context](https://github.com/celestiaorg/celestia-app/blob/d698845db9b28cbacef2e5bde57ef9dc443fc21a/test/testground/network/role.go#L18-L36)
 
 ```mermaid
 sequenceDiagram

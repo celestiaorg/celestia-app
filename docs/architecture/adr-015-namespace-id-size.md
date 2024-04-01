@@ -61,21 +61,21 @@ The namespace ID must provide at least 72 bits of randomness [^2] to satisfy cri
 
 Another way to analyze this criteria is to determine the probability of duplicates if there exist N randomly generated namespaces. Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated.[^3]
 
-Namespace ID size (bytes) | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^15) | 1 quintillion (10^18)
---------------------------|------------------|--------------------|-----------------------|----------------------
-8                         | ~0.02674         | 1                  | 1                     | 1
-16                        | 0                | ~1.4432e-15        | ~1.4693e-9            | ~0.00147
-20                        | 0                | 0                  | 0                     | ~3.4205e-13
-32                        | 0                | 0                  | 0                     | 0
+| Namespace ID size (bytes) | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^15) | 1 quintillion (10^18) |
+|---------------------------|------------------|--------------------|-----------------------|-----------------------|
+| 8                         | ~0.02674         | 1                  | 1                     | 1                     |
+| 16                        | 0                | ~1.4432e-15        | ~1.4693e-9            | ~0.00147              |
+| 20                        | 0                | 0                  | 0                     | ~3.4205e-13           |
+| 32                        | 0                | 0                  | 0                     | 0                     |
 
 > As a rule of thumb, a hash function with range of size N can hash on the order of sqrt(N) values before running into collisions.[^4]
 
-Namespace ID size (bytes) | Hash function range | Can hash this many items before running into collision
---------------------------|---------------------|-------------------------------------------------------
-8                         | 2^64                | 2^32 = ~4 billion items
-16                        | 2^128               | 2^64 = ~1 quintillion items
-20                        | 2^160               | 2^80 = ~1 septillion items
-32                        | 2^256               | 2^128 = ~3.4 quintillion items
+| Namespace ID size (bytes) | Hash function range | Can hash this many items before running into collision |
+|---------------------------|---------------------|--------------------------------------------------------|
+| 8                         | 2^64                | 2^32 = ~4 billion items                                |
+| 16                        | 2^128               | 2^64 = ~1 quintillion items                            |
+| 20                        | 2^160               | 2^80 = ~1 septillion items                             |
+| 32                        | 2^256               | 2^128 = ~3.4 quintillion items                         |
 
 ### Criteria 2
 
@@ -104,23 +104,23 @@ There are some tradeoffs to consider when choosing a namespace ID size.
 
 The namespace is prefixed to each NMT data leaf. Two namespaces are prefixed to each NMT non-leaf hash. Therefore, the nodes of an NMT will be larger based on the namespace size. Assuming shares are 512 bytes:
 
-Namespace size (bytes) | NMT data leaf size (bytes) | NMT inner node size (bytes)
------------------------|----------------------------|----------------------------
-8                      | 8 + 512 = 520              | 2*8 + 32 = 48
-16                     | 16 + 512 = 528             | 2*16 + 32 = 64
-20                     | 20 + 512 = 532             | 2*20 + 32 = 72
-32                     | 32 + 512 = 544             | 2*32 + 32 = 96
+| Namespace size (bytes) | NMT data leaf size (bytes) | NMT inner node size (bytes) |
+|------------------------|----------------------------|-----------------------------|
+| 8                      | 8 + 512 = 520              | 2*8 + 32 = 48               |
+| 16                     | 16 + 512 = 528             | 2*16 + 32 = 64              |
+| 20                     | 20 + 512 = 532             | 2*20 + 32 = 72              |
+| 32                     | 32 + 512 = 544             | 2*32 + 32 = 96              |
 
 ### NMT proof size
 
 Increasing the size of NMT nodes will increase the size of the NMT proof. Assuming shares are 512 bytes, square size is 128, the NMT for a row will contain 2 * 128 leaves. If the NMT proof is for a single leaf:
 
-Namespace size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded NMT proof size (bytes) | Protobuf encoded NMT proof with [gzip](https://pkg.go.dev/compress/gzip) (bytes)
------------------------|----------------------------------|-----------------------------------------|---------------------------------------------------------------------------------
-8                      | 336                              | 354                                     | 382
-16                     | 448                              | 466                                     | 408
-20                     | 504                              | 522                                     | 466
-32                     | 672                              | 690                                     | 630
+| Namespace size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded NMT proof size (bytes) | Protobuf encoded NMT proof with [gzip](https://pkg.go.dev/compress/gzip) (bytes) |
+|------------------------|----------------------------------|-----------------------------------------|----------------------------------------------------------------------------------|
+| 8                      | 336                              | 354                                     | 382                                                                              |
+| 16                     | 448                              | 466                                     | 408                                                                              |
+| 20                     | 504                              | 522                                     | 466                                                                              |
+| 32                     | 672                              | 690                                     | 630                                                                              |
 
 Note: if the NMT proof is an absence proof, an additional leaf node is included in the proof.
 
@@ -147,12 +147,12 @@ If the namespace size is increased, the maximum possible blob will decrease. Giv
 
 If the namespace size is increased, whenever a SHA256 invocation takes place (e.g. NMT's [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L265)), more data needs to be SHA256'ed. For example:
 
-Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes)
------------------------|--------------------------------------------------------------------------------------------------------------------------------------
-8                      | 97
-16                     | 129
-32                     | 193
-33                     | 197
+| Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes) |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| 8                      | 97                                                                                                                                    |
+| 16                     | 129                                                                                                                                   |
+| 32                     | 193                                                                                                                                   |
+| 33                     | 197                                                                                                                                   |
 
 The data size is calculated as follows:
 `SHA256(domain_sep || left_min || left_max || left_data_hash || right_min || right_max || right_data_hash)` = 1 + namespaceSize + namespaceSize + 32 + namespaceSize + namespaceSize + 32 which simplifies to (4 \* namespaceSIze) + (2 \* 32) + 1.
@@ -161,12 +161,12 @@ Hashing has a high performance impact in ZK contexts. Since a larger namespace s
 
 Based on this StackOverflow [post](https://crypto.stackexchange.com/questions/54852/what-happens-if-a-sha-256-input-is-too-long-longer-than-512-bits), when the data provided to SHA256 exceeds 56 bytes, the data must be chunked into [64 byte blocks](https://cs.opensource.google/go/go/+/refs/tags/go1.20.4:src/crypto/sha256/sha256.go;l=29;drc=995c0f310c087c9cbc49112ecc48459a96310451) with a trailing 56 byte block + 8 bytes to store the original data length as a `uint64`.
 
-Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes) | SHA256 compression invocations
------------------------|---------------------------------------------------------------------------------------------------------------------------------------|-------------------------------
-N/A                    | 56                                                                                                                                    | 1
-0 to 13                | 64 + 56 = 120                                                                                                                         | 2
-14 to 29               | 64 + 64 + 56 = 184                                                                                                                    | 3
-30 to 45               | 64 + 64 + 64 + 56 = 248                                                                                                               | 4
+| Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes) | SHA256 compression invocations |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------------------|--------------------------------|
+| N/A                    | 56                                                                                                                                    | 1                              |
+| 0 to 13                | 64 + 56 = 120                                                                                                                         | 2                              |
+| 14 to 29               | 64 + 64 + 56 = 184                                                                                                                    | 3                              |
+| 30 to 45               | 64 + 64 + 64 + 56 = 248                                                                                                               | 4                              |
 
 Note: to verify the number of SHA256 compression invocations, we analyzed the number of loop executions inside the Golang SHA256 implementation [here](https://github.com/golang/go/blob/96add980ad27faed627f26ef1ab09e8fe45d6bd1/src/crypto/sha256/sha256block.go#L83) and it matches the expected number of invocations in the table above. See raw data [here](https://gist.github.com/rootulp/4cfc10c1c80a15cc57f0b35f330ac542).
 

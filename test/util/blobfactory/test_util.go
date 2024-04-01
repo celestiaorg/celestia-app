@@ -44,7 +44,12 @@ func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
 	addr := signer.Address()
 	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(amountCoin))
 
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	if err != nil {
+		panic(err)
+	}
+
+	rawTx, err := signer.EncodeTx(tx)
 	if err != nil {
 		panic(err)
 	}

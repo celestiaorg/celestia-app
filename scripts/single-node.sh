@@ -12,6 +12,7 @@ COINS="1000000000000000utia"
 DELEGATION_AMOUNT="5000000000utia"
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
+FEES="500utia"
 
 echo "celestia-app home: ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
@@ -51,6 +52,7 @@ celestia-appd add-genesis-account \
 
 echo "Creating a genesis tx..."
 celestia-appd gentx ${KEY_NAME} ${DELEGATION_AMOUNT} \
+  --fees ${FEES} \
   --keyring-backend=${KEYRING_BACKEND} \
   --chain-id ${CHAIN_ID} \
   --home ${CELESTIA_APP_HOME} \

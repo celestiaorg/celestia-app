@@ -5,7 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
@@ -16,15 +20,15 @@ import (
 )
 
 const (
-	rpcPort       = 26657
-	p2pPort       = 26656
-	grpcPort      = 9090
-	metricsPort   = 26660
-	dockerSrcURL  = "ghcr.io/celestiaorg/celestia-app"
-	secp256k1Type = "secp256k1"
-	ed25519Type   = "ed25519"
-	remoteRootDir = "/home/celestia/.celestia-app"
-	txsimRootDir  = "/home/celestia"
+	rpcPort        = 26657
+	p2pPort        = 26656
+	grpcPort       = 9090
+	prometheusPort = 26660
+	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
+	secp256k1Type  = "secp256k1"
+	ed25519Type    = "ed25519"
+	remoteRootDir  = "/home/celestia/.celestia-app"
+	txsimRootDir   = "/home/celestia"
 )
 
 type Node struct {
@@ -34,7 +38,7 @@ type Node struct {
 	InitialPeers   []string
 	SignerKey      crypto.PrivKey
 	NetworkKey     crypto.PrivKey
-	AccountKey     crypto.PrivKey
+	AccountPubKey  cryptotypes.PubKey
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
@@ -53,9 +57,11 @@ func NewNode(
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
-	signerKey, networkKey, accountKey crypto.PrivKey,
+	signerKey, networkKey crypto.PrivKey,
 	upgradeHeight int64,
 	resources Resources,
+	keys keyring.Keyring,
+	grafana *GrafanaInfo,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -65,6 +71,15 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
+	record, _, err := keys.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return nil, err
+	}
+	pubKey, err := record.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+
 	if err := instance.AddPortTCP(rpcPort); err != nil {
 		return nil, err
 	}
@@ -74,8 +89,20 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-	if err := instance.AddPortUDP(metricsPort); err != nil {
-		return nil, err
+	if grafana != nil {
+		// add support for metrics
+		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "1m"); err != nil {
+			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
+		}
+		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
+			return nil, fmt.Errorf("error setting jaeger endpoint: %v", err)
+		}
+		if err := instance.SetOtlpExporter(grafana.Endpoint, grafana.Username, grafana.Token); err != nil {
+			return nil, fmt.Errorf("error setting otlp exporter: %v", err)
+		}
+		if err := instance.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
+			return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
+		}
 	}
 	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
 	if err != nil {
@@ -107,12 +134,12 @@ func NewNode(
 		InitialPeers:   peers,
 		SignerKey:      signerKey,
 		NetworkKey:     networkKey,
-		AccountKey:     accountKey,
+		AccountPubKey:  pubKey,
 		SelfDelegation: selfDelegation,
 	}, nil
 }
 
-func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
+func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -176,48 +203,8 @@ func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/config", remoteRootDir))
-	if err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
-	}
-	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/data", remoteRootDir))
-	if err != nil {
-		return fmt.Errorf("creating data directory: %w", err)
-	}
-
-	err = n.Instance.AddFile(configFilePath, filepath.Join(remoteRootDir, "config", "config.toml"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding config file: %w", err)
-	}
-
-	err = n.Instance.AddFile(genesisFilePath, filepath.Join(remoteRootDir, "config", "genesis.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding genesis file: %w", err)
-	}
-
-	err = n.Instance.AddFile(appConfigFilePath, filepath.Join(remoteRootDir, "config", "app.toml"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding app config file: %w", err)
-	}
-
-	err = n.Instance.AddFile(pvKeyPath, filepath.Join(remoteRootDir, "config", "priv_validator_key.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding priv_validator_key file: %w", err)
-	}
-
-	err = n.Instance.AddFile(pvStatePath, filepath.Join(remoteRootDir, "data", "priv_validator_state.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding priv_validator_state file: %w", err)
-	}
-
-	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join(remoteRootDir, "config", "node_key.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding node_key file: %w", err)
-	}
-
-	err = n.Instance.AddFile(addrBookFile, filepath.Join(remoteRootDir, "config", "addrbook.json"), "10001:10001")
-	if err != nil {
-		return fmt.Errorf("adding addrbook file: %w", err)
+	if err := n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
 
 	return n.Instance.Commit()
@@ -299,6 +286,17 @@ func (n *Node) Start() error {
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
 	return nil
+}
+
+func (n *Node) GenesisValidator() genesis.Validator {
+	return genesis.Validator{
+		Account: genesis.Account{
+			PubKey:        n.AccountPubKey,
+			InitialTokens: n.SelfDelegation,
+		},
+		ConsensusKey: n.SignerKey,
+		NetworkKey:   n.NetworkKey,
+	}
 }
 
 func (n *Node) Upgrade(version string) error {

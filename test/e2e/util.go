@@ -3,6 +3,7 @@ package e2e
 import (
 	"io"
 	"math/rand"
+	"os"
 
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -33,5 +34,25 @@ func (g *keyGenerator) Generate(keyType string) crypto.PrivKey {
 		return ed25519.GenPrivKeyFromSecret(seed)
 	default:
 		panic("KeyType not supported") // should not make it this far
+	}
+}
+
+type GrafanaInfo struct {
+	Endpoint string
+	Username string
+	Token    string
+}
+
+func GetGrafanaInfoFromEnvVar() *GrafanaInfo {
+	if os.Getenv("GRAFANA_ENDPOINT") == "" ||
+		os.Getenv("GRAFANA_USERNAME") == "" ||
+		os.Getenv("GRAFANA_TOKEN") == "" {
+		return nil
+	}
+
+	return &GrafanaInfo{
+		Endpoint: os.Getenv("GRAFANA_ENDPOINT"),
+		Username: os.Getenv("GRAFANA_USERNAME"),
+		Token:    os.Getenv("GRAFANA_TOKEN"),
 	}
 }
