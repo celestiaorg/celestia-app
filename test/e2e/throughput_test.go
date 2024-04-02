@@ -55,9 +55,7 @@ func TestE2EThroughput(t *testing.T) {
 	// create txsim nodes and point them to the validators
 	txsimVersion := "a954bc1"
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1,
-		"10000-10000", 3, defaultResources,
-		gRPCEndpoints[:], rPCEndPoints[:])
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 1, "10000-10000", 3, defaultResources, gRPCEndpoints[:])
 	require.NoError(t, err)
 
 	// start the testnet
