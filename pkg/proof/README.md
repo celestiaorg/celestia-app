@@ -1,6 +1,6 @@
 # Proofs
 
-This package facilitates proof queries related to Celestia transactions and blobs.
+This package contains the proof queries for Celestia transactions/blobs.
 
 # Details
 
@@ -108,7 +108,7 @@ Similar to row roots, column roots are the namespace merkle root of the set of s
 ### Data root
 
 The Celestia block [data root](https://celestiaorg.github.io/celestia-app/specs/data_structures.html) is computed
-by generating a binary merkle root over the set of row roots and column roots of the square:
+by generating a binary merkle root over the set of rows roots and column roots of the square:
 
 <img src="img/data_root.png" alt="data root generation" width="443"/>
 
@@ -179,4 +179,4 @@ to creating a binary merkle inclusion proof to the *share commitment*:
 
 Now that we managed to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
-Note: Currently, the generation/verification of share commitment proofs to data root is still not supported.
+[IMPORTANT] As of the current version, the generation and verification of share commitment proofs to data root is still not supported.
