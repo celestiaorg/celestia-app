@@ -12,7 +12,7 @@ import (
 )
 
 func TestE2EThroughput(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
+	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
 		t.Skip("skipping e2e throughput test")
 	}
 
@@ -36,7 +36,10 @@ func TestE2EThroughput(t *testing.T) {
 	// create a new testnet
 	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
-	t.Cleanup(testnet.Cleanup)
+	t.Cleanup(func() {
+		t.Log("Cleaning up testnet")
+		testnet.Cleanup()
+	})
 
 	// add 2 validators
 	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,

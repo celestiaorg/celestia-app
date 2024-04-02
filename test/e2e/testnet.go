@@ -79,9 +79,9 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences,
 			blobRange, pollTime, resources, grpcEndpoint)
-		fmt.Println("txsim created", name, grpcEndpoint)
+		log.Info().Msgf("txsim created %s %s", name, grpcEndpoint)
 		if err != nil {
-			fmt.Println("error creating txsim", name, err)
+			log.Info().Msgf("error creating txsim %s %v", name, grpcEndpoint)
 			return err
 		}
 	}
@@ -109,7 +109,7 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	// create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
-	fmt.Println("txsim directory", txsimKeyringDir)
+	log.Info().Msgf("txsim directory %s", txsimKeyringDir)
 	_, err := t.CreateAndAddAccountToGenesis(name, 1e16, txsimKeyringDir)
 	if err != nil {
 		return err
@@ -167,11 +167,11 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("txsim account created and added to genesis", pk)
 	err = t.genesis.AddAccount(genesis.Account{
 		PubKey:  pk,
 		Balance: tokens,
 	})
+	log.Info().Msgf("txsim account created and added to genesis %s", pk)
 	return kr, nil
 }
 
@@ -316,7 +316,6 @@ func (t *Testnet) Start() error {
 }
 
 func (t *Testnet) Cleanup() {
-	fmt.Println("Clean up started...	")
 	for _, node := range t.nodes {
 		if node.Instance.IsInState(knuu.Started) {
 			if err := node.Instance.Stop(); err != nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/rs/zerolog/log"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
@@ -133,7 +134,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 	// Initialize file directories
 	rootDir := os.TempDir()
 	nodeDir := filepath.Join(rootDir, n.Name)
-	fmt.Println(nodeDir)
+	log.Info().Msgf("node directory: %s", nodeDir)
 	for _, dir := range []string{
 		filepath.Join(nodeDir, "config"),
 		filepath.Join(nodeDir, "data"),
