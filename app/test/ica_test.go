@@ -12,6 +12,7 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/test/util"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -30,37 +31,42 @@ func TestICA(t *testing.T) {
 	supportedVersions := []uint64{v1.Version, v2.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
 
+	ctx := testApp.NewContext(true, tmproto.Header{
+		Version: version.Consensus{
+			App: 1,
+		},
+	})
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		Height:  2,
 		Version: version.Consensus{App: 1},
 	}})
+
+	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion())
 
-	// Create the ICA host query client
-	conn, err := grpc.Dial(":9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+		Subspace: icahosttypes.SubModuleName,
+		Key:      string(icahosttypes.KeyHostEnabled),
+	})
+	require.Equal(t, "", gotBefore.Param.Value)
 	require.NoError(t, err)
-	defer conn.Close()
-	icaClient := icahosttypes.NewQueryClient(conn)
 
-	// Query the ICA host params
-	goCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	paramsResp, err := icaClient.Params(goCtx, &icahosttypes.QueryParamsRequest{})
-	require.NoError(t, err)
-	require.Equal(t, true, paramsResp.Params.HostEnabled)
-	require.Len(t, paramsResp.Params.AllowMessages, 0)
-
-	// Upgrade from v1 -> v2
+	// now the app version changes
 	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	testApp.Commit()
+
 	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
 	require.EqualValues(t, 2, testApp.AppVersion())
 
-	// Query the ICA host params again
-	goCtx, cancel = context.WithTimeout(context.Background(), time.Second)
+	conn, err := grpc.Dial(":9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer conn.Close()
+
+	icaClient := icahosttypes.NewQueryClient(conn)
+	goCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	paramsResp, err = icaClient.Params(goCtx, &icahosttypes.QueryParamsRequest{})
+	paramsResp, err := icaClient.Params(goCtx, &icahosttypes.QueryParamsRequest{})
 	require.NoError(t, err)
 	require.Equal(t, true, paramsResp.Params.HostEnabled)
 	require.Len(t, paramsResp.Params.AllowMessages, 12)
