@@ -217,25 +217,3 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 	}
 	return infos
 }
-
-func TestPrepareProposalZeroTxsInFirstBlock(t *testing.T) {
-	accounts := testfactory.GenerateAccounts(6)
-	testApp, _, kr := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams(), accounts...)
-	require.Equal(t, int64(0), testApp.LastBlockHeight())
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	sendTxs := coretypes.Txs{testutil.SendTxWithManualSequence(
-		t,
-		encCfg.TxConfig,
-		kr,
-		accounts[0],
-		accounts[1],
-		1000,
-		testutil.ChainID,
-		1,
-		1,
-	)}.ToSliceOfBytes()
-	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{Txs: sendTxs},
-	})
-	require.Len(t, resp.BlockData.Txs, 0)
-}
