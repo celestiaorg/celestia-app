@@ -21,22 +21,6 @@ The map from validator address to version is updated when a validator signals fo
 
 See [types/msgs.go](./types/msgs.go) for the message types.
 
-## Begin Block
-
-N/A
-
-## End Block
-
-N/A
-
-## Hooks
-
-N/A
-
-## Events
-
-N/A
-
 ## Client
 
 ### CLI
@@ -56,18 +40,6 @@ celestia.upgrade.v1.Query/VersionTally
 ```shell
 grpcurl -plaintext localhost:9090 celestia.upgrade.v1.Query/VersionTally
 ```
-
-## Params - list all module parameters, their types (in JSON) and examples
-
-N/A
-
-## Future Improvements
-
-N/A
-
-## Tests
-
-N/A
 
 ## Appendix
 
