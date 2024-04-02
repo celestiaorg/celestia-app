@@ -61,20 +61,23 @@ func Run(celestiaImage string) error {
 	if err := testnet.Start(); err != nil {
 		return fmt.Errorf("start testnet: %w", err)
 	}
+	defer func() {
+		printThroughput(testnet.Node(0))
+	}()
 
-	sequence := txsim.NewBlobSequence(txsim.NewRange(4000, 16000), txsim.NewRange(1, 1))
+	sequence := txsim.NewBlobSequence(txsim.NewRange(64000, 64000), txsim.NewRange(1, 1))
 	sequences := make([][]txsim.Sequence, 2)
-	sequences[0] = sequence.Clone(40)
-	sequences[1] = sequence.Clone(40)
+	sequences[0] = sequence.Clone(100)
+	sequences[1] = sequence.Clone(100)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	// start a tx sim for each node
 	errCh := make(chan error, 2)
 	for i, endpoint := range testnet.GRPCEndpoints() {
 		go func(i int, endpoint string) {
-			opts := txsim.DefaultOptions().WithSeed(seed + int64(i))
+			opts := txsim.DefaultOptions().WithSeed(seed + int64(i)).SuppressLogs().WithPollTime(time.Second)
 			errCh <- txsim.Run(ctx, endpoint, kr[i], encCfg, opts, sequences[i]...)
 		}(i, endpoint)
 	}
@@ -84,4 +87,33 @@ func Run(celestiaImage string) error {
 		}
 	}
 	return nil
+}
+
+func printThroughput(node *e2e.Node) {
+	client, err := node.Client()
+	if err != nil {
+		fmt.Println("err", err)
+	}
+	totalBytes := 0
+	var firstTime, lastTime time.Time
+	for height := int64(100); height < 200; height++ {
+		block, err := client.Block(context.Background(), &height)
+		if err != nil {
+			fmt.Println("err", err)
+		}
+		b, err := block.Block.ToProto()
+		if err != nil {
+			fmt.Println("err", err)
+		}
+		if firstTime.IsZero() {
+			firstTime = block.Block.Header.Time
+		}
+		lastTime = block.Block.Header.Time
+
+		totalBytes += b.Size()
+	}
+	totalBytes /= 1024
+	timeDiff := lastTime.Sub(firstTime)
+	throughput := float64(totalBytes) / timeDiff.Seconds()
+	fmt.Println("throughput (kB/s)", throughput, "duration", timeDiff.Seconds())
 }

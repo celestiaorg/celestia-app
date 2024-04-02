@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -275,14 +276,27 @@ func (s *Signer) broadcastTx(ctx context.Context, txBytes []byte, sequence uint6
 		return s.retryBroadcastingTx(ctx, txBytes, s.localSequence)
 	}
 
-	txClient := sdktx.NewServiceClient(s.grpc)
-	resp, err := txClient.BroadcastTx(
-		ctx,
-		&sdktx.BroadcastTxRequest{
-			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
-			TxBytes: txBytes,
-		},
+	var (
+		err      error
+		resp     *sdktx.BroadcastTxResponse
+		txClient = sdktx.NewServiceClient(s.grpc)
 	)
+	for attempt := 1; attempt < 5; attempt++ {
+		resp, err = txClient.BroadcastTx(
+			ctx,
+			&sdktx.BroadcastTxRequest{
+				Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
+				TxBytes: txBytes,
+			},
+		)
+
+		if !isRetryableError(err) {
+			break
+		}
+		fmt.Println("retrying after receiving error", err, "attempt", attempt)
+		time.Sleep(time.Second * time.Duration(attempt))
+
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -611,4 +625,22 @@ func getSequenceNumber(tx authsigning.Tx) (uint64, error) {
 	}
 
 	return sigs[0].Sequence, nil
+}
+
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, io.EOF) {
+		fmt.Println("error type")
+		return true
+	}
+
+	if strings.Contains(err.Error(), io.EOF.Error()) {
+		fmt.Println("string type")
+		return true
+	}
+
+	return false
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -34,6 +35,8 @@ func MakeGenesis(nodes []*Node, accounts []*Account) (types.GenesisDoc, error) {
 	bankGenesis := bank.DefaultGenesisState()
 	stakingGenesis := staking.DefaultGenesisState()
 	slashingGenesis := slashing.DefaultGenesisState()
+	blobGenesis := blob.DefaultGenesis()
+	blobGenesis.Params.GovMaxSquareSize *= 2
 	genAccs := []auth.GenesisAccount{}
 	stakingGenesis.Params.BondDenom = app.BondDenom
 	delegations := make([]staking.Delegation, 0, len(nodes))
@@ -112,6 +115,7 @@ func MakeGenesis(nodes []*Node, accounts []*Account) (types.GenesisDoc, error) {
 	appGenState[auth.ModuleName] = encCdc.Codec.MustMarshalJSON(authGenesis)
 	appGenState[staking.ModuleName] = encCdc.Codec.MustMarshalJSON(stakingGenesis)
 	appGenState[slashing.ModuleName] = encCdc.Codec.MustMarshalJSON(slashingGenesis)
+	appGenState[blob.ModuleName] = encCdc.Codec.MustMarshalJSON(blobGenesis)
 
 	if err := app.ModuleBasics.ValidateGenesis(encCdc.Codec, encCdc.TxConfig, appGenState); err != nil {
 		return types.GenesisDoc{}, fmt.Errorf("validating genesis: %w", err)
@@ -122,11 +126,14 @@ func MakeGenesis(nodes []*Node, accounts []*Account) (types.GenesisDoc, error) {
 		return types.GenesisDoc{}, fmt.Errorf("marshaling app state: %w", err)
 	}
 
+	cp := app.DefaultConsensusParams()
+	cp.Block.MaxBytes = 8 * 1024 * 1024
+
 	// Validator set and app hash are set in InitChain
 	return types.GenesisDoc{
 		ChainID:         "test", // this should match the namespace
 		GenesisTime:     time.Now().UTC(),
-		ConsensusParams: app.DefaultConsensusParams(),
+		ConsensusParams: cp,
 		AppState:        appState,
 		// AppHash is not provided but computed after InitChain
 	}, nil
@@ -134,13 +141,16 @@ func MakeGenesis(nodes []*Node, accounts []*Account) (types.GenesisDoc, error) {
 
 func MakeConfig(node *Node) (*config.Config, error) {
 	cfg := config.DefaultConfig()
+	cfg.LogLevel = "error"
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	cfg.Consensus.TimeoutPropose = time.Second
-	cfg.Consensus.TimeoutCommit = time.Second
+	cfg.Consensus.TimeoutCommit = time.Millisecond
+	cfg.Consensus.TimeoutPropose = 5 * time.Second
 	cfg.Instrumentation.Prometheus = true
+	cfg.P2P.RecvRate = 100 * 1024 * 1024 // 100MB/s
+	cfg.P2P.SendRate = 100 * 1024 * 1024 // 100MB/s
 	return cfg, nil
 }
 

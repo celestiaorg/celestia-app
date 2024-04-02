@@ -2,7 +2,6 @@ package user_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -170,12 +169,5 @@ func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdk.Msg, opts ...user.Tx
 		return nil, err
 	}
 
-	resp, err := s.signer.BroadcastTx(s.ctx.GoContext(), txBytes)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
-	}
-	return resp, nil
+	return s.signer.BroadcastTx(s.ctx.GoContext(), txBytes)
 }
