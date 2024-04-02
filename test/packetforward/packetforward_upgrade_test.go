@@ -23,7 +23,7 @@ import (
 )
 
 // TestPacketForwardMiddlewareAgainstAppUpgrades verifies that the PFM module's params are overridden during an
-// upgrade from v1 -> v2 and correctly set when upgrading to v2.
+// upgrade from v1 -> v2.
 func TestPacketForwardMiddlewareAgainstAppUpgrades(t *testing.T) {
 	testApp, _ := setupTestApp(t, 3)
 	supportedVersions := []uint64{v1.Version, v2.Version}
