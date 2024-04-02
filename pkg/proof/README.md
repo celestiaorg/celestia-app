@@ -15,7 +15,9 @@ a good understanding of [binary merkle proofs](https://celestiaorg.github.io/cel
 
 When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction,
 the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html).
-This set of shares is used to generate a *share commitment* which commits to that data.
+This set of shares is used to generate a *share commitment* which commits to the data contained in the PFB, i.e., the blob.
+
+### Share commitment generation 
 
 Generating a *share commitment* starts with laying the shares into a [merkle mountain range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure.
 For example, if the blob contains six shares, the following structure will be generated:
@@ -43,7 +45,7 @@ For example, if we want to prove the first two shares, we will need two merkle p
 
 <img src="img/share_to_share_commitment_inclusion.png" alt="shares to share commitment inclusion proof" width="500"/>
 
-- The first merkle proof is a namespace merkle inclusion proof from the first two shares to the *subtree root*.
+- The first merkle proof is a namespace merkle inclusion proof from the first two shares to the *subtree root* `SR1`.
 - The second merkle tree is a binary merkle inclusion proof from `SR1`,
   which is the subtree root committing to the shares, to the *share commitment*.
 
@@ -55,10 +57,10 @@ Now that the *share commitment* is generated.
 The transaction gets broadcasted to the Celestia network to be picked up by validators.
 Once it's included in a block, the transaction, without the blob,
 is placed in the [transaction namespace](https://celestiaorg.github.io/celestia-app/specs/namespace.html#reserved-namespaces)
-and the blob is placed in the namespace specified in the PFB transaction.
+and the blob is placed in the [namespace](https://github.com/celestiaorg/celestia-app/blob/72be251f044bcece659603248bc27711b2c039a0/proto/celestia/blob/v1/tx.proto#L22) specified in the PFB transaction.
 
 If we use the same transaction from above,
-where the blob consists of six shares, an example Celestia square containing the blob can look like this:
+where the blob consists of six shares, an example Celestia square containing the blob can look like this (omitting the PFB transaction):
 
 <img src="img/extended_square.png" alt="celestia extended square containing the blob shares" width="500"/>
 
@@ -74,9 +76,9 @@ For example, if we want to compute the first row root:
 <img src="img/row_root_1.png" alt="row root one generation" width="500"/>
 
 We use the first row of shares to generate a namespace merkle root.
-The first four are part of the square data, and the last four are parity shares. 
+The first four shares, i.e., the shares `[1, 4]` are part of the square data, and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/specs/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme). 
 
-Now if we take the second row, which contains four shares of the above blob:
+Now if we take the second row, which contains four shares of the above blob `[5,8]`:
 
 <img src="img/row_root_2.png" alt="row root two generation" width="500"/>
 
@@ -94,7 +96,8 @@ computed for the blob data thanks to the [non-interactive defaults](https://cele
 when constructing the square.
 This means
 that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*.
-We will discuss this proof below.
+The subtree roots used to generate it will be the same regardless of the square size.
+This proof will be discussed in the [prove share commitment inclusion to data root](#prove-share-commitment-inclusion-to-data-root) section.
   
 ### Column roots
 
@@ -113,7 +116,7 @@ This allows inclusion proofs of the shares to the data root which will be discus
 
 ## Inclusion proof
 
-### Prove share inclusion to data root
+### Share to data root inclusion proof
 
 To prove that a share was included in a Celestia block,
 we can create an inclusion proof from the share to the data root.
@@ -122,7 +125,7 @@ This proof consists of the following:
 #### Share to row root namespace merkle inclusion proof:
 
 First, we prove inclusion of the share in question to the row root it belongs to.
-If we take, for example, share three, its inclusion proof can be constructed using the inner nodes in brown: 
+If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in brown: 
 
 <img src="img/share_to_row_root_proof.png" alt="share to row root proof" width="443"/>
 
@@ -133,7 +136,7 @@ Now, if we have this inclusion proof, and we verify it against the `RowRoot1`, t
 Now that we proved the share to the row root,
 we will need to complete the proof with a row root to the data root inclusion proof.
 This means that we will be proving that the row root commits to the share, and the data root commits to the row root.
-Since share three is committed to by `RowRoot1`, we will be proving that row root to the data root. 
+Since share *three* is committed to by `RowRoot1`, we will be proving that row root to the data root. 
 
 <img src="img/row_root_to_data_root_proof.png" alt="row root to data root proof" width="443"/>
 
@@ -141,7 +144,7 @@ The inner nodes in brown are the nodes needed to construct the merkle inclusion 
 
 So, if we have access to these two proofs,
 the [share to row root inclusion proof](#share-to-row-root-namespace-merkle-inclusion-proof) and [row root to data root inclusion proof](#row-root-to-data-root-inclusion-proof),
-we can successfully prove inclusion of share three to the Celestia data root.
+we can successfully prove inclusion of share *three* to the Celestia data root.
 
 ### Prove share commitment inclusion to data root
 
@@ -176,4 +179,4 @@ to creating a binary merkle inclusion proof to the *share commitment*:
 
 Now that we managed to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
-Note: Currently, the generation/verification of these proofs is still not supported.
+Note: Currently, the generation/verification of share commitment proofs to data root is still not supported.
