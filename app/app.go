@@ -100,8 +100,8 @@ import (
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 
 	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
-    packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/keeper"
-    packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
 )
 
 var (
@@ -341,16 +341,16 @@ func New(
 	// Create Transfer Keepers
 	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
 
-    app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
-        appCodec,
-        keys[packetforwardtypes.StoreKey],
-        app.GetSubspace(packetforwardtypes.ModuleName),
-        app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
-        app.IBCKeeper.ChannelKeeper,
-        app.DistrKeeper,
-        app.BankKeeper,
-        tokenFilterKeeper,
-    )
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		appCodec,
+		keys[packetforwardtypes.StoreKey],
+		app.GetSubspace(packetforwardtypes.ModuleName),
+		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
+		app.IBCKeeper.ChannelKeeper,
+		app.DistrKeeper,
+		app.BankKeeper,
+		tokenFilterKeeper,
+	)
 
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
@@ -364,12 +364,12 @@ func New(
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
 	transferStack = packetforward.NewIBCMiddleware(
-        transferStack,
-        app.PacketForwardKeeper,
-        0, // retries on timeout
-        packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-        packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
-    )
+		transferStack,
+		app.PacketForwardKeeper,
+		0, // retries on timeout
+		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
+		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
+	)
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -493,7 +493,7 @@ func New(
 		},
 		{
 			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
-			FromVersion: v2, ToVersion: v2,	
+			FromVersion: v2, ToVersion: v2,
 		},
 	})
 	if err != nil {

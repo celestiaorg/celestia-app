@@ -2,9 +2,9 @@ package packetforward_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
-	"strings"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -91,7 +91,7 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	abciParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			MaxBytes: cp.Block.MaxBytes,
-			MaxGas:   cp.Block.MaxGas,
+			MaxGas:   cp.Block.MaxGas,test/packetforward/packetforward_upgrade_test.go
 		},
 		Evidence:  &cp.Evidence,
 		Validator: &cp.Validator,
