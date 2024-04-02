@@ -8,11 +8,11 @@
 # directory-level definitions.
 
 # global owners
-* @evan-forbes @rootulp @cmwaters
+* @evan-forbes @rootulp @cmwaters @staheri14 @ninabarbakadze
 
 # directory owners
 # NOTE: the directory owners should include the global owners unless the global
 # owner is fully deferring ownership to the directory owner
 docs @liamsi @adlerjohn @evan-forbes @rootulp @cmwaters
 specs @liamsi @adlerjohn @evan-forbes @rootulp @cmwaters
-x/qgb @SweeXordious @evan-forbes
+x/qgb @rach-id @evan-forbes
