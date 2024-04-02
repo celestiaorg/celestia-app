@@ -64,7 +64,7 @@ where the blob consists of six shares, an example Celestia square containing the
 
 <img src="img/extended_square.png" alt="celestia extended square containing the blob shares" width="500"/>
 
-The share range `[5, 11)`, colored in green, is the blob data.
+The share range `[5, 10]`, colored in green, is the blob data.
 
 ### Row roots
 
