@@ -47,25 +47,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	)
-
-	var txs [][]byte
-	// This if statement verifies whether the preparation of the proposal
-	// pertains to the first block. If it does, the block is constructed using
-	// an empty set of transactions. However, even without this validation,
-	// the initial block is anticipated to be devoid of transactions, as
-	// established by the findings presented in
-	// https://github.com/celestiaorg/celestia-app/issues/1899;
-	// The inclusion of this check is out of an abundance of caution.
-	// The rationale behind having an empty first block revolves around the fact
-	// that no transactions can enter the mempool since no committed state exists
-	// until after the first block is committed (at which point the Genesis state
-	// gets committed too). Consequently, the prepare proposal request for the
-	// first block is expected to contain no transaction, so is the first block.
-	if app.LastBlockHeight() == 0 {
-		txs = make([][]byte, 0)
-	} else {
-		txs = FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
-	}
+	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
