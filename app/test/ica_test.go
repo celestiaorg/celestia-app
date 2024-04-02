@@ -41,7 +41,6 @@ func TestICA(t *testing.T) {
 	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion())
 
-	// global min gas price should not have been set yet
 	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: icahosttypes.SubModuleName,
 		Key:      string(icahosttypes.KeyHostEnabled),
