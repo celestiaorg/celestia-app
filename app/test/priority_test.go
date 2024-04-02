@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-  "github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
