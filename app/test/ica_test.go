@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
 	dbm "github.com/tendermint/tm-db"
+	"google.golang.org/grpc"
 )
 
 // TestICA verifies that the ICA module's params are overridden during an
@@ -56,21 +58,17 @@ func TestICA(t *testing.T) {
 	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
 	require.EqualValues(t, 2, testApp.AppVersion())
 
-	// create a new context after endBlock
-	newCtx := testApp.NewContext(true, tmproto.Header{
-		Version: version.Consensus{
-			App: 2,
-		},
-	})
-
-	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
-		Subspace: icahosttypes.SubModuleName,
-		Key:      string(icahosttypes.KeyHostEnabled),
-	})
+	conn, err := grpc.Dial(":9090", grpc.WithInsecure())
 	require.NoError(t, err)
+	defer conn.Close()
 
+	icaClient := icahosttypes.NewQueryClient(conn)
+	goCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	paramsResp, err := icaClient.Params(goCtx, &icahosttypes.QueryParamsRequest{})
 	require.NoError(t, err)
-	require.True(t, got.Param.Value == "true")
+	require.Equal(t, true, paramsResp.Params.HostEnabled)
+	require.Len(t, paramsResp.Params.AllowMessages, 12)
 }
 
 func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
