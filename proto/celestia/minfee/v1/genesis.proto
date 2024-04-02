@@ -4,7 +4,7 @@ package celestia.minfee.v1;
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/v2/x/minfee";
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
 
 // GenesisState defines the minfee module's genesis state.
 message GenesisState {

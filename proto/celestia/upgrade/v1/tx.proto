@@ -3,7 +3,7 @@ package celestia.upgrade.v1;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/v2/x/upgrade/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
 
 // Msg defines the upgrade Msg service.
 service Msg {

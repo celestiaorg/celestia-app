@@ -1,7 +1,7 @@
 syntax = "proto3";
 package celestia.mint.v1;
 
-option go_package = "github.com/celestiaorg/celestia-app/v2/x/mint/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 
 // GenesisState defines the mint module's genesis state.
 message GenesisState {

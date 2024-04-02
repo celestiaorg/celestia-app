@@ -8,7 +8,7 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/v2/x/blobstream/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 
 // Query defines the gRPC querier service.
 service Query {
