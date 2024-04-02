@@ -1,6 +1,6 @@
 # Proofs
 
-This package contains the proof queries for Celestia transactions/blobs.
+This package facilitates proof queries related to Celestia transactions and blobs.
 
 # Details
 
@@ -108,7 +108,7 @@ Similar to row roots, column roots are the namespace merkle root of the set of s
 ### Data root
 
 The Celestia block [data root](https://celestiaorg.github.io/celestia-app/specs/data_structures.html) is computed
-by generating a binary merkle root over the set of rows roots and column roots of the square:
+by generating a binary merkle root over the set of row roots and column roots of the square:
 
 <img src="img/data_root.png" alt="data root generation" width="443"/>
 
