@@ -119,19 +119,19 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	txsim, err := CreateTxSimNode(name, version, grpcEndpoint, seed, sequences,
 		blobRange, pollTime, resources, txsimRootDir)
 	if err != nil {
-		fmt.Println("error creating txsim", err)
+		log.Err(err).Msgf("error creating txsim %s", name)
 		return err
 	}
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
-		fmt.Println("error adding keyring dir to txsim", err)
+		log.Err(err).Msgf("error adding keyring dir to txsim %s", name)
 		return err
 	}
 
 	err = txsim.Instance.Commit()
 	if err != nil {
-		fmt.Println("error committing txsim", err)
+		log.Err(err).Msgf("error committing txsim %s", name)
 		return err
 	}
 

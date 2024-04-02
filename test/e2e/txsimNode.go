@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -33,10 +34,10 @@ func CreateTxSimNode(
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("txsim version", txsimDockerImageName(version))
+	log.Info().Msgf("txsim version %s", txsimDockerImageName(version))
 	err = instance.SetImage(txsimDockerImageName(version))
 	if err != nil {
-		fmt.Println("err setting image")
+		log.Err(err).Msgf("error setting image %s", txsimDockerImageName(version))
 		return nil, err
 	}
 	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
