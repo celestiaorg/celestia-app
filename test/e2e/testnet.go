@@ -79,9 +79,11 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences,
 			blobRange, pollTime, resources, grpcEndpoint)
-		log.Info().Msgf("txsim created %s %s", name, grpcEndpoint)
+		log.Info().Msgf("txsim created with name: %s and grpc endpoint: %s",
+			name, grpcEndpoint)
 		if err != nil {
-			log.Info().Msgf("error creating txsim %s %v", name, grpcEndpoint)
+			log.Err(err).Msgf("error creating txsim with name: %s and"+
+				" grpc endpoint: %s", name, grpcEndpoint)
 			return err
 		}
 	}
@@ -171,7 +173,7 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 		PubKey:  pk,
 		Balance: tokens,
 	})
-	log.Info().Msgf("txsim account created and added to genesis %s", pk)
+	log.Info().Msgf("txsim account created and added to genesis %v", pk)
 	return kr, nil
 }
 
@@ -343,7 +345,7 @@ func (t *Testnet) Cleanup() {
 			}
 			err = txsim.Instance.Destroy()
 			if err != nil {
-				log.Err(err).Msg(fmt.Sprintf("txsim %s failed to cleanup", txsim.Name))
+				log.Err(err).Msg(fmt.Sprintf("txsim %s failed to destroy", txsim.Name))
 			}
 		}
 	}
