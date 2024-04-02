@@ -17,7 +17,7 @@ import (
 
 const seed = 42
 
-var latestVersion = "4868c53"
+var latestVersion = "latest"
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
