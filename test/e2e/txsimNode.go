@@ -22,7 +22,6 @@ type TxSim struct {
 func CreateTxSimNode(
 	name, version string,
 	endpoint string,
-	rpcEndpoint string,
 	seed int,
 	sequences int,
 	blobRange string,
