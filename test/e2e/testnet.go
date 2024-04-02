@@ -74,7 +74,8 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 	blobRange string,
 	pollTime int,
 	resources Resources,
-	grpcEndpoints []string) error {
+	grpcEndpoints []string,
+) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences,
@@ -107,7 +108,8 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	blobRange string,
 	pollTime int,
 	resources Resources,
-	grpcEndpoint string) error {
+	grpcEndpoint string,
+) error {
 	// create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
@@ -173,6 +175,10 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 		PubKey:  pk,
 		Balance: tokens,
 	})
+	if err != nil {
+		return nil, err
+	}
+
 	log.Info().Msgf("txsim account created and added to genesis %v", pk)
 	return kr, nil
 }
@@ -212,7 +218,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 
 func (t *Testnet) Setup() error {
 	genesis, err := t.genesis.Export()
-	//genesis.ConsensusParams.Version.AppVersion = testground.Version
+	// genesis.ConsensusParams.Version.AppVersion = testground.Version
 	if err != nil {
 		return err
 	}
@@ -250,6 +256,7 @@ func (t *Testnet) GRPCEndpoints() []string {
 	}
 	return grpcEndpoints
 }
+
 func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
 	grpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
@@ -349,7 +356,6 @@ func (t *Testnet) Cleanup() {
 			}
 		}
 	}
-
 }
 
 func (t *Testnet) Node(i int) *Node {
