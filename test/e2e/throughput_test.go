@@ -46,14 +46,15 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 
-	// add 4 validators
+	// add 2 validators
+	//maxResources := Resources{
+	//	memoryRequest: "10Gi",
+	//	memoryLimit:   "12Gi",
+	//	cpu:           "6",
+	//	volume:        "1Gi",
+	//}
 	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,
-		0, Resources{
-			memoryRequest: "10Gi",
-			memoryLimit:   "12Gi",
-			cpu:           "6",
-			volume:        "1Gi",
-		}))
+		0, defaultResources))
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
@@ -69,7 +70,7 @@ func TestE2EThroughput(t *testing.T) {
 	txsimVersion := "a954bc1" // old: "cee9cd4" // "65c1a8e" // TODO pull the
 	// latest version of txsim if possible
 
-	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 40,
+	err = testnet.CreateAndSetupTxSimNodes(txsimVersion, seed, 10,
 		"99000-99000", 3, Resources{
 			memoryRequest: "1Gi",
 			memoryLimit:   "1Gi",
@@ -77,16 +78,7 @@ func TestE2EThroughput(t *testing.T) {
 			volume:        "1Gi",
 		},
 		gRPCEndpoints[:], rPCEndPoints[:])
-	//Resources{
-	//			memoryRequest: "400Mi",
-	//			memoryLimit:   "1Gi",
-	//			cpu:           "2",
-	//			volume:        "1Gi",
-	//		}
 	require.NoError(t, err)
-	// val0-75a4c8a9-0
-	//val0-75a4c8a9-0
-	//txsim0-1963cf10-0
 
 	// start the testnet
 	t.Log("Setting up testnet")
@@ -100,7 +92,6 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	//kubectl delete statefulsets,replicasets --all -n <namespace>
 	time.Sleep(1 * time.Minute)
 
 	t.Log("Reading blockchain")
