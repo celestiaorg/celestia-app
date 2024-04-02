@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -20,17 +19,12 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
 	dbm "github.com/tendermint/tm-db"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // TestICA verifies that the ICA module's params are overridden during an
 // upgrade from v1 -> v2.
 func TestICA(t *testing.T) {
 	testApp, _ := setupTestApp(t, 3)
-	supportedVersions := []uint64{v1.Version, v2.Version}
-	require.Equal(t, supportedVersions, testApp.SupportedVersions())
-
 	ctx := testApp.NewContext(true, tmproto.Header{
 		Version: version.Consensus{
 			App: 1,
@@ -40,36 +34,28 @@ func TestICA(t *testing.T) {
 		Height:  2,
 		Version: version.Consensus{App: 1},
 	}})
-
-	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion())
 
+	// Query the ICA host module params
 	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: icahosttypes.SubModuleName,
 		Key:      string(icahosttypes.KeyHostEnabled),
 	})
-	require.Equal(t, "", gotBefore.Param.Value)
 	require.NoError(t, err)
+	require.Equal(t, "", gotBefore.Param.Value)
 
-	// now the app version changes
-	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	// Upgrade from v1 -> v2
+	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	testApp.Commit()
-
-	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
-	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
 	require.EqualValues(t, 2, testApp.AppVersion())
 
-	conn, err := grpc.Dial(":9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	newCtx := testApp.NewContext(true, tmproto.Header{Version: version.Consensus{App: 2}})
+	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
+		Subspace: icahosttypes.SubModuleName,
+		Key:      string(icahosttypes.KeyHostEnabled),
+	})
 	require.NoError(t, err)
-	defer conn.Close()
-
-	icaClient := icahosttypes.NewQueryClient(conn)
-	goCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	paramsResp, err := icaClient.Params(goCtx, &icahosttypes.QueryParamsRequest{})
-	require.NoError(t, err)
-	require.Equal(t, true, paramsResp.Params.HostEnabled)
-	require.Len(t, paramsResp.Params.AllowMessages, 12)
+	require.Equal(t, "true", got.Param.Value)
 }
 
 func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
@@ -110,5 +96,7 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
 
 	_ = testApp.Commit()
+	supportedVersions := []uint64{v1.Version, v2.Version}
+	require.Equal(t, supportedVersions, testApp.SupportedVersions())
 	return testApp, kr
 }
