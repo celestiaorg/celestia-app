@@ -91,7 +91,7 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	abciParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			MaxBytes: cp.Block.MaxBytes,
-			MaxGas:   cp.Block.MaxGas,test/packetforward/packetforward_upgrade_test.go
+			MaxGas:   cp.Block.MaxGas,
 		},
 		Evidence:  &cp.Evidence,
 		Validator: &cp.Validator,
