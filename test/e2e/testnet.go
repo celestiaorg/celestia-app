@@ -168,6 +168,10 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 		return nil, err
 	}
 	fmt.Println("txsim account created and added to genesis", pk)
+	err = t.genesis.AddAccount(genesis.Account{
+		PubKey:  pk,
+		Balance: tokens,
+	})
 	return kr, nil
 }
 
