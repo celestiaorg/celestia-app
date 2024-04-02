@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -207,7 +206,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 
 func (t *Testnet) Setup() error {
 	genesis, err := t.genesis.Export()
-	genesis.ConsensusParams.Version.AppVersion = testground.Version
+	//genesis.ConsensusParams.Version.AppVersion = testground.Version
 	if err != nil {
 		return err
 	}
