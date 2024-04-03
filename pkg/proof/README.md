@@ -2,7 +2,7 @@
 
 This package enables proof queries for Celestia transactions and blobs.
 
-# Details
+## Details
 
 This section will go over how the transactions/blobs inclusion proofs work.
 
