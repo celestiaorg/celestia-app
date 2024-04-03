@@ -224,8 +224,7 @@ func (n Node) AddressGRPC() string {
 	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
 }
 
-// RemoteAddressGRPC returns the GRPC endpoint address for the node in the
-// cluster.
+// RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressGRPC() (string, error) {
 	ip, err := n.Instance.GetIP()
 	if err != nil {
@@ -234,8 +233,7 @@ func (n Node) RemoteAddressGRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, grpcPort), nil
 }
 
-// RemoteAddressRPC returns the GRPC endpoint address for the node in the
-// cluster.
+// RemoteAddressRPC retrieves the RPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressRPC() (string, error) {
 	ip, err := n.Instance.GetIP()
 	if err != nil {
