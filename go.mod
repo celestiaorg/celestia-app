@@ -5,6 +5,7 @@ go 1.22.1
 require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
+	github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.0.1
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
