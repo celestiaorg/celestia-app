@@ -1,6 +1,6 @@
 # Proofs
 
-This package facilitates proof queries related to Celestia transactions and blobs.
+This package enables proof queries for Celestia transactions and blobs.
 
 # Details
 
