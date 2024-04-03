@@ -348,11 +348,15 @@ func (t *Testnet) Cleanup() {
 		if txsim.Instance.IsInState(knuu.Started) {
 			err := txsim.Instance.Stop()
 			if err != nil {
-				log.Err(err).Msg(fmt.Sprintf("txsim %s failed to stop", txsim.Name))
+				log.Err(err).Msgf("txsim %s failed to stop", txsim.Name)
+			}
+			err = txsim.Instance.WaitInstanceIsStopped()
+			if err != nil {
+				log.Err(err).Msgf("txsim %s failed to stop", txsim.Name)
 			}
 			err = txsim.Instance.Destroy()
 			if err != nil {
-				log.Err(err).Msg(fmt.Sprintf("txsim %s failed to destroy", txsim.Name))
+				log.Err(err).Msgf("txsim %s failed to destroy", txsim.Name)
 			}
 		}
 	}
