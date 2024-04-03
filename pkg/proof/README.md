@@ -42,7 +42,7 @@ The *share commitment* is the binary merkle root over the set of *subtree roots*
 Using the above merkle trees,
 share proofs can be generated to prove inclusion of a set of shares to the *share commitment*.
 
-For example, if we want to prove the first two shares, we will need two merkle proofs:
+For instance, if we want to prove the first two shares, we will need two merkle proofs:
 
 <img src="img/share_to_share_commitment_inclusion.png" alt="shares to share commitment inclusion proof" width="500"/>
 
@@ -74,7 +74,7 @@ The share range `[5, 10]`, colored in green, is the blob data.
 To compute the Celestia block [data root](https://celestiaorg.github.io/celestia-app/specs/data_structures.html),
 we first start by computing the row roots and column roots.
 
-For example, if we want to compute the first row root:
+For instance, if we want to compute the first row root:
 
 <img src="img/row_root_1.png" alt="row root one generation" width="500"/>
 
