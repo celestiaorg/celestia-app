@@ -190,7 +190,7 @@ to creating a binary merkle inclusion proof to the *share commitment*:
 So, if we manage to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
 [IMPORTANT] As of the current version,
-the generation and verification of share commitment proofs to data root is still not supported.
+the API for generating and verifying share commitment proofs to data root is still not exposed. These proofs are only used as part of the Celestia [consensus](https://celestiaorg.github.io/celestia-app/specs/consensus.html) internally.
 
 #### Compact proofs
 
