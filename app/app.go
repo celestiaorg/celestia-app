@@ -98,6 +98,10 @@ import (
 	blobstreamkeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
+
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
 )
 
 var (
@@ -126,6 +130,7 @@ var (
 		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		minfee.AppModuleBasic{},
+		packetforward.AppModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -201,6 +206,8 @@ type App struct {
 	upgradeHeight int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
+
+	PacketForwardKeeper *packetforwardkeeper.Keeper
 }
 
 // New returns a reference to an initialized celestia app.
@@ -236,6 +243,7 @@ func New(
 		blobstreamtypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
+		packetforwardtypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -332,9 +340,21 @@ func New(
 
 	// Create Transfer Keepers
 	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
+
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		appCodec,
+		keys[packetforwardtypes.StoreKey],
+		app.GetSubspace(packetforwardtypes.ModuleName),
+		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
+		app.IBCKeeper.ChannelKeeper,
+		app.DistrKeeper,
+		app.BankKeeper,
+		tokenFilterKeeper,
+	)
+
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
-		tokenFilterKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
+		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
 	)
 	// transfer stack contains (from top to bottom):
@@ -343,6 +363,13 @@ func New(
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
+	transferStack = packetforward.NewIBCMiddleware(
+		transferStack,
+		app.PacketForwardKeeper,
+		0, // retries on timeout
+		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
+		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
+	)
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -362,6 +389,8 @@ func New(
 		appCodec,
 		app.GetSubspace(blobtypes.ModuleName),
 	)
+
+	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -462,6 +491,10 @@ func New(
 			Module:      minfee.NewAppModule(app.ParamsKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
+		{
+			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
+			FromVersion: v2, ToVersion: v2,
+		},
 	})
 	if err != nil {
 		panic(err)
@@ -493,6 +526,7 @@ func New(
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
 		minfee.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -517,6 +551,7 @@ func New(
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
 		minfee.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -548,6 +583,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		upgradetypes.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -814,6 +850,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 	paramsKeeper.Subspace(minfee.ModuleName)
+	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
 }
