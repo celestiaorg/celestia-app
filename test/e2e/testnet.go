@@ -201,7 +201,6 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 	if err != nil {
 		return nil, err
 	}
-
 	pk, err := key.GetPubKey()
 	if err != nil {
 		return nil, err
@@ -218,7 +217,6 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 
 func (t *Testnet) Setup() error {
 	genesis, err := t.genesis.Export()
-	// genesis.ConsensusParams.Version.AppVersion = testground.Version
 	if err != nil {
 		return err
 	}
@@ -257,6 +255,8 @@ func (t *Testnet) GRPCEndpoints() []string {
 	return grpcEndpoints
 }
 
+// RemoteGRPCEndpoints retrieves the gRPC endpoint addresses of the
+// testnet's validator nodes.
 func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
 	grpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
@@ -277,6 +277,8 @@ func (t *Testnet) GetGenesisValidators() []genesis.Validator {
 	return validators
 }
 
+// RemoteRPCEndpoints retrieves the RPC endpoint addresses of the testnet's
+// validator nodes.
 func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	rpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
