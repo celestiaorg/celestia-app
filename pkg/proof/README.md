@@ -88,7 +88,7 @@ Now if we take the second row, which contains four shares of the above blob `[5,
 
 <img src="img/row_root_2.png" alt="row root two generation" width="500"/>
 
-The inner node in blue is the same as the *subtree root* `SR1`
+The inner node in purple is the same as the *subtree root* `SR1`
 generated in the [PFB transaction](#pfb-transaction) section. 
 
 Similarly, if we generate the third row, which contains the remaining two shares of the blob, and some other data:
