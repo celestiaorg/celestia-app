@@ -100,7 +100,7 @@ We will see that the *subtree root* `SR2` is an inner node of the tree used to c
 This property holds for all the subtree roots
 computed for the blob data
 and is derived
-from applying [non-interactive defaults](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html) rules
+from applying [Blob Share Commitment Rules](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules)
 when constructing the square.
 This means
 that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*.
