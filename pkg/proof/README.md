@@ -111,6 +111,11 @@ Similar to row roots, column roots are the namespace merkle root of the set of s
 
 <img src="img/col_root_1.png" alt="column root one generation" width="427"/>
 
+Generally, the column roots are only used for [bad encoding fraud proofs,
+BEFP](https://celestiaorg.github.io/celestia-app/specs/fraud_proofs.html#bad-encoding-fraud-proofs)
+and won't be used concretely in inclusion proofs.
+They're only mentioned for completeness.
+
 ### Data root
 
 The Celestia block [data root](https://celestiaorg.github.io/celestia-app/specs/data_structures.html) is computed
