@@ -1,12 +1,12 @@
-# Proofs
+# Proof
 
 This package enables proof queries for Celestia transactions and blobs.
 
-# Details
+## Details
 
-This section will go over how the transactions/blobs inclusion proofs work.
+The following section will cover transaction inclusion proofs and blob inclusion proofs.
 
-## Requirements
+## Prerequisites
 
 To understand the proof mechanisms,
 a good understanding of [binary merkle proofs](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#merkle-trees) and [namespace merkle proofs](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#namespace-merkle-tree) is required.
@@ -27,7 +27,7 @@ For example, if the blob contains six shares, the following structure will be ge
 
 <img src="img/subtree_roots.png" alt="subtree roots generation from shares" width="500"/>
 
-The blob shares are colored in green,
+The blob shares are colored in orange,
 and are used
 to generate a set of roots following the [merkle mountain range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure.
 These roots are called *subtree roots*.
@@ -49,10 +49,10 @@ For instance, if we want to prove the first two shares, we will need two merkle 
 <img src="img/share_to_share_commitment_inclusion.png" alt="shares to share commitment inclusion proof" width="500"/>
 
 - The first merkle proof is a namespace merkle inclusion proof from the first two shares to the *subtree root* `SR1`.
-- The second merkle tree is a binary merkle inclusion proof from `SR1`,
+- The second merkle proof is a binary merkle inclusion proof from `SR1`,
   which is the subtree root committing to the shares, to the *share commitment*.
 
-Note: the nodes colored in brown are the inner nodes used to construct the inclusion proof.
+Note: the nodes colored in maroon are the inner nodes used to construct the inclusion proof.
 
 ## Square layout
 
@@ -69,7 +69,7 @@ an example Celestia square containing the blob and the PFB transaction can look 
 
 <img src="img/extended_square.png" alt="celestia extended square containing the blob shares" width="500"/>
 
-The share range `[5, 10]`, colored in green, is the blob data.
+The share range `[5, 10]`, colored in orange, is the blob data.
 
 ### Row roots
 
@@ -88,7 +88,7 @@ Now if we take the second row, which contains four shares of the above blob `[5,
 
 <img src="img/row_root_2.png" alt="row root two generation" width="500"/>
 
-The inner node in blue is the same as the *subtree root* `SR1`
+The inner node in purple is the same as the *subtree root* `SR1`
 generated in the [PFB transaction](#pfb-transaction) section. 
 
 Similarly, if we generate the third row, which contains the remaining two shares of the blob, and some other data:
@@ -100,7 +100,7 @@ We will see that the *subtree root* `SR2` is an inner node of the tree used to c
 This property holds for all the subtree roots
 computed for the blob data
 and is derived
-from applying [non-interactive defaults](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html) rules
+from applying [Blob Share Commitment Rules](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules)
 when constructing the square.
 This means
 that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*.
@@ -138,7 +138,7 @@ This proof consists of the following:
 #### Share to row root namespace merkle inclusion proof:
 
 First, we prove inclusion of the share in question to the row root it belongs to.
-If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in brown: 
+If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in maroon: 
 
 <img src="img/share_to_row_root_proof.png" alt="share to row root proof" width="443"/>
 
@@ -153,7 +153,7 @@ Since share *three* is committed to by `RowRoot1`, we will be proving that row r
 
 <img src="img/row_root_to_data_root_proof.png" alt="row root to data root proof" width="443"/>
 
-The inner nodes in brown are the nodes needed to construct the merkle inclusion proof.
+The inner nodes in maroon are the nodes needed to construct the merkle inclusion proof.
 
 So, if we have access to these two proofs,
 the [share to row root inclusion proof](#share-to-row-root-namespace-merkle-inclusion-proof) and [row root to data root inclusion proof](#row-root-to-data-root-inclusion-proof),
