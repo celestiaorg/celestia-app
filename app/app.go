@@ -103,6 +103,10 @@ import (
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
+
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
 )
 
 var (
@@ -131,6 +135,7 @@ var (
 		blobstream.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		minfee.AppModuleBasic{},
+		packetforward.AppModuleBasic{},
 		icaModule{},
 	)
 
@@ -209,6 +214,8 @@ type App struct {
 	upgradeHeight int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
+
+	PacketForwardKeeper *packetforwardkeeper.Keeper
 }
 
 // New returns a reference to an initialized celestia app.
@@ -244,6 +251,7 @@ func New(
 		blobstreamtypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
+		packetforwardtypes.StoreKey,
 		icahosttypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -358,9 +366,21 @@ func New(
 
 	// Create Transfer Keepers
 	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
+
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		appCodec,
+		keys[packetforwardtypes.StoreKey],
+		app.GetSubspace(packetforwardtypes.ModuleName),
+		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
+		app.IBCKeeper.ChannelKeeper,
+		app.DistrKeeper,
+		app.BankKeeper,
+		tokenFilterKeeper,
+	)
+
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
-		tokenFilterKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
+		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
 	)
 	// transfer stack contains (from top to bottom):
@@ -369,6 +389,13 @@ func New(
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
+	transferStack = packetforward.NewIBCMiddleware(
+		transferStack,
+		app.PacketForwardKeeper,
+		0, // retries on timeout
+		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
+		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
+	)
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -389,6 +416,7 @@ func New(
 		app.GetSubspace(blobtypes.ModuleName),
 	)
 
+	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 	ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
 	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
@@ -489,6 +517,10 @@ func New(
 			FromVersion: v2, ToVersion: v2,
 		},
 		{
+			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
+			FromVersion: v2, ToVersion: v2,
+		},
+		{
 			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
@@ -524,6 +556,7 @@ func New(
 		upgradetypes.ModuleName,
 		minfee.ModuleName,
 		icatypes.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -548,6 +581,7 @@ func New(
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
 		minfee.ModuleName,
+		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 	)
 
@@ -580,6 +614,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		upgradetypes.ModuleName,
+		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 	)
 
@@ -848,6 +883,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 	paramsKeeper.Subspace(minfee.ModuleName)
+	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
 }
