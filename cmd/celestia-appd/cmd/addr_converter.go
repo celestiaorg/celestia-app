@@ -22,7 +22,7 @@ func AddrConversionCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%s\n", converted)
+			cmd.OutOrStdout().Write([]byte(converted + "\n"))
 			return nil
 		},
 	}
