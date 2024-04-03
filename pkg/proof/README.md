@@ -1,4 +1,4 @@
-# Proofs
+# Proof
 
 This package enables proof queries for Celestia transactions and blobs.
 
