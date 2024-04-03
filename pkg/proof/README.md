@@ -153,7 +153,7 @@ Since share *three* is committed to by `RowRoot1`, we will be proving that row r
 
 <img src="img/row_root_to_data_root_proof.png" alt="row root to data root proof" width="443"/>
 
-The inner nodes in brown are the nodes needed to construct the merkle inclusion proof.
+The inner nodes in maroon are the nodes needed to construct the merkle inclusion proof.
 
 So, if we have access to these two proofs,
 the [share to row root inclusion proof](#share-to-row-root-namespace-merkle-inclusion-proof) and [row root to data root inclusion proof](#row-root-to-data-root-inclusion-proof),
