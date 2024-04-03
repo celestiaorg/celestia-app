@@ -27,7 +27,7 @@ type KeyringAccount struct {
 	InitialTokens int64
 }
 
-func NewAccounts(initBal int64, names ...string) []KeyringAccount {
+func NewKeyringAccounts(initBal int64, names ...string) []KeyringAccount {
 	accounts := make([]KeyringAccount, len(names))
 	for i, name := range names {
 		accounts[i] = KeyringAccount{
