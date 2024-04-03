@@ -138,7 +138,7 @@ This proof consists of the following:
 #### Share to row root namespace merkle inclusion proof:
 
 First, we prove inclusion of the share in question to the row root it belongs to.
-If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in brown: 
+If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in maroon: 
 
 <img src="img/share_to_row_root_proof.png" alt="share to row root proof" width="443"/>
 
