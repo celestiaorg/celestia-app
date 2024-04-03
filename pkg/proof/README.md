@@ -6,7 +6,7 @@ This package enables proof queries for Celestia transactions and blobs.
 
 The following section will cover transaction inclusion proofs and blob inclusion proofs.
 
-## Requirements
+## Prerequisites
 
 To understand the proof mechanisms,
 a good understanding of [binary merkle proofs](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#merkle-trees) and [namespace merkle proofs](https://celestiaorg.github.io/celestia-app/specs/data_structures.html#namespace-merkle-tree) is required.
