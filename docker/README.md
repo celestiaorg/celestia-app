@@ -25,7 +25,7 @@ Before you can use the `txsim` Docker image, you must have a prefunded account s
 You can run the `txsim` Docker image using the `docker run` command. Here's an example:
 
 ```bash
-docker run -it -v ${HOME}/.celestia-app:/home/celestia ghcr.io/celestiaorg/txsim -k 0 -r http://consensus-validator-robusta-rc6.celestia-robusta.com:26657,http://consensus-full-robusta-rc6.celestia-robusta.com:26657 -g consensus-validator-robusta-rc6.celestia-robusta.com:9090 -t 10s -b 10 -d 100 -e 10
+docker run -it -v ${HOME}/.celestia-app:/home/celestia ghcr.io/celestiaorg/txsim -k 0 -g consensus-validator-robusta-rc6.celestia-robusta.com:9090 -t 10s -b 10 -d 100 -e 10
 ```
 
 In this command, the `-v` option is used to mount the `${HOME}/.celestia-app` directory from the host to the `/home/celestia` directory in the Docker container. This allows the `txsim` binary to access the keyring for the prefunded account.
