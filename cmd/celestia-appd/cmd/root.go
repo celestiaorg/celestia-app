@@ -140,6 +140,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		commands.CompactGoLevelDBCmd,
 		addrbookCommand(),
 		downloadGenesisCommand(),
+		AddrConversionCmd(),
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
