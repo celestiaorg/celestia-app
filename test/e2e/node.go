@@ -44,10 +44,10 @@ type Node struct {
 }
 
 type Resources struct {
-	memoryRequest string
-	memoryLimit   string
-	cpu           string
-	volume        string
+	MemoryRequest string
+	MemoryLimit   string
+	CPU           string
+	Volume        string
 }
 
 func NewNode(
@@ -92,11 +92,11 @@ func NewNode(
 			return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
 		}
 	}
-	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
+	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU(resources.cpu)
+	err = instance.SetCPU(resources.CPU)
 	if err != nil {
 		return nil, err
 	}

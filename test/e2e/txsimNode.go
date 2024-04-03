@@ -47,15 +47,15 @@ func CreateTxSimNode(
 			Msg("failed to set image for txsim node")
 		return nil, err
 	}
-	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)
+	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU(resources.cpu)
+	err = instance.SetCPU(resources.CPU)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolumeWithOwner(volumePath, resources.volume, 10001)
+	err = instance.AddVolumeWithOwner(volumePath, resources.Volume, 10001)
 	if err != nil {
 		return nil, err
 	}
