@@ -52,7 +52,7 @@ For instance, if we want to prove the first two shares, we will need two merkle 
 - The second merkle tree is a binary merkle inclusion proof from `SR1`,
   which is the subtree root committing to the shares, to the *share commitment*.
 
-Note: the nodes colored in brown are the inner nodes used to construct the inclusion proof.
+Note: the nodes colored in maroon are the inner nodes used to construct the inclusion proof.
 
 ## Square layout
 
