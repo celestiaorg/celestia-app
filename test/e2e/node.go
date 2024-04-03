@@ -43,11 +43,16 @@ type Node struct {
 	grpcProxyPort int
 }
 
+// Resources defines the resource requirements for a Node.
 type Resources struct {
+	// MemoryRequest specifies the initial memory allocation for the Node.
 	MemoryRequest string
-	MemoryLimit   string
-	CPU           string
-	Volume        string
+	// MemoryLimit specifies the maximum memory allocation for the Node.
+	MemoryLimit string
+	// CPU specifies the CPU allocation for the Node.
+	CPU string
+	// Volume specifies the storage volume allocation for the Node.
+	Volume string
 }
 
 func NewNode(
