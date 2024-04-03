@@ -15,7 +15,8 @@ a good understanding of [binary merkle proofs](https://celestiaorg.github.io/cel
 
 When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction,
 the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html).
-This set of shares is used to generate a *share commitment* which commits to the data contained in the PFB, i.e., the blob.
+This set of shares is used to generate a *share commitment* which commits to the data contained in the PFB,
+i.e., the blob.
 
 ### Share commitment generation 
 
@@ -57,10 +58,12 @@ Now that the *share commitment* is generated.
 The transaction gets broadcasted to the Celestia network to be picked up by validators.
 Once it's included in a block, the transaction, without the blob,
 is placed in the [transaction namespace](https://celestiaorg.github.io/celestia-app/specs/namespace.html#reserved-namespaces)
-and the blob is placed in the [namespace](https://github.com/celestiaorg/celestia-app/blob/72be251f044bcece659603248bc27711b2c039a0/proto/celestia/blob/v1/tx.proto#L22) specified in the PFB transaction.
+and the blob is placed in the [namespace](https://github.com/celestiaorg/celestia-app/blob/72be251f044bcece659603248bc27711b2c039a0/proto/celestia/blob/v1/tx.proto#L22)
+specified in the PFB transaction.
 
 If we use the same transaction from above,
-where the blob consists of six shares, an example Celestia square containing the blob can look like this (omitting the PFB transaction):
+where the blob consists of six shares,
+an example Celestia square containing the blob and the PFB transaction can look like this:
 
 <img src="img/extended_square.png" alt="celestia extended square containing the blob shares" width="500"/>
 
@@ -76,7 +79,8 @@ For example, if we want to compute the first row root:
 <img src="img/row_root_1.png" alt="row root one generation" width="500"/>
 
 We use the first row of shares to generate a namespace merkle root.
-The first four shares, i.e., the shares `[1, 4]` are part of the square data, and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/specs/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme). 
+The first four shares, i.e., the shares `[1, 4]` are part of the square data,
+and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/specs/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme). 
 
 Now if we take the second row, which contains four shares of the above blob `[5,8]`:
 
@@ -179,4 +183,10 @@ to creating a binary merkle inclusion proof to the *share commitment*:
 
 Now that we managed to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
-[IMPORTANT] As of the current version, the generation and verification of share commitment proofs to data root is still not supported.
+[IMPORTANT] As of the current version,
+the generation and verification of share commitment proofs to data root is still not supported.
+
+#### Compact proofs
+
+More compact proofs can be generated but are out of the scope of this document.
+More details can be found in [ADR-011](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md).
