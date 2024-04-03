@@ -170,8 +170,7 @@ The inner nodes in brown would be used to construct the `SR2` node inclusion pro
 After having this proof, we will need to prove the `RowRoot3` inclusion to the data root.
 This is described in the [row root to data root inclusion proof](#row-root-to-data-root-inclusion-proof) section.
 
-With this, we would be able to prove that `SR3` was committed to by a Celestia data root,
-i.e., was included in a Celestia block.
+With this, we would be able to prove that `SR3` was committed to by a Celestia data root.
 
 #### Subtree roots inclusion proof to the *share commitment*
 
@@ -183,7 +182,7 @@ to creating a binary merkle inclusion proof to the *share commitment*:
 
 <img src="img/share_commitment.png" alt="share commitment generation from subtree roots" width="300"/>
 
-Now that we managed to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
+So, if we manage to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
 [IMPORTANT] As of the current version,
 the generation and verification of share commitment proofs to data root is still not supported.
