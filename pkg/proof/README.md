@@ -4,7 +4,7 @@ This package enables proof queries for Celestia transactions and blobs.
 
 ## Details
 
-This section will go over how the transactions/blobs inclusion proofs work.
+The following section will cover transaction inclusion proofs and blob inclusion proofs.
 
 ## Requirements
 
