@@ -10,17 +10,17 @@ import (
 )
 
 func TestAddrConversionCmd(t *testing.T) {
-	addr := "celestia1grvklux2yjsln7ztk6slv538396qatckqhs86z"
+	accAddr := "celestia1grvklux2yjsln7ztk6slv538396qatckqhs86z"
 	valAddr := "celestiavaloper1grvklux2yjsln7ztk6slv538396qatck9gj7vy"
-	t.Run("returns an ordinary address", func(t *testing.T) {
-		output, err := executeCmd(cmd.AddrConversionCmd(), addr)
+	t.Run("converts an account address", func(t *testing.T) {
+		output, err := executeCmd(cmd.AddrConversionCmd(), accAddr)
 		assert.NoError(t, err)
-		assert.Equal(t, valAddr, output)
+		assert.Equal(t, valAddr+"\n", output)
 	})
 	t.Run("converts a valoper address", func(t *testing.T) {
 		output, err := executeCmd(cmd.AddrConversionCmd(), valAddr)
 		assert.NoError(t, err)
-		assert.Equal(t, addr, output)
+		assert.Equal(t, accAddr+"\n", output)
 	})
 	t.Run("returns an error for an invalid address", func(t *testing.T) {
 		invalidAddr := "celestia1xxxxxxxxxxxx"
