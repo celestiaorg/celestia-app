@@ -159,7 +159,7 @@ func GenerateFromLines(output string, lines Lines) error {
 	lineIndent := nodeSize*8 + margin + 10
 	span := 990 - lineIndent
 	diffPerPixel := int(diff) / span
-	windowHeight := numNodes*30 + margin*2
+	windowHeight := numNodes*30 + margin*2 + 100
 	colourMap := lines.ColourMap()
 
 	canvas := svg.New(file)
@@ -204,10 +204,6 @@ func GenerateFromLines(output string, lines Lines) error {
 		canvas.Circle(fromX, fromY, 3, fmt.Sprintf("fill:%s", colourMap[line.Type]))        // Adding a small dot at the start of the line
 		canvas.Circle(toX, toY, 3, fmt.Sprintf("fill:%s", colourMap[line.Type]))            // Adding a small dot at the end of the line
 	}
-
-	// Adjust canvas height to fit the legend
-	canvas.End()
-	canvas.Start(1000, legendItemHeight+20) // Assuming a canvas size, this may need to be adjusted
 
 	canvas.End()
 	return nil
