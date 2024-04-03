@@ -189,5 +189,5 @@ the generation and verification of share commitment proofs to data root is still
 
 #### Compact proofs
 
-More compact proofs can be generated but are out of the scope of this document.
+More compact proofs can be generated, but are out of the scope of this document.
 More details can be found in [ADR-011](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md).
