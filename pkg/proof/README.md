@@ -49,7 +49,7 @@ For instance, if we want to prove the first two shares, we will need two merkle 
 <img src="img/share_to_share_commitment_inclusion.png" alt="shares to share commitment inclusion proof" width="500"/>
 
 - The first merkle proof is a namespace merkle inclusion proof from the first two shares to the *subtree root* `SR1`.
-- The second merkle tree is a binary merkle inclusion proof from `SR1`,
+- The second merkle proof is a binary merkle inclusion proof from `SR1`,
   which is the subtree root committing to the shares, to the *share commitment*.
 
 Note: the nodes colored in maroon are the inner nodes used to construct the inclusion proof.
