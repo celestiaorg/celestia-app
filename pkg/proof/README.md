@@ -27,7 +27,7 @@ For example, if the blob contains six shares, the following structure will be ge
 
 <img src="img/subtree_roots.png" alt="subtree roots generation from shares" width="500"/>
 
-The blob shares are colored in green,
+The blob shares are colored in orange,
 and are used
 to generate a set of roots following the [merkle mountain range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure.
 These roots are called *subtree roots*.
