@@ -34,10 +34,17 @@ func CreateTxSimNode(
 	if err != nil {
 		return nil, err
 	}
-	log.Info().Msgf("txsim version %s", txsimDockerImageName(version))
-	err = instance.SetImage(txsimDockerImageName(version))
+	image := txsimDockerImageName(version)
+	log.Info().
+		Str("name", name).
+		Str("image", image).
+		Msg("setting image for txsim node")
+	err = instance.SetImage(image)
 	if err != nil {
-		log.Err(err).Msgf("error setting image %s", txsimDockerImageName(version))
+		log.Err(err).
+			Str("name", name).
+			Str("image", image).
+			Msg("failed to set image for txsim node")
 		return nil, err
 	}
 	err = instance.SetMemory(resources.memoryRequest, resources.memoryLimit)

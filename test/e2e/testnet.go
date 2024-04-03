@@ -80,11 +80,15 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences,
 			blobRange, pollTime, resources, grpcEndpoint)
-		log.Info().Msgf("txsim created with name: %s and grpc endpoint: %s",
-			name, grpcEndpoint)
+		log.Info().
+			Str("name", name).
+			Str("grpc endpoint", grpcEndpoint).
+			Msg("txsim created")
+
 		if err != nil {
-			log.Err(err).Msgf("error creating txsim with name: %s and"+
-				" grpc endpoint: %s", name, grpcEndpoint)
+			log.Err(err).Str("name", name).
+				Str("grpc endpoint", grpcEndpoint).
+				Msg("txsim creation failed")
 			return err
 		}
 	}
@@ -113,7 +117,10 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	// create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
-	log.Info().Msgf("txsim directory %s", txsimKeyringDir)
+	log.Info().
+		Str("name", name).
+		Str("directory", txsimKeyringDir).
+		Msg("txsim keyring directory created")
 	_, err := t.CreateAndAddAccountToGenesis(name, 1e16, txsimKeyringDir)
 	if err != nil {
 		return err
@@ -123,19 +130,26 @@ func (t *Testnet) CreateAndSetupTxSimNode(name,
 	txsim, err := CreateTxSimNode(name, version, grpcEndpoint, seed, sequences,
 		blobRange, pollTime, resources, txsimRootDir)
 	if err != nil {
-		log.Err(err).Msgf("error creating txsim %s", name)
+		log.Err(err).
+			Str("name", name).
+			Msg("error creating txsim")
 		return err
 	}
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
-		log.Err(err).Msgf("error adding keyring dir to txsim %s", name)
+		log.Err(err).
+			Str("directory", txsimKeyringDir).
+			Str("name", name).
+			Msg("error adding keyring dir to txsim")
 		return err
 	}
 
 	err = txsim.Instance.Commit()
 	if err != nil {
-		log.Err(err).Msgf("error committing txsim %s", name)
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
 		return err
 	}
 
@@ -147,8 +161,14 @@ func (t *Testnet) StartTxSimNodes() error {
 	for _, txsim := range t.txSimNodes {
 		err := txsim.Instance.Start()
 		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to start")
 			return err
 		}
+		log.Info().
+			Str("name", txsim.Name).
+			Msg("txsim started")
 	}
 	return nil
 }
@@ -179,7 +199,10 @@ func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimK
 		return nil, err
 	}
 
-	log.Info().Msgf("txsim account created and added to genesis %v", pk)
+	log.Info().
+		Str("name", name).
+		Str("pk", pk.String()).
+		Msg("txsim account created and added to genesis")
 	return kr, nil
 }
 
@@ -350,15 +373,21 @@ func (t *Testnet) Cleanup() {
 		if txsim.Instance.IsInState(knuu.Started) {
 			err := txsim.Instance.Stop()
 			if err != nil {
-				log.Err(err).Msgf("txsim %s failed to stop", txsim.Name)
+				log.Err(err).
+					Str("name", txsim.Name).
+					Msg("txsim failed to stop")
 			}
 			err = txsim.Instance.WaitInstanceIsStopped()
 			if err != nil {
-				log.Err(err).Msgf("txsim %s failed to stop", txsim.Name)
+				log.Err(err).
+					Str("name", txsim.Name).
+					Msg("txsim failed to stop")
 			}
 			err = txsim.Instance.Destroy()
 			if err != nil {
-				log.Err(err).Msgf("txsim %s failed to destroy", txsim.Name)
+				log.Err(err).
+					Str("name", txsim.Name).
+					Msg("txsim failed to destroy")
 			}
 		}
 	}
