@@ -177,7 +177,7 @@ The inner nodes in brown would be used to construct the `SR2` node inclusion pro
 After having this proof, we will need to prove the `RowRoot3` inclusion to the data root.
 This is described in the [row root to data root inclusion proof](#row-root-to-data-root-inclusion-proof) section.
 
-With this, we would be able to prove that `SR3` was committed to by a Celestia data root.
+With this, we would be able to prove that `SR2` was committed to by a Celestia data root.
 
 #### Subtree roots inclusion proof to the *share commitment*
 
