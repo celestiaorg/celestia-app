@@ -15,7 +15,9 @@ a good understanding of [binary merkle proofs](https://celestiaorg.github.io/cel
 
 When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction,
 the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html).
-This set of shares is used to generate a *share commitment* which commits to the data contained in the PFB,
+This set of shares is used
+to generate a [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules)
+which commits to the data contained in the PFB,
 i.e., the blob.
 
 ### Share commitment generation 
@@ -54,7 +56,7 @@ Note: the nodes colored in brown are the inner nodes used to construct the inclu
 
 ## Square layout
 
-Now that the *share commitment* is generated.
+Now that the [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) is generated.
 The transaction gets broadcasted to the Celestia network to be picked up by validators.
 Once it's included in a block, the transaction, without the blob,
 is placed in the [transaction namespace](https://celestiaorg.github.io/celestia-app/specs/namespace.html#reserved-namespaces)
@@ -190,7 +192,8 @@ to creating a binary merkle inclusion proof to the *share commitment*:
 So, if we manage to prove that `SR1` and `SR2` were both committed to by the Celestia data root, and that the *share commitment* was generated using `SR1` and `SR2`, then, we would have proven that the *share commitment* was committed to by the Celestia data root, which means that **the blob data that generated the *share commitment* was included in a Celestia block**.
 
 [IMPORTANT] As of the current version,
-the API for generating and verifying share commitment proofs to data root is still not exposed. These proofs are only used as part of the Celestia [consensus](https://celestiaorg.github.io/celestia-app/specs/consensus.html) internally.
+the API for generating and verifying share commitment proofs to data root is still not exposed.
+These proofs are only used as part of the Celestia [consensus](https://celestiaorg.github.io/celestia-app/specs/consensus.html) internally.
 
 #### Compact proofs
 
