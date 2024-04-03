@@ -69,7 +69,7 @@ an example Celestia square containing the blob and the PFB transaction can look 
 
 <img src="img/extended_square.png" alt="celestia extended square containing the blob shares" width="500"/>
 
-The share range `[5, 10]`, colored in green, is the blob data.
+The share range `[5, 10]`, colored in orange, is the blob data.
 
 ### Row roots
 
