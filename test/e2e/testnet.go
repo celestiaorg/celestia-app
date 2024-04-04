@@ -78,17 +78,16 @@ func (t *Testnet) CreateTxClients(version string,
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(name, version, sequences,
 			blobRange, resources, grpcEndpoint)
-		log.Info().
-			Str("name", name).
-			Str("grpc endpoint", grpcEndpoint).
-			Msg("txsim created")
-
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
 				Msg("txsim creation failed")
 			return err
 		}
+		log.Info().
+			Str("name", name).
+			Str("grpc endpoint", grpcEndpoint).
+			Msg("txsim created")
 	}
 	return nil
 }
