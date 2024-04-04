@@ -68,7 +68,7 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 	return nil
 }
 
-func (t *Testnet) CreateAndSetupTxSimNodes(version string,
+func (t *Testnet) CreateTxClients(version string,
 	seed int,
 	sequences int,
 	blobRange string,
@@ -78,7 +78,7 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateAndSetupTxSimNode(name, version, seed, sequences,
+		err := t.CreateTxClient(name, version, seed, sequences,
 			blobRange, pollTime, resources, grpcEndpoint)
 		log.Info().
 			Str("name", name).
@@ -95,7 +95,7 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 	return nil
 }
 
-// CreateAndSetupTxSimNode creates a txsim node and sets it up
+// CreateTxClient creates a txsim node and sets it up
 // name: name of the txsim knuu instance
 // version: version of the txsim docker image to be pulled from the registry
 // specified by txsimDockerSrcURL
@@ -105,7 +105,7 @@ func (t *Testnet) CreateAndSetupTxSimNodes(version string,
 // pollTime: time in seconds between each sequence
 // resources: resources to be allocated to the txsim
 // grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
-func (t *Testnet) CreateAndSetupTxSimNode(name,
+func (t *Testnet) CreateTxClient(name,
 	version string,
 	seed int,
 	sequences int,
