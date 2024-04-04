@@ -188,7 +188,8 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitC
 }
 
 func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
-	accounts := make([]genesis.Account, 0)
+	pubKeys := make([]cryptotypes.PubKey, 0)
+	addrs := make([]string, 0)
 	gentxs := make([]json.RawMessage, 0, len(packets))
 
 	for _, packet := range packets {
@@ -196,12 +197,8 @@ func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.
 		if err != nil {
 			return nil, err
 		}
-		for _, pk := range pks {
-			accounts = append(accounts, genesis.Account{
-				PubKey:        pk,
-				InitialTokens: genesis.DefaultInitialBalance,
-			})
-		}
+		pubKeys = append(pubKeys, pks...)
+		addrs = append(addrs, packet.GenesisAccounts...)
 
 		if packet.GroupID == ValidatorGroupID {
 			gentxs = append(gentxs, packet.GenTx)
@@ -213,7 +210,8 @@ func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.
 		TestgroundConsensusParams(params),
 		l.params.ChainID,
 		gentxs,
-		accounts,
+		addrs,
+		pubKeys,
 		params.GenesisModifiers...,
 	)
 }

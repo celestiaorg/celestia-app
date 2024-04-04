@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/app/errors"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"

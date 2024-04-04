@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/x/upgrade"
-	"github.com/celestiaorg/celestia-app/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 
-	testutil "github.com/celestiaorg/celestia-app/test/util"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"

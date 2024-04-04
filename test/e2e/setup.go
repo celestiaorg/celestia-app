@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/v2/app"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/p2p"
