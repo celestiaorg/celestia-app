@@ -12,7 +12,7 @@ import (
 func AddrConversionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "addr-conversion [celestia address]",
-		Short: "Convert a celestia1xxx address to a validator operator address celestiavaloper1xxx",
+		Short: "Convert between celestia1xxx address and validator operator address celestiavaloper1xxx",
 		Long:  `Reads a celestia1xxx or celestiavaloper1xxx address and converts it to the other type.`,
 		Example: "celestia-appd addr-conversion celestia1grvklux2yjsln7ztk6slv538396qatckqhs86z\n" +
 			"celestia-appd addr-conversion celestiavaloper1grvklux2yjsln7ztk6slv538396qatck9gj7vy\n",
