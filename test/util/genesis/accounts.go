@@ -10,7 +10,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/crypto"
@@ -20,19 +19,18 @@ const (
 	DefaultInitialBalance = 1e15 // 1 billion TIA
 )
 
-// Account represents a user account on the Celestia network.
+// KeyringAccount represents a user account on the Celestia network.
 // Either the name, if using the genesis keyring, or an address
 // needs to be provided
-type Account struct {
+type KeyringAccount struct {
 	Name          string
-	PubKey        cryptotypes.PubKey
 	InitialTokens int64
 }
 
-func NewAccounts(initBal int64, names ...string) []Account {
-	accounts := make([]Account, len(names))
+func NewAccounts(initBal int64, names ...string) []KeyringAccount {
+	accounts := make([]KeyringAccount, len(names))
 	for i, name := range names {
-		accounts[i] = Account{
+		accounts[i] = KeyringAccount{
 			Name:          name,
 			InitialTokens: initBal,
 		}
@@ -40,20 +38,9 @@ func NewAccounts(initBal int64, names ...string) []Account {
 	return accounts
 }
 
-func NewAccountsFromPubKeys(initBal int64, pubKeys ...cryptotypes.PubKey) []Account {
-	accounts := make([]Account, len(pubKeys))
-	for i, pubKey := range pubKeys {
-		accounts[i] = Account{
-			PubKey:        pubKey,
-			InitialTokens: initBal,
-		}
-	}
-	return accounts
-}
-
-func (ga *Account) ValidateBasic() error {
-	if ga.Name == "" && ga.PubKey == nil {
-		return fmt.Errorf("both name and pubkey cannot be empty")
+func (ga *KeyringAccount) ValidateBasic() error {
+	if ga.Name == "" {
+		return fmt.Errorf("name cannot be empty")
 	}
 	if ga.InitialTokens <= 0 {
 		return fmt.Errorf("initial tokens must be positive")
@@ -62,7 +49,7 @@ func (ga *Account) ValidateBasic() error {
 }
 
 type Validator struct {
-	Account
+	KeyringAccount
 	Stake int64
 
 	// ConsensusKey is the key used by the validator to sign votes.
@@ -73,7 +60,7 @@ type Validator struct {
 func NewDefaultValidator(name string) Validator {
 	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 	return Validator{
-		Account: Account{
+		KeyringAccount: KeyringAccount{
 			Name:          name,
 			InitialTokens: DefaultInitialBalance,
 		},
@@ -85,7 +72,7 @@ func NewDefaultValidator(name string) Validator {
 
 // ValidateBasic performs stateless validation on the validitor
 func (v *Validator) ValidateBasic() error {
-	if err := v.Account.ValidateBasic(); err != nil {
+	if err := v.KeyringAccount.ValidateBasic(); err != nil {
 		return err
 	}
 	if v.Stake <= 0 {

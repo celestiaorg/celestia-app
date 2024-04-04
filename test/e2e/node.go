@@ -7,9 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
@@ -37,7 +34,6 @@ type Node struct {
 	InitialPeers   []string
 	SignerKey      crypto.PrivKey
 	NetworkKey     crypto.PrivKey
-	AccountPubKey  cryptotypes.PubKey
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
@@ -51,7 +47,6 @@ func NewNode(
 	peers []string,
 	signerKey, networkKey crypto.PrivKey,
 	upgradeHeight int64,
-	keys keyring.Keyring,
 	grafana *GrafanaInfo,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
@@ -59,14 +54,6 @@ func NewNode(
 		return nil, err
 	}
 	err = instance.SetImage(DockerImageName(version))
-	if err != nil {
-		return nil, err
-	}
-	record, _, err := keys.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return nil, err
-	}
-	pubKey, err := record.GetPubKey()
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +112,6 @@ func NewNode(
 		InitialPeers:   peers,
 		SignerKey:      signerKey,
 		NetworkKey:     networkKey,
-		AccountPubKey:  pubKey,
 		SelfDelegation: selfDelegation,
 	}, nil
 }
@@ -260,12 +246,13 @@ func (n *Node) Start() error {
 
 func (n *Node) GenesisValidator() genesis.Validator {
 	return genesis.Validator{
-		Account: genesis.Account{
-			PubKey:        n.AccountPubKey,
+		KeyringAccount: genesis.KeyringAccount{
+			Name:          n.Name,
 			InitialTokens: n.SelfDelegation,
 		},
 		ConsensusKey: n.SignerKey,
 		NetworkKey:   n.NetworkKey,
+		Stake:        n.SelfDelegation / 2,
 	}
 }
 
