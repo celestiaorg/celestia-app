@@ -324,6 +324,8 @@ github.com/celestiaorg/bittwister v0.0.0-20231211182706-b065de784c03 h1:oAyIR+jH
 github.com/celestiaorg/bittwister v0.0.0-20231211182706-b065de784c03/go.mod h1:1EF5MfOxVf0WC51Gb7pJ6bcZxnXKNAf9pqWtjgPBAYc=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
+github.com/celestiaorg/celestia-app v1.7.0 h1:pFIgQzeMD036ulJ2ShUR/3bDGG6kwNAWaLEE0MXHmgg=
+github.com/celestiaorg/celestia-app v1.7.0/go.mod h1:z2H47Gs9gYd3GdQ22d5sbcL8/aBMRcVDtUWT64goMaY=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29 h1:sXERzNXgyHyqTKNQx4S29C/NMDzgav62DaQDNF49HUQ=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29/go.mod h1:weZR4wYx1Vcw3g1Jc5G8VipG4M+KUDSqeIzyyWszmsQ=
 github.com/celestiaorg/cosmos-sdk v1.20.2-sdk-v0.46.16 h1:EmzwDx64oG8eKZPar50VCkpzxDNqjjtt7rOBJsMQY8E=
@@ -338,6 +340,8 @@ github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.20.0 h1:9i7ultZ8Wv5ytt8ZRaxKQ5KOOMo4A2K2T/aPGjIlSas=
 github.com/celestiaorg/nmt v0.20.0/go.mod h1:Oz15Ub6YPez9uJV0heoU4WpFctxazuIhKyUtaYNio7E=
+github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 h1:Q8nr5SAtDW5gocrBwqwDJcSS/JedqU58WwQA2SP+nXw=
+github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2/go.mod h1:s/LzLUw0WeYPJ6qdk4q46jKLOq7rc9Z5Mdrxtfpcigw=
 github.com/celestiaorg/rsmt2d v0.12.0 h1:bs1eIiz0zVS02jJV6OE6Ra+f3/c6Uq2eWnOSugrrdGY=
 github.com/celestiaorg/rsmt2d v0.12.0/go.mod h1:A4vb0pYoWR4MYGqaJHlNjnu5Zd4iTs2RUYN3YogHFgE=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
