@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/merkle"
 	appns "github.com/celestiaorg/go-square/namespace"

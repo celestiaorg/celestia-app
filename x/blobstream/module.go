@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	bscmd "github.com/celestiaorg/celestia-app/x/blobstream/client"
+	bscmd "github.com/celestiaorg/celestia-app/v2/x/blobstream/client"
 
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -13,8 +13,8 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/celestiaorg/celestia-app/x/blobstream/keeper"
-	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"

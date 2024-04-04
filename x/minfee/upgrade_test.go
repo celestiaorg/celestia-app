@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/x/minfee"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/test/util"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/test/util"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
