@@ -20,10 +20,10 @@ type TxSim struct {
 	Instance *knuu.Instance
 }
 
-func CreateTxSimNode(
+func CreateTxClient(
 	name, version string,
 	endpoint string,
-	seed int,
+	seed int64,
 	sequences int,
 	blobRange string,
 	pollTime int,

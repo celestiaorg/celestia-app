@@ -66,7 +66,7 @@ func TestE2EThroughput(t *testing.T) {
 
 	// once the testnet is up, start the txsim
 	t.Log("Starting txsim nodes")
-	err = testnet.StartTxSimNodes()
+	err = testnet.StartTxClients()
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
