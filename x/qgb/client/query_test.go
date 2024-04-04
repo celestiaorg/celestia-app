@@ -44,7 +44,7 @@ func (s *CLITestSuite) TestQueryAttestationByNonce() {
 	}
 
 	for _, tc := range testCases {
-		s.T().Run(tc.name, func(t *testing.T) {
+		s.T().Run(tc.name, func(_ *testing.T) {
 			cmd := client.CmdQueryAttestationByNonce()
 			clientCtx := val.ClientCtx
 

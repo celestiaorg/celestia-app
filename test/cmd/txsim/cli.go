@@ -57,13 +57,13 @@ func command() *cobra.Command {
 		Use:   "txsim",
 		Short: "Celestia Transaction Simulator",
 		Long: `
-Txsim is a tool for randomized transaction generation on celestia networks. The tool relies on 
-defined sequences; recursive patterns between one or more accounts which will continually submit 
-transactions. You can use flags or environment variables (TXSIM_RPC, TXSIM_GRPC, TXSIM_SEED, 
+Txsim is a tool for randomized transaction generation on celestia networks. The tool relies on
+defined sequences; recursive patterns between one or more accounts which will continually submit
+transactions. You can use flags or environment variables (TXSIM_RPC, TXSIM_GRPC, TXSIM_SEED,
 TXSIM_POLL, TXSIM_KEYPATH) to configure the client. The keyring provided should have at least one
 well funded account that can act as the master account. The command runs until all sequences error.`,
 		Example: "txsim --key-path /path/to/keyring --rpc-endpoints localhost:26657 --grpc-endpoints localhost:9090 --seed 1234 --poll-time 1s --blob 5",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			var (
 				keys keyring.Keyring
 				err  error
