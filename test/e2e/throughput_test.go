@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
 )
 
