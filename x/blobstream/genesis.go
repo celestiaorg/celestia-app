@@ -1,8 +1,8 @@
 package blobstream
 
 import (
-	"github.com/celestiaorg/celestia-app/x/blobstream/keeper"
-	"github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
