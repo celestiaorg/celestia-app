@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/x/upgrade"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
