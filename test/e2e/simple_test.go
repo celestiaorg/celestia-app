@@ -52,7 +52,7 @@ func TestE2ESimple(t *testing.T) {
 		0, defaultResources))
 
 	t.Log("Creating account")
-	kr, err := testnet.CreateAccount("alice", 1e12)
+	kr, err := testnet.CreateAccount("alice", 1e12, "")
 	require.NoError(t, err)
 
 	t.Log("Setting up testnet")

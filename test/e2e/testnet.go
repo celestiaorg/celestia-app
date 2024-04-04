@@ -119,7 +119,7 @@ func (t *Testnet) CreateTxClient(name,
 		Str("name", name).
 		Str("directory", txsimKeyringDir).
 		Msg("txsim keyring directory created")
-	_, err := t.CreateAndAddAccountToGenesis(name, 1e16, txsimKeyringDir)
+	_, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
 	if err != nil {
 		return err
 	}
@@ -172,14 +172,23 @@ func (t *Testnet) StartTxClients() error {
 	return nil
 }
 
-// CreateAndAddAccountToGenesis creates an account and adds it to the
+// CreateAccount creates an account and adds it to the
 // testnet genesis. The account is created with the given name and tokens and
 // is persisted in the given txsimKeyringDir.
-func (t *Testnet) CreateAndAddAccountToGenesis(name string, tokens int64, txsimKeyringDir string) (keyring.Keyring, error) {
+// If txsimKeyringDir is an empty string, an in-memory keyring is created.
+func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir string) (keyring.Keyring, error) {
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	kr, err := keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, cdc)
-	if err != nil {
-		return nil, err
+	var kr keyring.Keyring
+	var err error
+	// if no keyring directory is specified, create an in-memory keyring
+	if txsimKeyringDir == "" {
+		kr = keyring.NewInMemory(cdc)
+	} else { // create a keyring with the specified directory
+		kr, err = keyring.New(app.Name, keyring.BackendTest,
+			txsimKeyringDir, nil, cdc)
+		if err != nil {
+			return nil, err
+		}
 	}
 	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
@@ -214,27 +223,6 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	}
 	t.nodes = append(t.nodes, node)
 	return nil
-}
-
-func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, error) {
-	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-	kr := keyring.NewInMemory(cdc)
-	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return nil, err
-	}
-	pk, err := key.GetPubKey()
-	if err != nil {
-		return nil, err
-	}
-	err = t.genesis.AddAccount(genesis.Account{
-		PubKey:  pk,
-		Balance: tokens,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return kr, nil
 }
 
 func (t *Testnet) Setup() error {

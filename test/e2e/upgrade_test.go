@@ -64,7 +64,7 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0, defaultResources))
 	}
 
-	kr, err := testnet.CreateAccount("alice", 1e12)
+	kr, err := testnet.CreateAccount("alice", 1e12, "")
 	require.NoError(t, err)
 
 	require.NoError(t, testnet.Setup())
@@ -168,7 +168,7 @@ func TestMajorUpgradeToV2(t *testing.T) {
 			upgradeHeight, defaultResources))
 	}
 
-	kr, err := testnet.CreateAccount("alice", 1e12)
+	kr, err := testnet.CreateAccount("alice", 1e12, "")
 	require.NoError(t, err)
 
 	require.NoError(t, testnet.Setup())
