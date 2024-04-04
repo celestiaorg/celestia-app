@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -155,9 +156,10 @@ func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint6
 func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage, appVersion uint64) abci.ResponseInitChain {
 	var validatorUpdates []abci.ValidatorUpdate
 	ctx.Logger().Info("initializing blockchain state from genesis.json")
+
 	modules, versionSupported := m.versionedModules[appVersion]
 	if !versionSupported {
-		panic(fmt.Sprintf("version %d not supported", appVersion))
+		modules = m.versionedModules[appconsts.LatestVersion]
 	}
 	for _, moduleName := range m.OrderInitGenesis {
 		if genesisData[moduleName] == nil {
