@@ -70,9 +70,8 @@ func TestConcurrentTxSubmission(t *testing.T) {
 }
 
 func TestSignerTwins(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
+	// Ref: https://github.com/celestiaorg/celestia-app/issues/3256
+	t.Skip()
 
 	// Setup network
 	tmConfig := testnode.DefaultTendermintConfig()
