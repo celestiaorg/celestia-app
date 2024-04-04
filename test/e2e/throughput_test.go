@@ -55,7 +55,7 @@ func TestE2EThroughput(t *testing.T) {
 	// version of the txsim docker image to be used
 	txsimVersion := latestVersion
 
-	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", 3, defaultResources, gRPCEndpoints)
+	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", defaultResources, gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
