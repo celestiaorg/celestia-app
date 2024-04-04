@@ -14,7 +14,6 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.4
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.4.12
-	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6 v6.1.1
 	github.com/cosmos/ibc-go/v6 v6.2.1
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/gogo/protobuf v1.3.3
@@ -138,7 +137,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.0.0-20220222234857-c00d1f31bab3 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
-	github.com/iancoleman/orderedmap v0.2.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
