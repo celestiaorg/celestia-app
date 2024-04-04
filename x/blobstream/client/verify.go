@@ -237,7 +237,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 	logger.Info("proofs from shares to data root are valid")
 
-	bsGRPC, err := grpc.Dial(config.CelesGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	bsGRPC, err := grpc.NewClient(config.CelesGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return false, err
 	}

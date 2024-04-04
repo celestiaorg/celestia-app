@@ -71,7 +71,7 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 	}
 
 	nodeGRPCAddr := strings.Replace(appCfg.GRPC.Address, "0.0.0.0", "localhost", 1)
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		nodeGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
