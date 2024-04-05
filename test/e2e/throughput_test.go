@@ -13,7 +13,7 @@ import (
 )
 
 func TestE2EThroughput(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
+	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e throughput test")
 	}
 
