@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.0
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.1
     with:
       dockerfile: Dockerfile
     secrets: inherit
@@ -29,7 +29,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.0
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.1
     with:
       dockerfile: docker/Dockerfile_txsim
       packageName: txsim
