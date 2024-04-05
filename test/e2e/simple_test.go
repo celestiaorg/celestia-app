@@ -46,7 +46,6 @@ func TestE2ESimple(t *testing.T) {
 	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
-	//testnet.genesis.ConsensusParams.Version.AppVersion = testground.Version
 
 	t.Log("Creating testnet validators")
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
