@@ -22,7 +22,7 @@ i.e., the blob.
 
 ### Share commitment generation 
 
-Generating a *share commitment* starts with laying the shares into a [merkle mountain range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure.
+Generating a *share commitment* starts with laying the shares into a [merkle mountain range](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=merkle%20mountain#blob-share-commitment-rules) structure.
 For example, if the blob contains six shares, the following structure will be generated:
 
 <img src="img/subtree_roots.png" alt="subtree roots generation from shares" width="500"/>
@@ -52,7 +52,7 @@ For instance, if we want to prove the first two shares, we will need two merkle 
 - The second merkle proof is a binary merkle inclusion proof from `SR1`,
   which is the subtree root committing to the shares, to the *share commitment*.
 
-Note: the nodes colored in maroon are the inner nodes used to construct the inclusion proof.
+Note: the nodes colored in red are the inner nodes used to construct the inclusion proof.
 
 ## Square layout
 
@@ -138,7 +138,7 @@ This proof consists of the following:
 #### Share to row root namespace merkle inclusion proof:
 
 First, we prove inclusion of the share in question to the row root it belongs to.
-If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in maroon: 
+If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in red: 
 
 <img src="img/share_to_row_root_proof.png" alt="share to row root proof" width="443"/>
 
@@ -153,7 +153,7 @@ Since share *three* is committed to by `RowRoot1`, we will be proving that row r
 
 <img src="img/row_root_to_data_root_proof.png" alt="row root to data root proof" width="443"/>
 
-The inner nodes in maroon are the nodes needed to construct the merkle inclusion proof.
+The inner nodes in red are the nodes needed to construct the merkle inclusion proof.
 
 So, if we have access to these two proofs,
 the [share to row root inclusion proof](#share-to-row-root-namespace-merkle-inclusion-proof) and [row root to data root inclusion proof](#row-root-to-data-root-inclusion-proof),
@@ -195,7 +195,7 @@ So, if we manage to prove that `SR1` and `SR2` were both committed to by the Cel
 the API for generating and verifying share commitment proofs to data root is still not exposed.
 These proofs are only used as part of the Celestia [consensus](https://celestiaorg.github.io/celestia-app/specs/consensus.html) internally.
 
-#### Compact proofs
+#### PFB proofs
 
-More compact proofs can be generated, but are out of the scope of this document.
+More [compact proofs](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md#pfb-fraud-proof) can be generated to prove inclusion of a blob in a Celestia square, but are out of the scope of this document.
 More details can be found in [ADR-011](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md).
