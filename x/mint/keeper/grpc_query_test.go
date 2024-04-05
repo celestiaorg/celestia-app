@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/app"
-	testutil "github.com/celestiaorg/celestia-app/test/util"
-	"github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	"github.com/celestiaorg/celestia-app/v2/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
