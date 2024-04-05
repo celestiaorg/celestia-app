@@ -18,12 +18,12 @@ import (
 )
 
 type Testnet struct {
-	seed       int64
-	nodes      []*Node
-	genesis    *genesis.Genesis
-	keygen     *keyGenerator
-	grafana    *GrafanaInfo
-	txSimNodes []*TxSim
+	seed      int64
+	nodes     []*Node
+	genesis   *genesis.Genesis
+	keygen    *keyGenerator
+	grafana   *GrafanaInfo
+	txClients []*TxSim
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
@@ -148,12 +148,12 @@ func (t *Testnet) CreateTxClient(name,
 		return err
 	}
 
-	t.txSimNodes = append(t.txSimNodes, txsim)
+	t.txClients = append(t.txClients, txsim)
 	return nil
 }
 
 func (t *Testnet) StartTxClients() error {
-	for _, txsim := range t.txSimNodes {
+	for _, txsim := range t.txClients {
 		err := txsim.Instance.Start()
 		if err != nil {
 			log.Err(err).
@@ -358,7 +358,7 @@ func (t *Testnet) Cleanup() {
 		}
 	}
 	// stop and cleanup txsim
-	for _, txsim := range t.txSimNodes {
+	for _, txsim := range t.txClients {
 		if txsim.Instance.IsInState(knuu.Started) {
 			err := txsim.Instance.Stop()
 			if err != nil {
