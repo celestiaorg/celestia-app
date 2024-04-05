@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -16,21 +16,17 @@ var (
 	_ types.MsgServer   = &Keeper{}
 	_ types.QueryServer = Keeper{}
 
-	defaultSignalTheshold = Fraction{Numerator: 5, Denominator: 6}
+	// defaultSignalThreshold is 5/6 or approximately 83.33%
+	defaultSignalThreshold = sdk.NewDec(5).Quo(sdk.NewDec(6))
 )
-
-type Fraction struct {
-	Numerator   int64
-	Denominator int64
-}
 
 // SignalThreshold is the fraction of voting power that is required
 // to signal for a version change. It is set to 5/6 as the middle point
 // between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
 // network during an upgrade period. It can be modified through a
 // hard fork change that modified the app version
-func SignalThreshold(_ uint64) Fraction {
-	return defaultSignalTheshold
+func SignalThreshold(_ uint64) sdk.Dec {
+	return defaultSignalThreshold
 }
 
 type Keeper struct {
@@ -170,14 +166,9 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 // GetVotingPowerThreshold returns the voting power threshold required to
 // upgrade to a new version.
 func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
-	// contract: totalVotingPower should not exceed MaxUint64
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
 	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
-	product := totalVotingPower.MulRaw(thresholdFraction.Numerator)
-	if product.ModRaw(thresholdFraction.Denominator).IsZero() {
-		return product.QuoRaw(thresholdFraction.Denominator)
-	}
-	return product.QuoRaw(thresholdFraction.Denominator).AddRaw(1)
+	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt()
 }
 
 // ShouldUpgrade returns true if the signalling mechanism has concluded

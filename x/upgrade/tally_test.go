@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/x/upgrade"
-	"github.com/celestiaorg/celestia-app/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 
-	testutil "github.com/celestiaorg/celestia-app/test/util"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -140,7 +140,7 @@ func TestTallyingLogic(t *testing.T) {
 	// remove one of the validators from the set
 	delete(mockStakingKeeper.validators, testutil.ValAddrs[1].String())
 	// the validator had 1 voting power, so we deduct it from the total
-	mockStakingKeeper.totalVotingPower--
+	mockStakingKeeper.totalVotingPower = mockStakingKeeper.totalVotingPower.SubRaw(1)
 
 	res, err = upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
@@ -192,7 +192,7 @@ func TestThresholdVotingPower(t *testing.T) {
 		{total: 6, threshold: 5},
 		{total: 59, threshold: 50},
 	} {
-		mockStakingKeeper.totalVotingPower = tc.total
+		mockStakingKeeper.totalVotingPower = math.NewInt(tc.total)
 		threshold := upgradeKeeper.GetVotingPowerThreshold(ctx)
 		require.EqualValues(t, tc.threshold, threshold.Int64())
 	}
@@ -226,14 +226,14 @@ func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
 var _ upgrade.StakingKeeper = (*mockStakingKeeper)(nil)
 
 type mockStakingKeeper struct {
-	totalVotingPower int64
+	totalVotingPower math.Int
 	validators       map[string]int64
 }
 
 func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
-	totalVotingPower := int64(0)
+	totalVotingPower := math.NewInt(0)
 	for _, power := range validators {
-		totalVotingPower += power
+		totalVotingPower = totalVotingPower.AddRaw(power)
 	}
 	return &mockStakingKeeper{
 		totalVotingPower: totalVotingPower,
@@ -242,7 +242,7 @@ func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
 }
 
 func (m *mockStakingKeeper) GetLastTotalPower(_ sdk.Context) math.Int {
-	return math.NewInt(m.totalVotingPower)
+	return m.totalVotingPower
 }
 
 func (m *mockStakingKeeper) GetLastValidatorPower(_ sdk.Context, addr sdk.ValAddress) int64 {

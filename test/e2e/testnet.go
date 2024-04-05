@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -45,7 +45,7 @@ func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeight, t.genesis.Keyring(), t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeight, t.grafana)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, t.genesis.Keyring(), t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, t.grafana)
 	if err != nil {
 		return err
 	}
@@ -88,8 +88,8 @@ func (t *Testnet) CreateAccount(name string, tokens int64) (keyring.Keyring, err
 		return nil, err
 	}
 	err = t.genesis.AddAccount(genesis.Account{
-		PubKey:        pk,
-		InitialTokens: tokens,
+		PubKey:  pk,
+		Balance: tokens,
 	})
 	if err != nil {
 		return nil, err

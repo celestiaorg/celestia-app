@@ -1,12 +1,13 @@
 package genesis
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -87,9 +88,9 @@ func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	return g
 }
 
-func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
+func (g *Genesis) WithAccounts(accs ...KeyringAccount) *Genesis {
 	for _, acc := range accs {
-		err := g.AddAccount(acc)
+		err := g.NewAccount(acc)
 		if err != nil {
 			panic(err)
 		}
@@ -97,26 +98,42 @@ func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
 	return g
 }
 
-func (g *Genesis) AddAccount(acc Account) error {
+func (g *Genesis) AddAccount(account Account) error {
+	for _, acc := range g.accounts {
+		if bytes.Equal(acc.PubKey.Bytes(), account.PubKey.Bytes()) {
+			return fmt.Errorf("account with pubkey %s already exists", account.PubKey.String())
+		}
+	}
+	g.accounts = append(g.accounts, account)
+	return nil
+}
+
+func (g *Genesis) NewAccount(acc KeyringAccount) error {
 	if err := acc.ValidateBasic(); err != nil {
 		return err
 	}
-	if acc.Name != "" {
-		_, err := g.kr.Key(acc.Name)
-		if err == nil {
-			return fmt.Errorf("account with name %s already exists", acc.Name)
-		}
-		record, _, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			return err
-		}
-		pk, err := record.GetPubKey()
-		if err != nil {
-			return fmt.Errorf("retrieving pubkey: %v", err)
-		}
-		acc.PubKey = pk
+	// check that the account does not already exist
+	if _, err := g.kr.Key(acc.Name); err == nil {
+		return fmt.Errorf("account with name %s already exists", acc.Name)
 	}
-	g.accounts = append(g.accounts, acc)
+
+	// generate the keys and add it to the genesis keyring
+	record, _, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+
+	pubKey, err := record.GetPubKey()
+	if err != nil {
+		return err
+	}
+
+	account := Account{
+		PubKey:  pubKey,
+		Balance: acc.InitialTokens,
+	}
+
+	g.accounts = append(g.accounts, account)
 	return nil
 }
 
@@ -126,7 +143,7 @@ func (g *Genesis) AddValidator(val Validator) error {
 	}
 
 	// Add the validator's genesis account
-	if err := g.AddAccount(val.Account); err != nil {
+	if err := g.NewAccount(val.KeyringAccount); err != nil {
 		return err
 	}
 
@@ -162,7 +179,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		g.ConsensusParams,
 		g.ChainID,
 		gentxs,
-		g.Accounts(),
+		g.accounts,
 		g.genOps...,
 	)
 }

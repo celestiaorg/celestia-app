@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/user"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -70,9 +70,8 @@ func TestConcurrentTxSubmission(t *testing.T) {
 }
 
 func TestSignerTwins(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
+	// Ref: https://github.com/celestiaorg/celestia-app/issues/3256
+	t.Skip()
 
 	// Setup network
 	tmConfig := testnode.DefaultTendermintConfig()

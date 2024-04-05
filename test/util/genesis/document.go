@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -96,7 +97,7 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 		hasMap[addr.String()] = struct{}{}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(DefaultInitialBalance)),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(account.Balance)),
 		)
 
 		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
@@ -104,4 +105,19 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 		genAccs[i] = authtypes.NewBaseAccount(addr, account.PubKey, uint64(i), 0)
 	}
 	return genBals, genAccs, nil
+}
+
+type Account struct {
+	PubKey  cryptotypes.PubKey
+	Balance int64
+}
+
+func (ga Account) ValidateBasic() error {
+	if ga.PubKey == nil {
+		return fmt.Errorf("pubkey cannot be empty")
+	}
+	if ga.Balance <= 0 {
+		return fmt.Errorf("balance must be greater than 0")
+	}
+	return nil
 }

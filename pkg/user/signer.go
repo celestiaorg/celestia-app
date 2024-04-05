@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/app/errors"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -294,9 +294,13 @@ func (s *Signer) broadcastTx(ctx context.Context, txBytes []byte, sequence uint6
 		}
 		s.networkSequence = nextSequence
 		s.localSequence = nextSequence
-		return s.retryBroadcastingTx(ctx, txBytes, nextSequence)
-	}
-	if resp.TxResponse.Code == abci.CodeTypeOK {
+		// FIXME: We can't actually resign the transaction. A malicious node
+		// may manipulate us into signing the same transaction several times
+		// and then executing them. We need some proof of what the last network
+		// sequence is rather than relying on an error provided by the node
+		// return s.retryBroadcastingTx(ctx, txBytes, nextSequence)
+		// Ref: https://github.com/celestiaorg/celestia-app/issues/3256
+	} else if resp.TxResponse.Code == abci.CodeTypeOK {
 		s.outboundSequences[sequence] = struct{}{}
 		s.reverseTxHashSequenceMap[resp.TxResponse.TxHash] = sequence
 		return resp.TxResponse, nil

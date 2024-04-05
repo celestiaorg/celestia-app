@@ -3,11 +3,11 @@ package module_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/app/module"
-	"github.com/celestiaorg/celestia-app/x/upgrade"
-	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/app/module"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
+	upgradetypes "github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/tests/mocks"
