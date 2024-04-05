@@ -6,3 +6,17 @@ var defaultResources = Resources{
 	CPU:           "300m",
 	Volume:        "1Gi",
 }
+
+var maxValidatorResources = Resources{
+	MemoryRequest: "10Gi",
+	MemoryLimit:   "12Gi",
+	CPU:           "6",
+	Volume:        "1Gi",
+}
+
+var maxTxsimResources = Resources{
+	MemoryRequest: "1Gi",
+	MemoryLimit:   "1Gi",
+	CPU:           "2",
+	Volume:        "1Gi",
+}
