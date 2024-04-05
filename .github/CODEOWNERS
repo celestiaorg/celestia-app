@@ -8,11 +8,17 @@
 # directory-level definitions.
 
 # global owners
-* @evan-forbes @rootulp @cmwaters @staheri14 @ninabarbakadze
+* @celestiaorg/celestia-core
 
 # directory owners
 # NOTE: the directory owners should include the global owners unless the global
 # owner is fully deferring ownership to the directory owner
+<<<<<<< HEAD
 docs @liamsi @adlerjohn @evan-forbes @rootulp @cmwaters
 specs @liamsi @adlerjohn @evan-forbes @rootulp @cmwaters
 x/qgb @rach-id @evan-forbes
+=======
+docs @liamsi @celestiaorg/celestia-core
+specs @liamsi @celestiaorg/celestia-core
+x/blobstream @rach-id @evan-forbes
+>>>>>>> 926605c7 (refactor: use celestia-core for CODEOWNERS (#3266))
