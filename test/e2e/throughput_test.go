@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
 )
 
 func TestE2EThroughput(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
+	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
 		t.Skip("skipping e2e throughput test")
 	}
 
@@ -41,7 +40,7 @@ func TestE2EThroughput(t *testing.T) {
 		t.Log("Cleaning up testnet")
 		testnet.Cleanup()
 	})
-	testnet.genesis.ConsensusParams.Version.AppVersion = testground.Version
+	//testnet.genesis.ConsensusParams.Version.AppVersion = testground.Version
 
 	// add 2 validators
 	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,

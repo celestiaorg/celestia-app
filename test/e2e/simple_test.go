@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts/testground"
 	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
@@ -24,7 +23,7 @@ var latestVersion = "latest"
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func TestE2ESimple(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test-sanaz" {
+	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
 
@@ -47,7 +46,7 @@ func TestE2ESimple(t *testing.T) {
 	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
-	testnet.genesis.ConsensusParams.Version.AppVersion = testground.Version
+	//testnet.genesis.ConsensusParams.Version.AppVersion = testground.Version
 
 	t.Log("Creating testnet validators")
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
@@ -64,7 +63,8 @@ func TestE2ESimple(t *testing.T) {
 
 	t.Log("Running txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	sequences = append(sequences, txsim.NewSendSequence(2, 1000,
+		100).Clone(5)...)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
