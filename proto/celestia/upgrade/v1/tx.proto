@@ -7,30 +7,29 @@ option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
 
 // Msg defines the upgrade Msg service.
 service Msg {
-  // SignalVersion allows the validator to signal for an upgrade
+  // SignalVersion allows a validator to signal for an upgrade.
   rpc SignalVersion(MsgSignalVersion) returns (MsgSignalVersionResponse) {
     option (google.api.http).post = "/upgrade/v1/signal";
   }
 
   // TryUpgrade tallies all the votes and if a quorum is reached, it will
-  // trigger an upgrade for the following height
+  // trigger an upgrade for the following height.
   rpc TryUpgrade(MsgTryUpgrade) returns (MsgTryUpgradeResponse) {
     option (google.api.http).post = "/upgrade/v1/upgrade";
   }
 }
 
-// MsgSignalVersion signals for an upgrade
+// MsgSignalVersion signals for an upgrade.
 message MsgSignalVersion {
   string validator_address = 1;
   uint64 version = 2;
 }
 
-// MsgSignalVersionResponse describes the response returned after the submission
-// of a SignalVersion
+// MsgSignalVersionResponse is the response type for the SignalVersion method.
 message MsgSignalVersionResponse {}
 
-// MsgTryUpgrade tries to upgrade the chain
+// MsgTryUpgrade tries to upgrade the chain.
 message MsgTryUpgrade { string signer = 1; }
 
-// MsgTryUpgradeResponse describes the response returned after the submission
+// MsgTryUpgradeResponse is the response type for the TryUpgrade method.
 message MsgTryUpgradeResponse {}
