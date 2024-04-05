@@ -336,18 +336,24 @@ func (t *Testnet) Cleanup() {
 	for _, node := range t.nodes {
 		if node.Instance.IsInState(knuu.Started) {
 			if err := node.Instance.Stop(); err != nil {
-				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
+				log.Err(err).
+					Str("name", node.Name).
+					Msg("node  failed to stop")
 				continue
 			}
 			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
-				log.Err(err).Msg(fmt.Sprintf("node %s failed to stop", node.Name))
+				log.Err(err).
+					Str("name", node.Name).
+					Msg("node  failed to stop")
 				continue
 			}
 		}
 		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
 			err := node.Instance.Destroy()
 			if err != nil {
-				log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
+				log.Err(err).
+					Str("name", node.Name).
+					Msg("node  failed to cleanup")
 			}
 		}
 	}
@@ -370,7 +376,7 @@ func (t *Testnet) Cleanup() {
 			if err != nil {
 				log.Err(err).
 					Str("name", txsim.Name).
-					Msg("txsim failed to destroy")
+					Msg("txsim failed to cleanup")
 			}
 		}
 	}
