@@ -53,7 +53,7 @@ func TestE2EThroughput(t *testing.T) {
 	// create txsim nodes and point them to the validators
 	t.Log("Creating txsim nodes")
 	// version of the txsim docker image to be used
-	txsimVersion := "f6016aa"
+	txsimVersion := "a92de72"
 
 	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", defaultResources, gRPCEndpoints)
 	require.NoError(t, err)
