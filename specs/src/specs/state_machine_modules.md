@@ -25,6 +25,7 @@ Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk modu
 - [genutil](https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/genutil) (no spec)
 - [gov](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/gov/spec/README.md)
 - [ibc](https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/README.md)
+- [interchain accounts](https://github.com/cosmos/ibc/blob/2921c5cec7b18e4ef77677e16a6b693051ae3b35/spec/app/ics-027-interchain-accounts/README.md)
 - [packetforwardmiddleware](https://github.com/cosmos/ibc-apps/blob/main/middleware/packet-forward-middleware/README.md)
 - [params](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/params/spec/README.md)
 - [slashing](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/slashing/spec/README.md)
