@@ -3,14 +3,14 @@ package app
 import (
 	"io"
 
-	"github.com/celestiaorg/celestia-app/app/module"
-	"github.com/celestiaorg/celestia-app/app/posthandler"
-	"github.com/celestiaorg/celestia-app/x/minfee"
-	"github.com/celestiaorg/celestia-app/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
-	"github.com/celestiaorg/celestia-app/x/upgrade"
-	upgradetypes "github.com/celestiaorg/celestia-app/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/app/module"
+	"github.com/celestiaorg/celestia-app/v2/app/posthandler"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
+	"github.com/celestiaorg/celestia-app/v2/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v2/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
+	upgradetypes "github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -83,25 +83,31 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	"github.com/celestiaorg/celestia-app/app/ante"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	appv1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	appv2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/celestia-app/x/paramfilter"
-	"github.com/celestiaorg/celestia-app/x/tokenfilter"
+	"github.com/celestiaorg/celestia-app/v2/app/ante"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	appv1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	appv2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v2/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v2/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v2/x/tokenfilter"
 
-	"github.com/celestiaorg/celestia-app/x/blobstream"
-	blobstreamkeeper "github.com/celestiaorg/celestia-app/x/blobstream/keeper"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
+	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 
 	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
 	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/keeper"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
+
+	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
+	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
+	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 )
 
 var (
@@ -131,13 +137,14 @@ var (
 		upgrade.AppModuleBasic{},
 		minfee.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
+		icaModule{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
 	// register interfaces and specific type to encoding config
 	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
 
-	// module account permissions
+	// maccPerms is short for module account permissions.
 	maccPerms = map[string][]string{
 		authtypes.FeeCollectorName:     nil,
 		distrtypes.ModuleName:          nil,
@@ -146,6 +153,7 @@ var (
 		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+		icatypes.ModuleName:            nil,
 	}
 )
 
@@ -188,14 +196,15 @@ type App struct {
 	CrisisKeeper     crisiskeeper.Keeper
 	UpgradeKeeper    upgrade.Keeper
 	ParamsKeeper     paramskeeper.Keeper
-	IBCKeeper        *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
+	IBCKeeper        *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper   evidencekeeper.Keeper
 	TransferKeeper   ibctransferkeeper.Keeper
 	FeeGrantKeeper   feegrantkeeper.Keeper
+	ICAHostKeeper    icahostkeeper.Keeper
 
-	// make scoped keepers public for test purposes
-	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
-	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
+	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
+	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
+	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 
 	BlobKeeper       blobkeeper.Keeper
 	BlobstreamKeeper blobstreamkeeper.Keeper
@@ -244,6 +253,7 @@ func New(
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
 		packetforwardtypes.StoreKey,
+		icahosttypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -270,6 +280,7 @@ func New(
 	// grant capabilities for the ibc and ibc-transfer modules
 	app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
 	app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
+	app.ScopedICAHostKeeper = app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
 
 	// add keepers
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
@@ -325,9 +336,25 @@ func New(
 
 	// ... other modules keepers
 
-	// Create IBC Keeper
 	app.IBCKeeper = ibckeeper.NewKeeper(
-		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, app.ScopedIBCKeeper,
+		appCodec,
+		keys[ibchost.StoreKey],
+		app.GetSubspace(ibchost.ModuleName),
+		app.StakingKeeper,
+		app.UpgradeKeeper,
+		app.ScopedIBCKeeper,
+	)
+
+	app.ICAHostKeeper = icahostkeeper.NewKeeper(
+		appCodec,
+		keys[icahosttypes.StoreKey],
+		app.GetSubspace(icahosttypes.SubModuleName),
+		app.IBCKeeper.ChannelKeeper, // ICS4Wrapper
+		app.IBCKeeper.ChannelKeeper,
+		&app.IBCKeeper.PortKeeper,
+		app.AccountKeeper,
+		app.ScopedICAHostKeeper,
+		app.MsgServiceRouter(),
 	)
 
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
@@ -391,10 +418,9 @@ func New(
 	)
 
 	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
-
-	// Create static IBC router, add transfer route, then set and seal it
-	ibcRouter := ibcporttypes.NewRouter()
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
+	ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
+	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
 	app.IBCKeeper.SetRouter(ibcRouter)
 
 	/****  Module Options ****/
@@ -495,6 +521,10 @@ func New(
 			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
+		{
+			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
+			FromVersion: v2, ToVersion: v2,
+		},
 	})
 	if err != nil {
 		panic(err)
@@ -526,6 +556,7 @@ func New(
 		vestingtypes.ModuleName,
 		upgradetypes.ModuleName,
 		minfee.ModuleName,
+		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
 	)
 
@@ -552,6 +583,7 @@ func New(
 		upgradetypes.ModuleName,
 		minfee.ModuleName,
 		packetforwardtypes.ModuleName,
+		icatypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -584,6 +616,7 @@ func New(
 		authz.ModuleName,
 		upgradetypes.ModuleName,
 		packetforwardtypes.ModuleName,
+		icatypes.ModuleName,
 	)
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
@@ -746,7 +779,7 @@ func (app *App) LegacyAmino() *codec.LegacyAmino {
 	return app.legacyAmino
 }
 
-// AppCodec returns Gaia's app codec.
+// AppCodec returns the app's appCodec.
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
@@ -754,7 +787,7 @@ func (app *App) AppCodec() codec.Codec {
 	return app.appCodec
 }
 
-// InterfaceRegistry returns Gaia's InterfaceRegistry
+// InterfaceRegistry returns the app's InterfaceRegistry
 func (app *App) InterfaceRegistry() types.InterfaceRegistry {
 	return app.interfaceRegistry
 }
@@ -818,9 +851,9 @@ func (app *App) RegisterNodeService(clientCtx client.Context) {
 	nodeservice.RegisterNodeService(clientCtx, app.GRPCQueryRouter())
 }
 
-// BlockedParams are params that require a hardfork to change, and cannot be changed via
-// governance.
-func (*App) BlockedParams() [][2]string {
+// BlockedParams returns the params that require a hardfork to change, and
+// cannot be changed via governance.
+func (app *App) BlockedParams() [][2]string {
 	return [][2]string{
 		// bank.SendEnabled
 		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
@@ -847,6 +880,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(crisistypes.ModuleName)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
+	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
 	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 	paramsKeeper.Subspace(minfee.ModuleName)

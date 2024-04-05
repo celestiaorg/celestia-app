@@ -75,11 +75,11 @@ func NewMsgTryUpgrade(signer sdk.AccAddress) *MsgTryUpgrade {
 }
 
 func (msg *MsgTryUpgrade) GetSigners() []sdk.AccAddress {
-	valAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	addr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
 	}
-	return []sdk.AccAddress{valAddr}
+	return []sdk.AccAddress{addr}
 }
 
 func (msg *MsgTryUpgrade) ValidateBasic() error {

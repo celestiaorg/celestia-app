@@ -1,25 +1,18 @@
-package minfee_test
+package app_test
 
 import (
 	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/x/minfee"
-
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/util"
-
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -28,13 +21,10 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-func TestUpgradeAppVersion(t *testing.T) {
+// TestICA verifies that the ICA module's params are overridden during an
+// upgrade from v1 -> v2.
+func TestICA(t *testing.T) {
 	testApp, _ := setupTestApp(t, 3)
-
-	supportedVersions := []uint64{v1.Version, v2.Version}
-
-	require.Equal(t, supportedVersions, testApp.SupportedVersions())
-
 	ctx := testApp.NewContext(true, tmproto.Header{
 		Version: version.Consensus{
 			App: 1,
@@ -44,43 +34,28 @@ func TestUpgradeAppVersion(t *testing.T) {
 		Height:  2,
 		Version: version.Consensus{App: 1},
 	}})
-
-	// app version should not have changed yet
 	require.EqualValues(t, 1, testApp.AppVersion())
 
-	// global min gas price should not have been set yet
+	// Query the ICA host module params
 	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-		Subspace: minfee.ModuleName,
-		Key:      string(minfee.KeyGlobalMinGasPrice),
+		Subspace: icahosttypes.SubModuleName,
+		Key:      string(icahosttypes.KeyHostEnabled),
 	})
-	require.Equal(t, "", gotBefore.Param.Value)
 	require.NoError(t, err)
+	require.Equal(t, "", gotBefore.Param.Value)
 
-	// now the app version changes
-	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	// Upgrade from v1 -> v2
+	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	testApp.Commit()
-
-	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
-	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
 	require.EqualValues(t, 2, testApp.AppVersion())
 
-	// create a new context after endBlock
-	newCtx := testApp.NewContext(true, tmproto.Header{
-		Version: version.Consensus{
-			App: 2,
-		},
-	})
-
-	// global min gas price should be set
+	newCtx := testApp.NewContext(true, tmproto.Header{Version: version.Consensus{App: 2}})
 	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
-		Subspace: minfee.ModuleName,
-		Key:      string(minfee.KeyGlobalMinGasPrice),
+		Subspace: icahosttypes.SubModuleName,
+		Key:      string(icahosttypes.KeyHostEnabled),
 	})
 	require.NoError(t, err)
-
-	want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
-	require.NoError(t, err)
-	require.Equal(t, want.String(), strings.Trim(got.Param.Value, "\""))
+	require.Equal(t, "true", got.Param.Value)
 }
 
 func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
@@ -90,14 +65,11 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp := app.New(log.NewNopLogger(), db, nil, true, 0, encCfg, upgradeHeight, util.EmptyAppOptions{})
-
 	genesisState, _, kr := util.GenesisStateWithSingleValidator(testApp, "account")
-
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
 	infoResp := testApp.Info(abci.RequestInfo{})
 	require.EqualValues(t, 0, infoResp.AppVersion)
-
 	cp := app.DefaultInitialConsensusParams()
 	abciParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
@@ -124,5 +96,7 @@ func setupTestApp(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring)
 	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
 
 	_ = testApp.Commit()
+	supportedVersions := []uint64{v1.Version, v2.Version}
+	require.Equal(t, supportedVersions, testApp.SupportedVersions())
 	return testApp, kr
 }

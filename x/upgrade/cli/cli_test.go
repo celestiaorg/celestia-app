@@ -3,8 +3,8 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/x/upgrade/cli"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/x/upgrade/cli"
 	testutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/stretchr/testify/suite"
 )
@@ -23,7 +23,7 @@ type CLITestSuite struct {
 }
 
 func (s *CLITestSuite) SetupSuite() {
-	s.T().Log("setting up integration test suite")
+	s.T().Log("setting up CLI test suite")
 	ctx, _, _ := testnode.NewNetwork(s.T(), testnode.DefaultConfig())
 	s.ctx = ctx
 	_, err := s.ctx.WaitForHeight(1)
