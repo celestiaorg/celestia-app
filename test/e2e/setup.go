@@ -20,7 +20,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
 	cfg.P2P.SendRate = 5 * 1024 * 1024 // 5MiB/s
 	cfg.P2P.RecvRate = 5 * 1024 * 1024 // 5MiB/s
-	cfg.Consensus.TimeoutPropose = 1 * time.Second
+	cfg.Consensus.TimeoutPropose = 120 * time.Second
 	cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
 	return cfg, nil
