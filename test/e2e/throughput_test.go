@@ -44,7 +44,7 @@ func TestE2EThroughput(t *testing.T) {
 
 	// add 2 validators
 	require.NoError(t, testnet.CreateGenesisNodes(2, latestVersion, 10000000,
-		0, defaultResources))
+		0, maxValidatorResources))
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
@@ -56,7 +56,13 @@ func TestE2EThroughput(t *testing.T) {
 	// version of the txsim docker image to be used
 	txsimVersion := "a92de72"
 
-	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", defaultResources, gRPCEndpoints)
+	// total generated load
+	// (assuming one message per 250 ms)
+	// blobRange * 4 * sequence number * total_txClients
+	// 200KB* 4 * 5 * 2 = 8MB
+	err = testnet.CreateTxClients(txsimVersion, 40, "40000-40000",
+		maxTxsimResources,
+		gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
@@ -71,7 +77,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(1 * time.Minute)
+	time.Sleep(10 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
