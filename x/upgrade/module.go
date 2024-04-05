@@ -22,6 +22,7 @@ func init() {
 }
 
 const (
+	// consensusVersion defines the current x/upgrade module consensus version.
 	consensusVersion uint64 = 3
 )
 
@@ -50,17 +51,28 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 	}
 }
 
-// GetQueryCmd returns the cli query commands for this module
+// GetQueryCmd returns the CLI query commands for this module.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 	return cli.GetQueryCmd()
 }
 
-// GetTxCmd returns the transaction commands for this module
+// GetTxCmd returns the CLI transaction commands for this module.
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
 	return cli.GetTxCmd()
 }
 
-func (b AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+// DefaultGenesis returns an empty object.
+func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
+	return []byte("{}")
+}
+
+// ValidateGenesis is always successful, as we ignore the value.
+func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, _ json.RawMessage) error {
+	return nil
+}
+
+// RegisterInterfaces registers the module's interface types on the InterfaceRegistry.
+func (AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	types.RegisterInterfaces(registry)
 }
 
@@ -78,19 +90,21 @@ func NewAppModule(keeper Keeper) AppModule {
 	}
 }
 
-// RegisterInvariants does nothing, there are no invariants to enforce
+// RegisterInvariants does nothing because there are no invariants to enforce.
 func (AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
-// Deprecated: Route returns the message routing key for the upgrade module.
+// Route returns an empty route for this module.
 func (AppModule) Route() sdk.Route {
 	return sdk.Route{}
 }
 
-// QuerierRoute returns the route we respond to for abci queries
-func (AppModule) QuerierRoute() string { return types.QuerierRoute }
+// QuerierRoute returns the query routing key used for ABCI queries.
+func (AppModule) QuerierRoute() string {
+	return types.QuerierRoute
+}
 
-// LegacyQuerierHandler registers a query handler to respond to the module-specific queries
-func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
+// LegacyQuerierHandler returns nil because there are no legacy queriers.
+func (AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 	return nil
 }
 
@@ -100,25 +114,15 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterQueryServer(cfg.QueryServer(), am.keeper)
 }
 
-// InitGenesis is ignored, no sense in serializing future upgrades
-func (am AppModule) InitGenesis(_ sdk.Context, _ codec.JSONCodec, _ json.RawMessage) []abci.ValidatorUpdate {
+// InitGenesis does nothing because there is no sense in serializing future upgrades.
+func (AppModule) InitGenesis(_ sdk.Context, _ codec.JSONCodec, _ json.RawMessage) []abci.ValidatorUpdate {
 	return []abci.ValidatorUpdate{}
 }
 
-// DefaultGenesis is an empty object
-func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
-	return []byte("{}")
-}
-
-// ValidateGenesis is always successful, as we ignore the value
-func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, _ json.RawMessage) error {
-	return nil
-}
-
-// ExportGenesis is always empty, as InitGenesis does nothing either
+// ExportGenesis is always empty, as InitGenesis does nothing either.
 func (am AppModule) ExportGenesis(_ sdk.Context, cdc codec.JSONCodec) json.RawMessage {
 	return am.DefaultGenesis(cdc)
 }
 
-// ConsensusVersion implements AppModule/ConsensusVersion.
+// ConsensusVersion returns the consensus version of this module.
 func (AppModule) ConsensusVersion() uint64 { return consensusVersion }

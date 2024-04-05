@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
@@ -22,36 +23,45 @@ import (
 func TestSignalVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 	goCtx := sdk.WrapSDKContext(ctx)
-	_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
-		ValidatorAddress: testutil.ValAddrs[0].String(),
-		Version:          0,
+	t.Run("should return an error if the signal version is less than the current version", func(t *testing.T) {
+		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+			ValidatorAddress: testutil.ValAddrs[0].String(),
+			Version:          0,
+		})
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, types.ErrInvalidVersion)
 	})
-	require.Error(t, err)
-	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
-		ValidatorAddress: testutil.ValAddrs[0].String(),
-		Version:          3,
+	t.Run("should return an error if the signal version is greater than the next version", func(t *testing.T) {
+		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+			ValidatorAddress: testutil.ValAddrs[0].String(),
+			Version:          3,
+		})
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, types.ErrInvalidVersion)
 	})
-	require.Error(t, err)
+	t.Run("should return an error if the validator was not found", func(t *testing.T) {
+		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+			ValidatorAddress: testutil.ValAddrs[4].String(),
+			Version:          2,
+		})
+		require.Error(t, err)
+		require.ErrorIs(t, err, stakingtypes.ErrNoValidatorFound)
+	})
+	t.Run("should not return an error if the signal version and validator are valid", func(t *testing.T) {
+		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+			ValidatorAddress: testutil.ValAddrs[0].String(),
+			Version:          2,
+		})
+		require.NoError(t, err)
 
-	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
-		ValidatorAddress: testutil.ValAddrs[4].String(),
-		Version:          2,
+		res, err := upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+			Version: 2,
+		})
+		require.NoError(t, err)
+		require.EqualValues(t, 40, res.VotingPower)
+		require.EqualValues(t, 100, res.ThresholdPower)
+		require.EqualValues(t, 120, res.TotalVotingPower)
 	})
-	require.Error(t, err)
-
-	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
-		ValidatorAddress: testutil.ValAddrs[0].String(),
-		Version:          2,
-	})
-	require.NoError(t, err)
-
-	res, err := upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
-		Version: 2,
-	})
-	require.NoError(t, err)
-	require.EqualValues(t, 40, res.VotingPower)
-	require.EqualValues(t, 100, res.ThresholdPower)
-	require.EqualValues(t, 120, res.TotalVotingPower)
 }
 
 func TestTallyingLogic(t *testing.T) {
