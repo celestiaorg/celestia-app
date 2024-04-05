@@ -7,7 +7,7 @@ import "time"
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
-	DefaultGovMaxSquareSize = 64 * 8
+	DefaultGovMaxSquareSize = 64 * 4
 
 	// DefaultMaxBytes is the default value for the governance modifiable
 	// maximum number of bytes allowed in a valid block.
