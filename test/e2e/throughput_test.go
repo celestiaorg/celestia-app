@@ -66,7 +66,7 @@ func TestE2EThroughput(t *testing.T) {
 	// (assuming one message per 250 ms)
 	// blobRange * 4 * sequence number * total_txClients
 	// 200KB* 4 * 5 * 2 = 8MB
-	err = testnet.CreateTxClients(txsimVersion, 40, "40000-40000",
+	err = testnet.CreateTxClients(txsimVersion, 40, "10000-10000",
 		maxTxsimResources,
 		gRPCEndpoints)
 	require.NoError(t, err)
