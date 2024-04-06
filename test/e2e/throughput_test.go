@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -9,6 +10,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/types"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
+	"gonum.org/v1/plot/vg"
 )
 
 func TestE2EThroughput(t *testing.T) {
@@ -83,10 +89,79 @@ func TestE2EThroughput(t *testing.T) {
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	require.NoError(t, err)
 
+	blockTimes, blockSizes, thputs, blockTimesNano := throughput(blockchain)
+	t.Log("blockTimes", blockTimes)
+	t.Log("blockTimesNano", blockTimesNano)
+	t.Log("blockSizes", blockSizes)
+	t.Log("thputs", thputs)
+	plotData(blockSizes, fmt.Sprintf("blocksizes-%d.png", appconsts.DefaultGovMaxSquareSize),
+		"Block Size", "Height",
+		"Block Size")
+	plotData(blockTimes, fmt.Sprintf("blocktimes-%d.png",
+		appconsts.DefaultGovMaxSquareSize), "Block Time in seconds", "Height",
+		"Block Time in seconds")
+	plotData(thputs, fmt.Sprintf("throughputs-%d.png",
+		appconsts.DefaultGovMaxSquareSize), "Throughput",
+		"Height", "Throughput")
+
 	totalTxs := 0
 	for _, block := range blockchain {
 		require.Equal(t, appconsts.LatestVersion, block.Version.App)
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
+}
+
+func throughput(blockchain []*types.Block) ([]float64, []float64, []float64,
+	[]float64) {
+	blockTimes := make([]float64, 0, len(blockchain)-1)
+	blockTimesNano := make([]float64, 0, len(blockchain)-1)
+	blockSizes := make([]float64, 0, len(blockchain)-1)
+	throughputs := make([]float64, 0, len(blockchain)-1)
+	// timestamp of the last processed block
+	lastBlockTS := blockchain[0].Header.Time
+
+	for _, block := range blockchain[1:] {
+		blockTimeNano := float64(block.Header.Time.Sub(lastBlockTS))
+		blockTime := float64(block.Header.Time.Sub(lastBlockTS) / 1e9) // Convert time from nanoseconds to seconds
+		blockSize := float64(block.Size() / (1024))                    // Convert size from bytes to KiB
+		thput := blockSize / blockTime
+
+		blockTimesNano = append(blockTimesNano, blockTimeNano)
+		blockTimes = append(blockTimes, blockTime)
+		blockSizes = append(blockSizes, blockSize)
+		throughputs = append(throughputs, thput)
+
+		lastBlockTS = block.Header.Time // update lastBlockTS for the next block
+	}
+	return blockTimes, blockSizes, throughputs, blockTimesNano
+}
+
+func plotData(data []float64, fileName string, title, xLabel, yLabel string) {
+	if len(data) == 0 {
+		return
+	}
+	pts := make(plotter.XYs, len(data))
+	for i := range data {
+		pts[i].X = float64(i)
+		pts[i].Y = data[i]
+	}
+
+	p, err := plot.New()
+	if err != nil {
+		panic(err)
+	}
+	p.Title.Text = title
+	p.X.Label.Text = xLabel
+	p.Y.Label.Text = yLabel
+
+	err = plotutil.AddLinePoints(p, yLabel, pts)
+	if err != nil {
+		panic(err)
+	}
+
+	// save the plot
+	if err := p.Save(10*vg.Inch, 5*vg.Inch, fileName); err != nil {
+		panic(err)
+	}
 }
