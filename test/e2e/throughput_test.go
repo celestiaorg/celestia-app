@@ -124,15 +124,18 @@ func throughput(blockchain []*types.Block) ([]float64, []float64, []float64,
 	for _, block := range blockchain[1:] {
 		blockTimeNano := float64(block.Header.Time.Sub(lastBlockTS))
 		blockTime := float64(block.Header.Time.Sub(lastBlockTS) / 1e9) // Convert time from nanoseconds to seconds
-		blockSize := float64(block.Size() / (1024))                    // Convert size from bytes to KiB
-		thput := blockSize / blockTime
 
 		blockTimesNano = append(blockTimesNano, blockTimeNano)
 		blockTimes = append(blockTimes, blockTime)
-		blockSizes = append(blockSizes, blockSize)
-		throughputs = append(throughputs, thput)
 
 		lastBlockTS = block.Header.Time // update lastBlockTS for the next block
+	}
+	for i, block := range blockchain[:len(blockchain)-1] {
+		blockSize := float64(block.Size() / (1024)) // Convert size from bytes to KiB
+		thput := blockSize / blockTimes[i]
+
+		blockSizes = append(blockSizes, blockSize)
+		throughputs = append(throughputs, thput)
 	}
 	return blockTimes, blockSizes, throughputs, blockTimesNano
 }
