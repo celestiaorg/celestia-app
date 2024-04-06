@@ -126,30 +126,17 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 		// consensus, but we are not overloading the influxdb instance with too
 		// much trace data.
 		for i := range nodes {
-			nodes[i].CmtConfig.Instrumentation.InfluxOrg = "celestia"
-			nodes[i].CmtConfig.Instrumentation.InfluxBucket = "testground"
-			nodes[i].CmtConfig.Instrumentation.InfluxBatchSize = 200
-			nodes[i].CmtConfig.Instrumentation.InfluxURL = tparams.URL
-			nodes[i].CmtConfig.Instrumentation.InfluxToken = tparams.Token
-			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.RoundStateTable}, ",")
+			nodes[i].CmtConfig.Instrumentation.TraceType = "local"
+			nodes[i].CmtConfig.Instrumentation.TracePushConfig = "trace_config.json"
+			nodes[i].CmtConfig.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
 		}
 
-		// Trace all data from these nodes, and keep track of which nodes are tracing.
-		tracingNodes := make(map[int]string)
-		for i := 0; i < tparams.Nodes; i++ {
-			nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.RoundStateTable, schema.BlockTable, schema.BlockPartsTable, schema.VoteTable}, ",")
-			tracingNodes[i] = nodes[i].PeerID
-		}
-
-		// ensure that all of the tracing nodes are persistent peers of each other.
-		for i := range tracingNodes {
-			for j := range tracingNodes {
-				if i == j {
-					continue
-				}
-				nodes[i].CmtConfig.P2P.PersistentPeers += "," + tracingNodes[j]
-			}
-		}
+		// // Trace all data from these nodes, and keep track of which nodes are tracing.
+		// tracingNodes := make(map[int]string)
+		// for i := 0; i < tparams.Nodes; i++ {
+		// 	nodes[i].CmtConfig.Instrumentation.InfluxTables = strings.Join([]string{schema.RoundStateTable, schema.BlockTable, schema.BlockPartsTable, schema.VoteTable}, ",")
+		// 	tracingNodes[i] = nodes[i].PeerID
+		// }
 
 		return nodes, nil
 	}
