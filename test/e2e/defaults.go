@@ -16,7 +16,7 @@ var maxValidatorResources = Resources{
 
 var maxTxsimResources = Resources{
 	MemoryRequest: "1Gi",
-	MemoryLimit:   "1Gi",
+	MemoryLimit:   "3Gi",
 	CPU:           "2",
 	Volume:        "1Gi",
 }
