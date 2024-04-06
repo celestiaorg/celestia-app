@@ -27,6 +27,7 @@ import (
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
+	"github.com/tendermint/tendermint/pkg/trace"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
@@ -187,6 +188,21 @@ func (cn *ConsensusNode) Init(baseDir string, genesis json.RawMessage, mcfg Role
 		PrivKey: cn.networkKey,
 	}
 	if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
+		return err
+	}
+
+	traceConfigFile, err := os.OpenFile(filepath.Join(configPath, "s3.json"), os.O_CREATE|os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
+	defer traceConfigFile.Close()
+	traceConfig := trace.S3Config{
+		BucketName: "block-prop-traces-ef",
+		Region:     "us-east-2",
+		PushDelay:  1000,
+	}
+	err = json.NewEncoder(traceConfigFile).Encode(traceConfig)
+	if err != nil {
 		return err
 	}
 

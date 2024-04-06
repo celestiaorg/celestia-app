@@ -127,7 +127,7 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 		// much trace data.
 		for i := range nodes {
 			nodes[i].CmtConfig.Instrumentation.TraceType = "local"
-			nodes[i].CmtConfig.Instrumentation.TracePushConfig = "trace_config.json"
+			nodes[i].CmtConfig.Instrumentation.TracePushConfig = "s3.json"
 			nodes[i].CmtConfig.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
 		}
 
