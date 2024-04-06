@@ -184,6 +184,10 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
+	cmtcfg.Instrumentation.TraceType = "local"
+	cmtcfg.Instrumentation.TracePushConfig = "trace_config.json"
+	cmtcfg.Instrumentation.TraceBufferSize = 1000
+	cmtcfg.Instrumentation.TracePushConfig = ""
 	return cmtcfg
 }
 
