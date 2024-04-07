@@ -336,8 +336,8 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240307210951-86c8e1a387d4 h1:h/0FUpwQqzefxFMFAJWDjCIWefYtFLAPQf4/pysLCv0=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240307210951-86c8e1a387d4/go.mod h1:rZW2YVRsgmzCJl/RL+r4KHAkr2qwdb3t3M0lXujztlU=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240315001348-435f2b75d1fd h1:3NugMHd8ESLd/gmLok6dhuaevkv/DMUa7SIxnvLbz9s=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240315001348-435f2b75d1fd/go.mod h1:FyqncqoijYPDkIxJosGmjFcMSOrXU6/A/CCrGsJBSaY=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240314231130-b638e7f3a707 h1:mr4gKOOPjEeHhMODJskvhP01fdsFbfDR0nJq9iOvjj0=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240314231130-b638e7f3a707/go.mod h1:cH+AztynabfHFhK7F0RdI4mR+xBI7Qstj+H6rOtCZEU=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16 h1:9U9UthIJSOyVjabD5PkD6aczvqlWOyAFTOXw0duPT5k=

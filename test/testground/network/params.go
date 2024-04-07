@@ -12,7 +12,9 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	tmconfig "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
@@ -42,6 +44,12 @@ const (
 	TracingNodesParam      = "tracing_nodes"
 	ExperimentParam        = "experiment"
 )
+
+func init() {
+	consensus.UseWAL = false
+	node.PushMetrics = true
+	node.PushGateWayURL = "http://51.159.176.205:9191"
+}
 
 type Params struct {
 	ChainID           string
@@ -78,7 +86,7 @@ func ParseTracingParams(runenv *runtime.RunEnv) TracingParams {
 	return TracingParams{
 		Nodes: runenv.IntParam(TracingNodesParam),
 		URL:   "http://51.158.232.250:8086/",
-		Token: "KSMO57rzvRhVQccJppzFriY-VX9OKwmrP5fTzcDo7-TutjwI7bDeO9xYFmyOYDu9VNSpYkPL5WBbYGKXSuAJ6A==",
+		Token: "GtkhuvhGt2nX5CWd68gcnnKeokIE8DAHA6qpPSyJeNII0WlLERoeD1glwzNBR2VdorVgQz9khdfbjc-8FL95yQ==",
 	}
 }
 
@@ -175,6 +183,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.TTLNumBlocks = 100
 	cmtcfg.Mempool.TTLDuration = 40 * time.Minute
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
+	cmtcfg.Consensus.PeerGossipIntraloopSleepDuration = 100 * time.Millisecond
 	return cmtcfg
 }
 
