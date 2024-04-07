@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -61,10 +61,10 @@ func TestMinorVersionCompatibility(t *testing.T) {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		t.Log("Starting node", "node", i, "version", v)
-		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0))
+		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0, defaultResources))
 	}
 
-	kr, err := testnet.CreateAccount("alice", 1e12)
+	kr, err := testnet.CreateAccount("alice", 1e12, "")
 	require.NoError(t, err)
 
 	require.NoError(t, testnet.Setup())
@@ -164,10 +164,11 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < numNodes; i++ {
-		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight))
+		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000,
+			upgradeHeight, defaultResources))
 	}
 
-	kr, err := testnet.CreateAccount("alice", 1e12)
+	kr, err := testnet.CreateAccount("alice", 1e12, "")
 	require.NoError(t, err)
 
 	require.NoError(t, testnet.Setup())

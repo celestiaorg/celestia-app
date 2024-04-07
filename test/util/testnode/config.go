@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	tmconfig "github.com/tendermint/tendermint/config"
@@ -84,8 +84,8 @@ func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 
 // WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
-	c.Genesis = c.Genesis.WithAccounts(
-		genesis.NewAccounts(DefaultInitialBalance, accounts...)...,
+	c.Genesis = c.Genesis.WithKeyringAccounts(
+		genesis.NewKeyringAccounts(DefaultInitialBalance, accounts...)...,
 	)
 	return c
 }

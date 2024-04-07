@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	testutil "github.com/celestiaorg/celestia-app/test/util"
-	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -37,9 +37,9 @@ func TestLegacyUpgrade(t *testing.T) {
 // proposals.
 func TestRemoval(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	sftwrUpgrd := types.MsgSoftwareUpgrade{}
+	msgSoftwareUpgrade := types.MsgSoftwareUpgrade{}
 	router := app.MsgServiceRouter()
-	handler := router.Handler(&sftwrUpgrd)
+	handler := router.Handler(&msgSoftwareUpgrade)
 	require.Nil(t, handler)
 }
 

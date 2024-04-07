@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
 	"github.com/stretchr/testify/assert"
 	tmcfg "github.com/tendermint/tendermint/config"
 )
@@ -88,4 +89,16 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
+}
+
+func Test_icaDefaultGenesis(t *testing.T) {
+	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
+	ica := icaModule{}
+	raw := ica.DefaultGenesis(encCfg.Codec)
+	got := icagenesistypes.GenesisState{}
+	encCfg.Codec.MustUnmarshalJSON(raw, &got)
+
+	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
+	assert.True(t, got.HostGenesisState.Params.HostEnabled)
+	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
 }

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -88,7 +88,9 @@ func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	return g
 }
 
-func (g *Genesis) WithAccounts(accs ...KeyringAccount) *Genesis {
+// WithKeyringAccounts adds the given keyring accounts to the genesis. If an
+// account with the same name already exists, it panics.
+func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 	for _, acc := range accs {
 		err := g.NewAccount(acc)
 		if err != nil {
