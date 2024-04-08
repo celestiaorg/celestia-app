@@ -9,8 +9,7 @@ To understand the proof mechanisms, a good understanding of [binary merkle proof
 ## PFB transaction
 
 When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction, the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html). 
-This set of shares is used
-to generate a [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) which commits to the data contained in the PFB, i.e., the blob.
+This set of shares is used to generate a [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) which commits to the data contained in the PFB, i.e., the blob.
 
 ### Share commitment generation 
 
