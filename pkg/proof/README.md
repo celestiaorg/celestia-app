@@ -54,7 +54,7 @@ Note: the nodes colored in red are the inner nodes used to construct the inclusi
 ## Square layout
 
 Now that the [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) is generated.
-The transaction gets broadcasted to the Celestia network to be picked up by validators.
+The transaction gets broadcast to the Celestia network to be picked up by validators.
 Once it's included in a block, the transaction, without the blob,
 is placed in the [transaction namespace](https://celestiaorg.github.io/celestia-app/specs/namespace.html#reserved-namespaces)
 and the blob is placed in the [namespace](https://github.com/celestiaorg/celestia-app/blob/72be251f044bcece659603248bc27711b2c039a0/proto/celestia/blob/v1/tx.proto#L22)
