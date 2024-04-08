@@ -24,8 +24,6 @@ import (
 const MajorVersion = v1.Version
 
 func TestMinorVersionCompatibility(t *testing.T) {
-	// FIXME: This test currently panics in InitGenesis
-	t.Skip("test not working")
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
 		t.Skip("skipping e2e test")
 	}
