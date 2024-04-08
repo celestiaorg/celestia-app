@@ -78,7 +78,7 @@ This property holds for all the subtree roots computed for the blob data and is 
 This means that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*. 
 The subtree roots used to generate it will be the same regardless of the square size.
 This proof will be discussed in the [prove share commitment inclusion to data root](#prove-share-commitment-inclusion-to-data-root) section.
-  
+
 ### Column roots
 
 Similar to row roots, column roots are the namespace merkle root of the set of shares contained in the column:
