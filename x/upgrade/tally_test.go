@@ -167,8 +167,7 @@ func TestTallyingLogic(t *testing.T) {
 	})
 	require.Error(t, err)
 
-	// resetting the tally should clear other votes
-	upgradeKeeper.ResetTally(ctx, 2)
+	upgradeKeeper.ResetTally(ctx)
 	res, err = upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
 	})
