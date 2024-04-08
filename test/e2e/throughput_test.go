@@ -2,8 +2,10 @@ package e2e
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -66,9 +68,9 @@ func TestE2EThroughput(t *testing.T) {
 	// (assuming one message per 250 ms)
 	// blobRange * 4 * sequence number * total_txClients
 	// 200KB* 4 * 5 * 2 = 8MB
-	err = testnet.CreateTxClients(txsimVersion, 40, "10000-10000",
+	err = testnet.CreateTxClients(txsimVersion, 50, "200000-200000",
 		maxTxsimResources,
-		gRPCEndpoints)
+		append(gRPCEndpoints, gRPCEndpoints...))
 	require.NoError(t, err)
 
 	// start the testnet
@@ -94,6 +96,17 @@ func TestE2EThroughput(t *testing.T) {
 	t.Log("blockTimesNano", blockTimesNano)
 	t.Log("blockSizes", blockSizes)
 	t.Log("thputs", thputs)
+
+	// save the data to a CSV file
+	err = SaveFloatsToCSV(blockTimes, "blockTimes.csv")
+	require.NoError(t, err)
+	err = SaveFloatsToCSV(blockTimesNano, "blockTimesNano.csv")
+	require.NoError(t, err)
+	err = SaveFloatsToCSV(blockSizes, "blockSizes.csv")
+	require.NoError(t, err)
+	err = SaveFloatsToCSV(thputs, "throughputs.csv")
+	require.NoError(t, err)
+
 	plotData(blockSizes, fmt.Sprintf("blocksizes-%d.png", appconsts.DefaultGovMaxSquareSize),
 		"Block Size", "Height",
 		"Block Size")
@@ -167,4 +180,33 @@ func plotData(data []float64, fileName string, title, xLabel, yLabel string) {
 	if err := p.Save(10*vg.Inch, 5*vg.Inch, fileName); err != nil {
 		panic(err)
 	}
+}
+
+// SaveFloatsToCSV saves a slice of float values to a CSV file with the given filename.
+func SaveFloatsToCSV(floats []float64, fileName string) error {
+	// Create or open the CSV file
+	file, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+
+	// Create a CSV writer
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Convert float values to strings and prepare for CSV writing
+	var record []string
+	for _, value := range floats {
+		// Convert each float value to a string
+		strValue := strconv.FormatFloat(value, 'f', -1, 64)
+		record = append(record, strValue)
+	}
+
+	// Write the record (slice of strings) to the CSV
+	if err := writer.Write(record); err != nil {
+		return fmt.Errorf("error writing record to csv: %w", err)
+	}
+
+	return nil // Return nil if no error occurred
 }
