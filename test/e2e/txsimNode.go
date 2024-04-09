@@ -146,6 +146,7 @@ func (txsim *TxSim) CleanUp() {
 func (txsim *TxSim) needsRestart() bool {
 	// check if the txsim is running
 	if isRunning, err := txsim.Instance.IsRunning(); err != nil && !isRunning {
+		txsim.Instance.Stop()
 		return true
 	}
 	// check if the txsim is stopped
