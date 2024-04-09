@@ -67,11 +67,11 @@ func TestE2EThroughput(t *testing.T) {
 
 	// total generated load
 	// (assuming one message per 250 ms)
-	// blobRange * 4 * sequence number * total_txClients
-	// 200KB* 4 * 5 * 2 = 8MB
-	err = testnet.CreateTxClients(txsimVersion, 25, "100000-100000",
+	// blobRange * 4 (tx per second) * sequence number * total_txClients
+	// 200KB* 4 * 40 * 2 = 8MB
+	err = testnet.CreateTxClients(txsimVersion, 40, "100000-100000",
 		maxTxsimResources,
-		append(gRPCEndpoints, gRPCEndpoints...))
+		gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
@@ -92,11 +92,15 @@ func TestE2EThroughput(t *testing.T) {
 	stop := make(chan struct{})
 	go func() {
 		reader := bufio.NewReader(os.Stdin)
-		line, _ := reader.ReadString('\n')
-		if string(line) == "stop" {
-			close(stop)
+		for {
+			line, _ := reader.ReadString('\n')
+			t.Log("Received signal", string(line))
+			if string(line) == "stop" {
+				t.Log("stop signal is received")
+				close(stop)
+				return
+			}
 		}
-
 	}()
 	select {
 	case <-ticker:
