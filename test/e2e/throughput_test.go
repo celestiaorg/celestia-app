@@ -184,18 +184,18 @@ func plotData(data []float64, fileName string, title, xLabel, yLabel string) {
 
 // SaveFloatsToCSV saves a slice of float values to a CSV file with the given filename.
 func SaveFloatsToCSV(floats []float64, fileName string) error {
-	// Create or open the CSV file
+	// create or open the CSV file
 	file, err := os.Create(fileName)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
 	defer file.Close()
 
-	// Create a CSV writer
+	// create a CSV writer
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Convert float values to strings and prepare for CSV writing
+	// convert float values to strings and prepare for CSV writing
 	var record []string
 	for _, value := range floats {
 		// Convert each float value to a string
@@ -203,10 +203,10 @@ func SaveFloatsToCSV(floats []float64, fileName string) error {
 		record = append(record, strValue)
 	}
 
-	// Write the record (slice of strings) to the CSV
+	// write the record
 	if err := writer.Write(record); err != nil {
 		return fmt.Errorf("error writing record to csv: %w", err)
 	}
 
-	return nil // Return nil if no error occurred
+	return nil
 }
