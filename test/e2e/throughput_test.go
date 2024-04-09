@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"bufio"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -70,7 +71,7 @@ func TestE2EThroughput(t *testing.T) {
 	// 200KB* 4 * 5 * 2 = 8MB
 	err = testnet.CreateTxClients(txsimVersion, 25, "100000-100000",
 		maxTxsimResources,
-		gRPCEndpoints)
+		append(gRPCEndpoints, gRPCEndpoints...))
 	require.NoError(t, err)
 
 	// start the testnet
@@ -85,7 +86,24 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(30 * time.Minute)
+	//time.Sleep(10 * time.Minute)
+
+	ticker := time.Tick(10 * time.Minute)
+	stop := make(chan struct{})
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		line, _ := reader.ReadString('\n')
+		if string(line) == "stop" {
+			close(stop)
+		}
+
+	}()
+	select {
+	case <-ticker:
+		t.Log("Time is up")
+	case <-stop:
+		t.Log("Stopping the test")
+	}
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
