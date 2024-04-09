@@ -18,8 +18,10 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	cfg.Consensus.TimeoutPropose = time.Second
-	cfg.Consensus.TimeoutCommit = time.Second
+	cfg.P2P.SendRate = 5 * 1024 * 1024 // 5MiB/s
+	cfg.P2P.RecvRate = 5 * 1024 * 1024 // 5MiB/s
+	cfg.Consensus.TimeoutPropose = 1 * time.Second
+	cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
 	return cfg, nil
 }

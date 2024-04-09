@@ -88,7 +88,9 @@ func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	return g
 }
 
-func (g *Genesis) WithAccounts(accs ...KeyringAccount) *Genesis {
+// WithKeyringAccounts adds the given keyring accounts to the genesis. If an
+// account with the same name already exists, it panics.
+func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 	for _, acc := range accs {
 		err := g.NewAccount(acc)
 		if err != nil {

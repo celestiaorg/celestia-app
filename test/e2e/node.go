@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/rs/zerolog/log"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
@@ -25,6 +26,7 @@ const (
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"
+	txsimRootDir   = "/home/celestia"
 )
 
 type Node struct {
@@ -41,12 +43,25 @@ type Node struct {
 	grpcProxyPort int
 }
 
+// Resources defines the resource requirements for a Node.
+type Resources struct {
+	// MemoryRequest specifies the initial memory allocation for the Node.
+	MemoryRequest string
+	// MemoryLimit specifies the maximum memory allocation for the Node.
+	MemoryLimit string
+	// CPU specifies the CPU allocation for the Node.
+	CPU string
+	// Volume specifies the storage volume allocation for the Node.
+	Volume string
+}
+
 func NewNode(
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
 	signerKey, networkKey crypto.PrivKey,
 	upgradeHeight int64,
+	resources Resources,
 	grafana *GrafanaInfo,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
@@ -82,15 +97,15 @@ func NewNode(
 			return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
 		}
 	}
-	err = instance.SetMemory("200Mi", "200Mi")
+	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU("300m")
+	err = instance.SetCPU(resources.CPU)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolumeWithOwner(remoteRootDir, "1Gi", 10001)
+	err = instance.AddVolumeWithOwner(remoteRootDir, resources.Volume, 10001)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +139,9 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 	// Initialize file directories
 	rootDir := os.TempDir()
 	nodeDir := filepath.Join(rootDir, n.Name)
+	log.Info().Str("name", n.Name).
+		Str("directory", nodeDir).
+		Msg("Creating validator's config and data directories")
 	for _, dir := range []string{
 		filepath.Join(nodeDir, "config"),
 		filepath.Join(nodeDir, "data"),
@@ -211,6 +229,24 @@ func (n Node) AddressRPC() string {
 // local proxy port that can be used to communicate with the node
 func (n Node) AddressGRPC() string {
 	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
+}
+
+// RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
+func (n Node) RemoteAddressGRPC() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", ip, grpcPort), nil
+}
+
+// RemoteAddressRPC retrieves the RPC endpoint address of a node within the cluster.
+func (n Node) RemoteAddressRPC() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
 }
 
 func (n Node) IsValidator() bool {
