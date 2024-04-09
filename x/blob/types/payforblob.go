@@ -58,10 +58,10 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 		return nil, err
 	}
 
-	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaceVersions, namespaceIDs, sizes, shareVersions := extractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -325,20 +325,20 @@ func ValidateBlobs(blobs ...*Blob) error {
 
 // extractBlobComponents separates and returns the components of a slice of
 // blobs.
-func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIds [][]byte, sizes []uint32, shareVersions []uint32) {
+func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, namespaceIDs [][]byte, sizes []uint32, shareVersions []uint32) {
 	namespaceVersions = make([]uint32, len(pblobs))
-	namespaceIds = make([][]byte, len(pblobs))
+	namespaceIDs = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
 	shareVersions = make([]uint32, len(pblobs))
 
 	for i, pblob := range pblobs {
 		namespaceVersions[i] = pblob.NamespaceVersion
-		namespaceIds[i] = pblob.NamespaceId
+		namespaceIDs[i] = pblob.NamespaceId
 		sizes[i] = uint32(len(pblob.Data))
 		shareVersions[i] = pblob.ShareVersion
 	}
 
-	return namespaceVersions, namespaceIds, sizes, shareVersions
+	return namespaceVersions, namespaceIDs, sizes, shareVersions
 }
 
 // merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
