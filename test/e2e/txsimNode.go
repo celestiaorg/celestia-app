@@ -100,18 +100,16 @@ func (txsim *TxSim) StartRoutine() {
 	for {
 		select {
 		case <-txsim.ticker.C:
-			// check if the txsim is stopped
-			isTopped := txsim.Instance.IsInState(knuu.Stopped)
-			if isTopped {
+			if txsim.needsRestart() {
 				log.Info().
 					Str("name", txsim.Name).
-					Msg("txsim is topped, trying to restart it")
+					Msg("txsim is stopped, trying to restart it")
 
 				err = txsim.Instance.Start()
 				if err != nil {
 					log.Err(err).
 						Str("name", txsim.Name).
-						Msg("txsim failed to re-start, tryin again in 20 seconds")
+						Msg("txsim failed to re-start, trying later")
 				}
 				log.Info().
 					Str("name", txsim.Name).
@@ -143,4 +141,13 @@ func (txsim *TxSim) CleanUp() {
 				Msg("txsim failed to cleanup")
 		}
 	}
+}
+
+func (txsim *TxSim) needsRestart() bool {
+	// check if the txsim is running
+	if isRunning, err := txsim.Instance.IsRunning(); err != nil && !isRunning {
+		return true
+	}
+	// check if the txsim is stopped
+	return txsim.Instance.IsInState(knuu.Stopped)
 }
