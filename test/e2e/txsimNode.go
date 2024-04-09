@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/rs/zerolog/log"
@@ -9,6 +10,7 @@ import (
 
 const (
 	txsimDockerSrcURL = "ghcr.io/celestiaorg/txsim"
+	defaultTickerTime = 20 * time.Second
 )
 
 func txsimDockerImageName(version string) string {
@@ -18,6 +20,7 @@ func txsimDockerImageName(version string) string {
 type TxSim struct {
 	Name     string
 	Instance *knuu.Instance
+	ticker   *time.Ticker
 }
 
 func CreateTxClient(
@@ -77,5 +80,67 @@ func CreateTxClient(
 	return &TxSim{
 		Name:     name,
 		Instance: instance,
+		ticker:   time.NewTicker(defaultTickerTime),
 	}, nil
+}
+
+func (txsim *TxSim) StartRoutine() {
+	err := txsim.Instance.Start()
+	if err != nil {
+		log.Err(err).
+			Str("name", txsim.Name).
+			Msg("txsim failed to start")
+	}
+	log.Info().
+		Str("name", txsim.Name).
+		Msg("txsim started")
+
+	txsim.ticker.Reset(defaultTickerTime)
+	// check the state of the txsim every 20 seconds
+	for {
+		select {
+		case <-txsim.ticker.C:
+			// check if the txsim is stopped
+			isTopped := txsim.Instance.IsInState(knuu.Stopped)
+			if isTopped {
+				log.Info().
+					Str("name", txsim.Name).
+					Msg("txsim is topped, trying to restart it")
+
+				err = txsim.Instance.Start()
+				if err != nil {
+					log.Err(err).
+						Str("name", txsim.Name).
+						Msg("txsim failed to re-start, tryin again in 20 seconds")
+				}
+				log.Info().
+					Str("name", txsim.Name).
+					Msg("txsim re-started")
+			}
+		}
+	}
+}
+
+func (txsim *TxSim) CleanUp() {
+	txsim.ticker.Stop()
+	if txsim.Instance.IsInState(knuu.Started) {
+		err := txsim.Instance.Stop()
+		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to stop")
+		}
+		err = txsim.Instance.WaitInstanceIsStopped()
+		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to stop")
+		}
+		err = txsim.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to cleanup")
+		}
+	}
 }
