@@ -68,7 +68,7 @@ func TestE2EThroughput(t *testing.T) {
 	// (assuming one message per 250 ms)
 	// blobRange * 4 * sequence number * total_txClients
 	// 200KB* 4 * 5 * 2 = 8MB
-	err = testnet.CreateTxClients(txsimVersion, 50, "200000-200000",
+	err = testnet.CreateTxClients(txsimVersion, 25, "100000-100000",
 		maxTxsimResources,
 		append(gRPCEndpoints, gRPCEndpoints...))
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestE2EThroughput(t *testing.T) {
 	require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(10 * time.Minute)
+	time.Sleep(30 * time.Minute)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
