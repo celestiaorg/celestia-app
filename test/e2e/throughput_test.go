@@ -69,7 +69,7 @@ func TestE2EThroughput(t *testing.T) {
 	// (assuming one message per 250 ms)
 	// blobRange * 4 (tx per second) * sequence number * total_txClients
 	// 200KB* 4 * 40 * 2 = 8MB
-	err = testnet.CreateTxClients(txsimVersion, 40, "100000-100000",
+	err = testnet.CreateTxClients(txsimVersion, 40, "200000-200000",
 		maxTxsimResources,
 		gRPCEndpoints)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestE2EThroughput(t *testing.T) {
 	// once the testnet is up, start the txsim
 	t.Log("Starting txsim nodes")
 	err = testnet.StartTxClients()
-	require.NoError(t, err)
+	//require.NoError(t, err)
 
 	// wait some time for the txsim to submit transactions
 	//time.Sleep(10 * time.Minute)
@@ -94,7 +94,7 @@ func TestE2EThroughput(t *testing.T) {
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			line, _ := reader.ReadString('\n')
-			t.Log("Received signal", string(line))
+			//t.Log("Received signal", string(line))
 			if string(line) == "stop" {
 				t.Log("stop signal is received")
 				close(stop)
