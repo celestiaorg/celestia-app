@@ -105,7 +105,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolumeWithOwner(remoteRootDir, "1Gi", 10001)
+	err = instance.AddVolumeWithOwner(remoteRootDir, resources.Volume, 10001)
 	if err != nil {
 		return nil, err
 	}
