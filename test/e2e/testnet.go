@@ -154,16 +154,7 @@ func (t *Testnet) CreateTxClient(name,
 
 func (t *Testnet) StartTxClients() error {
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.Start()
-		if err != nil {
-			log.Err(err).
-				Str("name", txsim.Name).
-				Msg("txsim failed to start")
-			return err
-		}
-		log.Info().
-			Str("name", txsim.Name).
-			Msg("txsim started")
+		go txsim.StartRoutine()
 	}
 	return nil
 }
@@ -359,26 +350,8 @@ func (t *Testnet) Cleanup() {
 	}
 	// stop and cleanup txsim
 	for _, txsim := range t.txClients {
-		if txsim.Instance.IsInState(knuu.Started) {
-			err := txsim.Instance.Stop()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.WaitInstanceIsStopped()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to cleanup")
-			}
-		}
+		txsim.CleanUp()
+
 	}
 }
 
