@@ -20,12 +20,12 @@ var (
 	defaultSignalThreshold = sdk.NewDec(5).Quo(sdk.NewDec(6))
 )
 
-// SignalThreshold is the fraction of voting power that is required
+// Threshold is the fraction of voting power that is required
 // to signal for a version change. It is set to 5/6 as the middle point
 // between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
 // network during an upgrade period. It can be modified through a
 // hard fork change that modified the app version
-func SignalThreshold(_ uint64) sdk.Dec {
+func Threshold(_ uint64) sdk.Dec {
 	return defaultSignalThreshold
 }
 
@@ -169,7 +169,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 // upgrade to a new version.
 func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(ctx)
-	thresholdFraction := SignalThreshold(ctx.BlockHeader().Version.App)
+	thresholdFraction := Threshold(ctx.BlockHeader().Version.App)
 	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt()
 }
 
