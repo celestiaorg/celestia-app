@@ -1,11 +1,11 @@
-package upgrade
+package signal
 
 import (
 	"context"
 	"encoding/binary"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"

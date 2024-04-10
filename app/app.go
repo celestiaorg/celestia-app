@@ -9,8 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/v2/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
-	upgradetypes "github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -68,6 +66,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v6/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
@@ -97,6 +97,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
 	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v2/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 
 	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
@@ -134,7 +136,7 @@ var (
 		vesting.AppModuleBasic{},
 		blob.AppModuleBasic{},
 		blobstream.AppModuleBasic{},
-		upgrade.AppModuleBasic{},
+		signal.AppModuleBasic{},
 		minfee.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
 		icaModule{},
@@ -194,7 +196,8 @@ type App struct {
 	DistrKeeper      distrkeeper.Keeper
 	GovKeeper        govkeeper.Keeper
 	CrisisKeeper     crisiskeeper.Keeper
-	UpgradeKeeper    upgrade.Keeper
+	UpgradeKeeper    upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
+	SignalKeeper     signal.Keeper
 	ParamsKeeper     paramskeeper.Keeper
 	IBCKeeper        *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper   evidencekeeper.Keeper
@@ -254,6 +257,7 @@ func New(
 		ibchost.StoreKey,
 		packetforwardtypes.StoreKey,
 		icahosttypes.StoreKey,
+		signaltypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -315,7 +319,10 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	app.UpgradeKeeper = upgrade.NewKeeper(keys[upgradetypes.StoreKey], stakingKeeper)
+	// The ugrade keeper is intialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
+	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
+	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
+	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 	app.upgradeHeight = upgradeHeight
 
 	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
@@ -334,7 +341,7 @@ func New(
 		),
 	)
 
-	// ... other modules keepers
+	app.SignalKeeper = signal.NewKeeper(keys[signaltypes.StoreKey], app.StakingKeeper)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec,
@@ -510,7 +517,7 @@ func New(
 			FromVersion: v1, ToVersion: v2,
 		},
 		{
-			Module:      upgrade.NewAppModule(app.UpgradeKeeper),
+			Module:      signal.NewAppModule(app.SignalKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
 		{
@@ -554,7 +561,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
-		upgradetypes.ModuleName,
+		signaltypes.ModuleName,
 		minfee.ModuleName,
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
@@ -580,7 +587,7 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
-		upgradetypes.ModuleName,
+		signaltypes.ModuleName,
 		minfee.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
@@ -614,7 +621,7 @@ func New(
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
-		upgradetypes.ModuleName,
+		signaltypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 	)
@@ -684,7 +691,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			}
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
-	} else if shouldUpgrade, newVersion := app.UpgradeKeeper.ShouldUpgrade(); shouldUpgrade {
+	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			if err := app.Upgrade(ctx, currentVersion, newVersion); err != nil {

@@ -5,23 +5,17 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
 const (
-	StoreKey = upgradetypes.StoreKey
+	ModuleName = "signal"
 
-	// Copied from cosmos/cosmos-sdk/x/upgrade/types/keys.go:
-	ModuleName = upgradetypes.ModuleName
-
-	// QuerierRoute defines the module's query routing key
+	StoreKey     = ModuleName
 	QuerierRoute = ModuleName
+	RouterKey    = ModuleName
 
-	// RouterKey defines the module's message routing key
-	RouterKey = ModuleName
-
-	URLMsgSignalVersion = "/celestia.upgrade.v1.Msg/SignalVersion"
-	URLMsgTryUpgrade    = "/celestia.upgrade.v1.Msg/TryUpgrade"
+	URLMsgSignalVersion = "/celestia.signal.v1.Msg/SignalVersion"
+	URLMsgTryUpgrade    = "/celestia.signal_test.v1.Msg/TryUpgrade"
 )
 
 var (

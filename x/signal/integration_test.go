@@ -1,11 +1,11 @@
-package upgrade_test
+package signal_test
 
 import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -27,7 +27,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	goCtx := sdk.WrapSDKContext(ctx)
 	ctx = sdk.UnwrapSDKContext(goCtx)
 
-	res, err := app.UpgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+	res, err := app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
 	})
 	require.NoError(t, err)
@@ -37,13 +37,13 @@ func TestUpgradeIntegration(t *testing.T) {
 	valAddr, err := sdk.ValAddressFromBech32(validators[0].OperatorAddress)
 	require.NoError(t, err)
 
-	_, err = app.UpgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
+	_, err = app.SignalKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: valAddr.String(),
 		Version:          2,
 	})
 	require.NoError(t, err)
 
-	res, err = app.UpgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+	res, err = app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
 	})
 	require.NoError(t, err)
@@ -51,10 +51,10 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.EqualValues(t, 1, res.ThresholdPower)
 	require.EqualValues(t, 1, res.TotalVotingPower)
 
-	_, err = app.UpgradeKeeper.TryUpgrade(ctx, nil)
+	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
 	require.NoError(t, err)
 
-	shouldUpgrade, version := app.UpgradeKeeper.ShouldUpgrade()
+	shouldUpgrade, version := app.SignalKeeper.ShouldUpgrade()
 	require.True(t, shouldUpgrade)
 	require.EqualValues(t, 2, version)
 }

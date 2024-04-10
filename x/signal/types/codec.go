@@ -5,13 +5,11 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
 // RegisterLegacyAminoCodec registers the upgrade types on the provided
 // LegacyAmino codec.
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(upgradetypes.Plan{}, "cosmos-sdk/Plan", nil)
 	cdc.RegisterConcrete(&MsgTryUpgrade{}, URLMsgTryUpgrade, nil)
 	cdc.RegisterConcrete(&MsgSignalVersion{}, URLMsgSignalVersion, nil)
 }

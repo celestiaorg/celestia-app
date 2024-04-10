@@ -1,4 +1,4 @@
-package upgrade
+package signal
 
 import (
 	"cosmossdk.io/math"

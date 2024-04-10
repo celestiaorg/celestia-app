@@ -1,6 +1,6 @@
-# `x/upgrade`
+# `x/signal`
 
-This upgrade module is a fork of the cosmos-sdk's [x/upgrade](https://github.com/cosmos/cosmos-sdk/tree/main/x/upgrade) module. The primary purpose of this module is to allow for rolling network upgrades as proposed in [ADR-018](../../docs/architecture/adr-018-network-upgrades.md) and [CIP-10](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-10.md).
+The signal module acts as a coordinating mechanism for the application on when it should transition from one app version to another. The application itself handles multiple versioned modules as well as migrations, however it requires some protocol for knowing which height to perform this upgrade as it is critical that all nodes upgrade at the same point.
 
 Note: this module won't be used for upgrading from app version v1 to v2 but will be used for upgrading from v2 to v3 and onwards.
 
@@ -27,18 +27,18 @@ See [types/msgs.go](./types/msgs.go) for the message types.
 
 ```shell
 celestia-appd query upgrade tally
-celestia-appd tx upgrade signal
-celestia-appd tx upgrade try-upgrade
+celestia-appd tx signal signal
+celestia-appd tx signal try-upgrade
 ```
 
 ### gRPC
 
 ```api
-celestia.upgrade.v1.Query/VersionTally
+celestia.signal.v1.Query/VersionTally
 ```
 
 ```shell
-grpcurl -plaintext localhost:9090 celestia.upgrade.v1.Query/VersionTally
+grpcurl -plaintext localhost:9090 celestia.signal.v1.Query/VersionTally
 ```
 
 ## Appendix
