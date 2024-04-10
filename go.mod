@@ -247,5 +247,5 @@ replace (
 	github.com/go-kit/kit => github.com/evan-forbes/kit v0.0.0-20240305223840-a93fc52138c3
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240410185946-083b6d9e178a
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240410224845-db7c510dbfcb
 )
