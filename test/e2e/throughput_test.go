@@ -66,7 +66,7 @@ func TestE2EThroughput(t *testing.T) {
 	// 200KB* 4 * 40 * 2 = 8MB
 	err = testnet.CreateTxClients(txsimVersion, 40, "200000-200000",
 		maxTxsimResources,
-		append(gRPCEndpoints, gRPCEndpoints...))
+		gRPCEndpoints)
 	require.NoError(t, err)
 
 	// start the testnet
