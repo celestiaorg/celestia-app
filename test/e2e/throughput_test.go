@@ -71,7 +71,7 @@ func TestE2EThroughput(t *testing.T) {
 	// 200KB* 4 * 40 * 2 = 8MB
 	err = testnet.CreateTxClients(txsimVersion, 40, "200000-200000",
 		maxTxsimResources,
-		gRPCEndpoints)
+		append(gRPCEndpoints, gRPCEndpoints...))
 	require.NoError(t, err)
 
 	// start the testnet
@@ -88,7 +88,7 @@ func TestE2EThroughput(t *testing.T) {
 	// wait some time for the txsim to submit transactions
 	//time.Sleep(10 * time.Minute)
 
-	ticker := time.Tick(10 * time.Minute)
+	ticker := time.Tick(5 * time.Minute)
 	stop := make(chan struct{})
 	go func() {
 		reader := bufio.NewReader(os.Stdin)
