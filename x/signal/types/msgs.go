@@ -15,7 +15,7 @@ const (
 	RouterKey    = ModuleName
 
 	URLMsgSignalVersion = "/celestia.signal.v1.Msg/SignalVersion"
-	URLMsgTryUpgrade    = "/celestia.signal_test.v1.Msg/TryUpgrade"
+	URLMsgTryUpgrade    = "/celestia.signal.v1.Msg/TryUpgrade"
 )
 
 var (

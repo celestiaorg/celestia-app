@@ -26,7 +26,7 @@ See [types/msgs.go](./types/msgs.go) for the message types.
 ### CLI
 
 ```shell
-celestia-appd query upgrade tally
+celestia-appd query signal tally
 celestia-appd tx signal signal
 celestia-appd tx signal try-upgrade
 ```
