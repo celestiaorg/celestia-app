@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"testing"
@@ -180,9 +181,13 @@ func plotData(data []float64, fileName string, title, xLabel, yLabel string) {
 		return
 	}
 	pts := make(plotter.XYs, len(data))
+	maxValue := math.Inf(-1) // Start with the smallest possible float64 value
 	for i := range data {
 		pts[i].X = float64(i)
 		pts[i].Y = data[i]
+		if data[i] > maxValue {
+			maxValue = data[i] // Update maxValue if the current value is greater
+		}
 	}
 
 	p, err := plot.New()
@@ -192,6 +197,9 @@ func plotData(data []float64, fileName string, title, xLabel, yLabel string) {
 	p.Title.Text = title
 	p.X.Label.Text = xLabel
 	p.Y.Label.Text = yLabel
+
+	// Set the Max field of the Y-axis
+	p.Y.Max = maxValue
 
 	err = plotutil.AddLinePoints(p, yLabel, pts)
 	if err != nil {
