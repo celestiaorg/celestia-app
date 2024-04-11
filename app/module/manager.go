@@ -18,6 +18,7 @@ import (
 // versions of the module. It also provides a way to run migrations between different versions of a
 // module.
 type Manager struct {
+	// versionedModules is a map from app version -> module name -> module.
 	versionedModules map[uint64]map[string]sdkmodule.AppModule
 	// uniqueModuleVersions is a mapping of module name -> module consensus
 	// version -> the range of app versions this particular module operates
@@ -25,13 +26,15 @@ type Manager struct {
 	// last the toVersion (this is inclusive).
 	uniqueModuleVersions map[string]map[uint64][2]uint64
 	allModules           []sdkmodule.AppModule
-	firstVersion         uint64
-	lastVersion          uint64
-	OrderInitGenesis     []string
-	OrderExportGenesis   []string
-	OrderBeginBlockers   []string
-	OrderEndBlockers     []string
-	OrderMigrations      []string
+	// firstVersion is the lowest app version supported.
+	firstVersion uint64
+	// lastVersion is the highest app version supported.
+	lastVersion        uint64
+	OrderInitGenesis   []string
+	OrderExportGenesis []string
+	OrderBeginBlockers []string
+	OrderEndBlockers   []string
+	OrderMigrations    []string
 }
 
 // NewManager returns a new Manager object.
