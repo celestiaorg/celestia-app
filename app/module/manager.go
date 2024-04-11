@@ -33,15 +33,7 @@ type Manager struct {
 	OrderMigrations      []string
 }
 
-type VersionedModule struct {
-	Module sdkmodule.AppModule
-	// fromVersion and toVersion indicate the continuous range of app versions that the particular
-	// module is part of. The range is inclusive. `fromVersion` should not be smaller than `toVersion`
-	// 0 is not a valid app version
-	FromVersion, ToVersion uint64
-}
-
-// NewManager creates a new Manager object
+// NewManager returns a new Manager object.
 func NewManager(modules []VersionedModule) (*Manager, error) {
 	moduleMap := make(map[uint64]map[string]sdkmodule.AppModule)
 	allModules := make([]sdkmodule.AppModule, len(modules))
@@ -196,35 +188,6 @@ func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version ui
 
 	return genesisData
 }
-
-func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
-	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
-}
-
-// assertNoForgottenModules checks that we didn't forget any modules in the
-// SetOrder* functions.
-func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []string) {
-	ms := make(map[string]bool)
-	for _, m := range moduleNames {
-		ms[m] = true
-	}
-	var missing []string
-	for _, m := range m.allModules {
-		if _, ok := ms[m.Name()]; !ok {
-			missing = append(missing, m.Name())
-		}
-	}
-	if len(missing) != 0 {
-		panic(fmt.Sprintf(
-			"%s: all modules must be defined when setting %s, missing: %v", setOrderFnName, setOrderFnName, missing))
-	}
-}
-
-// MigrationHandler is the migration function that each module registers.
-type MigrationHandler func(sdk.Context) error
-
-// VersionMap is a map of moduleName -> version
-type VersionMap map[string]uint64
 
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
@@ -383,6 +346,29 @@ func (m *Manager) checkUpgradeSchedule() error {
 		}
 	}
 	return nil
+}
+
+func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
+	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
+}
+
+// assertNoForgottenModules checks that we didn't forget any modules in the
+// SetOrder* functions.
+func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []string) {
+	ms := make(map[string]bool)
+	for _, m := range moduleNames {
+		ms[m] = true
+	}
+	var missing []string
+	for _, m := range m.allModules {
+		if _, ok := ms[m.Name()]; !ok {
+			missing = append(missing, m.Name())
+		}
+	}
+	if len(missing) != 0 {
+		panic(fmt.Sprintf(
+			"%s: all modules must be defined when setting %s, missing: %v", setOrderFnName, setOrderFnName, missing))
+	}
 }
 
 // DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
