@@ -3,6 +3,7 @@ package module
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
@@ -43,9 +44,6 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 	allModules := make([]sdkmodule.AppModule, len(modules))
 	modulesStr := make([]string, 0, len(modules))
 	uniqueModuleVersions := make(map[string]map[uint64][2]uint64)
-	// firstVersion and lastVersion are quicker ways of working out the range of
-	// versions the state machine supports
-	firstVersion, lastVersion := uint64(0), uint64(0)
 	for idx, module := range modules {
 		name := module.Module.Name()
 		moduleVersion := module.Module.ConsensusVersion()
@@ -70,13 +68,9 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 			uniqueModuleVersions[name] = make(map[uint64][2]uint64)
 		}
 		uniqueModuleVersions[name][moduleVersion] = [2]uint64{module.FromVersion, module.ToVersion}
-		if firstVersion == 0 || module.FromVersion < firstVersion {
-			firstVersion = module.FromVersion
-		}
-		if lastVersion == 0 || module.ToVersion > lastVersion {
-			lastVersion = module.ToVersion
-		}
 	}
+	firstVersion := slices.Min(getKeys(moduleMap))
+	lastVersion := slices.Max(getKeys(moduleMap))
 
 	m := &Manager{
 		versionedModules:     moduleMap,
@@ -393,4 +387,12 @@ func DefaultMigrationsOrder(modules []string) []string {
 		out = append(out, authName)
 	}
 	return out
+}
+
+func getKeys(m map[uint64]map[string]sdkmodule.AppModule) []uint64 {
+	keys := make([]uint64, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
 }
