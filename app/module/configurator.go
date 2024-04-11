@@ -1,7 +1,6 @@
 package module
 
 import (
-	"context"
 	"fmt"
 
 	pbgrpc "github.com/gogo/protobuf/grpc"
@@ -10,7 +9,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"google.golang.org/grpc"
 )
 
 var _ module.Configurator = Configurator{}
@@ -27,12 +25,11 @@ type Configurator struct {
 	queryServer            pbgrpc.Server
 	// acceptedMsgs is a map from appVersion -> msgTypeURL -> struct{}.
 	acceptedMessages map[uint64]map[string]struct{}
-
-	// migrations is a map of moduleName -> fromVersion -> migration script handler
+	// migrations is a map of moduleName -> fromVersion -> migration script handler.
 	migrations map[string]map[uint64]module.MigrationHandler
 }
 
-// NewConfigurator returns a new Configurator instance
+// NewConfigurator returns a new Configurator instance.
 func NewConfigurator(cdc codec.Codec, msgServer, queryServer pbgrpc.Server) Configurator {
 	return Configurator{
 		cdc:              cdc,
@@ -49,22 +46,11 @@ func (c *Configurator) WithVersions(fromVersion, toVersion uint64) module.Config
 	return c
 }
 
-// MsgServer implements the Configurator.MsgServer method
+// MsgServer implements the Configurator.MsgServer method.
 func (c Configurator) MsgServer() pbgrpc.Server {
 	return &serverWrapper{
 		addMessages: c.addMessages,
 		msgServer:   c.msgServer,
-	}
-}
-
-func (c Configurator) addMessages(msgs []string) {
-	for version := c.fromVersion; version <= c.toVersion; version++ {
-		if _, exists := c.acceptedMessages[version]; !exists {
-			c.acceptedMessages[version] = map[string]struct{}{}
-		}
-		for _, msg := range msgs {
-			c.acceptedMessages[version][msg] = struct{}{}
-		}
 	}
 }
 
@@ -96,6 +82,17 @@ func (c Configurator) RegisterMigration(moduleName string, fromVersion uint64, h
 	return nil
 }
 
+func (c Configurator) addMessages(msgs []string) {
+	for version := c.fromVersion; version <= c.toVersion; version++ {
+		if _, exists := c.acceptedMessages[version]; !exists {
+			c.acceptedMessages[version] = map[string]struct{}{}
+		}
+		for _, msg := range msgs {
+			c.acceptedMessages[version][msg] = struct{}{}
+		}
+	}
+}
+
 // runModuleMigrations runs all in-place store migrations for one given module from a
 // version to another version.
 func (c Configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fromVersion, toVersion uint64) error {
@@ -125,36 +122,4 @@ func (c Configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fr
 	}
 
 	return nil
-}
-
-// the server wrapper wraps the pbgrpc.Server for registering a service but
-// includes logic to extract all the sdk.Msg types that the service declares
-// in its methods and fires a callback to add them to the configurator.
-// This allows us to create a map of which messages are accepted across which
-// versions
-type serverWrapper struct {
-	addMessages func(msgs []string)
-	msgServer   pbgrpc.Server
-}
-
-func (s *serverWrapper) RegisterService(sd *grpc.ServiceDesc, v interface{}) {
-	msgs := make([]string, len(sd.Methods))
-	for idx, method := range sd.Methods {
-		// we execute the handler to extract the message type
-		_, _ = method.Handler(nil, context.Background(), func(i interface{}) error {
-			msg, ok := i.(sdk.Msg)
-			if !ok {
-				panic(fmt.Errorf("unable to register service method %s/%s: %T does not implement sdk.Msg", sd.ServiceName, method.MethodName, i))
-			}
-			msgs[idx] = sdk.MsgTypeURL(msg)
-			return nil
-		}, noopInterceptor)
-	}
-	s.addMessages(msgs)
-	// call the underlying msg server to actually register the grpc server
-	s.msgServer.RegisterService(sd, v)
-}
-
-func noopInterceptor(_ context.Context, _ interface{}, _ *grpc.UnaryServerInfo, _ grpc.UnaryHandler) (interface{}, error) {
-	return nil, nil
 }
