@@ -19,9 +19,10 @@ import (
 // module.
 type Manager struct {
 	versionedModules map[uint64]map[string]sdkmodule.AppModule
-	// this is a mapping of module name to module consensus version to the range of
-	// app versions this particular module operates over. The first element in the
-	// array represent the fromVersion and the last the toVersion (this is inclusive)
+	// uniqueModuleVersions is a mapping of module name -> module consensus
+	// version -> the range of app versions this particular module operates
+	// over. The first element in the array represent the fromVersion and the
+	// last the toVersion (this is inclusive).
 	uniqueModuleVersions map[string]map[uint64][2]uint64
 	allModules           []sdkmodule.AppModule
 	firstVersion         uint64
@@ -298,20 +299,19 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	}
 }
 
-// ModuleNames returns list of all module names, without any particular order.
+// ModuleNames returns the list of module names that are supported for a
+// particular version in no particular order.
 func (m *Manager) ModuleNames(version uint64) []string {
 	modules, ok := m.versionedModules[version]
 	if !ok {
 		return []string{}
 	}
 
-	ms := make([]string, len(modules))
-	i := 0
-	for m := range modules {
-		ms[i] = m
-		i++
+	names := make([]string, 0, len(modules))
+	for name := range modules {
+		names = append(names, name)
 	}
-	return ms
+	return names
 }
 
 func (m *Manager) SupportedVersions() []uint64 {
