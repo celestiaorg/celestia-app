@@ -1,30 +1,38 @@
 package module
 
 import (
+	"slices"
 	"sort"
 
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 )
 
+const authName = "auth"
+
 // defaultMigrationsOrder returns a default migrations order. The order is
 // ascending alphabetical by module name except "auth" will will be last. See:
 // https://github.com/cosmos/cosmos-sdk/issues/10591
 func defaultMigrationsOrder(modules []string) []string {
-	const authName = "auth"
-	out := make([]string, 0, len(modules))
-	hasAuth := false
-	for _, m := range modules {
-		if m == authName {
-			hasAuth = true
-		} else {
-			out = append(out, m)
+	result := filter(modules, isNotAuth)
+	sort.Strings(result)
+
+	if hasAuth := slices.Contains(modules, authName); hasAuth {
+		return append(result, authName)
+	}
+	return result
+}
+
+func filter(elements []string, filter func(string) bool) (filtered []string) {
+	for _, element := range elements {
+		if filter(element) {
+			filtered = append(filtered, element)
 		}
 	}
-	sort.Strings(out)
-	if hasAuth {
-		out = append(out, authName)
-	}
-	return out
+	return filtered
+}
+
+func isNotAuth(name string) bool {
+	return name != "auth"
 }
 
 func getKeys(m map[uint64]map[string]sdkmodule.AppModule) []uint64 {
