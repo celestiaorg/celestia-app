@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	upgrade "github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
+	signal "github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -292,7 +292,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg := upgrade.NewMsgTryUpgrade(addr)
+				msg := signal.NewMsgTryUpgrade(addr)
 				return []sdk.Msg{msg}, account
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -301,7 +301,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "signal a version change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccount := s.getValidatorAccount()
-				msg := upgrade.NewMsgSignalVersion(valAccount, 2)
+				msg := signal.NewMsgSignalVersion(valAccount, 2)
 				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,

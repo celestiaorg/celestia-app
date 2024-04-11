@@ -1,13 +1,17 @@
-package upgrade_test
+package signal_test
 
 import (
+	"fmt"
+	"math"
+	"math/big"
 	"testing"
 
-	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
+	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v2/x/signal"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +23,52 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmdb "github.com/tendermint/tm-db"
 )
+
+func TestGetVotingPowerThreshold(t *testing.T) {
+	bigInt := big.NewInt(0)
+	bigInt.SetString("23058430092136939509", 10)
+
+	type testCase struct {
+		name       string
+		validators map[string]int64
+		want       sdkmath.Int
+	}
+	testCases := []testCase{
+		{
+			name:       "empty validators",
+			validators: map[string]int64{},
+			want:       sdkmath.NewInt(0),
+		},
+		{
+			name:       "one validator with 6 power returns 5 because the defaultSignalThreshold is 5/6",
+			validators: map[string]int64{"a": 6},
+			want:       sdkmath.NewInt(5),
+		},
+		{
+			name:       "one validator with 11 power (11 * 5/6 = 9.16666667) so should round up to 10",
+			validators: map[string]int64{"a": 11},
+			want:       sdkmath.NewInt(10),
+		},
+		{
+			name:       "one validator with voting power of math.MaxInt64",
+			validators: map[string]int64{"a": math.MaxInt64},
+			want:       sdkmath.NewInt(7686143364045646503),
+		},
+		{
+			name:       "multiple validators with voting power of math.MaxInt64",
+			validators: map[string]int64{"a": math.MaxInt64, "b": math.MaxInt64, "c": math.MaxInt64},
+			want:       sdkmath.NewIntFromBigInt(bigInt),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stakingKeeper := newMockStakingKeeper(tc.validators)
+			k := signal.NewKeeper(nil, stakingKeeper)
+			got := k.GetVotingPowerThreshold(sdk.Context{})
+			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
+		})
+	}
+}
 
 func TestSignalVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
@@ -202,17 +252,17 @@ func TestThresholdVotingPower(t *testing.T) {
 		{total: 6, threshold: 5},
 		{total: 59, threshold: 50},
 	} {
-		mockStakingKeeper.totalVotingPower = math.NewInt(tc.total)
+		mockStakingKeeper.totalVotingPower = sdkmath.NewInt(tc.total)
 		threshold := upgradeKeeper.GetVotingPowerThreshold(ctx)
 		require.EqualValues(t, tc.threshold, threshold.Int64())
 	}
 }
 
-func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
-	upgradeStore := sdk.NewKVStoreKey(types.StoreKey)
+func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
+	signalStore := sdk.NewKVStoreKey(types.StoreKey)
 	db := tmdb.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db)
-	stateStore.MountStoreWithDB(upgradeStore, storetypes.StoreTypeIAVL, nil)
+	stateStore.MountStoreWithDB(signalStore, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
 	mockCtx := sdk.NewContext(stateStore, tmproto.Header{
 		Version: tmversion.Consensus{
@@ -229,19 +279,19 @@ func setup(t *testing.T) (upgrade.Keeper, sdk.Context, *mockStakingKeeper) {
 		},
 	)
 
-	upgradeKeeper := upgrade.NewKeeper(upgradeStore, mockStakingKeeper)
+	upgradeKeeper := signal.NewKeeper(signalStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }
 
-var _ upgrade.StakingKeeper = (*mockStakingKeeper)(nil)
+var _ signal.StakingKeeper = (*mockStakingKeeper)(nil)
 
 type mockStakingKeeper struct {
-	totalVotingPower math.Int
+	totalVotingPower sdkmath.Int
 	validators       map[string]int64
 }
 
 func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
-	totalVotingPower := math.NewInt(0)
+	totalVotingPower := sdkmath.NewInt(0)
 	for _, power := range validators {
 		totalVotingPower = totalVotingPower.AddRaw(power)
 	}
@@ -251,7 +301,7 @@ func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
 	}
 }
 
-func (m *mockStakingKeeper) GetLastTotalPower(_ sdk.Context) math.Int {
+func (m *mockStakingKeeper) GetLastTotalPower(_ sdk.Context) sdkmath.Int {
 	return m.totalVotingPower
 }
 
