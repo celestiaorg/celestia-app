@@ -258,6 +258,32 @@ func TestThresholdVotingPower(t *testing.T) {
 	}
 }
 
+// TestResetTally verifies that the VotingPower for all versions is reset to
+// zero after calling ResetTally.
+func TestResetTally(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+
+	upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 1})
+	resp, err := upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(40), resp.VotingPower)
+
+	upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(1), resp.VotingPower)
+
+	upgradeKeeper.ResetTally(ctx)
+
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), resp.VotingPower)
+
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), resp.VotingPower)
+}
+
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	signalStore := sdk.NewKVStoreKey(types.StoreKey)
 	db := tmdb.NewMemDB()
