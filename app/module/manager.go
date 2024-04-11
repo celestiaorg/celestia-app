@@ -196,7 +196,7 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 	}
 	modules := m.OrderMigrations
 	if modules == nil {
-		modules = DefaultMigrationsOrder(m.ModuleNames(toVersion))
+		modules = defaultMigrationsOrder(m.ModuleNames(toVersion))
 	}
 	currentVersionModules, exists := m.versionedModules[fromVersion]
 	if !exists {
@@ -362,10 +362,10 @@ func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []
 	}
 }
 
-// DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
+// defaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
 // except x/auth which will run last, see:
 // https://github.com/cosmos/cosmos-sdk/issues/10591
-func DefaultMigrationsOrder(modules []string) []string {
+func defaultMigrationsOrder(modules []string) []string {
 	const authName = "auth"
 	out := make([]string, 0, len(modules))
 	hasAuth := false
