@@ -1,9 +1,9 @@
 syntax = "proto3";
-package celestia.upgrade.v1;
+package celestia.signal.v1;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/upgrade/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
 // Query defines the upgrade Query service.
 service Query {
