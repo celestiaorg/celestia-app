@@ -23,7 +23,7 @@ type Configurator struct {
 	cdc                    codec.Codec
 	msgServer              pbgrpc.Server
 	queryServer            pbgrpc.Server
-	// acceptedMsgs is a map from appVersion -> msgTypeURL -> struct{}.
+	// acceptedMessages is a map from appVersion -> msgTypeURL -> struct{}.
 	acceptedMessages map[uint64]map[string]struct{}
 	// migrations is a map of moduleName -> fromVersion -> migration script handler.
 	migrations map[string]map[uint64]module.MigrationHandler
@@ -54,6 +54,8 @@ func (c Configurator) MsgServer() pbgrpc.Server {
 	}
 }
 
+// GetAcceptedMessages returns the accepted messages for all versions.
+// acceptedMessages is a map from appVersion -> msgTypeURL -> struct{}.
 func (c Configurator) GetAcceptedMessages() map[uint64]map[string]struct{} {
 	return c.acceptedMessages
 }
