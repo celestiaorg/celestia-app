@@ -312,13 +312,7 @@ func (m *Manager) ModuleNames(version uint64) []string {
 }
 
 func (m *Manager) SupportedVersions() []uint64 {
-	output := make([]uint64, 0, m.lastVersion-m.firstVersion+1)
-	for version := m.firstVersion; version <= m.lastVersion; version++ {
-		if _, ok := m.versionedModules[version]; ok {
-			output = append(output, version)
-		}
-	}
-	return output
+	return getKeys(m.versionedModules)
 }
 
 // checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
