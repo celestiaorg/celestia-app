@@ -40,5 +40,6 @@ func getKeys(m map[uint64]map[string]sdkmodule.AppModule) []uint64 {
 	for key := range m {
 		keys = append(keys, key)
 	}
+	slices.Sort(keys)
 	return keys
 }

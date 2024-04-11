@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,4 +34,34 @@ func Test_defaultMigrationsOrder(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_getKeys(t *testing.T) {
+	type testCase struct {
+		input map[uint64]map[string]sdkmodule.AppModule
+		want  []uint64
+	}
+	testCases := []testCase{
+		{
+			input: map[uint64]map[string]sdkmodule.AppModule{},
+			want:  []uint64{},
+		},
+		{
+			input: map[uint64]map[string]sdkmodule.AppModule{
+				1: {"a": nil},
+			},
+			want: []uint64{1},
+		},
+		{
+			input: map[uint64]map[string]sdkmodule.AppModule{
+				1: {"a": nil},
+				3: {"b": nil},
+			},
+			want: []uint64{1, 3},
+		},
+	}
+	for _, tc := range testCases {
+		got := getKeys(tc.input)
+		assert.Equal(t, tc.want, got)
+	}
 }
