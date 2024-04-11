@@ -99,25 +99,25 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 	return m, nil
 }
 
-// SetOrderInitGenesis sets the order of init genesis calls
+// SetOrderInitGenesis sets the order of init genesis calls.
 func (m *Manager) SetOrderInitGenesis(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderInitGenesis", moduleNames)
 	m.OrderInitGenesis = moduleNames
 }
 
-// SetOrderExportGenesis sets the order of export genesis calls
+// SetOrderExportGenesis sets the order of export genesis calls.
 func (m *Manager) SetOrderExportGenesis(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderExportGenesis", moduleNames)
 	m.OrderExportGenesis = moduleNames
 }
 
-// SetOrderBeginBlockers sets the order of begin-blocker calls
+// SetOrderBeginBlockers sets the order of begin-blocker calls.
 func (m *Manager) SetOrderBeginBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderBeginBlockers", moduleNames)
 	m.OrderBeginBlockers = moduleNames
 }
 
-// SetOrderEndBlockers sets the order of end-blocker calls
+// SetOrderEndBlockers sets the order of end-blocker calls.
 func (m *Manager) SetOrderEndBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderEndBlockers", moduleNames)
 	m.OrderEndBlockers = moduleNames
@@ -130,23 +130,19 @@ func (m *Manager) SetOrderMigrations(moduleNames ...string) {
 	m.OrderMigrations = moduleNames
 }
 
-// RegisterInvariants registers all module invariants
+// RegisterInvariants registers all module invariants.
 func (m *Manager) RegisterInvariants(ir sdk.InvariantRegistry) {
 	for _, module := range m.allModules {
 		module.RegisterInvariants(ir)
 	}
 }
 
-// RegisterServices registers all module services
+// RegisterServices registers all module services.
 func (m *Manager) RegisterServices(cfg Configurator) {
 	for _, module := range m.allModules {
 		fromVersion, toVersion := m.getAppVersionsForModule(module.Name(), module.ConsensusVersion())
 		module.RegisterServices(cfg.WithVersions(fromVersion, toVersion))
 	}
-}
-
-func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
-	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
 }
 
 // InitGenesis performs init genesis functionality for modules. Exactly one
@@ -199,6 +195,10 @@ func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version ui
 	}
 
 	return genesisData
+}
+
+func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
+	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
 }
 
 // assertNoForgottenModules checks that we didn't forget any modules in the
