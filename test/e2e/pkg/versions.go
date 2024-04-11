@@ -1,4 +1,4 @@
-package e2e
+package pkg
 
 import (
 	"fmt"
@@ -45,6 +45,7 @@ type VersionSet []Version
 func ParseVersions(versionStr string) VersionSet {
 	versions := strings.Split(versionStr, " ")
 	output := make(VersionSet, 0, len(versions))
+	fmt.Println(versions, "VERSIONSSS")
 	for _, v := range versions {
 		version, isValid := ParseVersion(v)
 		if !isValid {
@@ -52,6 +53,7 @@ func ParseVersions(versionStr string) VersionSet {
 		}
 		output = append(output, version)
 	}
+	fmt.Println(output, "output")
 	return output
 }
 
@@ -59,12 +61,16 @@ func ParseVersions(versionStr string) VersionSet {
 // valid version, the second return value is false.
 // Must be of the format v1.0.0 or v1.0.0-rc1 (i.e. following SemVer)
 func ParseVersion(version string) (Version, bool) {
+	fmt.Println(version, "VERSION in parse v ersion")
 	var major, minor, patch, rc uint64
 	isRC := false
 	if strings.Contains(version, "rc") {
+		fmt.Println("HERE")
 		_, err := fmt.Sscanf(version, "v%d.%d.%d-rc%d", &major, &minor, &patch, &rc)
 		isRC = true
 		if err != nil {
+			fmt.Println(err, "ERROR", version)
+			fmt.Println("HERE 2")
 			return Version{}, false
 		}
 	} else {
@@ -73,6 +79,7 @@ func ParseVersion(version string) (Version, bool) {
 			return Version{}, false
 		}
 	}
+	fmt.Println(Version{major, minor, patch, isRC, rc}, true, "PARSE VERSION")
 	return Version{major, minor, patch, isRC, rc}, true
 }
 
@@ -83,6 +90,7 @@ func (v VersionSet) FilterMajor(majorVersion uint64) VersionSet {
 			output = append(output, version)
 		}
 	}
+	fmt.Println(output, "output")
 	return output
 }
 
@@ -90,6 +98,7 @@ func (v VersionSet) FilterOutReleaseCandidates() VersionSet {
 	output := make(VersionSet, 0, len(v))
 	for _, version := range v {
 		if version.IsRC {
+			fmt.Println("skipping version", version.String())
 			continue
 		}
 		output = append(output, version)

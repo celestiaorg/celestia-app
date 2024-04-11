@@ -6,7 +6,6 @@ End to end tests pull docker images from ghcr.io/celestiaorg/celestia-app. These
 
 ## Usage
 
-E2E tests can be simply run through go tests. They are distinguished from unit tests through an environment variable. To run all e2e tests run:
 
 ```shell
 KNUU_NAMESPACE=test E2E_LATEST_VERSION="$(git rev-parse --short main)" E2E_VERSIONS="$(git tag -l)"  go test ./test/e2e/... -timeout 30m -v

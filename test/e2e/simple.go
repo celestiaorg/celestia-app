@@ -1,35 +1,31 @@
-package e2e
+package main
 
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
-	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/pkg"
 	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	"github.com/stretchr/testify/require"
 )
-
-const seed = 42
-
-var latestVersion = "latest"
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
-func TestE2ESimple(t *testing.T) {
+func E2ESimple(logger *log.Logger) error {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		t.Skip("skipping e2e test")
+		logger.Fatal("skipping e2e test")
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := ParseVersion(latestVersion)
+		_, isSemVer := pkg.ParseVersion(latestVersion)
 		switch {
 		case isSemVer:
 		case latestVersion == "latest":
@@ -38,29 +34,32 @@ func TestE2ESimple(t *testing.T) {
 			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
 			latestVersion = latestVersion[:7]
 		default:
-			t.Fatalf("unrecognised version: %s", latestVersion)
+			logger.Fatalf("unrecognised version: %s", latestVersion)
 		}
 	}
-	t.Log("Running simple e2e test", "version", latestVersion)
+	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
-	require.NoError(t, err)
-	t.Cleanup(testnet.Cleanup)
+	testnet, err := pkg.New("E2ESimple", seed, pkg.GetGrafanaInfoFromEnvVar())
+	NoError("failed to create testnet", err)
+	defer testnet.Cleanup()
 
-	t.Log("Creating testnet validators")
-	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000,
-		0, defaultResources))
+	logger.Println("Creating testnet validators")
+	err = testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0, pkg.DefaultResources)
+	NoError("failed to create genesis nodes", err)
 
-	t.Log("Creating account")
+	logger.Println("Creating account")
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	require.NoError(t, err)
+	NoError("failed to create account", err)
 
-	t.Log("Setting up testnet")
-	require.NoError(t, testnet.Setup())
-	t.Log("Starting testnet")
-	require.NoError(t, testnet.Start())
+	logger.Println("Setting up testnet")
+	err = testnet.Setup()
+	NoError("failed to setup testnet", err)
 
-	t.Log("Running txsim")
+	logger.Println("Starting testnet")
+	err = testnet.Start()
+	NoError("failed to start testnet", err)
+
+	logger.Println("Running txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
 	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
@@ -69,16 +68,24 @@ func TestE2ESimple(t *testing.T) {
 	defer cancel()
 	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
 
-	t.Log("Reading blockchain")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		logger.Fatal("Expected context.DeadlineExceeded, got %v", err)
+	}
+
+	logger.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
-	require.NoError(t, err)
+	NoError("failed to read blockchain", err)
 
 	totalTxs := 0
 	for _, block := range blockchain {
-		require.Equal(t, appconsts.LatestVersion, block.Version.App)
+		if appconsts.LatestVersion != block.Version.App {
+			logger.Fatalf("expected app version %s, got %s", appconsts.LatestVersion, block.Version.App)
+		}
 		totalTxs += len(block.Data.Txs)
 	}
-	require.Greater(t, totalTxs, 10)
+	if totalTxs < 10 {
+		logger.Fatalf("expected at least 10 transactions, got %d", totalTxs)
+	}
+	return nil
 }
