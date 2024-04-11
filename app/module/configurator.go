@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var _ module.Configurator = VersionedConfigurator{}
+
 // VersionedConfigurator is a struct used at startup to register all the message and
 // query servers for all modules. It allows the module to register any migrations from
 // one consensus version of the module to the next. Finally it maps all the messages
@@ -40,8 +42,6 @@ func NewConfigurator(cdc codec.Codec, msgServer, queryServer pbgrpc.Server) Vers
 		acceptedMessages: map[uint64]map[string]struct{}{},
 	}
 }
-
-var _ module.Configurator = VersionedConfigurator{}
 
 func (c *VersionedConfigurator) WithVersions(fromVersion, toVersion uint64) module.Configurator {
 	c.fromVersion = fromVersion
