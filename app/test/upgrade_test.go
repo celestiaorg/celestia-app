@@ -5,6 +5,7 @@ import (
 
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestUpgradeAppVersion(t *testing.T) {
-	testApp, _ := setupTestApp(t, 3)
+	testApp, _ := util.SetupTestApp(t, 3)
 
 	supportedVersions := []uint64{v1.Version, v2.Version}
 
