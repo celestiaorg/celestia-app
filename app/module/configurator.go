@@ -13,14 +13,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-var _ module.Configurator = VersionedConfigurator{}
+var _ module.Configurator = Configurator{}
 
-// VersionedConfigurator is a struct used at startup to register all the message and
+// Configurator is a struct used at startup to register all the message and
 // query servers for all modules. It allows the module to register any migrations from
 // one consensus version of the module to the next. Finally it maps all the messages
 // to the app versions that they are accepted in. This then gets used in the antehandler
 // to prevent users from submitting messages that can not yet be executed.
-type VersionedConfigurator struct {
+type Configurator struct {
 	fromVersion, toVersion uint64
 	cdc                    codec.Codec
 	msgServer              pbgrpc.Server
@@ -33,8 +33,8 @@ type VersionedConfigurator struct {
 }
 
 // NewConfigurator returns a new Configurator instance
-func NewConfigurator(cdc codec.Codec, msgServer, queryServer pbgrpc.Server) VersionedConfigurator {
-	return VersionedConfigurator{
+func NewConfigurator(cdc codec.Codec, msgServer, queryServer pbgrpc.Server) Configurator {
+	return Configurator{
 		cdc:              cdc,
 		msgServer:        msgServer,
 		queryServer:      queryServer,
@@ -43,21 +43,21 @@ func NewConfigurator(cdc codec.Codec, msgServer, queryServer pbgrpc.Server) Vers
 	}
 }
 
-func (c *VersionedConfigurator) WithVersions(fromVersion, toVersion uint64) module.Configurator {
+func (c *Configurator) WithVersions(fromVersion, toVersion uint64) module.Configurator {
 	c.fromVersion = fromVersion
 	c.toVersion = toVersion
 	return c
 }
 
 // MsgServer implements the Configurator.MsgServer method
-func (c VersionedConfigurator) MsgServer() pbgrpc.Server {
+func (c Configurator) MsgServer() pbgrpc.Server {
 	return &serverWrapper{
 		addMessages: c.addMessages,
 		msgServer:   c.msgServer,
 	}
 }
 
-func (c VersionedConfigurator) addMessages(msgs []string) {
+func (c Configurator) addMessages(msgs []string) {
 	for version := c.fromVersion; version <= c.toVersion; version++ {
 		if _, exists := c.acceptedMessages[version]; !exists {
 			c.acceptedMessages[version] = map[string]struct{}{}
@@ -68,17 +68,17 @@ func (c VersionedConfigurator) addMessages(msgs []string) {
 	}
 }
 
-func (c VersionedConfigurator) GetAcceptedMessages() map[uint64]map[string]struct{} {
+func (c Configurator) GetAcceptedMessages() map[uint64]map[string]struct{} {
 	return c.acceptedMessages
 }
 
 // QueryServer implements the Configurator.QueryServer method
-func (c VersionedConfigurator) QueryServer() pbgrpc.Server {
+func (c Configurator) QueryServer() pbgrpc.Server {
 	return c.queryServer
 }
 
 // RegisterMigration implements the Configurator.RegisterMigration method
-func (c VersionedConfigurator) RegisterMigration(moduleName string, fromVersion uint64, handler module.MigrationHandler) error {
+func (c Configurator) RegisterMigration(moduleName string, fromVersion uint64, handler module.MigrationHandler) error {
 	if fromVersion == 0 {
 		return sdkerrors.ErrInvalidVersion.Wrap("module migration versions should start at 1")
 	}
@@ -98,7 +98,7 @@ func (c VersionedConfigurator) RegisterMigration(moduleName string, fromVersion 
 
 // runModuleMigrations runs all in-place store migrations for one given module from a
 // version to another version.
-func (c VersionedConfigurator) runModuleMigrations(ctx sdk.Context, moduleName string, fromVersion, toVersion uint64) error {
+func (c Configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fromVersion, toVersion uint64) error {
 	// No-op if toVersion is the initial version or if the version is unchanged.
 	if toVersion <= 1 || fromVersion == toVersion {
 		return nil

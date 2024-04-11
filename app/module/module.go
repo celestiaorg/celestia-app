@@ -138,7 +138,7 @@ func (m *Manager) RegisterInvariants(ir sdk.InvariantRegistry) {
 }
 
 // RegisterServices registers all module services
-func (m *Manager) RegisterServices(cfg VersionedConfigurator) {
+func (m *Manager) RegisterServices(cfg Configurator) {
 	for _, module := range m.allModules {
 		fromVersion, toVersion := m.getAppVersionsForModule(module.Name(), module.ConsensusVersion())
 		module.RegisterServices(cfg.WithVersions(fromVersion, toVersion))
@@ -229,9 +229,9 @@ type VersionMap map[string]uint64
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
-	c, ok := cfg.(VersionedConfigurator)
+	c, ok := cfg.(Configurator)
 	if !ok {
-		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", VersionedConfigurator{}, cfg)
+		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", Configurator{}, cfg)
 	}
 	modules := m.OrderMigrations
 	if modules == nil {
