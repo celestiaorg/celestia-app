@@ -15,6 +15,3 @@ type VersionedModule struct {
 
 // MigrationHandler is the migration function that each module registers.
 type MigrationHandler func(sdk.Context) error
-
-// VersionMap is a map of moduleName -> version
-type VersionMap map[string]uint64
