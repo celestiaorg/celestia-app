@@ -1,5 +1,8 @@
 # `x/blobstream`
 
+> [!NOTE]
+> The `x/blobstream` module was enabled for app version 1 and disabled in app version >= 2.
+
 ## Concepts
 
 This module contains the [Blobstream](https://blog.celestia.org/celestiums/) state machine implementation.
