@@ -227,7 +227,7 @@ type MigrationHandler func(sdk.Context) error
 type VersionMap map[string]uint64
 
 // RunMigrations performs in-place store migrations for all modules. This
-// function MUST be called when the state machine changes appVersion
+// function MUST be called when the state machine changes appVersion.
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
 	c, ok := cfg.(VersionedConfigurator)
 	if !ok {
@@ -250,8 +250,7 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 		currentModule, currentModuleExists := currentVersionModules[moduleName]
 		nextModule, nextModuleExists := nextVersionModules[moduleName]
 
-		// if the module exists for both upgrades
-		if currentModuleExists && nextModuleExists {
+		if isModuleExisting(currentModuleExists, nextModuleExists) {
 			// by using consensus version instead of app version we support the SDK's legacy method
 			// of migrating modules which were made of several versions and consisted of a mapping of
 			// app version to module version. Now, using go.mod, each module will have only a single
@@ -263,7 +262,7 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 			if err != nil {
 				return err
 			}
-		} else if !currentModuleExists && nextModuleExists {
+		} else if isModuleNew(currentModuleExists, nextModuleExists) {
 			ctx.Logger().Info(fmt.Sprintf("adding a new module: %s", moduleName))
 			moduleValUpdates := nextModule.InitGenesis(ctx, c.cdc, nextModule.DefaultGenesis(c.cdc))
 			// The module manager assumes only one module will update the
@@ -271,10 +270,16 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 			if len(moduleValUpdates) > 0 {
 				return sdkerrors.ErrLogic.Wrap("validator InitGenesis update is already set by another module")
 			}
+		} else if isModuleRemoved(currentModuleExists, nextModuleExists) {
+			ctx.Logger().Info(fmt.Sprintf("removing an existing module: %s", moduleName))
+			fromModuleVersion := currentModule.ConsensusVersion()
+			toModuleVersion := nextModule.ConsensusVersion()
+			err := c.runModuleMigrations(ctx, moduleName, fromModuleVersion, toModuleVersion)
+			if err != nil {
+				return err
+			}
 		}
-		// TODO: handle the case where a module is no longer supported (i.e. removed from the state machine)
 	}
-
 	return nil
 }
 
@@ -404,4 +409,16 @@ func DefaultMigrationsOrder(modules []string) []string {
 		out = append(out, authName)
 	}
 	return out
+}
+
+func isModuleExisting(currentModuleExists, nextModuleExists bool) bool {
+	return currentModuleExists && nextModuleExists
+}
+
+func isModuleNew(currentModuleExists, nextModuleExists bool) bool {
+	return !currentModuleExists && nextModuleExists
+}
+
+func isModuleRemoved(currentModuleExists, nextModuleExists bool) bool {
+	return currentModuleExists && !nextModuleExists
 }
