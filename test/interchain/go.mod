@@ -230,7 +230,7 @@ replace (
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
 	github.com/docker/docker => github.com/docker/docker v24.0.1+incompatible
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/strangelove-ventures/interchaintest/v6 => ../../../../strangelove-ventures/interchaintest // Needed until https://github.com/strangelove-ventures/interchaintest/pull/1051 merges.
+	github.com/strangelove-ventures/interchaintest/v6 => github.com/rootulp/interchaintest/v6 v6.1.0 // Needed until https://github.com/strangelove-ventures/interchaintest/pull/1051 is included in a v6.x.x release.
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29
 	github.com/vedhavyas/go-subkey => github.com/strangelove-ventures/go-subkey v1.0.7
