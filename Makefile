@@ -9,6 +9,7 @@ PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
 GOLANG_CROSS_VERSION  ?= v1.22.2
+GH_COMMIT := $(shell git rev-parse --short HEAD)
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -43,6 +44,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"
 	@(cd ./test/testground && go mod tidy)
+	@echo "--> Updating go.mod in ./test/interchain"
+	@(cd ./test/interchain && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -159,9 +162,20 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
+## test-fuzz: Run all fuzz tests.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
+
+## test-interchain: Run interchain tests in verbose mode. Requires Docker.
+test-interchain:
+	@echo "--> Running interchain tests"
+	@go test ./test/interchain -v
+.PHONY: test-interchain
+
+# Add an alias so that test-ic invokes test-interchain.
+test-ic: test-interchain
+.PHONY: test-ic
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
