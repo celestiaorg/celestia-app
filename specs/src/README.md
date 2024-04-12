@@ -20,6 +20,6 @@
   - [blobstream](https://github.com/celestiaorg/celestia-app/blob/main/x/blobstream/README.md)
   - [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
   - [paramfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md)
-  - [upgrade](https://github.com/celestiaorg/celestia-app/blob/main/x/upgrade/README.md)
+  - [signal](https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md)
   - [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
 - [Mainnet Parameters](./specs/params.md)
