@@ -214,8 +214,9 @@ type App struct {
 
 	mm           *module.Manager
 	configurator module.VersionedConfigurator
-	// used as a coordination mechanism for height based upgrades
-	upgradeHeight int64
+	// upgradeHeightV2 is used as a coordination mechanism for the height-based
+	// upgrade from v1 to v2.
+	upgradeHeightV2 int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 
@@ -224,9 +225,9 @@ type App struct {
 
 // New returns a reference to an initialized celestia app.
 //
-// NOTE: upgradeHeight refers specifically to the height that
+// NOTE: upgradeHeightV2 refers specifically to the height that
 // a node will upgrade from v1 to v2. It will be deprecated in v3
-// in place for a dynamically signalling scheme
+// in place for a dynamically signalling scheme.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -234,7 +235,7 @@ func New(
 	loadLatest bool,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeHeight int64,
+	upgradeHeightV2 int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -271,6 +272,7 @@ func New(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
+		upgradeHeightV2:   upgradeHeightV2,
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
@@ -323,8 +325,6 @@ func New(
 	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
 	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-	app.upgradeHeight = upgradeHeight
-
 	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
 		keys[blobstreamtypes.StoreKey],
@@ -514,7 +514,7 @@ func New(
 		},
 		{
 			Module:      blobstream.NewAppModule(appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v1,
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
@@ -685,7 +685,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
-		if req.Height == app.upgradeHeight-1 {
+		if req.Height == app.upgradeHeightV2-1 {
 			if err := app.Upgrade(ctx, currentVersion, currentVersion+1); err != nil {
 				panic(err)
 			}
@@ -714,7 +714,6 @@ func (app *App) Upgrade(ctx sdk.Context, fromVersion, toVersion uint64) error {
 	return nil
 }
 
-// InitChainer application update at chain initialization
 func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
