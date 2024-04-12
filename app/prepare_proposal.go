@@ -15,15 +15,13 @@ import (
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
-// preparing the proposal block data. The square size is determined by first
-// estimating it via the size of the passed block data. Then, this method
-// generates the data root for the proposal block and passes it back to
-// tendermint via the BlockData. Panics indicate a developer error and should
-// immediately halt the node for visibility and so they can be quickly resolved.
+// preparing the proposal block data. This method generates the data root for
+// the proposal block and passes it back to tendermint via the BlockData. Panics
+// indicate a developer error and should immediately halt the node for
+// visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
-	// create a context using a branch of the state and loaded using the
-	// proposal height and chain-id
+	// Create a context using a branch of the state.
 	sdkCtx := app.NewProposalContext(core.Header{
 		ChainID: req.ChainId,
 		Height:  req.Height,
@@ -32,10 +30,6 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			App: app.BaseApp.AppVersion(),
 		},
 	})
-	// filter out invalid transactions.
-	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
-	// and only check the state dependent checks like fees and nonces as all these transactions have already
-	// passed CheckTx.
 	handler := ante.NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
@@ -47,10 +41,12 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	)
+
+	// Filter out invalid transactions.
 	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 
-	// build the square from the set of valid and prioritised transactions.
-	// The txs returned are the ones used in the square and block
+	// Build the square from the set of valid and prioritised transactions.
+	// The txs returned are the ones used in the square and block.
 	dataSquare, txs, err := square.Build(txs,
 		app.MaxEffectiveSquareSize(sdkCtx),
 		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
@@ -59,9 +55,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
-	// erasure the data square which we use to create the data root.
-	// Note: uses the nmt wrapper to construct the tree.
-	// checkout pkg/wrapper/nmt_wrapper.go for more information.
+	// Erasure encode the data square to create the extended data square (eds).
+	// Note: uses the nmt wrapper to construct the tree. See
+	// pkg/wrapper/nmt_wrapper.go for more information.
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
@@ -72,8 +68,6 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
-	// create the new data root by creating the data availability header (merkle
-	// roots of each row and col of the erasure data).
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
 		app.Logger().Error(
@@ -84,13 +78,14 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
-	// tendermint doesn't need to use any of the erasure data, as only the
-	// protobuf encoded version of the block data is gossiped.
+	// Tendermint doesn't need to use any of the erasure data because only the
+	// protobuf encoded version of the block data is gossiped. Therefore, the
+	// eds is not returned here.
 	return abci.ResponsePrepareProposal{
 		BlockData: &core.Data{
 			Txs:        txs,
 			SquareSize: uint64(dataSquare.Size()),
-			Hash:       dah.Hash(),
+			Hash:       dah.Hash(), // also known as the data root
 		},
 	}
 }
