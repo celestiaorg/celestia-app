@@ -11,20 +11,20 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "2n-base-2"
+chain_id = "2n-2v-8"
 timeout = "50m"
 halt_height = "2000"
 latency = "0"
 random_latency = "false"
 bandwidth = "1Gb"
-validators = "100"
+validators = "2"
 topology = "seed"
 pex = "true"
 timeout_propose = "10s"
-timeout_commit = "10s"
+timeout_commit = "5s"
 per_peer_bandwidth = "100Mb"
-blob_sequences = "50"
-blob_sizes = "1800000"
+blob_sequences = "60"
+blob_sizes = "2000000"
 blobs_per_sequence = "1"
 inbound_peer_count = "40"
 outbound_peer_count = "10"
@@ -37,6 +37,7 @@ tracing_token = ""
 tracing_url = ""
 experiment = "unbounded"
 
+
 [[groups]]
 id = "validators"
 builder = "docker:generic"
@@ -44,7 +45,7 @@ builder = "docker:generic"
 memory = "12Gi"
 cpu = "8"
 [groups.instances]
-count = 100
+count = 2
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.22.2"

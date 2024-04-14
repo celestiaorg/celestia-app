@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/testground/sdk-go/runtime"
 )
 
@@ -125,11 +124,12 @@ func TracingConfigurator(runenv *runtime.RunEnv, tparams TracingParams) Configur
 		// to measure when exactly each node progresses to the next step of
 		// consensus, but we are not overloading the influxdb instance with too
 		// much trace data.
-		for i := range nodes {
-			nodes[i].CmtConfig.Instrumentation.TraceType = "local"
-			nodes[i].CmtConfig.Instrumentation.TracePushConfig = "s3.json"
-			nodes[i].CmtConfig.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
-		}
+		// for i := range nodes {
+		// 	nodes[i].CmtConfig.Instrumentation.TraceType = "local"
+		// 	nodes[i].CmtConfig.Instrumentation.TracePushConfig = "s3.json"
+		// 	nodes[i].CmtConfig.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
+		// 	nodes[i].CmtConfig.Instrumentation.TraceBufferSize = 2000
+		// }
 
 		// // Trace all data from these nodes, and keep track of which nodes are tracing.
 		// tracingNodes := make(map[int]string)
