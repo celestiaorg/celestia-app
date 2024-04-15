@@ -173,10 +173,6 @@ test-interchain:
 	@go test ./test/interchain -v
 .PHONY: test-interchain
 
-# Add an alias so that test-ic invokes test-interchain.
-test-ic: test-interchain
-.PHONY: test-ic
-
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
