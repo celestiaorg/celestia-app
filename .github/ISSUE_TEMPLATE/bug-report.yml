@@ -36,14 +36,3 @@ body:
         What commands in order should someone run to reproduce your problem?
     validations:
       required: true
-
-  - type: checkboxes
-    id: admin
-    attributes:
-      label: For Admin Use
-      description: (do not edit)
-      options:
-        - label: Not duplicate issue
-        - label: Appropriate labels applied
-        - label: Appropriate contributors tagged
-        - label: Contributor assigned/self-assigned
