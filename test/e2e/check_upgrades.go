@@ -22,7 +22,7 @@ import (
 
 func MinorVersionCompatibility(logger *log.Logger) error {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("skipping e2e throughput test")
+		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test", ErrSkip)
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
@@ -33,7 +33,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 
 	if len(versions) == 0 {
-		logger.Fatal("skipping e2e test: no versions to test")
+		return fmt.Errorf("%w: no versions to test", ErrSkip)
 	}
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))
@@ -135,7 +135,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 func MajorUpgradeToV2(logger *log.Logger) error {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		logger.Fatal("skipping e2e test")
+		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test", ErrSkip)
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {

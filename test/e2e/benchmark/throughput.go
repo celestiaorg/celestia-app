@@ -23,8 +23,11 @@ func main() {
 }
 
 func E2EThroughput() error {
-	log.SetFlags(0) // Disable additional information like the date or time
-	log.SetPrefix("    ")
+	log.SetPrefix("             ")
+
+	if os.Getenv("KNUU_NAMESPACE") != "test" {
+		return fmt.Errorf("KNUU_NAMESPACE is not set to 'test")
+	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")

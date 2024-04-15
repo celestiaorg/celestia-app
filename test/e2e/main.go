@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"log"
 	"os"
 
@@ -14,7 +14,10 @@ const (
 	seed         = 42
 )
 
-var latestVersion = "latest"
+var (
+	latestVersion = "latest"
+	ErrSkip       = errors.New("skipping e2e test")
+)
 
 type TestFunc func(*log.Logger) error
 
@@ -24,9 +27,6 @@ type Test struct {
 }
 
 func main() {
-	log.SetFlags(0) // Disable additional information like the date or time
-	log.SetPrefix("    ")
-
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
 
 	tests := []Test{
@@ -39,8 +39,6 @@ func main() {
 
 	if testName != "" {
 		for _, test := range tests {
-			fmt.Println(test.Name)
-			fmt.Println(testName)
 			if test.Name == testName {
 				runTest(logger, test)
 				return
@@ -55,10 +53,15 @@ func main() {
 }
 
 func runTest(logger *log.Logger, test Test) {
+	logger.SetPrefix("             ")
 	logger.Printf("=== RUN %s", test.Name)
 	err := test.Func(logger)
 	if err != nil {
+		if errors.Is(err, ErrSkip) {
+			logger.Printf("--- SKIPPING: %s. Reason: %v \n\n", test.Name, err)
+			return
+		}
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}
-	logger.Printf("--- ✅ PASS: %s", test.Name)
+	logger.Printf("--- ✅ PASS: %s \n\n", test.Name)
 }

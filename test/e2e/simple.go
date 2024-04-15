@@ -22,9 +22,8 @@ import (
 func E2ESimple(logger *log.Logger) error {
 	logger.SetFlags(0)
 	logger.SetPrefix("    ")
-
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("skipping e2e throughput test")
+		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test", ErrSkip)
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
@@ -81,12 +80,12 @@ func E2ESimple(logger *log.Logger) error {
 	totalTxs := 0
 	for _, block := range blockchain {
 		if appconsts.LatestVersion != block.Version.App {
-			logger.Fatalf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
+			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
 		}
 		totalTxs += len(block.Data.Txs)
 	}
 	if totalTxs < 10 {
-		logger.Fatalf("expected at least 10 transactions, got %d", totalTxs)
+		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
 	return nil
 }
