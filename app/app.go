@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/celestiaorg/celestia-app/v2/app/module"
@@ -181,29 +182,31 @@ type App struct {
 	invCheckPeriod uint
 
 	// keys to access the substores
-	keys    map[string]*storetypes.KVStoreKey
-	tkeys   map[string]*storetypes.TransientStoreKey
-	memKeys map[string]*storetypes.MemoryStoreKey
+	keyVersions map[uint64][]string
+	keys        map[string]*storetypes.KVStoreKey
+	tkeys       map[string]*storetypes.TransientStoreKey
+	memKeys     map[string]*storetypes.MemoryStoreKey
 
 	// keepers
-	AccountKeeper    authkeeper.AccountKeeper
-	BankKeeper       bankkeeper.Keeper
-	AuthzKeeper      authzkeeper.Keeper
-	CapabilityKeeper *capabilitykeeper.Keeper
-	StakingKeeper    stakingkeeper.Keeper
-	SlashingKeeper   slashingkeeper.Keeper
-	MintKeeper       mintkeeper.Keeper
-	DistrKeeper      distrkeeper.Keeper
-	GovKeeper        govkeeper.Keeper
-	CrisisKeeper     crisiskeeper.Keeper
-	UpgradeKeeper    upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
-	SignalKeeper     signal.Keeper
-	ParamsKeeper     paramskeeper.Keeper
-	IBCKeeper        *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
-	EvidenceKeeper   evidencekeeper.Keeper
-	TransferKeeper   ibctransferkeeper.Keeper
-	FeeGrantKeeper   feegrantkeeper.Keeper
-	ICAHostKeeper    icahostkeeper.Keeper
+	AccountKeeper       authkeeper.AccountKeeper
+	BankKeeper          bankkeeper.Keeper
+	AuthzKeeper         authzkeeper.Keeper
+	CapabilityKeeper    *capabilitykeeper.Keeper
+	StakingKeeper       stakingkeeper.Keeper
+	SlashingKeeper      slashingkeeper.Keeper
+	MintKeeper          mintkeeper.Keeper
+	DistrKeeper         distrkeeper.Keeper
+	GovKeeper           govkeeper.Keeper
+	CrisisKeeper        crisiskeeper.Keeper
+	UpgradeKeeper       upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
+	SignalKeeper        signal.Keeper
+	ParamsKeeper        paramskeeper.Keeper
+	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
+	EvidenceKeeper      evidencekeeper.Keeper
+	TransferKeeper      ibctransferkeeper.Keeper
+	FeeGrantKeeper      feegrantkeeper.Keeper
+	ICAHostKeeper       icahostkeeper.Keeper
+	PacketForwardKeeper *packetforwardkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -218,8 +221,6 @@ type App struct {
 	upgradeHeight int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
-
-	PacketForwardKeeper *packetforwardkeeper.Keeper
 }
 
 // New returns a reference to an initialized celestia app.
@@ -231,7 +232,6 @@ func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
-	loadLatest bool,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
 	upgradeHeight int64,
@@ -247,18 +247,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	keys := sdk.NewKVStoreKeys(
-		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
-		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		blobstreamtypes.StoreKey,
-		ibctransfertypes.StoreKey,
-		ibchost.StoreKey,
-		packetforwardtypes.StoreKey,
-		icahosttypes.StoreKey,
-		signaltypes.StoreKey,
-	)
+	keys := sdk.NewKVStoreKeys(allStoreKeys()...)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
@@ -268,6 +257,7 @@ func New(
 		interfaceRegistry: interfaceRegistry,
 		txConfig:          encodingConfig.TxConfig,
 		invCheckPeriod:    invCheckPeriod,
+		keyVersions:       versionedStoreKeys(),
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
@@ -639,8 +629,9 @@ func New(
 	app.MsgGateKeeper = ante.NewMsgVersioningGateKeeper(app.configurator.GetAcceptedMessages())
 	app.MsgServiceRouter().SetCircuit(app.MsgGateKeeper)
 
-	// initialize stores
-	app.MountKVStores(keys)
+	// We only initialize the base stores that will be part of every version i.e. params
+	// (which contain the app version)
+	app.MountKVStores(app.baseKeys())
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
 
@@ -661,10 +652,13 @@ func New(
 	))
 	app.SetPostHandler(posthandler.New())
 
-	if loadLatest {
-		if err := app.LoadLatestVersion(); err != nil {
-			tmos.Exit(err.Error())
-		}
+	app.SetMigrateStoreFn(app.migrateCommitStore)
+	app.SetMigrateModuleFn(app.migrateModules)
+
+	// we don't seal the store until the app version has been initailised
+	// this will just initialize the base keys (i.e. the param store)
+	if err := app.CommitMultiStore().LoadLatestVersion(); err != nil {
+		tmos.Exit(err.Error())
 	}
 
 	return app
@@ -686,41 +680,68 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeight-1 {
-			if err := app.Upgrade(ctx, currentVersion, currentVersion+1); err != nil {
-				panic(err)
-			}
+			app.SetInitialAppVersionInConsensusParams(ctx, v2)
+			app.SetAppVersion(ctx, v2)
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
 	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
-			if err := app.Upgrade(ctx, currentVersion, newVersion); err != nil {
-				panic(err)
-			}
+			app.SetAppVersion(ctx, newVersion)
 		}
 	}
 	return res
 }
 
-func (app *App) Upgrade(ctx sdk.Context, fromVersion, toVersion uint64) error {
-	if err := app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion); err != nil {
-		return err
+func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.StoreMigrations, error) {
+	oldStoreKeys := app.keyVersions[fromVersion]
+	newStoreKeys := app.keyVersions[toVersion]
+	newMap := make(map[string]bool)
+	output := baseapp.StoreMigrations{
+		Added:   make(map[string]*storetypes.KVStoreKey),
+		Deleted: make(map[string]*storetypes.KVStoreKey),
 	}
-	if toVersion == v2 {
-		// we need to set the app version in the param store for the first time
-		app.SetInitialAppVersionInConsensusParams(ctx, toVersion)
+	for _, storeKey := range newStoreKeys {
+		newMap[storeKey] = false
 	}
-	app.SetAppVersion(ctx, toVersion)
-	return nil
+	for _, storeKey := range oldStoreKeys {
+		if _, ok := newMap[storeKey]; !ok {
+			output.Deleted[storeKey] = app.keys[storeKey]
+		} else {
+			// this module exists in both the old and new modules
+			newMap[storeKey] = true
+		}
+	}
+	for storeKey, existsInOldModule := range newMap {
+		if !existsInOldModule {
+			output.Added[storeKey] = app.keys[storeKey]
+		}
+	}
+	return output, nil
 }
 
-// InitChainer application update at chain initialization
-func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
-	var genesisState GenesisState
-	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
-		panic(err)
+func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) error {
+	return app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
+}
+
+// We wrap Info around baseapp so we can take the app version and
+// setup the multicommit store.
+func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
+	resp := app.BaseApp.Info(req)
+	// mount the stores for the provided app version
+	if resp.AppVersion > 0 && !app.IsSealed() {
+		app.MountKVStores(app.versionedKeys(resp.AppVersion))
+		if err := app.LoadLatestVersion(); err != nil {
+			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+		}
 	}
-	// genesis must always contain the consensus params. The validator set howerver is derived from the
+	return resp
+}
+
+// We wrap InitChain around baseapp so we can take the app version and
+// setup the multicommit store.
+func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
+	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial
 	// version that the chain starts on
 	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
@@ -729,6 +750,25 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if req.ConsensusParams.Version.AppVersion == 0 {
 		panic("app version 0 is not accepted. Please set an app version in the genesis")
 	}
+
+	// mount the stores for the provided app version if it has not already been mounted
+	if app.AppVersion() == 0 && !app.IsSealed() {
+		app.MountKVStores(app.versionedKeys(req.ConsensusParams.Version.AppVersion))
+		if err := app.LoadLatestVersion(); err != nil {
+			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+		}
+	}
+
+	return app.BaseApp.InitChain(req)
+}
+
+// InitChainer application update at chain initialization
+func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+	var genesisState GenesisState
+	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
+		panic(err)
+	}
+
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
@@ -741,6 +781,28 @@ func (app *App) LoadHeight(height int64) error {
 // application supports
 func (app *App) SupportedVersions() []uint64 {
 	return app.mm.SupportedVersions()
+}
+
+// versionedKeys returns the keys for the kv stores for a given app version
+func (app *App) versionedKeys(appVersion uint64) map[string]*storetypes.KVStoreKey {
+	output := make(map[string]*storetypes.KVStoreKey)
+	if keys, exists := app.keyVersions[appVersion]; exists {
+		for _, moduleName := range keys {
+			if key, exists := app.keys[moduleName]; exists {
+				output[moduleName] = key
+			}
+		}
+	}
+	return output
+}
+
+// baseKeys returns the base keys that are mounted to every version
+func (app *App) baseKeys() map[string]*storetypes.KVStoreKey {
+	return map[string]*storetypes.KVStoreKey{
+		// we need to know the app version to know what stores to mount
+		// thus the paramstore must always be a store that is mounted
+		paramstypes.StoreKey: app.keys[paramstypes.StoreKey],
+	}
 }
 
 // ModuleAccountAddrs returns all the app's module account addresses.
@@ -910,4 +972,42 @@ func extractRegisters(m sdkmodule.BasicManager, soloRegisters ...encoding.Module
 		s[i+len(m)] = v
 	}
 	return s
+}
+
+func allStoreKeys() []string {
+	return []string{
+		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
+		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
+		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
+		evidencetypes.StoreKey, capabilitytypes.StoreKey,
+		blobstreamtypes.StoreKey,
+		ibctransfertypes.StoreKey,
+		ibchost.StoreKey,
+		packetforwardtypes.StoreKey,
+		icahosttypes.StoreKey,
+		signaltypes.StoreKey,
+	}
+}
+
+// versionedStoreKeys returns the store keys for each app version
+// ... I wish there was an easier way than this (like using the modules which are already versioned)
+func versionedStoreKeys() map[uint64][]string {
+	return map[uint64][]string{
+		1: {
+			authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
+			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
+			govtypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
+			evidencetypes.StoreKey, capabilitytypes.StoreKey,
+			blobstreamtypes.StoreKey, ibctransfertypes.StoreKey, ibchost.StoreKey,
+			blobtypes.StoreKey,
+		},
+		2: {
+			authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
+			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
+			govtypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
+			evidencetypes.StoreKey, capabilitytypes.StoreKey,
+			blobstreamtypes.StoreKey, ibctransfertypes.StoreKey, ibchost.StoreKey,
+			packetforwardtypes.StoreKey, icahosttypes.StoreKey, signaltypes.StoreKey,
+		},
+	}
 }

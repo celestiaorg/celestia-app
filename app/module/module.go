@@ -351,6 +351,7 @@ func (m *Manager) ModuleNames(version uint64) []string {
 	return ms
 }
 
+// SupportedVersions returns all the supported versions for the module manager
 func (m *Manager) SupportedVersions() []uint64 {
 	output := make([]uint64, 0, m.lastVersion-m.firstVersion+1)
 	for version := m.firstVersion; version <= m.lastVersion; version++ {
