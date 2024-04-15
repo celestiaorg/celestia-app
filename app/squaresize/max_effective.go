@@ -1,12 +1,12 @@
-package app
+package squaresize
 
 import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// MaxEffectiveSquareSize returns the max effective square size.
-func (app *App) MaxEffectiveSquareSize(ctx sdk.Context) int {
+// MaxEffective returns the max effective square size.
+func MaxEffective(ctx sdk.Context, blobKeeper BlobKeeper) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to our fork of the sdk not initializing state before
 	// BeginBlock of the first block. This is remedied in versions of the sdk
@@ -17,7 +17,11 @@ func (app *App) MaxEffectiveSquareSize(ctx sdk.Context) int {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	govMax := int(app.BlobKeeper.GovMaxSquareSize(ctx))
-	hardMax := appconsts.SquareSizeUpperBound(app.AppVersion())
-	return min(govMax, hardMax)
+	govParam := int(blobKeeper.GovMaxSquareSize(ctx))
+	upperBound := appconsts.SquareSizeUpperBound(ctx.ConsensusParams().Version.AppVersion)
+	return min(govParam, upperBound)
+}
+
+type BlobKeeper interface {
+	GovMaxSquareSize(ctx sdk.Context) uint64
 }
