@@ -27,6 +27,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 )
 
+// TestUpgradeAppVersion verifies that app version changes correctly during an upgrade from v1 -> v2.
 func TestUpgradeAppVersion(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 
@@ -49,7 +50,7 @@ func TestUpgradeAppVersion(t *testing.T) {
 
 // TestMinFeeDuringVersionUpgrades verifies that the minfee module's params are overridden during an
 // upgrade from v1 -> v2.
-func TestMinFeeDuringVersionUpgrades(t *testing.T) {
+func TestMinFeeAgainstAppUpgrades(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 
 	supportedVersions := []uint64{v1.Version, v2.Version}
@@ -106,7 +107,7 @@ func TestMinFeeDuringVersionUpgrades(t *testing.T) {
 
 // TestICADuringVersionUpgrades verifies that the ICA module's params are overridden during an
 // upgrade from v1 -> v2.
-func TestICADuringVersionUpgrades(t *testing.T) {
+func TestICADuringAppUpgrades(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 	ctx := testApp.NewContext(true, tmproto.Header{
 		Version: tmversion.Consensus{
@@ -143,7 +144,7 @@ func TestICADuringVersionUpgrades(t *testing.T) {
 
 // TestPacketForwardMiddlewareAgainstAppUpgrades verifies that the PFM module's params are overridden during an
 // upgrade from v1 -> v2.
-func TestPacketForwardMiddlewareAgainstAppUpgrades(t *testing.T) {
+func TestPFMAgainstAppUpgrades(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 	supportedVersions := []uint64{v1.Version, v2.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
