@@ -8,17 +8,17 @@ To understand the proof mechanisms, a good understanding of [binary merkle proof
 
 ## PFB transaction
 
-When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction, the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html). 
+When creating a [PayForBlob](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31) transaction, the blob data is separated into a set of [shares](https://celestiaorg.github.io/celestia-app/specs/shares.html).
 This set of shares is used to generate a [*share commitment*](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=share%20commitment#blob-share-commitment-rules) which commits to the data contained in the PFB, i.e., the blob.
 
-### Share commitment generation 
+### Share commitment generation
 
 Generating a *share commitment* starts with laying the shares into a [merkle mountain range](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html?highlight=merkle%20mountain#blob-share-commitment-rules) structure.
 For example, if the blob contains six shares, the following structure will be generated:
 
 <img src="img/subtree_roots.png" alt="subtree roots generation from shares" width="500"/>
 
-The blob shares are colored in orange, and are used to generate a set of roots following the [merkle mountain range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure. 
+The blob shares are colored in orange, and are used to generate a set of roots following the [merkle mountain range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure.
 These roots are called *subtree roots*. In the above case, we end up with two *subtree roots*: `SR1` and `SR2`.
 
 Then, these *subtree roots* are used to generate the *share commitment*:
@@ -60,13 +60,13 @@ For instance, if we want to compute the first row root:
 <img src="img/row_root_1.png" alt="row root one generation" width="500"/>
 
 We use the first row of shares to generate a namespace merkle root.
-The first four shares, i.e., the shares `[1, 4]` are part of the square data, and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/specs/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme). 
+The first four shares, i.e., the shares `[1, 4]` are part of the square data, and the last four are [parity shares](https://celestiaorg.github.io/celestia-app/specs/data_structures.html?highlight=extended#2d-reed-solomon-encoding-scheme).
 
 Now if we take the second row, which contains four shares of the above blob `[5,8]`:
 
 <img src="img/row_root_2.png" alt="row root two generation" width="500"/>
 
-The inner node in purple is the same as the *subtree root* `SR1` generated in the [PFB transaction](#pfb-transaction) section. 
+The inner node in purple is the same as the *subtree root* `SR1` generated in the [PFB transaction](#pfb-transaction) section.
 
 Similarly, if we generate the third row, which contains the remaining two shares of the blob, and some other data:
 
@@ -75,7 +75,7 @@ Similarly, if we generate the third row, which contains the remaining two shares
 We will see that the *subtree root* `SR2` is an inner node of the tree used to compute the third row root.
 
 This property holds for all the subtree roots computed for the blob data and is derived from applying [Blob Share Commitment Rules](https://celestiaorg.github.io/celestia-app/specs/data_square_layout.html#blob-share-commitment-rules) when constructing the square.
-This means that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*. 
+This means that it is possible to prove the inclusion of a blob to a set of row roots using the generated *share commitment*.
 The subtree roots used to generate it will be the same regardless of the square size.
 This proof will be discussed in the [prove share commitment inclusion to data root](#prove-share-commitment-inclusion-to-data-root) section.
 
@@ -85,7 +85,7 @@ Similar to row roots, column roots are the namespace merkle root of the set of s
 
 <img src="img/col_root_1.png" alt="column root one generation" width="427"/>
 
-Generally, the column roots are only used for [bad encoding fraud proofs, BEFP](https://celestiaorg.github.io/celestia-app/specs/fraud_proofs.html#bad-encoding-fraud-proofs) and won't be used concretely in inclusion proofs. 
+Generally, the column roots are only used for [bad encoding fraud proofs, BEFP](https://celestiaorg.github.io/celestia-app/specs/fraud_proofs.html#bad-encoding-fraud-proofs) and won't be used concretely in inclusion proofs.
 They're only mentioned for completeness.
 
 ### Data root
@@ -103,10 +103,10 @@ This allows inclusion proofs of the shares to the data root which will be discus
 To prove that a share was included in a Celestia block, we can create an inclusion proof from the share to the data root.
 This proof consists of the following:
 
-#### Share to row root namespace merkle inclusion proof:
+#### Share to row root namespace merkle inclusion proof
 
 First, we prove inclusion of the share in question to the row root it belongs to.
-If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in red: 
+If we take, for example, share *three*, its inclusion proof can be constructed using the inner nodes in red:
 
 <img src="img/share_to_row_root_proof.png" alt="share to row root proof" width="443"/>
 
@@ -116,7 +116,7 @@ Now, if we have this inclusion proof, and we verify it against the `RowRoot1`, t
 
 Now that we proved the share to the row root, we will need to complete the proof with a row root to the data root inclusion proof.
 This means that we will be proving that the row root commits to the share, and the data root commits to the row root.
-Since share *three* is committed to by `RowRoot1`, we will be proving that row root to the data root. 
+Since share *three* is committed to by `RowRoot1`, we will be proving that row root to the data root.
 
 <img src="img/row_root_to_data_root_proof.png" alt="row root to data root proof" width="443"/>
 
