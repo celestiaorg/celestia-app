@@ -16,35 +16,49 @@ const (
 
 var latestVersion = "latest"
 
+type TestFunc func(*log.Logger) error
+
+type Test struct {
+	Name string
+	Func TestFunc
+}
+
 func main() {
-	logger := log.New(os.Stdout, "test", log.LstdFlags)
-	// FIXME: This test currently panics in InitGenesis
-	// it's currently not running
-	if os.Getenv("RUN_MINOR_VERSION_COMPATIBILITY") == "true" {
-		logger.Println("Running minor version compatibility test")
-		err := MinorVersionCompatibility(logger)
-		if err != nil {
-			logger.Fatalf("Error running minor version compatibility: %v", err)
-		}
+	log.SetFlags(0) // Disable additional information like the date or time
+	log.SetPrefix("    ")
+
+	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
+
+	tests := []Test{
+		{"MinorVersionCompatibility", MinorVersionCompatibility},
+		{"MajorUpgradeToV2", MajorUpgradeToV2},
+		{"E2ESimple", E2ESimple},
 	}
 
-	logger.Println("====== Running major upgrade to v2 e2e test ======")
-	// err := MajorUpgradeToV2(logger)
-	// if err != nil {
-	// 	logger.Fatalf("Error running minor version compatibility: %v", err)
-	// }
+	testName := os.Getenv("TEST")
 
-	logger.Println("====== Running simple e2e test ======")
-	err := E2ESimple(logger)
-	if err != nil {
-		logger.Fatalf("Error running simple e2e test: %v", err)
+	if testName != "" {
+		for _, test := range tests {
+			fmt.Println(test.Name)
+			fmt.Println(testName)
+			if test.Name == testName {
+				runTest(logger, test)
+				return
+			}
+		}
+		logger.Fatalf("Unknown test: %s", testName)
+	} else {
+		for _, test := range tests {
+			runTest(logger, test)
+		}
 	}
 }
 
-// helper function to wrap errors
-func NoError(message string, err error) error {
+func runTest(logger *log.Logger, test Test) {
+	logger.Printf("=== RUN %s", test.Name)
+	err := test.Func(logger)
 	if err != nil {
-		return fmt.Errorf("%s: %w", message, err)
+		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}
-	return nil
+	logger.Printf("--- ✅ PASS: %s", test.Name)
 }

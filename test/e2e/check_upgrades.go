@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/pkg"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
 	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -22,7 +22,7 @@ import (
 
 func MinorVersionCompatibility(logger *log.Logger) error {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		logger.Fatal("skipping e2e test")
+		return fmt.Errorf("skipping e2e throughput test")
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
@@ -30,8 +30,8 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	}
 
 	versionStr := os.Getenv("E2E_VERSIONS")
-	versions := pkg.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
-	fmt.Println("versions", len(versions))
+	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+
 	if len(versions) == 0 {
 		logger.Fatal("skipping e2e test: no versions to test")
 	}
@@ -39,39 +39,37 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := pkg.New("runMinorVersionCompatibility", seed, pkg.GetGrafanaInfoFromEnvVar())
-	if err != nil {
-		return err
-	}
+	testnet, err := testnets.New("runMinorVersionCompatibility", seed, testnets.GetGrafanaInfoFromEnvVar())
+	testnets.NoError("failed to create testnet", err)
+
 	defer testnet.Cleanup()
+
 	testnet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
 	preloader, err := knuu.NewPreloader()
-	if err != nil {
-		return err
-	}
+	testnets.NoError("failed to create preloader", err)
+
 	defer func() { _ = preloader.EmptyImages() }()
 	for _, v := range versions {
-		err := preloader.AddImage(pkg.DockerImageName(v.String()))
-		NoError("failed to add image", err)
+		testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(v.String())))
 	}
 
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		fmt.Println("Starting node", "node", i, "version", v)
-		err := testnet.CreateGenesisNode(v, 10000000, 0, pkg.DefaultResources)
-		NoError("failed to create genesis node", err)
+		testnets.NoError("failed to create genesis node", testnet.CreateGenesisNode(v, 10000000, 0, testnets.DefaultResources))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	NoError("failed to create account", err)
+	testnets.NoError("failed to create account", err)
 
-	err = testnet.Start()
-	NoError("failed to start testnet", err)
-	err = testnet.Start()
-	NoError("failed to start testnet", err)
+	// start the testnet
+	fmt.Println("Setting up testnet")
+	testnets.NoError("Failed to setup testnet", testnet.Setup())
+	fmt.Println("Starting testnet")
+	testnets.NoError("Failed to start testnet", testnet.Start())
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
@@ -93,31 +91,24 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 			continue
 		}
 		client, err := testnet.Node(i % numNodes).Client()
-		if err != nil {
-			return err
-		}
+		testnets.NoError("failed to get client", err)
+
 		heightBefore, err := getHeight(ctx, client, time.Second)
-		NoError("failed to get height", err)
+		testnets.NoError("failed to get height", err)
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes, "version", newVersion)
-		err = testnet.Node(i % numNodes).Upgrade(newVersion)
-		NoError("failed to upgrade node", err)
+		testnets.NoError("failed to upgrade node", testnet.Node(i%numNodes).Upgrade(newVersion))
 		// wait for the node to reach two more heights
-		err = waitForHeight(ctx, client, heightBefore+2, 30*time.Second)
-		NoError("failed to wait for height", err)
+		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
 	}
 
 	heights := make([]int64, 4)
 	for i := 0; i < numNodes; i++ {
 		client, err := testnet.Node(i).Client()
-		if err != nil {
-			return err
-		}
+		testnets.NoError("failed to get client", err)
 		heights[i], err = getHeight(ctx, client, time.Second)
-		if err != nil {
-			return err
-		}
+		testnets.NoError("failed to get height", err)
 	}
 
 	logger.Println("checking that all nodes are at the same height")
@@ -126,7 +117,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		for j := i + 1; j < len(heights); j++ {
 			diff := heights[i] - heights[j]
 			if diff > maxPermissableDiff {
-				logger.Fatal("node %d is behind node %d by %d blocks", j, i, diff)
+				logger.Fatalf("node %d is behind node %d by %d blocks", j, i, diff)
 			}
 		}
 	}
@@ -149,7 +140,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := pkg.ParseVersion(latestVersion)
+		_, isSemVer := testnets.ParseVersion(latestVersion)
 		switch {
 		case isSemVer:
 		case latestVersion == "latest":
@@ -167,31 +158,28 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testnet, err := pkg.New("runMajorUpgradeToV2", seed, pkg.GetGrafanaInfoFromEnvVar())
-	NoError("failed to create testnet", err)
+	testnet, err := testnets.New("runMajorUpgradeToV2", seed, testnets.GetGrafanaInfoFromEnvVar())
+	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
 
 	preloader, err := knuu.NewPreloader()
-	NoError("failed to create preloader", err)
+	testnets.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages() }()
-	err = preloader.AddImage(pkg.DockerImageName(latestVersion))
-	NoError("failed to add image", err)
+	testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(latestVersion)))
 
 	for i := 0; i < numNodes; i++ {
-		err := testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, pkg.DefaultResources)
-		NoError("failed to create genesis node", err)
+		err := testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnets.DefaultResources)
+		testnets.NoError("failed to create genesis node", err)
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	NoError("failed to create account", err)
+	testnets.NoError("failed to create account", err)
 
-	err = testnet.Setup()
-	NoError("failed to setup testnet", err)
+	testnets.NoError("failed to setup testnet", testnet.Setup())
 
-	err = testnet.Start()
-	NoError("failed to start testnet", err)
+	testnets.NoError("failed to start testnet", testnet.Start())
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -206,19 +194,18 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
 		client, err := testnet.Node(i).Client()
-		NoError("failed to get client", err)
+		testnets.NoError("failed to get client", err)
 
-		err = waitForHeight(ctx, client, upgradeHeight, time.Minute)
-		NoError("failed to wait for height", err)
+		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
-		NoError("failed to get header", err)
+		testnets.NoError("failed to get header", err)
 		if resp.Header.Version.App != v1.Version {
 			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v1.Version, resp.Header.Version.App)
 		}
 
 		resp, err = client.Header(ctx, &upgradeHeight)
-		NoError("failed to get header", err)
+		testnets.NoError("failed to get header", err)
 		if resp.Header.Version.App != v2.Version {
 			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v2.Version, resp.Header.Version.App)
 		}

@@ -1,4 +1,4 @@
-package pkg
+package testnets
 
 import (
 	"fmt"
@@ -61,7 +61,6 @@ func ParseVersions(versionStr string) VersionSet {
 // valid version, the second return value is false.
 // Must be of the format v1.0.0 or v1.0.0-rc1 (i.e. following SemVer)
 func ParseVersion(version string) (Version, bool) {
-	fmt.Println(version, "VERSION in parse v ersion")
 	var major, minor, patch, rc uint64
 	isRC := false
 	if strings.Contains(version, "rc") {

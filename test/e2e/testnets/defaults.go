@@ -1,4 +1,4 @@
-package pkg
+package testnets
 
 var DefaultResources = Resources{
 	MemoryRequest: "200Mi",

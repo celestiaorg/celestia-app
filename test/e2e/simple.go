@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -10,22 +11,25 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/pkg"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
 	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
-// This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
+// This test runs a simple testnets with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
+	logger.SetFlags(0)
+	logger.SetPrefix("    ")
+
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		logger.Fatal("skipping e2e test")
+		return fmt.Errorf("skipping e2e throughput test")
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
 		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := pkg.ParseVersion(latestVersion)
+		_, isSemVer := testnets.ParseVersion(latestVersion)
 		switch {
 		case isSemVer:
 		case latestVersion == "latest":
@@ -39,25 +43,22 @@ func E2ESimple(logger *log.Logger) error {
 	}
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := pkg.New("E2ESimple", seed, pkg.GetGrafanaInfoFromEnvVar())
-	NoError("failed to create testnet", err)
+	testnet, err := testnets.New("E2ESimple", seed, testnets.GetGrafanaInfoFromEnvVar())
+	testnets.NoError("failed to create testnets", err)
 	defer testnet.Cleanup()
 
-	logger.Println("Creating testnet validators")
-	err = testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0, pkg.DefaultResources)
-	NoError("failed to create genesis nodes", err)
+	logger.Println("Creating testnets validators")
+	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnets.DefaultResources))
 
 	logger.Println("Creating account")
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	NoError("failed to create account", err)
+	testnets.NoError("failed to create account", err)
 
-	logger.Println("Setting up testnet")
-	err = testnet.Setup()
-	NoError("failed to setup testnet", err)
+	logger.Println("Setting up testnets")
+	testnets.NoError("failed to setup testnets", testnet.Setup())
 
-	logger.Println("Starting testnet")
-	err = testnet.Start()
-	NoError("failed to start testnet", err)
+	logger.Println("Starting testnets")
+	testnets.NoError("failed to start testnets", testnet.Start())
 
 	logger.Println("Running txsim")
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
@@ -70,17 +71,17 @@ func E2ESimple(logger *log.Logger) error {
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 
 	if !errors.Is(err, context.DeadlineExceeded) {
-		logger.Fatal("Expected context.DeadlineExceeded, got %v", err)
+		logger.Fatalf("Expected context.DeadlineExceeded, got %v", err)
 	}
 
 	logger.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
-	NoError("failed to read blockchain", err)
+	testnets.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
 	for _, block := range blockchain {
 		if appconsts.LatestVersion != block.Version.App {
-			logger.Fatalf("expected app version %s, got %s", appconsts.LatestVersion, block.Version.App)
+			logger.Fatalf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
 		}
 		totalTxs += len(block.Data.Txs)
 	}
