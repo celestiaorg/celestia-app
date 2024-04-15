@@ -769,6 +769,7 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 		panic(err)
 	}
 
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap(req.ConsensusParams.Version.AppVersion))
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
@@ -986,6 +987,7 @@ func allStoreKeys() []string {
 		packetforwardtypes.StoreKey,
 		icahosttypes.StoreKey,
 		signaltypes.StoreKey,
+		blobtypes.StoreKey,
 	}
 }
 

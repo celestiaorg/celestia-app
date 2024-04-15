@@ -223,9 +223,6 @@ func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []
 // MigrationHandler is the migration function that each module registers.
 type MigrationHandler func(sdk.Context) error
 
-// VersionMap is a map of moduleName -> version
-type VersionMap map[string]uint64
-
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
@@ -333,6 +330,22 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		ValidatorUpdates: validatorUpdates,
 		Events:           ctx.EventManager().ABCIEvents(),
 	}
+}
+
+// GetVersionMap gets consensus version from all modules
+func (m *Manager) GetVersionMap(version uint64) sdkmodule.VersionMap {
+	vermap := make(sdkmodule.VersionMap)
+	if version > m.lastVersion || version < m.firstVersion {
+		return vermap
+	}
+
+	for _, v := range m.versionedModules[version] {
+		version := v.ConsensusVersion()
+		name := v.Name()
+		vermap[name] = version
+	}
+
+	return vermap
 }
 
 // ModuleNames returns list of all module names, without any particular order.
