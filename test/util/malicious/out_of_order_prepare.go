@@ -3,6 +3,7 @@ package malicious
 import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
+	"github.com/celestiaorg/celestia-app/v2/app/squaresize"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/go-square/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -46,7 +47,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
+	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), squaresize.MaxEffective(sdkCtx, a.BlobKeeper), OutOfOrderExport)
 	if err != nil {
 		panic(err)
 	}
