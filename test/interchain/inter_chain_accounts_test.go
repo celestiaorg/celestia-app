@@ -16,11 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestICA verifies that Inter-Chain Accounts (ICA) work as expected by creating
+// TestInterChainAccounts verifies that Inter-Chain Accounts (ICA) work as expected by creating
 // an ICA on Celestia (host chain) using the Cosmos Hub (controller chain).
-func TestICA(t *testing.T) {
+func TestInterChainAccounts(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping TestICA in short mode.")
+		t.Skip("skipping TestInterChainAccounts in short mode.")
 	}
 
 	client, network := interchaintest.DockerSetup(t)
