@@ -1,4 +1,4 @@
-package upgrade_test
+package signal_test
 
 import (
 	"context"
