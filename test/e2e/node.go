@@ -83,6 +83,36 @@ func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 	return events, nil
 }
 
+// PullRoundStateTraces retrieves the round state traces from a node.
+func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
+	error) {
+	isRunning, err := n.Instance.IsRunning()
+	if err != nil {
+		return nil, err
+	}
+	if !isRunning {
+		return nil, fmt.Errorf("node is not running")
+	}
+	//tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
+	//traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
+	//	"traces", tableFileName)
+
+	addr, err := n.RemoteAddressTracing()
+	if err != nil {
+		return nil, fmt.Errorf("getting remote address: %w", err)
+
+	}
+	err = trace.GetTable(addr, schema.RoundState{}.Table(), ".")
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	//events, err := trace.DecodeFile[schema.RoundState](tmpFile)
+	//if err != nil {
+	//	return nil, fmt.Errorf("decoding file: %w", err)
+	//}
+	return nil, nil
+}
+
 // Resources defines the resource requirements for a Node.
 type Resources struct {
 	// MemoryRequest specifies the initial memory allocation for the Node.
@@ -290,6 +320,13 @@ func (n Node) RemoteAddressRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
 }
 
+func (n Node) RemoteAddressTracing() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:26661", ip), nil
+}
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
 }
