@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"

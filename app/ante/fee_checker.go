@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
@@ -15,6 +16,14 @@ const (
 	// priorityScalingFactor is a scaling factor to convert the gas price to a priority.
 	priorityScalingFactor = 1_000_000
 )
+
+// The purpose of this wrapper is to enable the passing of an additional paramKeeper parameter in
+// ante.NewDeductFeeDecorator whilst still satisfying the ante.TxFeeChecker type.
+func ValidateTxFeeWrapper(paramKeeper params.Keeper) ante.TxFeeChecker {
+	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+		return ValidateTxFee(ctx, tx, paramKeeper)
+	}
+}
 
 // ValidateTxFee implements default fee validation logic for transactions.
 // It ensures that the provided transaction fee meets a minimum threshold for the node

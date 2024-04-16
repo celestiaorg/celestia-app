@@ -197,7 +197,7 @@ func flags() *flag.FlagSet {
 	flags.IntVar(&stakeValue, "stake-value", 1000, "amount of initial stake per sequence")
 	flags.IntVar(&blob, "blob", 0, "number of blob sequences to run")
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
-	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs to send per PFB in a sequence")
+	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs per PFB specified as a single value or a min-max range (e.g., 10 or 5-10). A single value indicates the exact number of blobs to be created.")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
 	return flags

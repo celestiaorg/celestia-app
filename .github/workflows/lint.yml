@@ -25,6 +25,7 @@ jobs:
           version: v1.57.0
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
+          skip-pkg-cache: true
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile

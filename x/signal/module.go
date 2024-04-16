@@ -1,4 +1,4 @@
-package upgrade
+package signal
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/cli"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/types"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/cli"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"

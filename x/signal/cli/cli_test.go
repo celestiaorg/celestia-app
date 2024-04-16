@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v2/x/upgrade/cli"
+	"github.com/celestiaorg/celestia-app/v2/x/signal/cli"
 	testutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/stretchr/testify/suite"
 )
