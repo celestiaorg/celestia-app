@@ -135,7 +135,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	@KNUU_NAMESPACE=test go run test/e2e/*.go -timeout 20m -v
+	@KNUU_NAMESPACE=test go run test/e2e/*.go -timeout 20m -v $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.

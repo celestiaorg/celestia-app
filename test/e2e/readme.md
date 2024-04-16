@@ -8,16 +8,29 @@ End to end tests pull docker images from ghcr.io/celestiaorg/celestia-app. These
 
 **Prerequisite: Requires a kubeconfig file.**
 
-You can run the end-to-end tests using the following command:
+You can run the End-to-End tests using either of the following commands:
 
 ```shell
 go run test/e2e/*.go -timeout 30m -v
 ```
 
+```shell
+make test-e2e
+```
+
+To run a specific test, you can pass the name of the test as a command-line argument. For example, to run the "E2ESimple" test, you would use either of the specified commands:
+
+```shell
+go run test/e2e/*.go E2ESimple
+```
+
+```shell
+make test-e2e E2ESimple  
+```
+
 **Optional parameters**:
 
 - `KNUUU_TIMEOUT` can be used to override the default timeout of 60 minutes for the tests.
-- `TEST` can be used to run a specific E2E test. For example, `TEST=MinorVersionCompatibility` would run the MinorVersionCompatibility test.
 
 ## Observation
 
