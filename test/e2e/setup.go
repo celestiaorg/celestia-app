@@ -26,6 +26,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Instrumentation.TraceType = "local"
 	cfg.Instrumentation.TraceBufferSize = 1000
 	cfg.Instrumentation.TracingTables = "consensus_round_state"
+	cfg.Instrumentation.TracePullAddress = ":26661"
 	return cfg, nil
 }
 
