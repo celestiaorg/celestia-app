@@ -23,7 +23,7 @@ func E2ESimple(logger *log.Logger) error {
 	logger.SetFlags(0)
 	logger.SetPrefix("    ")
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test", ErrSkip)
+		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test'", ErrSkip)
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
@@ -37,7 +37,7 @@ func E2ESimple(logger *log.Logger) error {
 			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
 			latestVersion = latestVersion[:7]
 		default:
-			logger.Fatalf("unrecognised version: %s", latestVersion)
+			return fmt.Errorf("unrecognised version: %s: %w", latestVersion, ErrSkip)
 		}
 	}
 	logger.Println("Running simple e2e test", "version", latestVersion)
@@ -70,7 +70,7 @@ func E2ESimple(logger *log.Logger) error {
 	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 
 	if !errors.Is(err, context.DeadlineExceeded) {
-		logger.Fatalf("Expected context.DeadlineExceeded, got %v", err)
+		return fmt.Errorf("expected context.DeadlineExceeded, got %w", err)
 	}
 
 	logger.Println("Reading blockchain")
@@ -80,7 +80,7 @@ func E2ESimple(logger *log.Logger) error {
 	totalTxs := 0
 	for _, block := range blockchain {
 		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
+			return fmt.Errorf("expected app version %d, got %d in block %d", appconsts.LatestVersion, block.Version.App, block.Height)
 		}
 		totalTxs += len(block.Data.Txs)
 	}

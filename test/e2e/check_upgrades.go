@@ -22,11 +22,11 @@ import (
 
 func MinorVersionCompatibility(logger *log.Logger) error {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test", ErrSkip)
+		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test'", ErrSkip)
 	}
 
 	if os.Getenv("E2E_VERSIONS") == "" {
-		logger.Fatal("skipping e2e test: E2E_VERSIONS not set")
+		return fmt.Errorf("%w: E2E_VERSIONS not set", ErrSkip)
 	}
 
 	versionStr := os.Getenv("E2E_VERSIONS")
@@ -135,7 +135,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 func MajorUpgradeToV2(logger *log.Logger) error {
 	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test", ErrSkip)
+		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test'", ErrSkip)
 	}
 
 	if os.Getenv("E2E_LATEST_VERSION") != "" {
@@ -149,7 +149,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
 			latestVersion = latestVersion[:7]
 		default:
-			logger.Fatalf("unrecognised version: %s", latestVersion)
+			return fmt.Errorf("unrecognised version: %s: %w", latestVersion, ErrSkip)
 		}
 	}
 
