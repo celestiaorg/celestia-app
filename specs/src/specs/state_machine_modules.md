@@ -4,12 +4,22 @@ Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk modu
 
 ## `celestia-app` Specific Modules
 
+<<<<<<< HEAD
 - [blob](../../../x/blob/README.md)
 - [qgb](../../../x/qgb/README.md)
 - [mint](../../../x/mint/README.md)
 - [paramfilter](../../../x/paramfilter/README.md)
 - [upgrade](../../../x/upgrade/README.md)
 - [tokenfilter](../../../x/tokenfilter/README.md)
+=======
+- [blob](https://github.com/celestiaorg/celestia-app/blob/main/x/blob/README.md)
+- [blobstream](https://github.com/celestiaorg/celestia-app/blob/main/x/blobstream/README.md)
+- [minfee](https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md)
+- [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
+- [paramfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md)
+- [signal](https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md)
+- [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
+>>>>>>> d8031c12 (chore: updates the upgrade module link to the signal module (#3326))
 
 ## Standard `cosmos-sdk` Modules
 
