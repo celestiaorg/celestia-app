@@ -94,9 +94,6 @@ func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
 	if !isRunning {
 		return nil, fmt.Errorf("node is not running")
 	}
-	//tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
-	//traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
-	//	"traces", tableFileName)
 
 	addr, err := n.RemoteAddressTracing()
 	if err != nil {
@@ -154,11 +151,11 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-	if pullTracing {
-		if err := instance.AddPortTCP(tracingPort); err != nil {
-			return nil, err
-		}
+	//if pullTracing {
+	if err := instance.AddPortTCP(tracingPort); err != nil {
+		return nil, err
 	}
+	//}
 
 	if grafana != nil {
 		// add support for metrics
@@ -333,7 +330,7 @@ func (n Node) RemoteAddressTracing() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s:26661", ip), nil
+	return fmt.Sprintf("http://%s:26661", ip), nil
 }
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
