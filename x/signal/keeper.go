@@ -180,18 +180,14 @@ func (k *Keeper) ShouldUpgrade() (bool, uint64) {
 	return k.quorumVersion != 0, k.quorumVersion
 }
 
-// ResetTally resets the tally after a version change. It iterates over the store,
-// and deletes any versions that are less than the provided version. It also
-// resets the quorumVersion to 0.
-func (k *Keeper) ResetTally(ctx sdk.Context, version uint64) {
+// ResetTally resets the tally after a version change. It iterates over the
+// store and deletes all versions. It also resets the quorumVersion to 0.
+func (k *Keeper) ResetTally(ctx sdk.Context) {
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
-		v := VersionFromBytes(iterator.Value())
-		if v <= version {
-			store.Delete(iterator.Key())
-		}
+		store.Delete(iterator.Key())
 	}
 	k.quorumVersion = 0
 }

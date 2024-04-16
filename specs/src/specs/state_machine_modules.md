@@ -9,7 +9,7 @@ Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk modu
 - [minfee](https://github.com/celestiaorg/celestia-app/blob/main/x/minfee/README.md)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/main/x/mint/README.md)
 - [paramfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/paramfilter/README.md)
-- [upgrade](https://github.com/celestiaorg/celestia-app/blob/main/x/upgrade/README.md)
+- [signal](https://github.com/celestiaorg/celestia-app/blob/main/x/signal/README.md)
 - [tokenfilter](https://github.com/celestiaorg/celestia-app/blob/main/x/tokenfilter/README.md)
 
 ## Standard `cosmos-sdk` Modules
