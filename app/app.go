@@ -711,6 +711,7 @@ func (app *App) Upgrade(ctx sdk.Context, fromVersion, toVersion uint64) error {
 		app.SetInitialAppVersionInConsensusParams(ctx, toVersion)
 	}
 	app.SetAppVersion(ctx, toVersion)
+	app.SignalKeeper.ResetTally(ctx)
 	return nil
 }
 
