@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 )
@@ -13,10 +14,7 @@ const (
 	seed         = 42
 )
 
-var (
-	latestVersion = "latest"
-	ErrSkip       = errors.New("skipping e2e test")
-)
+var ErrSkip = errors.New("skipping e2e test")
 
 type TestFunc func(*log.Logger) error
 
@@ -31,8 +29,8 @@ func main() {
 	tests := []Test{
 		// FIXME both tests are currently failing
 		// {"MinorVersionCompatibility", MinorVersionCompatibility},
-		// {"MajorUpgradeToV2", MajorUpgradeToV2},
-		{"E2ESimple", E2ESimple},
+		{"MajorUpgradeToV2", MajorUpgradeToV2},
+		// {"E2ESimple", E2ESimple},
 	}
 
 	testName := os.Getenv("TEST")
@@ -44,7 +42,7 @@ func main() {
 				return
 			}
 		}
-		logger.Fatalf("Unknown test: %s", testName)
+		logger.Fatalf("Unknown test: %s. Valid tests are: %v", testName, getTestNames(tests))
 	} else {
 		for _, test := range tests {
 			runTest(logger, test)
@@ -64,4 +62,12 @@ func runTest(logger *log.Logger, test Test) {
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}
 	logger.Printf("--- ✅ PASS: %s \n\n", test.Name)
+}
+
+func getTestNames(tests []Test) string {
+	testNames := make([]string, len(tests))
+	for _, test := range tests {
+		testNames = append(testNames, test.Name)
+	}
+	return strings.Join(testNames, ", ")
 }

@@ -20,29 +20,14 @@ import (
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
-	logger.SetFlags(0)
-	logger.SetPrefix("    ")
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test'", ErrSkip)
-	}
+	os.Setenv("KNUU_NAMESPACE", "test")
 
-	if os.Getenv("E2E_LATEST_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := testnets.ParseVersion(latestVersion)
-		switch {
-		case isSemVer:
-		case latestVersion == "latest":
-		case len(latestVersion) == 7:
-		case len(latestVersion) >= 8:
-			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
-			latestVersion = latestVersion[:7]
-		default:
-			return fmt.Errorf("unrecognised version: %s: %w", latestVersion, ErrSkip)
-		}
-	}
+	latestVersion, err := testnets.GetLatestVersion()
+	testnets.NoError("failed to get latest version", err)
+
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := testnets.New("E2ESimple", seed, testnets.GetGrafanaInfoFromEnvVar())
+	testnet, err := testnets.New("E2ESimple", seed, nil)
 	testnets.NoError("failed to create testnets", err)
 	defer testnet.Cleanup()
 

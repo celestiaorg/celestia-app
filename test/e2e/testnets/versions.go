@@ -3,6 +3,7 @@ package testnets
 import (
 	"fmt"
 	"math/rand"
+	"os/exec"
 	"sort"
 	"strings"
 )
@@ -74,6 +75,32 @@ func ParseVersion(version string) (Version, bool) {
 		}
 	}
 	return Version{major, minor, patch, isRC, rc}, true
+}
+
+// GetLatestVersion retrieves the latest git commit hash
+// or semantic version of the main branch.
+func GetLatestVersion() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--short", "main")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git commit hash: %v", err)
+	}
+	latestVersion := string(output)
+
+	_, isSemVer := ParseVersion(latestVersion)
+	switch {
+	case isSemVer:
+		return latestVersion, nil
+	case latestVersion == "latest":
+		return latestVersion, nil
+	case len(latestVersion) == 7:
+		return latestVersion, nil
+	case len(latestVersion) >= 8:
+		// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
+		return latestVersion[:7], nil
+	default:
+		return "", fmt.Errorf("unrecognised version %s", latestVersion)
+	}
 }
 
 func (v VersionSet) FilterMajor(majorVersion uint64) VersionSet {

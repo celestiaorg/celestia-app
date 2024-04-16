@@ -12,8 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
-var latestVersion = "latest"
-
 const seed = 42
 
 func main() {
@@ -23,26 +21,10 @@ func main() {
 }
 
 func E2EThroughput() error {
-	log.SetPrefix("             ")
+	os.Setenv("KNUU_NAMESPACE", "test")
 
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("KNUU_NAMESPACE is not set to 'test")
-	}
-
-	if os.Getenv("E2E_LATEST_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := testnets.ParseVersion(latestVersion)
-		switch {
-		case isSemVer:
-		case latestVersion == "latest":
-		case len(latestVersion) == 7:
-		case len(latestVersion) >= 8:
-			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
-			latestVersion = latestVersion[:7]
-		default:
-			return fmt.Errorf("unrecognised version %s", latestVersion)
-		}
-	}
+	latestVersion, err := testnets.GetLatestVersion()
+	testnets.NoError("failed to get latest version", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 

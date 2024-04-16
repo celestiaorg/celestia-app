@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -21,15 +22,10 @@ import (
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test'", ErrSkip)
-	}
+	os.Setenv("KNUU_NAMESPACE", "test")
 
-	if os.Getenv("E2E_VERSIONS") == "" {
-		return fmt.Errorf("%w: E2E_VERSIONS not set", ErrSkip)
-	}
-
-	versionStr := os.Getenv("E2E_VERSIONS")
+	versionStr, err := getAllVersions()
+	testnets.NoError("failed to get versions", err)
 	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 
 	if len(versions) == 0 {
@@ -39,7 +35,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := testnets.New("runMinorVersionCompatibility", seed, testnets.GetGrafanaInfoFromEnvVar())
+	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil)
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
@@ -58,7 +54,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
-		fmt.Println("Starting node", "node", i, "version", v)
+		logger.Println("Starting node", "node", i, "version", v)
 		testnets.NoError("failed to create genesis node", testnet.CreateGenesisNode(v, 10000000, 0, testnets.DefaultResources))
 	}
 
@@ -66,9 +62,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testnets.NoError("failed to create account", err)
 
 	// start the testnet
-	fmt.Println("Setting up testnet")
+	logger.Println("Setting up testnet")
 	testnets.NoError("Failed to setup testnet", testnet.Setup())
-	fmt.Println("Starting testnet")
+	logger.Println("Starting testnet")
 	testnets.NoError("Failed to start testnet", testnet.Start())
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
@@ -97,8 +93,8 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		testnets.NoError("failed to get height", err)
 
 		newVersion := versions.Random(r).String()
-		logger.Println("Upgrading node", "node", i%numNodes, "version", newVersion)
-		testnets.NoError("failed to upgrade node", testnet.Node(i%numNodes).Upgrade(newVersion))
+		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
+		testnets.NoError("failed to upgrade node", testnet.Node(i%numNodes+1).Upgrade(newVersion))
 		// wait for the node to reach two more heights
 		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
 	}
@@ -134,31 +130,20 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 }
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		return fmt.Errorf("%w: KNUU_NAMESPACE is not set to 'test'", ErrSkip)
-	}
+	os.Setenv("KNUU_NAMESPACE", "test")
 
-	if os.Getenv("E2E_LATEST_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := testnets.ParseVersion(latestVersion)
-		switch {
-		case isSemVer:
-		case latestVersion == "latest":
-		case len(latestVersion) == 7:
-		case len(latestVersion) == 8:
-			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
-			latestVersion = latestVersion[:7]
-		default:
-			return fmt.Errorf("unrecognised version: %s: %w", latestVersion, ErrSkip)
-		}
-	}
+	latestVersion, err := testnets.GetLatestVersion()
+	testnets.NoError("failed to get latest version", err)
+
+	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	numNodes := 4
 	upgradeHeight := int64(12)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testnet, err := testnets.New("runMajorUpgradeToV2", seed, testnets.GetGrafanaInfoFromEnvVar())
+	logger.Println("Creating testnet")
+	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil)
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
@@ -169,6 +154,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer func() { _ = preloader.EmptyImages() }()
 	testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(latestVersion)))
 
+	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
 		err := testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnets.DefaultResources)
 		testnets.NoError("failed to create genesis node", err)
@@ -176,10 +162,12 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
 	testnets.NoError("failed to create account", err)
+	// start the testnet
 
-	testnets.NoError("failed to setup testnet", testnet.Setup())
-
-	testnets.NoError("failed to start testnet", testnet.Start())
+	logger.Println("Setting up testnet")
+	testnets.NoError("Failed to setup testnet", testnet.Setup())
+	logger.Println("Starting testnet")
+	testnets.NoError("Failed to start testnet", testnet.Start())
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -200,6 +188,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 		resp, err := client.Header(ctx, &heightBefore)
 		testnets.NoError("failed to get header", err)
+		logger.Println("Node", i, "is running on version", resp.Header.Version.App)
 		if resp.Header.Version.App != v1.Version {
 			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v1.Version, resp.Header.Version.App)
 		}
@@ -257,4 +246,14 @@ func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period 
 			}
 		}
 	}
+}
+
+func getAllVersions() (string, error) {
+	cmd := exec.Command("git", "tag", "-l")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git tags: %v", err)
+	}
+	allVersions := strings.Split(strings.TrimSpace(string(output)), "\n")
+	return strings.Join(allVersions, " "), nil
 }
