@@ -688,7 +688,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.SetAppVersion(ctx, newVersion)
-      app.SignalKeeper.ResetTally(ctx)
+			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
 	return res
