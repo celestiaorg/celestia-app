@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"os"
 	"strings"
@@ -13,8 +12,6 @@ const (
 	MajorVersion = v1.Version
 	seed         = 42
 )
-
-var ErrSkip = errors.New("skipping e2e test")
 
 type TestFunc func(*log.Logger) error
 
@@ -55,10 +52,6 @@ func runTest(logger *log.Logger, test Test) {
 	logger.Printf("=== RUN %s", test.Name)
 	err := test.Func(logger)
 	if err != nil {
-		if errors.Is(err, ErrSkip) {
-			logger.Printf("--- SKIPPING: %s. Reason: %v \n\n", test.Name, err)
-			return
-		}
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}
 	logger.Printf("--- ✅ PASS: %s \n\n", test.Name)

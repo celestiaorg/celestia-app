@@ -29,7 +29,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 
 	if len(versions) == 0 {
-		return fmt.Errorf("%w: no versions to test", ErrSkip)
+		logger.Fatal("no versions to test")
 	}
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))

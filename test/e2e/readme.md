@@ -11,7 +11,7 @@ End to end tests pull docker images from ghcr.io/celestiaorg/celestia-app. These
 You can run the end-to-end tests using the following command:
 
 ```shell
-KNUU_NAMESPACE=test E2E_LATEST_VERSION=$(git rev-parse --short main) E2E_VERSIONS="$(git tag -l)" go run test/e2e/*.go -timeout 30m -v
+go run test/e2e/*.go -timeout 30m -v
 ```
 
 **Optional parameters**:
