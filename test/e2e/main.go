@@ -29,8 +29,8 @@ func main() {
 	tests := []Test{
 		// FIXME both tests are currently failing
 		// {"MinorVersionCompatibility", MinorVersionCompatibility},
-		{"MajorUpgradeToV2", MajorUpgradeToV2},
-		// {"E2ESimple", E2ESimple},
+		// {"MajorUpgradeToV2", MajorUpgradeToV2},
+		{"E2ESimple", E2ESimple},
 	}
 
 	testName := os.Getenv("TEST")
