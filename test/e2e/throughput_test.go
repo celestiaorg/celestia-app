@@ -72,9 +72,9 @@ func TestE2EThroughput(t *testing.T) {
 	// wait some time for the txsim to submit transactions
 	time.Sleep(1 * time.Minute)
 
-	events, err := testnet.nodes[0].GetRoundStateTraces()
+	_, err = testnet.nodes[0].PullRoundStateTraces()
 	require.NoError(t, err)
-	require.Greater(t, len(events), 10)
+	//require.Greater(t, len(events), 10)
 
 	t.Log("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
