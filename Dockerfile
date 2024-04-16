@@ -42,7 +42,6 @@ USER ${USER_NAME}
 # p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
 
-=======
 # Set the working directory to the home directory.
 WORKDIR ${CELESTIA_HOME}
 # Expose ports:
