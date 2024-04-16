@@ -25,6 +25,7 @@ const (
 	p2pPort        = 26656
 	grpcPort       = 9090
 	prometheusPort = 26660
+	tracingPort    = 26661
 	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
@@ -133,6 +134,7 @@ func NewNode(
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,
+	pullTracing bool,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -152,6 +154,12 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
+	if pullTracing {
+		if err := instance.AddPortTCP(tracingPort); err != nil {
+			return nil, err
+		}
+	}
+
 	if grafana != nil {
 		// add support for metrics
 		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "1m"); err != nil {

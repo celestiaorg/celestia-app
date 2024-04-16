@@ -34,7 +34,7 @@ func TestE2EThroughput(t *testing.T) {
 	t.Log("Running throughput test", "version", latestVersion)
 
 	// create a new testnet
-	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar(), true)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		t.Log("Cleaning up testnet")

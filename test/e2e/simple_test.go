@@ -43,7 +43,7 @@ func TestE2ESimple(t *testing.T) {
 	}
 	t.Log("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
+	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar(), false)
 	require.NoError(t, err)
 	t.Cleanup(testnet.Cleanup)
 
