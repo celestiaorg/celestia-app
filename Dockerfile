@@ -38,7 +38,6 @@ COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
-<<<<<<< HEAD
 
 # p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
@@ -54,5 +53,4 @@ WORKDIR ${CELESTIA_HOME}
 # 26660 is the port used for Prometheus.
 # 26661 is the port used for tracing.
 EXPOSE 1317 9090 26656 26657 26660 26661
->>>>>>> b2566e2a (feat: updates docker file by exposing the tracing port 26661 (#3334))
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
