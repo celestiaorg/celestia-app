@@ -101,7 +101,7 @@ import (
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 
-	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
 	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/keeper"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 
