@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
@@ -30,17 +33,54 @@ const (
 )
 
 type Node struct {
-	Name           string
-	Version        string
-	StartHeight    int64
-	InitialPeers   []string
-	SignerKey      crypto.PrivKey
-	NetworkKey     crypto.PrivKey
-	SelfDelegation int64
-	Instance       *knuu.Instance
+	Name                string
+	Version             string
+	StartHeight         int64
+	InitialPeers        []string
+	SignerKey           crypto.PrivKey
+	NetworkKey          crypto.PrivKey
+	SelfDelegation      int64
+	Instance            *knuu.Instance
+	RemoteHomeDirectory string
 
 	rpcProxyPort  int
 	grpcProxyPort int
+}
+
+func (n *Node) GetRemoteHomeDirectory() string {
+	return n.RemoteHomeDirectory
+}
+
+// GetRoundStateTraces retrieves the round state traces from a node.
+func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
+	isRunning, err := n.Instance.IsRunning()
+	if err != nil {
+		return nil, err
+	}
+	if !isRunning {
+		return nil, fmt.Errorf("node is not running")
+	}
+	tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
+	traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
+		"traces", tableFileName)
+	consensusRoundStateBytes, err := n.Instance.GetFileBytes(traceFileName)
+	if err != nil {
+		return nil, err
+	}
+	tmpFile, err := ioutil.TempFile(".", tableFileName)
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err = tmpFile.Write(consensusRoundStateBytes); err != nil {
+		return nil, err
+	}
+	events, err := trace.DecodeFile[schema.RoundState](tmpFile)
+	if err != nil {
+		return nil, fmt.Errorf("decoding file: %w", err)
+	}
+	return events, nil
 }
 
 // Resources defines the resource requirements for a Node.
@@ -120,14 +160,15 @@ func NewNode(
 	}
 
 	return &Node{
-		Name:           name,
-		Instance:       instance,
-		Version:        version,
-		StartHeight:    startHeight,
-		InitialPeers:   peers,
-		SignerKey:      signerKey,
-		NetworkKey:     networkKey,
-		SelfDelegation: selfDelegation,
+		Name:                name,
+		Instance:            instance,
+		Version:             version,
+		StartHeight:         startHeight,
+		InitialPeers:        peers,
+		SignerKey:           signerKey,
+		NetworkKey:          networkKey,
+		SelfDelegation:      selfDelegation,
+		RemoteHomeDirectory: remoteRootDir,
 	}, nil
 }
 

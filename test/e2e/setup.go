@@ -23,6 +23,9 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Consensus.TimeoutPropose = 1 * time.Second
 	cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
+	cfg.Instrumentation.TraceType = "local"
+	cfg.Instrumentation.TraceBufferSize = 1000
+	cfg.Instrumentation.TracingTables = "consensus_round_state"
 	return cfg, nil
 }
 
