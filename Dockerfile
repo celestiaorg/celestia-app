@@ -65,5 +65,6 @@ WORKDIR ${CELESTIA_HOME}
 # 26656 is the default node p2p port.
 # 26657 is the default RPC port.
 # 26660 is the port used for Prometheus.
-EXPOSE 1317 9090 26656 26657 26660
+# 26661 is the port used for tracing.
+EXPOSE 1317 9090 26656 26657 26660 26661
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
