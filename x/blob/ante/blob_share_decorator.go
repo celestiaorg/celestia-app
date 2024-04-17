@@ -1,7 +1,7 @@
 package ante
 
 import (
-	"github.com/celestiaorg/celestia-app/v2/app/squaresize"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/shares"
 
@@ -42,12 +42,30 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 // getMaxBlobShares returns the max the number of shares available for blob data.
 func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
-	squareSize := squaresize.MaxEffective(ctx, d.k)
+	squareSize := d.getMaxSquareSize(ctx)
 	totalShares := squareSize * squareSize
 	// The PFB tx share must occupy at least one share so the number of blob shares
 	// is at most one less than totalShares.
 	blobShares := totalShares - 1
 	return blobShares
+}
+
+// getMaxSquareSize returns the maximum square size based on the current values
+// for the governance parameter and the versioned constant.
+func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
+	// TODO: fix hack that forces the max square size for the first height to
+	// 64. This is due to our fork of the sdk not initializing state before
+	// BeginBlock of the first block. This is remedied in versions of the sdk
+	// and comet that have full support of PreparePropsoal, although
+	// celestia-app does not currently use those. see this PR for more details
+	// https://github.com/cosmos/cosmos-sdk/pull/14505
+	if ctx.BlockHeader().Height <= 1 {
+		return int(appconsts.DefaultGovMaxSquareSize)
+	}
+
+	upperBound := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
+	govParam := d.k.GovMaxSquareSize(ctx)
+	return min(upperBound, int(govParam))
 }
 
 // getSharesNeeded returns the total number of shares needed to represent all of
