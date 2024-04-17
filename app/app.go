@@ -101,9 +101,9 @@ import (
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 
-	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router"
-	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/keeper"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 
 	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
 	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
@@ -711,6 +711,7 @@ func (app *App) Upgrade(ctx sdk.Context, fromVersion, toVersion uint64) error {
 		app.SetInitialAppVersionInConsensusParams(ctx, toVersion)
 	}
 	app.SetAppVersion(ctx, toVersion)
+	app.SignalKeeper.ResetTally(ctx)
 	return nil
 }
 
