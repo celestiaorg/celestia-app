@@ -629,8 +629,7 @@ func New(
 	app.MsgGateKeeper = ante.NewMsgVersioningGateKeeper(app.configurator.GetAcceptedMessages())
 	app.MsgServiceRouter().SetCircuit(app.MsgGateKeeper)
 
-	// We only initialize the base stores that will be part of every version i.e. params
-	// (which contain the app version)
+	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
 	app.MountKVStores(app.baseKeys())
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
