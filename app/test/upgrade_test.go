@@ -23,169 +23,82 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	dbm "github.com/tendermint/tm-db"
 
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/router/types"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
-// TestUpgradeAppVersion verifies that app version changes correctly during an upgrade from v1 -> v2.
-func TestUpgradeAppVersion(t *testing.T) {
-	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
+// TestAppUpgrades verifies that the all module's params are overridden during an
+// upgrade from v1 -> v2 and the app version changes correctly.
+func TestAppUpgrades(t *testing.T) {
+	GlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+	require.NoError(t, err)
 
-	supportedVersions := []uint64{v1.Version, v2.Version}
-
-	require.Equal(t, supportedVersions, testApp.SupportedVersions())
-
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:  2,
-		Version: tmversion.Consensus{App: 1},
-	}})
-	// app version should not have changed yet
-	require.EqualValues(t, 1, testApp.AppVersion())
-	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
-	// now the app version changes
-	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
-	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
-	require.EqualValues(t, 2, testApp.AppVersion())
-}
-
-// TestMinFeeDuringVersionUpgrades verifies that the minfee module's params are overridden during an
-// upgrade from v1 -> v2.
-func TestMinFeeAgainstAppUpgrades(t *testing.T) {
-	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-
-	supportedVersions := []uint64{v1.Version, v2.Version}
-
-	require.Equal(t, supportedVersions, testApp.SupportedVersions())
-
-	ctx := testApp.NewContext(true, tmproto.Header{
-		Version: tmversion.Consensus{
-			App: 1,
+	tests := []struct {
+		module        string
+		subspace      string
+		key           string
+		expectedValue string
+	}{
+		{
+			module:        "MinFee",
+			subspace:      minfee.ModuleName,
+			key:           string(minfee.KeyGlobalMinGasPrice),
+			expectedValue: GlobalMinGasPriceDec.String(),
 		},
-	})
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:  2,
-		Version: tmversion.Consensus{App: 1},
-	}})
-
-	// app version should not have changed yet
-	require.EqualValues(t, 1, testApp.AppVersion())
-
-	// global min gas price should not have been set yet
-	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-		Subspace: minfee.ModuleName,
-		Key:      string(minfee.KeyGlobalMinGasPrice),
-	})
-	require.Equal(t, "", gotBefore.Param.Value)
-	require.NoError(t, err)
-
-	// now the app version changes
-	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
-	testApp.Commit()
-
-	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
-	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
-	require.EqualValues(t, 2, testApp.AppVersion())
-
-	// create a new context after endBlock
-	newCtx := testApp.NewContext(true, tmproto.Header{
-		Version: tmversion.Consensus{
-			App: 2,
+		{
+			module:        "ICA",
+			subspace:      icahosttypes.SubModuleName,
+			key:           string(icahosttypes.KeyHostEnabled),
+			expectedValue: "true",
 		},
-	})
-
-	// global min gas price should be set
-	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
-		Subspace: minfee.ModuleName,
-		Key:      string(minfee.KeyGlobalMinGasPrice),
-	})
-	require.NoError(t, err)
-
-	want, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
-	require.NoError(t, err)
-	require.Equal(t, want.String(), strings.Trim(got.Param.Value, "\""))
-}
-
-// TestICADuringVersionUpgrades verifies that the ICA module's params are overridden during an
-// upgrade from v1 -> v2.
-func TestICADuringAppUpgrades(t *testing.T) {
-	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-	ctx := testApp.NewContext(true, tmproto.Header{
-		Version: tmversion.Consensus{
-			App: 1,
+		{
+			module:        "PFM",
+			subspace:      packetforwardtypes.ModuleName,
+			key:           string(packetforwardtypes.KeyFeePercentage),
+			expectedValue: "0.000000000000000000",
 		},
-	})
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:  2,
-		Version: tmversion.Consensus{App: 1},
-	}})
-	require.EqualValues(t, 1, testApp.AppVersion())
+	}
+	for _, tt := range tests {
+		t.Run(tt.module, func(t *testing.T) {
+			testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 
-	// Query the ICA host module params
-	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-		Subspace: icahosttypes.SubModuleName,
-		Key:      string(icahosttypes.KeyHostEnabled),
-	})
-	require.NoError(t, err)
-	require.Equal(t, "", gotBefore.Param.Value)
+			supportedVersions := []uint64{v1.Version, v2.Version}
+			require.Equal(t, supportedVersions, testApp.SupportedVersions())
 
-	// Upgrade from v1 -> v2
-	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
-	testApp.Commit()
-	require.EqualValues(t, 2, testApp.AppVersion())
+			ctx := testApp.NewContext(true, tmproto.Header{
+				Version: tmversion.Consensus{
+					App: 1,
+				},
+			})
+			testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+				Height:  2,
+				Version: tmversion.Consensus{App: 1},
+			}})
+			// app version should not have changed yet
+			require.EqualValues(t, 1, testApp.AppVersion())
 
-	newCtx := testApp.NewContext(true, tmproto.Header{Version: tmversion.Consensus{App: 2}})
-	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
-		Subspace: icahosttypes.SubModuleName,
-		Key:      string(icahosttypes.KeyHostEnabled),
-	})
-	require.NoError(t, err)
-	require.Equal(t, "true", got.Param.Value)
-}
+			// Query the module params
+			gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+				Subspace: tt.subspace,
+				Key:      tt.key,
+			})
+			require.NoError(t, err)
+			require.Equal(t, "", gotBefore.Param.Value)
 
-// TestPacketForwardMiddlewareAgainstAppUpgrades verifies that the PFM module's params are overridden during an
-// upgrade from v1 -> v2.
-func TestPFMAgainstAppUpgrades(t *testing.T) {
-	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-	supportedVersions := []uint64{v1.Version, v2.Version}
-	require.Equal(t, supportedVersions, testApp.SupportedVersions())
+			// Upgrade from v1 -> v2
+			testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+			testApp.Commit()
+			require.EqualValues(t, 2, testApp.AppVersion())
 
-	ctx := testApp.NewContext(true, tmproto.Header{
-		Version: tmversion.Consensus{
-			App: 1,
-		},
-	})
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:  2,
-		Version: tmversion.Consensus{App: 1},
-	}})
-	// app version should not have changed yet
-	require.EqualValues(t, 1, testApp.AppVersion())
-	// PacketForwardMiddleware should not have been set yet
-	gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-		Subspace: packetforwardtypes.ModuleName,
-		Key:      string(packetforwardtypes.KeyFeePercentage),
-	})
-	require.Equal(t, "", gotBefore.Param.Value)
-	require.NoError(t, err)
-	// now the app version changes
-	respEndBlock := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
-	testApp.Commit()
-	require.NotNil(t, respEndBlock.ConsensusParamUpdates.Version)
-	require.EqualValues(t, 2, respEndBlock.ConsensusParamUpdates.Version.AppVersion)
-	require.EqualValues(t, 2, testApp.AppVersion())
-	// create a new context after endBlock
-	newCtx := testApp.NewContext(true, tmproto.Header{
-		Version: tmversion.Consensus{
-			App: 2,
-		},
-	})
-	got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
-		Subspace: packetforwardtypes.ModuleName,
-		Key:      string(packetforwardtypes.KeyFeePercentage),
-	})
-	require.NoError(t, err)
-	require.NoError(t, err)
-	require.Equal(t, "0.000000000000000000", strings.Trim(got.Param.Value, "\""))
+			newCtx := testApp.NewContext(true, tmproto.Header{Version: tmversion.Consensus{App: 2}})
+			got, err := testApp.ParamsKeeper.Params(newCtx, &proposal.QueryParamsRequest{
+				Subspace: tt.subspace,
+				Key:      tt.key,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedValue, strings.Trim(got.Param.Value, "\""))
+		})
+	}
 }
 
 func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
