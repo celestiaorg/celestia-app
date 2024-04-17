@@ -329,8 +329,8 @@ github.com/celestiaorg/go-square v1.0.1 h1:LEG1zrw4i03VBMElQF8GAbKYgh1bT1uGzWxas
 github.com/celestiaorg/go-square v1.0.1/go.mod h1:XMv5SGCeGSkynW2OOsedugaW/rQlvzxGzWGxTKsyYOU=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076/go.mod h1:hlidgivKyvv7m4Yl2Fdf2mSTmazZYxX8+bnr5IQrI98=
-github.com/celestiaorg/knuu v0.13.1 h1:FnmzQN/h0vqe+fk6gbPeVJ+YiqN45amQF54L1cZvVg0=
-github.com/celestiaorg/knuu v0.13.1/go.mod h1:7UUt/ZYezIXVKKypNbr/b0/NyP39sRttfJp3grOAjvw=
+github.com/celestiaorg/knuu v0.13.1-rc.3 h1:mSWfwWhL91w+WX+aV0gbQifH8o1RaGW1IlpWGaVd75c=
+github.com/celestiaorg/knuu v0.13.1-rc.3/go.mod h1:7UUt/ZYezIXVKKypNbr/b0/NyP39sRttfJp3grOAjvw=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.20.0 h1:9i7ultZ8Wv5ytt8ZRaxKQ5KOOMo4A2K2T/aPGjIlSas=
