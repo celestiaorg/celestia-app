@@ -223,9 +223,6 @@ func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []
 // MigrationHandler is the migration function that each module registers.
 type MigrationHandler func(sdk.Context) error
 
-// VersionMap is a map of moduleName -> version
-type VersionMap map[string]uint64
-
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
@@ -335,6 +332,22 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	}
 }
 
+// GetVersionMap gets consensus version from all modules
+func (m *Manager) GetVersionMap(version uint64) sdkmodule.VersionMap {
+	vermap := make(sdkmodule.VersionMap)
+	if version > m.lastVersion || version < m.firstVersion {
+		return vermap
+	}
+
+	for _, v := range m.versionedModules[version] {
+		version := v.ConsensusVersion()
+		name := v.Name()
+		vermap[name] = version
+	}
+
+	return vermap
+}
+
 // ModuleNames returns list of all module names, without any particular order.
 func (m *Manager) ModuleNames(version uint64) []string {
 	modules, ok := m.versionedModules[version]
@@ -351,6 +364,7 @@ func (m *Manager) ModuleNames(version uint64) []string {
 	return ms
 }
 
+// SupportedVersions returns all the supported versions for the module manager
 func (m *Manager) SupportedVersions() []uint64 {
 	output := make([]uint64, 0, m.lastVersion-m.firstVersion+1)
 	for version := m.firstVersion; version <= m.lastVersion; version++ {
@@ -380,6 +394,17 @@ func (m *Manager) checkUpgradeSchedule() error {
 				return fmt.Errorf("error: module %s in appVersion %d goes from moduleVersion %d to %d", moduleName, appVersion, lastConsensusVersion, moduleVersion)
 			}
 			lastConsensusVersion = moduleVersion
+		}
+	}
+	return nil
+}
+
+// assertMatchingModules performs a sanity check that the basic module manager
+// contains all the same modules present in the module manager
+func (m *Manager) AssertMatchingModules(basicModuleManager sdkmodule.BasicManager) error {
+	for _, module := range m.allModules {
+		if _, exists := basicModuleManager[module.Name()]; !exists {
+			return fmt.Errorf("module %s not found in basic module manager", module.Name())
 		}
 	}
 	return nil
