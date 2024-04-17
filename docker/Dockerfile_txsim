@@ -56,7 +56,7 @@ USER ${USER_NAME}
 # Set the working directory to the home directory.
 WORKDIR ${CELESTIA_HOME}
 
-# grpc, rpc, api ports (26661 for pull based tracing)
-EXPOSE 26657 1317 9090 26661
+# grpc, rpc, api ports
+EXPOSE 26657 1317 9090
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
