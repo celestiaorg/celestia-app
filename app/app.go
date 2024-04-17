@@ -3,11 +3,11 @@ package app
 import (
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/v2/app/module"
 	"github.com/celestiaorg/celestia-app/v2/app/posthandler"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
-	"github.com/celestiaorg/celestia-app/v2/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/v2/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -23,19 +23,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	"github.com/cosmos/cosmos-sdk/x/auth"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
-	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
-	authzmodule "github.com/cosmos/cosmos-sdk/x/authz/module"
-	"github.com/cosmos/cosmos-sdk/x/bank"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/capability"
 	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
@@ -44,27 +37,19 @@ import (
 	distr "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	"github.com/cosmos/cosmos-sdk/x/evidence"
 	evidencekeeper "github.com/cosmos/cosmos-sdk/x/evidence/keeper"
 	evidencetypes "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
-	feegrantmodule "github.com/cosmos/cosmos-sdk/x/feegrant/module"
-	"github.com/cosmos/cosmos-sdk/x/genutil"
-	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	"github.com/cosmos/cosmos-sdk/x/gov"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1beta2 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgovtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	"github.com/cosmos/cosmos-sdk/x/params"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	paramproposal "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	"github.com/cosmos/cosmos-sdk/x/slashing"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
@@ -72,7 +57,6 @@ import (
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v6/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
@@ -89,13 +73,11 @@ import (
 	appv1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v2/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v2/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/v2/x/tokenfilter"
 
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
 	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v2/x/signal"
@@ -106,59 +88,23 @@ import (
 	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/keeper"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 
-	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
 	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
 	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 )
 
-var (
-	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
-	// non-dependant module elements, such as codec registration
-	// and genesis verification.
-	ModuleBasics = sdkmodule.NewBasicManager(
-		auth.AppModuleBasic{},
-		genutil.AppModuleBasic{},
-		bankModule{},
-		capability.AppModuleBasic{},
-		stakingModule{},
-		mintModule{},
-		distributionModule{},
-		newGovModule(),
-		params.AppModuleBasic{},
-		crisisModule{},
-		slashingModule{},
-		authzmodule.AppModuleBasic{},
-		feegrantmodule.AppModuleBasic{},
-		ibcModule{},
-		evidence.AppModuleBasic{},
-		transfer.AppModuleBasic{},
-		vesting.AppModuleBasic{},
-		blob.AppModuleBasic{},
-		blobstream.AppModuleBasic{},
-		signal.AppModuleBasic{},
-		minfee.AppModuleBasic{},
-		packetforward.AppModuleBasic{},
-		icaModule{},
-	)
-
-	// ModuleEncodingRegisters keeps track of all the module methods needed to
-	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
-
-	// maccPerms is short for module account permissions.
-	maccPerms = map[string][]string{
-		authtypes.FeeCollectorName:     nil,
-		distrtypes.ModuleName:          nil,
-		govtypes.ModuleName:            {authtypes.Burner},
-		minttypes.ModuleName:           {authtypes.Minter},
-		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
-		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		icatypes.ModuleName:            nil,
-	}
-)
+// maccPerms is short for module account permissions.
+var maccPerms = map[string][]string{
+	authtypes.FeeCollectorName:     nil,
+	distrtypes.ModuleName:          nil,
+	govtypes.ModuleName:            {authtypes.Burner},
+	minttypes.ModuleName:           {authtypes.Minter},
+	stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
+	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
+	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+	icatypes.ModuleName:            nil,
+}
 
 const (
 	v1                    = appv1.Version
@@ -426,195 +372,14 @@ func New(
 	// we prefer to be more strict in what arguments the modules expect.
 	skipGenesisInvariants := cast.ToBool(appOpts.Get(crisis.FlagSkipGenesisInvariants))
 
-	// NOTE: Any module instantiated in the module manager that is later modified
-	// must be passed by reference here.
-	var err error
-	app.mm, err = module.NewManager([]module.VersionedModule{
-		{
-			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, encodingConfig.TxConfig),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      auth.NewAppModule(appCodec, app.AccountKeeper, nil),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      capability.NewAppModule(appCodec, *app.CapabilityKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      evidence.NewAppModule(app.EvidenceKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      ibc.NewAppModule(app.IBCKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      params.NewAppModule(app.ParamsKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      transfer.NewAppModule(app.TransferKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      blob.NewAppModule(appCodec, app.BlobKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      blobstream.NewAppModule(appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      signal.NewAppModule(app.SignalKeeper),
-			FromVersion: v2, ToVersion: v2,
-		},
-		{
-			Module:      minfee.NewAppModule(app.ParamsKeeper),
-			FromVersion: v2, ToVersion: v2,
-		},
-		{
-			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
-			FromVersion: v2, ToVersion: v2,
-		},
-		{
-			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
-			FromVersion: v2, ToVersion: v2,
-		},
-	})
+	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
+	err := app.setupModuleManager(skipGenesisInvariants)
 	if err != nil {
 		panic(err)
 	}
 
-	// During begin block slashing happens after distr.BeginBlocker so that
-	// there is nothing left over in the validator fee pool, so as to keep the
-	// CanWithdrawInvariant invariant.
-	// NOTE: staking module is required if HistoricalEntries param > 0
-	app.mm.SetOrderBeginBlockers(
-		capabilitytypes.ModuleName,
-		minttypes.ModuleName,
-		distrtypes.ModuleName,
-		slashingtypes.ModuleName,
-		evidencetypes.ModuleName,
-		stakingtypes.ModuleName,
-		ibchost.ModuleName,
-		ibctransfertypes.ModuleName,
-		feegrant.ModuleName,
-		authtypes.ModuleName,
-		banktypes.ModuleName,
-		crisistypes.ModuleName,
-		govtypes.ModuleName,
-		genutiltypes.ModuleName,
-		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
-		paramstypes.ModuleName,
-		authz.ModuleName,
-		vestingtypes.ModuleName,
-		signaltypes.ModuleName,
-		minfee.ModuleName,
-		icatypes.ModuleName,
-		packetforwardtypes.ModuleName,
-	)
-
-	app.mm.SetOrderEndBlockers(
-		crisistypes.ModuleName,
-		govtypes.ModuleName,
-		stakingtypes.ModuleName,
-		capabilitytypes.ModuleName,
-		minttypes.ModuleName,
-		distrtypes.ModuleName,
-		slashingtypes.ModuleName,
-		evidencetypes.ModuleName,
-		ibchost.ModuleName,
-		ibctransfertypes.ModuleName,
-		feegrant.ModuleName,
-		authtypes.ModuleName,
-		banktypes.ModuleName,
-		genutiltypes.ModuleName,
-		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
-		paramstypes.ModuleName,
-		authz.ModuleName,
-		vestingtypes.ModuleName,
-		signaltypes.ModuleName,
-		minfee.ModuleName,
-		packetforwardtypes.ModuleName,
-		icatypes.ModuleName,
-	)
-
-	// NOTE: The genutils module must occur after staking so that pools are
-	// properly initialized with tokens from genesis accounts.
-	// NOTE: Capability module must occur first so that it can initialize any capabilities
-	// so that other modules that want to create or claim capabilities afterwards in InitChain
-	// can do so safely.
-	// NOTE: The minfee module must occur before genutil so DeliverTx can
-	// successfully pass the fee checking logic
-	app.mm.SetOrderInitGenesis(
-		capabilitytypes.ModuleName,
-		authtypes.ModuleName,
-		banktypes.ModuleName,
-		distrtypes.ModuleName,
-		stakingtypes.ModuleName,
-		slashingtypes.ModuleName,
-		govtypes.ModuleName,
-		minttypes.ModuleName,
-		crisistypes.ModuleName,
-		ibchost.ModuleName,
-		minfee.ModuleName,
-		genutiltypes.ModuleName,
-		evidencetypes.ModuleName,
-		ibctransfertypes.ModuleName,
-		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
-		vestingtypes.ModuleName,
-		feegrant.ModuleName,
-		paramstypes.ModuleName,
-		authz.ModuleName,
-		signaltypes.ModuleName,
-		packetforwardtypes.ModuleName,
-		icatypes.ModuleName,
-	)
+	// order begin block, end block and init genesis
+	app.setModuleOrder()
 
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
 	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
@@ -653,6 +418,9 @@ func New(
 
 	app.SetMigrateStoreFn(app.migrateCommitStore)
 	app.SetMigrateModuleFn(app.migrateModules)
+
+	// assert that keys are present for all supported versions
+	app.assertAllKeysArePresent()
 
 	// we don't seal the store until the app version has been initailised
 	// this will just initialize the base keys (i.e. the param store)
@@ -693,33 +461,30 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	return res
 }
 
+// migrateCommitStore tells the baseapp during a version upgrade, which stores to add and which
+// stores to remove
 func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.StoreMigrations, error) {
 	oldStoreKeys := app.keyVersions[fromVersion]
 	newStoreKeys := app.keyVersions[toVersion]
-	newMap := make(map[string]bool)
-	output := baseapp.StoreMigrations{
+	result := baseapp.StoreMigrations{
 		Added:   make(map[string]*storetypes.KVStoreKey),
 		Deleted: make(map[string]*storetypes.KVStoreKey),
 	}
-	for _, storeKey := range newStoreKeys {
-		newMap[storeKey] = false
-	}
-	for _, storeKey := range oldStoreKeys {
-		if _, ok := newMap[storeKey]; !ok {
-			output.Deleted[storeKey] = app.keys[storeKey]
-		} else {
-			// this module exists in both the old and new modules
-			newMap[storeKey] = true
+	for _, oldKey := range oldStoreKeys {
+		if !slices.Contains(newStoreKeys, oldKey) {
+			result.Deleted[oldKey] = app.keys[oldKey]
 		}
 	}
-	for storeKey, existsInOldModule := range newMap {
-		if !existsInOldModule {
-			output.Added[storeKey] = app.keys[storeKey]
+	for _, newKey := range newStoreKeys {
+		if !slices.Contains(oldStoreKeys, newKey) {
+			result.Added[newKey] = app.keys[newKey]
 		}
 	}
-	return output, nil
+	return result, nil
 }
 
+// migrateModules performs migrations on existing modules that have registered migrations
+// between versions and initializes the state of new modules for the specified app version.
 func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) error {
 	return app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
@@ -961,55 +726,13 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 
 // extractRegisters isolates the encoding module registers from the module
 // manager, and appends any solo registers.
-func extractRegisters(m sdkmodule.BasicManager, soloRegisters ...encoding.ModuleRegister) []encoding.ModuleRegister {
+func extractRegisters(m sdkmodule.BasicManager) []encoding.ModuleRegister {
 	// TODO: might be able to use some standard generics in go 1.18
-	s := make([]encoding.ModuleRegister, len(m)+len(soloRegisters))
+	s := make([]encoding.ModuleRegister, len(m))
 	i := 0
 	for _, v := range m {
 		s[i] = v
 		i++
 	}
-	for i, v := range soloRegisters {
-		s[i+len(m)] = v
-	}
 	return s
-}
-
-func allStoreKeys() []string {
-	return []string{
-		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
-		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		blobstreamtypes.StoreKey,
-		ibctransfertypes.StoreKey,
-		ibchost.StoreKey,
-		packetforwardtypes.StoreKey,
-		icahosttypes.StoreKey,
-		signaltypes.StoreKey,
-		blobtypes.StoreKey,
-	}
-}
-
-// versionedStoreKeys returns the store keys for each app version
-// ... I wish there was an easier way than this (like using the modules which are already versioned)
-func versionedStoreKeys() map[uint64][]string {
-	return map[uint64][]string{
-		1: {
-			authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-			govtypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
-			evidencetypes.StoreKey, capabilitytypes.StoreKey,
-			blobstreamtypes.StoreKey, ibctransfertypes.StoreKey, ibchost.StoreKey,
-			blobtypes.StoreKey,
-		},
-		2: {
-			authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-			govtypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
-			evidencetypes.StoreKey, capabilitytypes.StoreKey,
-			blobstreamtypes.StoreKey, ibctransfertypes.StoreKey, ibchost.StoreKey,
-			packetforwardtypes.StoreKey, icahosttypes.StoreKey, signaltypes.StoreKey,
-		},
-	}
 }

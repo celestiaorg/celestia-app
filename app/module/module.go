@@ -399,6 +399,17 @@ func (m *Manager) checkUpgradeSchedule() error {
 	return nil
 }
 
+// assertMatchingModules performs a sanity check that the basic module manager
+// contains all the same modules present in the module manager
+func (m *Manager) AssertMatchingModules(basicModuleManager sdkmodule.BasicManager) error {
+	for _, module := range m.allModules {
+		if _, exists := basicModuleManager[module.Name()]; !exists {
+			return fmt.Errorf("module %s not found in basic module manager", module.Name())
+		}
+	}
+	return nil
+}
+
 // DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
 // except x/auth which will run last, see:
 // https://github.com/cosmos/cosmos-sdk/issues/10591
