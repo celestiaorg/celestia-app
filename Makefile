@@ -135,7 +135,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	go run ./test/e2e -v $(filter-out $@,$(MAKECMDGOALS))
+	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.

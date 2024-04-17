@@ -11,8 +11,7 @@ End to end tests pull docker images from ghcr.io/celestiaorg/celestia-app. These
 You can run the End-to-End tests using either of the following commands:
 
 ```shell
-go run test/e2e/*.go -timeout 30m -v
-```
+go run ./test/e2e```
 
 ```shell
 make test-e2e
@@ -21,7 +20,7 @@ make test-e2e
 To run a specific test, you can pass the name of the test as a command-line argument. For example, to run the "E2ESimple" test, you would use either of the specified commands:
 
 ```shell
-go run test/e2e/*.go E2ESimple
+go run ./test/e2e E2ESimple
 ```
 
 ```shell
