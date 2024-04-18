@@ -5,7 +5,7 @@ import (
 	"io"
 	"slices"
 
-	migration "github.com/celestiaorg/celestia-app/v2/app/migration"
+	"github.com/celestiaorg/celestia-app/v2/app/migration"
 	"github.com/celestiaorg/celestia-app/v2/app/module"
 	"github.com/celestiaorg/celestia-app/v2/app/posthandler"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
@@ -387,7 +387,7 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.configurator.RegisterMigration(blobstreamtypes.ModuleName, 1, migration.BlobstreamV2)
+	app.configurator.RegisterMigration(blobstreamtypes.ModuleName, v1, migration.DisableBlobstream)
 	app.mm.RegisterServices(app.configurator)
 
 	// extract the accepted message list from the configurator and create a gatekeeper

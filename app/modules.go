@@ -167,7 +167,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v1,
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
