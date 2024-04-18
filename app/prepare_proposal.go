@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
-	"github.com/celestiaorg/celestia-app/v2/app/squaresize"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/go-square/shares"
@@ -49,7 +48,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
 	dataSquare, txs, err := square.Build(txs,
-		squaresize.MaxEffective(sdkCtx, app.BlobKeeper),
+		app.MaxEffectiveSquareSize(sdkCtx),
 		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
 	)
 	if err != nil {
