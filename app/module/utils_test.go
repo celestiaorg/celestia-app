@@ -33,7 +33,6 @@ func Test_defaultMigrationsOrder(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
-
 }
 
 func Test_getKeys(t *testing.T) {

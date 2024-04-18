@@ -113,7 +113,7 @@ func (m *Manager) SetOrderEndBlockers(moduleNames ...string) {
 }
 
 // SetOrderMigrations sets the order of migrations to be run. If not set
-// then migrations will be run with an order defined in `DefaultMigrationsOrder`.
+// then migrations will be run with an order defined in `defaultMigrationsOrder`.
 func (m *Manager) SetOrderMigrations(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderMigrations", moduleNames)
 	m.OrderMigrations = moduleNames
@@ -132,6 +132,10 @@ func (m *Manager) RegisterServices(cfg Configurator) {
 		fromVersion, toVersion := m.getAppVersionsForModule(module.Name(), module.ConsensusVersion())
 		module.RegisterServices(cfg.WithVersions(fromVersion, toVersion))
 	}
+}
+
+func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
+	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
 }
 
 // InitGenesis performs init genesis functionality for modules. Exactly one
@@ -184,6 +188,25 @@ func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version ui
 	}
 
 	return genesisData
+}
+
+// assertNoForgottenModules checks that we didn't forget any modules in the
+// SetOrder* functions.
+func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []string) {
+	ms := make(map[string]bool)
+	for _, m := range moduleNames {
+		ms[m] = true
+	}
+	var missing []string
+	for _, m := range m.allModules {
+		if _, ok := ms[m.Name()]; !ok {
+			missing = append(missing, m.Name())
+		}
+	}
+	if len(missing) != 0 {
+		panic(fmt.Sprintf(
+			"%s: all modules must be defined when setting %s, missing: %v", setOrderFnName, setOrderFnName, missing))
+	}
 }
 
 // RunMigrations performs in-place store migrations for all modules. This
@@ -295,6 +318,22 @@ func (m *Manager) EndBlock(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	}
 }
 
+// GetVersionMap gets consensus version from all modules
+func (m *Manager) GetVersionMap(version uint64) sdkmodule.VersionMap {
+	vermap := make(sdkmodule.VersionMap)
+	if version > m.lastVersion || version < m.firstVersion {
+		return vermap
+	}
+
+	for _, v := range m.versionedModules[version] {
+		version := v.ConsensusVersion()
+		name := v.Name()
+		vermap[name] = version
+	}
+
+	return vermap
+}
+
 // ModuleNames returns the list of module names that are supported for a
 // particular version in no particular order.
 func (m *Manager) ModuleNames(version uint64) []string {
@@ -310,6 +349,7 @@ func (m *Manager) ModuleNames(version uint64) []string {
 	return names
 }
 
+// SupportedVersions returns all the supported versions for the module manager
 func (m *Manager) SupportedVersions() []uint64 {
 	return getKeys(m.versionedModules)
 }
@@ -338,25 +378,13 @@ func (m *Manager) checkUpgradeSchedule() error {
 	return nil
 }
 
-func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint64) (uint64, uint64) {
-	return m.uniqueModuleVersions[moduleName][moduleVersion][0], m.uniqueModuleVersions[moduleName][moduleVersion][1]
-}
-
-// assertNoForgottenModules checks that we didn't forget any modules in the
-// SetOrder* functions.
-func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []string) {
-	ms := make(map[string]bool)
-	for _, m := range moduleNames {
-		ms[m] = true
-	}
-	var missing []string
-	for _, m := range m.allModules {
-		if _, ok := ms[m.Name()]; !ok {
-			missing = append(missing, m.Name())
+// assertMatchingModules performs a sanity check that the basic module manager
+// contains all the same modules present in the module manager
+func (m *Manager) AssertMatchingModules(basicModuleManager sdkmodule.BasicManager) error {
+	for _, module := range m.allModules {
+		if _, exists := basicModuleManager[module.Name()]; !exists {
+			return fmt.Errorf("module %s not found in basic module manager", module.Name())
 		}
 	}
-	if len(missing) != 0 {
-		panic(fmt.Sprintf(
-			"%s: all modules must be defined when setting %s, missing: %v", setOrderFnName, setOrderFnName, missing))
-	}
+	return nil
 }
