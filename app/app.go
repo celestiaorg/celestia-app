@@ -387,7 +387,10 @@ func New(
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.configurator.RegisterMigration(blobstreamtypes.ModuleName, v1, migration.DisableBlobstream)
+	err = app.configurator.RegisterMigration(blobstreamtypes.ModuleName, v1, migration.DisableBlobstream)
+	if err != nil {
+		panic(err)
+	}
 	app.mm.RegisterServices(app.configurator)
 
 	// extract the accepted message list from the configurator and create a gatekeeper

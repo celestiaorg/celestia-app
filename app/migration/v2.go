@@ -1,8 +1,13 @@
 package migration
 
-import sdk "github.com/cosmos/cosmos-sdk/types"
+import (
+	"fmt"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
 
 func DisableBlobstream(ctx sdk.Context) error {
-	// TODO: Implement migration
+	fmt.Printf("disabling blobstream module\n")
+	fmt.Printf("consensus params version %v\n", ctx.ConsensusParams().Version)
 	return nil
 }

@@ -247,6 +247,8 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 		currentModule, currentModuleExists := currentVersionModules[moduleName]
 		nextModule, nextModuleExists := nextVersionModules[moduleName]
 
+		// Disable gocritic because it wants this if/else to be replaced with a switch statement.
+		//nolint:gocritic
 		if isModuleExisting(currentModuleExists, nextModuleExists) {
 			// by using consensus version instead of app version we support the SDK's legacy method
 			// of migrating modules which were made of several versions and consisted of a mapping of
@@ -270,8 +272,7 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 		} else if isModuleRemoved(currentModuleExists, nextModuleExists) {
 			ctx.Logger().Info(fmt.Sprintf("removing an existing module: %s", moduleName))
 			fromModuleVersion := currentModule.ConsensusVersion()
-			toModuleVersion := nextModule.ConsensusVersion()
-			err := c.runModuleMigrations(ctx, moduleName, fromModuleVersion, toModuleVersion)
+			err := c.runModuleMigration(ctx, moduleName, fromModuleVersion)
 			if err != nil {
 				return err
 			}

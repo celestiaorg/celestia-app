@@ -127,6 +127,26 @@ func (c VersionedConfigurator) runModuleMigrations(ctx sdk.Context, moduleName s
 	return nil
 }
 
+// runModuleMigration runs a single in-place store migration for one given module.
+func (c VersionedConfigurator) runModuleMigration(ctx sdk.Context, moduleName string, fromVersion uint64) error {
+	moduleMigrationsMap, found := c.migrations[moduleName]
+	if !found {
+		return sdkerrors.ErrNotFound.Wrapf("no migrations found for module %s", moduleName)
+	}
+
+	migrateFn, found := moduleMigrationsMap[fromVersion]
+	if !found {
+		return sdkerrors.ErrNotFound.Wrapf("no migration found for module %s and from version %d", moduleName, fromVersion)
+	}
+	ctx.Logger().Info(fmt.Sprintf("migrating module %s from version %d", moduleName, fromVersion))
+
+	err := migrateFn(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // the server wrapper wraps the pbgrpc.Server for registering a service but
 // includes logic to extract all the sdk.Msg types that the service declares
 // in its methods and fires a callback to add them to the configurator.
