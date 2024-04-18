@@ -83,4 +83,19 @@ celestia-appd start \
   --home ${CELESTIA_APP_HOME} \
   --api.enable \
   --grpc.enable \
-  --grpc-web.enable
+  --grpc-web.enable \
+  --v2-upgrade-height 10
+
+# # Register the validator EVM address
+# {
+#   sleep 20s # wait for block 1
+
+#   celestia-appd tx qgb register \
+#     "$(celestia-appd keys show validator --home "${HOME_DIR}" --bech val -a)" \
+#     0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 \
+#     --from ${KEY_NAME} \
+#     --home ${CELESTIA_APP_HOME} \
+#     --fees 30000utia \
+#     --broadcast-mode block \
+#     --yes
+# } &
