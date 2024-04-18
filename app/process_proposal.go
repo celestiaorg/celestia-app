@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
-	"github.com/celestiaorg/celestia-app/v2/app/squaresize"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
@@ -122,7 +121,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// Construct the data square from the block's transactions
 	dataSquare, err := square.Construct(
 		req.BlockData.Txs,
-		squaresize.MaxEffective(sdkCtx, app.BlobKeeper),
+		app.MaxEffectiveSquareSize(sdkCtx),
 		subtreeRootThreshold,
 	)
 	if err != nil {
