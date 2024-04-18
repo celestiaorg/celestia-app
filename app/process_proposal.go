@@ -23,8 +23,9 @@ const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
-	// In the case of a panic from an unexpected condition, it is better for the liveness of the
-	// network that we catch it, log an error and vote nil than to crash the node.
+	// In the case of a panic resulting from an unexpected condition, it is
+	// better for the liveness of the network to catch it, log an error, and
+	// vote nil rather than crashing the node.
 	defer func() {
 		if err := recover(); err != nil {
 			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("caught panic: %v", err))
@@ -33,7 +34,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		}
 	}()
 
-	// Create the anteHander that are used to check the validity of
+	// Create the anteHander that is used to check the validity of
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
@@ -78,7 +79,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 			_, has := hasPFB(msgs)
 			if has {
-				// A non blob tx has a PFB, which is invalid
+				// A non-blob tx has a PFB, which is invalid
 				logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
 				return reject()
 			}
