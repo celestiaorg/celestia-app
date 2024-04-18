@@ -3,11 +3,14 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -22,6 +25,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
+	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -79,7 +83,7 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := app.New(
-		log.NewNopLogger(), db, nil, true,
+		log.NewNopLogger(), db, nil,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
@@ -106,6 +110,8 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+
+	_ = testApp.Info(abci.RequestInfo{})
 
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
@@ -292,4 +298,47 @@ func genesisStateWithValSet(
 // NewDefaultGenesisState generates the default state for the application.
 func NewDefaultGenesisState(cdc codec.JSONCodec) app.GenesisState {
 	return app.ModuleBasics.DefaultGenesis(cdc)
+}
+
+func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
+	t.Helper()
+
+	db := dbm.NewMemDB()
+	chainID := "test_chain"
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, EmptyAppOptions{})
+	genesisState, _, kr := GenesisStateWithSingleValidator(testApp, "account")
+	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	require.NoError(t, err)
+	infoResp := testApp.Info(abci.RequestInfo{})
+	require.EqualValues(t, 0, infoResp.AppVersion)
+	cp := app.DefaultInitialConsensusParams()
+	abciParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			MaxBytes: cp.Block.MaxBytes,
+			MaxGas:   cp.Block.MaxGas,
+		},
+		Evidence:  &cp.Evidence,
+		Validator: &cp.Validator,
+		Version:   &cp.Version,
+	}
+
+	_ = testApp.InitChain(
+		abci.RequestInitChain{
+			Time:            time.Now(),
+			Validators:      []abci.ValidatorUpdate{},
+			ConsensusParams: abciParams,
+			AppStateBytes:   stateBytes,
+			ChainId:         chainID,
+		},
+	)
+
+	// assert that the chain starts with version provided in genesis
+	infoResp = testApp.Info(abci.RequestInfo{})
+	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
+
+	_ = testApp.Commit()
+	supportedVersions := []uint64{v1.Version, v2.Version}
+	require.Equal(t, supportedVersions, testApp.SupportedVersions())
+	return testApp, kr
 }

@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
-celestia-app is a blockchain application built using parts of the Cosmos stack. celestia-app uses
+celestia-app is the software used by [validators](https://docs.celestia.org/nodes/validator-node) and [full consensus nodes](https://docs.celestia.org/nodes/full-consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
 
 - [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
 - [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
@@ -73,9 +73,7 @@ If you'd rather not install from source, you can download a prebuilt binary from
     celestia-app_Linux_x86_64.tar.gz: OK
     ```
 
-### Ledger Support
-
-Ledger is not supported on Windows and OpenBSD.
+See <https://docs.celestia.org/nodes/celestia-app> for more information.
 
 ## Usage
 
@@ -93,24 +91,20 @@ celestia-appd --help
 ### Create your own single node devnet
 
 ```sh
-
-# Start a single node devnet using the pre-installed celestia app
+# Start a single node devnet
 ./scripts/single-node.sh
 
-# Build and start a single node devnet
-./scripts/build-run-single-node.sh
-
-# Post data to the local devnet
-celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
+# Publish blob data to the local devnet
+celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \
+	--chain-id private \
+	--from validator \
+	--keyring-backend test \
+	--fees 21000utia \
+	--yes
 ```
 
-**Note:** please note that the `./scripts/` commands above, created a random `tmp` directory and keeps all data/configs there.
-
-<!-- markdown-link-check-disable -->
-<!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
-<!-- See https://github.com/celestiaorg/celestia-app/actions/runs/3296219513/jobs/5439416229#step:4:185 -->
-See <https://docs.celestia.org/category/celestia-app> for more information
-<!-- markdown-link-check-enable -->
+> [!NOTE]
+> The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
 
 ## Contributing
 
@@ -130,8 +124,14 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 ### Helpful Commands
 
 ```sh
-# Build a new celestia-app binary and output to build/celestia-appd
+# Get more info on make commands.
+make help
+
+# Build the celestia-appd binary into the ./build directory.
 make build
+
+# Build and install the celestia-appd binary into the $GOPATH/bin directory.
+make install
 
 # Run tests
 make test
@@ -141,18 +141,11 @@ make fmt
 
 # Regenerate Protobuf files (this assumes Docker is running)
 make proto-gen
-
-# Build binaries with goreleaser
-make goreleaser-build
 ```
 
 ### Docs
 
 Package-specific READMEs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
-
-- [pkg/wrapper](./pkg/wrapper/README.md)
-- [x/blob](./x/blob/README.md)
-- [x/blobstream](./x/blobstream/README.md)
 
 ## Audits
 
@@ -160,7 +153,3 @@ Package-specific READMEs aim to explain implementation details for developers th
 |------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------|
 | 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf) |
 | 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)   |
-
-## Careers
-
-We are hiring Go engineers! Join us in building the future of blockchain scaling and interoperability. [Apply here](https://jobs.lever.co/celestia).

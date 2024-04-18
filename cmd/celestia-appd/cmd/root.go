@@ -125,8 +125,6 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
 
-	debugCmd := debug.Cmd()
-
 	rootCmd.AddCommand(
 		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
 		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
@@ -135,11 +133,12 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
 		tmcli.NewCompletionCmd(rootCmd, true),
-		debugCmd,
+		debug.Cmd(),
 		config.Cmd(),
 		commands.CompactGoLevelDBCmd,
 		addrbookCommand(),
 		downloadGenesisCommand(),
+		addrConversionCmd(),
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
@@ -237,7 +236,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 	}
 
 	return app.New(
-		logger, db, traceStore, true,
+		logger, db, traceStore,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
 		cast.ToInt64(appOpts.Get(UpgradeHeightFlag)),
@@ -263,13 +262,13 @@ func createAppAndExport(
 	encCfg.Codec = codec.NewProtoCodec(encCfg.InterfaceRegistry)
 	var capp *app.App
 	if height != -1 {
-		capp = app.New(logger, db, traceStore, false, uint(1), encCfg, 0, appOpts)
+		capp = app.New(logger, db, traceStore, uint(1), encCfg, 0, appOpts)
 
 		if err := capp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		capp = app.New(logger, db, traceStore, true, uint(1), encCfg, 0, appOpts)
+		capp = app.New(logger, db, traceStore, uint(1), encCfg, 0, appOpts)
 	}
 
 	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
