@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 func TestE2EThroughput(t *testing.T) {
@@ -86,4 +87,10 @@ func TestE2EThroughput(t *testing.T) {
 		totalTxs += len(block.Data.Txs)
 	}
 	require.Greater(t, totalTxs, 10)
+}
+
+func TestGetTable(t *testing.T) {
+	addr := "http://localhost:26661"
+	err := trace.GetTable(addr, "consensus_round_state", ".")
+	require.NoError(t, err)
 }
