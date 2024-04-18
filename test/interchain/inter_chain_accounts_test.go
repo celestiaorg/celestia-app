@@ -3,6 +3,7 @@ package interchain
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -103,4 +104,16 @@ func TestInterChainAccounts(t *testing.T) {
 	require.Empty(t, stderr)
 	t.Logf("stdout %v\n", string(stdout))
 	assert.NotEmpty(t, string(stdout))
+
+	channels, err := relayer.GetChannels(ctx, reporter, cosmosHub.Config().ChainID)
+	require.NoError(t, err)
+	fmt.Printf("cosmosHub channels: %#v\n", channels)
+	assert.Len(t, channels, 2) // 2 channels: the first is ics27-1, the second is ics20-1.
+	assert.True(t, strings.HasPrefix(channels[0].PortID, "icacontroller"), "Expected %v to start with %v", channels[0].PortID, "icacontroller")
+
+	channels, err = relayer.GetChannels(ctx, reporter, celestia.Config().ChainID)
+	require.NoError(t, err)
+	fmt.Printf("celestia channels: %#v\n", channels)
+	assert.Len(t, channels, 2) // 2 channels: the first is ics27-1, the second is ics20-1.
+	assert.Equal(t, "icahost", channels[0].PortID)
 }
