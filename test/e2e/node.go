@@ -44,8 +44,9 @@ type Node struct {
 	Instance            *knuu.Instance
 	RemoteHomeDirectory string
 
-	rpcProxyPort  int
-	grpcProxyPort int
+	rpcProxyPort   int
+	grpcProxyPort  int
+	traceProxyPort int
 }
 
 func (n *Node) GetRemoteHomeDirectory() string {
@@ -95,11 +96,9 @@ func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
 		return nil, fmt.Errorf("node is not running")
 	}
 
-	addr, err := n.RemoteAddressTracing()
-	if err != nil {
-		return nil, fmt.Errorf("getting remote address: %w", err)
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
-	}
 	err = trace.GetTable(addr, schema.RoundState{}.Table(), ".")
 	if err != nil {
 		return nil, fmt.Errorf("getting table: %w", err)
@@ -227,6 +226,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 		}
 	}
 
+	MakeTracePushConfig(filepath.Join(nodeDir, "config"))
 	// Create and write the config file
 	cfg, err := MakeConfig(n)
 	if err != nil {
@@ -325,6 +325,10 @@ func (n Node) RemoteAddressRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
 }
 
+func (n Node) AddressTracing() string {
+	return fmt.Sprintf("http://127.0.0.1:%d", n.traceProxyPort)
+}
+
 func (n Node) RemoteAddressTracing() (string, error) {
 	ip, err := n.Instance.GetIP()
 	if err != nil {
@@ -358,8 +362,14 @@ func (n *Node) Start() error {
 	if err != nil {
 		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
 	}
+
+	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
+	}
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
+	n.traceProxyPort = traceProxyPort
 	return nil
 }
 
