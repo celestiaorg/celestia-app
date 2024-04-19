@@ -62,7 +62,7 @@ If another namespace is to be used, please create it using the same command whil
 After you start the E2E tests, you can check if you have the validators running:
 
 ```shell
-$ kubectl get pods --namespace test
+kubectl get pods --namespace test
 NAME                             READY   STATUS    RESTARTS   AGE
 timeout-handler-09e1a426-jwm7n   1/1     Running   0          2m18s
 timeout-handler-921a1b93-52g6d   1/1     Running   0          40m
