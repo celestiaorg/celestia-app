@@ -38,3 +38,46 @@ Logs of each of the nodes are posted to Grafana and can be accessed through Cele
 ### Metrics
 
 To view the metrics from the testnet, you should set the `GRAFANA_ENDPOINT`, `GRAFANA_USERNAME`, and `GRAFANA_TOKEN` environment variables. This uses Prometheus alongside the Jaeger and Otlp Exporter.
+
+## Running locally
+
+It is also possible to run the whole workloads locally using minikube.
+
+### Install minikube
+
+Minikube is required to be installed on your machine. If you have a linux machine, follow the [minikube docs](https://kubernetes.io/fr/docs/tasks/tools/install-minikube/). If you're on macOS ARM, this [tutorial](https://devopscube.com/minikube-mac/) can be helpful to run it using qemu.
+
+### Create namespace
+
+The command in [usage](#usage) specifies an environment variable `KNUU_NAMESPACE` to the value `test`. This namespace will need to be created before running that command:
+
+```shell
+kubectl create namespace test
+```
+
+If another namespace is to be used, please create it using the same command while changing `test` to your target namespace.
+
+### Check the logs
+
+After you start the E2E tests, you can check if you have the validators running:
+
+```shell
+$ kubectl get pods --namespace test
+NAME                             READY   STATUS    RESTARTS   AGE
+timeout-handler-09e1a426-jwm7n   1/1     Running   0          2m18s
+timeout-handler-921a1b93-52g6d   1/1     Running   0          40m
+timeout-handler-c3442f46-lvxw2   1/1     Running   0          37m
+timeout-handler-f5ccc2c9-7hld2   1/1     Running   0          34m
+val0-3a7e2e1e-zs8h5              1/1     Running   0          60s
+val1-9b802df8-tcvnb              1/1     Running   0          51s
+val2-91b57a4d-ht57t              1/1     Running   0          42s
+val3-dcc2ef6c-cg8k5              1/1     Running   0          32s
+```
+
+The logs can be checked using: 
+
+```shell
+$ kubectl logs --namespace test -f <pod_name>
+```
+
+With `<pod_name>` being a pod name like `val0-3a7e2e1e-zs8h5`.
