@@ -123,8 +123,8 @@ func TestNewShareInclusionProof(t *testing.T) {
 
 	type test struct {
 		name          string
-		startingShare int64
-		endingShare   int64
+		startingShare int
+		endingShare   int
 		namespaceID   appns.Namespace
 		expectErr     bool
 	}
