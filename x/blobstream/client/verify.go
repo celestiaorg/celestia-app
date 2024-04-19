@@ -285,8 +285,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		return false, err
 	}
 
-	heightI := int64(height)
-	block, err := trpc.Block(ctx, &heightI)
+	block, err := trpc.Block(ctx, &height)
 	if err != nil {
 		return false, err
 	}
@@ -307,7 +306,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		ctx,
 		bsWrapper,
 		resp.DataCommitment.Nonce,
-		heightI,
+		height,
 		block.Block.DataHash,
 		merkle.Proof{
 			Total:    dcProof.Proof.Total,
