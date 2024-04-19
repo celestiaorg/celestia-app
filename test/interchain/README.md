@@ -4,7 +4,6 @@ This folder contains tests that use [interchaintest](https://github.com/strangel
 
 1. Interchain Accounts (ICA)
 1. Packet Forward Middleware (PFM)
-1. Relayer Incentivization Middleware (RIM)
 
 ## Usage
 
