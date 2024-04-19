@@ -17,10 +17,10 @@ import (
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	if err := Run(ctx); err != nil && errors.Is(err, context.Canceled) {
+	if err := Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		log.Println("ERR:", err)
 	}
 }
@@ -59,10 +59,6 @@ func Scan(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) er
 		return err
 	}
 
-	if fromHeight > toHeight {
-		return fmt.Errorf("fromHeight > toHeight")
-	}
-
 	status, err := client.Status(ctx)
 	if err != nil {
 		return err
@@ -77,6 +73,9 @@ func Scan(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) er
 		toHeight = fromHeight
 		fmt.Printf("Scanning height %d...\n", fromHeight)
 	} else {
+		if fromHeight > toHeight {
+			return fmt.Errorf("fromHeight must be less or equal to toHeight")
+		}
 		fmt.Printf("Scanning from height %d to %d...\n", fromHeight, toHeight)
 	}
 
