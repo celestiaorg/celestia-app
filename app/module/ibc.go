@@ -8,7 +8,7 @@ import (
 	exported "github.com/cosmos/ibc-go/v6/modules/core/exported"
 )
 
-func NewWithVersions(
+func NewVersionedIBCModule(
 	wrappedModule, nextModule porttypes.IBCModule,
 	fromVersion, toVersion uint64,
 ) porttypes.IBCModule {
