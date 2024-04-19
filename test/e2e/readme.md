@@ -6,12 +6,13 @@ End-to-end tests pull docker images from `ghcr.io/celestiaorg/celestia-app`. The
 
 ## Usage
 
-**Prerequisite: Requires a kubeconfig file.**
+**Prerequisite: Requires a kubeconfig file.** Access to the specific `kubeconfig` file used by this project is limited to internal contributors only. 
 
 You can run the End-to-End tests using either of the following commands:
 
 ```shell
-go run ./test/e2e```
+go run ./test/e2e
+```
 
 ```shell
 make test-e2e
@@ -113,3 +114,9 @@ If you followed the [backup your existing cluster configuration](#backup-existin
 ```shell
 cp ${HOME}/.kube/config_backup ${HOME}/.kube/config
 ```
+
+## Known issues
+
+### `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`
+
+This happens when the kubernetes configuration is missing. Knuu expects the cluster configuration to be in `${HOME}/.kube/config`. Make sure to put the cluster configuration in that file.
