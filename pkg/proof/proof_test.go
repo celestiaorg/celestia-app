@@ -220,7 +220,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 			proof, err := proof.NewShareInclusionProof(
 				dataSquare,
 				tt.namespaceID,
-				shares.NewRange(int(tt.startingShare), int(tt.endingShare)),
+				shares.NewRange(tt.startingShare, tt.endingShare),
 			)
 			require.NoError(t, err)
 			assert.NoError(t, proof.Validate(dataRoot))
