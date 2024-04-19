@@ -94,7 +94,7 @@ With `<pod_name>` being a pod name like `val0-3a7e2e1e-zs8h5`.
 
 ### Destroy the pods
 
-By default, the pods will be killed automatically after 60 minutes. However, if you want to clean up the cluster manually, and destroy everything:
+By default, the pods will be killed automatically after 60 minutes. However, if you want to clean up the cluster manually, and destroy everything that was created in the `test` namespace:
 
 ```shell
 kubectl delete pods --all --namespace test
