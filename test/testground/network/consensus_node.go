@@ -328,7 +328,7 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 }
 
 func safeConvertIntToUint16(x int) (uint16, error) {
-	if x > 0 && x <= math.MaxUint16 {
+	if x >= 0 && x <= math.MaxUint16 {
 		return uint16(x), nil
 	}
 	return 0, fmt.Errorf("%v is negative or too large to convert to uint16", x)
