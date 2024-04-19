@@ -5,9 +5,8 @@ import (
 	"sort"
 
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
-
-const authName = "auth"
 
 // defaultMigrationsOrder returns a default migrations order. The order is
 // ascending alphabetical by module name except "auth" will will be last. See:
@@ -16,8 +15,8 @@ func defaultMigrationsOrder(modules []string) []string {
 	result := filter(modules, isNotAuth)
 	sort.Strings(result)
 
-	if hasAuth := slices.Contains(modules, authName); hasAuth {
-		return append(result, authName)
+	if hasAuth := slices.Contains(modules, authtypes.ModuleName); hasAuth {
+		return append(result, authtypes.ModuleName)
 	}
 	return result
 }
@@ -32,7 +31,7 @@ func filter(elements []string, filter func(string) bool) (filtered []string) {
 }
 
 func isNotAuth(name string) bool {
-	return name != "auth"
+	return name != authtypes.ModuleName
 }
 
 func getKeys(m map[uint64]map[string]sdkmodule.AppModule) []uint64 {
