@@ -105,3 +105,11 @@ Note: This will delete all the created pods in the default kubernetes cluster un
 ```shell
 kubectl get pods --namespace test
 ```
+
+### Restoring old cluster configuration
+
+To restore your previous cluster configuration, if you followed the [backup your existing cluster configuration](#backup-existing-configuration) section:
+
+```shell
+cp ${HOME}/.kube/config_backup ${HOME}/.kube/config
+```
