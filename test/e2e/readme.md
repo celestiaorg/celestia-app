@@ -77,7 +77,7 @@ val3-dcc2ef6c-cg8k5              1/1     Running   0          32s
 The logs can be checked using:
 
 ```shell
-$ kubectl logs --namespace test -f <pod_name>
+kubectl logs --namespace test -f <pod_name>
 ```
 
 With `<pod_name>` being a pod name like `val0-3a7e2e1e-zs8h5`.
