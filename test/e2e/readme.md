@@ -74,7 +74,7 @@ val2-91b57a4d-ht57t              1/1     Running   0          42s
 val3-dcc2ef6c-cg8k5              1/1     Running   0          32s
 ```
 
-The logs can be checked using: 
+The logs can be checked using:
 
 ```shell
 $ kubectl logs --namespace test -f <pod_name>
