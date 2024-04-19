@@ -54,7 +54,6 @@ func main() {
 }
 
 func runTest(logger *log.Logger, test Test) {
-	logger.SetPrefix("             ")
 	logger.Printf("=== RUN %s", test.Name)
 	err := test.Func(logger)
 	if err != nil {
