@@ -167,5 +167,5 @@ func safeConvert(x int64) (int, error) {
 	if math.MinInt <= x && x <= math.MaxInt {
 		return int(x), nil
 	}
-	return 0, fmt.Errorf("invalid int: %d", x)
+	return 0, fmt.Errorf("value %d is too large to convert to int", x)
 }
