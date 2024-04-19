@@ -283,7 +283,7 @@ func addPeersToAddressBook(path string, peers []PeerPacket) error {
 		if err != nil {
 			return err
 		}
-		port, err := safeConvert(peerPort)
+		port, err := safeConvertIntToUint16(peerPort)
 		if err != nil {
 			return err
 		}
@@ -327,9 +327,9 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 	return address, ip, portInt, nil
 }
 
-func safeConvert(x int) (uint16, error) {
+func safeConvertIntToUint16(x int) (uint16, error) {
 	if x > 0 && x <= math.MaxUint16 {
 		return uint16(x), nil
 	}
-	return 0, fmt.Errorf("invalid uint16: %d", x)
+	return 0, fmt.Errorf("%v is negative or too large to convert to uint16", x)
 }
