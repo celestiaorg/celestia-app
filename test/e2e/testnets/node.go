@@ -199,7 +199,6 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 
 	if err := n.Instance.Commit(); err != nil {
 		return err
-
 	}
 
 	if err := n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
