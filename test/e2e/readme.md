@@ -1,8 +1,8 @@
-# End to End Testing
+# End-to-End Testing
 
-Celestia uses the [knuu](https://github.com/celestiaorg/knuu) framework to orchestrate clusters of nodes in a network for end to end testing. This relies on Docker and a kubeconfig (in `~/.kube/config`) to access the Kubernetes cluster.
+Celestia uses the [knuu](https://github.com/celestiaorg/knuu) framework to orchestrate clusters of nodes in a network for end-to-end testing. This relies on Docker and a kubeconfig (in `~/.kube/config`) to access the Kubernetes cluster.
 
-End to end tests pull docker images from ghcr.io/celestiaorg/celestia-app. These are automatically published when tagging a new release or when opening a pull request. If you wish to manually test a specific commit, you can manually publish the image by first running `make build-ghcr-docker` (from the root directory) and then running `make publish-ghcr-docker`. You must have permission to push to the ghcr.io/celestiaorg/celestia-app repository.
+End-to-end tests pull docker images from `ghcr.io/celestiaorg/celestia-app`. These are automatically published when tagging a new release or when opening a pull request. If you wish to manually test a specific commit, you can manually publish the image by first running `make build-ghcr-docker` (from the root directory) and then running `make publish-ghcr-docker`. You must have permission to push to the `ghcr.io/celestiaorg/celestia-app` repository.
 
 ## Usage
 
@@ -43,6 +43,16 @@ To view the metrics from the testnet, you should set the `GRAFANA_ENDPOINT`, `GR
 
 It is also possible to run the whole workloads locally using minikube.
 
+### Backup existing configuration
+
+By default, the instructions below will overwrite your existing cluster configuration. To back up your configuration:
+
+```shell
+cp ${HOME}/.kube/config ${HOME}/.kube/config_backup
+```
+
+This will back up your default kubernetes configuration. If you use a different directory/file, and you plan on referencing it when creating the minikube cluster below, please back it up.
+
 ### Install minikube
 
 Minikube is required to be installed on your machine. If you have a linux machine, follow the [minikube docs](https://kubernetes.io/fr/docs/tasks/tools/install-minikube/). If you're on macOS ARM, this [tutorial](https://devopscube.com/minikube-mac/) can be helpful to run it using qemu.
@@ -81,3 +91,17 @@ kubectl logs --namespace test -f <pod_name>
 ```
 
 With `<pod_name>` being a pod name like `val0-3a7e2e1e-zs8h5`.
+
+### Destroy the pods
+
+By default, the pods will be killed automatically after 60 minutes. However, if you want to clean up the cluster manually, and destroy everything:
+
+```shell
+kubectl delete pods --all --namespace test
+```
+
+Note: This will delete all the created pods in the default kubernetes cluster under the `test` namespace. Make sure to run it against the correct cluster and double-check the pods list that is going to be destroyed using this command:
+
+```shell
+kubectl get pods --namespace test
+```
