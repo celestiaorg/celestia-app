@@ -104,11 +104,11 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	begin, err := safeConvert(beginShare)
+	begin, err := safeConvertInt64ToInt(beginShare)
 	if err != nil {
 		return nil, err
 	}
-	end, err := safeConvert(endShare)
+	end, err := safeConvertInt64ToInt(endShare)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func ParseNamespace(rawShares []shares.Share, startShare int64, endShare int64) 
 	return startShareNs, nil
 }
 
-func safeConvert(x int64) (int, error) {
+func safeConvertInt64ToInt(x int64) (int, error) {
 	if math.MinInt <= x && x <= math.MaxInt {
 		return int(x), nil
 	}

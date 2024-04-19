@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_safeConvert(t *testing.T) {
+func Test_safeConvertInt64ToInt(t *testing.T) {
 	testCases := []struct {
 		input int64
 		want  int
@@ -19,7 +19,7 @@ func Test_safeConvert(t *testing.T) {
 		{input: math.MaxInt64, want: math.MaxInt64},
 	}
 	for _, tc := range testCases {
-		got, err := safeConvert(tc.input)
+		got, err := safeConvertInt64ToInt(tc.input)
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got)
 	}
