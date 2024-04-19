@@ -329,17 +329,22 @@ func New(
 	)
 	// transfer stack contains (from top to bottom):
 	// - Token Filter
+	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = packetforward.NewIBCMiddleware(
+	packetForwardMiddleware := packetforward.NewIBCMiddleware(
 		transferStack,
 		app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
+	// packetForwardMiddleware is used only for version 2
+	transferStack = module.NewWithVersions(packetForwardMiddleware, transferStack, v2, v2)
+	// token filter wraps packer forward middleware and is thus the first module in the transfer stack
+	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
+	transferStack = module.NewWithVersions(tokenFilterMiddelware, transferStack, v1, v2)
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
