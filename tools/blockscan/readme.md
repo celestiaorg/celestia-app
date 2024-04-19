@@ -10,7 +10,7 @@ The format for running blockscan is as follows:
 Usage: blockscan <rpc-address> [from-height] [to-height]
 ```
 
-Here is an example commang for following the head of mainnet:
+Here is an example command for following the head of mainnet:
 
 ```bash
 go run ./tools/blockscan https://rpc.lunaroasis.net:443
