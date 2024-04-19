@@ -108,7 +108,7 @@ kubectl get pods --namespace test
 
 ### Restoring old cluster configuration
 
-To restore your previous cluster configuration, if you followed the [backup your existing cluster configuration](#backup-existing-configuration) section:
+If you followed the [backup your existing cluster configuration](#backup-existing-configuration) section, you can restore your previous cluster configuration using:
 
 ```shell
 cp ${HOME}/.kube/config_backup ${HOME}/.kube/config
