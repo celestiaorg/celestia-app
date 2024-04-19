@@ -3,7 +3,7 @@ package proof
 import (
 	"bytes"
 	"fmt"
-	math "math"
+	"math"
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
