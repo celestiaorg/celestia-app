@@ -123,8 +123,8 @@ func TestNewShareInclusionProof(t *testing.T) {
 
 	type test struct {
 		name          string
-		startingShare int
-		endingShare   int
+		startingShare int64
+		endingShare   int64
 		namespaceID   appns.Namespace
 		expectErr     bool
 	}
@@ -220,7 +220,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 			proof, err := proof.NewShareInclusionProof(
 				dataSquare,
 				tt.namespaceID,
-				shares.NewRange(tt.startingShare, tt.endingShare),
+				shares.NewRange(int(tt.startingShare), int(tt.endingShare)),
 			)
 			require.NoError(t, err)
 			assert.NoError(t, proof.Validate(dataRoot))

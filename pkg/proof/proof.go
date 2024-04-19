@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	math "math"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
@@ -32,7 +33,11 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (ShareProof, 
 		return ShareProof{}, err
 	}
 
-	shareRange, err := builder.FindTxShareRange(int(txIndex))
+	txIndexInt, err := safeConvertUint64ToInt(txIndex)
+	if err != nil {
+		return ShareProof{}, err
+	}
+	shareRange, err := builder.FindTxShareRange(txIndexInt)
 	if err != nil {
 		return ShareProof{}, err
 	}
@@ -164,4 +169,11 @@ func NewShareInclusionProof(
 		NamespaceId:      namespace.ID,
 		NamespaceVersion: uint32(namespace.Version),
 	}, nil
+}
+
+func safeConvertUint64ToInt(val uint64) (int, error) {
+	if val > math.MaxInt {
+		return 0, fmt.Errorf("value %d is too large to convert to int", val)
+	}
+	return int(val), nil
 }

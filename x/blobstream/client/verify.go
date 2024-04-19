@@ -168,7 +168,7 @@ func sharesCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(3),
 		Short: "Verifies that a range of shares has been committed to by the Blobstream contract. The range should be end exclusive.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			height, err := strconv.ParseInt(args[0], 10, 0)
+			height, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
 			}
@@ -227,10 +227,10 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	if height < 0 {
 		return false, fmt.Errorf("height must be a positive integer")
 	}
-	uintHeight := uint64(height)
 
+	unsignedHeight := uint64(height)
 	logger.Debug("getting shares proof from tendermint node")
-	sharesProofs, err := trpc.ProveShares(ctx, uintHeight, startShare, endShare)
+	sharesProofs, err := trpc.ProveShares(ctx, unsignedHeight, startShare, endShare)
 	if err != nil {
 		return false, err
 	}
@@ -261,7 +261,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 	resp, err := queryClient.DataCommitmentRangeForHeight(
 		ctx,
-		&types.QueryDataCommitmentRangeForHeightRequest{Height: uintHeight},
+		&types.QueryDataCommitmentRangeForHeightRequest{Height: unsignedHeight},
 	)
 	if err != nil {
 		return false, err
@@ -280,7 +280,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	)
 
 	logger.Debug("getting the data root to commitment inclusion proof")
-	dcProof, err := trpc.DataRootInclusionProof(ctx, uintHeight, resp.DataCommitment.BeginBlock, resp.DataCommitment.EndBlock)
+	dcProof, err := trpc.DataRootInclusionProof(ctx, unsignedHeight, resp.DataCommitment.BeginBlock, resp.DataCommitment.EndBlock)
 	if err != nil {
 		return false, err
 	}
