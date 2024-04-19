@@ -38,3 +38,9 @@ Logs of each of the nodes are posted to Grafana and can be accessed through Cele
 ### Metrics
 
 To view the metrics from the testnet, you should set the `GRAFANA_ENDPOINT`, `GRAFANA_USERNAME`, and `GRAFANA_TOKEN` environment variables. This uses Prometheus alongside the Jaeger and Otlp Exporter.
+
+## Known issues
+
+### `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`
+
+This happens when the kubernetes configuration is missing. Knuu expects the cluster configuration to be in `${HOME}/.kube/config`. Make sure to put the cluster configuration in that file.
