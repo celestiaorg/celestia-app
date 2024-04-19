@@ -20,6 +20,8 @@ func NewWithVersions(
 	}
 }
 
+var _ porttypes.IBCModule = (*VersionedIBCModule)(nil)
+
 type VersionedIBCModule struct {
 	wrappedModule, nextModule porttypes.IBCModule
 	fromVersion, toVersion    uint64
@@ -54,7 +56,7 @@ func (v *VersionedIBCModule) OnChanOpenTry(
 ) (version string, err error) {
 	currentAppVersion := ctx.BlockHeader().Version.App
 	if currentAppVersion >= v.fromVersion && currentAppVersion <= v.toVersion {
-		return v.wrappedModule.OnChanOpenTry(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, version)
+		return v.wrappedModule.OnChanOpenTry(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, counterpartyVersion)
 	}
 	return v.nextModule.OnChanOpenTry(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, counterpartyVersion)
 }
