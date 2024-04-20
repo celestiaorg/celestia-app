@@ -57,7 +57,7 @@ func NewAccountManager(
 	}
 
 	if len(records) == 0 {
-		return nil, fmt.Errorf("no accounts found in keyring")
+		return nil, errors.New("no accounts found in keyring")
 	}
 
 	am := &AccountManager{
@@ -118,7 +118,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 	}
 
 	if wealthiestAddress == "" {
-		return "", fmt.Errorf("no suitable master account found")
+		return "", errors.New("no suitable master account found")
 	}
 
 	return wealthiestAddress, nil
