@@ -5,6 +5,7 @@ package da
 
 import (
 	fmt "fmt"
+	errors "errors"
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
@@ -385,7 +386,7 @@ func skipDataAvailabilityHeader(dAtA []byte) (n int, err error) {
 }
 
 var (
-	ErrInvalidLengthDataAvailabilityHeader        = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowDataAvailabilityHeader          = fmt.Errorf("proto: integer overflow")
-	ErrUnexpectedEndOfGroupDataAvailabilityHeader = fmt.Errorf("proto: unexpected end of group")
+	ErrInvalidLengthDataAvailabilityHeader        = errors.New("proto: negative length found during unmarshaling")
+	ErrIntOverflowDataAvailabilityHeader          = errors.New("proto: integer overflow")
+	ErrUnexpectedEndOfGroupDataAvailabilityHeader = errors.New("proto: unexpected end of group")
 )
