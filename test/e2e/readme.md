@@ -95,16 +95,30 @@ With `<pod_name>` being a pod name like `val0-3a7e2e1e-zs8h5`.
 
 ### Destroy the pods
 
-By default, the pods will be killed automatically after 60 minutes. However, if you want to clean up the cluster manually, and destroy everything that was created in the `test` namespace:
+By default, the pods will be killed automatically after 60 minutes. However, if you want to clean up the cluster manually and destroy all the replica sets in the `test` namespace:
 
 ```shell
-kubectl delete pods --all --namespace test
+kubectl delete replicasets --all --namespace test
+kubectl delete pods --all --namespace test # to force the destruction of pods which are in the termination state
 ```
 
-Note: This will delete all the created pods in the default kubernetes cluster under the `test` namespace. Make sure to run it against the correct cluster and double-check the pods list that is going to be destroyed using this command:
+Note: This will delete all the created replica sets and pods in the default kubernetes cluster under the `test` namespace. Make sure to run it against the correct cluster and double-check the replica set list that is going to be destroyed using this command:
+
+```shell
+kubectl get replicasets --namespace test
+```
+
+And the list of pods:
 
 ```shell
 kubectl get pods --namespace test
+```
+
+Also, you will have dangling persistent volume claims and persistent volumes. If you want to remove those too:
+
+```shell
+kubectl delete pvc --all --namespace test
+kubectl delete pv --all --namespace test
 ```
 
 ### Restoring old cluster configuration
