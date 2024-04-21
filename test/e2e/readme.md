@@ -6,7 +6,7 @@ End-to-end tests pull docker images from `ghcr.io/celestiaorg/celestia-app`. The
 
 ## Usage
 
-**Prerequisite: Requires a kubeconfig file.** Access to the specific `kubeconfig` file used by this project is limited to internal contributors only. 
+**Prerequisite: Requires a kubeconfig file.** Access to the specific `kubeconfig` file used by this project is limited to internal contributors only.
 
 You can run the End-to-End tests using either of the following commands:
 
@@ -134,3 +134,18 @@ cp ${HOME}/.kube/config_backup ${HOME}/.kube/config
 ### `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`
 
 This happens when the kubernetes configuration is missing. Knuu expects the cluster configuration to be in `${HOME}/.kube/config`. Make sure to put the cluster configuration in that file.
+
+### `failed to start testnets: node val0 failed to start: error waiting for instance 'val0-d0f34ee4' to be running: timeout while waiting for instance 'val0-d0f34ee4' to be running`
+
+This usually happens locally when minikube is unable to start the pods which can happen if the pvcs/pvs are not correctly allocated, the cluster nodes don't have enough resources to run the workloads, or the used virtualization engine is unable to start the pods.
+
+If you run into this issue, try running the tests using the docker engine, increasing the cluster's nodes to two nodes, and increasing the resources needed:
+
+```shell
+minikube delete # delete the existing cluster so that we're able to start a new one with a different vm driver.
+minikube start --driver docker --network socket_vmnet --nodes 2 --cpus=4 --memory=4g
+```
+
+The above command assumes the user's machine has more than eight cores, more than 8gb of RAM, and also docker has access to all those resources.
+
+NB: This command requires the docker daemon to be up. Make sure to start docker before executing it.
