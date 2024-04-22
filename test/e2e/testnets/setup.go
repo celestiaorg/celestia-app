@@ -3,7 +3,6 @@ package testnets
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -12,17 +11,19 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(node *Node) (*config.Config, error) {
+func MakeConfig(testnet Testnet, node *Node) (*config.Config, error) {
 	cfg := config.DefaultConfig()
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	cfg.P2P.SendRate = 5 * 1024 * 1024 // 5MiB/s
-	cfg.P2P.RecvRate = 5 * 1024 * 1024 // 5MiB/s
-	cfg.Consensus.TimeoutPropose = 1 * time.Second
-	cfg.Consensus.TimeoutCommit = 1 * time.Second
-	cfg.Instrumentation.Prometheus = true
+	cfg.P2P.SendRate = testnet.params.PerPeerBandwidth           // 5 * 1024 * 1024 // 5MiB/s
+	cfg.P2P.RecvRate = testnet.params.PerPeerBandwidth           // 5 * 1024 * 1024 // 5MiB/s
+	cfg.Consensus.TimeoutPropose = testnet.params.TimeoutPropose //1 * time. Second
+	cfg.Consensus.TimeoutCommit = testnet.params.TimeoutCommit   //1 * time.Second
+	cfg.Instrumentation.Prometheus = testnet.params.Prometheus
+	cfg.Mempool.Broadcast = testnet.params.BroadcastTxs
+	cfg.Mempool.Version = testnet.params.Mempool
 	return cfg, nil
 }
 

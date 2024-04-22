@@ -24,9 +24,11 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
+	params    TestnetParams
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
+func New(name string, seed int64, grafana *GrafanaInfo, params TestnetParams) (*Testnet,
+	error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
@@ -35,9 +37,10 @@ func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID("test"),
+		genesis: genesis.NewDefaultGenesis().WithChainID(params.ChainID),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
+		params:  params,
 	}, nil
 }
 
