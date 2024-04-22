@@ -29,7 +29,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Instrumentation.Prometheus = true
 	cfg.Instrumentation.TraceType = "local"
 	cfg.Instrumentation.TraceBufferSize = 1000
-	cfg.Instrumentation.TracingTables = "consensus_round_state"
+	cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
 	cfg.Instrumentation.TracePullAddress = ":26661"
 	//cfg.Instrumentation.TracePushConfig = "s3.json"
 	return cfg, nil
