@@ -30,7 +30,7 @@ type TestnetSetting struct {
 	MaxBlockBytes    int64
 }
 
-func GetTestDefaultSetting() TestnetSetting {
+func GetTestnetDefaultSetting() TestnetSetting {
 	cfg := config.DefaultConfig()
 	appParams := app.DefaultInitialConsensusParams()
 	var defaultParams = TestnetSetting{

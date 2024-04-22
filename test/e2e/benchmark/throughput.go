@@ -32,9 +32,8 @@ func E2EThroughput() error {
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	var setting = testnets.GetTestDefaultSetting()
+	var setting = testnets.GetTestnetDefaultSetting()
 	setting.Validators = 2
-
 	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar(), setting)
 	testnets.NoError("failed to create testnet", err)
 
