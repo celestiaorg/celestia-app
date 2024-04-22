@@ -6,13 +6,31 @@ End to end tests pull docker images from ghcr.io/celestiaorg/celestia-app. These
 
 ## Usage
 
-E2E tests can be simply run through go tests. They are distinguished from unit tests through an environment variable. To run all e2e tests run:
+**Prerequisite: Requires a kubeconfig file.** Access to the specific `kubeconfig` file used by this project is limited to internal contributors only. 
+
+You can run the End-to-End tests using either of the following commands:
 
 ```shell
-KNUU_NAMESPACE=test E2E_LATEST_VERSION="$(git rev-parse --short main)" E2E_VERSIONS="$(git tag -l)"  go test ./test/e2e/... -timeout 30m -v
+go run ./test/e2e
 ```
 
-You can optionally set a global timeout using `KNUU_TIMEOUT` (default is 60m).
+```shell
+make test-e2e
+```
+
+To run a specific test, you can pass the name of the test as a command-line argument. For example, to run the "E2ESimple" test, you would use either of the specified commands:
+
+```shell
+go run ./test/e2e E2ESimple
+```
+
+```shell
+make test-e2e E2ESimple  
+```
+
+**Optional parameters**:
+
+- `KNUUU_TIMEOUT` can be used to override the default timeout of 60 minutes for the tests.
 
 ## Observation
 
@@ -21,3 +39,9 @@ Logs of each of the nodes are posted to Grafana and can be accessed through Cele
 ### Metrics
 
 To view the metrics from the testnet, you should set the `GRAFANA_ENDPOINT`, `GRAFANA_USERNAME`, and `GRAFANA_TOKEN` environment variables. This uses Prometheus alongside the Jaeger and Otlp Exporter.
+
+## Known issues
+
+### `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`
+
+This happens when the kubernetes configuration is missing. Knuu expects the cluster configuration to be in `${HOME}/.kube/config`. Make sure to put the cluster configuration in that file.
