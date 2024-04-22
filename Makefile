@@ -1,7 +1,6 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
-ALL_VERSIONS := $(shell git tag -l)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
@@ -136,7 +135,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_LATEST_VERSION=$(shell git rev-parse --short main) E2E_VERSIONS="$(ALL_VERSIONS)" go test ./test/e2e/... -timeout 20m -v
+	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
