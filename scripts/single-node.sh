@@ -14,7 +14,7 @@ CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
 FEES="500utia"
 
-echo "celestia-app home: ${CELESTIA_APP_HOME}"
+echo "celestia-app home:  ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
 echo ""
 
