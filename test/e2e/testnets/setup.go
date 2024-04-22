@@ -65,8 +65,8 @@ func MakeTracePushConfig(configPath string) error {
 	defer traceConfigFile.Close()
 	traceConfig := trace.S3Config{
 		BucketName: "block-prop-traces-ef",
-		AccessKey:  "",
-		SecretKey:  "",
+		AccessKey:  GetAccessKeyEnvVar(),
+		SecretKey:  GetSecretKeyEnvVar(),
 		Region:     "us-east-2",
 		PushDelay:  500,
 	}
@@ -76,4 +76,15 @@ func MakeTracePushConfig(configPath string) error {
 	}
 	traceConfigFile.Close()
 	return nil
+}
+
+// GetAccessKeyEnvVar returns the AWS s3 bucket access key ID from the
+// environment.
+func GetAccessKeyEnvVar() string {
+	return os.Getenv("AWS_ACCESS_KEY_ID")
+}
+
+// GetSecretKeyEnvVar returns the AWS s3 bucket secret access key from the
+func GetSecretKeyEnvVar() string {
+	return os.Getenv("AWS_SECRET_ACCESS_KEY")
 }
