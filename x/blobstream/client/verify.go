@@ -91,7 +91,7 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), uint64(shareRange.Start), uint64(shareRange.End))
+			_, err = VerifyShares(cmd.Context(), logger, config, tx.Height, uint64(shareRange.Start), uint64(shareRange.End))
 			return err
 		},
 	}
@@ -157,7 +157,7 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), uint64(blobShareRange.Start), uint64(blobShareRange.End))
+			_, err = VerifyShares(cmd.Context(), logger, config, tx.Height, uint64(blobShareRange.Start), uint64(blobShareRange.End))
 			return err
 		},
 	}
@@ -170,9 +170,12 @@ func sharesCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(3),
 		Short: "Verifies that a range of shares has been committed to by the Blobstream contract. The range should be end exclusive.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			height, err := strconv.ParseUint(args[0], 10, 0)
+			height, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
+			}
+			if height < 0 {
+				return fmt.Errorf("height must be a positive integer")
 			}
 			startShare, err := strconv.ParseUint(args[1], 10, 0)
 			if err != nil {
@@ -197,7 +200,7 @@ func sharesCmd() *cobra.Command {
 	return addVerifyFlags(command)
 }
 
-func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig, height uint64, startShare uint64, endShare uint64) (isCommittedTo bool, err error) {
+func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig, height int64, startShare uint64, endShare uint64) (isCommittedTo bool, err error) {
 	trpc, err := http.New(config.TendermintRPC, "/websocket")
 	if err != nil {
 		return false, err
@@ -223,8 +226,13 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		endShare,
 	)
 
+	if height < 0 {
+		return false, fmt.Errorf("height must be a positive integer")
+	}
+
+	unsignedHeight := uint64(height)
 	logger.Debug("getting shares proof from tendermint node")
-	sharesProofs, err := trpc.ProveShares(ctx, height, startShare, endShare)
+	sharesProofs, err := trpc.ProveShares(ctx, unsignedHeight, startShare, endShare)
 	if err != nil {
 		return false, err
 	}
@@ -255,7 +263,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 	resp, err := queryClient.DataCommitmentRangeForHeight(
 		ctx,
-		&types.QueryDataCommitmentRangeForHeightRequest{Height: height},
+		&types.QueryDataCommitmentRangeForHeightRequest{Height: unsignedHeight},
 	)
 	if err != nil {
 		return false, err
@@ -274,13 +282,12 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	)
 
 	logger.Debug("getting the data root to commitment inclusion proof")
-	dcProof, err := trpc.DataRootInclusionProof(ctx, height, resp.DataCommitment.BeginBlock, resp.DataCommitment.EndBlock)
+	dcProof, err := trpc.DataRootInclusionProof(ctx, unsignedHeight, resp.DataCommitment.BeginBlock, resp.DataCommitment.EndBlock)
 	if err != nil {
 		return false, err
 	}
 
-	heightI := int64(height)
-	block, err := trpc.Block(ctx, &heightI)
+	block, err := trpc.Block(ctx, &height)
 	if err != nil {
 		return false, err
 	}
@@ -327,12 +334,12 @@ func VerifyDataRootInclusion(
 	_ context.Context,
 	bsWrapper *wrapper.Wrappers,
 	nonce uint64,
-	height uint64,
+	height int64,
 	dataRoot []byte,
 	proof merkle.Proof,
 ) (bool, error) {
 	tuple := wrapper.DataRootTuple{
-		Height:   big.NewInt(int64(height)),
+		Height:   big.NewInt(height),
 		DataRoot: *(*[32]byte)(dataRoot),
 	}
 
