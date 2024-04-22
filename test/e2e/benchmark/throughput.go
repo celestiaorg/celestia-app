@@ -72,6 +72,9 @@ func E2EThroughput() error {
 	_, err = testnet.Node(0).PullRoundStateTraces()
 	testnets.NoError("failed to pull round state traces", err)
 
+	_, err = testnet.Node(0).PullReceivedBytes()
+	testnets.NoError("failed to pull received bytes traces", err)
+
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
 	testnets.NoError("failed to read blockchain", err)

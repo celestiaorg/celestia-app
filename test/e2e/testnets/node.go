@@ -85,6 +85,27 @@ func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 	return events, nil
 }
 
+// PullReceivedBytes retrieves the round state traces from a node.
+func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
+	error) {
+	isRunning, err := n.Instance.IsRunning()
+	if err != nil {
+		return nil, err
+	}
+	if !isRunning {
+		return nil, fmt.Errorf("node is not running")
+	}
+
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+
+	err = trace.GetTable(addr, schema.ReceivedBytes{}.Table(), ".")
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	return nil, nil
+}
+
 // PullRoundStateTraces retrieves the round state traces from a node.
 func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
 	error) {
