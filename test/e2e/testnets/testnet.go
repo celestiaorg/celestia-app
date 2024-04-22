@@ -24,10 +24,10 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
-	params    TestnetParams
+	params    TestnetSetting
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo, params TestnetParams) (*Testnet,
+func New(name string, seed int64, grafana *GrafanaInfo, params TestnetSetting) (*Testnet,
 	error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
@@ -62,9 +62,20 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64, resources Resources) error {
-	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
+//func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64, resources Resources) error {
+//	for i := 0; i < num; i++ {
+//		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//}
+
+func (t *Testnet) CreateGenesisNodes() error {
+	for i := 0; i < t.params.Validators; i++ {
+		if err := t.CreateGenesisNode(t.params.Version,
+			t.params.SelfDelegation, t.params.UpgradeHeight,
+			t.params.ValidatorResource); err != nil {
 			return err
 		}
 	}
@@ -240,7 +251,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err := node.Init(genesis, peers)
+		err := node.Init(t, genesis, peers)
 		if err != nil {
 			return err
 		}

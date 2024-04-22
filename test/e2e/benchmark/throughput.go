@@ -32,7 +32,10 @@ func E2EThroughput() error {
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar())
+	var setting = testnets.GetTestDefaultSetting()
+	setting.Validators = 2
+
+	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar(), setting)
 	testnets.NoError("failed to create testnet", err)
 
 	defer func() {
@@ -41,7 +44,7 @@ func E2EThroughput() error {
 	}()
 
 	// add 2 validators
-	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnets.DefaultResources))
+	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes())
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()

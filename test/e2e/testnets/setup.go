@@ -11,7 +11,7 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(testnet Testnet, node *Node) (*config.Config, error) {
+func MakeConfig(testnet *Testnet, node *Node) (*config.Config, error) {
 	cfg := config.DefaultConfig()
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"

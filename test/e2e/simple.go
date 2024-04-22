@@ -27,13 +27,13 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testnet, err := testnets.New("E2ESimple", seed, nil, testnets.GetTestDefaultParams())
+	testnet, err := testnets.New("E2ESimple", seed, nil, testnets.GetTestDefaultSetting())
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
 
 	logger.Println("Creating testnet validators")
-	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnets.DefaultResources))
+	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes())
 
 	logger.Println("Creating account")
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
