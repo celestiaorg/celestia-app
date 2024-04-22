@@ -3,6 +3,7 @@ package proof
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -98,17 +99,23 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	nID, err := ParseNamespace(dataSquare, int(beginShare), int(endShare))
+	begin, err := safeConvertInt64ToInt(beginShare)
+	if err != nil {
+		return nil, err
+	}
+	end, err := safeConvertInt64ToInt(endShare)
 	if err != nil {
 		return nil, err
 	}
 
+	nID, err := ParseNamespace(dataSquare, begin, end)
+	if err != nil {
+		return nil, err
+	}
+
+	shareRange := shares.NewRange(begin, end)
 	// create and marshal the share inclusion proof, which we return in the form of []byte
-	shareProof, err := NewShareInclusionProof(
-		dataSquare,
-		nID,
-		shares.NewRange(int(beginShare), int(endShare)),
-	)
+	shareProof, err := NewShareInclusionProof(dataSquare, nID, shareRange)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +130,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
-func ParseNamespace(rawShares []shares.Share, startShare, endShare int) (appns.Namespace, error) {
+func ParseNamespace(rawShares []shares.Share, startShare int, endShare int) (appns.Namespace, error) {
 	if startShare < 0 {
 		return appns.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
 	}
@@ -155,4 +162,11 @@ func ParseNamespace(rawShares []shares.Share, startShare, endShare int) (appns.N
 		}
 	}
 	return startShareNs, nil
+}
+
+func safeConvertInt64ToInt(x int64) (int, error) {
+	if math.MinInt <= x && x <= math.MaxInt {
+		return int(x), nil
+	}
+	return 0, fmt.Errorf("value %d is too large to convert to int", x)
 }
