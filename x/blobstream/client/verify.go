@@ -113,6 +113,10 @@ func blobCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			blobIndexInt, err := safeConvertInt64ToInt(blobIndex)
+			if err != nil {
+				return err
+			}
 
 			config, err := parseVerifyFlags(cmd)
 			if err != nil {
@@ -151,7 +155,6 @@ func blobCmd() *cobra.Command {
 			version := blockRes.Block.Header.Version.App
 			maxSquareSize := appconsts.SquareSizeUpperBound(version)
 			subtreeRootThreshold := appconsts.SubtreeRootThreshold(version)
-			blobIndexInt, err := safeConvertInt64ToInt(blobIndex)
 			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), blobIndexInt, maxSquareSize, subtreeRootThreshold)
 			if err != nil {
 				return err
