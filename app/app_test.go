@@ -27,6 +27,15 @@ func TestNew(t *testing.T) {
 	t.Run("initializes ScopedICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ScopedICAHostKeeper)
 	})
+	t.Run("initializes StakingKeeper", func(t *testing.T) {
+		assert.NotNil(t, got.StakingKeeper)
+	})
+	t.Run("should have hooks set", func(t *testing.T) {
+		// StakingKeeper doesn't expose a GetHooks method so this checks if
+		// hooks have been set by verifying the a subsequent call to SetHooks
+		// will panic.
+		assert.Panics(t, func() { got.StakingKeeper.SetHooks(nil) })
+	})
 }
 
 // NoopWriter is a no-op implementation of a writer.
