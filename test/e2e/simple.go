@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -20,8 +19,6 @@ import (
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
 	latestVersion, err := testnets.GetLatestVersion()
 	testnets.NoError("failed to get latest version", err)
 

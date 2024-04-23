@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -278,7 +279,11 @@ func addPeersToAddressBook(path string, peers []PeerPacket) error {
 	}
 
 	for _, peer := range peers {
-		id, ip, port, err := parsePeerID(peer.PeerID)
+		id, ip, peerPort, err := parsePeerID(peer.PeerID)
+		if err != nil {
+			return err
+		}
+		port, err := safeConvertIntToUint16(peerPort)
 		if err != nil {
 			return err
 		}
@@ -286,7 +291,7 @@ func addPeersToAddressBook(path string, peers []PeerPacket) error {
 		netAddr := p2p.NetAddress{
 			ID:   p2p.ID(id),
 			IP:   ip,
-			Port: uint16(port),
+			Port: port,
 		}
 
 		err = addrBook.AddAddress(&netAddr, &netAddr)
@@ -320,4 +325,11 @@ func parsePeerID(input string) (string, net.IP, int, error) {
 	}
 
 	return address, ip, portInt, nil
+}
+
+func safeConvertIntToUint16(x int) (uint16, error) {
+	if x >= 0 && x <= math.MaxUint16 {
+		return uint16(x), nil
+	}
+	return 0, fmt.Errorf("%v is negative or too large to convert to uint16", x)
 }

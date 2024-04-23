@@ -31,7 +31,7 @@ func New(name string, seed int64, grafana *GrafanaInfo,
 	pullTracing bool) (*Testnet,
 	error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
-	if err := knuu.InitializeWithIdentifier(identifier); err != nil {
+	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
 	}
 

@@ -42,6 +42,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"
 	@(cd ./test/testground && go mod tidy)
+	@echo "--> Updating go.mod in ./test/interchain"
+	@(cd ./test/interchain && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -85,14 +87,14 @@ GH_COMMIT ?= $(shell git rev-parse HEAD)
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT) -f Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
-	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT)
+	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(COMMIT)
 .PHONY: publish-ghcr-docker
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
@@ -160,9 +162,16 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
+## test-fuzz: Run all fuzz tests.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
+
+## test-interchain: Run interchain tests in verbose mode. Requires Docker.
+test-interchain:
+	@echo "--> Running interchain tests"
+	@go test ./test/interchain -v
+.PHONY: test-interchain
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
