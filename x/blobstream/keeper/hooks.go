@@ -22,16 +22,15 @@ func (k Keeper) Hooks() Hooks {
 }
 
 func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress) error {
-	// When Validator starts Unbonding, Persist the block height in the store
-	// Later in endblocker, check if there is at least one validator who started
+	// When Validator starts Unbonding, Persist the block height in the store.
+	// Later in EndBlocker, check if there is at least one validator who started
 	// unbonding and create a valset request. The reason for creating valset
-	// requests in endblock is to create only one valset request per block, if
-	// multiple validators starts unbonding at same block.
+	// requests in EndBlock is to create only one valset request per block if
+	// multiple validators start unbonding in the same block.
 
-	// this hook IS called for jailing or unbonding triggered by users but it IS
+	// This hook is called for jailing or unbonding triggered by users but it IS
 	// NOT called for jailing triggered in the endblocker therefore we call the
 	// keeper function ourselves there.
-
 	h.k.SetLatestUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
 	return nil
 }

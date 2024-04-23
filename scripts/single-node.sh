@@ -63,9 +63,10 @@ celestia-appd collect-gentxs \
   --home ${CELESTIA_APP_HOME} \
     &> /dev/null # Hide output to reduce terminal noise
 
-# Set proper defaults and change ports
 # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
 # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
+
+# Override the default RPC servier listening address
 sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${CELESTIA_APP_HOME}"/config/config.toml
 
 # Enable transaction indexing
@@ -84,7 +85,7 @@ celestia-appd start \
   --api.enable \
   --grpc.enable \
   --grpc-web.enable \
-  --v2-upgrade-height 10
+  --v2-upgrade-height 5
 
 # # Register the validator EVM address
 # {

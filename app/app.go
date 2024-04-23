@@ -269,14 +269,9 @@ func New(
 		&stakingKeeper,
 	)
 
-	// register the staking hooks
-	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
-	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
-			app.SlashingKeeper.Hooks(),
-			app.BlobstreamKeeper.Hooks(),
-		),
-	)
+	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
+	// above so that it will contain these hooks.
+	app.StakingKeeper = *stakingKeeper.SetHooks(app.hooksV1())
 
 	app.SignalKeeper = signal.NewKeeper(keys[signaltypes.StoreKey], app.StakingKeeper)
 
@@ -454,6 +449,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		if req.Height == app.upgradeHeightV2-1 {
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
+			app.StakingKeeper = *app.StakingKeeper.SetHooks(app.hooksV2())
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
 	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(); shouldUpgrade {
@@ -704,6 +700,21 @@ func (app *App) BlockedParams() [][2]string {
 		// consensus.validator.PubKeyTypes
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
 	}
+}
+
+func (app *App) hooksV1() stakingtypes.MultiStakingHooks {
+	return stakingtypes.NewMultiStakingHooks(
+		app.DistrKeeper.Hooks(),
+		app.SlashingKeeper.Hooks(),
+		app.BlobstreamKeeper.Hooks(),
+	)
+}
+
+func (app *App) hooksV2() stakingtypes.MultiStakingHooks {
+	return stakingtypes.NewMultiStakingHooks(
+		app.DistrKeeper.Hooks(),
+		app.SlashingKeeper.Hooks(),
+	)
 }
 
 // initParamsKeeper init params keeper and its subspaces
