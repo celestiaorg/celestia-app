@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	t.Run("initializes StakingKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.StakingKeeper)
 	})
-	t.Run("should have hooks set", func(t *testing.T) {
+	t.Run("should have set StakingKeeper hooks", func(t *testing.T) {
 		// StakingKeeper doesn't expose a GetHooks method so this checks if
 		// hooks have been set by verifying the a subsequent call to SetHooks
 		// will panic.
