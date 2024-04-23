@@ -28,12 +28,40 @@ func GetCosmosHub(t *testing.T) *cosmos.CosmosChain {
 	return chains[0].(*cosmos.CosmosChain)
 }
 
+func GetCosmosHub2(t *testing.T) *cosmos.CosmosChain {
+	factory := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{cosmosHub2})
+	chains, err := factory.Chains(t.Name())
+	require.NoError(t, err)
+	return chains[0].(*cosmos.CosmosChain)
+}
+
 var cosmosHub = &interchaintest.ChainSpec{
 	Name: "gaia",
 	ChainConfig: ibc.ChainConfig{
 		Name:                   "gaia",
 		Type:                   "cosmos",
 		ChainID:                "gaia",
+		Bin:                    "gaiad",
+		Bech32Prefix:           "cosmos",
+		Denom:                  "uatom",
+		GasPrices:              "0.01uatom",
+		GasAdjustment:          *gasAdjustment(),
+		TrustingPeriod:         "504hours",
+		NoHostMount:            false,
+		Images:                 cosmosDockerImages(),
+		UsingNewGenesisCommand: true,
+	},
+	NumValidators: numValidators(),
+	NumFullNodes:  numFullNodes(),
+	GasAdjustment: gasAdjustment(), // the default gas estimation fails to create a client on Cosmos Hub so we need to bump it up.
+}
+
+var cosmosHub2 = &interchaintest.ChainSpec{
+	Name: "gaia2",
+	ChainConfig: ibc.ChainConfig{
+		Name:                   "gaia2",
+		Type:                   "cosmos",
+		ChainID:                "gaia2",
 		Bin:                    "gaiad",
 		Bech32Prefix:           "cosmos",
 		Denom:                  "uatom",

@@ -20,9 +20,9 @@ import (
 // TestInterChainAccounts verifies that Inter-Chain Accounts (ICA) work as expected by creating
 // an ICA on Celestia (host chain) using the Cosmos Hub (controller chain).
 func TestInterChainAccounts(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping TestInterChainAccounts in short mode.")
-	}
+	// if testing.Short() {
+	// t.Skip("skipping TestInterChainAccounts in short mode.")
+	// }
 
 	client, network := interchaintest.DockerSetup(t)
 	celestia := chainspec.GetCelestia(t)
