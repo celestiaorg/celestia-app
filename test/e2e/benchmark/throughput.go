@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -12,7 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
-const seed = 42
+const (
+	seed         = 42
+	txsimVersion = "a92de72"
+)
 
 func main() {
 	if err := E2EThroughput(); err != nil {
@@ -21,8 +23,6 @@ func main() {
 }
 
 func E2EThroughput() error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
 	latestVersion, err := testnets.GetLatestVersion()
 	testnets.NoError("failed to get latest version", err)
 
@@ -32,8 +32,10 @@ func E2EThroughput() error {
 	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar())
 	testnets.NoError("failed to create testnet", err)
 
-	log.Println("Cleaning up testnet")
-	defer testnet.Cleanup()
+	defer func() {
+		log.Print("Cleaning up testnet")
+		testnet.Cleanup()
+	}()
 
 	// add 2 validators
 	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnets.DefaultResources))
@@ -45,8 +47,6 @@ func E2EThroughput() error {
 
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
-	// version of the txsim docker image to be used
-	txsimVersion := "a92de72"
 
 	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", testnets.DefaultResources, gRPCEndpoints)
 	testnets.NoError("failed to create tx clients", err)

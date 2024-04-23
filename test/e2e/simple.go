@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -16,22 +15,21 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
-// This test runs a simple testnets with 4 validators. It submits both MsgPayForBlobs
+// This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
 	latestVersion, err := testnets.GetLatestVersion()
 	testnets.NoError("failed to get latest version", err)
 
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
 	testnet, err := testnets.New("E2ESimple", seed, nil)
-	testnets.NoError("failed to create testnets", err)
+	testnets.NoError("failed to create testnet", err)
+
 	defer testnet.Cleanup()
 
-	logger.Println("Creating testnets validators")
+	logger.Println("Creating testnet validators")
 	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnets.DefaultResources))
 
 	logger.Println("Creating account")

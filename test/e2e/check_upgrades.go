@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -22,8 +21,6 @@ import (
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
 	versionStr, err := getAllVersions()
 	testnets.NoError("failed to get versions", err)
 	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
@@ -130,8 +127,6 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 }
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
 	latestVersion, err := testnets.GetLatestVersion()
 	testnets.NoError("failed to get latest version", err)
 

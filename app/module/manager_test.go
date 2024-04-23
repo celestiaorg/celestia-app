@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -252,4 +253,51 @@ func TestManager_UpgradeSchedule(t *testing.T) {
 		{Module: mockAppModule2, FromVersion: 2, ToVersion: 2},
 	})
 	require.Error(t, err)
+}
+
+func TestManager_ModuleNames(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	t.Cleanup(mockCtrl.Finish)
+
+	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
+	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+
+	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Return(uint64(1))
+
+	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
+	mockAppModule2.EXPECT().ConsensusVersion().Return(uint64(1))
+
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+	})
+	require.NoError(t, err)
+
+	got := mm.ModuleNames(1)
+	want := []string{"module1", "module2"}
+	assert.ElementsMatch(t, want, got)
+}
+
+func TestManager_SupportedVersions(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	t.Cleanup(mockCtrl.Finish)
+
+	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
+	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+
+	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+	mockAppModule1.EXPECT().ConsensusVersion().Times(2).Return(uint64(10))
+
+	mockAppModule2.EXPECT().Name().Times(3).Return("module2")
+	mockAppModule2.EXPECT().ConsensusVersion().Times(3).Return(uint64(10))
+
+	mm, err := module.NewManager([]module.VersionedModule{
+		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+		{Module: mockAppModule2, FromVersion: 3, ToVersion: 4},
+	})
+	require.NoError(t, err)
+
+	got := mm.SupportedVersions()
+	assert.Equal(t, []uint64{1, 3, 4}, got)
 }
