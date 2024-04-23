@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
@@ -108,7 +109,11 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			blobIndex, err := strconv.ParseUint(args[1], 10, 64)
+			blobIndex, err := strconv.ParseInt(args[1], 10, 64)
+			if err != nil {
+				return err
+			}
+			blobIndexInt, err := safeConvertInt64ToInt(blobIndex)
 			if err != nil {
 				return err
 			}
@@ -150,7 +155,7 @@ func blobCmd() *cobra.Command {
 			version := blockRes.Block.Header.Version.App
 			maxSquareSize := appconsts.SquareSizeUpperBound(version)
 			subtreeRootThreshold := appconsts.SubtreeRootThreshold(version)
-			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex), maxSquareSize, subtreeRootThreshold)
+			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), blobIndexInt, maxSquareSize, subtreeRootThreshold)
 			if err != nil {
 				return err
 			}
@@ -361,4 +366,14 @@ func VerifyDataRootInclusion(
 		return false, err
 	}
 	return valid, nil
+}
+
+func safeConvertInt64ToInt(x int64) (int, error) {
+	if x < math.MinInt {
+		return 0, fmt.Errorf("value %d is too small to be converted to int", x)
+	}
+	if x > math.MaxInt {
+		return 0, fmt.Errorf("value %d is too large to be converted to int", x)
+	}
+	return int(x), nil
 }

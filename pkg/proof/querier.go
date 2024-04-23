@@ -165,8 +165,11 @@ func ParseNamespace(rawShares []shares.Share, startShare int, endShare int) (app
 }
 
 func safeConvertInt64ToInt(x int64) (int, error) {
-	if math.MinInt <= x && x <= math.MaxInt {
-		return int(x), nil
+	if x < math.MinInt {
+		return 0, fmt.Errorf("value %d is too small to be converted to int", x)
 	}
-	return 0, fmt.Errorf("value %d is too large to convert to int", x)
+	if x > math.MaxInt {
+		return 0, fmt.Errorf("value %d is too large to be converted to int", x)
+	}
+	return int(x), nil
 }
