@@ -80,6 +80,8 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
 .PHONY: build-docker
 
+GH_COMMIT ?= $(shell git rev-parse HEAD)
+
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
 	@echo "--> Building Docker image"

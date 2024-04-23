@@ -14,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 )
 
 func MakeConfig(node *Node) (*config.Config, error) {
@@ -28,10 +29,10 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
 	cfg.Instrumentation.TraceType = "local"
-	cfg.Instrumentation.TraceBufferSize = 1000
-	cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
-	cfg.Instrumentation.TracePullAddress = ":26661"
-	//cfg.Instrumentation.TracePushConfig = "s3.json"
+	cfg.Instrumentation.TraceBufferSize = 2500
+	cfg.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
+	cfg.Instrumentation.TracePullAddress = ""
+	cfg.Instrumentation.TracePushConfig = "s3.json"
 	return cfg, nil
 }
 
@@ -68,7 +69,7 @@ func MakeTracePushConfig(configPath string) error {
 		AccessKey:  GetAccessKeyEnvVar(),
 		SecretKey:  GetSecretKeyEnvVar(),
 		Region:     "us-east-2",
-		PushDelay:  500,
+		PushDelay:  200,
 	}
 	err = json.NewEncoder(traceConfigFile).Encode(traceConfig)
 	if err != nil {
@@ -81,10 +82,10 @@ func MakeTracePushConfig(configPath string) error {
 // GetAccessKeyEnvVar returns the AWS s3 bucket access key ID from the
 // environment.
 func GetAccessKeyEnvVar() string {
-	return os.Getenv("AWS_ACCESS_KEY_ID")
+	return "AKIAZ2OBUXMTQUDOS3WM" // dgaf key cause minio is down
 }
 
 // GetSecretKeyEnvVar returns the AWS s3 bucket secret access key from the
 func GetSecretKeyEnvVar() string {
-	return os.Getenv("AWS_SECRET_ACCESS_KEY")
+	return "whaQb/Jww98DQMsZ588Nq9ylZtrl09lM/u95lo5a" // dgaf key cause minio is down
 }

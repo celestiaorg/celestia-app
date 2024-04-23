@@ -38,7 +38,7 @@ func New(name string, seed int64, grafana *GrafanaInfo,
 	return &Testnet{
 		seed:        seed,
 		nodes:       make([]*Node, 0),
-		genesis:     genesis.NewDefaultGenesis().WithChainID("test-sanaz"),
+		genesis:     genesis.NewDefaultGenesis().WithChainID("knuu-2-me"),
 		keygen:      newKeyGenerator(seed),
 		grafana:     grafana,
 		pullTracing: pullTracing,
