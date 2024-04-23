@@ -1,74 +1,68 @@
-package e2e
+package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
-	"os"
+	"os/exec"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
 	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
-	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-// This will only run tests within the v1 major release cycle
-const MajorVersion = v1.Version
+func MinorVersionCompatibility(logger *log.Logger) error {
+	versionStr, err := getAllVersions()
+	testnets.NoError("failed to get versions", err)
+	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 
-func TestMinorVersionCompatibility(t *testing.T) {
-	// FIXME: This test currently panics in InitGenesis
-	t.Skip("test not working")
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		t.Skip("skipping e2e test")
-	}
-
-	if os.Getenv("E2E_VERSIONS") == "" {
-		t.Skip("skipping e2e test: E2E_VERSIONS not set")
-	}
-
-	versionStr := os.Getenv("E2E_VERSIONS")
-	versions := ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 	if len(versions) == 0 {
-		t.Skip("skipping e2e test: no versions to test")
+		logger.Fatal("no versions to test")
 	}
 	numNodes := 4
 	r := rand.New(rand.NewSource(seed))
-	t.Log("Running minor version compatibility test", "versions", versions)
+	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
-	require.NoError(t, err)
-	t.Cleanup(testnet.Cleanup)
+	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil)
+	testnets.NoError("failed to create testnet", err)
+
+	defer testnet.Cleanup()
+
 	testnet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
 	preloader, err := knuu.NewPreloader()
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = preloader.EmptyImages() })
+	testnets.NoError("failed to create preloader", err)
+
+	defer func() { _ = preloader.EmptyImages() }()
 	for _, v := range versions {
-		err := preloader.AddImage(DockerImageName(v.String()))
-		require.NoError(t, err)
+		testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(v.String())))
 	}
 
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
-		t.Log("Starting node", "node", i, "version", v)
-		require.NoError(t, testnet.CreateGenesisNode(v, 10000000, 0, defaultResources))
+		logger.Println("Starting node", "node", i, "version", v)
+		testnets.NoError("failed to create genesis node", testnet.CreateGenesisNode(v, 10000000, 0, testnets.DefaultResources))
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	require.NoError(t, err)
+	testnets.NoError("failed to create account", err)
 
-	require.NoError(t, testnet.Setup())
-	require.NoError(t, testnet.Start())
+	// start the testnet
+	logger.Println("Setting up testnet")
+	testnets.NoError("Failed to setup testnet", testnet.Setup())
+	logger.Println("Starting testnet")
+	testnets.NoError("Failed to start testnet", testnet.Start())
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
@@ -90,33 +84,33 @@ func TestMinorVersionCompatibility(t *testing.T) {
 			continue
 		}
 		client, err := testnet.Node(i % numNodes).Client()
-		require.NoError(t, err)
+		testnets.NoError("failed to get client", err)
+
 		heightBefore, err := getHeight(ctx, client, time.Second)
-		require.NoError(t, err)
+		testnets.NoError("failed to get height", err)
+
 		newVersion := versions.Random(r).String()
-		t.Log("Upgrading node", "node", i%numNodes, "version", newVersion)
-		err = testnet.Node(i % numNodes).Upgrade(newVersion)
-		require.NoError(t, err)
+		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
+		testnets.NoError("failed to upgrade node", testnet.Node(i%numNodes+1).Upgrade(newVersion))
 		// wait for the node to reach two more heights
-		err = waitForHeight(ctx, client, heightBefore+2, 30*time.Second)
-		require.NoError(t, err)
+		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
 	}
 
 	heights := make([]int64, 4)
 	for i := 0; i < numNodes; i++ {
 		client, err := testnet.Node(i).Client()
-		require.NoError(t, err)
+		testnets.NoError("failed to get client", err)
 		heights[i], err = getHeight(ctx, client, time.Second)
-		require.NoError(t, err)
+		testnets.NoError("failed to get height", err)
 	}
 
-	t.Log("checking that all nodes are at the same height")
+	logger.Println("checking that all nodes are at the same height")
 	const maxPermissableDiff = 2
 	for i := 0; i < len(heights); i++ {
 		for j := i + 1; j < len(heights); j++ {
 			diff := heights[i] - heights[j]
 			if diff > maxPermissableDiff {
-				t.Fatalf("node %d is behind node %d by %d blocks", j, i, diff)
+				logger.Fatalf("node %d is behind node %d by %d blocks", j, i, diff)
 			}
 		}
 	}
@@ -125,54 +119,50 @@ func TestMinorVersionCompatibility(t *testing.T) {
 	cancel()
 
 	err = <-errCh
-	require.True(t, errors.Is(err, context.Canceled), err.Error())
+
+	if !errors.Is(err, context.Canceled) {
+		return fmt.Errorf("expected context.Canceled error, got: %w", err)
+	}
+	return nil
 }
 
-func TestMajorUpgradeToV2(t *testing.T) {
-	if os.Getenv("KNUU_NAMESPACE") != "test" {
-		t.Skip("skipping e2e test")
-	}
+func MajorUpgradeToV2(logger *log.Logger) error {
+	latestVersion, err := testnets.GetLatestVersion()
+	testnets.NoError("failed to get latest version", err)
 
-	if os.Getenv("E2E_LATEST_VERSION") != "" {
-		latestVersion = os.Getenv("E2E_LATEST_VERSION")
-		_, isSemVer := ParseVersion(latestVersion)
-		switch {
-		case isSemVer:
-		case latestVersion == "latest":
-		case len(latestVersion) == 7:
-		case len(latestVersion) == 8:
-			// assume this is a git commit hash (we need to trim the last digit to match the docker image tag)
-			latestVersion = latestVersion[:7]
-		default:
-			t.Fatalf("unrecognised version: %s", latestVersion)
-		}
-	}
+	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	numNodes := 4
 	upgradeHeight := int64(12)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testnet, err := New(t.Name(), seed, GetGrafanaInfoFromEnvVar())
-	require.NoError(t, err)
-	t.Cleanup(testnet.Cleanup)
+	logger.Println("Creating testnet")
+	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil)
+	testnets.NoError("failed to create testnet", err)
+
+	defer testnet.Cleanup()
 
 	preloader, err := knuu.NewPreloader()
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = preloader.EmptyImages() })
-	err = preloader.AddImage(DockerImageName(latestVersion))
-	require.NoError(t, err)
+	testnets.NoError("failed to create preloader", err)
 
+	defer func() { _ = preloader.EmptyImages() }()
+	testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(latestVersion)))
+
+	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		require.NoError(t, testnet.CreateGenesisNode(latestVersion, 10000000,
-			upgradeHeight, defaultResources))
+		err := testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnets.DefaultResources)
+		testnets.NoError("failed to create genesis node", err)
 	}
 
 	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	require.NoError(t, err)
+	testnets.NoError("failed to create account", err)
+	// start the testnet
 
-	require.NoError(t, testnet.Setup())
-	require.NoError(t, testnet.Start())
+	logger.Println("Setting up testnet")
+	testnets.NoError("Failed to setup testnet", testnet.Setup())
+	logger.Println("Starting testnet")
+	testnets.NoError("Failed to start testnet", testnet.Start())
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -187,21 +177,32 @@ func TestMajorUpgradeToV2(t *testing.T) {
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
 		client, err := testnet.Node(i).Client()
-		require.NoError(t, err)
-		require.NoError(t, waitForHeight(ctx, client, upgradeHeight, time.Minute))
+		testnets.NoError("failed to get client", err)
+
+		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
+
 		resp, err := client.Header(ctx, &heightBefore)
-		require.NoError(t, err)
-		require.Equal(t, v1.Version, resp.Header.Version.App, "version mismatch before upgrade")
+		testnets.NoError("failed to get header", err)
+		logger.Println("Node", i, "is running on version", resp.Header.Version.App)
+		if resp.Header.Version.App != v1.Version {
+			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v1.Version, resp.Header.Version.App)
+		}
+
 		resp, err = client.Header(ctx, &upgradeHeight)
-		require.NoError(t, err)
-		require.Equal(t, v2.Version, resp.Header.Version.App, "version mismatch after upgrade")
+		testnets.NoError("failed to get header", err)
+		if resp.Header.Version.App != v2.Version {
+			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v2.Version, resp.Header.Version.App)
+		}
 	}
 
 	// end txsim
 	cancel()
 
 	err = <-errCh
-	require.True(t, strings.Contains(err.Error(), context.Canceled.Error()), err.Error())
+	if !strings.Contains(err.Error(), context.Canceled.Error()) {
+		return fmt.Errorf("expected context.Canceled error, got: %w", err)
+	}
+	return nil
 }
 
 func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (int64, error) {
@@ -240,4 +241,14 @@ func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period 
 			}
 		}
 	}
+}
+
+func getAllVersions() (string, error) {
+	cmd := exec.Command("git", "tag", "-l")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git tags: %v", err)
+	}
+	allVersions := strings.Split(strings.TrimSpace(string(output)), "\n")
+	return strings.Join(allVersions, " "), nil
 }

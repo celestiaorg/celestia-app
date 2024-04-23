@@ -163,7 +163,7 @@ type App struct {
 	BlobstreamKeeper blobstreamkeeper.Keeper
 
 	mm           *module.Manager
-	configurator module.VersionedConfigurator
+	configurator module.Configurator
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
