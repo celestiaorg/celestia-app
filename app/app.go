@@ -345,11 +345,16 @@ func New(
 		app.SlashingKeeper,
 	)
 
-	govConfig := govtypes.DefaultConfig()
-
 	app.GovKeeper = govkeeper.NewKeeper(
-		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
-		&stakingKeeper, govRouter, bApp.MsgServiceRouter(), govConfig,
+		appCodec,
+		keys[govtypes.StoreKey],
+		app.GetSubspace(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper,
+		&stakingKeeper,
+		govRouter,
+		bApp.MsgServiceRouter(),
+		govtypes.DefaultConfig(),
 	)
 
 	app.BlobKeeper = *blobkeeper.NewKeeper(
