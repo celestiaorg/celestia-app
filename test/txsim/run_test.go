@@ -124,11 +124,13 @@ func TestTxSimulator(t *testing.T) {
 			blocks, err := testnode.ReadBlockchain(context.Background(), rpcAddr)
 			require.NoError(t, err)
 			for _, block := range blocks {
-				msgs, err := testnode.DecodeBlockData(block.Data)
+				txs, err := testnode.DecodeBlockData(block.Data)
 				require.NoError(t, err, block.Height)
-				for _, msg := range msgs {
-					if _, ok := tc.expMessages[sdk.MsgTypeURL(msg)]; ok {
-						tc.expMessages[sdk.MsgTypeURL(msg)]--
+				for _, tx := range txs {
+					for _, msg := range tx.GetMsgs() {
+						if _, ok := tc.expMessages[sdk.MsgTypeURL(msg)]; ok {
+							tc.expMessages[sdk.MsgTypeURL(msg)]--
+						}
 					}
 				}
 			}
