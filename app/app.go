@@ -264,10 +264,11 @@ func New(
 		&stakingKeeper,
 	)
 
-	// register the staking hooks
-	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
+	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
+	// above so that it will contain these hooks.
 	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
+		stakingtypes.NewMultiStakingHooks(
+			app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
 			app.BlobstreamKeeper.Hooks(),
 		),
