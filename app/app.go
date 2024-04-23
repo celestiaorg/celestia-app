@@ -149,13 +149,12 @@ type App struct {
 	FeeGrantKeeper      feegrantkeeper.Keeper
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
+	BlobKeeper          blobkeeper.Keeper
+	BlobstreamKeeper    blobstreamkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
-
-	BlobKeeper       blobkeeper.Keeper
-	BlobstreamKeeper blobstreamkeeper.Keeper
 
 	mm           *module.Manager
 	configurator module.Configurator
