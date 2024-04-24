@@ -13,6 +13,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
@@ -24,18 +25,41 @@ import (
 func TestAfterValidatorBeginUnbonding(t *testing.T) {
 	keeper, stateStore := setupKeeper(t)
 	hooks := keeper.Hooks()
+	height := int64(1)
 	t.Run("should be a no-op if app version is 2", func(t *testing.T) {
-		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 2}, Height: 1}, false, log.NewNopLogger())
+		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 2}, Height: height}, false, log.NewNopLogger())
 		hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
 		got := keeper.GetLatestUnBondingBlockHeight(ctx)
 		assert.Equal(t, uint64(0), got)
 	})
-	t.Run("should set latest unboding height to 1 if app version is 1", func(t *testing.T) {
-		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 1}, Height: 1}, false, log.NewNopLogger())
+	t.Run("should set latest unboding height if app version is 1", func(t *testing.T) {
+		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 1}, Height: height}, false, log.NewNopLogger())
 		hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
 		got := keeper.GetLatestUnBondingBlockHeight(ctx)
-		assert.Equal(t, uint64(1), got)
+		assert.Equal(t, uint64(height), got)
 	})
+}
+
+func TestAfterValidatorCreated(t *testing.T) {
+	keeper, stateStore := setupKeeper(t)
+	hooks := keeper.Hooks()
+	height := int64(1)
+	valAddress := sdk.ValAddress([]byte("valAddress"))
+	t.Run("should be a no-op if app version is 2", func(t *testing.T) {
+		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 2}, Height: height}, false, log.NewNopLogger())
+		hooks.AfterValidatorCreated(ctx, valAddress)
+		address, ok := keeper.GetEVMAddress(ctx, valAddress)
+		assert.False(t, ok)
+		assert.Empty(t, address)
+	})
+	t.Run("should set EVM address if app version is 1", func(t *testing.T) {
+		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 1}, Height: height}, false, log.NewNopLogger())
+		hooks.AfterValidatorCreated(ctx, valAddress)
+		address, ok := keeper.GetEVMAddress(ctx, valAddress)
+		assert.True(t, ok)
+		assert.Equal(t, common.HexToAddress("0x0000000000000000000076616C41646472657373"), address)
+	})
+
 }
 
 type mockStakingKeeper struct {
