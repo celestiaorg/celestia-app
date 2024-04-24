@@ -8,55 +8,76 @@ import (
 	"github.com/tendermint/tendermint/config"
 )
 
-// TestnetSetting defines the parameters for a testnet.
-type TestnetSetting struct {
-	ChainID           string
-	Validators        int       // Number of validators in the testnet
-	ValidatorResource Resources // Resource requirements for a validator node
-	SelfDelegation    int64     // Self-delegation amount for validators
-	Version           string    // Version of the app to use for validators
+// TestManifest defines the parameters for a testnet.
+type TestManifest struct {
+	ChainID string
+	// Number of validators in the testnet
+	Validators int
+	// Resource requirements for a validator node
+	ValidatorResource Resources
+	// Resource requirements for a tx client
+	TxClientsResource Resources
+	// Self-delegation amount for validators
+	SelfDelegation int64
+	// CelestiaAppVersion of the app to use for validators
+	CelestiaAppVersion string
+	// TxClientVersion of the txsim to use for txClients
+	TxClientVersion string
+
 	// tx client settings
-	BlobsPerSeq   int // Number of blobs per sequence
-	BlobSequences int // Number of blob sequences
-	BlobSizes     int // Size of blobs in bytes
+	// Number of blobs per sequence
+	BlobsPerSeq int
+	// Number of blob sequences
+	BlobSequences int
+	// Size of blobs in bytes, e.g., "10000" (exact size) or "10000-20000" (min-max format)
+	BlobSizes string
+
 	// p2p configs
-	PerPeerBandwidth int64 // Bandwidth per peer in bytes per second
+	// Bandwidth per peer in bytes per second
+	PerPeerBandwidth int64
 	// consensus configs
 	TimeoutCommit  time.Duration
 	TimeoutPropose time.Duration
-	// mempool configs
-	Mempool      string // Mempool version
+
+	// Mempool configs
+	// Mempool version
+	Mempool      string
 	BroadcastTxs bool
+
 	// prometheus configs
 	Prometheus bool
-	// consensus params
+
+	// consensus manifest
 	MaxBlockBytes int64
+
 	// other configs
 	UpgradeHeight    int64 // Upgrade height
 	GovMaxSquareSize int64
 }
 
-func GetTestnetDefaultSetting() TestnetSetting {
+func GetSampleTestManifest() TestManifest {
 	cfg := config.DefaultConfig()
 	appParams := app.DefaultInitialConsensusParams()
-	var defaultParams = TestnetSetting{
-		ChainID:           "test-chain",
-		Validators:        4,
-		ValidatorResource: DefaultResources,
-		SelfDelegation:    10000000,
-		Version:           "latest",
-		BlobsPerSeq:       1,
-		BlobSequences:     1,
-		BlobSizes:         10 * 1024,
-		PerPeerBandwidth:  cfg.P2P.SendRate,
-		UpgradeHeight:     0,
-		TimeoutCommit:     cfg.Consensus.TimeoutCommit,
-		TimeoutPropose:    cfg.Consensus.TimeoutPropose,
-		Mempool:           cfg.Mempool.Version,
-		BroadcastTxs:      cfg.Mempool.Broadcast,
-		Prometheus:        cfg.Instrumentation.Prometheus,
-		GovMaxSquareSize:  appconsts.DefaultGovMaxSquareSize,
-		MaxBlockBytes:     appParams.Block.MaxBytes,
+	var defaultParams = TestManifest{
+		ChainID:            "test",
+		Validators:         4,
+		ValidatorResource:  DefaultResources,
+		TxClientsResource:  DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: "latest",
+		TxClientVersion:    txsimVersion,
+		BlobsPerSeq:        1,
+		BlobSequences:      1,
+		BlobSizes:          "100000",
+		PerPeerBandwidth:   cfg.P2P.SendRate,
+		UpgradeHeight:      0,
+		TimeoutCommit:      cfg.Consensus.TimeoutCommit,
+		TimeoutPropose:     cfg.Consensus.TimeoutPropose,
+		Mempool:            cfg.Mempool.Version,
+		BroadcastTxs:       cfg.Mempool.Broadcast,
+		Prometheus:         cfg.Instrumentation.Prometheus,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appParams.Block.MaxBytes,
 	}
 	return defaultParams
 }
