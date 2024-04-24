@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -34,10 +35,23 @@ func New(name string, seed int64, grafana *GrafanaInfo, manifest TestManifest) (
 		return nil, err
 	}
 
+	// update the default genesis with the provided manifest
+	// if a GovMaxSquareSize is provided, set the blob params in the genesis
+	g := genesis.NewDefaultGenesis()
+	if manifest.GovMaxSquareSize != 0 {
+		blobGenState := blobtypes.DefaultGenesis()
+		blobGenState.Params.GovMaxSquareSize = uint64(manifest.GovMaxSquareSize)
+		ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		g.WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
+	}
+	// if a MaxBlockBytes is provided, set the consensus params in the genesis
+	if manifest.MaxBlockBytes != 0 {
+		g.ConsensusParams.Block.MaxBytes = manifest.MaxBlockBytes
+	}
 	return &Testnet{
 		seed:     seed,
 		nodes:    make([]*Node, 0),
-		genesis:  genesis.NewDefaultGenesis().WithChainID(manifest.ChainID),
+		genesis:  g.WithChainID(manifest.ChainID),
 		keygen:   newKeyGenerator(seed),
 		grafana:  grafana,
 		manifest: manifest,
