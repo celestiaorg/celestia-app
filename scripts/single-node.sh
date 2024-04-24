@@ -5,6 +5,12 @@ set -o errexit
 # Stop script execution if an undefined variable is used
 set -o nounset
 
+if ! [ -x "$(command -v celestia-appd)" ]
+then
+    echo "celestia-appd could not be found. Please install the celestia-appd binary using 'make install' and make sure the PATH contains the directory where the binary exists. By default, go will install the binary under '~/go/bin'"
+    exit 1
+fi
+
 CHAIN_ID="private"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
