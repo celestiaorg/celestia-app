@@ -18,9 +18,9 @@ type TestManifest struct {
 	TxClientsResource Resources
 	// Self-delegation amount for validators
 	SelfDelegation int64
-	// CelestiaAppVersion of the app to use for validators
+	// CelestiaAppVersion a specific version of the celestia-app container image within celestiaorg repository on GitHub's Container Registry i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app
 	CelestiaAppVersion string
-	// TxClientVersion of the txsim to use for txClients
+	// TxClientVersion  a specific version of the txsim container image within celestiaorg repository on GitHub's Container Registry, i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/txsim
 	TxClientVersion string
 
 	// tx client settings
