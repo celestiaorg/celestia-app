@@ -27,6 +27,9 @@ func (s *CLITestSuite) SetupSuite() {
 		accounts[i] = tmrand.Str(20)
 	}
 	cfg.WithFundedAccounts(accounts...)
+	consensusParams := testnode.DefaultConsensusParams()
+	consensusParams.Version.AppVersion = 1
+	cfg.WithConsensusParams(consensusParams)
 
 	s.cfg = cfg
 	s.cctx, _, _ = testnode.NewNetwork(s.T(), cfg)
