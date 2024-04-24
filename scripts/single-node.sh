@@ -20,10 +20,11 @@ echo ""
 
 # Ask the user for confirmation before deleting the existing celestia-app home
 # directory.
-read -p "Are you sure you want to delete: $CELESTIA_APP_HOME? [y/n] " response
+echo "Are you sure you want to delete: $CELESTIA_APP_HOME? [y/n] "
+read -r response
 
 # Check the user's response
-if [[ $response != "y" ]]; then
+if [ "$response" != "y" ]; then
     # Exit if the user did not respond with "y"
     echo "You must delete $CELESTIA_APP_HOME to continue."
     exit 1
@@ -35,33 +36,33 @@ rm -r "$CELESTIA_APP_HOME"
 echo "Initializing validator and node config files..."
 celestia-appd init ${CHAIN_ID} \
   --chain-id ${CHAIN_ID} \
-  --home ${CELESTIA_APP_HOME} \
-  &> /dev/null # Hide output to reduce terminal noise
+  --home "${CELESTIA_APP_HOME}" \
+  > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Adding a new key to the keyring..."
 celestia-appd keys add ${KEY_NAME} \
   --keyring-backend=${KEYRING_BACKEND} \
-  --home ${CELESTIA_APP_HOME} \
-  &> /dev/null # Hide output to reduce terminal noise
+  --home "${CELESTIA_APP_HOME}" \
+  > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Adding genesis account..."
 celestia-appd add-genesis-account \
-  $(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home ${CELESTIA_APP_HOME}) \
+  "$(celestia-appd keys show ${KEY_NAME} -a --keyring-backend=${KEYRING_BACKEND} --home "${CELESTIA_APP_HOME}")" \
   $COINS \
-  --home ${CELESTIA_APP_HOME}
+  --home "${CELESTIA_APP_HOME}"
 
 echo "Creating a genesis tx..."
 celestia-appd gentx ${KEY_NAME} ${DELEGATION_AMOUNT} \
   --fees ${FEES} \
   --keyring-backend=${KEYRING_BACKEND} \
   --chain-id ${CHAIN_ID} \
-  --home ${CELESTIA_APP_HOME} \
-  &> /dev/null # Hide output to reduce terminal noise
+  --home "${CELESTIA_APP_HOME}" \
+  > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Collecting genesis txs..."
 celestia-appd collect-gentxs \
-  --home ${CELESTIA_APP_HOME} \
-    &> /dev/null # Hide output to reduce terminal noise
+  --home "${CELESTIA_APP_HOME}" \
+    > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 # Set proper defaults and change ports
 # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
@@ -80,7 +81,7 @@ sed -i'.bak' 's#"604800s"#"60s"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
 # Start celestia-app
 echo "Starting celestia-app..."
 celestia-appd start \
-  --home ${CELESTIA_APP_HOME} \
+  --home "${CELESTIA_APP_HOME}" \
   --api.enable \
   --grpc.enable \
   --grpc-web.enable
