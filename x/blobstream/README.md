@@ -229,6 +229,9 @@ If all the attestations in store are expired, which is an edge case that should 
 
 ### Hooks
 
+> [!NOTE]
+> Hooks are no-ops for app versions >= 2.
+
 #### Validator unbonding hook
 
 When a validator starts unbonding, a [hook](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/hooks.go#L23-L34) is executed that [sets](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/hooks.go#LL33C2-L33C2) the `LatestUnBondingBlockHeight` to the current block height. This allows creating a new valset that removes that validator from the valset members so that he doesn't need to sign attestations afterwards.

@@ -27,13 +27,17 @@ func TestAfterValidatorBeginUnbonding(t *testing.T) {
 	height := int64(1)
 	t.Run("should be a no-op if app version is 2", func(t *testing.T) {
 		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 2}, Height: height}, false, log.NewNopLogger())
-		hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
+		err := hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
+		assert.NoError(t, err)
+
 		got := keeper.GetLatestUnBondingBlockHeight(ctx)
 		assert.Equal(t, uint64(0), got)
 	})
 	t.Run("should set latest unboding height if app version is 1", func(t *testing.T) {
 		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 1}, Height: height}, false, log.NewNopLogger())
-		hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
+		err := hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
+		assert.NoError(t, err)
+
 		got := keeper.GetLatestUnBondingBlockHeight(ctx)
 		assert.Equal(t, uint64(height), got)
 	})
@@ -46,19 +50,22 @@ func TestAfterValidatorCreated(t *testing.T) {
 	valAddress := sdk.ValAddress([]byte("valAddress"))
 	t.Run("should be a no-op if app version is 2", func(t *testing.T) {
 		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 2}, Height: height}, false, log.NewNopLogger())
-		hooks.AfterValidatorCreated(ctx, valAddress)
+		err := hooks.AfterValidatorCreated(ctx, valAddress)
+		assert.NoError(t, err)
+
 		address, ok := keeper.GetEVMAddress(ctx, valAddress)
 		assert.False(t, ok)
 		assert.Empty(t, address)
 	})
 	t.Run("should set EVM address if app version is 1", func(t *testing.T) {
 		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 1}, Height: height}, false, log.NewNopLogger())
-		hooks.AfterValidatorCreated(ctx, valAddress)
+		err := hooks.AfterValidatorCreated(ctx, valAddress)
+		assert.NoError(t, err)
+
 		address, ok := keeper.GetEVMAddress(ctx, valAddress)
 		assert.True(t, ok)
 		assert.Equal(t, common.HexToAddress("0x0000000000000000000076616C41646472657373"), address)
 	})
-
 }
 
 func setupKeeper(t *testing.T) (*blobstreamkeeper.Keeper, store.CommitMultiStore) {
@@ -96,6 +103,6 @@ func (m *mockStakingKeeper) GetValidator(_ sdk.Context, _ sdk.ValAddress) (valid
 	return stakingtypes.Validator{}, false
 }
 
-func (m *mockStakingKeeper) GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator {
+func (m *mockStakingKeeper) GetBondedValidatorsByPower(_ sdk.Context) []stakingtypes.Validator {
 	return []stakingtypes.Validator{}
 }
