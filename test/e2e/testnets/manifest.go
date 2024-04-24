@@ -1,6 +1,7 @@
 package testnets
 
 import (
+	"errors"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -59,9 +60,9 @@ type TestManifest struct {
 	GovMaxSquareSize int64
 }
 
-func GetSampleTestManifest() TestManifest {
+func GetSampleTestManifest() *TestManifest {
 	cfg := config.DefaultConfig()
-	var defaultParams = TestManifest{
+	var defaultParams = &TestManifest{
 		ChainID:            "test",
 		Validators:         4,
 		ValidatorResource:  DefaultResources,

@@ -25,11 +25,13 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
-	manifest  TestManifest
+	manifest  *TestManifest
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo, manifest TestManifest) (*Testnet,
+func New(name string, seed int64, grafana *GrafanaInfo,
+	manifest *TestManifest) (*Testnet,
 	error) {
+	validateManifest(manifest)
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
