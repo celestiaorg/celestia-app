@@ -5,11 +5,24 @@ import (
 	"io"
 	"slices"
 
+	"github.com/celestiaorg/celestia-app/v2/app/ante"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/app/module"
 	"github.com/celestiaorg/celestia-app/v2/app/posthandler"
+	appv1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	appv2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	blobkeeper "github.com/celestiaorg/celestia-app/v2/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	mintkeeper "github.com/celestiaorg/celestia-app/v2/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v2/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v2/x/tokenfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -54,6 +67,13 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
+	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
+	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v6/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
@@ -61,37 +81,13 @@ import (
 	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
+	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 	"github.com/spf13/cast"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
-
-	"github.com/celestiaorg/celestia-app/v2/app/ante"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	appv1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
-	appv2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	blobkeeper "github.com/celestiaorg/celestia-app/v2/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
-	"github.com/celestiaorg/celestia-app/v2/x/tokenfilter"
-
-	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
-	"github.com/celestiaorg/celestia-app/v2/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
-	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
-
-	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
-	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/keeper"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
-
-	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
-	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
-	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
-	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 )
 
 // maccPerms is short for module account permissions.
@@ -153,18 +149,18 @@ type App struct {
 	FeeGrantKeeper      feegrantkeeper.Keeper
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
+	BlobKeeper          blobkeeper.Keeper
+	BlobstreamKeeper    blobstreamkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 
-	BlobKeeper       blobkeeper.Keeper
-	BlobstreamKeeper blobstreamkeeper.Keeper
-
 	mm           *module.Manager
 	configurator module.Configurator
-	// used as a coordination mechanism for height based upgrades
-	upgradeHeight int64
+	// upgradeHeightV2 is used as a coordination mechanism for the height-based
+	// upgrade from v1 to v2.
+	upgradeHeightV2 int64
 	// used to define what messages are accepted for a given app version
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
@@ -180,7 +176,7 @@ func New(
 	traceStore io.Writer,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeHeight int64,
+	upgradeHeightV2 int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -207,6 +203,7 @@ func New(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
+		upgradeHeightV2:   upgradeHeightV2,
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
@@ -259,7 +256,6 @@ func New(
 	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
 	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-	app.upgradeHeight = upgradeHeight
 
 	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
@@ -268,10 +264,11 @@ func New(
 		&stakingKeeper,
 	)
 
-	// register the staking hooks
-	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
+	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
+	// above so that it will contain these hooks.
 	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
+		stakingtypes.NewMultiStakingHooks(
+			app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
 			app.BlobstreamKeeper.Hooks(),
 		),
@@ -341,18 +338,23 @@ func New(
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
 
-	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
-	evidenceKeeper := evidencekeeper.NewKeeper(
-		appCodec, keys[evidencetypes.StoreKey], &app.StakingKeeper, app.SlashingKeeper,
+	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
+		appCodec,
+		keys[evidencetypes.StoreKey],
+		&app.StakingKeeper,
+		app.SlashingKeeper,
 	)
-	// If evidence needs to be handled for the app, set routes in router here and seal
-	app.EvidenceKeeper = *evidenceKeeper
-
-	govConfig := govtypes.DefaultConfig()
 
 	app.GovKeeper = govkeeper.NewKeeper(
-		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
-		&stakingKeeper, govRouter, bApp.MsgServiceRouter(), govConfig,
+		appCodec,
+		keys[govtypes.StoreKey],
+		app.GetSubspace(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.BankKeeper,
+		&stakingKeeper,
+		govRouter,
+		bApp.MsgServiceRouter(),
+		govtypes.DefaultConfig(),
 	)
 
 	app.BlobKeeper = *blobkeeper.NewKeeper(
@@ -399,7 +401,6 @@ func New(
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
 
-	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
@@ -446,7 +447,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
-		if req.Height == app.upgradeHeight-1 {
+		if req.Height == app.upgradeHeightV2-1 {
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
 		}
