@@ -125,23 +125,3 @@ func (c Configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fr
 
 	return nil
 }
-
-// runModuleMigration runs a single in-place store migration for one given module.
-func (c Configurator) runModuleMigration(ctx sdk.Context, moduleName string, fromVersion uint64) error {
-	moduleMigrationsMap, found := c.migrations[moduleName]
-	if !found {
-		return sdkerrors.ErrNotFound.Wrapf("no migrations found for module %s", moduleName)
-	}
-
-	migrateFn, found := moduleMigrationsMap[fromVersion]
-	if !found {
-		return sdkerrors.ErrNotFound.Wrapf("no migration found for module %s and from version %d", moduleName, fromVersion)
-	}
-	ctx.Logger().Info(fmt.Sprintf("migrating module %s from version %d", moduleName, fromVersion))
-
-	err := migrateFn(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
