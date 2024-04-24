@@ -75,15 +75,6 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	return nil
 }
 
-//func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64, resources Resources) error {
-//	for i := 0; i < num; i++ {
-//		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
-//			return err
-//		}
-//	}
-//	return nil
-//}
-
 func (t *Testnet) CreateGenesisNodes() error {
 	for i := 0; i < t.manifest.Validators; i++ {
 		if err := t.CreateGenesisNode(t.manifest.CelestiaAppVersion,
