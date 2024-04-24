@@ -40,6 +40,7 @@ func E2EThroughput() error {
 		BlobSequences:      1,
 		BlobSizes:          "100000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
+		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
 		TimeoutPropose:     1 * time.Second,
 		Mempool:            "v1",
