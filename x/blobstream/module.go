@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	bscmd "github.com/celestiaorg/celestia-app/v2/x/blobstream/client"
+
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
@@ -77,16 +79,14 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 	}
 }
 
-// GetTxCmd returns no command for this module because blobstream was disabled
-// in v2.
+// GetTxCmd returns the capability module's root tx command.
 func (a AppModuleBasic) GetTxCmd() *cobra.Command {
-	return nil
+	return bscmd.GetTxCmd()
 }
 
-// GetQueryCmd returns no query command for this module because blobstream was
-// disabled in v2.
+// GetQueryCmd returns the capability module's root query command.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
-	return nil
+	return bscmd.GetQueryCmd()
 }
 
 // ----------------------------------------------------------------------------
