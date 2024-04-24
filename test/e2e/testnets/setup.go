@@ -17,13 +17,20 @@ func MakeConfig(testnet *Testnet, node *Node) (*config.Config, error) {
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	cfg.P2P.SendRate = testnet.manifest.PerPeerBandwidth           // 5 * 1024 * 1024 // 5MiB/s
-	cfg.P2P.RecvRate = testnet.manifest.PerPeerBandwidth           // 5 * 1024 * 1024 // 5MiB/s
-	cfg.Consensus.TimeoutPropose = testnet.manifest.TimeoutPropose //1 * time. Second
-	cfg.Consensus.TimeoutCommit = testnet.manifest.TimeoutCommit   //1 * time.Second
+	cfg.P2P.SendRate = testnet.manifest.PerPeerBandwidth // 5 * 1024 * 1024 // 5MiB/s
+	cfg.P2P.RecvRate = testnet.manifest.PerPeerBandwidth // 5 * 1024 * 1024 // 5MiB/s
+	if testnet.manifest.TimeoutPropose > 0 {
+		cfg.Consensus.TimeoutPropose = testnet.manifest.TimeoutPropose
+	}
+	if testnet.manifest.TimeoutCommit > 0 {
+		cfg.Consensus.TimeoutCommit = testnet.manifest.TimeoutCommit
+	}
 	cfg.Instrumentation.Prometheus = testnet.manifest.Prometheus
 	cfg.Mempool.Broadcast = testnet.manifest.BroadcastTxs
-	cfg.Mempool.Version = testnet.manifest.Mempool
+	if testnet.manifest.Mempool != "" {
+		cfg.Mempool.Version = testnet.manifest.Mempool
+	}
+
 	return cfg, nil
 }
 
