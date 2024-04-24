@@ -64,7 +64,7 @@ func (l *Leader) unboundedBlockSize(
 		blockSize := 2000000
 		// blockIncrement is the amount the block size limit is increased in
 		// bytes by each loop. This is incremented by 5000000 each loop.
-		blockIncrement := 3000000
+		blockIncrement := 5500000
 		proposalCount := uint64(1)
 		for {
 			select {
@@ -87,8 +87,8 @@ func (l *Leader) unboundedBlockSize(
 					return
 				}
 				runenv.RecordMessage("leader: changed max block size to %d", blockSize)
-				blockIncrement += 1000000
 				blockSize += blockIncrement
+				blockIncrement += 24000000
 				proposalCount++
 			}
 		}

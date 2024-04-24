@@ -23,7 +23,7 @@ import (
 )
 
 func init() {
-	consensus.UseWAL = false
+	consensus.UseWAL = true
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 }
