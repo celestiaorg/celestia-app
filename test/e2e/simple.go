@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -50,10 +50,8 @@ func E2ESimple(logger *log.Logger) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
-	err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-
-	if !errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("expected context.DeadlineExceeded, got %w", err)
+	if err = txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...); !isDeadlineExceeded(err) {
+		return fmt.Errorf("expected error to contain context deadline exceeded but got %w", err)
 	}
 
 	logger.Println("Reading blockchain")
@@ -71,4 +69,11 @@ func E2ESimple(logger *log.Logger) error {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
 	return nil
+}
+
+// isDeadlineExceeded returns true if the error contains "context deadline
+// exceeded". It should return true for a context.DeadlineExceeded error and an
+// RPC error that wraps a DeadlineExceeded.
+func isDeadlineExceeded(err error) bool {
+	return strings.Contains(err.Error(), "context deadline exceeded")
 }
