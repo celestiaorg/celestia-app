@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
@@ -44,6 +45,18 @@ func E2EThroughput() error {
 
 	// add 2 validators
 	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnets.DefaultResources))
+
+	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+		for _, node := range testnet.Nodes() {
+			node.Instance.SetEnvironmentVariable("TRACE_PUSH_BUCKET_NAME",
+				pushConfig.BucketName)
+			testnet.Node(0).Instance.SetEnvironmentVariable("TRACE_PUSH_REGION", pushConfig.Region)
+			testnet.Node(0).Instance.SetEnvironmentVariable("TRACE_PUSH_ACCESS_KEY", pushConfig.AccessKey)
+			testnet.Node(0).Instance.SetEnvironmentVariable("TRACE_PUSH_SECRET_KEY", pushConfig.SecretKey)
+			testnet.Node(0).Instance.SetEnvironmentVariable("TRACE_PUSH_DELAY", fmt.Sprintf("%d", pushConfig.PushDelay))
+		}
+
+	}
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
