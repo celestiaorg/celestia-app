@@ -3,7 +3,6 @@ package keeper_test
 import (
 	"testing"
 
-	sdkmath "cosmossdk.io/math"
 	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -62,42 +61,6 @@ func TestAfterValidatorCreated(t *testing.T) {
 
 }
 
-type mockStakingKeeper struct {
-	totalVotingPower sdkmath.Int
-	validators       map[string]int64
-}
-
-func newMockStakingKeeper(validators map[string]int64) *mockStakingKeeper {
-	totalVotingPower := sdkmath.NewInt(0)
-	for _, power := range validators {
-		totalVotingPower = totalVotingPower.AddRaw(power)
-	}
-	return &mockStakingKeeper{
-		totalVotingPower: totalVotingPower,
-		validators:       validators,
-	}
-}
-
-func (m *mockStakingKeeper) GetLastValidatorPower(_ sdk.Context, addr sdk.ValAddress) int64 {
-	addrStr := addr.String()
-	if power, ok := m.validators[addrStr]; ok {
-		return power
-	}
-	return 0
-}
-
-func (m *mockStakingKeeper) GetValidator(_ sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool) {
-	addrStr := addr.String()
-	if _, ok := m.validators[addrStr]; ok {
-		return stakingtypes.Validator{Status: stakingtypes.Bonded}, true
-	}
-	return stakingtypes.Validator{}, false
-}
-
-func (m *mockStakingKeeper) GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator {
-	return []stakingtypes.Validator{}
-}
-
 func setupKeeper(t *testing.T) (*blobstreamkeeper.Keeper, store.CommitMultiStore) {
 	registry := codectypes.NewInterfaceRegistry()
 	appCodec := codec.NewProtoCodec(registry)
@@ -117,4 +80,22 @@ func setupKeeper(t *testing.T) (*blobstreamkeeper.Keeper, store.CommitMultiStore
 		stakingKeeper,
 	)
 	return keeper, stateStore
+}
+
+type mockStakingKeeper struct{}
+
+func newMockStakingKeeper(_ map[string]int64) *mockStakingKeeper {
+	return &mockStakingKeeper{}
+}
+
+func (m *mockStakingKeeper) GetLastValidatorPower(_ sdk.Context, _ sdk.ValAddress) int64 {
+	return 0
+}
+
+func (m *mockStakingKeeper) GetValidator(_ sdk.Context, _ sdk.ValAddress) (validator stakingtypes.Validator, found bool) {
+	return stakingtypes.Validator{}, false
+}
+
+func (m *mockStakingKeeper) GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator {
+	return []stakingtypes.Validator{}
 }
