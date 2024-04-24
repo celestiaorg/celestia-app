@@ -6,3 +6,5 @@ var DefaultResources = Resources{
 	CPU:           "300m",
 	Volume:        "1Gi",
 }
+
+const TxsimVersion = "a92de72"

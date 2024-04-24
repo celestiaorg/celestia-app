@@ -14,7 +14,6 @@ import (
 
 const (
 	seed = 42
-	txsimVersion = "a92de72"
 )
 
 func main() {
