@@ -49,7 +49,8 @@ func E2EThroughput() error {
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 	}
-	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar(), manifest)
+	testnet, err := testnets.New("E2EThroughput", seed,
+		testnets.GetGrafanaInfoFromEnvVar(), &manifest)
 	testnets.NoError("failed to create testnet", err)
 
 	defer func() {
