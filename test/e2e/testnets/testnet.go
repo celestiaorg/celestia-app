@@ -24,10 +24,10 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
-	params    TestnetSetting
+	manifest  TestManifest
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo, params TestnetSetting) (*Testnet,
+func New(name string, seed int64, grafana *GrafanaInfo, manifest TestManifest) (*Testnet,
 	error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
@@ -35,12 +35,12 @@ func New(name string, seed int64, grafana *GrafanaInfo, params TestnetSetting) (
 	}
 
 	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(params.ChainID),
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
-		params:  params,
+		seed:     seed,
+		nodes:    make([]*Node, 0),
+		genesis:  genesis.NewDefaultGenesis().WithChainID(manifest.ChainID),
+		keygen:   newKeyGenerator(seed),
+		grafana:  grafana,
+		manifest: manifest,
 	}, nil
 }
 
@@ -72,26 +72,23 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 //}
 
 func (t *Testnet) CreateGenesisNodes() error {
-	for i := 0; i < t.params.Validators; i++ {
-		if err := t.CreateGenesisNode(t.params.Version,
-			t.params.SelfDelegation, t.params.UpgradeHeight,
-			t.params.ValidatorResource); err != nil {
+	for i := 0; i < t.manifest.Validators; i++ {
+		if err := t.CreateGenesisNode(t.manifest.CelestiaAppVersion,
+			t.manifest.SelfDelegation, t.manifest.UpgradeHeight,
+			t.manifest.ValidatorResource); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (t *Testnet) CreateTxClients(version string,
-	sequences int,
-	blobRange string,
-	resources Resources,
+func (t *Testnet) CreateTxClients(
 	grpcEndpoints []string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(name, version, sequences,
-			blobRange, resources, grpcEndpoint)
+		err := t.CreateTxClient(name, t.manifest.TxClientVersion, t.manifest.BlobSequences,
+			t.manifest.BlobSizes, t.manifest.TxClientsResource, grpcEndpoint)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
