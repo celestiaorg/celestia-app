@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -23,8 +22,6 @@ func main() {
 }
 
 func E2EThroughput() error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
 	latestVersion, err := testnets.GetLatestVersion()
 	testnets.NoError("failed to get latest version", err)
 
