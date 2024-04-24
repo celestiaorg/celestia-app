@@ -35,16 +35,15 @@ func New(name string, seed int64, grafana *GrafanaInfo, manifest TestManifest) (
 		return nil, err
 	}
 
-	// update the default genesis with the provided manifest
-	// if a GovMaxSquareSize is provided, set the blob params in the genesis
+	// if a GovMaxSquareSize is provided in manifest, set the blob params in the genesis
 	g := genesis.NewDefaultGenesis()
 	if manifest.GovMaxSquareSize != 0 {
 		blobGenState := blobtypes.DefaultGenesis()
 		blobGenState.Params.GovMaxSquareSize = uint64(manifest.GovMaxSquareSize)
-		ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		ecfg := encoding.MakeConfig(app.ModuleBasics)
 		g.WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
 	}
-	// if a MaxBlockBytes is provided, set the consensus params in the genesis
+	// if a MaxBlockBytes is provided in the manifest, set the consensus params in the genesis
 	if manifest.MaxBlockBytes != 0 {
 		g.ConsensusParams.Block.MaxBytes = manifest.MaxBlockBytes
 	}
