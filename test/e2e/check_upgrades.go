@@ -138,7 +138,9 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil, testnets.GetSampleTestManifest())
+	manifest := testnets.GetSampleTestManifest()
+	manifest.CelestiaAppVersion = latestVersion
+	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil, manifest)
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
