@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	seed         = 42
+	seed = 42
 	txsimVersion = "a92de72"
 )
 
@@ -32,9 +32,27 @@ func E2EThroughput() error {
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	var setting = testnets.GetTestnetDefaultSetting()
-	setting.Validators = 2
-	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar(), setting)
+	manifest := testnets.TestManifest{
+		ChainID:            "test-chain",
+		Validators:         2,
+		ValidatorResource:  testnets.DefaultResources,
+		TxClientsResource:  testnets.DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: latestVersion,
+		TxClientVersion:    testnets.TxsimVersion,
+		BlobsPerSeq:        1,
+		BlobSequences:      1,
+		BlobSizes:          "100000",
+		PerPeerBandwidth:   5 * 1024 * 1024,
+		TimeoutCommit:      1 * time.Second,
+		TimeoutPropose:     1 * time.Second,
+		Mempool:            "v1",
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+	}
+	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar(), manifest)
 	testnets.NoError("failed to create testnet", err)
 
 	defer func() {
@@ -53,7 +71,7 @@ func E2EThroughput() error {
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
 
-	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", testnets.DefaultResources, gRPCEndpoints)
+	err = testnet.CreateTxClients(gRPCEndpoints)
 	testnets.NoError("failed to create tx clients", err)
 
 	// start the testnet
