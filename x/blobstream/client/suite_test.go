@@ -3,6 +3,7 @@ package client_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/suite"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -19,7 +20,7 @@ func (s *CLITestSuite) SetupSuite() {
 		s.T().Skip("skipping Blobstream CLI tests in short mode.")
 	}
 
-	cfg := testnode.DefaultConfig()
+	cfg := testnode.DefaultConfig().WithConsensusParams(app.DefaultInitialConsensusParams())
 
 	numAccounts := 120
 	accounts := make([]string, numAccounts)
@@ -27,9 +28,6 @@ func (s *CLITestSuite) SetupSuite() {
 		accounts[i] = tmrand.Str(20)
 	}
 	cfg.WithFundedAccounts(accounts...)
-	consensusParams := testnode.DefaultConsensusParams()
-	consensusParams.Version.AppVersion = 1
-	cfg.WithConsensusParams(consensusParams)
 
 	s.cfg = cfg
 	s.cctx, _, _ = testnode.NewNetwork(s.T(), cfg)
