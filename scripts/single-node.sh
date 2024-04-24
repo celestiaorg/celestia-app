@@ -77,24 +77,10 @@ sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' 
 # Override the VotingPeriod from 1 week to 1 minute
 sed -i'.bak' 's#"604800s"#"60s"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
 
-# Override the genesis to use app version 1 and then upgrade to app version 2 later.
-sed -i'.bak' 's#"app_version": "2"#"app_version": "1"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
-
 # Start celestia-app
 echo "Starting celestia-app..."
 celestia-appd start \
   --home ${CELESTIA_APP_HOME} \
   --api.enable \
   --grpc.enable \
-  --grpc-web.enable \
-  --v2-upgrade-height 3
-
-# Example QGB tx
-# celestia-appd tx qgb register \
-#   "$(celestia-appd keys show validator --home ${CELESTIA_APP_HOME} --bech val -a)" \
-#   0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 \
-#   --from ${KEY_NAME} \
-#   --home ${CELESTIA_APP_HOME} \
-#   --fees 30000utia \
-#   --broadcast-mode block \
-#   --yes
+  --grpc-web.enable
