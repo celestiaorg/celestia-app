@@ -5,19 +5,19 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 95
+total_instances = 90
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "100l-w-6"
+chain_id = "100l-nw-7"
 timeout = "50m"
 halt_height = "2000"
 latency = "100"
 random_latency = "true"
 bandwidth = "1Gb"
-validators = "95"
+validators = "90"
 topology = "seed"
 pex = "true"
 timeout_propose = "80s"
@@ -45,7 +45,7 @@ builder = "docker:generic"
 memory = "12Gi"
 cpu = "8"
 [groups.instances]
-count = 95
+count = 90
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.22.2"
