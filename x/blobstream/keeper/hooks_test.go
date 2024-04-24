@@ -22,36 +22,17 @@ import (
 )
 
 func TestAfterValidatorBeginUnbonding(t *testing.T) {
-	registry := codectypes.NewInterfaceRegistry()
-	appCodec := codec.NewProtoCodec(registry)
-	storeKey := sdk.NewKVStoreKey(blobstreamtypes.StoreKey)
-	subspace := types.NewSubspace(appCodec, codec.NewLegacyAmino(), storeKey, storeKey, "params")
-
-	db := dbm.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
-	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
-	require.NoError(t, stateStore.LoadLatestVersion())
-
-	stakingKeeper := newMockStakingKeeper(map[string]int64{})
-	keeper := blobstreamkeeper.NewKeeper(
-		appCodec,
-		storeKey,
-		subspace,
-		stakingKeeper,
-	)
-
+	keeper, stateStore := setupKeeper(t)
 	hooks := keeper.Hooks()
 	t.Run("should be a no-op if app version is 2", func(t *testing.T) {
 		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 2}, Height: 1}, false, log.NewNopLogger())
 		hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
-
 		got := keeper.GetLatestUnBondingBlockHeight(ctx)
 		assert.Equal(t, uint64(0), got)
 	})
 	t.Run("should set latest unboding height to 1 if app version is 1", func(t *testing.T) {
 		ctx := sdk.NewContext(stateStore, tmproto.Header{Version: version.Consensus{App: 1}, Height: 1}, false, log.NewNopLogger())
 		hooks.AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
-
 		got := keeper.GetLatestUnBondingBlockHeight(ctx)
 		assert.Equal(t, uint64(1), got)
 	})
@@ -91,4 +72,25 @@ func (m *mockStakingKeeper) GetValidator(_ sdk.Context, addr sdk.ValAddress) (va
 
 func (m *mockStakingKeeper) GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator {
 	return []stakingtypes.Validator{}
+}
+
+func setupKeeper(t *testing.T) (*blobstreamkeeper.Keeper, store.CommitMultiStore) {
+	registry := codectypes.NewInterfaceRegistry()
+	appCodec := codec.NewProtoCodec(registry)
+	storeKey := sdk.NewKVStoreKey(blobstreamtypes.StoreKey)
+	subspace := types.NewSubspace(appCodec, codec.NewLegacyAmino(), storeKey, storeKey, "params")
+
+	db := dbm.NewMemDB()
+	stateStore := store.NewCommitMultiStore(db)
+	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+	require.NoError(t, stateStore.LoadLatestVersion())
+
+	stakingKeeper := newMockStakingKeeper(map[string]int64{})
+	keeper := blobstreamkeeper.NewKeeper(
+		appCodec,
+		storeKey,
+		subspace,
+		stakingKeeper,
+	)
+	return keeper, stateStore
 }
