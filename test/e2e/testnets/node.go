@@ -131,8 +131,8 @@ func NewNode(
 	}, nil
 }
 
-func (n *Node) Init(t *Testnet, genesis *types.GenesisDoc,
-	peers []string) error {
+func (n *Node) Init(genesis *types.GenesisDoc,
+	peers []string, configOpts ...ConfigOpt) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -153,7 +153,7 @@ func (n *Node) Init(t *Testnet, genesis *types.GenesisDoc,
 	}
 
 	// Create and write the config file
-	cfg, err := MakeConfig(t, n)
+	cfg, err := MakeConfig(n, configOpts...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}

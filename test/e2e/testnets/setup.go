@@ -12,22 +12,22 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(node *Node, opt ...option) (*config.Config, error) {
+func MakeConfig(node *Node, opt ...ConfigOpt) (*config.Config, error) {
 	cfg := config.DefaultConfig()
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
+	cfg.Instrumentation.Prometheus = true
 	for _, o := range opt {
 		cfg = o(cfg)
-
 	}
 	return cfg, nil
 }
 
-type option func(*config.Config) *config.Config
+type ConfigOpt func(*config.Config) *config.Config
 
-func WithPerPeerBandwidth(bandwidth int64) option {
+func PerPeerBandwidthOpt(bandwidth int64) ConfigOpt {
 	return func(cfg *config.Config) *config.Config {
 		cfg.P2P.SendRate = bandwidth
 		cfg.P2P.RecvRate = bandwidth
@@ -35,35 +35,35 @@ func WithPerPeerBandwidth(bandwidth int64) option {
 	}
 }
 
-func WithTimeoutPropose(timeout time.Duration) option {
+func TimeoutProposeOpt(timeout time.Duration) ConfigOpt {
 	return func(cfg *config.Config) *config.Config {
 		cfg.Consensus.TimeoutPropose = timeout
 		return cfg
 	}
 }
 
-func WithTimeoutCommit(timeout time.Duration) option {
+func TimeoutCommitOpt(timeout time.Duration) ConfigOpt {
 	return func(cfg *config.Config) *config.Config {
 		cfg.Consensus.TimeoutCommit = timeout
 		return cfg
 	}
 }
 
-func WithPrometheus(prometheus bool) option {
+func PrometheusOpt(prometheus bool) ConfigOpt {
 	return func(cfg *config.Config) *config.Config {
 		cfg.Instrumentation.Prometheus = prometheus
 		return cfg
 	}
 }
 
-func WithMempool(mempool string) option {
+func MempoolOpt(mempool string) ConfigOpt {
 	return func(cfg *config.Config) *config.Config {
 		cfg.Mempool.Version = mempool
 		return cfg
 	}
 }
 
-func WithBroadcastTxs(broadcast bool) option {
+func BroadcastTxsOpt(broadcast bool) ConfigOpt {
 	return func(cfg *config.Config) *config.Config {
 		cfg.Mempool.Broadcast = broadcast
 		return cfg

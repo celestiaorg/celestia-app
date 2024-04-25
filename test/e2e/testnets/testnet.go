@@ -25,7 +25,6 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
-	manifest  *TestManifest
 }
 
 // New creates a new testnet
@@ -240,7 +239,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	return nil
 }
 
-func (t *Testnet) Setup() error {
+func (t *Testnet) Setup(configOpts ...ConfigOpt) error {
 	genesis, err := t.genesis.Export()
 	if err != nil {
 		return err
@@ -256,7 +255,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err := node.Init(t, genesis, peers)
+		err := node.Init(genesis, peers, configOpts...)
 		if err != nil {
 			return err
 		}
