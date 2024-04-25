@@ -6,7 +6,7 @@ End-to-end tests pull docker images from `ghcr.io/celestiaorg/celestia-app`. The
 
 ## Usage
 
-**Prerequisite: Requires a kubeconfig file.** Access to the specific `kubeconfig` file used by this project is limited to internal contributors only. 
+**Prerequisite: Requires a kubeconfig file.** Access to the specific `kubeconfig` file used by this project is limited to internal contributors only.
 
 You can run the End-to-End tests using either of the following commands:
 
