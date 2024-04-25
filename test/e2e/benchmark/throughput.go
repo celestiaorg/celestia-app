@@ -102,7 +102,7 @@ func E2EThroughput() error {
 
 	// create test manifest
 	manifest := testnets.TestManifest{
-		ChainID:            "test-chain",
+		ChainID:            "test-sanaz",
 		Validators:         2,
 		ValidatorResource:  testnets.DefaultResources,
 		TxClientsResource:  testnets.DefaultResources,
