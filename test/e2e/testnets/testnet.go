@@ -28,8 +28,11 @@ type Testnet struct {
 	manifest  *TestManifest
 }
 
+// New creates a new testnet
+// if you dont want to specify a govMaxSquareSize or maxBlockBytes, you can set them to 0
 func New(name string, seed int64, grafana *GrafanaInfo,
-	manifest *TestManifest) (*Testnet,
+	chainID string, govMaxSquareSize int64,
+	maxBlockBytes int64) (*Testnet,
 	error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
@@ -38,23 +41,22 @@ func New(name string, seed int64, grafana *GrafanaInfo,
 
 	// if a GovMaxSquareSize is provided in manifest, set the blob params in the genesis
 	g := genesis.NewDefaultGenesis()
-	if manifest.GovMaxSquareSize != 0 {
+	if govMaxSquareSize != 0 {
 		blobGenState := blobtypes.DefaultGenesis()
-		blobGenState.Params.GovMaxSquareSize = uint64(manifest.GovMaxSquareSize)
+		blobGenState.Params.GovMaxSquareSize = uint64(govMaxSquareSize)
 		ecfg := encoding.MakeConfig(app.ModuleBasics)
 		g.WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
 	}
 	// if a MaxBlockBytes is provided in the manifest, set the consensus params in the genesis
-	if manifest.MaxBlockBytes != 0 {
-		g.ConsensusParams.Block.MaxBytes = manifest.MaxBlockBytes
+	if maxBlockBytes != 0 {
+		g.ConsensusParams.Block.MaxBytes = maxBlockBytes
 	}
 	return &Testnet{
-		seed:     seed,
-		nodes:    make([]*Node, 0),
-		genesis:  g.WithChainID(manifest.ChainID),
-		keygen:   newKeyGenerator(seed),
-		grafana:  grafana,
-		manifest: manifest,
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: g.WithChainID(chainID),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
 }
 

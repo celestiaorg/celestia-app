@@ -50,7 +50,8 @@ func E2EThroughput() error {
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 	}
 	testnet, err := testnets.New("E2EThroughput", seed,
-		testnets.GetGrafanaInfoFromEnvVar(), &manifest)
+		testnets.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
+		manifest.GovMaxSquareSize, manifest.MaxBlockBytes)
 	testnets.NoError("failed to create testnet", err)
 
 	defer func() {

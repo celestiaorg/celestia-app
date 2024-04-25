@@ -32,7 +32,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil, testnets.GetSampleTestManifest())
+	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil, "test", 0, 0)
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
@@ -138,9 +138,8 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	manifest := testnets.GetSampleTestManifest()
-	manifest.CelestiaAppVersion = latestVersion
-	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil, manifest)
+	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil, "test",
+		0, 0)
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
