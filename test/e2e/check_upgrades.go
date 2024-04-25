@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -25,8 +25,8 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	os.Setenv("KNUU_NAMESPACE", "test")
 
 	versionStr, err := getAllVersions()
-	testnets.NoError("failed to get versions", err)
-	versions := testnets.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+	testnet.NoError("failed to get versions", err)
+	versions := testnet.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
 
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
@@ -35,37 +35,37 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil)
-	testnets.NoError("failed to create testnet", err)
+	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil)
+	testnet.NoError("failed to create testnet", err)
 
-	defer testnet.Cleanup()
+	defer testNet.Cleanup()
 
-	testnet.SetConsensusParams(app.DefaultInitialConsensusParams())
+	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
 	preloader, err := knuu.NewPreloader()
-	testnets.NoError("failed to create preloader", err)
+	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages() }()
 	for _, v := range versions {
-		testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(v.String())))
+		testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(v.String())))
 	}
 
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		testnets.NoError("failed to create genesis node", testnet.CreateGenesisNode(v, 10000000, 0, testnets.DefaultResources))
+		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
 	}
 
-	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	testnets.NoError("failed to create account", err)
+	kr, err := testNet.CreateAccount("alice", 1e12, "")
+	testnet.NoError("failed to create account", err)
 
 	// start the testnet
 	logger.Println("Setting up testnet")
-	testnets.NoError("Failed to setup testnet", testnet.Setup())
+	testnet.NoError("Failed to setup testnet", testNet.Setup())
 	logger.Println("Starting testnet")
-	testnets.NoError("Failed to start testnet", testnet.Start())
+	testnet.NoError("Failed to start testnet", testNet.Start())
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
@@ -77,7 +77,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
-		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
+		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	}()
 
 	for i := 0; i < len(versions)*2; i++ {
@@ -86,25 +86,25 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		if i%numNodes == 0 {
 			continue
 		}
-		client, err := testnet.Node(i % numNodes).Client()
-		testnets.NoError("failed to get client", err)
+		client, err := testNet.Node(i % numNodes).Client()
+		testnet.NoError("failed to get client", err)
 
 		heightBefore, err := getHeight(ctx, client, time.Second)
-		testnets.NoError("failed to get height", err)
+		testnet.NoError("failed to get height", err)
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnets.NoError("failed to upgrade node", testnet.Node(i%numNodes+1).Upgrade(newVersion))
+		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes+1).Upgrade(newVersion))
 		// wait for the node to reach two more heights
-		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
 	}
 
 	heights := make([]int64, 4)
 	for i := 0; i < numNodes; i++ {
-		client, err := testnet.Node(i).Client()
-		testnets.NoError("failed to get client", err)
+		client, err := testNet.Node(i).Client()
+		testnet.NoError("failed to get client", err)
 		heights[i], err = getHeight(ctx, client, time.Second)
-		testnets.NoError("failed to get height", err)
+		testnet.NoError("failed to get height", err)
 	}
 
 	logger.Println("checking that all nodes are at the same height")
@@ -132,8 +132,8 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 func MajorUpgradeToV2(logger *log.Logger) error {
 	os.Setenv("KNUU_NAMESPACE", "test")
 
-	latestVersion, err := testnets.GetLatestVersion()
-	testnets.NoError("failed to get latest version", err)
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
 
 	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
@@ -143,31 +143,31 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil)
-	testnets.NoError("failed to create testnet", err)
+	testNet, err := testnet.New("runMajorUpgradeToV2", seed, nil)
+	testnet.NoError("failed to create testnet", err)
 
-	defer testnet.Cleanup()
+	defer testNet.Cleanup()
 
 	preloader, err := knuu.NewPreloader()
-	testnets.NoError("failed to create preloader", err)
+	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages() }()
-	testnets.NoError("failed to add image", preloader.AddImage(testnets.DockerImageName(latestVersion)))
+	testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(latestVersion)))
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testnet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnets.DefaultResources)
-		testnets.NoError("failed to create genesis node", err)
+		err := testNet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnet.DefaultResources)
+		testnet.NoError("failed to create genesis node", err)
 	}
 
-	kr, err := testnet.CreateAccount("alice", 1e12, "")
-	testnets.NoError("failed to create account", err)
+	kr, err := testNet.CreateAccount("alice", 1e12, "")
+	testnet.NoError("failed to create account", err)
 	// start the testnet
 
 	logger.Println("Setting up testnet")
-	testnets.NoError("Failed to setup testnet", testnet.Setup())
+	testnet.NoError("Failed to setup testnet", testNet.Setup())
 	logger.Println("Starting testnet")
-	testnets.NoError("Failed to start testnet", testnet.Start())
+	testnet.NoError("Failed to start testnet", testNet.Start())
 
 	errCh := make(chan error)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -175,26 +175,26 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
 	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 	go func() {
-		errCh <- txsim.Run(ctx, testnet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
+		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	}()
 
 	// assert that the network is initially running on v1
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
-		client, err := testnet.Node(i).Client()
-		testnets.NoError("failed to get client", err)
+		client, err := testNet.Node(i).Client()
+		testnet.NoError("failed to get client", err)
 
-		testnets.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
-		testnets.NoError("failed to get header", err)
+		testnet.NoError("failed to get header", err)
 		logger.Println("Node", i, "is running on version", resp.Header.Version.App)
 		if resp.Header.Version.App != v1.Version {
 			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v1.Version, resp.Header.Version.App)
 		}
 
 		resp, err = client.Header(ctx, &upgradeHeight)
-		testnets.NoError("failed to get header", err)
+		testnet.NoError("failed to get header", err)
 		if resp.Header.Version.App != v2.Version {
 			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v2.Version, resp.Header.Version.App)
 		}

@@ -44,7 +44,7 @@ func main() {
 
 	if !specificTestFound {
 		logger.Println("No particular test specified. Running all tests.")
-		logger.Println("go run test/e2e/*.go <test_name> to run a specific test")
+		logger.Println("go run ./test/e2e <test_name> to run a specific test")
 		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
 		// if no specific test is passed, run all tests
 		for _, test := range tests {
@@ -54,7 +54,6 @@ func main() {
 }
 
 func runTest(logger *log.Logger, test Test) {
-	logger.SetPrefix("             ")
 	logger.Printf("=== RUN %s", test.Name)
 	err := test.Func(logger)
 	if err != nil {

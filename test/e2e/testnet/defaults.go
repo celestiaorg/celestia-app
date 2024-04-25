@@ -1,4 +1,4 @@
-package testnets
+package testnet
 
 var DefaultResources = Resources{
 	MemoryRequest: "200Mi",
