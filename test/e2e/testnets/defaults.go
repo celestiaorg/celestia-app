@@ -1,6 +1,6 @@
-package e2e
+package testnets
 
-var defaultResources = Resources{
+var DefaultResources = Resources{
 	MemoryRequest: "200Mi",
 	MemoryLimit:   "200Mi",
 	CPU:           "300m",
