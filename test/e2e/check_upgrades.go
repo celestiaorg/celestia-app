@@ -127,8 +127,8 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 }
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	latestVersion, err := testnets.GetLatestVersion()
-	testnets.NoError("failed to get latest version", err)
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
 
 	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
