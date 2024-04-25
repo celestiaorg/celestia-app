@@ -85,13 +85,16 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 	return nil
 }
 
-func (t *Testnet) CreateTxClients(
+func (t *Testnet) CreateTxClients(version string,
+	sequences int,
+	blobRange string,
+	resources Resources,
 	grpcEndpoints []string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(name, t.manifest.TxClientVersion, t.manifest.BlobSequences,
-			t.manifest.BlobSizes, t.manifest.TxClientsResource, grpcEndpoint)
+		err := t.CreateTxClient(name, version, sequences,
+			blobRange, resources, grpcEndpoint)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).

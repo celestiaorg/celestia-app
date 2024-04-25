@@ -69,7 +69,8 @@ func E2EThroughput() error {
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
 
-	err = testnet.CreateTxClients(gRPCEndpoints)
+	err = testnet.CreateTxClients(manifest.TxClientVersion, 1, "10000-10000",
+		testnets.DefaultResources, gRPCEndpoints)
 	testnets.NoError("failed to create tx clients", err)
 
 	// start the testnet
