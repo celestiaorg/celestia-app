@@ -68,11 +68,6 @@ func (g *Genesis) WithConsensusParams(params *tmproto.ConsensusParams) *Genesis 
 	return g
 }
 
-func (g *Genesis) WithAppVersion(version tmproto.VersionParams) *Genesis {
-	g.ConsensusParams.Version = version
-	return g
-}
-
 func (g *Genesis) WithChainID(chainID string) *Genesis {
 	g.ChainID = chainID
 	return g
