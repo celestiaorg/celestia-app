@@ -17,7 +17,7 @@ func (app *App) MaxEffectiveSquareSize(ctx sdk.Context) int {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	gmax := int(app.BlobKeeper.GovMaxSquareSize(ctx))
-	hardMax := appconsts.SquareSizeUpperBound(app.AppVersion(ctx))
-	return min(gmax, hardMax)
+	govMax := int(app.BlobKeeper.GovMaxSquareSize(ctx))
+	hardMax := appconsts.SquareSizeUpperBound(app.AppVersion())
+	return min(govMax, hardMax)
 }
