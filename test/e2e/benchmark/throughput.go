@@ -43,7 +43,6 @@ func NewBenchmarkTest(name string, manifest testnets.TestManifest) (
 }
 
 func (b *BenchmarkTest) Init() error {
-	// add 2 validators
 	err := b.CreateGenesisNodes(b.manifest.Validators,
 		b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
 		b.manifest.UpgradeHeight,
@@ -88,8 +87,7 @@ func (b *BenchmarkTest) Init() error {
 }
 
 func (b *BenchmarkTest) Run() {
-	// once the testnet is up, start the txsim
-	log.Println("Starting txsim nodes")
+	log.Println("Starting tx clients (txsim)")
 	testnets.NoError("failed to start tx clients", b.StartTxClients())
 
 	// wait some time for the txsim to submit transactions
