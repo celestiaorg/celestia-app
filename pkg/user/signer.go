@@ -61,7 +61,7 @@ type Signer struct {
 	localSequence uint64
 	// the chains last known sequence number
 	networkSequence uint64
-	// gasMultiplier is used to increase gas limit as it is sometimes underestimate
+	// gasMultiplier is used to increase gas limit as it is sometimes underestimated
 	gasMultiplier float64
 	// lookup map of all pending and yet to be confirmed outbound transactions
 	outboundSequences map[uint64]struct{}
