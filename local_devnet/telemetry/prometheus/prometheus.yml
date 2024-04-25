@@ -16,21 +16,21 @@ scrape_configs:
           - 'otel-collector:8889'
   - job_name: 'core0'
     static_configs:
-      - targets: [ 'core0:26660' ]
+      - targets: ['core0:26660']
         labels:
           group: 'Core0'
   - job_name: 'core1'
     static_configs:
-      - targets: [ 'core1:26660' ]
+      - targets: ['core1:26660']
         labels:
           group: 'Core1'
   - job_name: 'core2'
     static_configs:
-      - targets: [ 'core2:26660' ]
+      - targets: ['core2:26660']
         labels:
           group: 'Core2'
   - job_name: 'core3'
     static_configs:
-      - targets: [ 'core3:26660' ]
+      - targets: ['core3:26660']
         labels:
           group: 'Core3'
