@@ -32,7 +32,7 @@ func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, 
 	// requests in EndBlock is to create only one valset request per block if
 	// multiple validators start unbonding in the same block.
 
-	// This hook is called for jailing or unbonding triggered by users but it IS
+	// This hook is called for jailing or unbonding triggered by users but it is
 	// NOT called for jailing triggered in the endblocker therefore we call the
 	// keeper function ourselves there.
 	h.k.SetLatestUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
