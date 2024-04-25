@@ -97,7 +97,7 @@ publish-ghcr-docker:
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
-	@#golangci-lint run
+	@golangci-lint run
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
