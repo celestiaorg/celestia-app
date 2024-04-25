@@ -13,8 +13,6 @@ You can run the End-to-End tests using either of the following commands:
 ```shell
 go run ./test/e2e
 ```
-go run ./test/e2e
-```
 
 ```shell
 make test-e2e
