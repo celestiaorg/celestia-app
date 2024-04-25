@@ -3,6 +3,7 @@ package testnets
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -11,31 +12,63 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(testnet *Testnet, node *Node) (*config.Config, error) {
+func MakeConfig(node *Node, opt ...option) (*config.Config, error) {
 	cfg := config.DefaultConfig()
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	if testnet.manifest.PerPeerBandwidth != 0 {
-		cfg.P2P.SendRate = testnet.manifest.PerPeerBandwidth // 5 * 1024 * 1024 // 5MiB/s
-		cfg.P2P.RecvRate = testnet.manifest.PerPeerBandwidth // 5 * 1024 * 1024 // 5MiB/s
-	}
-	if testnet.manifest.TimeoutPropose > 0 {
-		cfg.Consensus.TimeoutPropose = testnet.manifest.TimeoutPropose
-	}
-	if testnet.manifest.TimeoutCommit > 0 {
-		cfg.Consensus.TimeoutCommit = testnet.manifest.TimeoutCommit
-	}
-	cfg.Instrumentation.Prometheus = testnet.manifest.Prometheus
-	cfg.Mempool.Broadcast = testnet.manifest.BroadcastTxs
-	if testnet.manifest.Mempool != "" {
-		cfg.Mempool.Version = testnet.manifest.Mempool
-	}
+	for _, o := range opt {
+		cfg = o(cfg)
 
+	}
 	return cfg, nil
 }
 
+type option func(*config.Config) *config.Config
+
+func WithPerPeerBandwidth(bandwidth int64) option {
+	return func(cfg *config.Config) *config.Config {
+		cfg.P2P.SendRate = bandwidth
+		cfg.P2P.RecvRate = bandwidth
+		return cfg
+	}
+}
+
+func WithTimeoutPropose(timeout time.Duration) option {
+	return func(cfg *config.Config) *config.Config {
+		cfg.Consensus.TimeoutPropose = timeout
+		return cfg
+	}
+}
+
+func WithTimeoutCommit(timeout time.Duration) option {
+	return func(cfg *config.Config) *config.Config {
+		cfg.Consensus.TimeoutCommit = timeout
+		return cfg
+	}
+}
+
+func WithPrometheus(prometheus bool) option {
+	return func(cfg *config.Config) *config.Config {
+		cfg.Instrumentation.Prometheus = prometheus
+		return cfg
+	}
+}
+
+func WithMempool(mempool string) option {
+	return func(cfg *config.Config) *config.Config {
+		cfg.Mempool.Version = mempool
+		return cfg
+	}
+}
+
+func WithBroadcastTxs(broadcast bool) option {
+	return func(cfg *config.Config) *config.Config {
+		cfg.Mempool.Broadcast = broadcast
+		return cfg
+	}
+}
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {
