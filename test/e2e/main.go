@@ -24,7 +24,7 @@ func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
 
 	tests := []Test{
-		// FIXME both tests are currently failing
+		// FIXME the following test is currently failing. 
 		// {"MinorVersionCompatibility", MinorVersionCompatibility},
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
 		{"E2ESimple", E2ESimple},
