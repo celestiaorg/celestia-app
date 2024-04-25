@@ -32,7 +32,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil, app.DefaultInitialVersion)
+	testnet, err := testnets.New("runMinorVersionCompatibility", seed, nil)
 	testnets.NoError("failed to create testnet", err)
 
 	defer testnet.Cleanup()
@@ -138,8 +138,10 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil, app.DefaultInitialVersion)
+	testnet, err := testnets.New("runMajorUpgradeToV2", seed, nil)
 	testnets.NoError("failed to create testnet", err)
+
+	testnet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	defer testnet.Cleanup()
 

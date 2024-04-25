@@ -26,7 +26,7 @@ type Testnet struct {
 	txClients []*TxSim
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo, version uint64) (*Testnet, error) {
+func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func New(name string, seed int64, grafana *GrafanaInfo, version uint64) (*Testne
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID("test").WithAppVersion(tmproto.VersionParams{AppVersion: version}),
+		genesis: genesis.NewDefaultGenesis().WithChainID("test"),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil

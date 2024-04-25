@@ -29,7 +29,7 @@ func E2EThroughput() error {
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar(), appconsts.LatestVersion)
+	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar())
 	testnets.NoError("failed to create testnet", err)
 
 	defer func() {
