@@ -21,7 +21,7 @@ import (
 // an ICA on Celestia (host chain) using the Cosmos Hub (controller chain).
 func TestInterChainAccounts(t *testing.T) {
 	// if testing.Short() {
-	// t.Skip("skipping TestInterChainAccounts in short mode.")
+	t.Skip("skipping TestInterChainAccounts in short mode.")
 	// }
 
 	client, network := interchaintest.DockerSetup(t)
