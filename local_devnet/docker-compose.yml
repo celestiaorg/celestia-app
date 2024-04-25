@@ -144,7 +144,7 @@ services:
     image: grafana/grafana:latest
     user: "0"
     ports:
-      - 3001:3000
+      - "3000:3000"
     restart: unless-stopped
     volumes:
       - ${PWD}/telemetry/grafana/:/etc/grafana/provisioning/
