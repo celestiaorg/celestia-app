@@ -113,7 +113,7 @@ For the dashboards, if you create fresh ones and save them, they will be saved o
 
 The four validators use the same genesis, the same comet's config `celestia-app/config.toml`, and the same app config `celestia-app/app.toml`. If you make a change on one of them, you will make the change on the four validators.
 
-Note: if the network is already running, and you make a change in the files, the changes will not be reflected until you [stop the devner](#stop-the-devnet), then [start](#start-the-devnet) it again. Also, they will be reflected if you [delete it](#delete-the-devnet) and [start](#start-the-devnet) it again.
+Note: if the network is already running, and you make a change in the files, the changes will not be reflected until you [stop the devnet](#stop-the-devnet), then [start](#start-the-devnet) it again. Also, they will be reflected if you [delete it](#delete-the-devnet) and [start](#start-the-devnet) it again.
 
 ## Sending transactions
 
