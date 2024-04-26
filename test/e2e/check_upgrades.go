@@ -141,8 +141,9 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	testNet, err := testnet.New("runMajorUpgradeToV2", seed, nil)
 	testnet.NoError("failed to create testnet", err)
 
-	testnet.SetConsensusParams(app.DefaultInitialConsensusParams())
 	defer testNet.Cleanup()
+	
+	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	preloader, err := knuu.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
