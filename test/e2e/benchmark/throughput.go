@@ -21,11 +21,6 @@ func main() {
 	}
 }
 
-type BenchTest struct {
-	testnet.Testnet
-	manifest testnet.Manifest
-}
-
 func E2EThroughput() error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
@@ -67,7 +62,6 @@ func E2EThroughput() error {
 		testNet.Cleanup()
 	}()
 
-	// add 2 validators
 	testnet.NoError("failed to create genesis nodes",
 		testNet.CreateGenesisNodes(manifest.Validators,
 			manifest.CelestiaAppVersion, manifest.SelfDelegation,

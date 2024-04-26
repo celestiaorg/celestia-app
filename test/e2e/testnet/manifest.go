@@ -38,14 +38,11 @@ type Manifest struct {
 	// Bandwidth per peer in bytes per second
 	PerPeerBandwidth int64
 	// consensus configs
-	// if TimeoutCommit is set to 0, it won't take effect and a default value will be used
-	TimeoutCommit time.Duration
-	// if TimeoutPropose is set to 0, it won't take effect and a default value will be used
+	TimeoutCommit  time.Duration
 	TimeoutPropose time.Duration
 
 	// Mempool configs
 	// Mempool version
-	// If Mempool is set to "", it won't take effect and a default value will be used
 	Mempool      string
 	BroadcastTxs bool
 
@@ -53,12 +50,10 @@ type Manifest struct {
 	Prometheus bool
 
 	// consensus manifest
-	// If MaxBlockBytes is set to 0, it won't take effect and a default value will be used
 	MaxBlockBytes int64
 
 	// other configs
-	UpgradeHeight int64 // Upgrade height
-	// if GovMaxSquareSize is set to 0, it won't take effect and a default value will be used
+	UpgradeHeight    int64
 	GovMaxSquareSize int64
 
 	TestDuration time.Duration
