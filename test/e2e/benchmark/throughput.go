@@ -21,13 +21,18 @@ func main() {
 	}
 }
 
+type BenchTest struct {
+	testnet.Testnet
+	manifest testnet.Manifest
+}
+
 func E2EThroughput() error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
-	manifest := testnet.TestManifest{
+	manifest := testnet.Manifest{
 		ChainID:            "test-sanaz",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
@@ -72,7 +77,8 @@ func E2EThroughput() error {
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
 
-	err = testNet.CreateTxClients(txsimVersion, 1, "10000-10000", testnet.DefaultResources, gRPCEndpoints)
+	err = testNet.CreateTxClients(testnet.TxsimVersion, 1, "10000-10000",
+		testnet.DefaultResources, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
 	// start the testnet

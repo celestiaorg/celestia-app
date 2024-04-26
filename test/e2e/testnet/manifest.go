@@ -11,8 +11,8 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// TestManifest defines the parameters for a testnet.
-type TestManifest struct {
+// Manifest defines the parameters for a testnet.
+type Manifest struct {
 	ChainID string
 	// Number of validators in the testnet
 	Validators int
@@ -66,11 +66,11 @@ type TestManifest struct {
 	TxClientsNum int
 }
 
-func (tm *TestManifest) GetGenesisModifiers() []genesis.Modifier {
+func (tm *Manifest) GetGenesisModifiers() []genesis.Modifier {
 	return getGenesisModifiers(uint64(tm.GovMaxSquareSize))
 }
 
-func (tm *TestManifest) GetConsensusParams() *tmproto.ConsensusParams {
+func (tm *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	return getConsensusParams(tm.MaxBlockBytes)
 }
 
