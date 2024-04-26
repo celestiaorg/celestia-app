@@ -85,7 +85,7 @@ func getGenesisModifiers(govMaxSquareSize uint64) []genesis.Modifier {
 }
 
 func getConsensusParams(maxBytes int64) *tmproto.ConsensusParams {
-	cparams := app.DefaultInitialConsensusParams()
+	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = maxBytes
 	return cparams
 }

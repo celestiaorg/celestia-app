@@ -52,15 +52,16 @@ func E2EThroughput() error {
 		Prometheus:         true,
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
-		TestDuration:       5 * time.Minute,
+		TestDuration:       1 * time.Minute,
 		TxClientsNum:       2,
 	}
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
 		testnet.GetGrafanaInfoFromEnvVar(), "test-sanaz",
-		manifest.GetGenesisModifiers(), manifest.GetConsensusParams())
+		manifest.GetGenesisModifiers()...)
 	testnet.NoError("failed to create testnet", err)
 
+	testNet.SetConsensusParams(manifest.GetConsensusParams())
 	defer func() {
 		log.Print("Cleaning up testnet")
 		testNet.Cleanup()

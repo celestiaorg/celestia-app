@@ -27,17 +27,19 @@ type Testnet struct {
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
-	genesisModifiers []genesis.Modifier, params *tmproto.ConsensusParams) (
+	genesisModifiers ...genesis.Modifier) (
 	*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
 	}
 
+	gen := genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...)
+	//gen.ConsensusParams.Block.MaxBytes = appconsts.DefaultMaxBytes
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithConsensusParams(params).WithModifiers(genesisModifiers...),
+		genesis: gen,
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil
@@ -45,6 +47,10 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
 	t.genesis.WithConsensusParams(params)
+}
+
+func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
+	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources) error {
