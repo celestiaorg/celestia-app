@@ -42,7 +42,7 @@ func E2EThroughput() error {
 		TxClientVersion:    testnet.TxsimVersion,
 		BlobsPerSeq:        1,
 		BlobSequences:      10,
-		BlobSizes:          "100000",
+		BlobSizes:          "100000-100000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
@@ -57,7 +57,7 @@ func E2EThroughput() error {
 	}
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
-		testnet.GetGrafanaInfoFromEnvVar(), "test-sanaz",
+		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
 	testnet.NoError("failed to create testnet", err)
 
@@ -68,7 +68,10 @@ func E2EThroughput() error {
 	}()
 
 	// add 2 validators
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnet.DefaultResources))
+	testnet.NoError("failed to create genesis nodes",
+		testNet.CreateGenesisNodes(manifest.Validators,
+			manifest.CelestiaAppVersion, manifest.SelfDelegation,
+			manifest.UpgradeHeight, manifest.ValidatorResource))
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
