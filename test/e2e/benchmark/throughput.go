@@ -31,7 +31,7 @@ func NewBenchTest(name string, manifest *testnet.Manifest) (*BenchTest, error) {
 	testNet, err := testnet.New(name, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
-	testnet.NoError("failed to create testnet", err)
+	return nil, err
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
 	return &BenchTest{Testnet: testNet, manifest: manifest}, nil
@@ -68,20 +68,25 @@ func (b *BenchTest) SetupNodes() error {
 	return nil
 }
 
-func (b *BenchTest) Run() {
+func (b *BenchTest) Run() error {
 	log.Println("Starting testnet")
-	testnet.NoError("failed to start testnet", b.Start())
+	err := b.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start testnet: %v", err)
+	}
 
 	// once the testnet is up, start the txsim
 	log.Println("Starting tx clients")
-	testnet.NoError("failed to start tx clients", b.StartTxClients())
+	err = b.StartTxClients()
+	if err != nil {
+		return fmt.Errorf("failed to start tx clients: %v", err)
+	}
 
 	// wait some time for the txsim to submit transactions
 	time.Sleep(b.manifest.TestDuration)
 
-	// TODO perhaps we can stop the nodes at this point for precise
-	// termination of the test
-
+	// TODO perhaps we can stop the nodes at this point to save resources
+	return nil
 }
 
 func E2EThroughput() error {
@@ -113,17 +118,17 @@ func E2EThroughput() error {
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 	}
-	benchTest, _ := NewBenchTest("E2EThroughput", &manifest)
+	benchTest, err := NewBenchTest("E2EThroughput", &manifest)
+	testnet.NoError("failed to create bench test", err)
 	defer func() {
 		log.Print("Cleaning up testnet")
 		benchTest.Cleanup()
 	}()
 
-	benchTest.SetupNodes()
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 
-	benchTest.Run()
+	testnet.NoError("failed to run the bench test", benchTest.Run())
 
-	//
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(),
 		benchTest.Node(0).AddressRPC())
