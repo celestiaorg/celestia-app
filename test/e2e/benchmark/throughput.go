@@ -87,7 +87,7 @@ func E2EThroughput() error {
 		testnet.WithTimeoutPropose(1*time.Second),
 		testnet.WithTimeoutCommit(1*time.Second),
 		testnet.WithPrometheus(true),
-		//testnet.WithMempool("v1"),
+		// testnet.WithMempool("v1"),
 	))
 	log.Println("Starting testnet")
 	testnet.NoError("failed to start testnet", testNet.Start())

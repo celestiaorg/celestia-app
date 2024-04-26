@@ -18,10 +18,6 @@ func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	//cfg.P2P.SendRate = 5 * 1024 * 1024 // 5MiB/s
-	//cfg.P2P.RecvRate = 5 * 1024 * 1024 // 5MiB/s
-	//cfg.Consensus.TimeoutPropose = 1 * time.Second
-	//cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
 
 	for _, opt := range opts {
@@ -37,7 +33,6 @@ func WithPerPeerBandwidth(bandwidth int64) Option {
 	return func(cfg *config.Config) {
 		cfg.P2P.SendRate = bandwidth
 		cfg.P2P.RecvRate = bandwidth
-
 	}
 }
 
