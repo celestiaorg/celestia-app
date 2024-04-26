@@ -134,6 +134,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	numNodes := 4
 	upgradeHeight := int64(12)
+	upgradeHeight := int64(12)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -142,7 +143,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()
-	
+
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	preloader, err := knuu.NewPreloader()
