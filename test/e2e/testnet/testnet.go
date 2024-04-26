@@ -27,7 +27,7 @@ type Testnet struct {
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
-	genesisModifiers []genesis.Modifier, _ *tmproto.ConsensusParams) (
+	genesisModifiers []genesis.Modifier, params *tmproto.ConsensusParams) (
 	*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
@@ -37,7 +37,7 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithConsensusParams(params).WithModifiers(genesisModifiers...),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil
