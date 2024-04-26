@@ -61,26 +61,18 @@ type Manifest struct {
 }
 
 func (tm *Manifest) GetGenesisModifiers() []genesis.Modifier {
-	return getGenesisModifiers(uint64(tm.GovMaxSquareSize))
-}
-
-func (tm *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
-	return getConsensusParams(tm.MaxBlockBytes)
-}
-
-func getGenesisModifiers(govMaxSquareSize uint64) []genesis.Modifier {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	var modifiers []genesis.Modifier
 
 	blobParams := blobtypes.DefaultParams()
-	blobParams.GovMaxSquareSize = govMaxSquareSize
+	blobParams.GovMaxSquareSize = uint64(tm.GovMaxSquareSize)
 	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
 
 	return modifiers
 }
 
-func getConsensusParams(maxBytes int64) *tmproto.ConsensusParams {
+func (tm *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
-	cparams.Block.MaxBytes = maxBytes
+	cparams.Block.MaxBytes = tm.MaxBlockBytes
 	return cparams
 }
