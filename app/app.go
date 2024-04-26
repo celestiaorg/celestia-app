@@ -109,8 +109,10 @@ const (
 	DefaultInitialVersion = v1
 )
 
-var _ servertypes.Application = (*App)(nil)
-var _ ibctesting.TestingApp = (*App)(nil)
+var (
+	_ servertypes.Application = (*App)(nil)
+	_ ibctesting.TestingApp   = (*App)(nil)
+)
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
