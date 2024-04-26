@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
 )
 
 // Manifest defines the parameters for a testnet.
@@ -86,7 +85,7 @@ func getGenesisModifiers(govMaxSquareSize uint64) []genesis.Modifier {
 }
 
 func getConsensusParams(maxBytes int64) *tmproto.ConsensusParams {
-	cparams := types.DefaultConsensusParams()
+	cparams := app.DefaultInitialConsensusParams()
 	cparams.Block.MaxBytes = maxBytes
 	return cparams
 }
