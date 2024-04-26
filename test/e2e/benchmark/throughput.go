@@ -6,20 +6,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/types"
 )
 
 const (
-	seed         = 42
-	txsimVersion = "a92de72"
+	seed = 42
 )
 
 func main() {
@@ -34,10 +27,33 @@ func E2EThroughput() error {
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
+	manifest := testnet.TestManifest{
+		ChainID:            "test-sanaz",
+		Validators:         2,
+		ValidatorResource:  testnet.DefaultResources,
+		TxClientsResource:  testnet.DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: latestVersion,
+		TxClientVersion:    testnet.TxsimVersion,
+		BlobsPerSeq:        1,
+		BlobSequences:      10,
+		BlobSizes:          "100000",
+		PerPeerBandwidth:   5 * 1024 * 1024,
+		UpgradeHeight:      0,
+		TimeoutCommit:      1 * time.Second,
+		TimeoutPropose:     1 * time.Second,
+		Mempool:            "v1",
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		TestDuration:       5 * time.Minute,
+		TxClientsNum:       2,
+	}
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
 		testnet.GetGrafanaInfoFromEnvVar(), "test-sanaz",
-		getGenesisModifiers(appconsts.DefaultGovMaxSquareSize), getConsensusParams(appconsts.DefaultMaxBytes))
+		manifest.GetGenesisModifiers(), manifest.GetConsensusParams())
 	testnet.NoError("failed to create testnet", err)
 
 	defer func() {
@@ -94,22 +110,4 @@ func E2EThroughput() error {
 	}
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
-}
-
-func getGenesisModifiers(govMaxSquareSize uint64) []genesis.Modifier {
-	ecfg := encoding.MakeConfig(app.ModuleBasics)
-	var modifiers []genesis.Modifier
-
-	blobParams := blobtypes.DefaultParams()
-	blobParams.GovMaxSquareSize = govMaxSquareSize
-	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
-
-	return modifiers
-}
-
-func getConsensusParams(maxBytes int64) *tmproto.ConsensusParams {
-	cparams := types.DefaultConsensusParams()
-	cparams.Block.MaxBytes = maxBytes
-	return cparams
-
 }
