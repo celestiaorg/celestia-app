@@ -41,8 +41,8 @@ func E2EThroughput() error {
 		CelestiaAppVersion: latestVersion,
 		TxClientVersion:    testnet.TxsimVersion,
 		BlobsPerSeq:        1,
-		BlobSequences:      10,
-		BlobSizes:          "100000-100000",
+		BlobSequences:      1,
+		BlobSizes:          "10000-10000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
@@ -81,8 +81,9 @@ func E2EThroughput() error {
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
 
-	err = testNet.CreateTxClients(testnet.TxsimVersion, 1, "10000-10000",
-		testnet.DefaultResources, gRPCEndpoints)
+	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
+		manifest.BlobSizes,
+		manifest.TxClientsResource, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
 	// start the testnet
@@ -102,7 +103,7 @@ func E2EThroughput() error {
 	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(1 * time.Minute)
+	time.Sleep(30 * time.Second)
 
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
