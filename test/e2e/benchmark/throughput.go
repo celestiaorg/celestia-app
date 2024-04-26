@@ -21,6 +21,69 @@ func main() {
 	}
 }
 
+type BenchTest struct {
+	*testnet.Testnet
+	manifest *testnet.Manifest
+}
+
+func NewBenchTest(name string, manifest *testnet.Manifest) (*BenchTest, error) {
+	// create a new testnet
+	testNet, err := testnet.New(name, seed,
+		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
+		manifest.GetGenesisModifiers()...)
+	testnet.NoError("failed to create testnet", err)
+
+	testNet.SetConsensusParams(manifest.GetConsensusParams())
+	return &BenchTest{Testnet: testNet, manifest: manifest}, nil
+}
+
+func (b *BenchTest) SetupNodes() error {
+	testnet.NoError("failed to create genesis nodes",
+		b.CreateGenesisNodes(b.manifest.Validators,
+			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
+			b.manifest.UpgradeHeight, b.manifest.ValidatorResource))
+
+	// obtain the GRPC endpoints of the validators
+	gRPCEndpoints, err := b.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get validators GRPC endpoints", err)
+	log.Println("validators GRPC endpoints", gRPCEndpoints)
+
+	// create txsim nodes and point them to the validators
+	log.Println("Creating txsim nodes")
+
+	err = b.CreateTxClients(b.manifest.TxClientVersion,
+		b.manifest.BlobSequences,
+		b.manifest.BlobSizes,
+		b.manifest.TxClientsResource, gRPCEndpoints)
+	testnet.NoError("failed to create tx clients", err)
+
+	// start the testnet
+	log.Println("Setting up testnet")
+	testnet.NoError("failed to setup testnet", b.Setup(
+		testnet.WithPerPeerBandwidth(b.manifest.PerPeerBandwidth),
+		testnet.WithTimeoutPropose(b.manifest.TimeoutPropose),
+		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
+		testnet.WithPrometheus(b.manifest.Prometheus),
+	))
+	return nil
+}
+
+func (b *BenchTest) Run() {
+	log.Println("Starting testnet")
+	testnet.NoError("failed to start testnet", b.Start())
+
+	// once the testnet is up, start the txsim
+	log.Println("Starting tx clients")
+	testnet.NoError("failed to start tx clients", b.StartTxClients())
+
+	// wait some time for the txsim to submit transactions
+	time.Sleep(b.manifest.TestDuration)
+
+	// TODO perhaps we can stop the nodes at this point for precise
+	// termination of the test
+
+}
+
 func E2EThroughput() error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
@@ -50,56 +113,20 @@ func E2EThroughput() error {
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 	}
-	// create a new testnet
-	testNet, err := testnet.New("E2EThroughput", seed,
-		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
-		manifest.GetGenesisModifiers()...)
-	testnet.NoError("failed to create testnet", err)
-
-	testNet.SetConsensusParams(manifest.GetConsensusParams())
+	benchTest, _ := NewBenchTest("E2EThroughput", &manifest)
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testNet.Cleanup()
+		benchTest.Cleanup()
 	}()
 
-	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(manifest.Validators,
-			manifest.CelestiaAppVersion, manifest.SelfDelegation,
-			manifest.UpgradeHeight, manifest.ValidatorResource))
+	benchTest.SetupNodes()
 
-	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
-	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints)
+	benchTest.Run()
 
-	// create txsim nodes and point them to the validators
-	log.Println("Creating txsim nodes")
-
-	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
-		manifest.BlobSizes,
-		manifest.TxClientsResource, gRPCEndpoints)
-	testnet.NoError("failed to create tx clients", err)
-
-	// start the testnet
-	log.Println("Setting up testnet")
-	testnet.NoError("failed to setup testnet", testNet.Setup(
-		testnet.WithPerPeerBandwidth(manifest.PerPeerBandwidth),
-		testnet.WithTimeoutPropose(manifest.TimeoutPropose),
-		testnet.WithTimeoutCommit(manifest.TimeoutCommit),
-		testnet.WithPrometheus(manifest.Prometheus),
-	))
-	log.Println("Starting testnet")
-	testnet.NoError("failed to start testnet", testNet.Start())
-
-	// once the testnet is up, start the txsim
-	log.Println("Starting tx clients")
-	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
-
-	// wait some time for the txsim to submit transactions
-	time.Sleep(manifest.TestDuration)
-
+	//
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchain(context.Background(),
+		benchTest.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
@@ -112,6 +139,7 @@ func E2EThroughput() error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
+
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }
