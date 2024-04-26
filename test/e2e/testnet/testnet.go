@@ -221,7 +221,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	return nil
 }
 
-func (t *Testnet) Setup() error {
+func (t *Testnet) Setup(configOpts ...Option) error {
 	genesis, err := t.genesis.Export()
 	if err != nil {
 		return err
@@ -237,7 +237,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err := node.Init(genesis, peers)
+		err := node.Init(genesis, peers, configOpts...)
 		if err != nil {
 			return err
 		}
