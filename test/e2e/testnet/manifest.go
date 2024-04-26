@@ -12,19 +12,21 @@ import (
 
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
-	ChainID string
+	ChainID      string
+	TestDuration time.Duration
 	// Number of validators in the testnet
 	Validators int
-	// Resource requirements for a validator node
-	ValidatorResource Resources
-	// Resource requirements for a tx client
-	TxClientsResource Resources
+	TxClients  int
 	// Self-delegation amount for validators
 	SelfDelegation int64
 	// CelestiaAppVersion a specific version of the celestia-app container image within celestiaorg repository on GitHub's Container Registry i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app
 	CelestiaAppVersion string
 	// TxClientVersion  a specific version of the txsim container image within celestiaorg repository on GitHub's Container Registry, i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/txsim
 	TxClientVersion string
+	// Resource requirements for a validator node
+	ValidatorResource Resources
+	// Resource requirements for a tx client
+	TxClientsResource Resources
 
 	// tx client settings
 	// Number of blobs per sequence
@@ -49,15 +51,12 @@ type Manifest struct {
 	// prometheus configs
 	Prometheus bool
 
-	// consensus manifest
+	// consensus parameters
 	MaxBlockBytes int64
 
 	// other configs
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
-
-	TestDuration time.Duration
-	TxClientsNum int
 }
 
 func (tm *Manifest) GetGenesisModifiers() []genesis.Modifier {

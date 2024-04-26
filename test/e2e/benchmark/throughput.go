@@ -48,7 +48,7 @@ func E2EThroughput() error {
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 		TestDuration:       30 * time.Second,
-		TxClientsNum:       2,
+		TxClients:          2,
 	}
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
