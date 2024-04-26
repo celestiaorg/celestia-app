@@ -47,7 +47,7 @@ func E2EThroughput() error {
 		Prometheus:         true,
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
-		TestDuration:       1 * time.Minute,
+		TestDuration:       30 * time.Second,
 		TxClientsNum:       2,
 	}
 	// create a new testnet
@@ -83,21 +83,20 @@ func E2EThroughput() error {
 	// start the testnet
 	log.Println("Setting up testnet")
 	testnet.NoError("failed to setup testnet", testNet.Setup(
-		testnet.WithPerPeerBandwidth(5*1024*1024),
-		testnet.WithTimeoutPropose(1*time.Second),
-		testnet.WithTimeoutCommit(1*time.Second),
-		testnet.WithPrometheus(true),
-		// testnet.WithMempool("v1"),
+		testnet.WithPerPeerBandwidth(manifest.PerPeerBandwidth),
+		testnet.WithTimeoutPropose(manifest.TimeoutPropose),
+		testnet.WithTimeoutCommit(manifest.TimeoutCommit),
+		testnet.WithPrometheus(manifest.Prometheus),
 	))
 	log.Println("Starting testnet")
 	testnet.NoError("failed to start testnet", testNet.Start())
 
 	// once the testnet is up, start the txsim
-	log.Println("Starting txsim nodes")
+	log.Println("Starting tx clients")
 	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
 
 	// wait some time for the txsim to submit transactions
-	time.Sleep(30 * time.Second)
+	time.Sleep(manifest.TestDuration)
 
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
