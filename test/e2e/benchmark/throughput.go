@@ -31,7 +31,9 @@ func NewBenchTest(name string, manifest *testnet.Manifest) (*BenchTest, error) {
 	testNet, err := testnet.New(name, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
 	return &BenchTest{Testnet: testNet, manifest: manifest}, nil
