@@ -134,7 +134,6 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	numNodes := 4
 	upgradeHeight := int64(12)
-	upgradeHeight := int64(12)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
