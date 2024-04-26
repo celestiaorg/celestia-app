@@ -53,7 +53,13 @@ func E2EThroughput() error {
 
 	// start the testnet
 	log.Println("Setting up testnet")
-	testnet.NoError("failed to setup testnet", testNet.Setup())
+	testnet.NoError("failed to setup testnet", testNet.Setup(
+		testnet.WithPerPeerBandwidth(5*1024*1024),
+		testnet.WithTimeoutPropose(1*time.Second),
+		testnet.WithTimeoutCommit(1*time.Second),
+		testnet.WithPrometheus(true),
+		//testnet.WithMempool("v1"),
+	))
 	log.Println("Starting testnet")
 	testnet.NoError("failed to start testnet", testNet.Start())
 
