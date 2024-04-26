@@ -138,13 +138,6 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error creating txsim")
 		return err
 	}
-	err = txsim.Instance.Commit()
-	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
-		return err
-	}
 
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
@@ -153,6 +146,13 @@ func (t *Testnet) CreateTxClient(name,
 			Str("directory", txsimKeyringDir).
 			Str("name", name).
 			Msg("error adding keyring dir to txsim")
+		return err
+	}
+	err = txsim.Instance.Commit()
+	if err != nil {
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
 		return err
 	}
 
