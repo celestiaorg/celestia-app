@@ -1,5 +1,8 @@
 # `x/blobstream`
 
+> [!NOTE]
+> The `x/blobstream` module was enabled for app version 1 and disabled in app version >= 2.
+
 ## Concepts
 
 This module contains the [Blobstream](https://blog.celestia.org/celestiums/) state machine implementation.
@@ -225,6 +228,9 @@ So, on every block height, the state machine [checks](https://github.com/celesti
 If all the attestations in store are expired, which is an edge case that should never occur, the Blobstream state machine [doesn't prune](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161) the latest attestation.
 
 ### Hooks
+
+> [!NOTE]
+> Hooks are no-ops for app versions >= 2.
 
 #### Validator unbonding hook
 
