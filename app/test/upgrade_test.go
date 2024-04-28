@@ -62,9 +62,6 @@ func TestAppUpgrades(t *testing.T) {
 		t.Run(tt.module, func(t *testing.T) {
 			testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 
-			supportedVersions := []uint64{v1.Version, v2.Version}
-			require.Equal(t, supportedVersions, testApp.SupportedVersions())
-
 			ctx := testApp.NewContext(true, tmproto.Header{
 				Version: tmversion.Consensus{
 					App: 1,
@@ -104,20 +101,13 @@ func TestAppUpgrades(t *testing.T) {
 // TestBlobstreamRemovedInV2 verifies that the blobstream params no longer exist in v2.
 func TestBlobstreamRemovedInV2(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-	supportedVersions := []uint64{v1.Version, v2.Version}
-	require.Equal(t, supportedVersions, testApp.SupportedVersions())
-
-	ctx := testApp.NewContext(true, tmproto.Header{
-		Version: tmversion.Consensus{
-			App: 1,
-		},
-	})
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
 		Height:  2,
 		Version: tmversion.Consensus{App: 1},
 	}})
 	require.EqualValues(t, 1, testApp.AppVersion())
 
+	ctx := testApp.NewContext(true, tmproto.Header{})
 	got, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: blobstreamtypes.ModuleName,
 		Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
@@ -130,7 +120,6 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 	testApp.Commit()
 	require.EqualValues(t, 2, testApp.AppVersion())
 
-	ctx = testApp.NewContext(true, tmproto.Header{Version: tmversion.Consensus{App: 2}})
 	_, err = testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: blobstreamtypes.ModuleName,
 		Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
@@ -174,6 +163,9 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 	// assert that the chain starts with version provided in genesis
 	infoResp = testApp.Info(abci.RequestInfo{})
 	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
+
+	supportedVersions := []uint64{v1.Version, v2.Version}
+	require.Equal(t, supportedVersions, testApp.SupportedVersions())
 
 	_ = testApp.Commit()
 	return testApp, kr
