@@ -98,11 +98,13 @@ func TestAppUpgrades(t *testing.T) {
 	}
 }
 
-// TestBlobstreamRemovedInV2 verifies that the blobstream params no longer exist in v2.
+// TestBlobstreamRemovedInV2 verifies that the blobstream params exist in v1 and
+// do not exist in v2.
 func TestBlobstreamRemovedInV2(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-	require.EqualValues(t, 1, testApp.AppVersion())
 	ctx := testApp.NewContext(true, tmproto.Header{})
+
+	require.EqualValues(t, 1, testApp.AppVersion())
 	got, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: blobstreamtypes.ModuleName,
 		Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
@@ -110,15 +112,9 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "\"400\"", got.Param.Value)
 
-	// Upgrade from v1 -> v2
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:  2,
-		Version: tmversion.Consensus{App: 1},
-	}})
-	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
-	testApp.Commit()
-	require.EqualValues(t, 2, testApp.AppVersion())
+	upgradeFromV1ToV2(t, testApp)
 
+	require.EqualValues(t, 2, testApp.AppVersion())
 	_, err = testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: blobstreamtypes.ModuleName,
 		Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
@@ -168,4 +164,15 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 
 	_ = testApp.Commit()
 	return testApp, kr
+}
+
+func upgradeFromV1ToV2(t *testing.T, testApp *app.App) {
+	t.Helper()
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Height:  2,
+		Version: tmversion.Consensus{App: 1},
+	}})
+	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	testApp.Commit()
+	require.EqualValues(t, 2, testApp.AppVersion())
 }
