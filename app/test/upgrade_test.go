@@ -101,7 +101,8 @@ func TestAppUpgrades(t *testing.T) {
 	}
 }
 
-func TestBlobstreamDisabledInV2(t *testing.T) {
+// TestBlobstreamRemovedInV2 verifies that the blobstream params no longer exist in v2.
+func TestBlobstreamRemovedInV2(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 	supportedVersions := []uint64{v1.Version, v2.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
