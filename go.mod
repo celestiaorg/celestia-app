@@ -257,6 +257,8 @@ require (
 )
 
 replace (
+	// TODO: revert this replace statement after the prerequisite PR is merged
+	// and a new release is created.
 	github.com/cosmos/cosmos-sdk => /Users/rootulp/git/rootulp/celestiaorg/cosmos-sdk
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
