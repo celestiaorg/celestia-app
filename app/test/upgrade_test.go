@@ -101,12 +101,7 @@ func TestAppUpgrades(t *testing.T) {
 // TestBlobstreamRemovedInV2 verifies that the blobstream params no longer exist in v2.
 func TestBlobstreamRemovedInV2(t *testing.T) {
 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:  2,
-		Version: tmversion.Consensus{App: 1},
-	}})
 	require.EqualValues(t, 1, testApp.AppVersion())
-
 	ctx := testApp.NewContext(true, tmproto.Header{})
 	got, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
 		Subspace: blobstreamtypes.ModuleName,
@@ -116,6 +111,10 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 	require.Equal(t, "\"400\"", got.Param.Value)
 
 	// Upgrade from v1 -> v2
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Height:  2,
+		Version: tmversion.Consensus{App: 1},
+	}})
 	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	testApp.Commit()
 	require.EqualValues(t, 2, testApp.AppVersion())
