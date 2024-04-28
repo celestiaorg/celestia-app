@@ -12,20 +12,19 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/util"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	dbm "github.com/tendermint/tm-db"
-
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
-
-	"github.com/tendermint/tendermint/libs/log"
 )
 
 // TestAppUpgrades verifies that the all module's params are overridden during an
@@ -100,6 +99,42 @@ func TestAppUpgrades(t *testing.T) {
 			require.Equal(t, tt.expectedValue, strings.Trim(got.Param.Value, "\""))
 		})
 	}
+}
+
+func TestBlobstreamDisabledInV2(t *testing.T) {
+	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
+	supportedVersions := []uint64{v1.Version, v2.Version}
+	require.Equal(t, supportedVersions, testApp.SupportedVersions())
+
+	ctx := testApp.NewContext(true, tmproto.Header{
+		Version: tmversion.Consensus{
+			App: 1,
+		},
+	})
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Height:  2,
+		Version: tmversion.Consensus{App: 1},
+	}})
+	require.EqualValues(t, 1, testApp.AppVersion())
+
+	got, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+		Subspace: blobstreamtypes.ModuleName,
+		Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "\"400\"", got.Param.Value)
+
+	// Upgrade from v1 -> v2
+	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	testApp.Commit()
+	require.EqualValues(t, 2, testApp.AppVersion())
+
+	ctx = testApp.NewContext(true, tmproto.Header{Version: tmversion.Consensus{App: 2}})
+	_, err = testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+		Subspace: blobstreamtypes.ModuleName,
+		Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
+	})
+	require.Error(t, err)
 }
 
 func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
