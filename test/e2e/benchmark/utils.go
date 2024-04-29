@@ -19,7 +19,6 @@ func extractHeaders(blockchain []*types.Block) []BlockHeader {
 		})
 	}
 	return blockData
-
 }
 
 type BlockHeader struct {
