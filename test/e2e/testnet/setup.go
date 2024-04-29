@@ -31,7 +31,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Instrumentation.TraceBufferSize = 1000
 	cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
 	cfg.Instrumentation.TracePullAddress = ":26661"
-	//cfg.Instrumentation.TracePushConfig = "s3.json"
+	// cfg.Instrumentation.TracePushConfig = "s3.json"
 	return cfg, nil
 }
 
@@ -58,7 +58,7 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 }
 
 func MakeTracePushConfig(configPath string) error {
-	traceConfigFile, err := os.OpenFile(filepath.Join(configPath, "s3.json"), os.O_CREATE|os.O_RDWR, 0777)
+	traceConfigFile, err := os.OpenFile(filepath.Join(configPath, "s3.json"), os.O_CREATE|os.O_RDWR, 0o777)
 	if err != nil {
 		return err
 	}

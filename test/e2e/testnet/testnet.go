@@ -29,7 +29,8 @@ type Testnet struct {
 
 func New(name string, seed int64, grafana *GrafanaInfo,
 	pullTracing bool) (*Testnet,
-	error) {
+	error,
+) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
@@ -54,7 +55,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
 		selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana, t.pullTracing)
+		t.grafana)
 	if err != nil {
 		return err
 	}
@@ -221,7 +222,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
 		startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana, t.pullTracing)
+		t.grafana)
 	if err != nil {
 		return err
 	}

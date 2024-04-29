@@ -27,9 +27,9 @@ func main() {
 func E2EThroughput() error {
 	os.Setenv("KNUU_NAMESPACE", "test-sanaz")
 
-	latestVersion, err := testnet.GetLatestVersion()
-	testnet.NoError("failed to get latest version ", err)
-	latestVersion = "pr-3261"
+	// latestVersion, err := testnet.GetLatestVersion()
+	// testnet.NoError("failed to get latest version ", err)
+	latestVersion := "pr-3261"
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
@@ -51,12 +51,17 @@ func E2EThroughput() error {
 	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
 		log.Print("Setting up trace push config")
 		for _, node := range testNet.Nodes() {
-			node.Instance.SetEnvironmentVariable("TRACE_PUSH_BUCKET_NAME",
-				pushConfig.BucketName)
-			node.Instance.SetEnvironmentVariable("TRACE_PUSH_REGION", pushConfig.Region)
-			node.Instance.SetEnvironmentVariable("TRACE_PUSH_ACCESS_KEY", pushConfig.AccessKey)
-			node.Instance.SetEnvironmentVariable("TRACE_PUSH_SECRET_KEY", pushConfig.SecretKey)
-			node.Instance.SetEnvironmentVariable("TRACE_PUSH_DELAY", fmt.Sprintf("%d", pushConfig.PushDelay))
+			testnet.NoError("failed to set TRACE_PUSH_BUCKET_NAME",
+				node.Instance.SetEnvironmentVariable(
+					"TRACE_PUSH_BUCKET_NAME", pushConfig.BucketName))
+			testnet.NoError("failed to set TRACE_PUSH_REGION",
+				node.Instance.SetEnvironmentVariable("TRACE_PUSH_REGION", pushConfig.Region))
+			testnet.NoError("failed to set TRACE_PUSH_ACCESS_KEY",
+				node.Instance.SetEnvironmentVariable("TRACE_PUSH_ACCESS_KEY", pushConfig.AccessKey))
+			testnet.NoError("failed to set TRACE_PUSH_SECRET_KEY",
+				node.Instance.SetEnvironmentVariable("TRACE_PUSH_SECRET_KEY", pushConfig.SecretKey))
+			testnet.NoError("failed to set TRACE_PUSH_DELAY",
+				node.Instance.SetEnvironmentVariable("TRACE_PUSH_DELAY", fmt.Sprintf("%d", pushConfig.PushDelay)))
 		}
 	}
 
@@ -107,9 +112,3 @@ func E2EThroughput() error {
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }
-
-//func TestGetTable(t *testing.T) {
-//	addr := "http://localhost:26661"
-//	err := trace.GetTable(addr, "consensus_round_state", ".")
-//	require.NoError(t, err)
-//}

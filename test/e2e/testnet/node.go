@@ -2,7 +2,6 @@ package testnet
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -69,7 +68,7 @@ func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 	if err != nil {
 		return nil, err
 	}
-	tmpFile, err := ioutil.TempFile(".", tableFileName)
+	tmpFile, err := os.CreateTemp(".", tableFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +86,8 @@ func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 
 // PullReceivedBytes retrieves the round state traces from a node.
 func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
-	error) {
+	error,
+) {
 	isRunning, err := n.Instance.IsRunning()
 	if err != nil {
 		return nil, err
@@ -108,7 +108,8 @@ func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
 
 // PullRoundStateTraces retrieves the round state traces from a node.
 func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
-	error) {
+	error,
+) {
 	isRunning, err := n.Instance.IsRunning()
 	if err != nil {
 		return nil, err
@@ -124,10 +125,6 @@ func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
 	if err != nil {
 		return nil, fmt.Errorf("getting table: %w", err)
 	}
-	//events, err := trace.DecodeFile[schema.RoundState](tmpFile)
-	//if err != nil {
-	//	return nil, fmt.Errorf("decoding file: %w", err)
-	//}
 	return nil, nil
 }
 
@@ -151,7 +148,6 @@ func NewNode(
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,
-	pullTracing bool,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -171,11 +167,10 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-	//if pullTracing {
+
 	if err := instance.AddPortTCP(tracingPort); err != nil {
 		return nil, err
 	}
-	//}
 
 	if grafana != nil {
 		// add support for metrics
@@ -247,7 +242,9 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 		}
 	}
 
-	MakeTracePushConfig(filepath.Join(nodeDir, "config"))
+	if err := MakeTracePushConfig(filepath.Join(nodeDir, "config")); err != nil {
+		return fmt.Errorf("error creating trace push config: %w", err)
+	}
 	// Create and write the config file
 	cfg, err := MakeConfig(n)
 	if err != nil {
@@ -357,6 +354,7 @@ func (n Node) RemoteAddressTracing() (string, error) {
 	}
 	return fmt.Sprintf("http://%s:26661", ip), nil
 }
+
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
 }
