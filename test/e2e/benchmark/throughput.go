@@ -68,7 +68,7 @@ func E2EThroughput() error {
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints[:1])
+	log.Println("validators GRPC endpoints", gRPCEndpoints)
 
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
@@ -89,6 +89,7 @@ func E2EThroughput() error {
 	// wait some time for the txsim to submit transactions
 	time.Sleep(1 * time.Minute)
 
+	// pull some traced tables from the nodes
 	_, err = testNet.Node(0).PullRoundStateTraces()
 	testnet.NoError("failed to pull round state traces", err)
 
