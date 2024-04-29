@@ -1,0 +1,24 @@
+---
+extensions:
+  health_check:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      # endpoint: "0.0.0.0:4317"
+      http:
+      # endpoint: "0.0.0.0:4318"
+
+exporters:
+  prometheus:
+    endpoint: "otel-collector:8889"
+    send_timestamps: true
+    metric_expiration: 1800m
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]

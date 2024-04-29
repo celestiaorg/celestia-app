@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
@@ -24,52 +23,50 @@ func main() {
 }
 
 func E2EThroughput() error {
-	os.Setenv("KNUU_NAMESPACE", "test")
-
-	latestVersion, err := testnets.GetLatestVersion()
-	testnets.NoError("failed to get latest version", err)
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	testnet, err := testnets.New("E2EThroughput", seed, testnets.GetGrafanaInfoFromEnvVar())
-	testnets.NoError("failed to create testnet", err)
+	testNet, err := testnet.New("E2EThroughput", seed, testnet.GetGrafanaInfoFromEnvVar())
+	testnet.NoError("failed to create testnet", err)
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testnet.Cleanup()
+		testNet.Cleanup()
 	}()
 
 	// add 2 validators
-	testnets.NoError("failed to create genesis nodes", testnet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnets.DefaultResources))
+	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnet.DefaultResources))
 
 	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
-	testnets.NoError("failed to get validators GRPC endpoints", err)
+	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
 
-	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", testnets.DefaultResources, gRPCEndpoints)
-	testnets.NoError("failed to create tx clients", err)
+	err = testNet.CreateTxClients(txsimVersion, 1, "10000-10000", testnet.DefaultResources, gRPCEndpoints)
+	testnet.NoError("failed to create tx clients", err)
 
 	// start the testnet
 	log.Println("Setting up testnet")
-	testnets.NoError("failed to setup testnet", testnet.Setup())
+	testnet.NoError("failed to setup testnet", testNet.Setup())
 	log.Println("Starting testnet")
-	testnets.NoError("failed to start testnet", testnet.Start())
+	testnet.NoError("failed to start testnet", testNet.Start())
 
 	// once the testnet is up, start the txsim
 	log.Println("Starting txsim nodes")
-	testnets.NoError("failed to start tx clients", testnet.StartTxClients())
+	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
 
 	// wait some time for the txsim to submit transactions
 	time.Sleep(1 * time.Minute)
 
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
-	testnets.NoError("failed to read blockchain", err)
+	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
 	for _, block := range blockchain {

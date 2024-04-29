@@ -1,6 +1,7 @@
 package genesis
 
 import (
+	"errors"
 	"fmt"
 	mrand "math/rand"
 	"time"
@@ -40,10 +41,10 @@ func NewKeyringAccounts(initBal int64, names ...string) []KeyringAccount {
 
 func (ga *KeyringAccount) ValidateBasic() error {
 	if ga.Name == "" {
-		return fmt.Errorf("name cannot be empty")
+		return errors.New("name cannot be empty")
 	}
 	if ga.InitialTokens <= 0 {
-		return fmt.Errorf("initial tokens must be positive")
+		return errors.New("initial tokens must be positive")
 	}
 	return nil
 }
@@ -76,13 +77,13 @@ func (v *Validator) ValidateBasic() error {
 		return err
 	}
 	if v.Stake <= 0 {
-		return fmt.Errorf("stake must be positive")
+		return errors.New("stake must be positive")
 	}
 	if v.ConsensusKey == nil {
-		return fmt.Errorf("consensus key cannot be empty")
+		return errors.New("consensus key cannot be empty")
 	}
 	if v.Stake > v.InitialTokens {
-		return fmt.Errorf("stake cannot be greater than initial tokens")
+		return errors.New("stake cannot be greater than initial tokens")
 	}
 	return nil
 }

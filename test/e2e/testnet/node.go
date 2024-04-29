@@ -1,4 +1,4 @@
-package testnets
+package testnet
 
 import (
 	"fmt"
@@ -84,7 +84,7 @@ func NewNode(
 	}
 	if grafana != nil {
 		// add support for metrics
-		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Identifier()), "1m"); err != nil {
+		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Scope()), "1m"); err != nil {
 			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
 		}
 		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
