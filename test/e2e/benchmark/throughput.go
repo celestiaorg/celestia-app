@@ -45,7 +45,7 @@ func E2EThroughput() error {
 
 	// add 2 validators
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(100, latestVersion, 10000000, 0,
+		testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0,
 			testnet.DefaultResources))
 
 	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
