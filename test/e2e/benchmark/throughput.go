@@ -24,7 +24,7 @@ func main() {
 
 func E2EThroughput() error {
 	latestVersion, err := testnet.GetLatestVersion()
-	testnet.NoError("failed to get latest version", err)
+	testnet.NoError("failed to get latest version ", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
