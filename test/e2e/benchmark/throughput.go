@@ -28,8 +28,8 @@ func E2EThroughput() error {
 	os.Setenv("KNUU_NAMESPACE", "test-sanaz")
 
 	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version ", err)
 	latestVersion = "pr-3261"
-	testnet.NoError("failed to get latest version", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
