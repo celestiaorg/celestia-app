@@ -68,6 +68,8 @@ func E2EThroughput() error {
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
+	SaveToCSV(extractHeaders(blockchain), "blockchain.csv")
+
 	totalTxs := 0
 	for _, block := range blockchain {
 		if appconsts.LatestVersion != block.Version.App {
