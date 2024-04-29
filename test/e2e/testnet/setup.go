@@ -57,18 +57,17 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	return srvCfg, srvCfg.ValidateBasic()
 }
 
+// MakeTracePushConfig creates a trace push config file "s3.json" in the given config path
+// with the trace push config from the environment variables.
 func MakeTracePushConfig(configPath string) error {
 	traceConfigFile, err := os.OpenFile(filepath.Join(configPath, "s3.json"), os.O_CREATE|os.O_RDWR, 0o777)
 	if err != nil {
 		return err
 	}
 	defer traceConfigFile.Close()
-	traceConfig := trace.S3Config{
-		BucketName: "block-prop-traces-ef",
-		AccessKey:  GetAccessKeyEnvVar(),
-		SecretKey:  GetSecretKeyEnvVar(),
-		Region:     "us-east-2",
-		PushDelay:  500,
+	traceConfig, err := trace.GetPushConfigFromEnv()
+	if err != nil {
+		return err
 	}
 	err = json.NewEncoder(traceConfigFile).Encode(traceConfig)
 	if err != nil {
@@ -76,15 +75,4 @@ func MakeTracePushConfig(configPath string) error {
 	}
 	traceConfigFile.Close()
 	return nil
-}
-
-// GetAccessKeyEnvVar returns the AWS s3 bucket access key ID from the
-// environment.
-func GetAccessKeyEnvVar() string {
-	return os.Getenv("AWS_ACCESS_KEY_ID")
-}
-
-// GetSecretKeyEnvVar returns the AWS s3 bucket secret access key from the
-func GetSecretKeyEnvVar() string {
-	return os.Getenv("AWS_SECRET_ACCESS_KEY")
 }
