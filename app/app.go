@@ -498,6 +498,19 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // We wrap Info around baseapp so we can take the app version and
 // setup the multicommit store.
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
+	if height := app.LastBlockHeight(); height > 0 {
+		ctx, err := app.CreateQueryContext(height, false)
+		if err != nil {
+			panic(err)
+		}
+		appVersion := app.GetAppVersionFromParamStore(ctx)
+		if appVersion > 0 {
+			app.SetAppVersion(ctx, appVersion)
+		} else {
+			app.SetAppVersion(ctx, v1)
+		}
+	}
+
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
