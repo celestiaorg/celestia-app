@@ -514,7 +514,6 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
-		fmt.Println("mounting stored")
 		app.MountKVStores(app.versionedKeys(resp.AppVersion))
 		if err := app.LoadLatestVersion(); err != nil {
 			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
