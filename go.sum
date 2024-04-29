@@ -326,8 +326,8 @@ github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZI
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29 h1:sXERzNXgyHyqTKNQx4S29C/NMDzgav62DaQDNF49HUQ=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29/go.mod h1:weZR4wYx1Vcw3g1Jc5G8VipG4M+KUDSqeIzyyWszmsQ=
-github.com/celestiaorg/cosmos-sdk v1.21.0-sdk-v0.46.16 h1:P44npoIUuortDf0nQSUpTwO8zsWoHufbDD/doU+CtxY=
-github.com/celestiaorg/cosmos-sdk v1.21.0-sdk-v0.46.16/go.mod h1:AmuR63HTlX8vNV3+NGWNPIZa95J1UweTUmWDHSdTGj0=
+github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16 h1:THZrswVVqGtMo2dMdW9R+5JGxjfD7+eaGZIJ7ne0ejE=
+github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16/go.mod h1:AmuR63HTlX8vNV3+NGWNPIZa95J1UweTUmWDHSdTGj0=
 github.com/celestiaorg/go-square v1.0.1 h1:LEG1zrw4i03VBMElQF8GAbKYgh1bT1uGzWxasU2ePuo=
 github.com/celestiaorg/go-square v1.0.1/go.mod h1:XMv5SGCeGSkynW2OOsedugaW/rQlvzxGzWGxTKsyYOU=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
@@ -821,8 +821,8 @@ github.com/hashicorp/go-cleanhttp v0.5.0/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtng
 github.com/hashicorp/go-cleanhttp v0.5.1/go.mod h1:JpRdi6/HCYpAwUzNwuwqhbovhLtngrth3wmdIIUrZ80=
 github.com/hashicorp/go-cleanhttp v0.5.2 h1:035FKYIWjmULyFRBKPs8TBQoi0x6d9G4xc9neXJWAZQ=
 github.com/hashicorp/go-cleanhttp v0.5.2/go.mod h1:kO/YDlP8L1346E6Sodw+PrpBSV4/SoxCXGY6BqNFT48=
-github.com/hashicorp/go-getter v1.7.0 h1:bzrYP+qu/gMrL1au7/aDvkoOVGUJpeKBgbqRHACAFDY=
-github.com/hashicorp/go-getter v1.7.0/go.mod h1:W7TalhMmbPmsSMdNjD0ZskARur/9GJ17cfHTRtXV744=
+github.com/hashicorp/go-getter v1.7.4 h1:3yQjWuxICvSpYwqSayAdKRFcvBl1y/vogCxczWSmix0=
+github.com/hashicorp/go-getter v1.7.4/go.mod h1:W7TalhMmbPmsSMdNjD0ZskARur/9GJ17cfHTRtXV744=
 github.com/hashicorp/go-immutable-radix v1.0.0/go.mod h1:0y9vanUI8NX6FsYoO3zeMjhV/C5i9g4Q3DwcSNZ4P60=
 github.com/hashicorp/go-immutable-radix v1.3.1 h1:DKHmCUm2hRBK510BaiZlwvpD40f8bJFeZnpfm2KLowc=
 github.com/hashicorp/go-immutable-radix v1.3.1/go.mod h1:0y9vanUI8NX6FsYoO3zeMjhV/C5i9g4Q3DwcSNZ4P60=

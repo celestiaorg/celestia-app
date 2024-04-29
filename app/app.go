@@ -326,17 +326,22 @@ func New(
 	)
 	// transfer stack contains (from top to bottom):
 	// - Token Filter
+	// - Packet Forwarding Middleware
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = packetforward.NewIBCMiddleware(
+	packetForwardMiddleware := packetforward.NewIBCMiddleware(
 		transferStack,
 		app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
+	// packetForwardMiddleware is used only for version 2
+	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
+	// token filter wraps packet forward middleware and is thus the first module in the transfer stack
+	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
+	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
 
 	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
 		appCodec,
@@ -493,6 +498,19 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // We wrap Info around baseapp so we can take the app version and
 // setup the multicommit store.
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
+	if height := app.LastBlockHeight(); height > 0 {
+		ctx, err := app.CreateQueryContext(height, false)
+		if err != nil {
+			panic(err)
+		}
+		appVersion := app.GetAppVersionFromParamStore(ctx)
+		if appVersion > 0 {
+			app.SetAppVersion(ctx, appVersion)
+		} else {
+			app.SetAppVersion(ctx, v1)
+		}
+	}
+
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
