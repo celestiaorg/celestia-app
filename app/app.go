@@ -519,7 +519,6 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
 		}
 	}
-	fmt.Println("info returned")
 	return resp
 }
 
