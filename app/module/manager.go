@@ -3,7 +3,7 @@ package module
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,38 +18,31 @@ import (
 // versions of the module. It also provides a way to run migrations between different versions of a
 // module.
 type Manager struct {
+	// versionedModules is a map from app version -> module name -> module.
 	versionedModules map[uint64]map[string]sdkmodule.AppModule
-	// this is a mapping of module name to module consensus version to the range of
-	// app versions this particular module operates over. The first element in the
-	// array represent the fromVersion and the last the toVersion (this is inclusive)
+	// uniqueModuleVersions is a mapping of module name -> module consensus
+	// version -> the range of app versions this particular module operates
+	// over. The first element in the array represent the fromVersion and the
+	// last the toVersion (this is inclusive).
 	uniqueModuleVersions map[string]map[uint64][2]uint64
 	allModules           []sdkmodule.AppModule
-	firstVersion         uint64
-	lastVersion          uint64
-	OrderInitGenesis     []string
-	OrderExportGenesis   []string
-	OrderBeginBlockers   []string
-	OrderEndBlockers     []string
-	OrderMigrations      []string
+	// firstVersion is the lowest app version supported.
+	firstVersion uint64
+	// lastVersion is the highest app version supported.
+	lastVersion        uint64
+	OrderInitGenesis   []string
+	OrderExportGenesis []string
+	OrderBeginBlockers []string
+	OrderEndBlockers   []string
+	OrderMigrations    []string
 }
 
-type VersionedModule struct {
-	Module sdkmodule.AppModule
-	// fromVersion and toVersion indicate the continuous range of app versions that the particular
-	// module is part of. The range is inclusive. `fromVersion` should not be smaller than `toVersion`
-	// 0 is not a valid app version
-	FromVersion, ToVersion uint64
-}
-
-// NewManager creates a new Manager object
+// NewManager returns a new Manager object.
 func NewManager(modules []VersionedModule) (*Manager, error) {
 	moduleMap := make(map[uint64]map[string]sdkmodule.AppModule)
 	allModules := make([]sdkmodule.AppModule, len(modules))
 	modulesStr := make([]string, 0, len(modules))
 	uniqueModuleVersions := make(map[string]map[uint64][2]uint64)
-	// firstVersion and lastVersion are quicker ways of working out the range of
-	// versions the state machine supports
-	firstVersion, lastVersion := uint64(0), uint64(0)
 	for idx, module := range modules {
 		name := module.Module.Name()
 		moduleVersion := module.Module.ConsensusVersion()
@@ -74,13 +67,9 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 			uniqueModuleVersions[name] = make(map[uint64][2]uint64)
 		}
 		uniqueModuleVersions[name][moduleVersion] = [2]uint64{module.FromVersion, module.ToVersion}
-		if firstVersion == 0 || module.FromVersion < firstVersion {
-			firstVersion = module.FromVersion
-		}
-		if lastVersion == 0 || module.ToVersion > lastVersion {
-			lastVersion = module.ToVersion
-		}
 	}
+	firstVersion := slices.Min(getKeys(moduleMap))
+	lastVersion := slices.Max(getKeys(moduleMap))
 
 	m := &Manager{
 		versionedModules:     moduleMap,
@@ -99,46 +88,46 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 	return m, nil
 }
 
-// SetOrderInitGenesis sets the order of init genesis calls
+// SetOrderInitGenesis sets the order of init genesis calls.
 func (m *Manager) SetOrderInitGenesis(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderInitGenesis", moduleNames)
 	m.OrderInitGenesis = moduleNames
 }
 
-// SetOrderExportGenesis sets the order of export genesis calls
+// SetOrderExportGenesis sets the order of export genesis calls.
 func (m *Manager) SetOrderExportGenesis(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderExportGenesis", moduleNames)
 	m.OrderExportGenesis = moduleNames
 }
 
-// SetOrderBeginBlockers sets the order of begin-blocker calls
+// SetOrderBeginBlockers sets the order of begin-blocker calls.
 func (m *Manager) SetOrderBeginBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderBeginBlockers", moduleNames)
 	m.OrderBeginBlockers = moduleNames
 }
 
-// SetOrderEndBlockers sets the order of end-blocker calls
+// SetOrderEndBlockers sets the order of end-blocker calls.
 func (m *Manager) SetOrderEndBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderEndBlockers", moduleNames)
 	m.OrderEndBlockers = moduleNames
 }
 
 // SetOrderMigrations sets the order of migrations to be run. If not set
-// then migrations will be run with an order defined in `DefaultMigrationsOrder`.
+// then migrations will be run with an order defined in `defaultMigrationsOrder`.
 func (m *Manager) SetOrderMigrations(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderMigrations", moduleNames)
 	m.OrderMigrations = moduleNames
 }
 
-// RegisterInvariants registers all module invariants
+// RegisterInvariants registers all module invariants.
 func (m *Manager) RegisterInvariants(ir sdk.InvariantRegistry) {
 	for _, module := range m.allModules {
 		module.RegisterInvariants(ir)
 	}
 }
 
-// RegisterServices registers all module services
-func (m *Manager) RegisterServices(cfg VersionedConfigurator) {
+// RegisterServices registers all module services.
+func (m *Manager) RegisterServices(cfg Configurator) {
 	for _, module := range m.allModules {
 		fromVersion, toVersion := m.getAppVersionsForModule(module.Name(), module.ConsensusVersion())
 		module.RegisterServices(cfg.WithVersions(fromVersion, toVersion))
@@ -220,19 +209,16 @@ func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []
 	}
 }
 
-// MigrationHandler is the migration function that each module registers.
-type MigrationHandler func(sdk.Context) error
-
 // RunMigrations performs in-place store migrations for all modules. This
 // function MUST be called when the state machine changes appVersion
 func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, fromVersion, toVersion uint64) error {
-	c, ok := cfg.(VersionedConfigurator)
+	c, ok := cfg.(Configurator)
 	if !ok {
-		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", VersionedConfigurator{}, cfg)
+		return sdkerrors.ErrInvalidType.Wrapf("expected %T, got %T", Configurator{}, cfg)
 	}
 	modules := m.OrderMigrations
 	if modules == nil {
-		modules = DefaultMigrationsOrder(m.ModuleNames(toVersion))
+		modules = defaultMigrationsOrder(m.ModuleNames(toVersion))
 	}
 	currentVersionModules, exists := m.versionedModules[fromVersion]
 	if !exists {
@@ -348,31 +334,24 @@ func (m *Manager) GetVersionMap(version uint64) sdkmodule.VersionMap {
 	return vermap
 }
 
-// ModuleNames returns list of all module names, without any particular order.
+// ModuleNames returns the list of module names that are supported for a
+// particular version in no particular order.
 func (m *Manager) ModuleNames(version uint64) []string {
 	modules, ok := m.versionedModules[version]
 	if !ok {
 		return []string{}
 	}
 
-	ms := make([]string, len(modules))
-	i := 0
-	for m := range modules {
-		ms[i] = m
-		i++
+	names := make([]string, 0, len(modules))
+	for name := range modules {
+		names = append(names, name)
 	}
-	return ms
+	return names
 }
 
 // SupportedVersions returns all the supported versions for the module manager
 func (m *Manager) SupportedVersions() []uint64 {
-	output := make([]uint64, 0, m.lastVersion-m.firstVersion+1)
-	for version := m.firstVersion; version <= m.lastVersion; version++ {
-		if _, ok := m.versionedModules[version]; ok {
-			output = append(output, version)
-		}
-	}
-	return output
+	return getKeys(m.versionedModules)
 }
 
 // checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
@@ -408,25 +387,4 @@ func (m *Manager) AssertMatchingModules(basicModuleManager sdkmodule.BasicManage
 		}
 	}
 	return nil
-}
-
-// DefaultMigrationsOrder returns a default migrations order: ascending alphabetical by module name,
-// except x/auth which will run last, see:
-// https://github.com/cosmos/cosmos-sdk/issues/10591
-func DefaultMigrationsOrder(modules []string) []string {
-	const authName = "auth"
-	out := make([]string, 0, len(modules))
-	hasAuth := false
-	for _, m := range modules {
-		if m == authName {
-			hasAuth = true
-		} else {
-			out = append(out, m)
-		}
-	}
-	sort.Strings(out)
-	if hasAuth {
-		out = append(out, authName)
-	}
-	return out
 }

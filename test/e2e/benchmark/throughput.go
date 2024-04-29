@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnets"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/tendermint/tendermint/pkg/trace"
 )
@@ -27,30 +27,30 @@ func main() {
 func E2EThroughput() error {
 	os.Setenv("KNUU_NAMESPACE", "test-sanaz")
 
-	latestVersion, err := testnets.GetLatestVersion()
+	latestVersion, err := testnet.GetLatestVersion()
 	latestVersion = "pr-3261"
-	testnets.NoError("failed to get latest version", err)
+	testnet.NoError("failed to get latest version", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	testnet, err := testnets.New("E2EThroughput", seed,
-		testnets.GetGrafanaInfoFromEnvVar(), true)
-	testnets.NoError("failed to create testnet", err)
+	testNet, err := testnet.New("E2EThroughput", seed,
+		testnet.GetGrafanaInfoFromEnvVar(), true)
+	testnet.NoError("failed to create testnet", err)
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testnet.Cleanup()
+		testNet.Cleanup()
 	}()
 
 	// add 2 validators
-	testnets.NoError("failed to create genesis nodes",
-		testnet.CreateGenesisNodes(100, latestVersion, 10000000, 0,
-			testnets.DefaultResources))
+	testnet.NoError("failed to create genesis nodes",
+		testNet.CreateGenesisNodes(100, latestVersion, 10000000, 0,
+			testnet.DefaultResources))
 
 	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
 		log.Print("Setting up trace push config")
-		for _, node := range testnet.Nodes() {
+		for _, node := range testNet.Nodes() {
 			node.Instance.SetEnvironmentVariable("TRACE_PUSH_BUCKET_NAME",
 				pushConfig.BucketName)
 			node.Instance.SetEnvironmentVariable("TRACE_PUSH_REGION", pushConfig.Region)
@@ -61,38 +61,38 @@ func E2EThroughput() error {
 	}
 
 	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := testnet.RemoteGRPCEndpoints()
-	testnets.NoError("failed to get validators GRPC endpoints", err)
+	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints[:1])
 
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
 
-	err = testnet.CreateTxClients(txsimVersion, 1, "10000-10000", testnets.DefaultResources, gRPCEndpoints)
-	testnets.NoError("failed to create tx clients", err)
+	err = testNet.CreateTxClients(txsimVersion, 1, "10000-10000", testnet.DefaultResources, gRPCEndpoints)
+	testnet.NoError("failed to create tx clients", err)
 
 	// start the testnet
 	log.Println("Setting up testnet")
-	testnets.NoError("failed to setup testnet", testnet.Setup())
+	testnet.NoError("failed to setup testnet", testNet.Setup())
 	log.Println("Starting testnet")
-	testnets.NoError("failed to start testnet", testnet.Start())
+	testnet.NoError("failed to start testnet", testNet.Start())
 
 	// once the testnet is up, start the txsim
 	log.Println("Starting txsim nodes")
-	testnets.NoError("failed to start tx clients", testnet.StartTxClients())
+	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
 
 	// wait some time for the txsim to submit transactions
 	time.Sleep(1 * time.Minute)
 
-	_, err = testnet.Node(0).PullRoundStateTraces()
-	testnets.NoError("failed to pull round state traces", err)
+	_, err = testNet.Node(0).PullRoundStateTraces()
+	testnet.NoError("failed to pull round state traces", err)
 
-	_, err = testnet.Node(0).PullReceivedBytes()
-	testnets.NoError("failed to pull received bytes traces", err)
+	_, err = testNet.Node(0).PullReceivedBytes()
+	testnet.NoError("failed to pull received bytes traces", err)
 
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
-	testnets.NoError("failed to read blockchain", err)
+	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
 	for _, block := range blockchain {

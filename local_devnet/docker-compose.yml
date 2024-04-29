@@ -1,0 +1,157 @@
+version: '3'
+
+services:
+  core0:
+    user: "0:0"
+    container_name: core0
+    build:
+      context: ..
+    expose:
+      - "26660" # for prometheus
+    ports:
+      - "9090:9090"
+      - "26657:26657"
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_core0.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core0/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core0/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core0/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/app.toml:/opt/config/app.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:rw
+      - ${PWD}/scripts/start_core0.sh:/opt/start_core0.sh:ro
+
+  core1:
+    user: "0:0"
+    container_name: core1
+    build:
+      context: ..
+    expose:
+      - "26660" # for prometheus
+    depends_on:
+      - core0
+    environment:
+      - MONIKER=core1
+      - CELESTIA_HOME=/opt
+      - AMOUNT=5000000000utia
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_node_and_create_validator.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core1/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core1/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/scripts/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/app.toml:/opt/config/app.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  core2:
+    user: "0:0"
+    container_name: core2
+    build:
+      context: ..
+    expose:
+      - "26660" # for prometheus
+    depends_on:
+      - core0
+    environment:
+      - MONIKER=core2
+      - CELESTIA_HOME=/opt
+      - AMOUNT=5000000000utia
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_node_and_create_validator.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core2/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core2/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/scripts/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/app.toml:/opt/config/app.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  core3:
+    user: "0:0"
+    container_name: core3
+    build:
+      context: ..
+    expose:
+      - "26660" # for prometheus
+    depends_on:
+      - core0
+    environment:
+      - MONIKER=core3
+      - CELESTIA_HOME=/opt
+      - AMOUNT=5000000000utia
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_node_and_create_validator.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core3/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core3/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/scripts/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/app.toml:/opt/config/app.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    ports:
+      - "9000:9090"
+    volumes:
+      - ${PWD}/telemetry/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    # yamllint disable-line rule:line-length
+    command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector
+    command: ["--config=/root/otel-collector/config.yml"]
+    volumes:
+      - ${PWD}/telemetry/otel-collector:/root/otel-collector/
+    ports:
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "55681:55681"
+      - "13133:13133"  # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP http receiver
+      - "4319:4319"   # OTLP http receiver
+
+  grafana:
+    # default credentials: admin:admin
+    container_name: grafana
+    image: grafana/grafana:latest
+    user: "0"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ${PWD}/telemetry/grafana/:/etc/grafana/provisioning/
+      - ${PWD}/telemetry/grafana/:/var/lib/grafana/dashboards/
+      - ${PWD}/telemetry/grafana/datasources/:/var/lib/grafana/datasources/
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  prometheus-data:
+  grafana-data:

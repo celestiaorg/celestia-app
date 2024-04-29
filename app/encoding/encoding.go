@@ -22,34 +22,32 @@ type Config struct {
 	Amino             *codec.LegacyAmino
 }
 
-// MakeConfig creates an encoding config for the app.
-func MakeConfig(regs ...ModuleRegister) Config {
-	// create the codec
-	amino := codec.NewLegacyAmino()
+// MakeConfig returns an encoding config for the app.
+func MakeConfig(moduleRegisters ...ModuleRegister) Config {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	amino := codec.NewLegacyAmino()
 
-	// register the standard types from the sdk
-	std.RegisterLegacyAminoCodec(amino)
+	// Register the standard types from the Cosmos SDK on interfaceRegistry and
+	// amino.
 	std.RegisterInterfaces(interfaceRegistry)
+	std.RegisterLegacyAminoCodec(amino)
 
-	// register specific modules
-	for _, reg := range regs {
-		reg.RegisterInterfaces(interfaceRegistry)
-		reg.RegisterLegacyAminoCodec(amino)
+	// Register types from the moduleRegisters on interfaceRegistry and amino.
+	for _, moduleRegister := range moduleRegisters {
+		moduleRegister.RegisterInterfaces(interfaceRegistry)
+		moduleRegister.RegisterLegacyAminoCodec(amino)
 	}
 
-	// create the final configuration
-	marshaler := codec.NewProtoCodec(interfaceRegistry)
-	txCfg := tx.NewTxConfig(marshaler, tx.DefaultSignModes)
-
-	dec := txCfg.TxDecoder()
-	dec = indexWrapperDecoder(dec)
-	txCfg.SetTxDecoder(dec)
+	protoCodec := codec.NewProtoCodec(interfaceRegistry)
+	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
+	txDecoder := txConfig.TxDecoder()
+	txDecoder = indexWrapperDecoder(txDecoder)
+	txConfig.SetTxDecoder(txDecoder)
 
 	return Config{
 		InterfaceRegistry: interfaceRegistry,
-		Codec:             marshaler,
-		TxConfig:          txCfg,
+		Codec:             protoCodec,
+		TxConfig:          txConfig,
 		Amino:             amino,
 	}
 }
