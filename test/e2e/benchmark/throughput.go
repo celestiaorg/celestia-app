@@ -29,7 +29,7 @@ func E2EThroughput() error {
 
 	// latestVersion, err := testnet.GetLatestVersion()
 	// testnet.NoError("failed to get latest version ", err)
-	latestVersion := "pr-3261"
+	latestVersion := "pr-3261" // this is the version we can use for big blocks
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
