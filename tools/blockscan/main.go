@@ -128,6 +128,7 @@ func Trail(ctx context.Context, client *http.HTTP) error {
 }
 
 func PrintBlock(block *types.Block) error {
+	fmt.Println("Height:", block.Height)
 	txs, err := testnode.DecodeBlockData(block.Data)
 	if err != nil {
 		return err
