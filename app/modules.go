@@ -167,7 +167,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v1,
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
@@ -299,8 +299,7 @@ func allStoreKeys() []string {
 	}
 }
 
-// versionedStoreKeys returns the store keys for each app version
-// ... I wish there was an easier way than this (like using the modules which are already versioned)
+// versionedStoreKeys returns the store keys for each app version.
 func versionedStoreKeys() map[uint64][]string {
 	return map[uint64][]string{
 		1: {
@@ -325,7 +324,6 @@ func versionedStoreKeys() map[uint64][]string {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
-			blobstreamtypes.StoreKey,
 			capabilitytypes.StoreKey,
 			distrtypes.StoreKey,
 			evidencetypes.StoreKey,
