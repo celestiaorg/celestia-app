@@ -2,6 +2,7 @@ package testnet
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
@@ -22,6 +25,7 @@ const (
 	p2pPort        = 26656
 	grpcPort       = 9090
 	prometheusPort = 26660
+	tracingPort    = 26661
 	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
@@ -30,17 +34,101 @@ const (
 )
 
 type Node struct {
-	Name           string
-	Version        string
-	StartHeight    int64
-	InitialPeers   []string
-	SignerKey      crypto.PrivKey
-	NetworkKey     crypto.PrivKey
-	SelfDelegation int64
-	Instance       *knuu.Instance
+	Name                string
+	Version             string
+	StartHeight         int64
+	InitialPeers        []string
+	SignerKey           crypto.PrivKey
+	NetworkKey          crypto.PrivKey
+	SelfDelegation      int64
+	Instance            *knuu.Instance
+	RemoteHomeDirectory string
 
-	rpcProxyPort  int
-	grpcProxyPort int
+	rpcProxyPort   int
+	grpcProxyPort  int
+	traceProxyPort int
+}
+
+func (n *Node) GetRemoteHomeDirectory() string {
+	return n.RemoteHomeDirectory
+}
+
+// GetRoundStateTraces retrieves the round state traces from a node.
+func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
+	isRunning, err := n.Instance.IsRunning()
+	if err != nil {
+		return nil, err
+	}
+	if !isRunning {
+		return nil, fmt.Errorf("node is not running")
+	}
+	tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
+	traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
+		"traces", tableFileName)
+	consensusRoundStateBytes, err := n.Instance.GetFileBytes(traceFileName)
+	if err != nil {
+		return nil, err
+	}
+	tmpFile, err := ioutil.TempFile(".", tableFileName)
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err = tmpFile.Write(consensusRoundStateBytes); err != nil {
+		return nil, err
+	}
+	events, err := trace.DecodeFile[schema.RoundState](tmpFile)
+	if err != nil {
+		return nil, fmt.Errorf("decoding file: %w", err)
+	}
+	return events, nil
+}
+
+// PullReceivedBytes retrieves the round state traces from a node.
+func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
+	error) {
+	isRunning, err := n.Instance.IsRunning()
+	if err != nil {
+		return nil, err
+	}
+	if !isRunning {
+		return nil, fmt.Errorf("node is not running")
+	}
+
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+
+	err = trace.GetTable(addr, schema.ReceivedBytes{}.Table(), ".")
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	return nil, nil
+}
+
+// PullRoundStateTraces retrieves the round state traces from a node.
+func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
+	error) {
+	isRunning, err := n.Instance.IsRunning()
+	if err != nil {
+		return nil, err
+	}
+	if !isRunning {
+		return nil, fmt.Errorf("node is not running")
+	}
+
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+
+	err = trace.GetTable(addr, schema.RoundState{}.Table(), ".")
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	//events, err := trace.DecodeFile[schema.RoundState](tmpFile)
+	//if err != nil {
+	//	return nil, fmt.Errorf("decoding file: %w", err)
+	//}
+	return nil, nil
 }
 
 // Resources defines the resource requirements for a Node.
@@ -63,6 +151,7 @@ func NewNode(
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,
+	pullTracing bool,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -82,6 +171,12 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
+	//if pullTracing {
+	if err := instance.AddPortTCP(tracingPort); err != nil {
+		return nil, err
+	}
+	//}
+
 	if grafana != nil {
 		// add support for metrics
 		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Scope()), "1m"); err != nil {
@@ -120,14 +215,15 @@ func NewNode(
 	}
 
 	return &Node{
-		Name:           name,
-		Instance:       instance,
-		Version:        version,
-		StartHeight:    startHeight,
-		InitialPeers:   peers,
-		SignerKey:      signerKey,
-		NetworkKey:     networkKey,
-		SelfDelegation: selfDelegation,
+		Name:                name,
+		Instance:            instance,
+		Version:             version,
+		StartHeight:         startHeight,
+		InitialPeers:        peers,
+		SignerKey:           signerKey,
+		NetworkKey:          networkKey,
+		SelfDelegation:      selfDelegation,
+		RemoteHomeDirectory: remoteRootDir,
 	}, nil
 }
 
@@ -151,6 +247,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 		}
 	}
 
+	MakeTracePushConfig(filepath.Join(nodeDir, "config"))
 	// Create and write the config file
 	cfg, err := MakeConfig(n)
 	if err != nil {
@@ -249,6 +346,17 @@ func (n Node) RemoteAddressRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
 }
 
+func (n Node) AddressTracing() string {
+	return fmt.Sprintf("http://127.0.0.1:%d", n.traceProxyPort)
+}
+
+func (n Node) RemoteAddressTracing() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("http://%s:26661", ip), nil
+}
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
 }
@@ -275,8 +383,14 @@ func (n *Node) Start() error {
 	if err != nil {
 		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
 	}
+
+	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
+	}
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
+	n.traceProxyPort = traceProxyPort
 	return nil
 }
 

@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
-// This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
+// E2ESimple test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
@@ -24,8 +24,8 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testNet, err := testnet.New("E2ESimple", seed, nil)
-	testnet.NoError("failed to create testnet", err)
+	testnet, err := testnets.New("E2ESimple", seed, nil, false)
+	testnets.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()
 

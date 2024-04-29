@@ -45,6 +45,20 @@ celestia-appd init ${CHAIN_ID} \
   --home "${CELESTIA_APP_HOME}" \
   > /dev/null 2>&1 # Hide output to reduce terminal noise
 
+echo "Do you want to set up local tracing? [y/n]"
+read -r response
+if [[ $response == "y" ]]; then
+  trace_type="local"
+  sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${CELESTIA_APP_HOME}/config/config.toml
+  trace_pull_address=":26661"
+  sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${CELESTIA_APP_HOME}/config/config.toml
+  trace_push_batch_size=1000
+  sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${CELESTIA_APP_HOME}/config/config.toml
+fi
+
+
+
+
 echo "Adding a new key to the keyring..."
 celestia-appd keys add ${KEY_NAME} \
   --keyring-backend=${KEYRING_BACKEND} \

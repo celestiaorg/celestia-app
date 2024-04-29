@@ -1,7 +1,10 @@
 package testnet
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 func MakeConfig(node *Node) (*config.Config, error) {
@@ -23,6 +27,11 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Consensus.TimeoutPropose = 1 * time.Second
 	cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
+	cfg.Instrumentation.TraceType = "local"
+	cfg.Instrumentation.TraceBufferSize = 1000
+	cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
+	cfg.Instrumentation.TracePullAddress = ":26661"
+	//cfg.Instrumentation.TracePushConfig = "s3.json"
 	return cfg, nil
 }
 
@@ -46,4 +55,36 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 	return srvCfg, srvCfg.ValidateBasic()
+}
+
+func MakeTracePushConfig(configPath string) error {
+	traceConfigFile, err := os.OpenFile(filepath.Join(configPath, "s3.json"), os.O_CREATE|os.O_RDWR, 0777)
+	if err != nil {
+		return err
+	}
+	defer traceConfigFile.Close()
+	traceConfig := trace.S3Config{
+		BucketName: "block-prop-traces-ef",
+		AccessKey:  GetAccessKeyEnvVar(),
+		SecretKey:  GetSecretKeyEnvVar(),
+		Region:     "us-east-2",
+		PushDelay:  500,
+	}
+	err = json.NewEncoder(traceConfigFile).Encode(traceConfig)
+	if err != nil {
+		return err
+	}
+	traceConfigFile.Close()
+	return nil
+}
+
+// GetAccessKeyEnvVar returns the AWS s3 bucket access key ID from the
+// environment.
+func GetAccessKeyEnvVar() string {
+	return os.Getenv("AWS_ACCESS_KEY_ID")
+}
+
+// GetSecretKeyEnvVar returns the AWS s3 bucket secret access key from the
+func GetSecretKeyEnvVar() string {
+	return os.Getenv("AWS_SECRET_ACCESS_KEY")
 }

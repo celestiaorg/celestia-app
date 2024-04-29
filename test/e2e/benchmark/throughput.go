@@ -4,16 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
 	seed         = 42
-	txsimVersion = "a92de72"
+	txsimVersion = "pr-3261"
 )
 
 func main() {
@@ -23,13 +25,17 @@ func main() {
 }
 
 func E2EThroughput() error {
+	os.Setenv("KNUU_NAMESPACE", "test-sanaz")
+
 	latestVersion, err := testnet.GetLatestVersion()
+	latestVersion = "pr-3261"
 	testnet.NoError("failed to get latest version", err)
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	// create a new testnet
-	testNet, err := testnet.New("E2EThroughput", seed, testnet.GetGrafanaInfoFromEnvVar())
+	testNet, err := testnet.New("E2EThroughput", seed,
+		testnet.GetGrafanaInfoFromEnvVar(), true)
 	testnet.NoError("failed to create testnet", err)
 
 	defer func() {
@@ -38,12 +44,26 @@ func E2EThroughput() error {
 	}()
 
 	// add 2 validators
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnet.DefaultResources))
+	testnet.NoError("failed to create genesis nodes",
+		testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0,
+			testnet.DefaultResources))
+
+	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+		log.Print("Setting up trace push config")
+		for _, node := range testNet.Nodes() {
+			node.Instance.SetEnvironmentVariable("TRACE_PUSH_BUCKET_NAME",
+				pushConfig.BucketName)
+			node.Instance.SetEnvironmentVariable("TRACE_PUSH_REGION", pushConfig.Region)
+			node.Instance.SetEnvironmentVariable("TRACE_PUSH_ACCESS_KEY", pushConfig.AccessKey)
+			node.Instance.SetEnvironmentVariable("TRACE_PUSH_SECRET_KEY", pushConfig.SecretKey)
+			node.Instance.SetEnvironmentVariable("TRACE_PUSH_DELAY", fmt.Sprintf("%d", pushConfig.PushDelay))
+		}
+	}
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints)
+	log.Println("validators GRPC endpoints", gRPCEndpoints[:1])
 
 	// create txsim nodes and point them to the validators
 	log.Println("Creating txsim nodes")
@@ -64,6 +84,12 @@ func E2EThroughput() error {
 	// wait some time for the txsim to submit transactions
 	time.Sleep(1 * time.Minute)
 
+	_, err = testNet.Node(0).PullRoundStateTraces()
+	testnet.NoError("failed to pull round state traces", err)
+
+	_, err = testNet.Node(0).PullReceivedBytes()
+	testnet.NoError("failed to pull received bytes traces", err)
+
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
@@ -81,3 +107,9 @@ func E2EThroughput() error {
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }
+
+//func TestGetTable(t *testing.T) {
+//	addr := "http://localhost:26661"
+//	err := trace.GetTable(addr, "consensus_round_state", ".")
+//	require.NoError(t, err)
+//}
