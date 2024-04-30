@@ -17,25 +17,19 @@ const (
 )
 
 func main() {
-	if err := E2EThroughput(); err != nil {
-		log.Fatalf("--- ERROR Throughput test: %v", err.Error())
+	if err := TwoNode(); err != nil {
+		log.Fatalf("--- ERROR TwoNode test: %v", err.Error())
 	}
 }
 
-func E2EThroughput() error {
-	// TODO replace this version with the main's latest version when the
-	// tracing feature becomes available in the main branch
-	latestVersion := "pr-3261"
-
-	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
-
+func TwoNode() error {
 	manifest := testnet.Manifest{
 		ChainID:            "test-e2e-throughput",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
 		TxClientsResource:  testnet.DefaultResources,
 		SelfDelegation:     10000000,
-		CelestiaAppVersion: latestVersion,
+		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    testnet.TxsimVersion,
 		BlobsPerSeq:        1,
 		BlobSequences:      1,
@@ -53,6 +47,43 @@ func E2EThroughput() error {
 		TxClients:          2,
 		LocalTracingType:   "local",
 	}
+
+	return Run(&manifest, "TwoNode")
+}
+
+func TwoNodeBigBlock() error {
+	name := "TwoNodeBigBlock"
+	manifest := testnet.Manifest{
+		ChainID:            name,
+		Validators:         2,
+		ValidatorResource:  testnet.DefaultResources,
+		TxClientsResource:  testnet.DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: "pr-3261",
+		TxClientVersion:    testnet.TxsimVersion,
+		BlobsPerSeq:        1,
+		BlobSequences:      1,
+		BlobSizes:          "10000-10000",
+		PerPeerBandwidth:   5 * 1024 * 1024,
+		UpgradeHeight:      0,
+		TimeoutCommit:      1 * time.Second,
+		TimeoutPropose:     1 * time.Second,
+		Mempool:            "v1",
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		TestDuration:       30 * time.Second,
+		TxClients:          2,
+		LocalTracingType:   "local",
+	}
+
+	return Run(&manifest, name)
+}
+
+func Run(manifest *testnet.Manifest, name string) error {
+
+	log.Printf("=== RUN %d=== version:%s", name, manifest.CelestiaAppVersion)
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
