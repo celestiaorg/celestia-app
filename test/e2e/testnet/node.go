@@ -221,7 +221,7 @@ func NewNode(
 	}, nil
 }
 
-func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
+func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -245,7 +245,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 		return fmt.Errorf("error creating trace push config: %w", err)
 	}
 	// Create and write the config file
-	cfg, err := MakeConfig(n)
+	cfg, err := MakeConfig(n, configOptions...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
