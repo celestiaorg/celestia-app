@@ -54,16 +54,26 @@ func TwoNode() error {
 func TwoNodeBigBlock() error {
 	name := "TwoNodeBigBlock"
 	manifest := testnet.Manifest{
-		ChainID:            name,
-		Validators:         2,
-		ValidatorResource:  testnet.DefaultResources,
-		TxClientsResource:  testnet.DefaultResources,
+		ChainID:    name,
+		Validators: 2,
+		ValidatorResource: testnet.Resources{
+			MemoryRequest: "12Gi",
+			MemoryLimit:   "20Gi",
+			CPU:           "8",
+			Volume:        "20Gi",
+		},
+		TxClientsResource: testnet.Resources{
+			MemoryRequest: "1Gi",
+			MemoryLimit:   "3Gi",
+			CPU:           "2",
+			Volume:        "1Gi",
+		},
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    testnet.TxsimVersion,
 		BlobsPerSeq:        1,
-		BlobSequences:      1,
-		BlobSizes:          "10000-10000",
+		BlobSequences:      40,
+		BlobSizes:          "200000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
@@ -163,7 +173,7 @@ func Run(manifest *testnet.Manifest, name string) error {
 
 	err = SaveToCSV(extractHeaders(blockchain), "./blockchain.csv")
 	if err != nil {
-		log.Println("failed to save blockchain data to CSV", err)
+		log.Println("failed to save blockchain headers to a CSV file", err)
 	}
 
 	totalTxs := 0
