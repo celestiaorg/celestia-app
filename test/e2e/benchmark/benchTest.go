@@ -10,10 +10,10 @@ import (
 
 type BenchTest struct {
 	*testnet.Testnet
-	manifest *testnet.Manifest
+	manifest *Manifest
 }
 
-func NewBenchTest(name string, manifest *testnet.Manifest) (*BenchTest, error) {
+func NewBenchTest(name string, manifest *Manifest) (*BenchTest, error) {
 	// create a new testnet
 	testNet, err := testnet.New(name, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
