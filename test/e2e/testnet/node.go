@@ -1,6 +1,8 @@
 package testnet
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -266,17 +268,10 @@ func (n *Node) Start() error {
 		return err
 	}
 
-	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
+	if err := n.forwardPorts(); err != nil {
+		return err
 	}
 
-	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
-	}
-	n.rpcProxyPort = rpcProxyPort
-	n.grpcProxyPort = grpcProxyPort
 	return nil
 }
 
@@ -293,9 +288,54 @@ func (n *Node) GenesisValidator() genesis.Validator {
 }
 
 func (n *Node) Upgrade(version string) error {
-	return n.Instance.SetImageInstant(DockerImageName(version))
+	if err := n.Instance.SetImageInstant(DockerImageName(version)); err != nil {
+		return err
+	}
+
+	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
+		return err
+	}
+
+	if err := n.forwardPorts(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *Node) forwardPorts() error {
+	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
+	}
+
+	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
+	}
+
+	n.rpcProxyPort = rpcProxyPort
+	n.grpcProxyPort = grpcProxyPort
+
+	return nil
 }
 
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
+}
+
+func (n *Node) GetHeight(ctx context.Context, executor *knuu.Executor) (int64, error) {
+
+	status, err := getStatus(executor, n.Instance)
+	if err == nil {
+		blockHeight, err := latestBlockHeightFromStatus(status)
+		if err == nil {
+			return blockHeight, nil
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return 0, err
+	}
+
+	return 0, fmt.Errorf("error getting height: %w", err)
 }

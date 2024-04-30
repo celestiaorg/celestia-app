@@ -20,6 +20,10 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
+const (
+	txsimVersion = "a92de72"
+)
+
 func MinorVersionCompatibility(logger *log.Logger) error {
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
@@ -55,9 +59,6 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
 	}
 
-	kr, err := testNet.CreateAccount("alice", 1e12, "")
-	testnet.NoError("failed to create account", err)
-
 	// start the testnet
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
@@ -65,17 +66,12 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testnet.NoError("Failed to start testnet", testNet.Start())
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
-	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
+	grpcEndpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get grpc endpoints", err)
+	testnet.NoError("failed to create tx clients", testNet.CreateTxClient("txsim", txsimVersion, 5, "200-4000,1-3", testnet.DefaultResources, grpcEndpoints[0]))
 
-	errCh := make(chan error)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func() {
-		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	}()
 
 	for i := 0; i < len(versions)*2; i++ {
 		// FIXME: skip the first node because we need them available to
@@ -91,9 +87,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes+1).Upgrade(newVersion))
+		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
 		// wait for the node to reach two more heights
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, testNet, testNet.Node(i%numNodes), heightBefore+2, 30*time.Second))
 	}
 
 	heights := make([]int64, 4)
@@ -115,10 +111,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		}
 	}
 
-	// end the tx sim
 	cancel()
-
-	err = <-errCh
 
 	if !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("expected context.Canceled error, got: %w", err)
@@ -181,7 +174,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, testNet, testNet.Node(i), upgradeHeight, time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
 		testnet.NoError("failed to get header", err)
@@ -226,7 +219,7 @@ func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (in
 	}
 }
 
-func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
+func waitForHeight(ctx context.Context, testnet *testnet.Testnet, node *testnet.Node, height int64, period time.Duration) error {
 	timer := time.NewTimer(period)
 	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
@@ -234,11 +227,15 @@ func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period 
 		case <-timer.C:
 			return fmt.Errorf("failed to reach height %d in %.2f seconds", height, period.Seconds())
 		case <-ticker.C:
-			status, err := client.Status(ctx)
+			executor, err := testnet.GetExecutor()
+			if err != nil {
+				return fmt.Errorf("failed to get executor: %w", err)
+			}
+			currentHeight, err := node.GetHeight(ctx, executor)
 			if err != nil {
 				return err
 			}
-			if status.SyncInfo.LatestBlockHeight >= height {
+			if currentHeight >= height {
 				return nil
 			}
 		}
