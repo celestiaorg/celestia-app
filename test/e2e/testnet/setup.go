@@ -23,11 +23,6 @@ func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
 	cfg.Instrumentation.Prometheus = true
-	cfg.Instrumentation.TraceType = "local"
-	cfg.Instrumentation.TraceBufferSize = 1000
-	cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
-	cfg.Instrumentation.TracePullAddress = ":26661"
-	// cfg.Instrumentation.TracePushConfig = "s3.json"
 
 	for _, opt := range opts {
 		opt(cfg)
@@ -66,6 +61,16 @@ func WithPrometheus(prometheus bool) Option {
 func WithMempool(mempool string) Option {
 	return func(cfg *config.Config) {
 		cfg.Mempool.Version = mempool
+	}
+}
+
+func WithLocalTracing(localTracingType string) Option {
+	return func(cfg *config.Config) {
+		cfg.Instrumentation.TraceType = localTracingType
+		cfg.Instrumentation.TraceBufferSize = 1000
+		cfg.Instrumentation.TracePullAddress = ":26661"
+		//cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
+		// cfg.Instrumentation.TracePushConfig = "s3.json"
 	}
 }
 

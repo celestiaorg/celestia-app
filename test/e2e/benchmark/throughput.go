@@ -51,6 +51,7 @@ func E2EThroughput() error {
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
+		LocalTracingType:   "local",
 	}
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
@@ -59,6 +60,7 @@ func E2EThroughput() error {
 	testnet.NoError("failed to create testnet", err)
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
+
 	defer func() {
 		log.Print("Cleaning up testnet")
 		testNet.Cleanup()
@@ -105,6 +107,7 @@ func E2EThroughput() error {
 		testnet.WithTimeoutPropose(manifest.TimeoutPropose),
 		testnet.WithTimeoutCommit(manifest.TimeoutCommit),
 		testnet.WithPrometheus(manifest.Prometheus),
+		testnet.WithLocalTracing(manifest.LocalTracingType),
 	))
 	log.Println("Starting testnet")
 	testnet.NoError("failed to start testnet", testNet.Start())

@@ -54,6 +54,9 @@ type Manifest struct {
 	// consensus parameters
 	MaxBlockBytes int64
 
+	// tracing configs, can be local or noop
+	LocalTracingType string
+
 	// other configs
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
