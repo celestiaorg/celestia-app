@@ -5,11 +5,11 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func indexWrapperDecoder(dec sdk.TxDecoder) sdk.TxDecoder {
+func indexWrapperDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
 		if indexWrapper, isIndexWrapper := coretypes.UnmarshalIndexWrapper(txBytes); isIndexWrapper {
-			return dec(indexWrapper.Tx)
+			return decoder(indexWrapper.Tx)
 		}
-		return dec(txBytes)
+		return decoder(txBytes)
 	}
 }

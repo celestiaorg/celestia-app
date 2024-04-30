@@ -1,6 +1,6 @@
 # Blockscan
 
-This is an inspection tool to scan blocks and display the contents of the transactions that fill them. 
+This is an inspection tool to scan blocks and display the contents of the transactions that fill them.
 
 ## Usage
 
