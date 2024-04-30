@@ -17,83 +17,15 @@ const (
 )
 
 func main() {
-	if err := TwoNode(); err != nil {
+	if err := TwoNodeBigBlock_8MiB(); err != nil {
 		log.Fatalf("--- ERROR TwoNode test: %v", err.Error())
 	}
 }
 
-func TwoNode() error {
-	manifest := testnet.Manifest{
-		ChainID:            "test-e2e-throughput",
-		Validators:         2,
-		ValidatorResource:  testnet.DefaultResources,
-		TxClientsResource:  testnet.DefaultResources,
-		SelfDelegation:     10000000,
-		CelestiaAppVersion: "pr-3261",
-		TxClientVersion:    testnet.TxsimVersion,
-		BlobsPerSeq:        1,
-		BlobSequences:      1,
-		BlobSizes:          "10000-10000",
-		PerPeerBandwidth:   5 * 1024 * 1024,
-		UpgradeHeight:      0,
-		TimeoutCommit:      1 * time.Second,
-		TimeoutPropose:     1 * time.Second,
-		Mempool:            "v1",
-		BroadcastTxs:       true,
-		Prometheus:         true,
-		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
-		MaxBlockBytes:      appconsts.DefaultMaxBytes,
-		TestDuration:       30 * time.Second,
-		TxClients:          2,
-		LocalTracingType:   "local",
-	}
+func Run(manifest *testnet.Manifest) error {
 
-	return Run(&manifest, "TwoNode")
-}
-
-func TwoNodeBigBlock() error {
-	name := "TwoNodeBigBlock"
-	manifest := testnet.Manifest{
-		ChainID:    name,
-		Validators: 2,
-		ValidatorResource: testnet.Resources{
-			MemoryRequest: "12Gi",
-			MemoryLimit:   "20Gi",
-			CPU:           "8",
-			Volume:        "20Gi",
-		},
-		TxClientsResource: testnet.Resources{
-			MemoryRequest: "1Gi",
-			MemoryLimit:   "3Gi",
-			CPU:           "2",
-			Volume:        "1Gi",
-		},
-		SelfDelegation:     10000000,
-		CelestiaAppVersion: "pr-3261",
-		TxClientVersion:    testnet.TxsimVersion,
-		BlobsPerSeq:        1,
-		BlobSequences:      40,
-		BlobSizes:          "200000",
-		PerPeerBandwidth:   5 * 1024 * 1024,
-		UpgradeHeight:      0,
-		TimeoutCommit:      1 * time.Second,
-		TimeoutPropose:     1 * time.Second,
-		Mempool:            "v1",
-		BroadcastTxs:       true,
-		Prometheus:         true,
-		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
-		MaxBlockBytes:      appconsts.DefaultMaxBytes,
-		TestDuration:       30 * time.Second,
-		TxClients:          2,
-		LocalTracingType:   "local",
-	}
-
-	return Run(&manifest, name)
-}
-
-func Run(manifest *testnet.Manifest, name string) error {
-
-	log.Printf("=== RUN %d=== version:%s", name, manifest.CelestiaAppVersion)
+	log.Printf("=== RUN %s=== version:%s", manifest.TestName,
+		manifest.CelestiaAppVersion)
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
@@ -112,19 +44,21 @@ func Run(manifest *testnet.Manifest, name string) error {
 			manifest.CelestiaAppVersion, manifest.SelfDelegation,
 			manifest.UpgradeHeight, manifest.ValidatorResource))
 
-	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
-		log.Print("Setting up trace push config")
-		for _, node := range testNet.Nodes() {
-			testnet.NoError("failed to set TRACE_PUSH_BUCKET_NAME",
-				node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName))
-			testnet.NoError("failed to set TRACE_PUSH_REGION",
-				node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region))
-			testnet.NoError("failed to set TRACE_PUSH_ACCESS_KEY",
-				node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey))
-			testnet.NoError("failed to set TRACE_PUSH_SECRET_KEY",
-				node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey))
-			testnet.NoError("failed to set TRACE_PUSH_DELAY",
-				node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)))
+	if manifest.PushTrace {
+		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+			log.Print("Setting up trace push config")
+			for _, node := range testNet.Nodes() {
+				testnet.NoError("failed to set TRACE_PUSH_BUCKET_NAME",
+					node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName))
+				testnet.NoError("failed to set TRACE_PUSH_REGION",
+					node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region))
+				testnet.NoError("failed to set TRACE_PUSH_ACCESS_KEY",
+					node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey))
+				testnet.NoError("failed to set TRACE_PUSH_SECRET_KEY",
+					node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey))
+				testnet.NoError("failed to set TRACE_PUSH_DELAY",
+					node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)))
+			}
 		}
 	}
 
@@ -188,4 +122,74 @@ func Run(manifest *testnet.Manifest, name string) error {
 	}
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
+}
+func TwoNodeSimple() error {
+	manifest := testnet.Manifest{
+		TestName:           "TwoNodeSimple",
+		ChainID:            "two-node-simple",
+		Validators:         2,
+		ValidatorResource:  testnet.DefaultResources,
+		TxClientsResource:  testnet.DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: "pr-3261",
+		TxClientVersion:    testnet.TxsimVersion,
+		BlobsPerSeq:        1,
+		BlobSequences:      1,
+		BlobSizes:          "10000-10000",
+		PerPeerBandwidth:   5 * 1024 * 1024,
+		UpgradeHeight:      0,
+		TimeoutCommit:      1 * time.Second,
+		TimeoutPropose:     1 * time.Second,
+		Mempool:            "v1",
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		TestDuration:       30 * time.Second,
+		TxClients:          2,
+		LocalTracingType:   "local",
+		PushTrace:          false,
+	}
+
+	return Run(&manifest)
+}
+
+func TwoNodeBigBlock_8MiB() error {
+	manifest := testnet.Manifest{
+		TestName:   "TwoNodeBigBlock",
+		ChainID:    "two-node-big-block",
+		Validators: 2,
+		ValidatorResource: testnet.Resources{
+			MemoryRequest: "12Gi",
+			MemoryLimit:   "20Gi",
+			CPU:           "8",
+			Volume:        "20Gi",
+		},
+		TxClientsResource: testnet.Resources{
+			MemoryRequest: "1Gi",
+			MemoryLimit:   "3Gi",
+			CPU:           "2",
+			Volume:        "1Gi",
+		},
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: "pr-3261",
+		TxClientVersion:    "pr-3261",
+		BlobsPerSeq:        5, // ineffective
+		BlobSequences:      80,
+		BlobSizes:          "200000",
+		PerPeerBandwidth:   100 * 1024 * 1024,
+		UpgradeHeight:      0,
+		TimeoutCommit:      11 * time.Second,
+		TimeoutPropose:     10 * time.Second,
+		Mempool:            "v1", // ineffective
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   1024,
+		MaxBlockBytes:      128 * 1024 * 1024,
+		TestDuration:       30 * time.Second,
+		TxClients:          2,
+		LocalTracingType:   "local",
+		PushTrace:          true,
+	}
+	return Run(&manifest)
 }

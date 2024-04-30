@@ -12,6 +12,7 @@ import (
 
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
+	TestName     string
 	ChainID      string
 	TestDuration time.Duration
 	// Number of validators in the testnet
@@ -56,6 +57,7 @@ type Manifest struct {
 
 	// tracing configs, can be local or noop
 	LocalTracingType string
+	PushTrace        bool
 
 	// other configs
 	UpgradeHeight    int64
