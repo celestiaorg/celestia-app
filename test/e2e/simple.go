@@ -24,7 +24,7 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testNet, err := testnet.New("E2ESimple", seed, nil, false)
+	testNet, err := testnet.New("E2ESimple", seed, nil)
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()

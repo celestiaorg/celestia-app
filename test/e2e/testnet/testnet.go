@@ -18,17 +18,15 @@ import (
 )
 
 type Testnet struct {
-	seed        int64
-	nodes       []*Node
-	genesis     *genesis.Genesis
-	keygen      *keyGenerator
-	grafana     *GrafanaInfo
-	pullTracing bool
-	txClients   []*TxSim
+	seed      int64
+	nodes     []*Node
+	genesis   *genesis.Genesis
+	keygen    *keyGenerator
+	grafana   *GrafanaInfo
+	txClients []*TxSim
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo,
-	pullTracing bool) (*Testnet,
+func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet,
 	error,
 ) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
@@ -37,12 +35,11 @@ func New(name string, seed int64, grafana *GrafanaInfo,
 	}
 
 	return &Testnet{
-		seed:        seed,
-		nodes:       make([]*Node, 0),
-		genesis:     genesis.NewDefaultGenesis().WithChainID("test-sanaz"),
-		keygen:      newKeyGenerator(seed),
-		grafana:     grafana,
-		pullTracing: pullTracing,
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID("test-sanaz"),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
 }
 

@@ -167,7 +167,6 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
-
 	if err := instance.AddPortTCP(tracingPort); err != nil {
 		return nil, err
 	}
