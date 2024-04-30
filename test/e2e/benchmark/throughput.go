@@ -27,7 +27,7 @@ func Run(manifest *testnet.Manifest) error {
 	log.Printf("=== RUN %s=== version:%s", manifest.TestName,
 		manifest.CelestiaAppVersion)
 	// create a new testnet
-	testNet, err := testnet.New("E2EThroughput", seed,
+	testNet, err := testnet.New(manifest.TestName, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
 	testnet.NoError("failed to create testnet", err)
@@ -45,6 +45,7 @@ func Run(manifest *testnet.Manifest) error {
 			manifest.UpgradeHeight, manifest.ValidatorResource))
 
 	if manifest.PushTrace {
+		log.Println("reading trace push config")
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
 			log.Print("Setting up trace push config")
 			for _, node := range testNet.Nodes() {
@@ -120,7 +121,7 @@ func Run(manifest *testnet.Manifest) error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
-	log.Println("--- PASS ✅: E2EThroughput")
+	log.Println("--- PASS ✅: ", manifest.TestName)
 	return nil
 }
 func TwoNodeSimple() error {
@@ -175,7 +176,7 @@ func TwoNodeBigBlock_8MiB() error {
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
 		BlobsPerSeq:        5, // ineffective
-		BlobSequences:      80,
+		BlobSequences:      40,
 		BlobSizes:          "200000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
@@ -189,7 +190,7 @@ func TwoNodeBigBlock_8MiB() error {
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 		LocalTracingType:   "local",
-		PushTrace:          true,
+		PushTrace:          false,
 	}
 	return Run(&manifest)
 }
