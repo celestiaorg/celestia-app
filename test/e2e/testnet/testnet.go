@@ -26,7 +26,10 @@ type Testnet struct {
 	txClients []*TxSim
 }
 
-func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
+func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
+	genesisModifiers ...genesis.Modifier) (
+	*Testnet, error,
+) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
@@ -35,7 +38,7 @@ func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID("test"),
+		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil
@@ -43,6 +46,10 @@ func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
 	t.genesis.WithConsensusParams(params)
+}
+
+func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
+	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources) error {
@@ -130,6 +137,7 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error creating txsim")
 		return err
 	}
+
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
@@ -139,7 +147,6 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error adding keyring dir to txsim")
 		return err
 	}
-
 	err = txsim.Instance.Commit()
 	if err != nil {
 		log.Err(err).
@@ -221,7 +228,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	return nil
 }
 
-func (t *Testnet) Setup() error {
+func (t *Testnet) Setup(configOpts ...Option) error {
 	genesis, err := t.genesis.Export()
 	if err != nil {
 		return err
@@ -237,7 +244,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err := node.Init(genesis, peers)
+		err := node.Init(genesis, peers, configOpts...)
 		if err != nil {
 			return err
 		}
