@@ -28,7 +28,7 @@ func E2EThroughput() error {
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	manifest := testnet.Manifest{
-		ChainID:            "test-sanaz",
+		ChainID:            "test-e2e-throughput",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
 		TxClientsResource:  testnet.DefaultResources,
@@ -72,8 +72,8 @@ func E2EThroughput() error {
 	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 
-	// create txsim nodes and point them to the validators
-	log.Println("Creating txsim nodes")
+	// create tx clients and point them to the validators
+	log.Println("Creating tx clients")
 
 	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
 		manifest.BlobSizes,
@@ -91,11 +91,11 @@ func E2EThroughput() error {
 	log.Println("Starting testnet")
 	testnet.NoError("failed to start testnet", testNet.Start())
 
-	// once the testnet is up, start the txsim
+	// once the testnet is up, start the tx clients
 	log.Println("Starting tx clients")
 	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
 
-	// wait some time for the txsim to submit transactions
+	// wait some time for the tx clients to submit transactions
 	time.Sleep(manifest.TestDuration)
 
 	log.Println("Reading blockchain")

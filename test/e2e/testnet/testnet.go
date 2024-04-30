@@ -35,12 +35,10 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 		return nil, err
 	}
 
-	gen := genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...)
-	// gen.ConsensusParams.Block.MaxBytes = appconsts.DefaultMaxBytes
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: gen,
+		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil
