@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
@@ -22,8 +23,9 @@ func main() {
 }
 
 func E2EThroughput() error {
-	latestVersion, err := testnet.GetLatestVersion()
-	testnet.NoError("failed to get latest version ", err)
+	// TODO replace this version with the main's latest version when the
+	// tracing feature becomes available in the main branch
+	latestVersion := "pr-3261"
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
@@ -49,6 +51,7 @@ func E2EThroughput() error {
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
+		LocalTracingType:   "local",
 	}
 	// create a new testnet
 	testNet, err := testnet.New("E2EThroughput", seed,
@@ -57,6 +60,7 @@ func E2EThroughput() error {
 	testnet.NoError("failed to create testnet", err)
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
+
 	defer func() {
 		log.Print("Cleaning up testnet")
 		testNet.Cleanup()
@@ -66,6 +70,22 @@ func E2EThroughput() error {
 		testNet.CreateGenesisNodes(manifest.Validators,
 			manifest.CelestiaAppVersion, manifest.SelfDelegation,
 			manifest.UpgradeHeight, manifest.ValidatorResource))
+
+	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+		log.Print("Setting up trace push config")
+		for _, node := range testNet.Nodes() {
+			testnet.NoError("failed to set TRACE_PUSH_BUCKET_NAME",
+				node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName))
+			testnet.NoError("failed to set TRACE_PUSH_REGION",
+				node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region))
+			testnet.NoError("failed to set TRACE_PUSH_ACCESS_KEY",
+				node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey))
+			testnet.NoError("failed to set TRACE_PUSH_SECRET_KEY",
+				node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey))
+			testnet.NoError("failed to set TRACE_PUSH_DELAY",
+				node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)))
+		}
+	}
 
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
@@ -87,6 +107,7 @@ func E2EThroughput() error {
 		testnet.WithTimeoutPropose(manifest.TimeoutPropose),
 		testnet.WithTimeoutCommit(manifest.TimeoutCommit),
 		testnet.WithPrometheus(manifest.Prometheus),
+		testnet.WithLocalTracing(manifest.LocalTracingType),
 	))
 	log.Println("Starting testnet")
 	testnet.NoError("failed to start testnet", testNet.Start())
@@ -97,6 +118,13 @@ func E2EThroughput() error {
 
 	// wait some time for the tx clients to submit transactions
 	time.Sleep(manifest.TestDuration)
+
+	// pull some traced tables from the nodes
+	_, err = testNet.Node(0).PullRoundStateTraces()
+	testnet.NoError("failed to pull round state traces", err)
+
+	_, err = testNet.Node(0).PullReceivedBytes()
+	testnet.NoError("failed to pull received bytes traces", err)
 
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
