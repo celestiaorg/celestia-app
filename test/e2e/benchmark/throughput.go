@@ -158,7 +158,7 @@ func TwoNodeSimple() error {
 func TwoNodeBigBlock_8MiB() error {
 	manifest := testnet.Manifest{
 		TestName:   "TwoNodeBigBlock",
-		ChainID:    "two-node-big-block",
+		ChainID:    "test-sanaz",
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
 			MemoryRequest: "20Gi",
@@ -177,7 +177,7 @@ func TwoNodeBigBlock_8MiB() error {
 		TxClientVersion:    "pr-3261",
 		BlobsPerSeq:        5, // ineffective
 		BlobSequences:      40,
-		BlobSizes:          "200000",
+		BlobSizes:          "100000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      11 * time.Second,
