@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -25,11 +24,9 @@ func main() {
 }
 
 func E2EThroughput() error {
-	os.Setenv("KNUU_NAMESPACE", "test-sanaz")
-
-	// latestVersion, err := testnet.GetLatestVersion()
-	// testnet.NoError("failed to get latest version ", err)
-	latestVersion := "pr-3261" // this is the version we can use for big blocks
+	// TODO replace this version with the main's latest version when the
+	// tracing feature becomes available in the main branch
+	latestVersion := "pr-3261"
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
@@ -51,16 +48,15 @@ func E2EThroughput() error {
 		log.Print("Setting up trace push config")
 		for _, node := range testNet.Nodes() {
 			testnet.NoError("failed to set TRACE_PUSH_BUCKET_NAME",
-				node.Instance.SetEnvironmentVariable(
-					"TRACE_PUSH_BUCKET_NAME", pushConfig.BucketName))
+				node.Instance.SetEnvironmentVariable(trace.PushDelay, pushConfig.BucketName))
 			testnet.NoError("failed to set TRACE_PUSH_REGION",
-				node.Instance.SetEnvironmentVariable("TRACE_PUSH_REGION", pushConfig.Region))
+				node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region))
 			testnet.NoError("failed to set TRACE_PUSH_ACCESS_KEY",
-				node.Instance.SetEnvironmentVariable("TRACE_PUSH_ACCESS_KEY", pushConfig.AccessKey))
+				node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey))
 			testnet.NoError("failed to set TRACE_PUSH_SECRET_KEY",
-				node.Instance.SetEnvironmentVariable("TRACE_PUSH_SECRET_KEY", pushConfig.SecretKey))
+				node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey))
 			testnet.NoError("failed to set TRACE_PUSH_DELAY",
-				node.Instance.SetEnvironmentVariable("TRACE_PUSH_DELAY", fmt.Sprintf("%d", pushConfig.PushDelay)))
+				node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)))
 		}
 	}
 
