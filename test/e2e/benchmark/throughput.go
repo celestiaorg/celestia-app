@@ -48,7 +48,7 @@ func E2EThroughput() error {
 		log.Print("Setting up trace push config")
 		for _, node := range testNet.Nodes() {
 			testnet.NoError("failed to set TRACE_PUSH_BUCKET_NAME",
-				node.Instance.SetEnvironmentVariable(trace.PushDelay, pushConfig.BucketName))
+				node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName))
 			testnet.NoError("failed to set TRACE_PUSH_REGION",
 				node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region))
 			testnet.NoError("failed to set TRACE_PUSH_ACCESS_KEY",
