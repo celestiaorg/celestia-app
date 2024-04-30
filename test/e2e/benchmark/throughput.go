@@ -160,7 +160,7 @@ func TwoNodeBigBlock_8MiB() error {
 		ChainID:    "two-node-big-block",
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
-			MemoryRequest: "12Gi",
+			MemoryRequest: "20Gi",
 			MemoryLimit:   "20Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
