@@ -323,10 +323,8 @@ github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZI
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240429201733-4336df8a4e88 h1:k9o4pUa7B/GfUVDd5XgfoF0u0AEQD9IpWg2D20/Ed3A=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240429201733-4336df8a4e88/go.mod h1:KA5g1aSOxC7yiFvn0K+u3XAKppSkTDtd1gms+wjEXhk=
-github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16/go.mod h1:AmuR63HTlX8vNV3+NGWNPIZa95J1UweTUmWDHSdTGj0=
-github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29 h1:sXERzNXgyHyqTKNQx4S29C/NMDzgav62DaQDNF49HUQ=
-github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29/go.mod h1:weZR4wYx1Vcw3g1Jc5G8VipG4M+KUDSqeIzyyWszmsQ=
 github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16 h1:THZrswVVqGtMo2dMdW9R+5JGxjfD7+eaGZIJ7ne0ejE=
+github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16/go.mod h1:AmuR63HTlX8vNV3+NGWNPIZa95J1UweTUmWDHSdTGj0=
 github.com/celestiaorg/go-square v1.0.1 h1:LEG1zrw4i03VBMElQF8GAbKYgh1bT1uGzWxasU2ePuo=
 github.com/celestiaorg/go-square v1.0.1/go.mod h1:XMv5SGCeGSkynW2OOsedugaW/rQlvzxGzWGxTKsyYOU=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
@@ -1444,7 +1442,6 @@ golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad/go.mod h1:jdWPYTVW3xRLrWP
 golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
 golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
-golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/crypto v0.22.0 h1:g1v0xeRhjcugydODzvb3mEM9SQ0HGp9s/nh3COQ/C30=
 golang.org/x/crypto v0.22.0/go.mod h1:vr6Su+7cTlO45qkww3VDJlzDn0ctJvRgYbC2NvXHt+M=
 golang.org/x/exp v0.0.0-20180321215751-8460e604b9de/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
