@@ -20,10 +20,6 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-const (
-	txsimVersion = "a92de72"
-)
-
 func MinorVersionCompatibility(logger *log.Logger) error {
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
@@ -59,6 +55,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
 	}
 
+	kr, err := testNet.CreateAccount("alice", 1e12, "")
+	testnet.NoError("failed to create account", err)
+
 	// start the testnet
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
@@ -66,12 +65,17 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testnet.NoError("Failed to start testnet", testNet.Start())
 
 	// TODO: with upgrade tests we should simulate a far broader range of transactions
-	grpcEndpoints, err := testNet.RemoteGRPCEndpoints()
-	testnet.NoError("failed to get grpc endpoints", err)
-	testnet.NoError("failed to create tx clients", testNet.CreateTxClient("txsim", txsimVersion, 5, "200-4000,1-3", testnet.DefaultResources, grpcEndpoints[0]))
+	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
+	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
 
+	errCh := make(chan error)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go func() {
+		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
+	}()
 
 	for i := 0; i < len(versions)*2; i++ {
 		// FIXME: skip the first node because we need them available to
@@ -88,6 +92,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
 		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
+		time.Sleep(10 * time.Second)
 		// wait for the node to reach two more heights
 		testnet.NoError("failed to wait for height", waitForHeight(ctx, testNet, testNet.Node(i%numNodes), heightBefore+2, 30*time.Second))
 	}
@@ -111,7 +116,10 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		}
 	}
 
+	// end the tx sim
 	cancel()
+
+	err = <-errCh
 
 	if !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("expected context.Canceled error, got: %w", err)
