@@ -106,7 +106,8 @@ func Run(manifest *Manifest) error {
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
-	err = SaveToCSV(extractHeaders(blockchain), "./blockchain.csv")
+	err = SaveToCSV(extractHeaders(blockchain),
+		fmt.Sprintf("./blockchain_%s.csv", manifest.TestName))
 	if err != nil {
 		log.Println("failed to save blockchain headers to a CSV file", err)
 	}
@@ -161,8 +162,8 @@ func TwoNodeBigBlock_128MiB() error {
 		ChainID:    "test-sanaz",
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
-			MemoryRequest: "15Gi",
-			MemoryLimit:   "24Gi",
+			MemoryRequest: "12Gi",
+			MemoryLimit:   "15Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
 		},
@@ -176,7 +177,7 @@ func TwoNodeBigBlock_128MiB() error {
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
 		// 10, 40 makes 40 MiB size blocks
-		BlobsPerSeq:      6,
+		BlobsPerSeq:      5,
 		BlobSequences:    1,
 		BlobSizes:        "200000",
 		PerPeerBandwidth: 100 * 1024 * 1024,
