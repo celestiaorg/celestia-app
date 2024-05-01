@@ -161,7 +161,7 @@ func TwoNodeBigBlock_128MiB() error {
 		ChainID:    "test-sanaz",
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
-			MemoryRequest: "12Gi",
+			MemoryRequest: "15Gi",
 			MemoryLimit:   "20Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
@@ -177,7 +177,7 @@ func TwoNodeBigBlock_128MiB() error {
 		TxClientVersion:    "pr-3261",
 		BlobsPerSeq:        10,
 		BlobSequences:      50,
-		BlobSizes:          "100000",
+		BlobSizes:          "200000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      11 * time.Second,
