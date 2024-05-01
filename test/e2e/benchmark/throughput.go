@@ -17,12 +17,12 @@ const (
 )
 
 func main() {
-	if err := TwoNodeBigBlock_8MiB(); err != nil {
+	if err := TwoNodeBigBlock_128MiB(); err != nil {
 		log.Fatalf("--- ERROR TwoNode test: %v", err.Error())
 	}
 }
 
-func Run(manifest *testnet.Manifest) error {
+func Run(manifest *Manifest) error {
 
 	log.Printf("=== RUN %s=== version:%s", manifest.TestName,
 		manifest.CelestiaAppVersion)
@@ -125,7 +125,7 @@ func Run(manifest *testnet.Manifest) error {
 	return nil
 }
 func TwoNodeSimple() error {
-	manifest := testnet.Manifest{
+	manifest := Manifest{
 		TestName:           "TwoNodeSimple",
 		ChainID:            "two-node-simple",
 		Validators:         2,
@@ -155,9 +155,9 @@ func TwoNodeSimple() error {
 	return Run(&manifest)
 }
 
-func TwoNodeBigBlock_8MiB() error {
-	manifest := testnet.Manifest{
-		TestName:   "TwoNodeBigBlock_8MiB",
+func TwoNodeBigBlock_128MiB() error {
+	manifest := Manifest{
+		TestName:   "TwoNodeBigBlock_128MiB",
 		ChainID:    "test-sanaz",
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
@@ -175,8 +175,8 @@ func TwoNodeBigBlock_8MiB() error {
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
-		BlobsPerSeq:        5,
-		BlobSequences:      40,
+		BlobsPerSeq:        10,
+		BlobSequences:      50,
 		BlobSizes:          "100000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
