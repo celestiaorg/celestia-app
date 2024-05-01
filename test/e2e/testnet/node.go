@@ -290,15 +290,15 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
+	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
+	}
+
 	err = n.Instance.Commit()
 	if err != nil {
 		return fmt.Errorf("committing instance: %w", err)
 
 	}
-	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
-		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
-	}
-
 	return nil
 }
 
