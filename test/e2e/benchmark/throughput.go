@@ -176,7 +176,7 @@ func TwoNodeBigBlock_128MiB() error {
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
-		BlobsPerSeq:        5,
+		BlobsPerSeq:        6,
 		BlobSequences:      1,
 		BlobSizes:          "200000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
