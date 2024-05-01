@@ -72,7 +72,7 @@ func Run(manifest *testnet.Manifest) error {
 	log.Println("Creating tx clients")
 
 	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
-		manifest.BlobSizes,
+		manifest.BlobSizes, manifest.BlobsPerSeq,
 		manifest.TxClientsResource, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
@@ -157,11 +157,11 @@ func TwoNodeSimple() error {
 
 func TwoNodeBigBlock_8MiB() error {
 	manifest := testnet.Manifest{
-		TestName:   "TwoNodeBigBlock",
+		TestName:   "TwoNodeBigBlock_8MiB",
 		ChainID:    "test-sanaz",
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
-			MemoryRequest: "20Gi",
+			MemoryRequest: "12Gi",
 			MemoryLimit:   "20Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
@@ -175,9 +175,9 @@ func TwoNodeBigBlock_8MiB() error {
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
-		BlobsPerSeq:        5, // ineffective
-		BlobSequences:      40,
-		BlobSizes:          "100000",
+		BlobsPerSeq:        6, // ineffective
+		BlobSequences:      10,
+		BlobSizes:          "200000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      11 * time.Second,

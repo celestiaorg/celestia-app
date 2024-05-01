@@ -80,13 +80,14 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 func (t *Testnet) CreateTxClients(version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoints []string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(name, version, sequences,
-			blobRange, resources, grpcEndpoint)
+			blobRange, blobPerSequence, resources, grpcEndpoint)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -115,6 +116,7 @@ func (t *Testnet) CreateTxClient(name,
 	version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoint string,
 ) error {
@@ -132,7 +134,7 @@ func (t *Testnet) CreateTxClient(name,
 
 	// Create a txsim node using the key stored in the txsimKeyringDir
 	txsim, err := CreateTxClient(name, version, grpcEndpoint, t.seed,
-		sequences, blobRange, 1, resources, txsimRootDir)
+		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
