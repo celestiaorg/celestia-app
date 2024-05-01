@@ -188,6 +188,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 }
 
 // Submit executes on an operation. This is thread safe.
+// Submit executes on an operation. This is thread safe.
 func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	if len(op.Msgs) == 0 {
 		return errors.New("operation must contain at least one message")
@@ -239,23 +240,50 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	var res *types.TxResponse
+	var size int64
 	if len(op.Blobs) > 0 {
+		for _, blob := range op.Blobs {
+			size += int64(len(blob.GetData()))
+		}
 		res, err = signer.SubmitPayForBlob(ctx, op.Blobs, opts...)
 	} else {
 		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
 	}
 	if err != nil {
+		if len(op.Blobs) > 0 {
+			log.Err(err).
+				Str("address", address.String()).
+				Str("blobs", fmt.Sprintf("%d", len(op.Blobs))).
+				Int64("total size of blobs", size).
+				Msg("tx failed")
+		} else {
+			log.Err(err).
+				Str("address", address.String()).
+				Str("msgs", msgsToString(op.Msgs)).
+				Msg("tx failed")
+		}
 		return err
 	}
 
 	// update the latest latestHeight
 	am.setLatestHeight(res.Height)
 
-	log.Info().
-		Int64("height", res.Height).
-		Str("address", address.String()).
-		Str("msgs", msgsToString(op.Msgs)).
-		Msg("tx committed")
+	if len(op.Blobs) > 0 {
+		log.Info().
+			Int64("height", res.Height).
+			Str("address", address.String()).
+			Str("blobs", fmt.Sprintf("%d", len(op.Blobs))).
+			Int64("total size of blobs", size).
+			Msg("tx committed")
+		return nil
+
+	} else {
+		log.Info().
+			Int64("height", res.Height).
+			Str("address", address.String()).
+			Str("msgs", msgsToString(op.Msgs)).
+			Msg("tx committed")
+	}
 
 	return nil
 }
