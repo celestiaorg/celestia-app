@@ -162,7 +162,7 @@ func TwoNodeBigBlock_128MiB() error {
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
 			MemoryRequest: "15Gi",
-			MemoryLimit:   "20Gi",
+			MemoryLimit:   "24Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
 		},
@@ -175,22 +175,23 @@ func TwoNodeBigBlock_128MiB() error {
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
-		BlobsPerSeq:        10,
-		BlobSequences:      40,
-		BlobSizes:          "200000",
-		PerPeerBandwidth:   100 * 1024 * 1024,
-		UpgradeHeight:      0,
-		TimeoutCommit:      11 * time.Second,
-		TimeoutPropose:     10 * time.Second,
-		Mempool:            "v1", // ineffective as it always defaults to v1
-		BroadcastTxs:       true,
-		Prometheus:         true,
-		GovMaxSquareSize:   1024,
-		MaxBlockBytes:      128 * 1024 * 1024,
-		TestDuration:       2 * time.Minute,
-		TxClients:          2,
-		LocalTracingType:   "local",
-		PushTrace:          false,
+		// 10, 40 makes 40 MiB size blocks
+		BlobsPerSeq:      6,
+		BlobSequences:    1,
+		BlobSizes:        "200000",
+		PerPeerBandwidth: 100 * 1024 * 1024,
+		UpgradeHeight:    0,
+		TimeoutCommit:    11 * time.Second,
+		TimeoutPropose:   10 * time.Second,
+		Mempool:          "v1", // ineffective as it always defaults to v1
+		BroadcastTxs:     true,
+		Prometheus:       true,
+		GovMaxSquareSize: 1024,
+		MaxBlockBytes:    128 * 1024 * 1024,
+		TestDuration:     2 * time.Minute,
+		TxClients:        2,
+		LocalTracingType: "local",
+		PushTrace:        false,
 	}
 	return Run(&manifest)
 }
