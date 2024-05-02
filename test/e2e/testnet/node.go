@@ -268,11 +268,7 @@ func (n *Node) Start() error {
 		return err
 	}
 
-	if err := n.forwardPorts(); err != nil {
-		return err
-	}
-
-	return nil
+	return n.forwardPorts()
 }
 
 func (n *Node) GenesisValidator() genesis.Validator {
@@ -296,11 +292,7 @@ func (n *Node) Upgrade(version string) error {
 		return err
 	}
 
-	if err := n.forwardPorts(); err != nil {
-		return err
-	}
-
-	return nil
+	return n.forwardPorts()
 }
 
 func (n *Node) forwardPorts() error {
@@ -324,7 +316,7 @@ func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
 }
 
-func (n *Node) GetHeight(ctx context.Context, executor *knuu.Executor) (int64, error) {
+func (n *Node) GetHeight(executor *knuu.Executor) (int64, error) {
 	status, err := getStatus(executor, n.Instance)
 	if err == nil {
 		blockHeight, err := latestBlockHeightFromStatus(status)
