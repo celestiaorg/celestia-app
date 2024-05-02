@@ -32,7 +32,7 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.4.11
-	github.com/cosmos/ibc-go/v6 v6.3.0
+	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/pflag v1.0.5
 	github.com/tendermint/tendermint v0.34.29
