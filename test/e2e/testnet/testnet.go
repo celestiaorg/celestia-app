@@ -385,3 +385,7 @@ func (t *Testnet) Cleanup() {
 func (t *Testnet) Node(i int) *Node {
 	return t.nodes[i]
 }
+
+func (t *Testnet) Nodes() []*Node {
+	return t.nodes
+}
