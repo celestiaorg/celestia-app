@@ -162,8 +162,6 @@ github.com/butuzov/ireturn v0.1.1/go.mod h1:Wh6Zl3IMtTpaIKbmwzqi6olnM9ptYQxxVacM
 github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240311210218-09ff561e1a12/go.mod h1:meRe/tjDG61ui2g8KwiXTFEyJOkLkVFNz4eR2qsZqHM=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240309165752-eff08dcf2f98/go.mod h1:cH+AztynabfHFhK7F0RdI4mR+xBI7Qstj+H6rOtCZEU=
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240311200142-79f760b2da60/go.mod h1:cH+AztynabfHFhK7F0RdI4mR+xBI7Qstj+H6rOtCZEU=
-github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240406212152-146d4d135a92 h1:WsPdjKaBwPBgbbeQmpfOpVjuKwb+jcg4UacRBo4pA1k=
-github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240406212152-146d4d135a92/go.mod h1:fRIcS+rBP/0EE3dMItgSdfDBwomAga36KcFEYOW4xnc=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
 github.com/charithe/durationcheck v0.0.10/go.mod h1:bCWXb7gYRysD1CU3C+u4ceO49LoGOY1C1L6uouGNreQ=
 github.com/chavacava/garif v0.0.0-20230227094218-b8c73b2037b8/go.mod h1:gakxgyXaaPkxvLw1XQxNGK4I37ys9iBRzNUx/B7pUCo=
@@ -181,6 +179,7 @@ github.com/curioswitch/go-reassign v0.2.0/go.mod h1:x6OpXuWvgfQaMGks2BZybTngWjT8
 github.com/cyphar/filepath-securejoin v0.2.4/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
 github.com/daixiang0/gci v0.10.1/go.mod h1:xtHP9N7AHdNvtRNfcx9gwTDfw7FRJx4bZUsiEfiNNAI=
 github.com/deckarep/golang-set v1.8.0 h1:sk9/l/KqpunDwP7pSjUg0keiOOLEnOBHzykLrsPppp4=
+github.com/deepmap/oapi-codegen v1.8.2 h1:SegyeYGcdi0jLLrpbCMoJxnUUn8GBXHsvr4rbzjuhfU=
 github.com/denis-tingaikin/go-header v0.4.3/go.mod h1:0wOCWuN71D5qIgE2nz9KrKmuYBAC2Mra5RassOIQ2/c=
 github.com/dlclark/regexp2 v1.7.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/docker/cli v23.0.1+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
@@ -249,7 +248,9 @@ github.com/hashicorp/go-retryablehttp v0.7.4/go.mod h1:Jy/gPYAdjqffZ/yFGCFV2doI5
 github.com/hashicorp/serf v0.10.1/go.mod h1:yL2t6BqATOLGc5HF7qbFkTfXoPIY0WZdWHfEvMqbG+4=
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
+github.com/influxdata/influxdb-client-go/v2 v2.12.2 h1:uYABKdrEKlYm+++qfKdbgaHKBPmoWR5wpbmj6MBB/2g=
 github.com/influxdata/influxdb-client-go/v2 v2.12.2/go.mod h1:YteV91FiQxRdccyJ2cHvj2f/5sq4y4Njqu1fQzsQCOU=
+github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 h1:vilfsDSy7TDxedi9gyBkMvAirat/oRcL0lFdJBf6tdM=
 github.com/informalsystems/tm-load-test v1.3.0/go.mod h1:OQ5AQ9TbT5hKWBNIwsMjn6Bf4O0U4b1kRc+0qZlQJKw=
 github.com/jdxcode/netrc v0.0.0-20221124155335-4616370d1a84/go.mod h1:Zi/ZFkEqFHTm7qkjyNJjaWH4LQA9LQhGJyF0lTYGpxw=
 github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267/go.mod h1:h1nSAbGFqGVzn6Jyl1R/iCcBUHN4g+gW1u9CoBTrb9E=

@@ -57,10 +57,10 @@ func (l *Leader) unboundedBlockSize(
 	go func() {
 		// blockSize is the starting block size limit in bytes. This is
 		// incremented by blockIncrement each loop.
-		blockSize := 2000000
+		blockSize := 32000000
 		// blockIncrement is the amount the block size limit is increased in
 		// bytes by each loop. This is incremented by 5000000 each loop.
-		blockIncrement := 500000
+		blockIncrement := 10000000
 		proposalCount := uint64(1)
 		for {
 			select {
