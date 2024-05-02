@@ -163,7 +163,7 @@ func TwoNodeBigBlock_128MiB() error {
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
 			MemoryRequest: "12Gi",
-			MemoryLimit:   "12Gi",
+			MemoryLimit:   "15Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
 		},
