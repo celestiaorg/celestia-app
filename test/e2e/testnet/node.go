@@ -325,7 +325,6 @@ func DockerImageName(version string) string {
 }
 
 func (n *Node) GetHeight(ctx context.Context, executor *knuu.Executor) (int64, error) {
-
 	status, err := getStatus(executor, n.Instance)
 	if err == nil {
 		blockHeight, err := latestBlockHeightFromStatus(status)
