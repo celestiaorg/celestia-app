@@ -163,7 +163,7 @@ func TwoNodeBigBlock_128MiB() error {
 		Validators: 2,
 		ValidatorResource: testnet.Resources{
 			MemoryRequest: "12Gi",
-			MemoryLimit:   "15Gi",
+			MemoryLimit:   "20Gi",
 			CPU:           "8",
 			Volume:        "20Gi",
 		},
@@ -177,7 +177,7 @@ func TwoNodeBigBlock_128MiB() error {
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
 		BlobsPerSeq:        5,
-		BlobSequences:      1,
+		BlobSequences:      10,
 		BlobSizes:          "200000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
