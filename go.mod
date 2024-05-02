@@ -230,4 +230,6 @@ replace (
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29
 )
 
+// v1.8.0 was retracted due to a dependency bump in ibc resulting in a consensus
+// breaking change.
 retract v1.8.0
