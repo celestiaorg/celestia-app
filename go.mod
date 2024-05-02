@@ -32,7 +32,7 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.4.11
-	github.com/cosmos/ibc-go/v6 v6.3.0
+	github.com/cosmos/ibc-go/v6 v6.2.1
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/pflag v1.0.5
 	github.com/tendermint/tendermint v0.34.29
@@ -229,3 +229,7 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29
 )
+
+// v1.8.0 was retracted due to a dependency bump in ibc resulting in a consensus
+// breaking change.
+retract v1.8.0
