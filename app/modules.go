@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/app/module"
 	"github.com/celestiaorg/celestia-app/v2/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
@@ -167,7 +168,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v1,
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
@@ -299,47 +300,45 @@ func allStoreKeys() []string {
 	}
 }
 
-// versionedStoreKeys returns the store keys for each app version
-// ... I wish there was an easier way than this (like using the modules which are already versioned)
+// versionedStoreKeys returns the store keys for each app version.
 func versionedStoreKeys() map[uint64][]string {
 	return map[uint64][]string{
 		1: {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
-			stakingtypes.StoreKey,
-			minttypes.StoreKey,
-			distrtypes.StoreKey,
-			slashingtypes.StoreKey,
-			govtypes.StoreKey,
-			upgradetypes.StoreKey,
-			feegrant.StoreKey,
-			evidencetypes.StoreKey,
-			capabilitytypes.StoreKey,
 			blobstreamtypes.StoreKey,
-			ibctransfertypes.StoreKey,
-			ibchost.StoreKey,
 			blobtypes.StoreKey,
+			capabilitytypes.StoreKey,
+			distrtypes.StoreKey,
+			evidencetypes.StoreKey,
+			feegrant.StoreKey,
+			govtypes.StoreKey,
+			ibchost.StoreKey,
+			ibctransfertypes.StoreKey,
+			minttypes.StoreKey,
+			slashingtypes.StoreKey,
+			stakingtypes.StoreKey,
+			upgradetypes.StoreKey,
 		},
 		2: {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
-			stakingtypes.StoreKey,
-			minttypes.StoreKey,
-			distrtypes.StoreKey,
-			slashingtypes.StoreKey,
-			govtypes.StoreKey,
-			upgradetypes.StoreKey,
-			feegrant.StoreKey,
-			evidencetypes.StoreKey,
 			capabilitytypes.StoreKey,
-			blobstreamtypes.StoreKey,
-			ibctransfertypes.StoreKey,
+			distrtypes.StoreKey,
+			evidencetypes.StoreKey,
+			feegrant.StoreKey,
+			govtypes.StoreKey,
 			ibchost.StoreKey,
-			packetforwardtypes.StoreKey,
+			ibctransfertypes.StoreKey,
 			icahosttypes.StoreKey,
+			minttypes.StoreKey,
+			packetforwardtypes.StoreKey,
 			signaltypes.StoreKey,
+			slashingtypes.StoreKey,
+			stakingtypes.StoreKey,
+			upgradetypes.StoreKey,
 		},
 	}
 }
@@ -370,4 +369,13 @@ func (app *App) assertAllKeysArePresent() {
 			panic(fmt.Sprintf("app version %d is supported by the module manager but has no keys", appVersion))
 		}
 	}
+}
+
+// extractRegisters returns the encoding module registers from the basic
+// manager.
+func extractRegisters(manager sdkmodule.BasicManager) (modules []encoding.ModuleRegister) {
+	for _, module := range manager {
+		modules = append(modules, module)
+	}
+	return modules
 }

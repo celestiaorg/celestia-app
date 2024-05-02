@@ -22,16 +22,19 @@ func (k Keeper) Hooks() Hooks {
 }
 
 func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress) error {
-	// When Validator starts Unbonding, Persist the block height in the store
-	// Later in endblocker, check if there is at least one validator who started
+	if ctx.BlockHeader().Version.App > 1 {
+		// no-op if the app version is greater than 1 because blobstream was disabled in v2.
+		return nil
+	}
+	// When Validator starts Unbonding, Persist the block height in the store.
+	// Later in EndBlocker, check if there is at least one validator who started
 	// unbonding and create a valset request. The reason for creating valset
-	// requests in endblock is to create only one valset request per block, if
-	// multiple validators starts unbonding at same block.
+	// requests in EndBlock is to create only one valset request per block if
+	// multiple validators start unbonding in the same block.
 
-	// this hook IS called for jailing or unbonding triggered by users but it IS
+	// This hook is called for jailing or unbonding triggered by users but it is
 	// NOT called for jailing triggered in the endblocker therefore we call the
 	// keeper function ourselves there.
-
 	h.k.SetLatestUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
 	return nil
 }
@@ -41,6 +44,10 @@ func (h Hooks) BeforeDelegationCreated(_ sdk.Context, _ sdk.AccAddress, _ sdk.Va
 }
 
 func (h Hooks) AfterValidatorCreated(ctx sdk.Context, addr sdk.ValAddress) error {
+	if ctx.BlockHeader().Version.App > 1 {
+		// no-op if the app version is greater than 1 because blobstream was disabled in v2.
+		return nil
+	}
 	defaultEvmAddr := types.DefaultEVMAddress(addr)
 	// This should practically never happen that we have a collision. It may be
 	// bad UX to reject the attempt to create a validator and require the user to
