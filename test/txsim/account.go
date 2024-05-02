@@ -249,7 +249,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 			log.Err(err).
 				Str("address", address.String()).
 				Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
-				Int64("total size of blobs", size).
+				Int64("total byte size of blobs", size).
 				Msg("tx failed")
 
 		}
@@ -275,7 +275,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 			Int64("height", res.Height).
 			Str("address", address.String()).
 			Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
-			Int64("total size of blobs", size).
+			Int64("total byte size of blobs", size).
 			Msg("tx committed")
 
 	} else {
