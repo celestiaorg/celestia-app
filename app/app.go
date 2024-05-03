@@ -34,7 +34,6 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
@@ -81,6 +80,7 @@ import (
 	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
+	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 	"github.com/spf13/cast"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -90,7 +90,8 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-// maccPerms is short for module account permissions.
+// maccPerms is short for module account permissions. It is a map from module
+// account name to a list of permissions for that module account.
 var maccPerms = map[string][]string{
 	authtypes.FeeCollectorName:     nil,
 	distrtypes.ModuleName:          nil,
@@ -108,7 +109,10 @@ const (
 	DefaultInitialVersion = v1
 )
 
-var _ servertypes.Application = (*App)(nil)
+var (
+	_ servertypes.Application = (*App)(nil)
+	_ ibctesting.TestingApp   = (*App)(nil)
+)
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
@@ -568,7 +572,8 @@ func (app *App) SupportedVersions() []uint64 {
 	return app.mm.SupportedVersions()
 }
 
-// versionedKeys returns the keys for the kv stores for a given app version
+// versionedKeys returns a map from moduleName to KV store key for the given app
+// version.
 func (app *App) versionedKeys(appVersion uint64) map[string]*storetypes.KVStoreKey {
 	output := make(map[string]*storetypes.KVStoreKey)
 	if keys, exists := app.keyVersions[appVersion]; exists {
@@ -683,11 +688,8 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 	authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	// Register new tendermint queries routes from grpc-gateway.
 	tmservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
-
 	// Register node gRPC service for grpc-gateway.
 	nodeservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
-
-	// Register the
 	ModuleBasics.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 }
 
@@ -698,7 +700,7 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(clientCtx, app.BaseApp.GRPCQueryRouter(), app.interfaceRegistry, nil)
+	tmservice.RegisterTendermintService(clientCtx, app.BaseApp.GRPCQueryRouter(), app.interfaceRegistry, app.Query)
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context) {
@@ -720,7 +722,7 @@ func (app *App) BlockedParams() [][2]string {
 	}
 }
 
-// initParamsKeeper init params keeper and its subspaces
+// initParamsKeeper initializes the params keeper and its subspaces.
 func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {
 	paramsKeeper := paramskeeper.NewKeeper(appCodec, legacyAmino, key, tkey)
 
@@ -741,17 +743,4 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
-}
-
-// extractRegisters isolates the encoding module registers from the module
-// manager, and appends any solo registers.
-func extractRegisters(m sdkmodule.BasicManager) []encoding.ModuleRegister {
-	// TODO: might be able to use some standard generics in go 1.18
-	s := make([]encoding.ModuleRegister, len(m))
-	i := 0
-	for _, v := range m {
-		s[i] = v
-		i++
-	}
-	return s
 }
