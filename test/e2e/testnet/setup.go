@@ -20,6 +20,7 @@ func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	cfg := app.DefaultConsensusConfig() //
 	//config.DefaultConfig()
 	cfg.TxIndex.Indexer = "kv"
+	cfg.Mempool.MaxTxsBytes = 1024 * 1024 * 1024 // 1GiB
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))

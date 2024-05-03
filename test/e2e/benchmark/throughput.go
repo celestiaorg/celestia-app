@@ -177,7 +177,7 @@ func TwoNodeBigBlock_128MiB() error {
 		CelestiaAppVersion: "pr-3261",
 		TxClientVersion:    "pr-3261",
 		BlobsPerSeq:        6,
-		BlobSequences:      1,
+		BlobSequences:      100,
 		BlobSizes:          "200000",
 		PerPeerBandwidth:   100 * 1024 * 1024,
 		UpgradeHeight:      0,
@@ -189,7 +189,7 @@ func TwoNodeBigBlock_128MiB() error {
 		GovMaxSquareSize:   1024,
 		MaxBlockBytes:      128 * 1024 * 1024,
 		TestDuration:       4 * time.Minute,
-		TxClients:          2,
+		TxClients:          1,
 		LocalTracingType:   "local",
 		PushTrace:          false,
 	}
