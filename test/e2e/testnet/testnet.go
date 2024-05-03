@@ -326,7 +326,7 @@ func (t *Testnet) Start() error {
 	for _, node := range genesisNodes {
 		client, err := node.Client()
 		if err != nil {
-			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
+			return fmt.Errorf("failed to initialize node %s: %w", node.Name, err)
 		}
 		for i := 0; i < 10; i++ {
 			resp, err := client.Status(context.Background())
