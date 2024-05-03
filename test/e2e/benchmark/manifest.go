@@ -13,7 +13,7 @@ import (
 
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
-	TestName     string
+	TestnetName  string
 	ChainID      string
 	TestDuration time.Duration
 	// Number of validators in the testnet

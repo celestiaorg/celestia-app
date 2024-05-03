@@ -14,20 +14,52 @@ import (
 
 const (
 	seed = 42
+
+	toMiB = 1024 * 1024
 )
 
-func main() {
-	if err := TwoNodeBigBlock_128MiB(); err != nil {
-		log.Fatalf("--- ERROR TwoNode test: %v", err.Error())
-	}
+var bigBlockManifest = Manifest{
+	TestnetName: "big-block",
+	ChainID:     "test",
+	Validators:  2,
+	ValidatorResource: testnet.Resources{
+		MemoryRequest: "12Gi",
+		MemoryLimit:   "12Gi",
+		CPU:           "8",
+		Volume:        "20Gi",
+	},
+	TxClientsResource: testnet.Resources{
+		MemoryRequest: "1Gi",
+		MemoryLimit:   "3Gi",
+		CPU:           "2",
+		Volume:        "1Gi",
+	},
+	SelfDelegation:     10000000,
+	CelestiaAppVersion: "pr-3261",
+	TxClientVersion:    "pr-3261",
+	BlobsPerSeq:        6,
+	BlobSequences:      80,
+	BlobSizes:          "200000",
+	PerPeerBandwidth:   100 * toMiB,
+	UpgradeHeight:      0,
+	TimeoutCommit:      11 * time.Second,
+	TimeoutPropose:     10 * time.Second,
+	Mempool:            "v1", // ineffective as it always defaults to v1
+	BroadcastTxs:       true,
+	Prometheus:         true,
+	GovMaxSquareSize:   1024,
+	MaxBlockBytes:      128 * toMiB,
+	TestDuration:       4 * time.Minute,
+	TxClients:          1,
+	LocalTracingType:   "local",
+	PushTrace:          false,
 }
 
-func Run(manifest *Manifest) error {
+func Run(manifest Manifest) error {
 
-	log.Printf("=== RUN %s=== version:%s", manifest.TestName,
-		manifest.CelestiaAppVersion)
+	log.Printf("version:%s", manifest.CelestiaAppVersion)
 	// create a new testnet
-	testNet, err := testnet.New(manifest.TestName, seed,
+	testNet, err := testnet.New(manifest.TestnetName, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
 	testnet.NoError("failed to create testnet", err)
@@ -107,7 +139,7 @@ func Run(manifest *Manifest) error {
 	testnet.NoError("failed to read blockchain", err)
 
 	err = SaveToCSV(extractHeaders(blockchain),
-		fmt.Sprintf("./blockchain_%s.csv", manifest.TestName))
+		fmt.Sprintf("./blockchain_%s.csv", manifest.TestnetName))
 	if err != nil {
 		log.Println("failed to save blockchain headers to a CSV file", err)
 	}
@@ -122,12 +154,11 @@ func Run(manifest *Manifest) error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
-	log.Println("--- PASS ✅: ", manifest.TestName)
 	return nil
 }
-func TwoNodeSimple() error {
+func TwoNodeSimple(_ *log.Logger) error {
 	manifest := Manifest{
-		TestName:           "TwoNodeSimple",
+		TestnetName:        "TwoNodeSimple",
 		ChainID:            "two-node-simple",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
@@ -153,45 +184,30 @@ func TwoNodeSimple() error {
 		PushTrace:          false,
 	}
 
-	return Run(&manifest)
+	return Run(manifest)
 }
 
-func TwoNodeBigBlock_128MiB() error {
-	manifest := Manifest{
-		TestName:   "TwoNodeBigBlock_128MiB",
-		ChainID:    "test-sanaz",
-		Validators: 2,
-		ValidatorResource: testnet.Resources{
-			MemoryRequest: "12Gi",
-			MemoryLimit:   "12Gi",
-			CPU:           "8",
-			Volume:        "20Gi",
-		},
-		TxClientsResource: testnet.Resources{
-			MemoryRequest: "1Gi",
-			MemoryLimit:   "3Gi",
-			CPU:           "2",
-			Volume:        "1Gi",
-		},
-		SelfDelegation:     10000000,
-		CelestiaAppVersion: "pr-3261",
-		TxClientVersion:    "pr-3261",
-		BlobsPerSeq:        6,
-		BlobSequences:      100,
-		BlobSizes:          "200000",
-		PerPeerBandwidth:   100 * 1024 * 1024,
-		UpgradeHeight:      0,
-		TimeoutCommit:      11 * time.Second,
-		TimeoutPropose:     10 * time.Second,
-		Mempool:            "v1", // ineffective as it always defaults to v1
-		BroadcastTxs:       true,
-		Prometheus:         true,
-		GovMaxSquareSize:   1024,
-		MaxBlockBytes:      128 * 1024 * 1024,
-		TestDuration:       4 * time.Minute,
-		TxClients:          1,
-		LocalTracingType:   "local",
-		PushTrace:          false,
-	}
-	return Run(&manifest)
+func TwoNodeBigBlock_8MiB(_ *log.Logger) error {
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_8MiB"
+	manifest.ChainID = "two-node-big-block-8mib"
+	manifest.MaxBlockBytes = 8 * toMiB
+	return Run(manifest)
+}
+
+func TwoNodeBigBlock_32MiB(_ *log.Logger) error {
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_32MiB"
+	manifest.ChainID = "two-node-big-block-32mib"
+	manifest.MaxBlockBytes = 32 * toMiB
+	return Run(manifest)
+}
+
+func TwoNodeBigBlock_128MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_128MiB")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_128MiB"
+	manifest.ChainID = "two-node-big-block-128mib"
+	manifest.MaxBlockBytes = 128 * toMiB
+	return Run(manifest)
 }
