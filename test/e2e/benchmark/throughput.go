@@ -66,14 +66,14 @@ func Run(manifest *Manifest) error {
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints)
+	log.Println("validators GRPC endpoints", gRPCEndpoints[:manifest.TxClients])
 
 	// create tx clients and point them to the validators
 	log.Println("Creating tx clients")
 
 	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
 		manifest.BlobSizes, manifest.BlobsPerSeq,
-		manifest.TxClientsResource, gRPCEndpoints)
+		manifest.TxClientsResource, gRPCEndpoints[:manifest.TxClients])
 	testnet.NoError("failed to create tx clients", err)
 
 	// start the testnet
