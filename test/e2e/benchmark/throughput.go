@@ -24,7 +24,7 @@ var bigBlockManifest = Manifest{
 	Validators:  2,
 	ValidatorResource: testnet.Resources{
 		MemoryRequest: "12Gi",
-		MemoryLimit:   "12Gi",
+		MemoryLimit:   "15Gi",
 		CPU:           "8",
 		Volume:        "20Gi",
 	},
@@ -37,8 +37,8 @@ var bigBlockManifest = Manifest{
 	SelfDelegation:     10000000,
 	CelestiaAppVersion: "pr-3261",
 	TxClientVersion:    "pr-3261",
-	BlobsPerSeq:        6,
-	BlobSequences:      80,
+	BlobsPerSeq:        5,
+	BlobSequences:      10,
 	BlobSizes:          "200000",
 	PerPeerBandwidth:   100 * toMiB,
 	UpgradeHeight:      0,
@@ -50,7 +50,7 @@ var bigBlockManifest = Manifest{
 	GovMaxSquareSize:   1024,
 	MaxBlockBytes:      128 * toMiB,
 	TestDuration:       4 * time.Minute,
-	TxClients:          1,
+	TxClients:          2,
 	LocalTracingType:   "local",
 	PushTrace:          false,
 }
@@ -179,7 +179,7 @@ func TwoNodeSimple(_ *log.Logger) error {
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 		TestDuration:       30 * time.Second,
-		TxClients:          1,
+		TxClients:          2,
 		LocalTracingType:   "local",
 		PushTrace:          false,
 	}
@@ -207,7 +207,7 @@ func TwoNodeBigBlock_128MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_128MiB")
 	manifest := bigBlockManifest
 	manifest.TestnetName = "TwoNodeBigBlock_128MiB"
-	manifest.ChainID = "two-node-big-block-128mib"
+	manifest.ChainID = "test-sanaz" // "two-node-big-block-128mib"
 	manifest.MaxBlockBytes = 128 * toMiB
 	return Run(manifest)
 }
