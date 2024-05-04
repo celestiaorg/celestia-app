@@ -207,7 +207,7 @@ func TwoNodeBigBlock_128MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_128MiB")
 	manifest := bigBlockManifest
 	manifest.TestnetName = "TwoNodeBigBlock_128MiB"
-	manifest.ChainID = "test-sanaz" // "two-node-big-block-128mib"
+	manifest.ChainID = "test"
 	manifest.MaxBlockBytes = 128 * toMiB
 	return Run(manifest)
 }
