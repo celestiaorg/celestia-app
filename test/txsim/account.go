@@ -297,14 +297,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 			Msg("tx committed")
 	}
 
-	} else {
-		log.Info().
-			Int64("height", res.Height).
-			Str("address", address.String()).
-			Str("msgs", msgsToString(op.Msgs)).
-			Msg("tx committed")
-	}
-
 	return nil
 }
 
