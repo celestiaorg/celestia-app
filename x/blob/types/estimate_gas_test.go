@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -40,13 +41,13 @@ func TestPFBGasEstimation(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
 			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), accnts...)
-			addr := testfactory.GetAddress(kr, accnts[0])
-			signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0, appconsts.LatestVersion)
+			// addr := testfactory.GetAddress(kr, accnts[0])
+			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
 			require.NoError(t, err)
 			blobs := blobfactory.ManyRandBlobs(rand, tc.blobSizes...)
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
 			fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-			tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+			tx, _, err := signer.CreatePayForBlobs(context.Background(), string(accnts[0]), blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
 			require.NoError(t, err)
 			blobTx, ok := blob.UnmarshalBlobTx(tx)
 			require.True(t, ok)
@@ -86,12 +87,12 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 		addr := testfactory.GetAddress(kr, accnts[0])
-		signer, err := user.NewSigner(kr, nil, addr, encCfg.TxConfig, testutil.ChainID, 1, 0, appconsts.LatestVersion)
+		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(addr.String(), 0, 1))
 		require.NoError(t, err)
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
 		fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-		tx, err := signer.CreatePayForBlob(blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+		tx, _,  err := signer.CreatePayForBlobs(context.Background(), string(addr), blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
 		require.NoError(t, err)
 		blobTx, ok := blob.UnmarshalBlobTx(tx)
 		require.True(t, ok)

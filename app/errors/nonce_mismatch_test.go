@@ -32,20 +32,23 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 	// set the sequence to an incorrect value
-	signer, err := user.NewSigner(kr, nil, addr, enc.TxConfig, testutil.ChainID, acc.GetAccountNumber(), 2, appconsts.LatestVersion)
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()+1))
 	require.NoError(t, err)
 
 	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
-	msg, err := blob.NewMsgPayForBlobs(signer.Address().String(), appconsts.LatestVersion, b)
+	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.LatestVersion, b)
 	require.NoError(t, err)
 
-	sdkTx, err := signer.CreateTx([]sdk.Msg{msg})
+	rawTx, err := signer.CreateTx([]sdk.Msg{msg})
 	require.NoError(t, err)
 
 	decorator := ante.NewSigVerificationDecorator(testApp.AccountKeeper, encCfg.TxConfig.SignModeHandler())
 	anteHandler := sdk.ChainAnteDecorators(decorator)
+
+	sdkTx, err := signer.DecodeTx(rawTx)
+	require.NoError(t, err)
 
 	// We set simulate to true here to bypass having to initialize the
 	// accounts public key.

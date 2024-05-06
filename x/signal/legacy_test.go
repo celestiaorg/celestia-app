@@ -120,7 +120,7 @@ func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
+	signer, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
@@ -149,7 +149,7 @@ func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
+	signer, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
@@ -178,7 +178,7 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewSignerFromContext(s.cctx, acc)
+	signer, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()

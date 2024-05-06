@@ -86,10 +86,10 @@ func (s *Signer) SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, 
 	return txBuilder.GetTx(), signer, sequence, nil
 }
 
-func (s *Signer) CreatePayForBlobs(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) ([]byte, uint64, error) {
-	acc, exists := s.accounts[account]
+func (s *Signer) CreatePayForBlobs(ctx context.Context, accountName string, blobs []*blob.Blob, opts ...TxOption) ([]byte, uint64, error) {
+	acc, exists := s.accounts[accountName]
 	if !exists {
-		return nil, 0, fmt.Errorf("account %s not found", account)
+		return nil, 0, fmt.Errorf("account %s not found", accountName)
 
 	}
 
@@ -98,7 +98,7 @@ func (s *Signer) CreatePayForBlobs(ctx context.Context, account string, blobs []
 		return nil, 0, err
 	}
 
-	tx, account, sequence, err := s.SignTx([]sdktypes.Msg{msg}, opts...)
+	tx, _, sequence, err := s.SignTx([]sdktypes.Msg{msg}, opts...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -151,19 +151,19 @@ func (s *Signer) findAccount(txbuilder client.TxBuilder) (*Account, error) {
 	return s.accounts[accountName], nil
 }
 
-func (s *Signer) IncrementSequence(account string) error {
-	acc, exists := s.accounts[account]
+func (s *Signer) IncrementSequence(accountName string) error {
+	acc, exists := s.accounts[accountName]
 	if !exists {
-		return fmt.Errorf("account %s does not exist", account)
+		return fmt.Errorf("account %s does not exist", accountName)
 	}
 	acc.sequence++
 	return nil
 }
 
-func (s *Signer) SetSequence(account string, seq uint64) error {
-	acc, exists := s.accounts[account]
+func (s *Signer) SetSequence(accountName string, seq uint64) error {
+	acc, exists := s.accounts[accountName]
 	if !exists {
-		return fmt.Errorf("account %s does not exist", account)
+		return fmt.Errorf("account %s does not exist", accountName)
 	}
 
 	acc.sequence = seq
@@ -178,7 +178,7 @@ func (s *Signer) AddAccount(acc *Account) error {
 
 	addr, err := record.GetAddress()
 	if err != nil {
-		return fmt.Errorf("getting address for key %s: %w", err)
+		return fmt.Errorf("getting address for key %s: %w", acc.pubKey, err)
 	}
 
 	pk, err := record.GetPubKey()

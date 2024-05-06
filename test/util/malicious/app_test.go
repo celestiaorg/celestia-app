@@ -78,10 +78,10 @@ func TestMaliciousTestNode(t *testing.T) {
 	// submit a multiblob tx where each blob is using a random namespace. This
 	// will result in the first two blobs being swapped in the square as per the
 	// malicious square builder.
-	signer, err := testnode.NewSignerFromContext(cctx, accounts[0])
+	client, err := testnode.NewTxClientFromContext(cctx)
 	require.NoError(t, err)
 	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
-	txres, err := signer.SubmitPayForBlob(cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
+	txres, err := client.SubmitPayForBlob(cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)
 

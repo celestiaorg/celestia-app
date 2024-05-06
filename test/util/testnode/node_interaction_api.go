@@ -239,7 +239,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	}
 
 	// use the key for accounts[i] to create a singer used for a single PFB
-	signer, err := user.NewSigner(c.Keyring, c.GRPCClient, addr, c.TxConfig, c.ChainID, acc, seq, appconsts.LatestVersion)
+	signer, err := user.NewSigner(c.Keyring, c.TxConfig, c.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc, seq))
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
 	opts := blobfactory.FeeTxOpts(gas)
 
-	blobTx, err := signer.CreatePayForBlob([]*blob.Blob{b}, opts...)
+	blobTx, _, err := signer.CreatePayForBlobs(c.GoContext(), addr.String(), []*blob.Blob{b}, opts...)
 	if err != nil {
 		return nil, err
 	}

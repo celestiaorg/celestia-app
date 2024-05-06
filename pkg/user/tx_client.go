@@ -230,6 +230,7 @@ func (s *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ..
 }
 
 func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string, sequence uint64) (*sdktypes.TxResponse, error) {
+	fmt.Println("broadcastTx called")
 	txClient := sdktx.NewServiceClient(s.grpc)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -241,7 +242,9 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("broadcasttx got here")
 	if resp.TxResponse.Code != abci.CodeTypeOK {
+		fmt.Println(resp.TxResponse, "TX RESPONSE")
 		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 	}
 

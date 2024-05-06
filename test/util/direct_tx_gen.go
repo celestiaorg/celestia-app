@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"context"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -47,7 +48,7 @@ func RandBlobTxsWithAccounts(
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
-		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, acc.GetAccountNumber(), acc.GetSequence(), appconsts.LatestVersion)
+		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(addr.String(), acc.GetAccountNumber(), acc.GetSequence()))
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -66,7 +67,7 @@ func RandBlobTxsWithAccounts(
 		}
 
 		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
-		tx, err := signer.CreatePayForBlob(blobs, opts...)
+		tx, _, err := signer.CreatePayForBlobs(context.Background(), addr.String(), blobs, opts...)
 		require.NoError(t, err)
 		txs[i] = tx
 	}
@@ -97,12 +98,13 @@ func RandBlobTxsWithManualSequence(
 	t.Helper()
 	require.Greater(t, size, 0)
 	require.Greater(t, blobCount, 0)
-
+	
 	opts := blobfactory.DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
-		signer, err := user.NewSigner(kr, nil, addr, cfg, chainid, accountNum, sequence, appconsts.LatestVersion)
+		acc := user.NewAccount(addr.String(), accountNum, sequence)
+		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, acc)
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -131,22 +133,20 @@ func RandBlobTxsWithManualSequence(
 			}
 			require.NoError(t, builder.SetMsgs(msg))
 			err := builder.SetSignatures(signing.SignatureV2{
-				PubKey: signer.PubKey(),
+				PubKey: acc.PubKey(),
 				Data: &signing.SingleSignatureData{
 					SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 					Signature: []byte("invalid signature"),
 				},
-				Sequence: signer.LocalSequence(),
+				Sequence: acc.Sequence(),
 			})
 			require.NoError(t, err)
 
-			tx = builder.GetTx()
+			tx , err =  signer.EncodeTx(builder.GetTx())
 			require.NoError(t, err)
 		}
-		rawTx, err := signer.EncodeTx(tx)
-		require.NoError(t, err)
 
-		cTx, err := blob.MarshalBlobTx(rawTx, blobs...)
+		cTx, err := blob.MarshalBlobTx(tx, blobs...)
 		if err != nil {
 			panic(err)
 		}
@@ -212,15 +212,13 @@ func SendTxWithManualSequence(
 	opts ...user.TxOption,
 ) coretypes.Tx {
 	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
-	signer, err := user.NewSigner(kr, nil, fromAddr, cfg, chainid, accountNum, sequence, appconsts.LatestVersion)
+	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(fromAddr.String(), accountNum, sequence))
 	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
-	stx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
 
-	rawTx, err := signer.EncodeTx(stx)
-	require.NoError(t, err)
 	return rawTx
 }
 
