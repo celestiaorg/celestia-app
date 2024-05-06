@@ -542,10 +542,10 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.37.0/go.mod h1:vByNa/Fchek0KZUgG5wEsl7iFsiviAYKRtgrQfcJqHg=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240424215325-ea717346f3ae h1:IwfUVJRQk0ut1RNhxzI4yU/Q9jAUHWG/XnKTo+eWgeM=
-github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240424215325-ea717346f3ae/go.mod h1:K5yUTQ8qQYBpQlwg8QI0hCSOyY/QFaqrf6+TXgviaa4=
-github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240506082423-62c48d76efd1 h1:l8/zHB/MJ/LftbYNDdzDo5wLJxSd8QgHlj+sqJMt5/I=
-github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240506082423-62c48d76efd1/go.mod h1:fRIcS+rBP/0EE3dMItgSdfDBwomAga36KcFEYOW4xnc=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240506082927-42e7eae49487 h1:2EeeFiYxjq082e0m4qisLS23+KwP7/B+riqLnNbWlSo=
+github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240506082927-42e7eae49487/go.mod h1:9QWk8fgwahTmLGGl/XdZ9/f1BvcnY0O2i0yGSXSmGGs=
+github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240506095830-ee312e841838 h1:40STYb0rI2soH7Dia2pi0VR+fePkwWRjS5FHoD1wbts=
+github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240506095830-ee312e841838/go.mod h1:fRIcS+rBP/0EE3dMItgSdfDBwomAga36KcFEYOW4xnc=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16 h1:9U9UthIJSOyVjabD5PkD6aczvqlWOyAFTOXw0duPT5k=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16/go.mod h1:Tvsc3YnqvflXTYC8xIy/Q07Es95xZ1pZC/imoKogtbg=
 github.com/celestiaorg/go-square v1.0.0-rc0 h1:QtYyGICIWAx7t9k29s28hpZa8CjbDOZv3fgKSEAt7JI=
