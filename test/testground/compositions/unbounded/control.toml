@@ -5,26 +5,26 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 100
+total_instances = 50
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "t-control-2"
+chain_id = "100l-nw-9"
 timeout = "50m"
 halt_height = "2000"
 latency = "100"
 random_latency = "true"
 bandwidth = "1Gb"
-validators = "2"
+validators = "50"
 topology = "seed"
 pex = "true"
-timeout_propose = "120s"
+timeout_propose = "80s"
 timeout_commit = "5s"
 per_peer_bandwidth = "5Mb"
 blob_sequences = "2"
-blob_sizes = "800000"
+blob_sizes = "1000000"
 blobs_per_sequence = "1"
 inbound_peer_count = "40"
 outbound_peer_count = "10"
@@ -37,20 +37,21 @@ tracing_token = ""
 tracing_url = ""
 experiment = "unbounded"
 
+
 [[groups]]
 id = "validators"
 builder = "docker:generic"
 [groups.resources]
-memory = "12Gi"
-cpu = "8"
+memory = "11Gi"
+cpu = "7"
 [groups.instances]
-count = 100
+count = 50
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.22.2"
 enable_go_build_cache = true
 enabled = true
-go_version = "1.22.2"
+go_version = "1.22"
 [groups.build]
 [groups.run]
 artifact = ""

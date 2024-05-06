@@ -10,6 +10,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/user"
+	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -43,7 +44,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 	runenv.RecordMessage("got packets, using parts for the genesis")
 
 	// create Genesis and distribute it to all nodes
-	genesis, err := l.GenesisEvent(l.params, packets)
+	genesis, err := l.GenesisEvent(runenv, l.params, packets)
 	if err != nil {
 		return err
 	}
@@ -138,16 +139,17 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	switch l.params.Experiment {
 	case UnboundedBlockSize:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 10)
+		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 20)
 		if err != nil {
 			runenv.RecordMessage(fmt.Sprintf("error unbounded block size test: %v", err))
 		}
 	case ConsistentFill:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
+		args, err := fillBlocks(ctx, runenv, initCtx, time.Minute*20)
 		if err != nil {
 			runenv.RecordMessage(fmt.Sprintf("error consistent fill block size test: %v", err))
 		}
+		go l.RunTxSim(ctx, args)
 	default:
 		return fmt.Errorf("unknown experiment %s", l.params.Experiment)
 	}
@@ -191,7 +193,7 @@ func (l *Leader) Retro(ctx context.Context, runenv *runtime.RunEnv, _ *run.InitC
 	return nil
 }
 
-func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
+func (l *Leader) GenesisEvent(runevn *runtime.RunEnv, params *Params, packets []PeerPacket) (*coretypes.GenesisDoc, error) {
 	pubKeys := make([]cryptotypes.PubKey, 0)
 	addrs := make([]string, 0)
 	gentxs := make([]json.RawMessage, 0, len(packets))
@@ -205,6 +207,7 @@ func (l *Leader) GenesisEvent(params *Params, packets []PeerPacket) (*coretypes.
 		addrs = append(addrs, packet.GenesisAccounts...)
 		if packet.GroupID == ValidatorGroupID {
 			gentxs = append(gentxs, packet.GenTx)
+			runevn.RecordMessage(fmt.Sprintf("leader: added gentx %s", packet.PeerID))
 		}
 	}
 
@@ -300,4 +303,10 @@ func (l *Leader) subscribeAndRecordBlocks(ctx context.Context, runenv *runtime.R
 			return nil
 		}
 	}
+}
+
+func (l *Leader) RunTxSim(ctx context.Context, c RunTxSimCommandArgs) error {
+	grpcEndpoint := "127.0.0.1:9090"
+	opts := txsim.DefaultOptions().UseFeeGrant().SuppressLogs()
+	return txsim.Run(ctx, grpcEndpoint, l.kr, l.ecfg, opts, c.Sequences()...)
 }

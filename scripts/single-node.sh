@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # Stop script execution if an error is encountered
-set -o errexit
+#set -o errexit
 # Stop script execution if an undefined variable is used
-set -o nounset
+#set -o nounset
 
 CHAIN_ID="private"
 KEY_NAME="validator"

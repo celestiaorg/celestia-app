@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.22.2
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240406212441-9bd8bdb7d635
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240424215325-ea717346f3ae
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
@@ -154,14 +154,12 @@ require (
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/rs/cors v1.8.3 // indirect
 	github.com/rs/zerolog v1.32.0 // indirect
-	github.com/sagikazarmark/locafero v0.4.0 // indirect
-	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.6+incompatible // indirect
-	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
+	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.18.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
@@ -224,6 +222,7 @@ replace (
 	github.com/go-kit/kit => github.com/evan-forbes/kit v0.0.0-20240305223840-a93fc52138c3
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
+	github.com/spf13/viper => github.com/spf13/viper v1.15.0
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240406212152-146d4d135a92
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240424212359-bf1d20b73558
 )

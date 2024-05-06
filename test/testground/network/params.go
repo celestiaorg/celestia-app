@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -16,12 +17,13 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
 )
 
 func init() {
-	consensus.UseWAL = true
+	consensus.UseWAL = false
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 }
@@ -186,8 +188,9 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Mempool.MaxGossipDelay = 20 * time.Second
 	cmtcfg.Instrumentation.TraceType = "local"
 	cmtcfg.Instrumentation.TracePushConfig = "s3.json"
-	cmtcfg.Instrumentation.TraceBufferSize = 1000
-	cmtcfg.Instrumentation.TracePushConfig = ""
+	cmtcfg.Instrumentation.TraceBufferSize = 2000
+	cmtcfg.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
+	cmtcfg.Instrumentation.TracePullAddress = ""
 	return cmtcfg
 }
 
