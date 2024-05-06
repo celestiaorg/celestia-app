@@ -2,7 +2,6 @@ package user_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -20,35 +19,31 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
-func TestSignerTestSuite(t *testing.T) {
+func TestTxClientTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode.")
 	}
-	suite.Run(t, new(SignerTestSuite))
+	suite.Run(t, new(TxClientTestSuite))
 }
 
-type SignerTestSuite struct {
+type TxClientTestSuite struct {
 	suite.Suite
 
 	ctx    testnode.Context
 	encCfg encoding.Config
-	signer *user.Signer
+	signer *user.TxClient
 }
 
-func (s *SignerTestSuite) SetupSuite() {
+func (s *TxClientTestSuite) SetupSuite() {
 	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.ctx, _, _ = testnode.NewNetwork(s.T(), testnode.DefaultConfig().WithFundedAccounts("a"))
 	_, err := s.ctx.WaitForHeight(1)
 	s.Require().NoError(err)
-	rec, err := s.ctx.Keyring.Key("a")
-	s.Require().NoError(err)
-	addr, err := rec.GetAddress()
-	s.Require().NoError(err)
-	s.signer, err = user.SetupSigner(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, addr, s.encCfg, user.WithGasMultiplier(1.2))
+	s.signer, err = user.SetupTxClient(s.ctx.GoContext(), s.ctx.Keyring, s.ctx.GRPCClient, s.encCfg, user.WithGasMultiplier(1.2))
 	s.Require().NoError(err)
 }
 
-func (s *SignerTestSuite) TestSubmitPayForBlob() {
+func (s *TxClientTestSuite) TestSubmitPayForBlob() {
 	t := s.T()
 	blobs := blobfactory.ManyRandBlobs(rand.NewRand(), 1e3, 1e4)
 	fee := user.SetFee(1e6)
@@ -60,17 +55,18 @@ func (s *SignerTestSuite) TestSubmitPayForBlob() {
 	require.EqualValues(t, 0, resp.Code)
 }
 
-func (s *SignerTestSuite) TestSubmitTx() {
+func (s *TxClientTestSuite) TestSubmitTx() {
 	t := s.T()
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	addr := s.signer.DefaultAddress()
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 	resp, err := s.signer.SubmitTx(s.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, resp.Code)
 }
 
-func (s *SignerTestSuite) TestConfirmTx() {
+func (s *TxClientTestSuite) TestConfirmTx() {
 	t := s.T()
 
 	fee := user.SetFee(1e6)
@@ -92,8 +88,9 @@ func (s *SignerTestSuite) TestConfirmTx() {
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
-		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
+		addr := s.signer.DefaultAddress()
+		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		resp, err := s.signer.BroadcastTx(s.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		ctx, cancel := context.WithTimeout(s.ctx.GoContext(), 30*time.Second)
@@ -105,9 +102,10 @@ func (s *SignerTestSuite) TestConfirmTx() {
 
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
 		balance := s.queryCurrentBalance(t)
+		addr := s.signer.DefaultAddress()
 		// Create a msg send with out of balance, ensure this tx fails
-		msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
-		resp, err := s.submitTxWithoutConfirm([]sdk.Msg{msg}, fee, gas)
+		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
+		resp, err := s.signer.BroadcastTx(s.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		resp, err = s.signer.ConfirmTx(s.ctx.GoContext(), resp.TxHash)
@@ -116,8 +114,9 @@ func (s *SignerTestSuite) TestConfirmTx() {
 	})
 }
 
-func (s *SignerTestSuite) TestGasEstimation() {
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+func (s *TxClientTestSuite) TestGasEstimation() {
+	addr := s.signer.DefaultAddress()
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 	gas, err := s.signer.EstimateGas(s.ctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), gas, uint64(0))
@@ -127,11 +126,12 @@ func (s *SignerTestSuite) TestGasEstimation() {
 // based on the fee provided in the tx instead of the gas used by the tx. This
 // behavior leads to poor UX because tx submitters must over-estimate the amount
 // of gas that their tx will consume and they are not refunded for the excess.
-func (s *SignerTestSuite) TestGasConsumption() {
+func (s *TxClientTestSuite) TestGasConsumption() {
 	t := s.T()
 
 	utiaToSend := int64(1)
-	msg := bank.NewMsgSend(s.signer.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
+	addr := s.signer.DefaultAddress()
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
 
 	gasPrice := int64(1)
 	gasLimit := uint64(1e6)
@@ -158,25 +158,10 @@ func (s *SignerTestSuite) TestGasConsumption() {
 	require.Less(t, gasUsedBasedDeduction, int64(fee))
 }
 
-func (s *SignerTestSuite) queryCurrentBalance(t *testing.T) int64 {
+func (s *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 	balanceQuery := bank.NewQueryClient(s.ctx.GRPCClient)
-	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: s.signer.Address().String()})
+	addr := s.signer.DefaultAddress()
+	balanceResp, err := balanceQuery.AllBalances(s.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: addr.String()})
 	require.NoError(t, err)
 	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
-}
-
-func (s *SignerTestSuite) submitTxWithoutConfirm(msgs []sdk.Msg, opts ...user.TxOption) (*sdk.TxResponse, error) {
-	txBytes, err := s.signer.CreateTx(msgs, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := s.signer.BroadcastTx(s.ctx.GoContext(), txBytes)
-	if err != nil {
-		return nil, err
-	}
-	if resp.Code != 0 {
-		return resp, fmt.Errorf("tx failed with code %d: %s", resp.Code, resp.RawLog)
-	}
-	return resp, nil
 }

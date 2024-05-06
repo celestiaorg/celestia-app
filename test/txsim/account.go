@@ -1,7 +1,6 @@
 package txsim
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -35,11 +34,11 @@ type AccountManager struct {
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
-	master       *user.Signer
+	txClient     *user.TxClient
 	balance      uint64
 	latestHeight uint64
 	lastUpdated  time.Time
-	subaccounts  map[string]*user.Signer
+	subaccounts  int
 }
 
 func NewAccountManager(
@@ -62,7 +61,6 @@ func NewAccountManager(
 
 	am := &AccountManager{
 		keys:        keys,
-		subaccounts: make(map[string]*user.Signer),
 		encCfg:      encCfg,
 		pending:     make([]*account, 0),
 		conn:        conn,
@@ -144,13 +142,13 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	am.master, err = user.SetupSigner(ctx, am.keys, am.conn, masterAddress, am.encCfg)
+	am.txClient, err = user.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
 	if err != nil {
 		return err
 	}
 
 	log.Info().
-		Str("address", am.master.Address().String()).
+		Str("address", masterAddress.String()).
 		Uint64("balance", am.balance).
 		Msg("set master account")
 
@@ -217,11 +215,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		}
 	}
 
-	signer, err := am.getSubAccount(address)
-	if err != nil {
-		return err
-	}
-
 	opts := make([]user.TxOption, 0)
 	if op.GasLimit == 0 {
 		opts = append(opts, user.SetGasLimit(DefaultGasLimit), user.SetFee(defaultFee))
@@ -235,14 +228,17 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	if am.useFeegrant {
-		opts = append(opts, user.SetFeeGranter(am.master.Address()))
+		opts = append(opts, user.SetFeeGranter(am.txClient.DefaultAddress()))
 	}
 
-	var res *types.TxResponse
+	var (
+		res *types.TxResponse
+		err error
+	)
 	if len(op.Blobs) > 0 {
-		res, err = signer.SubmitPayForBlob(ctx, op.Blobs, opts...)
+		res, err = am.txClient.SubmitPayForBlob(ctx, op.Blobs, opts...)
 	} else {
-		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
+		res, err = am.txClient.SubmitTx(ctx, op.Msgs, opts...)
 	}
 	if err != nil {
 		return err
@@ -277,7 +273,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 
 		if am.useFeegrant {
 			// create a feegrant message so that the master account pays for all the fees of the sub accounts
-			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.master.Address(), acc.address)
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.txClient.DefaultAddress(), acc.address)
 			if err != nil {
 				return fmt.Errorf("error creating feegrant message: %w", err)
 			}
@@ -285,7 +281,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 			gasLimit += FeegrantGasLimit
 		}
 
-		bankMsg := bank.NewMsgSend(am.master.Address(), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
+		bankMsg := bank.NewMsgSend(am.txClient.DefaultAddress(), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
 		msgs = append(msgs, bankMsg)
 		gasLimit += SendGasLimit
 	}
@@ -295,23 +291,12 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 		return fmt.Errorf("error funding accounts: %w", err)
 	}
 
-	// check that the account now exists
+	// print the new accounts
 	for _, acc := range am.pending {
-		signer, err := user.SetupSigner(ctx, am.keys, am.conn, acc.address, am.encCfg)
-		if err != nil {
-			return err
-		}
-
-		signer.SetPollTime(am.pollTime)
-
-		// set the account
-		am.mtx.Lock()
-		am.subaccounts[acc.address.String()] = signer
-		am.mtx.Unlock()
+		am.subaccounts++
 		log.Info().
 			Str("address", acc.address.String()).
 			Uint64("balance", acc.balance).
-			Uint64("account number", signer.AccountNumber()).
 			Msg("initialized account")
 	}
 
@@ -330,19 +315,6 @@ func (am *AccountManager) getBalance(ctx context.Context, address types.AccAddre
 		return 0, fmt.Errorf("error getting balance for %s: %w", address.String(), err)
 	}
 	return balanceResp.GetBalance().Amount.Uint64(), nil
-}
-
-func (am *AccountManager) getSubAccount(address types.AccAddress) (*user.Signer, error) {
-	am.mtx.Lock()
-	defer am.mtx.Unlock()
-	signer, exists := am.subaccounts[address.String()]
-	if !exists {
-		if bytes.Equal(am.master.Address(), address) {
-			return am.master, nil
-		}
-		return nil, fmt.Errorf("account %s does not exist", address)
-	}
-	return signer, nil
 }
 
 func (am *AccountManager) waitDelay(ctx context.Context, blocks uint64) error {
@@ -394,7 +366,7 @@ func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 func (am *AccountManager) nextAccountName() string {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
-	return accountName(len(am.pending) + len(am.subaccounts))
+	return accountName(len(am.pending) + am.subaccounts)
 }
 
 type account struct {

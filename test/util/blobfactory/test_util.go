@@ -3,6 +3,7 @@ package blobfactory
 import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -41,7 +42,7 @@ func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
 		Amount: sdk.NewInt(amount),
 	}
 
-	addr := signer.Address()
+	addr := signer.Account(testfactory.TestAccName).Address()
 	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(amountCoin))
 
 	tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
@@ -49,11 +50,7 @@ func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
 		panic(err)
 	}
 
-	rawTx, err := signer.EncodeTx(tx)
-	if err != nil {
-		panic(err)
-	}
-	return rawTx
+	return tx
 }
 
 // GenerateRandomAmount generates a random amount for a Send transaction.
