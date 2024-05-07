@@ -100,7 +100,7 @@ func RandBlobTxsRandomlySized(signer *user.Signer, rand *tmrand.Rand, count, max
 			blobCount = 1
 		}
 		_, blobs := RandMsgPayForBlobsWithSigner(rand, testfactory.TestAccName, size, blobCount)
-		cTx, _, err := signer.CreatePayForBlobs(context.Background(), testfactory.TestAccName, blobs, opts...)
+		cTx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, opts...)
 		if err != nil {
 			panic(err)
 		}
@@ -139,7 +139,6 @@ func RandBlobTxsWithAccounts(
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		client, err := user.SetupTxClient(context.Background(), kr, conn, enc)
-
 		if err != nil {
 			panic(err)
 		}
@@ -160,7 +159,7 @@ func RandBlobTxsWithAccounts(
 		}
 
 		_, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), randomizedSize, randomizedBlobCount)
-		cTx, _, err := client.Signer().CreatePayForBlobs(context.Background(), accounts[0], blobs, opts...)
+		cTx, _, err := client.Signer().CreatePayForBlobs(accounts[0], blobs, opts...)
 		if err != nil {
 			panic(err)
 		}
@@ -175,7 +174,7 @@ func RandBlobTxs(signer *user.Signer, rand *tmrand.Rand, count, blobsPerTx, size
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
 		_, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), size, blobsPerTx)
-		tx, _, err := signer.CreatePayForBlobs(context.Background(), testfactory.TestAccName, blobs, DefaultTxOpts()...)
+		tx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)
 		}
@@ -235,7 +234,7 @@ func ManyMultiBlobTx(
 		addr := testfactory.GetAddress(kr, acc)
 		signer, err := user.NewSigner(kr, enc, chainid, appconsts.LatestVersion, user.NewAccount(addr.String(), accInfos[i].AccountNum, accInfos[i].Sequence))
 		require.NoError(t, err)
-		txs[i], _, err = signer.CreatePayForBlobs(context.Background(), acc, blobs[i], opts...)
+		txs[i], _, err = signer.CreatePayForBlobs(acc, blobs[i], opts...)
 		require.NoError(t, err)
 	}
 	return txs
@@ -277,8 +276,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 	for i := 0; i < len(namespaces); i++ {
 		// TODO: this can be refactored as the signer only needs the blobs and can construct the PFB itself
 		_, b := RandMsgPayForBlobsWithNamespaceAndSigner(testfactory.TestAccName, namespaces[i], sizes[i])
-		cTx, _, err := signer.CreatePayForBlobs(context.Background(), testfactory.TestAccName, []*blob.Blob{b}, DefaultTxOpts()...)
-
+		cTx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, []*blob.Blob{b}, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)
 		}
@@ -337,7 +335,7 @@ func RandMultiBlobTxsSameSigner(t *testing.T, rand *tmrand.Rand, signer *user.Si
 		blobsPerPfb := GenerateRandomBlobCount(rand)
 		blobSizes := GenerateRandomBlobSizes(blobsPerPfb, rand)
 		blobs := ManyRandBlobs(rand, blobSizes...)
-		pfbTxs[i], _, err = signer.CreatePayForBlobs(context.Background(), testfactory.TestAccName, blobs)
+		pfbTxs[i], _, err = signer.CreatePayForBlobs(testfactory.TestAccName, blobs)
 		require.NoError(t, err)
 	}
 	return pfbTxs

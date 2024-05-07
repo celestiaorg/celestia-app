@@ -26,7 +26,7 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	rand1.Seed(1)
 	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxsSameSigner(t, rand1, signer, pfbCount)
 
-	signer.SetSequence(testfactory.TestAccName, 0)
+	require.NoError(t, signer.SetSequence(testfactory.TestAccName, 0))
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
 	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)

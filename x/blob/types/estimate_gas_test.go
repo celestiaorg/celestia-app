@@ -1,7 +1,6 @@
 package types_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -47,7 +46,7 @@ func TestPFBGasEstimation(t *testing.T) {
 			blobs := blobfactory.ManyRandBlobs(rand, tc.blobSizes...)
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
 			fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-			tx, _, err := signer.CreatePayForBlobs(context.Background(), string(accnts[0]), blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
 			require.NoError(t, err)
 			blobTx, ok := blob.UnmarshalBlobTx(tx)
 			require.True(t, ok)
@@ -92,7 +91,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
 		fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-		tx, _,  err := signer.CreatePayForBlobs(context.Background(), string(addr), blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+		tx, _, err := signer.CreatePayForBlobs(addr.String(), blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
 		require.NoError(t, err)
 		blobTx, ok := blob.UnmarshalBlobTx(tx)
 		require.True(t, ok)

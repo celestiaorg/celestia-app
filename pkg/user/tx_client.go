@@ -99,6 +99,7 @@ func NewTxClient(
 
 	txClient := &TxClient{
 		signer:         signer,
+		registry:       registry,
 		grpc:           conn,
 		pollTime:       DefaultPollTime,
 		gasMultiplier:  DefaultGasMultiplier,
@@ -193,7 +194,7 @@ func (s *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account s
 		return nil, err
 	}
 
-	txBytes, seqNum, err := s.signer.CreatePayForBlobs(ctx, account, blobs, opts...)
+	txBytes, seqNum, err := s.signer.CreatePayForBlobs(account, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}

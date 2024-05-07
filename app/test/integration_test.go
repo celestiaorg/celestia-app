@@ -63,7 +63,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	for _, acc := range s.accounts {
 		addr := testfactory.GetAddress(s.cctx.Keyring, acc)
-		_, _, err := user.QueryAccount(s.cctx.GoContext(), s.cctx.GRPCClient, s.cctx.InterfaceRegistry,  addr)
+		_, _, err := user.QueryAccount(s.cctx.GoContext(), s.cctx.GRPCClient, s.cctx.InterfaceRegistry, addr)
 		require.NoError(t, err)
 	}
 }

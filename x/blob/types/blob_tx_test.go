@@ -2,7 +2,6 @@ package types_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -145,7 +144,6 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "complex transaction with one send and one pfb",
 			getTx: func() *blob.BlobTx {
-
 				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
 				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
@@ -172,9 +170,10 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "normal transaction with two blobs w/ different namespaces",
 			getTx: func() *blob.BlobTx {
-				rawBtx, _, err := signer.CreatePayForBlobs(context.Background(), acc.Name(), blobfactory.RandBlobsWithNamespace(
-					[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
-					[]int{100, 100}))
+				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
+					blobfactory.RandBlobsWithNamespace(
+						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]int{100, 100}))
 				require.NoError(t, err)
 				btx, isBlobTx := blob.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -185,7 +184,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "normal transaction with two large blobs w/ different namespaces",
 			getTx: func() *blob.BlobTx {
-				rawBtx, _, err := signer.CreatePayForBlobs(context.Background(), acc.Name(),
+				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100000, 1000000}),
@@ -201,7 +200,7 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "normal transaction with two blobs w/ same namespace",
 			getTx: func() *blob.BlobTx {
 				ns := namespace.RandomBlobNamespace()
-				rawBtx, _, err := signer.CreatePayForBlobs(context.Background(), acc.Name(),
+				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{ns, ns},
 						[]int{100, 100}),
@@ -224,7 +223,7 @@ func TestValidateBlobTx(t *testing.T) {
 					sizes[i] = 100
 					namespaces[i] = ns
 				}
-				rawBtx, _, err := signer.CreatePayForBlobs(context.Background(), acc.Name(),
+				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
 					blobfactory.RandBlobsWithNamespace(
 						namespaces,
 						sizes,

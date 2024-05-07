@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"context"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -67,7 +66,7 @@ func RandBlobTxsWithAccounts(
 		}
 
 		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
-		tx, _, err := signer.CreatePayForBlobs(context.Background(), addr.String(), blobs, opts...)
+		tx, _, err := signer.CreatePayForBlobs(addr.String(), blobs, opts...)
 		require.NoError(t, err)
 		txs[i] = tx
 	}
@@ -98,7 +97,7 @@ func RandBlobTxsWithManualSequence(
 	t.Helper()
 	require.Greater(t, size, 0)
 	require.Greater(t, blobCount, 0)
-	
+
 	opts := blobfactory.DefaultTxOpts()
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
@@ -142,7 +141,7 @@ func RandBlobTxsWithManualSequence(
 			})
 			require.NoError(t, err)
 
-			tx , err =  signer.EncodeTx(builder.GetTx())
+			tx, err = signer.EncodeTx(builder.GetTx())
 			require.NoError(t, err)
 		}
 

@@ -1,7 +1,6 @@
 package user
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -86,11 +85,10 @@ func (s *Signer) SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, 
 	return txBuilder.GetTx(), signer, sequence, nil
 }
 
-func (s *Signer) CreatePayForBlobs(ctx context.Context, accountName string, blobs []*blob.Blob, opts ...TxOption) ([]byte, uint64, error) {
+func (s *Signer) CreatePayForBlobs(accountName string, blobs []*blob.Blob, opts ...TxOption) ([]byte, uint64, error) {
 	acc, exists := s.accounts[accountName]
 	if !exists {
 		return nil, 0, fmt.Errorf("account %s not found", accountName)
-
 	}
 
 	msg, err := blobtypes.NewMsgPayForBlobs(acc.address.String(), s.appVersion, blobs...)

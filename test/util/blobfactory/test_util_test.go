@@ -29,7 +29,7 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	rand.Seed(1)
 	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand, signer, normalTxCount)
 
-	signer.SetSequence(testfactory.TestAccName, 0)
+	require.NoError(t, signer.SetSequence(testfactory.TestAccName, 0))
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
 	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand2, signer, normalTxCount)
