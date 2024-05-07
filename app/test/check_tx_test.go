@@ -14,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
@@ -113,7 +112,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[4], encCfg.TxConfig, 5)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(testfactory.TestAccName).Address().String(), 10_000, 10)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[4]).Address().String(), 10_000, 10)
 				tx, _, err := signer.CreatePayForBlobs(accs[4], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -125,7 +124,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[5], encCfg.TxConfig, 6)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(testfactory.TestAccName).Address().String(), 1_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[5]).Address().String(), 1_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[5], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -137,7 +136,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[6], encCfg.TxConfig, 7)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(testfactory.TestAccName).Address().String(), 10_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[6]).Address().String(), 10_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[6], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -149,7 +148,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[7], encCfg.TxConfig, 8)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(testfactory.TestAccName).Address().String(), 100_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[7]).Address().String(), 100_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[7], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -161,7 +160,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[8], encCfg.TxConfig, 9)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(testfactory.TestAccName).Address().String(), 1_000_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[8]).Address().String(), 1_000_000, 1)
 				// TODO: go back to the sequences here and handle it
 				tx, _, err := signer.CreatePayForBlobs(accs[8], blobs, opts...)
 				require.NoError(t, err)
@@ -174,7 +173,7 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[9], encCfg.TxConfig, 10)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(testfactory.TestAccName).Address().String(), 10_000_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 10_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[9], blobs, opts...)
 				require.NoError(t, err)
 				return tx

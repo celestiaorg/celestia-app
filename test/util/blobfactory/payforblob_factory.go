@@ -3,6 +3,7 @@ package blobfactory
 import (
 	"bytes"
 	"context"
+
 	// "fmt"
 
 	// "fmt"
@@ -159,7 +160,7 @@ func RandBlobTxsWithAccounts(
 		}
 
 		_, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), randomizedSize, randomizedBlobCount)
-		cTx, _, err := client.Signer().CreatePayForBlobs(accounts[0], blobs, opts...)
+		cTx, _, err := client.Signer().CreatePayForBlobs(accounts[i], blobs, opts...)
 		if err != nil {
 			panic(err)
 		}
@@ -274,9 +275,9 @@ func RandBlobTxsWithNamespacesAndSigner(
 	// addr := signer.Account(testfactory.TestAccAddr).Address()
 	txs := make([]coretypes.Tx, len(namespaces))
 	for i := 0; i < len(namespaces); i++ {
-		// TODO: this can be refactored as the signer only needs the blobs and can construct the PFB itself
-		_, b := RandMsgPayForBlobsWithNamespaceAndSigner(testfactory.TestAccName, namespaces[i], sizes[i])
-		cTx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, []*blob.Blob{b}, DefaultTxOpts()...)
+		acc := signer.Accounts()[0]
+		_, b := RandMsgPayForBlobsWithNamespaceAndSigner(acc.Address().String(), namespaces[i], sizes[i])
+		cTx, _, err := signer.CreatePayForBlobs(acc.Name(), []*blob.Blob{b}, DefaultTxOpts()...)
 		if err != nil {
 			panic(err)
 		}

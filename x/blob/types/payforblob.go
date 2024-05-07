@@ -52,7 +52,7 @@ func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*Msg
 	}
 	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(version))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating commitments: %w", err)
 	}
 
 	namespaceVersions, namespaceIDs, sizes, shareVersions := ExtractBlobComponents(blobs)
@@ -60,7 +60,7 @@ func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*Msg
 	for i := range namespaceVersions {
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("creating namespace: %w", err)
 		}
 		namespaces = append(namespaces, namespace)
 	}

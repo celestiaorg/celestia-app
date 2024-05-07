@@ -137,6 +137,16 @@ func (s *Signer) Account(name string) *Account {
 	return s.accounts[name]
 }
 
+func (s *Signer) Accounts() []*Account {
+	accounts := make([]*Account, len(s.accounts))
+	i := 0
+	for _, acc := range s.accounts {
+		accounts[i] = acc
+		i++
+	}
+	return accounts
+}
+
 func (s *Signer) findAccount(txbuilder client.TxBuilder) (*Account, error) {
 	signers := txbuilder.GetTx().GetSigners()
 	if len(signers) == 0 {
@@ -202,27 +212,25 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 		return "", 0, err
 	}
 
-	nextSequence := account.sequence + 1
-
 	// To ensure we have the correct bytes to sign over we produce
 	// a dry run of the signing data
-	err = builder.SetSignatures(s.getSignatureV2(nextSequence, account.pubKey, nil))
+	err = builder.SetSignatures(s.getSignatureV2(account.sequence, account.pubKey, nil))
 	if err != nil {
 		return "", 0, fmt.Errorf("error setting draft signatures: %w", err)
 	}
 
 	// now we can use the data to produce the signature from the signer
-	signature, err := s.createSignature(builder, account, nextSequence)
+	signature, err := s.createSignature(builder, account, account.sequence)
 	if err != nil {
 		return "", 0, fmt.Errorf("error creating signature: %w", err)
 	}
 
-	err = builder.SetSignatures(s.getSignatureV2(nextSequence, account.pubKey, signature))
+	err = builder.SetSignatures(s.getSignatureV2(account.sequence, account.pubKey, signature))
 	if err != nil {
 		return "", 0, fmt.Errorf("error setting signatures: %w", err)
 	}
 
-	return account.name, nextSequence, nil
+	return account.name, account.sequence, nil
 }
 
 func (s *Signer) createSignature(builder client.TxBuilder, account *Account, sequence uint64) ([]byte, error) {
