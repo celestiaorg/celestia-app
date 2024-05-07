@@ -20,10 +20,18 @@ import (
 type Testnet struct {
 	seed      int64
 	nodes     []*Node
+	executor  *knuu.Executor
 	genesis   *genesis.Genesis
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
+}
+
+func (t *Testnet) GetExecutor() (*knuu.Executor, error) {
+	if t.executor == nil {
+		return nil, fmt.Errorf("testnet not initialized")
+	}
+	return t.executor, nil
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
@@ -32,12 +40,18 @@ func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
 		return nil, err
 	}
 
+	executor, err := knuu.NewExecutor()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID("test"),
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
+		seed:     seed,
+		nodes:    make([]*Node, 0),
+		executor: executor,
+		genesis:  genesis.NewDefaultGenesis().WithChainID("test"),
+		keygen:   newKeyGenerator(seed),
+		grafana:  grafana,
 	}, nil
 }
 
@@ -242,6 +256,7 @@ func (t *Testnet) Setup() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -380,8 +395,15 @@ func (t *Testnet) Cleanup() {
 			}
 		}
 	}
+	if err := t.executor.Destroy(); err != nil {
+		log.Err(err).Msg("executor failed to cleanup")
+	}
 }
 
 func (t *Testnet) Node(i int) *Node {
 	return t.nodes[i]
+}
+
+func (t *Testnet) Nodes() []*Node {
+	return t.nodes
 }
