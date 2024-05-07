@@ -24,7 +24,7 @@ var bigBlockManifest = Manifest{
 	Validators:  2,
 	ValidatorResource: testnet.Resources{
 		MemoryRequest: "12Gi",
-		MemoryLimit:   "15Gi",
+		MemoryLimit:   "12Gi",
 		CPU:           "8",
 		Volume:        "20Gi",
 	},
