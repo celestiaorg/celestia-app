@@ -2,7 +2,6 @@ package tokenfilter
 
 import (
 	"encoding/json"
-	// "fmt"
 	"testing"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	// v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
@@ -26,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	// "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
