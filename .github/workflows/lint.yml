@@ -3,7 +3,7 @@ on:
   workflow_call:
 
 env:
-  GO_VERSION: '1.22.0'
+  GO_VERSION: '1.22.3'
 
 jobs:
   golangci-lint:
