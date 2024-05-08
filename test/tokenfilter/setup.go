@@ -2,6 +2,7 @@ package tokenfilter
 
 import (
 	"encoding/json"
+	// "fmt"
 	"testing"
 	"time"
 
@@ -9,7 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	// v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -23,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	// "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -207,11 +211,6 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 
 	params := testnode.DefaultConsensusParams()
 
-	// do not require a network fee for this test
-	subspace := app.GetSubspace(minfee.ModuleName)
-	minfee.RegisterMinFeeParamTable(subspace)
-	minfee.DefaultGenesis().GlobalMinGasPrice.Set(sdk.NewDec(0))
-
 	// init chain will set the validator set and initialize the genesis accounts
 	app.InitChain(
 		abci.RequestInitChain{
@@ -246,6 +245,12 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 			},
 		},
 	)
+
+	// do not require a network fee for this test
+	subspace := app.GetSubspace(minfee.ModuleName)
+	minfee.RegisterMinFeeParamTable(subspace)
+	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{}, false, log.NewNopLogger())
+	subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, sdk.NewDec(0))
 
 	return app
 }
