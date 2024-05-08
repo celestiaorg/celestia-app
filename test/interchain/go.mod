@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/test/interchain
 
-go 1.22.2
+go 1.22.3
 
 require (
 	cosmossdk.io/math v1.3.0
