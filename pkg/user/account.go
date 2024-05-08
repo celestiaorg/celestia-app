@@ -20,9 +20,9 @@ type Account struct {
 	sequence uint64
 }
 
-func NewAccount(name string, accountNumber, sequenceNumber uint64) *Account {
+func NewAccount(keyName string, accountNumber, sequenceNumber uint64) *Account {
 	return &Account{
-		name:          name,
+		name:          keyName,
 		accountNumber: accountNumber,
 		sequence:      sequenceNumber,
 	}

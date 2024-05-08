@@ -60,7 +60,7 @@ func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*Msg
 	for i := range namespaceVersions {
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
 		if err != nil {
-			return nil, fmt.Errorf("creating namespace: %w", err)
+			return nil, err
 		}
 		namespaces = append(namespaces, namespace)
 	}

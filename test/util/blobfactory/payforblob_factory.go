@@ -232,8 +232,7 @@ func ManyMultiBlobTx(
 	txs := make([][]byte, len(accounts))
 	opts := DefaultTxOpts()
 	for i, acc := range accounts {
-		addr := testfactory.GetAddress(kr, acc)
-		signer, err := user.NewSigner(kr, enc, chainid, appconsts.LatestVersion, user.NewAccount(addr.String(), accInfos[i].AccountNum, accInfos[i].Sequence))
+		signer, err := user.NewSigner(kr, enc, chainid, appconsts.LatestVersion, user.NewAccount(acc, accInfos[i].AccountNum, accInfos[i].Sequence))
 		require.NoError(t, err)
 		txs[i], _, err = signer.CreatePayForBlobs(acc, blobs[i], opts...)
 		require.NoError(t, err)
@@ -250,9 +249,10 @@ func IndexWrappedTxWithInvalidNamespace(
 	index uint32,
 ) (coretypes.Tx, *blob.Blob) {
 	t.Helper()
-	// addr := signer.Account(testfactory.TestAccAddr).Address()
 	blob := ManyRandBlobs(rand, 100)[0]
-	msg, err := blobtypes.NewMsgPayForBlobs(testfactory.TestAccName, appconsts.LatestVersion, blob)
+	acc := signer.Accounts()[0]
+	require.NotNil(t, acc)
+	msg, err := blobtypes.NewMsgPayForBlobs(acc.Address().String(), appconsts.LatestVersion, blob)
 	require.NoError(t, err)
 	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33) // invalid namespace
 
@@ -272,9 +272,9 @@ func RandBlobTxsWithNamespacesAndSigner(
 	namespaces []appns.Namespace,
 	sizes []int,
 ) []coretypes.Tx {
-	// addr := signer.Account(testfactory.TestAccAddr).Address()
 	txs := make([]coretypes.Tx, len(namespaces))
 	for i := 0; i < len(namespaces); i++ {
+		// take the first account the signer has
 		acc := signer.Accounts()[0]
 		_, b := RandMsgPayForBlobsWithNamespaceAndSigner(acc.Address().String(), namespaces[i], sizes[i])
 		cTx, _, err := signer.CreatePayForBlobs(acc.Name(), []*blob.Blob{b}, DefaultTxOpts()...)

@@ -47,7 +47,7 @@ func RandBlobTxsWithAccounts(
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
-		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(addr.String(), acc.GetAccountNumber(), acc.GetSequence()))
+		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence()))
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -102,7 +102,7 @@ func RandBlobTxsWithManualSequence(
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
-		acc := user.NewAccount(addr.String(), accountNum, sequence)
+		acc := user.NewAccount(accounts[i], accountNum, sequence)
 		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, acc)
 		require.NoError(t, err)
 
@@ -211,7 +211,7 @@ func SendTxWithManualSequence(
 	opts ...user.TxOption,
 ) coretypes.Tx {
 	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
-	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(fromAddr.String(), accountNum, sequence))
+	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(fromAcc, accountNum, sequence))
 	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
