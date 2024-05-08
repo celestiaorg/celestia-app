@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -205,6 +206,11 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	require.NoError(t, err)
 
 	params := testnode.DefaultConsensusParams()
+
+	// do not require a network fee for this test
+	subspace := app.GetSubspace(minfee.ModuleName)
+	minfee.RegisterMinFeeParamTable(subspace)
+	minfee.DefaultGenesis().GlobalMinGasPrice.Set(sdk.NewDec(0))
 
 	// init chain will set the validator set and initialize the genesis accounts
 	app.InitChain(
