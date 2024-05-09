@@ -507,6 +507,8 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // Info implements the ABCI interface. This method is a wrapper around baseapp's
 // Info command so that it can take the app version and setup the multicommit
 // store.
+//
+// Side-effect: seals the baseapp.
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)
@@ -535,6 +537,8 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 // InitChain implements the ABCI interface. This method is a wrapper around
 // baseapp's InitChain so we can take the app version and setup the multicommit
 // store.
+//
+// Side-effect: seals the baseapp.
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial

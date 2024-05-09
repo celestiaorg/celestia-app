@@ -26,11 +26,7 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 
 	fmt.Printf("isSealed %v\n", app.IsSealed())
 	// Invoke app.Info for it's side-effects which sets app.checkState.ms.
-	app.Info(abci.RequestInfo{
-		Version:      app.Version(),
-		BlockVersion: 8,
-		P2PVersion:   2,
-	})
+	app.Info(abci.RequestInfo{})
 	fmt.Printf("isSealed %v\n", app.IsSealed())
 	// ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 	ctx := app.NewUncachedContext(true, tmproto.Header{Height: app.LastBlockHeight()})
