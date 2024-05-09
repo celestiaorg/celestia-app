@@ -54,4 +54,11 @@ func upgradeToV2(t *testing.T, testApp *app.App) {
 	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
 	testApp.Commit()
 	require.EqualValues(t, 2, testApp.AppVersion())
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Height:  3,
+		Version: tmversion.Consensus{App: 2},
+	}})
+	testApp.EndBlock(abci.RequestEndBlock{Height: 3})
+	testApp.Commit()
+	require.EqualValues(t, 3, testApp.LastBlockHeight())
 }

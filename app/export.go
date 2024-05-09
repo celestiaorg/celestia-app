@@ -2,11 +2,7 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
-
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,18 +14,10 @@ import (
 // ExportAppStateAndValidators exports the state of the application for a
 // genesis file.
 func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs []string) (servertypes.ExportedApp, error) {
-	// We need to make sure app.checkState.ms is set before the next line.
-	// app.checkState.ms is set by app.setCheckState() which is invoked by:
-	// 1. app.InitChain()
-	// 2. baseApp.Commit()
-	// 3. baseApp.CreateQueryContext()
-
-	fmt.Printf("isSealed %v\n", app.IsSealed())
-	// Invoke app.Info for it's side-effects which sets app.checkState.ms.
-	app.Info(abci.RequestInfo{})
-	fmt.Printf("isSealed %v\n", app.IsSealed())
-	// ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
-	ctx := app.NewUncachedContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
 
 	if forZeroHeight {
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
