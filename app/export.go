@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -14,23 +13,12 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-// ExportAppStateAndValidators exports the state of the application for a genesis
-// file.
-func (app *App) ExportAppStateAndValidators(
-	forZeroHeight bool, jailAllowedAddrs []string,
-) (servertypes.ExportedApp, error) {
-	// as if they could withdraw from the start of the next block
-	fmt.Printf("app.LastBlockHeight(): %d\n", app.LastBlockHeight())
-	if err := app.LoadLatestVersion(); err != nil {
-		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-	}
-	ctx := app.NewContext(true, tmproto.Header{Height: 1})
+// ExportAppStateAndValidators exports the state of the application for a
+// genesis file.
+func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs []string) (servertypes.ExportedApp, error) {
+	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 
-	// We export at last height + 1, because that's the height at which
-	// Tendermint will start InitChain.
-	height := app.LastBlockHeight() + 1
 	if forZeroHeight {
-		height = 0
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
 	}
 
@@ -43,12 +31,25 @@ func (app *App) ExportAppStateAndValidators(
 	}
 
 	validators, err := staking.WriteValidators(ctx, app.StakingKeeper)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+
 	return servertypes.ExportedApp{
 		AppState:        appState,
 		Validators:      validators,
-		Height:          height,
+		Height:          app.getExportHeight(forZeroHeight),
 		ConsensusParams: app.BaseApp.GetConsensusParams(ctx),
-	}, err
+	}, nil
+}
+
+func (app *App) getExportHeight(forZeroHeight bool) int64 {
+	if forZeroHeight {
+		return 0
+	}
+	// We export at last height + 1, because that's the height at which
+	// Tendermint will start InitChain.
+	return app.LastBlockHeight() + 1
 }
 
 // prepForZeroHeightGenesis preps for fresh start at zero height. Zero height
