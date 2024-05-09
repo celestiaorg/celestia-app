@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -25,7 +26,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testnet.NoError("failed to get versions", err)
 	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates()
 	versions2 := testnet.ParseVersions(versionStr).FilterMajor(v2.Version) // include release candidates for v2 because there isn't an official release yet.
-	versions := append(versions1, versions2...)
+	versions := slices.Concat(versions1, versions2)
 
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
