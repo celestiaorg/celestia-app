@@ -184,6 +184,12 @@ func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version ui
 	genesisData := make(map[string]json.RawMessage)
 	modules := m.versionedModules[version]
 	for _, moduleName := range m.OrderExportGenesis {
+		fmt.Printf("Exporting genesis for module %s\n", moduleName)
+		fmt.Printf("modules: %v\n", modules)
+		fmt.Printf("module: %v\n", modules[moduleName])
+		fmt.Printf("ctx %v\n", ctx)
+		fmt.Printf("cdc %v\n", cdc)
+		fmt.Printf("genesis data %v", modules[moduleName].ExportGenesis(ctx, cdc))
 		genesisData[moduleName] = modules[moduleName].ExportGenesis(ctx, cdc)
 	}
 

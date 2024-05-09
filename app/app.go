@@ -531,8 +531,9 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	return resp
 }
 
-// We wrap InitChain around baseapp so we can take the app version and
-// setup the multicommit store.
+// InitChain implements the ABCI interface. This method is a wrapper around
+// baseapp's InitChain so we can take the app version and setup the multicommit
+// store.
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial
@@ -555,7 +556,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	return app.BaseApp.InitChain(req)
 }
 
-// InitChainer application update at chain initialization
+// InitChainer is middleware that gets invoked part-way through the baseapp's InitChain invocation.
 func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
