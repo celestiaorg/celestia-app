@@ -77,7 +77,7 @@ func E2EThroughput() error {
 
 	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
 		manifest.BlobSizes,
-		manifest.TxClientsResource, gRPCEndpoints)
+		manifest.TxClientsResource, gRPCEndpoints[:manifest.TxClients])
 	testnet.NoError("failed to create tx clients", err)
 
 	// start the testnet
