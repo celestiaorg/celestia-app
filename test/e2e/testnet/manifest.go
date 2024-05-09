@@ -16,7 +16,9 @@ type Manifest struct {
 	TestDuration time.Duration
 	// Number of validators in the testnet
 	Validators int
-	TxClients  int
+	// Number of tx clients (txsim for now) in the testnet; there will be 1 txclient per validator
+	// if TXClients is less than Validators, the remaining validators will not have any txclients
+	TxClients int
 	// Self-delegation amount for validators
 	SelfDelegation int64
 	// CelestiaAppVersion a specific version of the celestia-app container image within celestiaorg repository on GitHub's Container Registry i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app
