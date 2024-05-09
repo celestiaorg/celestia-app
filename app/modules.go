@@ -92,7 +92,6 @@ var (
 )
 
 func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
-	fmt.Printf("inside setupModuleManager\n")
 	var err error
 	app.mm, err = module.NewManager([]module.VersionedModule{
 		{

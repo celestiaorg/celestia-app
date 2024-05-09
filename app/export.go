@@ -24,7 +24,8 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 	// 3. baseApp.CreateQueryContext()
 
 	fmt.Printf("isSealed %v\n", app.IsSealed())
-	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+	// ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+	ctx := app.NewUncachedContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 
 	if forZeroHeight {
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
