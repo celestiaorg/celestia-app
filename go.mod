@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/v2
 
-go 1.22.2
+go 1.22.3
 
 require (
 	cosmossdk.io/errors v1.0.1
@@ -15,8 +15,8 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.4.12
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6 v6.1.2
-	github.com/cosmos/ibc-go/v6 v6.2.1
-	github.com/ethereum/go-ethereum v1.14.0
+	github.com/cosmos/ibc-go/v6 v6.2.2
+	github.com/ethereum/go-ethereum v1.14.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
@@ -32,7 +32,7 @@ require (
 	golang.org/x/exp v0.0.0-20231206192017-f3f8817b8deb
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.0
+	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 

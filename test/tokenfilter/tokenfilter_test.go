@@ -133,9 +133,5 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 }
 
 func TestTokenFilterTestSuite(t *testing.T) {
-	// FIXME: this is because the ibctesting framework we use
-	// doesn't set the version in the header which we require
-	// to know which state machine to execute against
-	t.Skip("token filter tests are currently not supported")
 	suite.Run(t, new(TokenFilterTestSuite))
 }

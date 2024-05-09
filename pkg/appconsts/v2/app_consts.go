@@ -6,6 +6,5 @@ const (
 	SubtreeRootThreshold int    = 64
 	// GlobalMinGasPrice is used by x/minfee to prevent transactions from being
 	// included in a block if they specify a gas price lower than this
-	// parameter. GlobalMinGasPrice == DefaultMinGasPrice.
-	GlobalMinGasPrice float64 = 0.002 // utia
+	GlobalMinGasPrice float64 = 0.000001 // utia
 )
