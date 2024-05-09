@@ -19,7 +19,7 @@ import (
 func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	//cfg := config.DefaultConfig() //
 	cfg := app.DefaultConsensusConfig()
-	//cfg.TxIndex.Indexer = "kv"
+	cfg.TxIndex.Indexer = "kv"
 	cfg.Mempool.MaxTxsBytes = 1024 * 1024 * 1024
 	cfg.Mempool.MaxTxBytes = 8 * 1024 * 1024
 	cfg.Moniker = node.Name
