@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -23,6 +24,13 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 	// 2. baseApp.Commit()
 	// 3. baseApp.CreateQueryContext()
 
+	fmt.Printf("isSealed %v\n", app.IsSealed())
+	// Invoke app.Info for it's side-effects which sets app.checkState.ms.
+	app.Info(abci.RequestInfo{
+		Version:      app.Version(),
+		BlockVersion: 8,
+		P2PVersion:   2,
+	})
 	fmt.Printf("isSealed %v\n", app.IsSealed())
 	// ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 	ctx := app.NewUncachedContext(true, tmproto.Header{Height: app.LastBlockHeight()})
