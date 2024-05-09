@@ -171,9 +171,9 @@ type App struct {
 
 // New returns a reference to an initialized celestia app.
 //
-// NOTE: upgradeHeight refers specifically to the height that
-// a node will upgrade from v1 to v2. It will be deprecated in v3
-// in place for a dynamically signalling scheme
+// NOTE: upgradeHeightV2 refers specifically to the height that a node will
+// upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
+// signalling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
