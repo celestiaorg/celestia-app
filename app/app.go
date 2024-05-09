@@ -504,8 +504,9 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 	return app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
 
-// We wrap Info around baseapp so we can take the app version and
-// setup the multicommit store.
+// Info implements the ABCI interface. This method is a wrapper around baseapp's
+// Info command so that it can take the app version and setup the multicommit
+// store.
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)

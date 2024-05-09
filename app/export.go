@@ -24,18 +24,12 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 	// 3. baseApp.CreateQueryContext()
 
 	fmt.Printf("isSealed %v\n", app.IsSealed())
-	// app.Init()
-	// app.LoadHeight(app.LastBlockHeight())
-	// app.Info(abci.RequestInfo{})
-	// app.setCheckState()
 	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 
 	if forZeroHeight {
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
 	}
 
-	// app.setupModuleManager(true)
-	// fmt.Printf("app.mm: %v\n", app.mm.ModuleNames(1))
 	genState := app.mm.ExportGenesis(ctx, app.appCodec, app.AppVersion())
 	appState, err := json.MarshalIndent(genState, "", "  ")
 	if err != nil {
