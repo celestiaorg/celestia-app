@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -16,13 +17,24 @@ import (
 // ExportAppStateAndValidators exports the state of the application for a
 // genesis file.
 func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs []string) (servertypes.ExportedApp, error) {
+	// We need to make sure app.checkState.ms is set before the next line.
+	// app.checkState.ms is set by app.setCheckState() which is invoked by:
+	// 1. app.InitChain()
+	// 2. baseApp.Commit()
+	// 3. baseApp.CreateQueryContext()
+
+	fmt.Printf("isSealed %v\n", app.IsSealed())
+	// app.Init()
+	// app.LoadHeight(app.LastBlockHeight())
+	// app.Info(abci.RequestInfo{})
+	// app.setCheckState()
 	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
 
 	if forZeroHeight {
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
 	}
 
-	app.setupModuleManager(true)
+	// app.setupModuleManager(true)
 	// fmt.Printf("app.mm: %v\n", app.mm.ModuleNames(1))
 	genState := app.mm.ExportGenesis(ctx, app.appCodec, app.AppVersion())
 	appState, err := json.MarshalIndent(genState, "", "  ")
