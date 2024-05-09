@@ -21,7 +21,7 @@ const (
 var bigBlockManifest = Manifest{
 	TestnetName: "big-block",
 	ChainID:     "test",
-	Validators:  2,
+	Validators:  3,
 	ValidatorResource: testnet.Resources{
 		MemoryRequest: "12Gi",
 		MemoryLimit:   "12Gi",
@@ -50,7 +50,7 @@ var bigBlockManifest = Manifest{
 	GovMaxSquareSize:   1024,
 	MaxBlockBytes:      128 * toMiB,
 	TestDuration:       4 * time.Minute,
-	TxClients:          2,
+	TxClients:          3,
 	LocalTracingType:   "local",
 	PushTrace:          false,
 }
