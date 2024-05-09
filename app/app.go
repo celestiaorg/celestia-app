@@ -169,7 +169,8 @@ type App struct {
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
-// New returns a reference to an initialized celestia app.
+// New returns a reference to an uninitialized app. Callers must subsequently
+// call app.Info or app.InitChain to initialize the baseapp.
 //
 // NOTE: upgradeHeightV2 refers specifically to the height that a node will
 // upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
