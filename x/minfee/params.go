@@ -3,7 +3,7 @@ package minfee
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -18,7 +18,7 @@ var (
 )
 
 func init() {
-	DefaultGlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+	DefaultGlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 	if err != nil {
 		panic(err)
 	}
