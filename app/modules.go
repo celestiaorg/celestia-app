@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/app/module"
 	"github.com/celestiaorg/celestia-app/v2/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
@@ -368,4 +369,13 @@ func (app *App) assertAllKeysArePresent() {
 			panic(fmt.Sprintf("app version %d is supported by the module manager but has no keys", appVersion))
 		}
 	}
+}
+
+// extractRegisters returns the encoding module registers from the basic
+// manager.
+func extractRegisters(manager sdkmodule.BasicManager) (modules []encoding.ModuleRegister) {
+	for _, module := range manager {
+		modules = append(modules, module)
+	}
+	return modules
 }
