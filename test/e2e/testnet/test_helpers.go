@@ -1,4 +1,4 @@
-package testnets
+package testnet
 
 import (
 	"log"
