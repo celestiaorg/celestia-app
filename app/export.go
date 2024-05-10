@@ -15,6 +15,7 @@ import (
 // ExportAppStateAndValidators exports the state of the application for a
 // genesis file.
 func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs []string) (servertypes.ExportedApp, error) {
+	// TODO: use the real version of the application
 	app.mountKeysAndInit(appconsts.LatestVersion)
 	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
 	if err != nil {
