@@ -509,7 +509,7 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // Info command so that it can take the app version and setup the multicommit
 // store.
 //
-// Side-effect: seals the baseapp.
+// Side-effect: calls baseapp.Init()
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)
@@ -527,10 +527,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
-		app.MountKVStores(app.versionedKeys(resp.AppVersion))
-		if err := app.LoadLatestVersion(); err != nil {
-			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-		}
+		app.mountKeysAndInit(resp.AppVersion)
 	}
 	return resp
 }
@@ -539,7 +536,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 // baseapp's InitChain so we can take the app version and setup the multicommit
 // store.
 //
-// Side-effect: seals the baseapp.
+// Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial
@@ -553,13 +550,21 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
-		app.MountKVStores(app.versionedKeys(req.ConsensusParams.Version.AppVersion))
-		if err := app.LoadLatestVersion(); err != nil {
-			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-		}
+		app.mountKeysAndInit(req.ConsensusParams.Version.AppVersion)
 	}
 
 	return app.BaseApp.InitChain(req)
+}
+
+// mountKeysAndInit mounts the keys for the provided app version and then
+// invokes baseapp.Init().
+func (app *App) mountKeysAndInit(appVersion uint64) {
+	app.MountKVStores(app.versionedKeys(appVersion))
+
+	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
+	if err := app.LoadLatestVersion(); err != nil {
+		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+	}
 }
 
 // InitChainer is middleware that gets invoked part-way through the baseapp's InitChain invocation.
