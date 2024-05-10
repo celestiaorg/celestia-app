@@ -32,7 +32,7 @@ type ForwardMetadata struct {
 	RefundSequence *uint64       `json:"refund_sequence,omitempty"`
 }
 
-// TestPacketForwardMiddleware verifies that Packet Forward Middleware (PFM) works as expected by sending a transfer from chain A to chain C through chain B Celestia tht has .
+// TestPacketForwardMiddleware verifies that Packet Forward Middleware (PFM) works as expected by sending a transfer from Celestia to Cosmos Hub, back to Celestia which then forwards it to Cosmos Hub 2. Celestia -> CosmosHub -> Celestia -> CosmosHub2 .
 func TestPacketForwardMiddleware(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPacketForwardMiddleware in short mode.")
@@ -93,7 +93,6 @@ func TestPacketForwardMiddleware(t *testing.T) {
 	// TODO check what these two connections are
 	cosmosHub2Connections, err := relayer.GetConnections(ctx, reporter, cosmosHub2.Config().ChainID)
 	require.NoError(t, err)
-	fmt.Println(cosmosHub2Connections, "COSMOS CONNECTIONS 2")
 	require.Len(t, cosmosHub2Connections, 2) // 2 connections: the first is connection-0 and the second is connection-localhost.
 
 	// fund the users
