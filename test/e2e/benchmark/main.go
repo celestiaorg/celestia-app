@@ -13,7 +13,7 @@ func main() {
 		{"TwoNodeSimple", TwoNodeSimple},
 		{"TwoNodeBigBlock_8MiB", TwoNodeBigBlock_8MiB},
 		{"TwoNodeBigBlock_32MiB", TwoNodeBigBlock_32MiB},
-		{"TwoNodeBigBlock_128MiB", TwoNodeBigBlock_128MiB},
+		{"TwoNodeBigBlock_64MiB", TwoNodeBigBlock_64MiB},
 	}
 
 	// check if a specific test is passed and run it
