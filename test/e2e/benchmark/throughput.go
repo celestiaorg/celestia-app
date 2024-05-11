@@ -135,7 +135,8 @@ func Run(manifest Manifest) error {
 	testnet.NoError("failed to pull received bytes traces", err)
 
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockHeights(context.Background(),
+		testNet.Node(0).AddressRPC(), 1, 10)
 	testnet.NoError("failed to read blockchain", err)
 
 	err = SaveToCSV(extractHeaders(blockchain),
