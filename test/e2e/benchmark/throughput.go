@@ -37,8 +37,8 @@ var bigBlockManifest = Manifest{
 	SelfDelegation:     10000000,
 	CelestiaAppVersion: "pr-3261",
 	TxClientVersion:    "pr-3261",
-	BlobsPerSeq:        1,
-	BlobSequences:      12,
+	BlobsPerSeq:        6,
+	BlobSequences:      80,
 	BlobSizes:          "200000",
 	PerPeerBandwidth:   100 * toMiB,
 	UpgradeHeight:      0,
@@ -50,9 +50,9 @@ var bigBlockManifest = Manifest{
 	GovMaxSquareSize:   1024,
 	MaxBlockBytes:      128 * toMiB,
 	TestDuration:       4 * time.Minute,
-	TxClients:          2,
+	TxClients:          1,
 	LocalTracingType:   "local",
-	PushTrace:          false,
+	PushTrace:          true,
 }
 
 func Run(manifest Manifest) error {
