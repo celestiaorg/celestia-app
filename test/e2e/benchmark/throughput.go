@@ -188,7 +188,8 @@ func TwoNodeSimple(_ *log.Logger) error {
 	return Run(manifest)
 }
 
-func TwoNodeBigBlock_8MiB(_ *log.Logger) error {
+func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_8MiB")
 	manifest := bigBlockManifest
 	manifest.TestnetName = "TwoNodeBigBlock_8MiB"
 	manifest.ChainID = "two-node-big-block-8mib"
