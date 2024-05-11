@@ -196,7 +196,8 @@ func TwoNodeBigBlock_8MiB(_ *log.Logger) error {
 	return Run(manifest)
 }
 
-func TwoNodeBigBlock_32MiB(_ *log.Logger) error {
+func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_32MiB")
 	manifest := bigBlockManifest
 	manifest.TestnetName = "TwoNodeBigBlock_32MiB"
 	manifest.ChainID = "two-node-big-block-32mib"
@@ -204,11 +205,11 @@ func TwoNodeBigBlock_32MiB(_ *log.Logger) error {
 	return Run(manifest)
 }
 
-func TwoNodeBigBlock_128MiB(logger *log.Logger) error {
-	logger.Println("Running TwoNodeBigBlock_128MiB")
+func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_64MiB")
 	manifest := bigBlockManifest
 	manifest.TestnetName = "TwoNodeBigBlock_128MiB"
-	manifest.ChainID = "test"
-	manifest.MaxBlockBytes = 128 * toMiB
+	manifest.ChainID = "two-node-big-block-64mib"
+	manifest.MaxBlockBytes = 64 * toMiB
 	return Run(manifest)
 }
