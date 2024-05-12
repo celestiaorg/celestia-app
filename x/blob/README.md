@@ -180,7 +180,7 @@ The blob module emits the following events:
 ### Usage
 
 ```shell
-celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [flags]
+celestia-appd tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [flags]
 ```
 
 For submitting PFB transaction via a light client's rpc, see [celestia-node's
