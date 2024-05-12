@@ -325,6 +325,7 @@ func versionedStoreKeys() map[uint64][]string {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
+			blobtypes.StoreKey,
 			capabilitytypes.StoreKey,
 			distrtypes.StoreKey,
 			evidencetypes.StoreKey,
@@ -332,10 +333,10 @@ func versionedStoreKeys() map[uint64][]string {
 			govtypes.StoreKey,
 			ibchost.StoreKey,
 			ibctransfertypes.StoreKey,
-			icahosttypes.StoreKey,
+			icahosttypes.StoreKey, // added in v2
 			minttypes.StoreKey,
-			packetforwardtypes.StoreKey,
-			signaltypes.StoreKey,
+			packetforwardtypes.StoreKey, // added in v2
+			signaltypes.StoreKey,        // added in v2
 			slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
