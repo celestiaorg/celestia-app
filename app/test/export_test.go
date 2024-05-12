@@ -12,17 +12,8 @@ import (
 )
 
 func TestExportAppStateAndValidators(t *testing.T) {
-	t.Run("should return non-nil exported app", func(t *testing.T) {
+	t.Run("should return exported app for version 1", func(t *testing.T) {
 		forZeroHeight := true
-		jailAllowedAddrs := []string{}
-		testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-
-		exported, err := testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
-		require.NoError(t, err)
-		assert.NotNil(t, exported)
-	})
-	t.Run("should return exported app state for version 1", func(t *testing.T) {
-		forZeroHeight := false
 		jailAllowedAddrs := []string{}
 		testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 
@@ -31,18 +22,19 @@ func TestExportAppStateAndValidators(t *testing.T) {
 		assert.NotNil(t, exported)
 		assert.Equal(t, uint64(1), exported.ConsensusParams.Version.AppVersion)
 	})
-	// t.Run("should return exported app state for version 2", func(t *testing.T) {
-	// 	forZeroHeight := false
-	// 	jailAllowedAddrs := []string{}
+	t.Run("should return exported app for version 2", func(t *testing.T) {
+		forZeroHeight := false
+		jailAllowedAddrs := []string{}
 
-	// 	testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
-	// 	upgradeToV2(t, testApp)
+		testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
+		upgradeToV2(t, testApp)
 
-	// 	exported, err := testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
-	// 	require.NoError(t, err)
-	// 	assert.NotNil(t, exported)
-	// 	assert.Equal(t, uint64(2), exported.ConsensusParams.Version.AppVersion)
-	// })
+		exported, err := testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
+		require.NoError(t, err)
+		assert.NotNil(t, exported)
+		// TODO: the following assertion is commented out because the exported app does not populate consensus params.version
+		// assert.Equal(t, uint64(2), exported.ConsensusParams.Version.AppVersion)
+	})
 }
 
 func upgradeToV2(t *testing.T, testApp *app.App) {
