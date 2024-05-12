@@ -559,8 +559,6 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
-	versionedKeys := app.versionedKeys(appVersion)
-	fmt.Printf("versionedKeys: %v\n", versionedKeys)
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for it's side-effect of invoking baseapp.Init()

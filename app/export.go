@@ -20,7 +20,9 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 	}
 
 	app.InitializeAppVersion(ctx)
-	app.mountKeysAndInit(app.AppVersion())
+	if !app.IsSealed() {
+		app.mountKeysAndInit(app.AppVersion())
+	}
 
 	// Create a new context so that the commit multi-store reflects the store
 	// key mounting performed above.
