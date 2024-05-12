@@ -8,9 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -23,9 +20,25 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 )
 
-const DefaultPollTime = 3 * time.Second
+const (
+	DefaultPollTime              = 3 * time.Second
+	DefaultGasMultiplier float64 = 1.1
+)
+
+type Option func(s *Signer)
+
+// WithGasMultiplier is a functional option allows to configure the gas multiplier.
+func WithGasMultiplier(multiplier float64) Option {
+	return func(s *Signer) {
+		s.gasMultiplier = multiplier
+	}
+}
 
 // Signer is an abstraction for building, signing, and broadcasting Celestia transactions
 type Signer struct {
@@ -48,6 +61,8 @@ type Signer struct {
 	localSequence uint64
 	// the chains last known sequence number
 	networkSequence uint64
+	// gasMultiplier is used to increase gas limit as it is sometimes underestimated
+	gasMultiplier float64
 	// lookup map of all pending and yet to be confirmed outbound transactions
 	outboundSequences map[uint64]struct{}
 	// a reverse map for confirming which sequence numbers have been committed
@@ -63,6 +78,7 @@ func NewSigner(
 	chainID string,
 	accountNumber, sequence,
 	appVersion uint64,
+	options ...Option,
 ) (*Signer, error) {
 	// check that the address exists
 	record, err := keys.KeyByAddress(address)
@@ -75,7 +91,7 @@ func NewSigner(
 		return nil, err
 	}
 
-	return &Signer{
+	signer := &Signer{
 		keys:                     keys,
 		address:                  address,
 		grpc:                     conn,
@@ -87,16 +103,28 @@ func NewSigner(
 		localSequence:            sequence,
 		networkSequence:          sequence,
 		pollTime:                 DefaultPollTime,
+		gasMultiplier:            DefaultGasMultiplier,
 		outboundSequences:        make(map[uint64]struct{}),
 		reverseTxHashSequenceMap: make(map[string]uint64),
-	}, nil
+	}
+
+	for _, opt := range options {
+		opt(signer)
+	}
+	return signer, nil
 }
 
 // SetupSingleSigner sets up a signer based on the provided keyring. The keyring
 // must contain exactly one key. It extracts the address from the key and uses
 // the grpc connection to populate the chainID, account number, and sequence
 // number.
-func SetupSingleSigner(ctx context.Context, keys keyring.Keyring, conn *grpc.ClientConn, encCfg encoding.Config) (*Signer, error) {
+func SetupSingleSigner(
+	ctx context.Context,
+	keys keyring.Keyring,
+	conn *grpc.ClientConn,
+	encCfg encoding.Config,
+	options ...Option,
+) (*Signer, error) {
 	records, err := keys.List()
 	if err != nil {
 		return nil, err
@@ -111,7 +139,7 @@ func SetupSingleSigner(ctx context.Context, keys keyring.Keyring, conn *grpc.Cli
 		return nil, err
 	}
 
-	return SetupSigner(ctx, keys, conn, address, encCfg)
+	return SetupSigner(ctx, keys, conn, address, encCfg, options...)
 }
 
 // SetupSigner uses the underlying grpc connection to populate the chainID, accountNumber and sequence number of the
@@ -122,6 +150,7 @@ func SetupSigner(
 	conn *grpc.ClientConn,
 	address sdktypes.AccAddress,
 	encCfg encoding.Config,
+	options ...Option,
 ) (*Signer, error) {
 	resp, err := tmservice.NewServiceClient(conn).GetLatestBlock(
 		ctx,
@@ -138,7 +167,7 @@ func SetupSigner(
 		return nil, err
 	}
 
-	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum, appVersion)
+	return NewSigner(keys, conn, address, encCfg.TxConfig, chainID, accNum, seqNum, appVersion, options...)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -160,7 +189,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	resp, err := s.broadcastPayForBlob(ctx, blobs, opts...)
+	resp, err := s.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
 		return resp, err
 	}
@@ -168,7 +197,11 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts 
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (s *Signer) broadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+// BroadcastPayForBlob forms a transaction from the provided blobs, signs it,
+// and broadcasts it to the chain. TxOptions may be provided to set the fee and
+// gas limit. This function does not block on the tx actually being included in
+// a block.
+func (s *Signer) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	txBytes, seqNum, err := s.createPayForBlobs(blobs, opts...)
@@ -416,7 +449,8 @@ func (s *Signer) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...T
 		return 0, err
 	}
 
-	return resp.GasInfo.GasUsed, nil
+	gasLimit := uint64(float64(resp.GasInfo.GasUsed) * s.gasMultiplier)
+	return gasLimit, nil
 }
 
 // ChainID returns the chain ID of the signer.

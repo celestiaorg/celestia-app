@@ -14,19 +14,27 @@ func TestNew(t *testing.T) {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	loadLatest := true
 	invCheckPeriod := uint(1)
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(0)
 	appOptions := NoopAppOptions{}
 
-	got := app.New(logger, db, traceStore, loadLatest, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+	got := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
 
 	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ICAHostKeeper)
 	})
 	t.Run("initializes ScopedICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ScopedICAHostKeeper)
+	})
+	t.Run("initializes StakingKeeper", func(t *testing.T) {
+		assert.NotNil(t, got.StakingKeeper)
+	})
+	t.Run("should have set StakingKeeper hooks", func(t *testing.T) {
+		// StakingKeeper doesn't expose a GetHooks method so this checks if
+		// hooks have been set by verifying the a subsequent call to SetHooks
+		// will panic.
+		assert.Panics(t, func() { got.StakingKeeper.SetHooks(nil) })
 	})
 }
 

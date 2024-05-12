@@ -39,7 +39,9 @@ func (s *BlobstreamIntegrationSuite) SetupSuite() {
 
 	s.accounts = []string{"jimmy"}
 
-	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
+	cfg := testnode.DefaultConfig().
+		WithFundedAccounts(s.accounts...).
+		WithConsensusParams(app.DefaultInitialConsensusParams())
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx

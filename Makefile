@@ -1,14 +1,13 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
-ALL_VERSIONS := $(shell git tag -l)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
-GOLANG_CROSS_VERSION  ?= v1.22.2
+GOLANG_CROSS_VERSION  ?= v1.22.3
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -43,6 +42,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/testground"
 	@(cd ./test/testground && go mod tidy)
+	@echo "--> Updating go.mod in ./test/interchain"
+	@(cd ./test/interchain && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -84,14 +85,14 @@ build-docker:
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT) -f Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
-	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(GH_COMMIT)
+	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(COMMIT)
 .PHONY: publish-ghcr-docker
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
@@ -136,7 +137,7 @@ test-short:
 ## test-e2e: Run end to end tests via knuu. This command requires a kube/config file to configure kubernetes.
 test-e2e:
 	@echo "--> Running end to end tests"
-	@KNUU_NAMESPACE=test KNUU_TIMEOUT=20m E2E_LATEST_VERSION=$(shell git rev-parse --short main) E2E_VERSIONS="$(ALL_VERSIONS)" go test ./test/e2e/... -timeout 20m -v
+	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
 ## test-race: Run tests in race mode.
@@ -159,9 +160,16 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
+## test-fuzz: Run all fuzz tests.
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
+
+## test-interchain: Run interchain tests in verbose mode. Requires Docker.
+test-interchain:
+	@echo "--> Running interchain tests"
+	@go test ./test/interchain -v
+.PHONY: test-interchain
 
 ## txsim-install: Install the tx simulator.
 txsim-install:

@@ -218,7 +218,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.Error(t, err)
 
 	// resetting the tally should clear other votes
-	upgradeKeeper.ResetTally(ctx, 2)
+	upgradeKeeper.ResetTally(ctx)
 	res, err = upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
 		Version: 2,
 	})
@@ -256,6 +256,34 @@ func TestThresholdVotingPower(t *testing.T) {
 		threshold := upgradeKeeper.GetVotingPowerThreshold(ctx)
 		require.EqualValues(t, tc.threshold, threshold.Int64())
 	}
+}
+
+// TestResetTally verifies that the VotingPower for all versions is reset to
+// zero after calling ResetTally.
+func TestResetTally(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+
+	_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 1})
+	require.NoError(t, err)
+	resp, err := upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(40), resp.VotingPower)
+
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+	require.NoError(t, err)
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(1), resp.VotingPower)
+
+	upgradeKeeper.ResetTally(ctx)
+
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), resp.VotingPower)
+
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), resp.VotingPower)
 }
 
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {

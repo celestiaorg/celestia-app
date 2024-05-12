@@ -4,7 +4,7 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.22.2-alpine3.19
+ARG BUILDER_IMAGE=docker.io/golang:1.22.3-alpine3.19
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
 ARG TARGETOS
 ARG TARGETARCH
@@ -65,5 +65,6 @@ WORKDIR ${CELESTIA_HOME}
 # 26656 is the default node p2p port.
 # 26657 is the default RPC port.
 # 26660 is the port used for Prometheus.
-EXPOSE 1317 9090 26656 26657 26660
+# 26661 is the port used for tracing.
+EXPOSE 1317 9090 26656 26657 26660 26661
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]

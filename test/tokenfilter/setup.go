@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -146,7 +147,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	genesisState := app.NewDefaultGenesisState(encCdc.Codec)
 	app := app.New(
-		log.NewNopLogger(), db, nil, true, 5, encCdc, 0, simapp.EmptyAppOptions{},
+		log.NewNopLogger(), db, nil, 5, encCdc, 0, simapp.EmptyAppOptions{},
 	)
 
 	// set genesis accounts
@@ -240,6 +241,12 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 			},
 		},
 	)
+
+	// do not require a network fee for this test
+	subspace := app.GetSubspace(minfee.ModuleName)
+	minfee.RegisterMinFeeParamTable(subspace)
+	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{}, false, log.NewNopLogger())
+	subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, sdk.NewDec(0))
 
 	return app
 }
