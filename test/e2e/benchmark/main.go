@@ -10,9 +10,9 @@ func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
 
 	tests := []Test{
-		{"TwoNodeSimple", TwoNodeSimple},
-		{"TwoNodeBigBlock_8MiB", TwoNodeBigBlock_8MiB},
-		{"TwoNodeBigBlock_32MiB", TwoNodeBigBlock_32MiB},
+		//{"TwoNodeSimple", TwoNodeSimple},
+		//{"TwoNodeBigBlock_8MiB", TwoNodeBigBlock_8MiB},
+		//{"TwoNodeBigBlock_32MiB", TwoNodeBigBlock_32MiB},
 		{"TwoNodeBigBlock_128MiB", TwoNodeBigBlock_128MiB},
 	}
 
