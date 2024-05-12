@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -15,9 +14,17 @@ import (
 // ExportAppStateAndValidators exports the state of the application for a
 // genesis file.
 func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs []string) (servertypes.ExportedApp, error) {
-	// TODO: use the real version of the application
-	app.mountKeysAndInit(appconsts.LatestVersion)
 	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+
+	app.InitializeAppVersion(ctx)
+	app.mountKeysAndInit(app.AppVersion())
+
+	// Create a new context so that the commit multi-store reflects the store
+	// key mounting performed above.
+	ctx, err = app.CreateQueryContext(app.LastBlockHeight(), false)
 	if err != nil {
 		return servertypes.ExportedApp{}, err
 	}

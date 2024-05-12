@@ -450,7 +450,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 	return app.mm.BeginBlock(ctx, req)
 }
 
-// EndBlocker application updates every end block
+// EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
@@ -559,6 +559,8 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
+	versionedKeys := app.versionedKeys(appVersion)
+	fmt.Printf("versionedKeys: %v\n", versionedKeys)
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
@@ -760,4 +762,14 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
+}
+
+func (app *App) InitializeAppVersion(ctx sdk.Context) {
+	appVersion := app.GetAppVersionFromParamStore(ctx)
+	if appVersion == 0 {
+		// if the param store does not have an app version set, default to v1
+		app.SetAppVersion(ctx, v1)
+	} else {
+		app.SetAppVersion(ctx, appVersion)
+	}
 }
