@@ -30,10 +30,11 @@ type Params struct {
 }
 
 // RegisterMinFeeParamTable attaches a key table to the provided subspace if it doesn't have one
-func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
-	if !ps.HasKeyTable() {
-		ps.WithKeyTable(ParamKeyTable())
+func RegisterMinFeeParamTable(subspace paramtypes.Subspace) paramtypes.Subspace {
+	if !subspace.HasKeyTable() {
+		return subspace.WithKeyTable(ParamKeyTable())
 	}
+	return subspace
 }
 
 // ParamKeyTable returns the param key table for the global min gas price module
