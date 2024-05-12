@@ -29,7 +29,8 @@ type Params struct {
 	GlobalMinGasPrice sdk.Dec
 }
 
-// RegisterMinFeeParamTable attaches a key table to the provided subspace if it doesn't have one
+// RegisterMinFeeParamTable attaches a key table to the provided subspace if it
+// doesn't have one.
 func RegisterMinFeeParamTable(subspace paramtypes.Subspace) paramtypes.Subspace {
 	if !subspace.HasKeyTable() {
 		return subspace.WithKeyTable(ParamKeyTable())

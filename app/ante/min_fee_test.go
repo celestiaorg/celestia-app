@@ -147,7 +147,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 			require.NoError(t, err)
 
 			subspace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
-			minfee.RegisterMinFeeParamTable(subspace)
+			subspace = minfee.RegisterMinFeeParamTable(subspace)
 			subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, globalminGasPriceDec)
 
 			_, _, err = ante.ValidateTxFee(ctx, tx, paramsKeeper)
