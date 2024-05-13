@@ -87,6 +87,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -543,16 +544,22 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	if req.ConsensusParams.Version.AppVersion == 0 {
 		panic("app version 0 is not accepted. Please set an app version in the genesis")
 	}
+	appVersion := req.ConsensusParams.Version.AppVersion
 
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
-		app.MountKVStores(app.versionedKeys(req.ConsensusParams.Version.AppVersion))
-		if err := app.LoadLatestVersion(); err != nil {
-			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-		}
+		app.mountKeysAndInit(appVersion)
 	}
 
-	return app.BaseApp.InitChain(req)
+	res = app.BaseApp.InitChain(req)
+
+	ctx := app.NewContext(false, tmproto.Header{})
+	if appVersion != v1 {
+		// set the initial app version in the consensus params
+		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
+		app.SetAppVersion(ctx, appVersion)
+	}
+	return res
 }
 
 // InitChainer application update at chain initialization
@@ -748,4 +755,15 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
+}
+
+// mountKeysAndInit mounts the keys for the provided app version and then
+// invokes baseapp.Init().
+func (app *App) mountKeysAndInit(appVersion uint64) {
+	app.MountKVStores(app.versionedKeys(appVersion))
+
+	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
+	if err := app.LoadLatestVersion(); err != nil {
+		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+	}
 }
