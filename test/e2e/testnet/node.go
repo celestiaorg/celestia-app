@@ -170,6 +170,8 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 
 	// Create the app.toml file
 	appConfig, err := MakeAppConfig(n)
+	appConfig.GRPC.MaxRecvMsgSize = 2501646900
+	appConfig.GRPC.MaxSendMsgSize = 2501646900
 	if err != nil {
 		return fmt.Errorf("making app config: %w", err)
 	}
