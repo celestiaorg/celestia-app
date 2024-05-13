@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/knuu/pkg/builder"
 	"os"
 	"path/filepath"
 
@@ -70,7 +71,10 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetImage(DockerImageName(version))
+	err = instance.SetGitRepo(context.Background(), builder.GitContext{
+		Repo:   "https://github.com/celestiaorg/celestia-app",
+		Commit: "5ce94f4",
+	})
 	if err != nil {
 		return nil, err
 	}
