@@ -47,7 +47,8 @@ func RandBlobTxsWithAccounts(
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
-		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence()))
+		account := user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence())
+		signer, err := user.NewSigner(kr, cfg, chainid, capp.AppVersion(), account)
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -65,8 +66,8 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
-		tx, _, err := signer.CreatePayForBlobs(addr.String(), blobs, opts...)
+		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accounts[i]).Address().String(), randomizedSize, randomizedBlobCount)
+		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, opts...)
 		require.NoError(t, err)
 		txs[i] = tx
 	}
