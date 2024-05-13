@@ -12,18 +12,58 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(node *Node) (*config.Config, error) {
+func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	cfg := config.DefaultConfig()
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-	cfg.P2P.SendRate = 5 * 1024 * 1024 // 5MiB/s
-	cfg.P2P.RecvRate = 5 * 1024 * 1024 // 5MiB/s
-	cfg.Consensus.TimeoutPropose = 1 * time.Second
-	cfg.Consensus.TimeoutCommit = 1 * time.Second
 	cfg.Instrumentation.Prometheus = true
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	return cfg, nil
+}
+
+type Option func(*config.Config)
+
+func WithPerPeerBandwidth(bandwidth int64) Option {
+	return func(cfg *config.Config) {
+		cfg.P2P.SendRate = bandwidth
+		cfg.P2P.RecvRate = bandwidth
+	}
+}
+
+func WithTimeoutPropose(timeout time.Duration) Option {
+	return func(cfg *config.Config) {
+		cfg.Consensus.TimeoutPropose = timeout
+	}
+}
+
+func WithTimeoutCommit(timeout time.Duration) Option {
+	return func(cfg *config.Config) {
+		cfg.Consensus.TimeoutCommit = timeout
+	}
+}
+
+func WithPrometheus(prometheus bool) Option {
+	return func(cfg *config.Config) {
+		cfg.Instrumentation.Prometheus = prometheus
+	}
+}
+
+func WithMempool(mempool string) Option {
+	return func(cfg *config.Config) {
+		cfg.Mempool.Version = mempool
+	}
+}
+
+func WithBroadcastTxs(broadcast bool) Option {
+	return func(cfg *config.Config) {
+		cfg.Mempool.Broadcast = broadcast
+	}
 }
 
 func WriteAddressBook(peers []string, file string) error {
