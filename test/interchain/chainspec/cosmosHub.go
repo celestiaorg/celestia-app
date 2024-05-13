@@ -59,9 +59,9 @@ var cosmosHub = &interchaintest.ChainSpec{
 var cosmosHub2 = &interchaintest.ChainSpec{
 	Name: "gaia2",
 	ChainConfig: ibc.ChainConfig{
-		Name:                   "gaia2",
+		Name:                   "gaia-2",
 		Type:                   "cosmos",
-		ChainID:                "gaia2",
+		ChainID:                "gaia-2",
 		Bin:                    "gaiad",
 		Bech32Prefix:           "cosmos",
 		Denom:                  "uatom",
