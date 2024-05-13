@@ -38,7 +38,7 @@ var bigBlockManifest = Manifest{
 	CelestiaAppVersion: "pr-3261",
 	TxClientVersion:    "pr-3261",
 	BlobsPerSeq:        6,
-	BlobSequences:      80,
+	BlobSequences:      40,
 	BlobSizes:          "200000",
 	PerPeerBandwidth:   100 * toMiB,
 	UpgradeHeight:      0,
@@ -50,7 +50,7 @@ var bigBlockManifest = Manifest{
 	GovMaxSquareSize:   1024,
 	MaxBlockBytes:      128 * toMiB,
 	TestDuration:       4 * time.Minute,
-	TxClients:          1,
+	TxClients:          2,
 	LocalTracingType:   "local",
 	PushTrace:          true,
 }
