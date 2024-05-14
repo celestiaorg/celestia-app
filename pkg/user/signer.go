@@ -189,7 +189,7 @@ func (s *Signer) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOp
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
 func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	resp, err := s.broadcastPayForBlob(ctx, blobs, opts...)
+	resp, err := s.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
 		return resp, err
 	}
@@ -197,7 +197,11 @@ func (s *Signer) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts 
 	return s.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (s *Signer) broadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+// BroadcastPayForBlob forms a transaction from the provided blobs, signs it,
+// and broadcasts it to the chain. TxOptions may be provided to set the fee and
+// gas limit. This function does not block on the tx actually being included in
+// a block.
+func (s *Signer) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	txBytes, seqNum, err := s.createPayForBlobs(blobs, opts...)
