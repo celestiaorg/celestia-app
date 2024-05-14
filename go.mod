@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.0.1
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/knuu v0.13.3-rc.4 //v0.13.2
+	github.com/celestiaorg/knuu v0.13.3-rc.4
 	github.com/celestiaorg/nmt v0.20.0
 	github.com/celestiaorg/rsmt2d v0.13.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
@@ -16,7 +16,7 @@ require (
 	github.com/cosmos/gogoproto v1.4.12
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6 v6.1.2
 	github.com/cosmos/ibc-go/v6 v6.3.0
-	github.com/ethereum/go-ethereum v1.14.2
+	github.com/ethereum/go-ethereum v1.14.3
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4

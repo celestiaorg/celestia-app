@@ -199,11 +199,16 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
+	if err := n.Instance.Commit(); err != nil {
+		return fmt.Errorf("committing instance: %w", err)
+
+	}
+
 	if err := n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
 		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
 
-	return n.Instance.Commit()
+	return nil
 }
 
 // AddressP2P returns a P2P endpoint address for the node. This is used for
