@@ -136,7 +136,7 @@ func Run(manifest Manifest) error {
 
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockHeights(context.Background(),
-		testNet.Node(0).AddressRPC(), 1, 10)
+		testNet.Node(0).AddressRPC(), 1, 5)
 	testnet.NoError("failed to read blockchain", err)
 
 	err = SaveToCSV(extractHeaders(blockchain),
