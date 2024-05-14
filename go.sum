@@ -321,8 +321,8 @@ github.com/celestiaorg/bittwister v0.0.0-20231211182706-b065de784c03 h1:oAyIR+jH
 github.com/celestiaorg/bittwister v0.0.0-20231211182706-b065de784c03/go.mod h1:1EF5MfOxVf0WC51Gb7pJ6bcZxnXKNAf9pqWtjgPBAYc=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
-github.com/celestiaorg/celestia-core v1.36.0-tm-v0.34.29 h1:qLsTxyS0CHMuMO4S0ug1Zntv+gFB6OVdDNmG3pz5mHI=
-github.com/celestiaorg/celestia-core v1.36.0-tm-v0.34.29/go.mod h1:AL7kotb6ucKF4bpKKhGIzGhGL7dwYj2nFstiFC6PGxM=
+github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29 h1:BuYworCMtFxAYyM5l1C0gx6PT/ViHosVRydvYd7vCqs=
+github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29/go.mod h1:AL7kotb6ucKF4bpKKhGIzGhGL7dwYj2nFstiFC6PGxM=
 github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16 h1:THZrswVVqGtMo2dMdW9R+5JGxjfD7+eaGZIJ7ne0ejE=
 github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16/go.mod h1:AmuR63HTlX8vNV3+NGWNPIZa95J1UweTUmWDHSdTGj0=
 github.com/celestiaorg/go-square v1.0.1 h1:LEG1zrw4i03VBMElQF8GAbKYgh1bT1uGzWxasU2ePuo=
