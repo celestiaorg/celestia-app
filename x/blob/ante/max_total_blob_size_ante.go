@@ -1,12 +1,11 @@
 package ante
 
 import (
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/shares"
-
-	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

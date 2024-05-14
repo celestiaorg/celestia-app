@@ -16,28 +16,25 @@ import (
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
+func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 	type testCase struct {
 		name    string
 		pfb     *blob.MsgPayForBlobs
-		wantErr bool
+		wantErr error
 	}
 
 	testCases := []testCase{
-		// tests based on bytes
 		{
 			name: "PFB with 1 blob that is 1 byte",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that is 1 MiB",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{mebibyte},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that is 2 MiB",
@@ -47,14 +44,13 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			// This test case should return an error because a square size of 64
 			// has exactly 2 MiB of total capacity so the total blob capacity
 			// will be slightly smaller than 2 MiB.
-			wantErr: true,
+			wantErr: blob.ErrTotalBlobSizeTooLarge,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 byte each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1, 1},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 MiB each",
@@ -63,22 +59,19 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			},
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
-			wantErr: true,
+			wantErr: blob.ErrTotalBlobSizeTooLarge,
 		},
-		// tests based on shares
 		{
 			name: "PFB with 1 blob that is 1 share",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square - 1",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square",
@@ -88,7 +81,7 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			// This test case should return an error because if the blob
 			// occupies the total square, there is no space for the PFB tx
 			// share.
-			wantErr: true,
+			wantErr: blob.ErrTotalBlobSizeTooLarge,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 share each",
@@ -98,7 +91,6 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 					uint32(shares.AvailableBytesFromSparseShares(1)),
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "PFB with 2 blobs that occupy half the square each",
@@ -108,7 +100,7 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
 				},
 			},
-			wantErr: true,
+			wantErr: blob.ErrTotalBlobSizeTooLarge,
 		},
 	}
 
@@ -120,14 +112,9 @@ func TestMaxTotalBlobSizeAnteHandler(t *testing.T) {
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
 			tx := txBuilder.GetTx()
 
-			mbsd := ante.NewMaxBlobSizeDecorator(mockBlobKeeper{})
-			_, err := mbsd.AnteHandle(ctx, tx, false, mockNext)
-
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			decorator := ante.NewMaxBlobSizeDecorator(mockBlobKeeper{})
+			_, err := decorator.AnteHandle(ctx, tx, false, mockNext)
+			assert.ErrorIs(t, tc.wantErr, err)
 		})
 	}
 }
