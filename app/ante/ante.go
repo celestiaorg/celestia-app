@@ -64,9 +64,11 @@ func NewAnteHandler(
 		// Note: does not consume gas from the gas meter.
 		blobante.NewMinGasPFBDecorator(blobKeeper),
 		// Ensure that the tx's total blob size is <= the max blob size.
+		// Only applies to app version == 1.
 		blobante.NewMaxBlobSizeDecorator(blobKeeper),
 		// Ensure that the blob shares occupied by the tx <= the max shares
-		// available to blob data in a data square.
+		// available to blob data in a data square. Only applies to app version
+		// >= 2.
 		blobante.NewBlobShareDecorator(blobKeeper),
 		// Ensure that tx's with a MsgSubmitProposal have at least one proposal
 		// message.
