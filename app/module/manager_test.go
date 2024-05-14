@@ -146,34 +146,71 @@ func TestManager_InitGenesis(t *testing.T) {
 }
 
 func TestManager_ExportGenesis(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	t.Cleanup(mockCtrl.Finish)
+	t.Run("export genesis with two modules at version 1", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		t.Cleanup(mockCtrl.Finish)
 
-	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
-	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
-	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
-	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
-	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
-	mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
-	mm, err := module.NewManager([]module.VersionedModule{
-		{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
-		{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+		mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
+		mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+		mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+		mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+		mockAppModule2.EXPECT().Name().Times(2).Return("module2")
+		mockAppModule2.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
+		mm, err := module.NewManager([]module.VersionedModule{
+			{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+			{Module: mockAppModule2, FromVersion: 1, ToVersion: 1},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, mm)
+		require.Equal(t, 2, len(mm.ModuleNames(1)))
+
+		ctx := sdk.Context{}
+		interfaceRegistry := types.NewInterfaceRegistry()
+		cdc := codec.NewProtoCodec(interfaceRegistry)
+		mockAppModule1.EXPECT().ExportGenesis(gomock.Eq(ctx), gomock.Eq(cdc)).Times(1).Return(json.RawMessage(`{"key1": "value1"}`))
+		mockAppModule2.EXPECT().ExportGenesis(gomock.Eq(ctx), gomock.Eq(cdc)).Times(1).Return(json.RawMessage(`{"key2": "value2"}`))
+
+		want := map[string]json.RawMessage{
+			"module1": json.RawMessage(`{"key1": "value1"}`),
+			"module2": json.RawMessage(`{"key2": "value2"}`),
+		}
+		require.Equal(t, want, mm.ExportGenesis(ctx, cdc, 1))
 	})
-	require.NoError(t, err)
-	require.NotNil(t, mm)
-	require.Equal(t, 2, len(mm.ModuleNames(1)))
+	t.Run("export genesis with one modules at version 1, one modules at version 2", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		t.Cleanup(mockCtrl.Finish)
 
-	ctx := sdk.Context{}
-	interfaceRegistry := types.NewInterfaceRegistry()
-	cdc := codec.NewProtoCodec(interfaceRegistry)
-	mockAppModule1.EXPECT().ExportGenesis(gomock.Eq(ctx), gomock.Eq(cdc)).Times(1).Return(json.RawMessage(`{"key1": "value1"}`))
-	mockAppModule2.EXPECT().ExportGenesis(gomock.Eq(ctx), gomock.Eq(cdc)).Times(1).Return(json.RawMessage(`{"key2": "value2"}`))
+		mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
+		mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+		mockAppModule1.EXPECT().Name().Times(2).Return("module1")
+		mockAppModule1.EXPECT().ConsensusVersion().Times(2).Return(uint64(1))
+		mockAppModule2.EXPECT().Name().Times(2).Return("module2")
+		mockAppModule2.EXPECT().ConsensusVersion().Times(2).Return(uint64(1))
+		mm, err := module.NewManager([]module.VersionedModule{
+			{Module: mockAppModule1, FromVersion: 1, ToVersion: 1},
+			{Module: mockAppModule2, FromVersion: 2, ToVersion: 2},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, mm)
+		require.Equal(t, 1, len(mm.ModuleNames(1)))
+		require.Equal(t, 1, len(mm.ModuleNames(2)))
 
-	want := map[string]json.RawMessage{
-		"module1": json.RawMessage(`{"key1": "value1"}`),
-		"module2": json.RawMessage(`{"key2": "value2"}`),
-	}
-	require.Equal(t, want, mm.ExportGenesis(ctx, cdc, 1))
+		ctx := sdk.Context{}
+		interfaceRegistry := types.NewInterfaceRegistry()
+		cdc := codec.NewProtoCodec(interfaceRegistry)
+		mockAppModule1.EXPECT().ExportGenesis(gomock.Eq(ctx), gomock.Eq(cdc)).Times(1).Return(json.RawMessage(`{"key1": "value1"}`))
+		mockAppModule2.EXPECT().ExportGenesis(gomock.Eq(ctx), gomock.Eq(cdc)).Times(1).Return(json.RawMessage(`{"key2": "value2"}`))
+
+		want := map[string]json.RawMessage{
+			"module1": json.RawMessage(`{"key1": "value1"}`),
+		}
+		assert.Equal(t, want, mm.ExportGenesis(ctx, cdc, 1))
+
+		want2 := map[string]json.RawMessage{
+			"module2": json.RawMessage(`{"key2": "value2"}`),
+		}
+		assert.Equal(t, want2, mm.ExportGenesis(ctx, cdc, 2))
+	})
 }
 
 func TestManager_BeginBlock(t *testing.T) {

@@ -170,11 +170,12 @@ type App struct {
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
-// New returns a reference to an initialized celestia app.
+// New returns a reference to an uninitialized app. Callers must subsequently
+// call app.Info or app.InitChain to initialize the baseapp.
 //
-// NOTE: upgradeHeight refers specifically to the height that
-// a node will upgrade from v1 to v2. It will be deprecated in v3
-// in place for a dynamically signalling scheme
+// NOTE: upgradeHeightV2 refers specifically to the height that a node will
+// upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
+// signalling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -450,7 +451,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 	return app.mm.BeginBlock(ctx, req)
 }
 
-// EndBlocker application updates every end block
+// EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.mm.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
@@ -505,8 +506,11 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 	return app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
 
-// We wrap Info around baseapp so we can take the app version and
-// setup the multicommit store.
+// Info implements the ABCI interface. This method is a wrapper around baseapp's
+// Info command so that it can take the app version and setup the multicommit
+// store.
+//
+// Side-effect: calls baseapp.Init()
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)
@@ -524,16 +528,16 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
-		app.MountKVStores(app.versionedKeys(resp.AppVersion))
-		if err := app.LoadLatestVersion(); err != nil {
-			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-		}
+		app.mountKeysAndInit(resp.AppVersion)
 	}
 	return resp
 }
 
-// We wrap InitChain around baseapp so we can take the app version and
-// setup the multicommit store.
+// InitChain implements the ABCI interface. This method is a wrapper around
+// baseapp's InitChain so we can take the app version and setup the multicommit
+// store.
+//
+// Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial
@@ -562,7 +566,18 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	return res
 }
 
-// InitChainer application update at chain initialization
+// mountKeysAndInit mounts the keys for the provided app version and then
+// invokes baseapp.Init().
+func (app *App) mountKeysAndInit(appVersion uint64) {
+	app.MountKVStores(app.versionedKeys(appVersion))
+
+	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
+	if err := app.LoadLatestVersion(); err != nil {
+		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+	}
+}
+
+// InitChainer is middleware that gets invoked part-way through the baseapp's InitChain invocation.
 func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
@@ -757,13 +772,12 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	return paramsKeeper
 }
 
-// mountKeysAndInit mounts the keys for the provided app version and then
-// invokes baseapp.Init().
-func (app *App) mountKeysAndInit(appVersion uint64) {
-	app.MountKVStores(app.versionedKeys(appVersion))
-
-	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
-	if err := app.LoadLatestVersion(); err != nil {
-		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+func (app *App) InitializeAppVersion(ctx sdk.Context) {
+	appVersion := app.GetAppVersionFromParamStore(ctx)
+	if appVersion == 0 {
+		// if the param store does not have an app version set, default to v1
+		app.SetAppVersion(ctx, v1)
+	} else {
+		app.SetAppVersion(ctx, appVersion)
 	}
 }

@@ -244,7 +244,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 
 	// do not require a network fee for this test
 	subspace := app.GetSubspace(minfee.ModuleName)
-	minfee.RegisterMinFeeParamTable(subspace)
+	subspace = minfee.RegisterMinFeeParamTable(subspace)
 	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{}, false, log.NewNopLogger())
 	subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, sdk.NewDec(0))
 
