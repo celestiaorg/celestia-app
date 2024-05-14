@@ -161,12 +161,13 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 
-	mm           *module.Manager
+	manager      *module.Manager
 	configurator module.Configurator
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
-	// used to define what messages are accepted for a given app version
+	// MsgGateKeeper is used to define which messages are accepted for a given
+	// app version.
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
@@ -187,20 +188,19 @@ func New(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	appCodec := encodingConfig.Codec
-	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
-	bApp.SetCommitMultiStoreTracer(traceStore)
-	bApp.SetVersion(version.Version)
-	bApp.SetInterfaceRegistry(interfaceRegistry)
+	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+	baseApp.SetCommitMultiStoreTracer(traceStore)
+	baseApp.SetVersion(version.Version)
+	baseApp.SetInterfaceRegistry(interfaceRegistry)
 
 	keys := sdk.NewKVStoreKeys(allStoreKeys()...)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	app := &App{
-		BaseApp:           bApp,
+		BaseApp:           baseApp,
 		appCodec:          appCodec,
 		interfaceRegistry: interfaceRegistry,
 		txConfig:          encodingConfig.TxConfig,
@@ -212,20 +212,16 @@ func New(
 		upgradeHeightV2:   upgradeHeightV2,
 	}
 
-	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
+	app.ParamsKeeper = initParamsKeeper(appCodec, encodingConfig.Amino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
-	// set the BaseApp's parameter store
-	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable()))
+	baseApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable()))
 
-	// add capability keeper and ScopeToModule for ibc module
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
 
-	// grant capabilities for the ibc and ibc-transfer modules
 	app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
 	app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
 	app.ScopedICAHostKeeper = app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
 
-	// add keepers
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, keys[authtypes.StoreKey], app.GetSubspace(authtypes.ModuleName), authtypes.ProtoBaseAccount, maccPerms, sdk.GetConfig().GetBech32AccountAddrPrefix(),
 	)
@@ -233,7 +229,7 @@ func New(
 		appCodec, keys[banktypes.StoreKey], app.AccountKeeper, app.GetSubspace(banktypes.ModuleName), app.ModuleAccountAddrs(),
 	)
 	app.AuthzKeeper = authzkeeper.NewKeeper(
-		keys[authzkeeper.StoreKey], appCodec, bApp.MsgServiceRouter(), app.AccountKeeper,
+		keys[authzkeeper.StoreKey], appCodec, baseApp.MsgServiceRouter(), app.AccountKeeper,
 	)
 	stakingKeeper := stakingkeeper.NewKeeper(
 		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName),
@@ -364,7 +360,7 @@ func New(
 		app.BankKeeper,
 		&stakingKeeper,
 		govRouter,
-		bApp.MsgServiceRouter(),
+		baseApp.MsgServiceRouter(),
 		govtypes.DefaultConfig(),
 	)
 
@@ -397,9 +393,9 @@ func New(
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
 	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
-	app.mm.RegisterInvariants(&app.CrisisKeeper)
+	app.manager.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.mm.RegisterServices(app.configurator)
+	app.manager.RegisterServices(app.configurator)
 
 	// extract the accepted message list from the configurator and create a gatekeeper
 	// which will be used both as the antehandler and as part of the circuit breaker in
@@ -448,12 +444,12 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	return app.mm.BeginBlock(ctx, req)
+	return app.manager.BeginBlock(ctx, req)
 }
 
 // EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	res := app.mm.EndBlock(ctx, req)
+	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
 	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
@@ -503,7 +499,7 @@ func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.Store
 // migrateModules performs migrations on existing modules that have registered migrations
 // between versions and initializes the state of new modules for the specified app version.
 func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) error {
-	return app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
+	return app.manager.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
 
 // Info implements the ABCI interface. This method is a wrapper around baseapp's
@@ -583,8 +579,8 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 		panic(err)
 	}
 
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap(req.ConsensusParams.Version.AppVersion))
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(req.ConsensusParams.Version.AppVersion))
+	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
 // LoadHeight loads a particular height
@@ -595,7 +591,7 @@ func (app *App) LoadHeight(height int64) error {
 // SupportedVersions returns all the state machines that the
 // application supports
 func (app *App) SupportedVersions() []uint64 {
-	return app.mm.SupportedVersions()
+	return app.manager.SupportedVersions()
 }
 
 // versionedKeys returns a map from moduleName to KV store key for the given app
