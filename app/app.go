@@ -87,6 +87,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -547,13 +548,21 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	if req.ConsensusParams.Version.AppVersion == 0 {
 		panic("app version 0 is not accepted. Please set an app version in the genesis")
 	}
+	appVersion := req.ConsensusParams.Version.AppVersion
 
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
-		app.mountKeysAndInit(req.ConsensusParams.Version.AppVersion)
+		app.mountKeysAndInit(appVersion)
 	}
 
-	return app.BaseApp.InitChain(req)
+	res = app.BaseApp.InitChain(req)
+
+	ctx := app.NewContext(false, tmproto.Header{})
+	if appVersion != v1 {
+		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
+		app.SetAppVersion(ctx, appVersion)
+	}
+	return res
 }
 
 // mountKeysAndInit mounts the keys for the provided app version and then
