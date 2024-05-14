@@ -139,21 +139,15 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		addrbookCommand(),
 		downloadGenesisCommand(),
 		addrConversionCmd(),
-	)
-
-	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
-
-	// add status, query, tx, and keys subcommands
-	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
 		bscmd.VerifyCmd(),
-	)
-	rootCmd.AddCommand(
 		snapshot.Cmd(NewAppServer),
 	)
+
+	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
