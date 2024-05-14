@@ -559,7 +559,6 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 
 	ctx := app.NewContext(false, tmproto.Header{})
 	if appVersion != v1 {
-		// set the initial app version in the consensus params
 		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
 		app.SetAppVersion(ctx, appVersion)
 	}
