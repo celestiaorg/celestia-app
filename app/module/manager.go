@@ -179,11 +179,17 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 	}
 }
 
-// ExportGenesis performs export genesis functionality for modules
+// ExportGenesis performs export genesis functionality for the modules supported
+// in a particular version.
 func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version uint64) map[string]json.RawMessage {
 	genesisData := make(map[string]json.RawMessage)
 	modules := m.versionedModules[version]
-	for _, moduleName := range m.OrderExportGenesis {
+	moduleNamesForVersion := m.ModuleNames(version)
+	moduleNamesToExport := filter(m.OrderExportGenesis, func(moduleName string) bool {
+		// filter out modules that are not supported by this version
+		return slices.Contains(moduleNamesForVersion, moduleName)
+	})
+	for _, moduleName := range moduleNamesToExport {
 		genesisData[moduleName] = modules[moduleName].ExportGenesis(ctx, cdc)
 	}
 
