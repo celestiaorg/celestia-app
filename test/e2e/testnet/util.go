@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 
+	"github.com/rs/zerolog/log"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
@@ -50,6 +51,7 @@ func GetGrafanaInfoFromEnvVar() *GrafanaInfo {
 		return nil
 	}
 
+	log.Info().Msg("Grafana environment variables found")
 	return &GrafanaInfo{
 		Endpoint: os.Getenv("GRAFANA_ENDPOINT"),
 		Username: os.Getenv("GRAFANA_USERNAME"),
