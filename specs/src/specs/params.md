@@ -11,7 +11,7 @@ are blocked by the `x/paramfilter` module.
 
 | Parameter     | Default | Summary                                                                                                                | Changeable via Governance |
 |---------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| MaxBlockBytes | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
+| MaxBlockSizeBytes | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
 | MaxSquareSize | 128     | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False                     |
 
 ### Module parameters
