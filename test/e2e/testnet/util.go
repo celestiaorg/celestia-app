@@ -45,9 +45,12 @@ type GrafanaInfo struct {
 }
 
 func GetGrafanaInfoFromEnvVar() *GrafanaInfo {
+	log.Info().Msg("Checking Grafana environment variables")
 	if os.Getenv("GRAFANA_ENDPOINT") == "" ||
 		os.Getenv("GRAFANA_USERNAME") == "" ||
 		os.Getenv("GRAFANA_TOKEN") == "" {
+
+		log.Info().Msg("No Grafana environment variables found")
 		return nil
 	}
 
