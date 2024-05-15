@@ -26,6 +26,7 @@ jobs:
 
   e2e-tests:
     uses: ./.github/workflows/e2e-tests.yml
+    permissions: write-all
     secrets:
       KNUU_KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
 

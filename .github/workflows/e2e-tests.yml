@@ -1,6 +1,9 @@
 name: e2e-tests
 on:
   workflow_call:
+    secrets:
+      KNUU_KUBECONFIG_FILE:
+        required: true
 
 jobs:
   test-e2e:
