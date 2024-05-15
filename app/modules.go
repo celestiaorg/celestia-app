@@ -93,7 +93,7 @@ var (
 
 func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	var err error
-	app.mm, err = module.NewManager([]module.VersionedModule{
+	app.manager, err = module.NewManager([]module.VersionedModule{
 		{
 			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, app.txConfig),
 			FromVersion: v1, ToVersion: v2,
@@ -190,7 +190,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	if err != nil {
 		return err
 	}
-	return app.mm.AssertMatchingModules(ModuleBasics)
+	return app.manager.AssertMatchingModules(ModuleBasics)
 }
 
 func (app *App) setModuleOrder() {
@@ -198,7 +198,7 @@ func (app *App) setModuleOrder() {
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	app.mm.SetOrderBeginBlockers(
+	app.manager.SetOrderBeginBlockers(
 		capabilitytypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
@@ -224,7 +224,7 @@ func (app *App) setModuleOrder() {
 		packetforwardtypes.ModuleName,
 	)
 
-	app.mm.SetOrderEndBlockers(
+	app.manager.SetOrderEndBlockers(
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
@@ -257,7 +257,7 @@ func (app *App) setModuleOrder() {
 	// can do so safely.
 	// NOTE: The minfee module must occur before genutil so DeliverTx can
 	// successfully pass the fee checking logic
-	app.mm.SetOrderInitGenesis(
+	app.manager.SetOrderInitGenesis(
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
