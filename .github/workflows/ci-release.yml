@@ -41,6 +41,7 @@ jobs:
             echo "KUBECONFIG_FILE is empty"
           else
             echo "KUBECONFIG_FILE is not empty"
+            fi
 
   goreleaser:
     uses: ./.github/workflows/goreleaser.yml
