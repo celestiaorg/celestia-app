@@ -37,7 +37,7 @@ jobs:
         env:
           KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
         run: |
-          if [ -z "${KUBECONFIG_FILE}" ]; then
+          if [ -z "${{ secrets.KNUU_KUBECONFIG_FILE }}" ]; then
             echo "KUBECONFIG_FILE is empty"
           else
             echo "KUBECONFIG_FILE is not empty"
