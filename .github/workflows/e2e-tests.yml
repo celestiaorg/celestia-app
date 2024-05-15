@@ -20,6 +20,5 @@ jobs:
         run: |
           mkdir -p $HOME/.kube
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
-          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
       - name: Run e2e tests
         run: make test-e2e

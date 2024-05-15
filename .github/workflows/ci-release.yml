@@ -26,6 +26,8 @@ jobs:
 
   e2e-tests:
     uses: ./.github/workflows/e2e-tests.yml
+    secrets:
+      KNUU_KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
 
   goreleaser:
     uses: ./.github/workflows/goreleaser.yml
