@@ -21,7 +21,7 @@ jobs:
         env:
           KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
         run: |
-          mkdir -p ${HOME}/.kube/config
+          mkdir -p ${HOME}/.kube
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
       - name: Run e2e tests
         run: make test-e2e
