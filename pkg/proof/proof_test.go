@@ -225,7 +225,6 @@ func TestNewShareInclusionProof(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
 // Ensure that we reject negative index values and avoid overflows.
 // https://github.com/celestiaorg/celestia-app/issues/3140
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
@@ -242,7 +241,8 @@ func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	if len(rawProof) != 0 {
 		t.Fatal("no rawProof expected")
 	}
-=======
+}
+
 // TestAllSharesInclusionProof creates a proof for all shares in the data
 // square. Since we can't prove multiple namespaces at the moment, all the
 // shares use the same namespace.
@@ -273,5 +273,4 @@ func TestAllSharesInclusionProof(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.NoError(t, proof.Validate(dataRoot))
->>>>>>> 0c55a6e (fix: end exclusive parse namespace end share range (#2208))
 }
