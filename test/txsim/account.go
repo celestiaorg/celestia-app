@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -241,12 +242,25 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	var res *types.TxResponse
 	var size int64
 	if len(op.Blobs) > 0 {
-		for _, blob := range op.Blobs {
-			size += int64(len(blob.GetData()))
-		}
+		size = getSize(op.Blobs)
 		res, err = signer.SubmitPayForBlob(ctx, op.Blobs, opts...)
+		if err != nil {
+			// log the failed tx
+			log.Err(err).
+				Str("address", address.String()).
+				Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
+				Int64("total byte size of blobs", size).
+				Msg("tx failed")
+		}
 	} else {
 		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
+		// log the failed tx
+		if err != nil {
+			log.Err(err).
+				Str("address", address.String()).
+				Str("msgs", msgsToString(op.Msgs)).
+				Msg("tx failed")
+		}
 	}
 	if err != nil {
 		if len(op.Blobs) > 0 {
@@ -271,11 +285,9 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		log.Info().
 			Int64("height", res.Height).
 			Str("address", address.String()).
-			Str("blobs", fmt.Sprintf("%d", len(op.Blobs))).
-			Int64("total size of blobs", size).
+			Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
+			Int64("total byte size of blobs", size).
 			Msg("tx committed")
-		return nil
-
 	} else {
 		log.Info().
 			Int64("height", res.Height).
@@ -285,6 +297,14 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	return nil
+}
+
+func getSize(blobs []*blob.Blob) int64 {
+	size := int64(0)
+	for _, blob := range blobs {
+		size += int64(len(blob.GetData()))
+	}
+	return size
 }
 
 // Generate the pending accounts by sending the adequate funds. This operation
