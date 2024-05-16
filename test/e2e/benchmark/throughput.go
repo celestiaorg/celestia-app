@@ -209,8 +209,44 @@ func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_64MiB")
 	manifest := bigBlockManifest
-	manifest.TestnetName = "TwoNodeBigBlock_128MiB"
+	manifest.TestnetName = "TwoNodeBigBlock_64MiB"
 	manifest.ChainID = "two-node-big-block-64mib"
 	manifest.MaxBlockBytes = 64 * toMiB
+	return Run(manifest)
+}
+
+func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_8MiB")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "LargeNetwork_BigBlock_8MiB"
+	manifest.ChainID = "large-network-big-block-8mib"
+	manifest.MaxBlockBytes = 8 * toMiB
+	manifest.Validators = 50
+	manifest.TxClients = 50
+	manifest.BlobsPerSeq = 20
+	return Run(manifest)
+}
+
+func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_32MiB")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "LargeNetwork_BigBlock_32MiB"
+	manifest.ChainID = "large-network-big-block-32mib"
+	manifest.MaxBlockBytes = 32 * toMiB
+	manifest.Validators = 50
+	manifest.TxClients = 50
+	manifest.BlobsPerSeq = 20
+	return Run(manifest)
+}
+
+func LargeNetwork_BigBlock_64MiB(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_64MiB")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "LargeNetwork_BigBlock_64MiB"
+	manifest.ChainID = "large-network-big-block-64mib"
+	manifest.MaxBlockBytes = 64 * toMiB
+	manifest.Validators = 50
+	manifest.TxClients = 50
+	manifest.BlobsPerSeq = 20
 	return Run(manifest)
 }

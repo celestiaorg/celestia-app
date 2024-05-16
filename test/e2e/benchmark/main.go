@@ -14,6 +14,9 @@ func main() {
 		{"TwoNodeBigBlock_8MiB", TwoNodeBigBlock_8MiB},
 		{"TwoNodeBigBlock_32MiB", TwoNodeBigBlock_32MiB},
 		{"TwoNodeBigBlock_64MiB", TwoNodeBigBlock_64MiB},
+		{"LargeNetwork_BigBlock_8MiB", LargeNetwork_BigBlock_8MiB},
+		{"LargeNetwork_BigBlock_32MiB", LargeNetwork_BigBlock_32MiB},
+		{"LargeNetwork_BigBlock_64MiB", LargeNetwork_BigBlock_64MiB},
 	}
 
 	// check if a specific test is passed and run it
