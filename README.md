@@ -106,6 +106,10 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 > [!NOTE]
 > The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
 
+### Usage as a library
+
+If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatabilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
+
 ## Contributing
 
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
