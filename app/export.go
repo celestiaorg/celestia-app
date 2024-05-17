@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"log"
 
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -13,35 +11,56 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-// ExportAppStateAndValidators exports the state of the application for a genesis
-// file.
-func (app *App) ExportAppStateAndValidators(
-	forZeroHeight bool, jailAllowedAddrs []string,
-) (servertypes.ExportedApp, error) {
-	// as if they could withdraw from the start of the next block
-	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+// ExportAppStateAndValidators exports the state of the application for a
+// genesis file.
+func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs []string) (servertypes.ExportedApp, error) {
+	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
 
-	// We export at last height + 1, because that's the height at which
-	// Tendermint will start InitChain.
-	height := app.LastBlockHeight() + 1
+	app.InitializeAppVersion(ctx)
+	if !app.IsSealed() {
+		app.mountKeysAndInit(app.AppVersion())
+	}
+
+	// Create a new context so that the commit multi-store reflects the store
+	// key mounting performed above.
+	ctx, err = app.CreateQueryContext(app.LastBlockHeight(), false)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+
 	if forZeroHeight {
-		height = 0
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
 	}
 
-	genState := app.mm.ExportGenesis(ctx, app.appCodec, app.AppVersion())
+	genState := app.manager.ExportGenesis(ctx, app.appCodec, app.AppVersion())
 	appState, err := json.MarshalIndent(genState, "", "  ")
 	if err != nil {
 		return servertypes.ExportedApp{}, err
 	}
 
 	validators, err := staking.WriteValidators(ctx, app.StakingKeeper)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+
 	return servertypes.ExportedApp{
 		AppState:        appState,
 		Validators:      validators,
-		Height:          height,
+		Height:          app.getExportHeight(forZeroHeight),
 		ConsensusParams: app.BaseApp.GetConsensusParams(ctx),
-	}, err
+	}, nil
+}
+
+func (app *App) getExportHeight(forZeroHeight bool) int64 {
+	if forZeroHeight {
+		return 0
+	}
+	// We export at last height + 1, because that's the height at which
+	// Tendermint will start InitChain.
+	return app.LastBlockHeight() + 1
 }
 
 // prepForZeroHeightGenesis preps for fresh start at zero height. Zero height

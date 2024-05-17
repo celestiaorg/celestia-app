@@ -60,7 +60,7 @@ func WithMempool(mempool string) Option {
 	}
 }
 
-func BroadcastTxsOpt(broadcast bool) Option {
+func WithBroadcastTxs(broadcast bool) Option {
 	return func(cfg *config.Config) {
 		cfg.Mempool.Broadcast = broadcast
 	}

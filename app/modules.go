@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/app/module"
 	"github.com/celestiaorg/celestia-app/v2/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
@@ -92,7 +93,7 @@ var (
 
 func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	var err error
-	app.mm, err = module.NewManager([]module.VersionedModule{
+	app.manager, err = module.NewManager([]module.VersionedModule{
 		{
 			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, app.txConfig),
 			FromVersion: v1, ToVersion: v2,
@@ -189,7 +190,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	if err != nil {
 		return err
 	}
-	return app.mm.AssertMatchingModules(ModuleBasics)
+	return app.manager.AssertMatchingModules(ModuleBasics)
 }
 
 func (app *App) setModuleOrder() {
@@ -197,7 +198,7 @@ func (app *App) setModuleOrder() {
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	app.mm.SetOrderBeginBlockers(
+	app.manager.SetOrderBeginBlockers(
 		capabilitytypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
@@ -223,7 +224,7 @@ func (app *App) setModuleOrder() {
 		packetforwardtypes.ModuleName,
 	)
 
-	app.mm.SetOrderEndBlockers(
+	app.manager.SetOrderEndBlockers(
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
@@ -256,7 +257,7 @@ func (app *App) setModuleOrder() {
 	// can do so safely.
 	// NOTE: The minfee module must occur before genutil so DeliverTx can
 	// successfully pass the fee checking logic
-	app.mm.SetOrderInitGenesis(
+	app.manager.SetOrderInitGenesis(
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
@@ -324,6 +325,7 @@ func versionedStoreKeys() map[uint64][]string {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
+			blobtypes.StoreKey,
 			capabilitytypes.StoreKey,
 			distrtypes.StoreKey,
 			evidencetypes.StoreKey,
@@ -331,10 +333,10 @@ func versionedStoreKeys() map[uint64][]string {
 			govtypes.StoreKey,
 			ibchost.StoreKey,
 			ibctransfertypes.StoreKey,
-			icahosttypes.StoreKey,
+			icahosttypes.StoreKey, // added in v2
 			minttypes.StoreKey,
-			packetforwardtypes.StoreKey,
-			signaltypes.StoreKey,
+			packetforwardtypes.StoreKey, // added in v2
+			signaltypes.StoreKey,        // added in v2
 			slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
@@ -368,4 +370,13 @@ func (app *App) assertAllKeysArePresent() {
 			panic(fmt.Sprintf("app version %d is supported by the module manager but has no keys", appVersion))
 		}
 	}
+}
+
+// extractRegisters returns the encoding module registers from the basic
+// manager.
+func extractRegisters(manager sdkmodule.BasicManager) (modules []encoding.ModuleRegister) {
+	for _, module := range manager {
+		modules = append(modules, module)
+	}
+	return modules
 }

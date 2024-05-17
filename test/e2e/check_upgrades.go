@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -23,7 +24,9 @@ import (
 func MinorVersionCompatibility(logger *log.Logger) error {
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
-	versions := testnet.ParseVersions(versionStr).FilterMajor(MajorVersion).FilterOutReleaseCandidates()
+	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates()
+	versions2 := testnet.ParseVersions(versionStr).FilterMajor(v2.Version) // include release candidates for v2 because there isn't an official release yet.
+	versions := slices.Concat(versions1, versions2)
 
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
@@ -91,9 +94,10 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes+1).Upgrade(newVersion))
+		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
+		time.Sleep(10 * time.Second)
 		// wait for the node to reach two more heights
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
+		testnet.NoError("failed to wait for height", waitForHeight(testNet, testNet.Node(i%numNodes), heightBefore+2, 30*time.Second))
 	}
 
 	heights := make([]int64, 4)
@@ -181,7 +185,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
+		testnet.NoError("failed to wait for height", waitForHeight(testNet, testNet.Node(i), upgradeHeight, time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
 		testnet.NoError("failed to get header", err)
@@ -226,7 +230,7 @@ func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (in
 	}
 }
 
-func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
+func waitForHeight(testnet *testnet.Testnet, node *testnet.Node, height int64, period time.Duration) error {
 	timer := time.NewTimer(period)
 	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
@@ -234,11 +238,15 @@ func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period 
 		case <-timer.C:
 			return fmt.Errorf("failed to reach height %d in %.2f seconds", height, period.Seconds())
 		case <-ticker.C:
-			status, err := client.Status(ctx)
+			executor, err := testnet.GetExecutor()
+			if err != nil {
+				return fmt.Errorf("failed to get executor: %w", err)
+			}
+			currentHeight, err := node.GetHeight(executor)
 			if err != nil {
 				return err
 			}
-			if status.SyncInfo.LatestBlockHeight >= height {
+			if currentHeight >= height {
 				return nil
 			}
 		}

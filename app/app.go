@@ -34,7 +34,6 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
@@ -81,16 +80,19 @@ import (
 	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
+	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 	"github.com/spf13/cast"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
-// maccPerms is short for module account permissions.
+// maccPerms is short for module account permissions. It is a map from module
+// account name to a list of permissions for that module account.
 var maccPerms = map[string][]string{
 	authtypes.FeeCollectorName:     nil,
 	distrtypes.ModuleName:          nil,
@@ -108,7 +110,10 @@ const (
 	DefaultInitialVersion = v1
 )
 
-var _ servertypes.Application = (*App)(nil)
+var (
+	_ servertypes.Application = (*App)(nil)
+	_ ibctesting.TestingApp   = (*App)(nil)
+)
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
@@ -156,20 +161,22 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 
-	mm           *module.Manager
+	manager      *module.Manager
 	configurator module.Configurator
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
-	// used to define what messages are accepted for a given app version
+	// MsgGateKeeper is used to define which messages are accepted for a given
+	// app version.
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
-// New returns a reference to an initialized celestia app.
+// New returns a reference to an uninitialized app. Callers must subsequently
+// call app.Info or app.InitChain to initialize the baseapp.
 //
-// NOTE: upgradeHeight refers specifically to the height that
-// a node will upgrade from v1 to v2. It will be deprecated in v3
-// in place for a dynamically signalling scheme
+// NOTE: upgradeHeightV2 refers specifically to the height that a node will
+// upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
+// signalling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -181,20 +188,19 @@ func New(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	appCodec := encodingConfig.Codec
-	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
-	bApp.SetCommitMultiStoreTracer(traceStore)
-	bApp.SetVersion(version.Version)
-	bApp.SetInterfaceRegistry(interfaceRegistry)
+	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+	baseApp.SetCommitMultiStoreTracer(traceStore)
+	baseApp.SetVersion(version.Version)
+	baseApp.SetInterfaceRegistry(interfaceRegistry)
 
 	keys := sdk.NewKVStoreKeys(allStoreKeys()...)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	app := &App{
-		BaseApp:           bApp,
+		BaseApp:           baseApp,
 		appCodec:          appCodec,
 		interfaceRegistry: interfaceRegistry,
 		txConfig:          encodingConfig.TxConfig,
@@ -206,20 +212,16 @@ func New(
 		upgradeHeightV2:   upgradeHeightV2,
 	}
 
-	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
+	app.ParamsKeeper = initParamsKeeper(appCodec, encodingConfig.Amino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
-	// set the BaseApp's parameter store
-	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable()))
+	baseApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable()))
 
-	// add capability keeper and ScopeToModule for ibc module
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
 
-	// grant capabilities for the ibc and ibc-transfer modules
 	app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
 	app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
 	app.ScopedICAHostKeeper = app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
 
-	// add keepers
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, keys[authtypes.StoreKey], app.GetSubspace(authtypes.ModuleName), authtypes.ProtoBaseAccount, maccPerms, sdk.GetConfig().GetBech32AccountAddrPrefix(),
 	)
@@ -227,7 +229,7 @@ func New(
 		appCodec, keys[banktypes.StoreKey], app.AccountKeeper, app.GetSubspace(banktypes.ModuleName), app.ModuleAccountAddrs(),
 	)
 	app.AuthzKeeper = authzkeeper.NewKeeper(
-		keys[authzkeeper.StoreKey], appCodec, bApp.MsgServiceRouter(), app.AccountKeeper,
+		keys[authzkeeper.StoreKey], appCodec, baseApp.MsgServiceRouter(), app.AccountKeeper,
 	)
 	stakingKeeper := stakingkeeper.NewKeeper(
 		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName),
@@ -358,7 +360,7 @@ func New(
 		app.BankKeeper,
 		&stakingKeeper,
 		govRouter,
-		bApp.MsgServiceRouter(),
+		baseApp.MsgServiceRouter(),
 		govtypes.DefaultConfig(),
 	)
 
@@ -391,9 +393,9 @@ func New(
 	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
 	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
-	app.mm.RegisterInvariants(&app.CrisisKeeper)
+	app.manager.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.mm.RegisterServices(app.configurator)
+	app.manager.RegisterServices(app.configurator)
 
 	// extract the accepted message list from the configurator and create a gatekeeper
 	// which will be used both as the antehandler and as part of the circuit breaker in
@@ -442,12 +444,12 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	return app.mm.BeginBlock(ctx, req)
+	return app.manager.BeginBlock(ctx, req)
 }
 
-// EndBlocker application updates every end block
+// EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	res := app.mm.EndBlock(ctx, req)
+	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
 	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
@@ -455,6 +457,11 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		if req.Height == app.upgradeHeightV2-1 {
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
+			// The blobstream module was disabled in v2 so the following line
+			// removes the the params subspace for blobstream.
+			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {
+				panic(err)
+			}
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
 	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(); shouldUpgrade {
@@ -492,11 +499,14 @@ func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.Store
 // migrateModules performs migrations on existing modules that have registered migrations
 // between versions and initializes the state of new modules for the specified app version.
 func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) error {
-	return app.mm.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
+	return app.manager.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
 
-// We wrap Info around baseapp so we can take the app version and
-// setup the multicommit store.
+// Info implements the ABCI interface. This method is a wrapper around baseapp's
+// Info command so that it can take the app version and setup the multicommit
+// store.
+//
+// Side-effect: calls baseapp.Init()
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)
@@ -514,16 +524,16 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	resp := app.BaseApp.Info(req)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
-		app.MountKVStores(app.versionedKeys(resp.AppVersion))
-		if err := app.LoadLatestVersion(); err != nil {
-			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-		}
+		app.mountKeysAndInit(resp.AppVersion)
 	}
 	return resp
 }
 
-// We wrap InitChain around baseapp so we can take the app version and
-// setup the multicommit store.
+// InitChain implements the ABCI interface. This method is a wrapper around
+// baseapp's InitChain so we can take the app version and setup the multicommit
+// store.
+//
+// Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial
@@ -534,27 +544,43 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	if req.ConsensusParams.Version.AppVersion == 0 {
 		panic("app version 0 is not accepted. Please set an app version in the genesis")
 	}
+	appVersion := req.ConsensusParams.Version.AppVersion
 
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
-		app.MountKVStores(app.versionedKeys(req.ConsensusParams.Version.AppVersion))
-		if err := app.LoadLatestVersion(); err != nil {
-			panic(fmt.Sprintf("loading latest version: %s", err.Error()))
-		}
+		app.mountKeysAndInit(appVersion)
 	}
 
-	return app.BaseApp.InitChain(req)
+	res = app.BaseApp.InitChain(req)
+
+	ctx := app.NewContext(false, tmproto.Header{})
+	if appVersion != v1 {
+		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
+		app.SetAppVersion(ctx, appVersion)
+	}
+	return res
 }
 
-// InitChainer application update at chain initialization
+// mountKeysAndInit mounts the keys for the provided app version and then
+// invokes baseapp.Init().
+func (app *App) mountKeysAndInit(appVersion uint64) {
+	app.MountKVStores(app.versionedKeys(appVersion))
+
+	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
+	if err := app.LoadLatestVersion(); err != nil {
+		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
+	}
+}
+
+// InitChainer is middleware that gets invoked part-way through the baseapp's InitChain invocation.
 func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
 
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap(req.ConsensusParams.Version.AppVersion))
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(req.ConsensusParams.Version.AppVersion))
+	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
 }
 
 // LoadHeight loads a particular height
@@ -565,10 +591,11 @@ func (app *App) LoadHeight(height int64) error {
 // SupportedVersions returns all the state machines that the
 // application supports
 func (app *App) SupportedVersions() []uint64 {
-	return app.mm.SupportedVersions()
+	return app.manager.SupportedVersions()
 }
 
-// versionedKeys returns the keys for the kv stores for a given app version
+// versionedKeys returns a map from moduleName to KV store key for the given app
+// version.
 func (app *App) versionedKeys(appVersion uint64) map[string]*storetypes.KVStoreKey {
 	output := make(map[string]*storetypes.KVStoreKey)
 	if keys, exists := app.keyVersions[appVersion]; exists {
@@ -683,11 +710,8 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 	authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	// Register new tendermint queries routes from grpc-gateway.
 	tmservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
-
 	// Register node gRPC service for grpc-gateway.
 	nodeservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
-
-	// Register the
 	ModuleBasics.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 }
 
@@ -698,7 +722,7 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(clientCtx, app.BaseApp.GRPCQueryRouter(), app.interfaceRegistry, nil)
+	tmservice.RegisterTendermintService(clientCtx, app.BaseApp.GRPCQueryRouter(), app.interfaceRegistry, app.Query)
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context) {
@@ -720,7 +744,7 @@ func (app *App) BlockedParams() [][2]string {
 	}
 }
 
-// initParamsKeeper init params keeper and its subspaces
+// initParamsKeeper initializes the params keeper and its subspaces.
 func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {
 	paramsKeeper := paramskeeper.NewKeeper(appCodec, legacyAmino, key, tkey)
 
@@ -743,15 +767,12 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	return paramsKeeper
 }
 
-// extractRegisters isolates the encoding module registers from the module
-// manager, and appends any solo registers.
-func extractRegisters(m sdkmodule.BasicManager) []encoding.ModuleRegister {
-	// TODO: might be able to use some standard generics in go 1.18
-	s := make([]encoding.ModuleRegister, len(m))
-	i := 0
-	for _, v := range m {
-		s[i] = v
-		i++
+func (app *App) InitializeAppVersion(ctx sdk.Context) {
+	appVersion := app.GetAppVersionFromParamStore(ctx)
+	if appVersion == 0 {
+		// if the param store does not have an app version set, default to v1
+		app.SetAppVersion(ctx, v1)
+	} else {
+		app.SetAppVersion(ctx, appVersion)
 	}
-	return s
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
+// Configurator implements the module.Configurator interface.
 var _ module.Configurator = Configurator{}
 
 // Configurator is a struct used at startup to register all the message and
@@ -60,12 +61,12 @@ func (c Configurator) GetAcceptedMessages() map[uint64]map[string]struct{} {
 	return c.acceptedMessages
 }
 
-// QueryServer implements the Configurator.QueryServer method
+// QueryServer implements the Configurator.QueryServer method.
 func (c Configurator) QueryServer() pbgrpc.Server {
 	return c.queryServer
 }
 
-// RegisterMigration implements the Configurator.RegisterMigration method
+// RegisterMigration implements the Configurator.RegisterMigration method.
 func (c Configurator) RegisterMigration(moduleName string, fromVersion uint64, handler module.MigrationHandler) error {
 	if fromVersion == 0 {
 		return sdkerrors.ErrInvalidVersion.Wrap("module migration versions should start at 1")

@@ -25,13 +25,14 @@ func ValidateGenesis(genesis *GenesisState) error {
 
 // ExportGenesis returns the minfee module's exported genesis.
 func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
-	globalMinGasPrice, exists := k.GetSubspace(ModuleName)
-
-	var minGasPrice sdk.Dec
-	globalMinGasPrice.Get(ctx, KeyGlobalMinGasPrice, &minGasPrice)
+	subspace, exists := k.GetSubspace(ModuleName)
 	if !exists {
 		panic("minfee subspace not set")
 	}
+	subspace = RegisterMinFeeParamTable(subspace)
 
-	return &GenesisState{GlobalMinGasPrice: minGasPrice}
+	var globalMinGasPrice sdk.Dec
+	subspace.Get(ctx, KeyGlobalMinGasPrice, &globalMinGasPrice)
+
+	return &GenesisState{GlobalMinGasPrice: globalMinGasPrice}
 }

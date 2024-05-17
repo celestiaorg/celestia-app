@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.22.2
+1. [Install Go](https://go.dev/doc/install) 1.22.3
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -105,6 +105,10 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 
 > [!NOTE]
 > The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
+
+### Usage as a library
+
+If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatabilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
 
 ## Contributing
 
