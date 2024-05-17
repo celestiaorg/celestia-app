@@ -49,7 +49,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		b.manifest.TxClientsResource, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
-	// start the testnet
+	// set up the testnet
 	log.Println("Setting up testnet")
 	testnet.NoError("failed to setup testnet", b.Setup(
 		testnet.WithPerPeerBandwidth(b.manifest.PerPeerBandwidth),
