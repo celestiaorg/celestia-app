@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app
 
-go 1.22.2
+go 1.22.3
 
 require (
 	cosmossdk.io/errors v1.0.1
@@ -247,5 +247,5 @@ replace (
 	github.com/go-kit/kit => github.com/evan-forbes/kit v0.0.0-20240305223840-a93fc52138c3
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240517012232-98ae4ae4d3ad
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240517042330-1097ed175fc0
 )
