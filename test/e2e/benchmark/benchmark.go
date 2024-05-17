@@ -38,7 +38,9 @@ func (b *BenchmarkTest) SetupNodes() error {
 	// enable latency if specified in the manifest
 	if b.manifest.EnableLatency {
 		for _, node := range b.Nodes() {
-			node.Instance.EnableBitTwister()
+			if err := node.Instance.EnableBitTwister(); err != nil {
+				return fmt.Errorf("failed to enable bit twister: %v", err)
+			}
 		}
 	}
 	// obtain the GRPC endpoints of the validators
