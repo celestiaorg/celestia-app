@@ -1,10 +1,13 @@
 package testnet
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
 
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/rs/zerolog/log"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
@@ -55,4 +58,15 @@ func GetGrafanaInfoFromEnvVar() *GrafanaInfo {
 		Username: os.Getenv("GRAFANA_USERNAME"),
 		Token:    os.Getenv("GRAFANA_TOKEN"),
 	}
+}
+
+func ForwardBitTwisterPort(i *knuu.Instance) error {
+	fwdBtPort, err := i.PortForwardTCP(i.BitTwister.Port())
+	if err != nil {
+		return err
+	}
+	i.BitTwister.SetPort(fwdBtPort)
+	i.BitTwister.SetNewClientByIPAddr("http://localhost")
+	log.Info().Str("address", fmt.Sprintf("http://localhost:%d", fwdBtPort)).Msg("BitTwister is listening")
+	return nil
 }
