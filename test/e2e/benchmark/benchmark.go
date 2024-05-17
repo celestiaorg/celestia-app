@@ -37,8 +37,8 @@ func (b *BenchmarkTest) SetupNodes() error {
 	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 
-	// create txsim nodes and point them to the validators
-	log.Println("Creating txsim nodes")
+	// create tx clients nodes and point them to the validators
+	log.Println("Creating tx clients")
 
 	err = b.CreateTxClients(b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
@@ -64,14 +64,14 @@ func (b *BenchmarkTest) Run() error {
 		return fmt.Errorf("failed to start testnet: %v", err)
 	}
 
-	// once the testnet is up, start the txsim
+	// once the testnet is up, start tx clients
 	log.Println("Starting tx clients")
 	err = b.StartTxClients()
 	if err != nil {
 		return fmt.Errorf("failed to start tx clients: %v", err)
 	}
 
-	// wait some time for the txsim to submit transactions
+	// wait some time for the tx client to submit transactions
 	time.Sleep(b.manifest.TestDuration)
 
 	return nil
