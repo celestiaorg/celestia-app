@@ -37,7 +37,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 
-	// create tx clients nodes and point them to the validators
+	// create tx clients and point them to the validators
 	log.Println("Creating tx clients")
 
 	err = b.CreateTxClients(b.manifest.TxClientVersion,
