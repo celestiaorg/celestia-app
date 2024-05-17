@@ -91,6 +91,19 @@ sed -i'.bak' 's#"604800s"#"60s"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
 # Override the genesis to use app version 1 and then upgrade to app version 2 later.
 sed -i'.bak' 's#"app_version": "2"#"app_version": "1"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
 
+
+echo "Do you want to set up local tracing with the ability to pull traced data? [y/n]"
+read -r response
+if [[ $response == "y" ]]; then
+  trace_type="local"
+  sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${CELESTIA_APP_HOME}/config/config.toml
+  trace_pull_address=":26661"
+  sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${CELESTIA_APP_HOME}/config/config.toml
+  trace_push_batch_size=1000
+  sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${CELESTIA_APP_HOME}/config/config.toml
+  echo "Tracing is set up with the ability to pull traced data from the node on the address localhost:${trace_pull_address}"
+fi
+
 # Start celestia-app
 echo "Starting celestia-app..."
 celestia-appd start \
