@@ -82,25 +82,25 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	genBytes, err := cmtjson.MarshalIndent(genesis, "", "  ")
 	if err != nil {
+		runenv.RecordMessage("leader", err)
 		return err
 	}
 
 	err = l.Init(homeDir, genBytes, node)
 	if err != nil {
+		runenv.RecordMessage("leader", err)
 		return err
-	}
-
-	if l.CmtConfig.Instrumentation.PyroscopeTrace {
-		runenv.RecordMessage("pyroscope: follower starting pyroscope")
 	}
 
 	err = addPeersToAddressBook(l.CmtConfig.P2P.AddrBookFile(), packets)
 	if err != nil {
+		runenv.RecordMessage("leader", err)
 		return err
 	}
 
 	err = l.ConsensusNode.StartNode(ctx, l.baseDir)
 	if err != nil {
+		runenv.RecordMessage("leader", err)
 		return err
 	}
 
@@ -108,6 +108,7 @@ func (l *Leader) Plan(ctx context.Context, runenv *runtime.RunEnv, initCtx *run.
 
 	_, err = l.cctx.WaitForHeightWithTimeout(int64(5), time.Minute*7)
 	if err != nil {
+		runenv.RecordMessage("leader", err)
 		return err
 	}
 
