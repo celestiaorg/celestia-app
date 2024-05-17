@@ -1,7 +1,6 @@
 package testnet
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,10 +19,18 @@ import (
 type Testnet struct {
 	seed      int64
 	nodes     []*Node
+	executor  *knuu.Executor
 	genesis   *genesis.Genesis
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
+}
+
+func (t *Testnet) GetExecutor() (*knuu.Executor, error) {
+	if t.executor == nil {
+		return nil, fmt.Errorf("testnet not initialized")
+	}
+	return t.executor, nil
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
@@ -35,12 +42,18 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 		return nil, err
 	}
 
+	executor, err := knuu.NewExecutor()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
+		seed:     seed,
+		nodes:    make([]*Node, 0),
+		executor: executor,
+		genesis:  genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:   newKeyGenerator(seed),
+		grafana:  grafana,
 	}, nil
 }
 
@@ -141,6 +154,13 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error creating txsim")
 		return err
 	}
+	err = txsim.Instance.Commit()
+	if err != nil {
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
+		return err
+	}
 
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
@@ -149,13 +169,6 @@ func (t *Testnet) CreateTxClient(name,
 			Str("directory", txsimKeyringDir).
 			Str("name", name).
 			Msg("error adding keyring dir to txsim")
-		return err
-	}
-	err = txsim.Instance.Commit()
-	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
 		return err
 	}
 
@@ -255,6 +268,7 @@ func (t *Testnet) Setup(configOpts ...Option) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -317,23 +331,32 @@ func (t *Testnet) Start() error {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
+	// start genesis nodes asynchronously
 	for _, node := range genesisNodes {
-		err := node.Start()
+		err := node.Instance.StartWithoutWait()
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+	// wait for instances to be running
 	for _, node := range genesisNodes {
-		client, err := node.Client()
+		err := node.Instance.WaitInstanceIsRunning()
 		if err != nil {
-			return fmt.Errorf("failed to initialize node %s: %w", node.Name, err)
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
+	}
+	// wait for nodes to sync
+	for _, node := range genesisNodes {
 		for i := 0; i < 10; i++ {
-			resp, err := client.Status(context.Background())
+			executor, err := t.GetExecutor()
 			if err != nil {
-				return fmt.Errorf("node %s status response: %w", node.Name, err)
+				return fmt.Errorf("failed to get executor: %w", err)
 			}
-			if resp.SyncInfo.LatestBlockHeight > 0 {
+			currentHeight, err := node.GetHeight(executor)
+			if err != nil {
+				return fmt.Errorf("failed to get height for node %s: %w", node.Name, err)
+			}
+			if currentHeight > 0 {
 				break
 			}
 			if i == 9 {
@@ -392,6 +415,9 @@ func (t *Testnet) Cleanup() {
 					Msg("txsim failed to cleanup")
 			}
 		}
+	}
+	if err := t.executor.Destroy(); err != nil {
+		log.Err(err).Msg("executor failed to cleanup")
 	}
 }
 

@@ -1,6 +1,8 @@
 package testnet
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -290,14 +292,13 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
-		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
-	}
-
 	err = n.Instance.Commit()
 	if err != nil {
 		return fmt.Errorf("committing instance: %w", err)
+	}
 
+	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
 	return nil
 }
@@ -414,4 +415,19 @@ func (n *Node) Upgrade(version string) error {
 
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
+}
+
+func (n *Node) GetHeight(executor *knuu.Executor) (int64, error) {
+	status, err := getStatus(executor, n.Instance)
+	if err == nil {
+		blockHeight, err := latestBlockHeightFromStatus(status)
+		if err == nil {
+			return blockHeight, nil
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return 0, err
+	}
+
+	return 0, fmt.Errorf("error getting height: %w", err)
 }
