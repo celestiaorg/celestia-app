@@ -130,7 +130,7 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
 			tx := txBuilder.GetTx()
 
-			decorator := ante.NewMaxBlobSizeDecorator(mockBlobKeeper{})
+			decorator := ante.NewMaxTotalBlobSizeDecorator(mockBlobKeeper{})
 			ctx := sdk.Context{}.WithIsCheckTx(true).WithBlockHeader(tmproto.Header{Version: version.Consensus{App: tc.appVersion}})
 			_, err := decorator.AnteHandle(ctx, tx, false, mockNext)
 			assert.ErrorIs(t, tc.wantErr, err)

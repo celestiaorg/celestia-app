@@ -15,7 +15,7 @@ type MaxTotalBlobSizeDecorator struct {
 	k BlobKeeper
 }
 
-func NewMaxBlobSizeDecorator(k BlobKeeper) MaxTotalBlobSizeDecorator {
+func NewMaxTotalBlobSizeDecorator(k BlobKeeper) MaxTotalBlobSizeDecorator {
 	return MaxTotalBlobSizeDecorator{k}
 }
 
