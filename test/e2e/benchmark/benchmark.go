@@ -8,12 +8,12 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 )
 
-type BenchTest struct {
+type BenchmarkTest struct {
 	*testnet.Testnet
 	manifest *Manifest
 }
 
-func NewBenchTest(name string, manifest *Manifest) (*BenchTest, error) {
+func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// create a new testnet
 	testNet, err := testnet.New(name, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
@@ -23,10 +23,10 @@ func NewBenchTest(name string, manifest *Manifest) (*BenchTest, error) {
 	}
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
-	return &BenchTest{Testnet: testNet, manifest: manifest}, nil
+	return &BenchmarkTest{Testnet: testNet, manifest: manifest}, nil
 }
 
-func (b *BenchTest) SetupNodes() error {
+func (b *BenchmarkTest) SetupNodes() error {
 	testnet.NoError("failed to create genesis nodes",
 		b.CreateGenesisNodes(b.manifest.Validators,
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
@@ -57,7 +57,7 @@ func (b *BenchTest) SetupNodes() error {
 	return nil
 }
 
-func (b *BenchTest) Run() error {
+func (b *BenchmarkTest) Run() error {
 	log.Println("Starting testnet")
 	err := b.Start()
 	if err != nil {
@@ -74,6 +74,5 @@ func (b *BenchTest) Run() error {
 	// wait some time for the txsim to submit transactions
 	time.Sleep(b.manifest.TestDuration)
 
-	// TODO perhaps we can stop the nodes at this point to save resources
 	return nil
 }

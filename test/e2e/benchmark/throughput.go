@@ -50,8 +50,10 @@ func E2EThroughput() error {
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 	}
-	benchTest, err := NewBenchTest("E2EThroughput", &manifest)
+
+	benchTest, err := NewBenchmarkTest("E2EThroughput", &manifest)
 	testnet.NoError("failed to create bench test", err)
+
 	defer func() {
 		log.Print("Cleaning up testnet")
 		benchTest.Cleanup()
@@ -61,6 +63,7 @@ func E2EThroughput() error {
 
 	testnet.NoError("failed to run the bench test", benchTest.Run())
 
+	// post test data collection and validation
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(),
 		benchTest.Node(0).AddressRPC())
