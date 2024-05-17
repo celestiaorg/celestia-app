@@ -38,6 +38,7 @@ type Manifest struct {
 	// Resource requirements for a tx client
 	TxClientsResource testnet.Resources
 	// LatencyParams for the validators
+	EnableLatency bool
 	LatencyParams LatencyParams
 
 	// tx client settings
