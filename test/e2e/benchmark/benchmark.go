@@ -26,6 +26,9 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	return &BenchmarkTest{Testnet: testNet, manifest: manifest}, nil
 }
 
+// SetupNodes creates genesis nodes and tx clients based on the manifest.
+// There will be manifest.Validators validators and manifest.TxClients tx clients.
+// Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
 func (b *BenchmarkTest) SetupNodes() error {
 	testnet.NoError("failed to create genesis nodes",
 		b.CreateGenesisNodes(b.manifest.Validators,
@@ -57,6 +60,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 	return nil
 }
 
+// Run runs the benchmark test for the specified duration in the manifest.
 func (b *BenchmarkTest) Run() error {
 	log.Println("Starting testnet")
 	err := b.Start()
@@ -71,7 +75,7 @@ func (b *BenchmarkTest) Run() error {
 		return fmt.Errorf("failed to start tx clients: %v", err)
 	}
 
-	// wait some time for the tx client to submit transactions
+	// wait some time for the tx clients to submit transactions
 	time.Sleep(b.manifest.TestDuration)
 
 	return nil
