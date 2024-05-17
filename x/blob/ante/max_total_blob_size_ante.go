@@ -43,7 +43,7 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	return next(ctx, tx, simulate)
 }
 
-// maxTotalBlobSize returns the max the number of bytes available for blobs in a
+// maxTotalBlobSize returns the max number of bytes available for blobs in a
 // data square based on the max square size. Note it is possible that txs with a
 // total blob size less than this max still fail to be included in a block due
 // to overhead from the PFB tx and/or padding shares.
