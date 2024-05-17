@@ -54,7 +54,7 @@ func E2EThroughput() error {
 	}
 
 	benchTest, err := NewBenchmarkTest("E2EThroughput", &manifest)
-	testnet.NoError("failed to create bench test", err)
+	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
 		log.Print("Cleaning up testnet")
@@ -63,7 +63,7 @@ func E2EThroughput() error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 
-	testnet.NoError("failed to run the bench test", benchTest.Run())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
 	// post test data collection and validation
 	log.Println("Reading blockchain")
