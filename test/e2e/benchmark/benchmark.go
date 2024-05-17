@@ -74,10 +74,16 @@ func (b *BenchmarkTest) Run() error {
 		return fmt.Errorf("failed to start testnet: %v", err)
 	}
 
+	// add latency if specified in the manifest
 	if b.manifest.EnableLatency {
 		for _, node := range b.Nodes() {
-			node.ForwardBitTwisterPort()
-			node.Instance.AddLa(b.manifest.LatencyParams.Latency, b.manifest.LatencyParams.Jitter)
+			if err = node.ForwardBitTwisterPort(); err != nil {
+				return fmt.Errorf("failed to forward bit twister port: %v", err)
+			}
+			if err = node.Instance.SetLatencyAndJitter(b.manifest.LatencyParams.
+				Latency, b.manifest.LatencyParams.Jitter); err != nil {
+				return fmt.Errorf("failed to set latency and jitter: %v", err)
+			}
 		}
 	}
 

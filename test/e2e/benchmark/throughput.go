@@ -35,6 +35,8 @@ func E2EThroughput() error {
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: latestVersion,
 		TxClientVersion:    testnet.TxsimVersion,
+		EnableLatency:      true,
+		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
 		BlobsPerSeq:        1,
 		BlobSequences:      1,
 		BlobSizes:          "10000-10000",
