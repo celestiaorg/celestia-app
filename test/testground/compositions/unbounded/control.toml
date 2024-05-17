@@ -48,7 +48,7 @@ cpu = "7"
 count = 50
 percentage = 0.0
 [groups.build_config]
-build_base_image = "golang:1.22.2"
+build_base_image = "golang:1.22.3"
 enable_go_build_cache = true
 enabled = true
 go_version = "1.22"

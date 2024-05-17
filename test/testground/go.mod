@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.22.3
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240517012552-ffe21af52b9d
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240517043126-057c298b3434
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
