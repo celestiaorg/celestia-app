@@ -27,7 +27,7 @@ func E2EThroughput() error {
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
-	manifest := testnet.Manifest{
+	manifest := Manifest{
 		ChainID:            "test-e2e-throughput",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
@@ -50,56 +50,23 @@ func E2EThroughput() error {
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 	}
-	// create a new testnet
-	testNet, err := testnet.New("E2EThroughput", seed,
-		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
-		manifest.GetGenesisModifiers()...)
-	testnet.NoError("failed to create testnet", err)
 
-	testNet.SetConsensusParams(manifest.GetConsensusParams())
+	benchTest, err := NewBenchmarkTest("E2EThroughput", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testNet.Cleanup()
+		benchTest.Cleanup()
 	}()
 
-	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(manifest.Validators,
-			manifest.CelestiaAppVersion, manifest.SelfDelegation,
-			manifest.UpgradeHeight, manifest.ValidatorResource))
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 
-	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
-	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints)
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	// create tx clients and point them to the validators
-	log.Println("Creating tx clients")
-
-	err = testNet.CreateTxClients(manifest.TxClientVersion, manifest.BlobSequences,
-		manifest.BlobSizes,
-		manifest.TxClientsResource, gRPCEndpoints[:manifest.TxClients])
-	testnet.NoError("failed to create tx clients", err)
-
-	// start the testnet
-	log.Println("Setting up testnet")
-	testnet.NoError("failed to setup testnet", testNet.Setup(
-		testnet.WithPerPeerBandwidth(manifest.PerPeerBandwidth),
-		testnet.WithTimeoutPropose(manifest.TimeoutPropose),
-		testnet.WithTimeoutCommit(manifest.TimeoutCommit),
-		testnet.WithPrometheus(manifest.Prometheus),
-	))
-	log.Println("Starting testnet")
-	testnet.NoError("failed to start testnet", testNet.Start())
-
-	// once the testnet is up, start the tx clients
-	log.Println("Starting tx clients")
-	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
-
-	// wait some time for the tx clients to submit transactions
-	time.Sleep(manifest.TestDuration)
-
+	// post test data collection and validation
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchain(context.Background(),
+		benchTest.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
@@ -112,6 +79,7 @@ func E2EThroughput() error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
+
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }
