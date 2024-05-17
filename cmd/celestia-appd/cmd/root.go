@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/tendermint/tendermint/cmd/cometbft/commands"
@@ -139,21 +138,15 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		addrbookCommand(),
 		downloadGenesisCommand(),
 		addrConversionCmd(),
-	)
-
-	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
-
-	// add status, query, tx, and keys subcommands
-	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
 		bscmd.VerifyCmd(),
-	)
-	rootCmd.AddCommand(
 		snapshot.Cmd(NewAppServer),
 	)
+
+	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
@@ -255,23 +248,22 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 }
 
 func createAppAndExport(
-	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailWhiteList []string,
+	logger log.Logger,
+	db dbm.DB,
+	traceStore io.Writer,
+	height int64,
+	forZeroHeight bool,
+	jailWhiteList []string,
 	appOpts servertypes.AppOptions,
 ) (servertypes.ExportedApp, error) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...) // Ideally, we would reuse the one created by NewRootCmd.
-	encCfg.Codec = codec.NewProtoCodec(encCfg.InterfaceRegistry)
-	var capp *app.App
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	celestiaApp := app.New(logger, db, traceStore, uint(1), config, 0, appOpts)
 	if height != -1 {
-		capp = app.New(logger, db, traceStore, uint(1), encCfg, 0, appOpts)
-
-		if err := capp.LoadHeight(height); err != nil {
+		if err := celestiaApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
-	} else {
-		capp = app.New(logger, db, traceStore, uint(1), encCfg, 0, appOpts)
 	}
-
-	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+	return celestiaApp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag

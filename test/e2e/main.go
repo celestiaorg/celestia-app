@@ -4,13 +4,10 @@ import (
 	"log"
 	"os"
 	"strings"
-
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 )
 
 const (
-	MajorVersion = v1.Version
-	seed         = 42
+	seed = 42
 )
 
 type TestFunc func(*log.Logger) error
