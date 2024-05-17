@@ -35,6 +35,12 @@ func (b *BenchmarkTest) SetupNodes() error {
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
 			b.manifest.UpgradeHeight, b.manifest.ValidatorResource))
 
+	// enable latency if specified in the manifest
+	if b.manifest.EnableLatency {
+		for _, node := range b.Nodes() {
+			node.Instance.EnableBitTwister()
+		}
+	}
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := b.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
@@ -66,6 +72,13 @@ func (b *BenchmarkTest) Run() error {
 	err := b.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start testnet: %v", err)
+	}
+
+	if b.manifest.EnableLatency {
+		for _, node := range b.Nodes() {
+			node.ForwardBitTwisterPort()
+			node.Instance.AddLa(b.manifest.LatencyParams.Latency, b.manifest.LatencyParams.Jitter)
+		}
 	}
 
 	// once the testnet is up, start tx clients
