@@ -17,7 +17,9 @@ type Manifest struct {
 	TestDuration time.Duration
 	// Number of validators in the testnet
 	Validators int
-	TxClients  int
+	// Number of tx clients (txsim for now) in the testnet; there will be 1 txclient per validator
+	// if TXClients is less than Validators, the remaining validators will not have any txclients
+	TxClients int
 	// Self-delegation amount for validators
 	SelfDelegation int64
 	// CelestiaAppVersion a specific version of the celestia-app container image within celestiaorg repository on GitHub's Container Registry i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app
@@ -60,19 +62,19 @@ type Manifest struct {
 	GovMaxSquareSize int64
 }
 
-func (tm *Manifest) GetGenesisModifiers() []genesis.Modifier {
+func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	var modifiers []genesis.Modifier
 
 	blobParams := blobtypes.DefaultParams()
-	blobParams.GovMaxSquareSize = uint64(tm.GovMaxSquareSize)
+	blobParams.GovMaxSquareSize = uint64(m.GovMaxSquareSize)
 	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
 
 	return modifiers
 }
 
-func (tm *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
+func (m *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
-	cparams.Block.MaxBytes = tm.MaxBlockBytes
+	cparams.Block.MaxBytes = m.MaxBlockBytes
 	return cparams
 }
