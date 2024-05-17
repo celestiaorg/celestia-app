@@ -11,6 +11,13 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
+type LatencyParams struct {
+	// Latency in milliseconds
+	Latency int64
+	// Jitter in milliseconds
+	Jitter int64
+}
+
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
 	ChainID      string
@@ -30,6 +37,8 @@ type Manifest struct {
 	ValidatorResource testnet.Resources
 	// Resource requirements for a tx client
 	TxClientsResource testnet.Resources
+	// LatencyParams for the validators
+	LatencyParams LatencyParams
 
 	// tx client settings
 	// Number of blobs per sequence
