@@ -28,7 +28,7 @@ func E2EThroughput() error {
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
 	manifest := Manifest{
-		ChainID:            "test-sanaz",
+		ChainID:            "test-e2e-throughput",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
 		TxClientsResource:  testnet.DefaultResources,
