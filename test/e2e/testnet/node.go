@@ -133,7 +133,7 @@ func NewNode(
 	}, nil
 }
 
-func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
+func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -154,7 +154,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 	}
 
 	// Create and write the config file
-	cfg, err := MakeConfig(n)
+	cfg, err := MakeConfig(n, configOptions...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
@@ -309,6 +309,17 @@ func (n *Node) forwardPorts() error {
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
 
+	return nil
+}
+
+func (n *Node) ForwardBitTwisterPort() error {
+	fwdBtPort, err := n.Instance.PortForwardTCP(n.Instance.BitTwister.Port())
+	if err != nil {
+		return err
+	}
+	n.Instance.BitTwister.SetPort(fwdBtPort)
+	n.Instance.BitTwister.SetNewClientByIPAddr("http://localhost")
+	log.Info().Str("address", fmt.Sprintf("http://localhost:%d", fwdBtPort)).Msg("BitTwister is listening")
 	return nil
 }
 

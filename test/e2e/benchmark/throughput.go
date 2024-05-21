@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	seed         = 42
-	txsimVersion = "a92de72"
+	seed = 42
 )
 
 func main() {
@@ -28,44 +27,48 @@ func E2EThroughput() error {
 
 	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
 
-	// create a new testnet
-	testNet, err := testnet.New("E2EThroughput", seed, testnet.GetGrafanaInfoFromEnvVar())
-	testnet.NoError("failed to create testnet", err)
+	manifest := Manifest{
+		ChainID:            "test-e2e-throughput",
+		Validators:         2,
+		ValidatorResource:  testnet.DefaultResources,
+		TxClientsResource:  testnet.DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: latestVersion,
+		TxClientVersion:    testnet.TxsimVersion,
+		EnableLatency:      true,
+		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
+		BlobsPerSeq:        1,
+		BlobSequences:      1,
+		BlobSizes:          "10000-10000",
+		PerPeerBandwidth:   5 * 1024 * 1024,
+		UpgradeHeight:      0,
+		TimeoutCommit:      1 * time.Second,
+		TimeoutPropose:     1 * time.Second,
+		Mempool:            "v1",
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		TestDuration:       30 * time.Second,
+		TxClients:          2,
+	}
+
+	benchTest, err := NewBenchmarkTest("E2EThroughput", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testNet.Cleanup()
+		benchTest.Cleanup()
 	}()
 
-	// add 2 validators
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnet.DefaultResources))
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 
-	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
-	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints)
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	// create txsim nodes and point them to the validators
-	log.Println("Creating txsim nodes")
-
-	err = testNet.CreateTxClients(txsimVersion, 1, "10000-10000", testnet.DefaultResources, gRPCEndpoints)
-	testnet.NoError("failed to create tx clients", err)
-
-	// start the testnet
-	log.Println("Setting up testnet")
-	testnet.NoError("failed to setup testnet", testNet.Setup())
-	log.Println("Starting testnet")
-	testnet.NoError("failed to start testnet", testNet.Start())
-
-	// once the testnet is up, start the txsim
-	log.Println("Starting txsim nodes")
-	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
-
-	// wait some time for the txsim to submit transactions
-	time.Sleep(1 * time.Minute)
-
+	// post test data collection and validation
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchain(context.Background(),
+		benchTest.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
@@ -78,6 +81,7 @@ func E2EThroughput() error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
+
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }

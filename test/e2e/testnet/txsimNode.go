@@ -38,13 +38,13 @@ func CreateTxClient(
 	log.Info().
 		Str("name", name).
 		Str("image", image).
-		Msg("setting image for txsim node")
+		Msg("setting image for tx client")
 	err = instance.SetImage(image)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
 			Str("image", image).
-			Msg("failed to set image for txsim node")
+			Msg("failed to set image for tx client")
 		return nil, err
 	}
 	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
