@@ -289,8 +289,8 @@ func RandBlobTxsWithNamespacesAndSigner(
 
 func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Signer, msgs ...sdk.Msg) coretypes.Tx {
 	t.Helper()
-	// addr := signer.Account(testfactory.TestAccName).Address()
-	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, testfactory.TestAccName, 100, 1)
+	addr := signer.Account(testfactory.TestAccName).Address()
+	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), 100, 1)
 	msgs = append(msgs, pfb)
 
 	rawTx, err := signer.CreateTx(msgs, DefaultTxOpts()...)

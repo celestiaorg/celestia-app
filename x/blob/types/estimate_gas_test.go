@@ -83,10 +83,10 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		rand.Seed(seed)
 		blobSizes := randBlobSize(rand, numBlobs, maxBlobSize)
 
-		accnts := testfactory.GenerateAccounts(1)
-		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-		addr := testfactory.GetAddress(kr, accnts[0])
-		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(addr.String(), 0, 1))
+		acc := testfactory.GenerateAccounts(1)[0]
+		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), acc)
+		addr := testfactory.GetAddress(kr, acc)
+		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(acc, 0, 1))
 		require.NoError(t, err)
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))

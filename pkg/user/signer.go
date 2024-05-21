@@ -181,7 +181,7 @@ func (s *Signer) SetSequence(accountName string, seq uint64) error {
 func (s *Signer) AddAccount(acc *Account) error {
 	record, err := s.keys.Key(acc.name)
 	if err != nil {
-		return fmt.Errorf("retriveing key for account %s: %w", acc.name, err)
+		return fmt.Errorf("retrieving key for account %s: %w", acc.name, err)
 	}
 
 	addr, err := record.GetAddress()

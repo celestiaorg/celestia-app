@@ -66,7 +66,7 @@ func RandBlobTxsWithAccounts(
 		}
 
 		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
-		tx, _, err := signer.CreatePayForBlobs(addr.String(), blobs, opts...)
+		tx, _, err := signer.CreatePayForBlobs(accounts[i], blobs, opts...)
 		require.NoError(t, err)
 		txs[i] = tx
 	}

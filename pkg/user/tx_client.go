@@ -1,6 +1,7 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -147,8 +148,10 @@ func SetupTxClient(
 		}
 		accNum, seqNum, err := QueryAccount(ctx, conn, encCfg.InterfaceRegistry, addr)
 		if err != nil {
-			return nil, fmt.Errorf("querying account: %w", err)
+			return nil, fmt.Errorf("querying account %s: %w", record.Name, err)
 		}
+
+		fmt.Printf("querying account %s: %d, %d\n", record.Name, accNum, seqNum)
 
 		accounts[idx] = NewAccount(record.Name, accNum, seqNum)
 	}
@@ -194,12 +197,12 @@ func (s *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account s
 		return nil, err
 	}
 
-	txBytes, seqNum, err := s.signer.CreatePayForBlobs(account, blobs, opts...)
+	txBytes, _, err := s.signer.CreatePayForBlobs(account, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.broadcastTx(ctx, txBytes, account, seqNum)
+	return s.broadcastTx(ctx, txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
@@ -216,8 +219,16 @@ func (s *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...Tx
 func (s *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
+	account, err := s.getAccountNameFromMsgs(msgs)
+	if err != nil {
+		return nil, err
+	}
 
-	tx, account, sequence, err := s.signer.SignTx(msgs, opts...)
+	if err := s.checkAccountLoaded(ctx, account); err != nil {
+		return nil, err
+	}
+
+	tx, account, _, err := s.signer.SignTx(msgs, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -227,10 +238,10 @@ func (s *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ..
 		return nil, err
 	}
 
-	return s.broadcastTx(ctx, txBytes, account, sequence)
+	return s.broadcastTx(ctx, txBytes, account)
 }
 
-func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string, sequence uint64) (*sdktypes.TxResponse, error) {
+func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	fmt.Println("broadcastTx called")
 	txClient := sdktx.NewServiceClient(s.grpc)
 	resp, err := txClient.BroadcastTx(
@@ -288,7 +299,7 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		txBuilder.SetGasLimit(gas)
 	}
 
-	signer, sequence, err := s.signer.signTransaction(txBuilder)
+	signer, _, err := s.signer.signTransaction(txBuilder)
 	if err != nil {
 		return nil, fmt.Errorf("resigning transaction: %w", err)
 	}
@@ -306,7 +317,7 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
-	return s.broadcastTx(ctx, newTxBytes, signer, sequence)
+	return s.broadcastTx(ctx, newTxBytes, signer)
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
@@ -404,6 +415,27 @@ func (s *TxClient) checkAccountLoaded(ctx context.Context, account string) error
 		return fmt.Errorf("querying account %s: %w", account, err)
 	}
 	return s.signer.AddAccount(NewAccount(account, accNum, sequence))
+}
+
+func (s *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
+	var addr sdktypes.AccAddress
+	for _, msg := range msgs {
+		signers := msg.GetSigners()
+		if len(signers) != 1 {
+			return "", fmt.Errorf("only one signer per transaction supported, got %d", len(signers))
+		}
+		if addr == nil {
+			addr = signers[0]
+		}
+		if !bytes.Equal(addr, signers[0]) {
+			return "", errors.New("not supported: got two different signers across multiple messages")
+		}
+	}
+	record, err := s.signer.keys.KeyByAddress(addr)
+	if err != nil {
+		return "", err
+	}
+	return record.Name, nil
 }
 
 // Signer exposes the tx clients underlying signer
