@@ -3,10 +3,10 @@ package blobfactory
 import (
 	"bytes"
 	"context"
-
 	// "fmt"
 
 	// "fmt"
+
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
@@ -289,8 +289,9 @@ func RandBlobTxsWithNamespacesAndSigner(
 
 func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Signer, msgs ...sdk.Msg) coretypes.Tx {
 	t.Helper()
-	addr := signer.Account(testfactory.TestAccName).Address()
-	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), 100, 1)
+	addr := signer.Accounts()[0].Address().String()
+
+	pfb, blobs := RandMsgPayForBlobsWithSigner(rand, addr, 100, 1)
 	msgs = append(msgs, pfb)
 
 	rawTx, err := signer.CreateTx(msgs, DefaultTxOpts()...)

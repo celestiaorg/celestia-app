@@ -252,7 +252,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
 	opts := blobfactory.FeeTxOpts(gas)
 
-	blobTx, _, err := signer.CreatePayForBlobs(addr.String(), []*blob.Blob{b}, opts...)
+	blobTx, _, err := signer.CreatePayForBlobs(account, []*blob.Blob{b}, opts...)
 	if err != nil {
 		return nil, err
 	}
