@@ -388,7 +388,10 @@ func (s *TxClient) Account(name string) (*Account, bool) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	acc, exists := s.signer.accounts[name]
-	return acc.Copy(), exists
+	if !exists {
+		return nil, false
+	}
+	return acc.Copy(), true
 }
 
 func (s *TxClient) DefaultAddress() sdktypes.AccAddress {

@@ -59,7 +59,7 @@ func (a *Account) Copy() *Account {
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
 func QueryAccount(ctx context.Context, conn *grpc.ClientConn, registry codectypes.InterfaceRegistry, address types.AccAddress) (accNum uint64, seqNum uint64, err error) {
 	qclient := authtypes.NewQueryClient(conn)
-	// TODO:
+	// TODO: ideally we add a way to prove that the accounts rather than simply trusting the full node we are connected with
 	resp, err := qclient.Account(
 		ctx,
 		&authtypes.QueryAccountRequest{Address: address.String()},

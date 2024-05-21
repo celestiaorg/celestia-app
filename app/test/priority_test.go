@@ -1,12 +1,10 @@
 package app_test
 
 import (
-	// "encoding/hex"
 	"encoding/hex"
 	"sort"
 	"sync"
 
-	// "sync"
 	"testing"
 	"time"
 

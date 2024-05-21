@@ -35,7 +35,6 @@ func TestProcessProposal(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
-	// addr := testfactory.GetAddress(kr, accounts[0])
 	signer, err := user.NewSigner(kr, enc, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(t, err)
 
