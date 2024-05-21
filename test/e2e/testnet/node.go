@@ -109,9 +109,7 @@ func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
-	error,
-) {
+func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 	isRunning, err := n.Instance.IsRunning()
 	if err != nil {
 		return nil, err
