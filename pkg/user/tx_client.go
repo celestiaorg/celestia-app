@@ -140,20 +140,19 @@ func SetupTxClient(
 		return nil, err
 	}
 
-	accounts := make([]*Account, len(records))
-	for idx, record := range records {
+	accounts := make([]*Account, 0, len(records))
+	for _, record := range records {
 		addr, err := record.GetAddress()
 		if err != nil {
 			return nil, err
 		}
 		accNum, seqNum, err := QueryAccount(ctx, conn, encCfg.InterfaceRegistry, addr)
 		if err != nil {
-			return nil, fmt.Errorf("querying account %s: %w", record.Name, err)
+			// skip over the accounts that don't exist in state
+			continue
 		}
 
-		fmt.Printf("querying account %s: %d, %d\n", record.Name, accNum, seqNum)
-
-		accounts[idx] = NewAccount(record.Name, accNum, seqNum)
+		accounts = append(accounts, NewAccount(record.Name, accNum, seqNum))
 	}
 
 	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, appVersion, accounts...)
