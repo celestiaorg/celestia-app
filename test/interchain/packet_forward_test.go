@@ -111,8 +111,11 @@ func TestPFM(t *testing.T) {
 
 	// create channels
 	cosmosHubCelestiaChan, err := ibc.GetTransferChannel(ctx, relayer, reporter, cosmosHub.Config().ChainID, celestia.Config().ChainID)
+	fmt.Println(cosmosHub.Config().ChainID, celestia.Config().ChainID, cosmosHub2.Config().ChainID, "COSMOS HUB CELESTIA COSMOSHUB2 CHAIN")
+    fmt.Println(cosmosHubCelestiaChan.ChannelID, "COSMOS HUB CEL CHAIN ID")
 	require.NoError(t, err)
 	celestiaCosmosHub2Chan, err := ibc.GetTransferChannel(ctx, relayer, reporter, celestia.Config().ChainID, cosmosHub2.Config().ChainID)
+    fmt.Println(celestiaCosmosHub2Chan.ChannelID, "COSMOS HUB CEL CHAIN ID")
 	require.NoError(t, err)
 
 	transferAmount := math.NewInt(100_000)
@@ -153,6 +156,11 @@ func TestPFM(t *testing.T) {
 		},
 	}
 
+	// transferOpts := ibc.TransferOptions{
+	// 	Memo: string(nextBz),
+	// 	Fee: "200000",
+	// }
+
 	memo, err := json.Marshal(firstHopMetadata)
 	require.NoError(t, err)
 
@@ -189,5 +197,6 @@ func TestPFM(t *testing.T) {
 	// factoring in the network fee on celestia
 	// celestiaNetworkFee := 0.002
 	// require.True(t, cosmosBalance.Equal(initialBalance.Sub(transferAmount).Sub(math.NewInt(int64(celestiaNetworkFee)))))
+	require.True(t, cosmosUser2Balance.Equal(transferAmount))
 	fmt.Println(cosmosUser2Balance, "COSMOS 2 BALANCE")
 }
