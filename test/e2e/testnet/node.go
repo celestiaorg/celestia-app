@@ -394,7 +394,7 @@ func (n *Node) Start() error {
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
 	n.traceProxyPort = traceProxyPort
-	return nil
+	return n.forwardPorts()
 }
 
 func (n *Node) GenesisValidator() genesis.Validator {
@@ -410,7 +410,32 @@ func (n *Node) GenesisValidator() genesis.Validator {
 }
 
 func (n *Node) Upgrade(version string) error {
-	return n.Instance.SetImageInstant(DockerImageName(version))
+	if err := n.Instance.SetImageInstant(DockerImageName(version)); err != nil {
+		return err
+	}
+
+	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
+		return err
+	}
+
+	return n.forwardPorts()
+}
+
+func (n *Node) forwardPorts() error {
+	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
+	}
+
+	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
+	}
+
+	n.rpcProxyPort = rpcProxyPort
+	n.grpcProxyPort = grpcProxyPort
+
+	return nil
 }
 
 func DockerImageName(version string) string {
