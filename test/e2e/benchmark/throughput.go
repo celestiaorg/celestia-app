@@ -33,8 +33,8 @@ var bigBlockManifest = Manifest{
 	SelfDelegation:     10000000,
 	CelestiaAppVersion: "pr-3261",
 	TxClientVersion:    "pr-3261",
-	EnableLatency:      true,
-	LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
+	EnableLatency:      false,
+	LatencyParams:      LatencyParams{150, 150}, // in  milliseconds
 	BlobsPerSeq:        6,
 	BlobSequences:      50,
 	BlobSizes:          "200000",
@@ -47,7 +47,7 @@ var bigBlockManifest = Manifest{
 	Prometheus:         true,
 	GovMaxSquareSize:   1024,
 	MaxBlockBytes:      128 * toMiB,
-	TestDuration:       30 * time.Second, // 10 * time.Minute,
+	TestDuration:       10 * time.Minute,
 	TxClients:          2,
 	LocalTracingType:   "local",
 	PushTrace:          true,
@@ -108,7 +108,7 @@ func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
 	manifest.ChainID = "two-node-big-block-8mib"
 	manifest.MaxBlockBytes = 8 * toMiB
 
-	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_8MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -124,6 +124,30 @@ func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
 	return nil
 }
 
+func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_8MiB_Latency")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_8MiB_Latency"
+	manifest.ChainID = "two-node-big-block-8mib-latency"
+	manifest.MaxBlockBytes = 8 * toMiB
+	manifest.EnableLatency = true
+
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_8MiB_Latency", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: TwoNodeBigBlock_8MiB_Latency")
+	return nil
+}
+
 func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_32MiB")
 	manifest := bigBlockManifest
@@ -131,7 +155,7 @@ func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 	manifest.ChainID = "two-node-big-block-32mib"
 	manifest.MaxBlockBytes = 32 * toMiB
 
-	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_32MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -154,7 +178,7 @@ func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
 	manifest.ChainID = "two-node-big-block-64mib"
 	manifest.MaxBlockBytes = 64 * toMiB
 
-	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_64MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -180,7 +204,7 @@ func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
 	manifest.TxClients = 50
 	manifest.BlobsPerSeq = 20
 
-	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_8MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -206,7 +230,7 @@ func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
 	manifest.TxClients = 50
 	manifest.BlobsPerSeq = 20
 
-	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_32MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -232,7 +256,7 @@ func LargeNetwork_BigBlock_64MiB(logger *log.Logger) error {
 	manifest.TxClients = 50
 	manifest.BlobsPerSeq = 20
 
-	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_64MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
