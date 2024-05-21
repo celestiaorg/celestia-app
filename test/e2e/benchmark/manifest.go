@@ -1,14 +1,22 @@
-package testnet
+package main
 
 import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
+
+type LatencyParams struct {
+	// Latency in milliseconds
+	Latency int64
+	// Jitter in milliseconds
+	Jitter int64
+}
 
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
@@ -26,9 +34,13 @@ type Manifest struct {
 	// TxClientVersion  a specific version of the txsim container image within celestiaorg repository on GitHub's Container Registry, i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/txsim
 	TxClientVersion string
 	// Resource requirements for a validator node
-	ValidatorResource Resources
+	ValidatorResource testnet.Resources
 	// Resource requirements for a tx client
-	TxClientsResource Resources
+	TxClientsResource testnet.Resources
+	// EnableLatency enables network latency for the validators
+	EnableLatency bool
+	// LatencyParams defines the network latency parameters
+	LatencyParams LatencyParams
 
 	// tx client settings
 	// Number of blobs per sequence
