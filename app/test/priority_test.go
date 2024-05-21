@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"sort"
 	"sync"
-
 	"testing"
 	"time"
 
