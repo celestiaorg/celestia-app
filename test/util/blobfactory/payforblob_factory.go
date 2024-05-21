@@ -3,10 +3,6 @@ package blobfactory
 import (
 	"bytes"
 	"context"
-	// "fmt"
-
-	// "fmt"
-
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
@@ -87,7 +83,6 @@ func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs,
 }
 
 func RandBlobTxsRandomlySized(signer *user.Signer, rand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
-	// addr := signer.Account(testfactory.TestAccAddr).Address()
 	opts := DefaultTxOpts()
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {

@@ -242,7 +242,6 @@ func (s *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ..
 }
 
 func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	fmt.Println("broadcastTx called")
 	txClient := sdktx.NewServiceClient(s.grpc)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -254,9 +253,7 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("broadcasttx got here")
 	if resp.TxResponse.Code != abci.CodeTypeOK {
-		fmt.Println(resp.TxResponse, "TX RESPONSE")
 		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 	}
 
@@ -270,6 +267,8 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
+//
+//nolint:unused
 func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
 	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
 	if isBlobTx {

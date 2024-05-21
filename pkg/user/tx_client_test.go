@@ -29,8 +29,8 @@ func TestTxClientTestSuite(t *testing.T) {
 type TxClientTestSuite struct {
 	suite.Suite
 
-	ctx    testnode.Context
-	encCfg encoding.Config
+	ctx      testnode.Context
+	encCfg   encoding.Config
 	txClient *user.TxClient
 }
 
