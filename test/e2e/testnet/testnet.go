@@ -49,12 +49,12 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 	}
 
 	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
+		seed:     seed,
+		nodes:    make([]*Node, 0),
+		genesis:  genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:   newKeyGenerator(seed),
+		grafana:  grafana,
 		executor: executor,
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
 	}, nil
 }
 

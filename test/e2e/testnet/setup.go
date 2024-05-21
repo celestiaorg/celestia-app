@@ -68,6 +68,12 @@ func WithMempool(mempool string) Option {
 	}
 }
 
+func WithBroadcastTxs(broadcast bool) Option {
+	return func(cfg *config.Config) {
+		cfg.Mempool.Broadcast = broadcast
+	}
+}
+
 func WithLocalTracing(localTracingType string) Option {
 	return func(cfg *config.Config) {
 		cfg.Instrumentation.TraceType = localTracingType
@@ -77,13 +83,6 @@ func WithLocalTracing(localTracingType string) Option {
 		// cfg.Instrumentation.TracePushConfig = "s3.json"
 	}
 }
-
-func BroadcastTxsOpt(broadcast bool) Option {
-	return func(cfg *config.Config) {
-		cfg.Mempool.Broadcast = broadcast
-	}
-}
-
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {

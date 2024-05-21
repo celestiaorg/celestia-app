@@ -11,6 +11,13 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
+type LatencyParams struct {
+	// Latency in milliseconds
+	Latency int64
+	// Jitter in milliseconds
+	Jitter int64
+}
+
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
 	TestnetName  string
@@ -18,7 +25,9 @@ type Manifest struct {
 	TestDuration time.Duration
 	// Number of validators in the testnet
 	Validators int
-	TxClients  int
+	// Number of tx clients (txsim for now) in the testnet; there will be 1 txclient per validator
+	// if TXClients is less than Validators, the remaining validators will not have any txclients
+	TxClients int
 	// Self-delegation amount for validators
 	SelfDelegation int64
 	// CelestiaAppVersion a specific version of the celestia-app container image within celestiaorg repository on GitHub's Container Registry i.e., https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app
@@ -29,7 +38,10 @@ type Manifest struct {
 	ValidatorResource testnet.Resources
 	// Resource requirements for a tx client
 	TxClientsResource testnet.Resources
-
+	// EnableLatency enables network latency for the validators
+	EnableLatency bool
+	// LatencyParams defines the network latency parameters
+	LatencyParams LatencyParams
 	// tx client settings
 	// Number of blobs per sequence
 	BlobsPerSeq int
@@ -56,6 +68,7 @@ type Manifest struct {
 	// consensus parameters
 	MaxBlockBytes int64
 
+	// other configs
 	// tracing configs, can be local or noop
 	LocalTracingType string
 	PushTrace        bool
@@ -64,7 +77,6 @@ type Manifest struct {
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
 }
-
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	var modifiers []genesis.Modifier

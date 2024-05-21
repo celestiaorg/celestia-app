@@ -68,7 +68,7 @@ func Run(manifest Manifest) error {
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testNet.Cleanup()
+		benchTest.Cleanup()
 	}()
 
 	testnet.NoError("failed to create genesis nodes",

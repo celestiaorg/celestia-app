@@ -36,6 +36,9 @@ func TestNew(t *testing.T) {
 		// will panic.
 		assert.Panics(t, func() { got.StakingKeeper.SetHooks(nil) })
 	})
+	t.Run("should not have sealed the baseapp", func(t *testing.T) {
+		assert.False(t, got.IsSealed())
+	})
 }
 
 // NoopWriter is a no-op implementation of a writer.
