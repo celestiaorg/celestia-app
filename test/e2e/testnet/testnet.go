@@ -340,14 +340,14 @@ func (t *Testnet) Start() error {
 	}
 	// start genesis nodes asynchronously
 	for _, node := range genesisNodes {
-		err := node.Instance.StartWithoutWait()
+		err := node.StartAsync()
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
 	// wait for instances to be running
 	for _, node := range genesisNodes {
-		err := node.Instance.WaitInstanceIsRunning()
+		err := node.WaitUntilStartedAndForwardPorts()
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}

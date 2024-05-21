@@ -369,31 +369,26 @@ func (n Node) Client() (*http.HTTP, error) {
 }
 
 func (n *Node) Start() error {
+	if err := n.StartAsync(); err != nil {
+		return err
+	}
+	if err := n.WaitUntilStartedAndForwardPorts(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *Node) StartAsync() error {
 	if err := n.Instance.Start(); err != nil {
 		return err
 	}
+	return nil
+}
 
+func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
-
-	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
-	}
-
-	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
-	}
-
-	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
-	}
-	n.rpcProxyPort = rpcProxyPort
-	n.grpcProxyPort = grpcProxyPort
-	n.traceProxyPort = traceProxyPort
 	return n.forwardPorts()
 }
 
@@ -432,8 +427,14 @@ func (n *Node) forwardPorts() error {
 		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
 	}
 
+	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
+	}
+
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
+	n.traceProxyPort = traceProxyPort
 
 	return nil
 }
