@@ -33,6 +33,8 @@ var bigBlockManifest = Manifest{
 	SelfDelegation:     10000000,
 	CelestiaAppVersion: "pr-3261",
 	TxClientVersion:    "pr-3261",
+	EnableLatency:      true,
+	LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
 	BlobsPerSeq:        6,
 	BlobSequences:      50,
 	BlobSizes:          "200000",
