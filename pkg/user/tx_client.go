@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
 )
 
 const (
@@ -253,6 +254,14 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
+		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
+			_, seqNum, err := QueryAccount(ctx, s.grpc, s.registry, s.signer.accounts[signer].address)
+			if err != nil {
+				return nil, fmt.Errorf("querying account for new sequence number: %w\noriginal tx response: %s", err, resp.TxResponse.RawLog)
+			}
+			s.signer.SetSequence(signer, seqNum)
+			return s.retryBroadcastingTx(ctx, txBytes)
+		}
 		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 	}
 
@@ -266,8 +275,6 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
-//
-//nolint:unused
 func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
 	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
@@ -391,6 +398,12 @@ func (s *TxClient) Account(name string) (*Account, bool) {
 		return nil, false
 	}
 	return acc.Copy(), true
+}
+
+func (s *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	return s.signer.AccountByAddress(address)
 }
 
 func (s *TxClient) DefaultAddress() sdktypes.AccAddress {

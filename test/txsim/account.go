@@ -39,7 +39,8 @@ type AccountManager struct {
 	balance      uint64
 	latestHeight uint64
 	lastUpdated  time.Time
-	subaccounts  int
+	accountIndex int
+	addressMap   map[string]string
 }
 
 func NewAccountManager(
@@ -67,6 +68,8 @@ func NewAccountManager(
 		conn:        conn,
 		pollTime:    pollTime,
 		useFeegrant: useFeegrant,
+		addressMap:  make(map[string]string),
+		accountIndex: len(records),
 	}
 
 	if masterAccName == "" {
@@ -169,7 +172,8 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 	path := hd.CreateHDPath(types.CoinType, 0, 0).String()
 	addresses := make([]types.AccAddress, n)
 	for i := 0; i < n; i++ {
-		record, _, err := am.keys.NewMnemonic(am.nextAccountName(), keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+		name := am.nextAccountName()
+		record, _, err := am.keys.NewMnemonic(name, keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 		if err != nil {
 			panic(err)
 		}
@@ -179,6 +183,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 		}
 
 		am.pending = append(am.pending, &account{
+			keyName: name,
 			address: addresses[i],
 			balance: uint64(balance),
 		})
@@ -205,6 +210,8 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 		if address == nil {
 			address = signers[0]
+		} else if !address.Equals(signers[0]) {
+			return fmt.Errorf("all messages must be signed by the same account")
 		}
 	}
 
@@ -237,7 +244,11 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		err error
 	)
 	if len(op.Blobs) > 0 {
-		res, err = am.txClient.SubmitPayForBlob(ctx, op.Blobs, opts...)
+		accName, ok := am.addressMap[address.String()]
+		if !ok {
+			return fmt.Errorf("account not found for address %s", address.String())
+		}
+		res, err = am.txClient.SubmitPayForBlobsWithAccount(ctx, accName, op.Blobs, opts...)
 		if err != nil {
 			// log the failed tx
 			log.Err(err).
@@ -326,7 +337,8 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 
 	// print the new accounts
 	for _, acc := range am.pending {
-		am.subaccounts++
+		am.accountIndex++
+		am.addressMap[acc.address.String()] = acc.keyName
 		log.Info().
 			Str("address", acc.address.String()).
 			Uint64("balance", acc.balance).
@@ -399,10 +411,11 @@ func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 func (am *AccountManager) nextAccountName() string {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
-	return accountName(len(am.pending) + am.subaccounts)
+	return accountName(len(am.pending) + am.accountIndex)
 }
 
 type account struct {
+	keyName string
 	address types.AccAddress
 	balance uint64
 }
