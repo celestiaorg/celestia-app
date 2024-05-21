@@ -178,7 +178,7 @@ func (t *Testnet) CreateTxClient(name,
 
 func (t *Testnet) StartTxClients() error {
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.Start()
+		err := txsim.Instance.StartWithoutWait()
 		if err != nil {
 			log.Err(err).
 				Str("name", txsim.Name).
@@ -188,6 +188,13 @@ func (t *Testnet) StartTxClients() error {
 		log.Info().
 			Str("name", txsim.Name).
 			Msg("txsim started")
+	}
+	// wait for txsims to start
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.WaitInstanceIsRunning()
+		if err != nil {
+			return fmt.Errorf("txsim %s failed to start: %w", txsim.Name, err)
+		}
 	}
 	return nil
 }
