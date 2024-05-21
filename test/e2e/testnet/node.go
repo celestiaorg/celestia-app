@@ -312,6 +312,17 @@ func (n *Node) forwardPorts() error {
 	return nil
 }
 
+func (n *Node) ForwardBitTwisterPort() error {
+	fwdBtPort, err := n.Instance.PortForwardTCP(n.Instance.BitTwister.Port())
+	if err != nil {
+		return err
+	}
+	n.Instance.BitTwister.SetPort(fwdBtPort)
+	n.Instance.BitTwister.SetNewClientByIPAddr("http://localhost")
+	log.Info().Str("address", fmt.Sprintf("http://localhost:%d", fwdBtPort)).Msg("BitTwister is listening")
+	return nil
+}
+
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
 }

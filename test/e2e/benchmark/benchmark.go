@@ -35,6 +35,14 @@ func (b *BenchmarkTest) SetupNodes() error {
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
 			b.manifest.UpgradeHeight, b.manifest.ValidatorResource))
 
+	// enable latency if specified in the manifest
+	if b.manifest.EnableLatency {
+		for _, node := range b.Nodes() {
+			if err := node.Instance.EnableBitTwister(); err != nil {
+				return fmt.Errorf("failed to enable bit twister: %v", err)
+			}
+		}
+	}
 	// obtain the GRPC endpoints of the validators
 	gRPCEndpoints, err := b.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
@@ -49,7 +57,6 @@ func (b *BenchmarkTest) SetupNodes() error {
 		b.manifest.TxClientsResource, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
-	// start the testnet
 	log.Println("Setting up testnet")
 	testnet.NoError("failed to setup testnet", b.Setup(
 		testnet.WithPerPeerBandwidth(b.manifest.PerPeerBandwidth),
@@ -66,6 +73,19 @@ func (b *BenchmarkTest) Run() error {
 	err := b.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start testnet: %v", err)
+	}
+
+	// add latency if specified in the manifest
+	if b.manifest.EnableLatency {
+		for _, node := range b.Nodes() {
+			if err = node.ForwardBitTwisterPort(); err != nil {
+				return fmt.Errorf("failed to forward bit twister port: %v", err)
+			}
+			if err = node.Instance.SetLatencyAndJitter(b.manifest.LatencyParams.
+				Latency, b.manifest.LatencyParams.Jitter); err != nil {
+				return fmt.Errorf("failed to set latency and jitter: %v", err)
+			}
+		}
 	}
 
 	// once the testnet is up, start tx clients
