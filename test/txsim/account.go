@@ -62,13 +62,13 @@ func NewAccountManager(
 	}
 
 	am := &AccountManager{
-		keys:        keys,
-		encCfg:      encCfg,
-		pending:     make([]*account, 0),
-		conn:        conn,
-		pollTime:    pollTime,
-		useFeegrant: useFeegrant,
-		addressMap:  make(map[string]string),
+		keys:         keys,
+		encCfg:       encCfg,
+		pending:      make([]*account, 0),
+		conn:         conn,
+		pollTime:     pollTime,
+		useFeegrant:  useFeegrant,
+		addressMap:   make(map[string]string),
 		accountIndex: len(records),
 	}
 

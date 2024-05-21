@@ -255,11 +255,14 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
 		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
+			// query the account to update the sequence number on-chain for the account
 			_, seqNum, err := QueryAccount(ctx, s.grpc, s.registry, s.signer.accounts[signer].address)
 			if err != nil {
 				return nil, fmt.Errorf("querying account for new sequence number: %w\noriginal tx response: %s", err, resp.TxResponse.RawLog)
 			}
-			s.signer.SetSequence(signer, seqNum)
+			if err := s.signer.SetSequence(signer, seqNum); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
 			return s.retryBroadcastingTx(ctx, txBytes)
 		}
 		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
