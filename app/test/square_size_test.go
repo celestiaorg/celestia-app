@@ -98,7 +98,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 		seqs := txsim.NewBlobSequence(
 			txsim.NewRange(100_000, 100_000),
 			txsim.NewRange(1, 1),
-		).Clone(40)
+		).Clone(100)
 		err := txsim.Run(
 			ctx,
 			s.grpcAddr,
