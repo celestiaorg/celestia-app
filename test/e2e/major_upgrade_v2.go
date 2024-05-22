@@ -51,7 +51,6 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	kr, err := testNet.CreateAccount("alice", 1e12, "")
 	testnet.NoError("failed to create account", err)
-	// start the testnet
 
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
