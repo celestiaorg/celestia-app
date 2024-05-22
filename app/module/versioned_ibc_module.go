@@ -1,6 +1,8 @@
 package module
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
@@ -37,8 +39,7 @@ func (v *VersionedIBCModule) OnChanOpenInit(
 	counterparty channeltypes.Counterparty,
 	version string,
 ) (string, error) {
-	currentAppVersion := ctx.BlockHeader().Version.App
-	if currentAppVersion >= v.fromVersion && currentAppVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnChanOpenInit(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, version)
 	}
 	return v.nextModule.OnChanOpenInit(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, version)
@@ -54,8 +55,7 @@ func (v *VersionedIBCModule) OnChanOpenTry(
 	counterparty channeltypes.Counterparty,
 	counterpartyVersion string,
 ) (version string, err error) {
-	currentAppVersion := ctx.BlockHeader().Version.App
-	if currentAppVersion >= v.fromVersion && currentAppVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnChanOpenTry(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, counterpartyVersion)
 	}
 	return v.nextModule.OnChanOpenTry(ctx, order, connectionHops, portID, channelID, channelCap, counterparty, counterpartyVersion)
@@ -68,8 +68,7 @@ func (v *VersionedIBCModule) OnChanOpenAck(
 	counterpartyChannelID string,
 	counterpartyVersion string,
 ) error {
-	currentAppVersion := ctx.BlockHeader().Version.App
-	if currentAppVersion >= v.fromVersion && currentAppVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnChanOpenAck(ctx, portID, channelID, counterpartyChannelID, counterpartyVersion)
 	}
 	return v.nextModule.OnChanOpenAck(ctx, portID, channelID, counterpartyChannelID, counterpartyVersion)
@@ -80,8 +79,7 @@ func (v *VersionedIBCModule) OnChanOpenConfirm(
 	portID,
 	channelID string,
 ) error {
-	currentAppVersion := ctx.BlockHeader().Version.App
-	if currentAppVersion >= v.fromVersion && currentAppVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnChanOpenConfirm(ctx, portID, channelID)
 	}
 	return v.nextModule.OnChanOpenConfirm(ctx, portID, channelID)
@@ -92,8 +90,7 @@ func (v *VersionedIBCModule) OnChanCloseInit(
 	portID,
 	channelID string,
 ) error {
-	currentVersion := ctx.BlockHeader().Version.App
-	if currentVersion >= v.fromVersion && currentVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnChanCloseInit(ctx, portID, channelID)
 	}
 	return v.nextModule.OnChanCloseInit(ctx, portID, channelID)
@@ -104,8 +101,7 @@ func (v *VersionedIBCModule) OnChanCloseConfirm(
 	portID,
 	channelID string,
 ) error {
-	currentVersion := ctx.BlockHeader().Version.App
-	if currentVersion >= v.fromVersion && currentVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnChanCloseConfirm(ctx, portID, channelID)
 	}
 	return v.nextModule.OnChanCloseConfirm(ctx, portID, channelID)
@@ -116,8 +112,7 @@ func (v *VersionedIBCModule) OnRecvPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) exported.Acknowledgement {
-	currentVersion := ctx.BlockHeader().Version.App
-	if currentVersion >= v.fromVersion && currentVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnRecvPacket(ctx, packet, relayer)
 	}
 	return v.nextModule.OnRecvPacket(ctx, packet, relayer)
@@ -129,8 +124,7 @@ func (v *VersionedIBCModule) OnAcknowledgementPacket(
 	acknowledgement []byte,
 	relayer sdk.AccAddress,
 ) error {
-	currentVersion := ctx.BlockHeader().Version.App
-	if currentVersion >= v.fromVersion && currentVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
 	}
 	return v.nextModule.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
@@ -141,9 +135,13 @@ func (v *VersionedIBCModule) OnTimeoutPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) error {
-	currentVersion := ctx.BlockHeader().Version.App
-	if currentVersion >= v.fromVersion && currentVersion <= v.toVersion {
+	if v.isVersionSupported(ctx) {
 		return v.wrappedModule.OnTimeoutPacket(ctx, packet, relayer)
 	}
 	return v.nextModule.OnTimeoutPacket(ctx, packet, relayer)
+}
+
+func (v *VersionedIBCModule) isVersionSupported(ctx sdk.Context) bool {
+	currentAppVersion := ctx.BlockHeader().Version.App
+	return currentAppVersion >= v.fromVersion && currentAppVersion <= v.toVersion
 }
