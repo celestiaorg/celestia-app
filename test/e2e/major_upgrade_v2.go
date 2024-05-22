@@ -67,7 +67,6 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
 	}()
 
-	// assert that the network is initially running on v1
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
 		client, err := testNet.Node(i).Client()
