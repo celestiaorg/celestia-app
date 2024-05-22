@@ -13,6 +13,9 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
+// TestVersionedIBCModule sets up a new VersionedIBCModule with versions
+// specified and verifies that the correct module (wrappedModule or nextModule)
+// is called based on the app version passed in the context.
 func TestVersionedIBCModule(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
