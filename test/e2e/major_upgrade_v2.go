@@ -85,7 +85,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		resp, err = client.Header(ctx, &upgradeHeight)
 		testnet.NoError("failed to get header", err)
 		if resp.Header.Version.App != v2.Version {
-			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v2.Version, resp.Header.Version.App)
+			return fmt.Errorf("version mismatch after upgrade: expected %d, got %d", v2.Version, resp.Header.Version.App)
 		}
 	}
 
