@@ -48,7 +48,6 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal transaction, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				// TODO might have to change back to 1
 				signer := createSigner(t, kr, accs[0], encCfg.TxConfig, 1)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
@@ -161,7 +160,6 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[8], encCfg.TxConfig, 9)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[8]).Address().String(), 1_000_000, 1)
-				// TODO: go back to the sequences here and handle it
 				tx, _, err := signer.CreatePayForBlobs(accs[8], blobs, opts...)
 				require.NoError(t, err)
 				return tx

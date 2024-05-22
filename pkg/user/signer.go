@@ -131,8 +131,7 @@ func (s *Signer) ChainID() string {
 	return s.chainID
 }
 
-// Account returns an account of the signer from the key name. Also returns a bool if the
-// account exists.
+// Account returns an account of the signer from the key name
 func (s *Signer) Account(name string) *Account {
 	return s.accounts[name]
 }

@@ -393,6 +393,7 @@ func (s *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ..
 
 // Account returns an account of the signer from the key name. Also returns a bool if the
 // account exists.
+// Thread-safe
 func (s *TxClient) Account(name string) (*Account, bool) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
