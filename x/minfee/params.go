@@ -3,7 +3,7 @@ package minfee
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -18,7 +18,7 @@ var (
 )
 
 func init() {
-	DefaultGlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultMinGasPrice))
+	DefaultGlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
 	if err != nil {
 		panic(err)
 	}
@@ -29,11 +29,12 @@ type Params struct {
 	GlobalMinGasPrice sdk.Dec
 }
 
-// RegisterMinFeeParamTable attaches a key table to the provided subspace if it doesn't have one
-func RegisterMinFeeParamTable(ps paramtypes.Subspace) {
-	if !ps.HasKeyTable() {
-		ps.WithKeyTable(ParamKeyTable())
+// RegisterMinFeeParamTable returns a subspace with a key table attached.
+func RegisterMinFeeParamTable(subspace paramtypes.Subspace) paramtypes.Subspace {
+	if subspace.HasKeyTable() {
+		return subspace
 	}
+	return subspace.WithKeyTable(ParamKeyTable())
 }
 
 // ParamKeyTable returns the param key table for the global min gas price module

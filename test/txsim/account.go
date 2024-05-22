@@ -263,18 +263,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		}
 	}
 	if err != nil {
-		if len(op.Blobs) > 0 {
-			log.Err(err).
-				Str("address", address.String()).
-				Str("blobs", fmt.Sprintf("%d", len(op.Blobs))).
-				Int64("total size of blobs", size).
-				Msg("tx failed")
-		} else {
-			log.Err(err).
-				Str("address", address.String()).
-				Str("msgs", msgsToString(op.Msgs)).
-				Msg("tx failed")
-		}
 		return err
 	}
 

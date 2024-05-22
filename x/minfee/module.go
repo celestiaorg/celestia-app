@@ -114,7 +114,7 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 		panic("minfee subspace not set")
 	}
 
-	RegisterMinFeeParamTable(subspace)
+	subspace = RegisterMinFeeParamTable(subspace)
 
 	// Set the global min gas price initial value
 	globalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))

@@ -109,9 +109,7 @@ func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState],
-	error,
-) {
+func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 	isRunning, err := n.Instance.IsRunning()
 	if err != nil {
 		return nil, err
@@ -436,6 +434,17 @@ func (n *Node) forwardPorts() error {
 	n.grpcProxyPort = grpcProxyPort
 	n.traceProxyPort = traceProxyPort
 
+	return nil
+}
+
+func (n *Node) ForwardBitTwisterPort() error {
+	fwdBtPort, err := n.Instance.PortForwardTCP(n.Instance.BitTwister.Port())
+	if err != nil {
+		return err
+	}
+	n.Instance.BitTwister.SetPort(fwdBtPort)
+	n.Instance.BitTwister.SetNewClientByIPAddr("http://localhost")
+	log.Info().Str("address", fmt.Sprintf("http://localhost:%d", fwdBtPort)).Msg("BitTwister is listening")
 	return nil
 }
 
