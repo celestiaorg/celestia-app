@@ -159,7 +159,7 @@ func (b *BenchmarkTest) CheckResults() error {
 	}
 
 	// check if any tx has been submitted
-	log.Println("Reading blockchain")
+	log.Println("Reading blockchain, this may take a while...")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), b.Node(0).AddressRPC())
 	if err != nil {
 		return fmt.Errorf("failed to read blockchain: %w", err)
