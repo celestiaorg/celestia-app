@@ -65,7 +65,6 @@ func E2ESimple(logger *log.Logger) error {
 		if appconsts.LatestVersion != block.Version.App {
 			return fmt.Errorf("expected app version %d, got %d in block %d", appconsts.LatestVersion, block.Version.App, block.Height)
 		}
-		fmt.Println("block", block.Height, "txs", len(block.Data.Txs))
 		totalTxs += len(block.Data.Txs)
 	}
 	if totalTxs < 10 {
