@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/go-square/blob"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client/http"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -46,7 +47,14 @@ func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeig
 	}
 	blocks := make([]*types.Block, toHeight-fromHeight+1)
 	for i := fromHeight; i <= toHeight; i++ {
-		resp, err := client.Block(ctx, &i)
+		var resp *coretypes.ResultBlock
+		var err error
+		for attempt := 0; attempt < 5; attempt++ {
+			resp, err = client.Block(ctx, &i)
+			if err == nil {
+				break
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
