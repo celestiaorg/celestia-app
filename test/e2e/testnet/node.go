@@ -377,7 +377,7 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) StartAsync() error {
-	if err := n.Instance.Start(); err != nil {
+	if err := n.Instance.StartAsync(); err != nil {
 		return err
 	}
 	return nil
