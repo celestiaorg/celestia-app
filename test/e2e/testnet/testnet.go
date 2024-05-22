@@ -376,51 +376,27 @@ func (t *Testnet) Start() error {
 }
 
 func (t *Testnet) Cleanup() {
-	for _, node := range t.nodes {
-		if node.Instance.IsInState(knuu.Started) {
-			if err := node.Instance.Stop(); err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to stop")
-				continue
-			}
-			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to stop")
-				continue
-			}
-		}
-		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
-			err := node.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to cleanup")
-			}
-		}
-	}
-	// stop and cleanup txsim
+	// cleanup txsim
 	for _, txsim := range t.txClients {
-		if txsim.Instance.IsInState(knuu.Started) {
-			err := txsim.Instance.Stop()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
+		err := txsim.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to cleanup")
+		}
 			err = txsim.Instance.WaitInstanceIsStopped()
 			if err != nil {
 				log.Err(err).
 					Str("name", txsim.Name).
 					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to cleanup")
-			}
+	}
+	// cleanup nodes
+	for _, node := range t.nodes {
+		err := node.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", node.Name).
+				Msg("node failed to cleanup")
 		}
 	}
 	if err := t.executor.Destroy(); err != nil {
