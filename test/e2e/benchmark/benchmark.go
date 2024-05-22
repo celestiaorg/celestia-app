@@ -138,7 +138,9 @@ func (b *BenchmarkTest) Run() error {
 	}
 
 	// wait some time for the tx clients to submit transactions
+	log.Println("Waiting for", b.manifest.TestDuration, "for the tx clients to submit transactions")
 	time.Sleep(b.manifest.TestDuration)
+	log.Println("Tx clients have submitted transactions")
 
 	return nil
 }
