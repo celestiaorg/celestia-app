@@ -56,13 +56,6 @@ func (n *Node) GetRemoteHomeDirectory() string {
 
 // GetRoundStateTraces retrieves the round state traces from a node.
 func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
-	isRunning, err := n.Instance.IsRunning()
-	if err != nil {
-		return nil, err
-	}
-	if !isRunning {
-		return nil, fmt.Errorf("node is not running")
-	}
 	tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
 	traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
 		"traces", tableFileName)
@@ -90,18 +83,11 @@ func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
 func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
 	error,
 ) {
-	isRunning, err := n.Instance.IsRunning()
-	if err != nil {
-		return nil, err
-	}
-	if !isRunning {
-		return nil, fmt.Errorf("node is not running")
-	}
 
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
-	err = trace.GetTable(addr, schema.ReceivedBytes{}.Table(), ".")
+	err := trace.GetTable(addr, schema.ReceivedBytes{}.Table(), ".")
 	if err != nil {
 		return nil, fmt.Errorf("getting table: %w", err)
 	}
@@ -110,18 +96,11 @@ func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
 
 // PullRoundStateTraces retrieves the round state traces from a node.
 func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
-	isRunning, err := n.Instance.IsRunning()
-	if err != nil {
-		return nil, err
-	}
-	if !isRunning {
-		return nil, fmt.Errorf("node is not running")
-	}
 
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
-	err = trace.GetTable(addr, schema.RoundState{}.Table(), ".")
+	err := trace.GetTable(addr, schema.RoundState{}.Table(), ".")
 	if err != nil {
 		return nil, fmt.Errorf("getting table: %w", err)
 	}
@@ -290,14 +269,13 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
-		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
-	}
-
 	err = n.Instance.Commit()
 	if err != nil {
 		return fmt.Errorf("committing instance: %w", err)
+	}
 
+	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
 	return nil
 }
@@ -368,31 +346,26 @@ func (n Node) Client() (*http.HTTP, error) {
 }
 
 func (n *Node) Start() error {
-	if err := n.Instance.Start(); err != nil {
+	if err := n.StartAsync(); err != nil {
 		return err
 	}
+	if err := n.WaitUntilStartedAndForwardPorts(); err != nil {
+		return err
+	}
+	return nil
+}
 
+func (n *Node) StartAsync() error {
+	if err := n.Instance.StartAsync(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
-
-	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
-	}
-
-	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
-	}
-
-	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
-	}
-	n.rpcProxyPort = rpcProxyPort
-	n.grpcProxyPort = grpcProxyPort
-	n.traceProxyPort = traceProxyPort
 	return n.forwardPorts()
 }
 
@@ -431,8 +404,14 @@ func (n *Node) forwardPorts() error {
 		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
 	}
 
+	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
+	}
+
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
+	n.traceProxyPort = traceProxyPort
 
 	return nil
 }

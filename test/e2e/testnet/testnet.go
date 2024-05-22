@@ -155,6 +155,13 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error creating txsim")
 		return err
 	}
+	err = txsim.Instance.Commit()
+	if err != nil {
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
+		return err
+	}
 
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
@@ -165,13 +172,6 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error adding keyring dir to txsim")
 		return err
 	}
-	err = txsim.Instance.Commit()
-	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
-		return err
-	}
 
 	t.txClients = append(t.txClients, txsim)
 	return nil
@@ -179,7 +179,7 @@ func (t *Testnet) CreateTxClient(name,
 
 func (t *Testnet) StartTxClients() error {
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.Start()
+		err := txsim.Instance.StartWithoutWait()
 		if err != nil {
 			log.Err(err).
 				Str("name", txsim.Name).
@@ -189,6 +189,13 @@ func (t *Testnet) StartTxClients() error {
 		log.Info().
 			Str("name", txsim.Name).
 			Msg("txsim started")
+	}
+	// wait for txsims to start
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.WaitInstanceIsRunning()
+		if err != nil {
+			return fmt.Errorf("txsim %s failed to start: %w", txsim.Name, err)
+		}
 	}
 	return nil
 }
@@ -332,16 +339,25 @@ func (t *Testnet) Start() error {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
+	// start genesis nodes asynchronously
 	for _, node := range genesisNodes {
-		err := node.Start()
+		err := node.StartAsync()
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+	// wait for instances to be running
+	for _, node := range genesisNodes {
+		err := node.WaitUntilStartedAndForwardPorts()
+		if err != nil {
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+	}
+	// wait for nodes to sync
 	for _, node := range genesisNodes {
 		client, err := node.Client()
 		if err != nil {
-			return fmt.Errorf("failed to initialize node %s: %w", node.Name, err)
+			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
 		}
 		for i := 0; i < 10; i++ {
 			resp, err := client.Status(context.Background())
@@ -354,58 +370,30 @@ func (t *Testnet) Start() error {
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
-			time.Sleep(time.Second)
+			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 	return nil
 }
 
 func (t *Testnet) Cleanup() {
-	for _, node := range t.nodes {
-		if node.Instance.IsInState(knuu.Started) {
-			if err := node.Instance.Stop(); err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to stop")
-				continue
-			}
-			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to stop")
-				continue
-			}
-		}
-		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
-			err := node.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to cleanup")
-			}
+	// cleanup txsim
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to cleanup")
 		}
 	}
-	// stop and cleanup txsim
-	for _, txsim := range t.txClients {
-		if txsim.Instance.IsInState(knuu.Started) {
-			err := txsim.Instance.Stop()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.WaitInstanceIsStopped()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to cleanup")
-			}
+	// cleanup nodes
+	for _, node := range t.nodes {
+		err := node.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", node.Name).
+				Msg("node failed to cleanup")
 		}
 	}
 	if err := t.executor.Destroy(); err != nil {

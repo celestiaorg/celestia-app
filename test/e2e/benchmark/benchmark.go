@@ -138,7 +138,9 @@ func (b *BenchmarkTest) Run() error {
 	}
 
 	// wait some time for the tx clients to submit transactions
+	log.Println("Waiting for", b.manifest.TestDuration, "for the tx clients to submit transactions")
 	time.Sleep(b.manifest.TestDuration)
+	log.Println("Tx clients have submitted transactions")
 
 	return nil
 }
@@ -157,9 +159,8 @@ func (b *BenchmarkTest) CheckResults() error {
 	}
 
 	// check if any tx has been submitted
-	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockHeights(context.Background(),
-		b.Node(0).AddressRPC(), 1, 5)
+	log.Println("Reading blockchain, this may take a while...")
+	blockchain, err := testnode.ReadBlockchain(context.Background(), b.Node(0).AddressRPC())
 	if err != nil {
 		return fmt.Errorf("failed to read blockchain: %w", err)
 
