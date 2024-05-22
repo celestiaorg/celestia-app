@@ -1,6 +1,7 @@
 package testnet
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -354,22 +355,23 @@ func (t *Testnet) Start() error {
 	}
 	// wait for nodes to sync
 	for _, node := range genesisNodes {
+		client, err := node.Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
+		}
 		for i := 0; i < 10; i++ {
-			executor, err := t.GetExecutor()
+			resp, err := client.Status(context.Background())
 			if err != nil {
-				return fmt.Errorf("failed to get executor: %w", err)
+				return fmt.Errorf("node %s status response: %w", node.Name, err)
 			}
-			currentHeight, err := node.GetHeight(executor)
-			if err != nil {
-				return fmt.Errorf("failed to get height for node %s: %w", node.Name, err)
-			}
-			if currentHeight > 0 {
+			if resp.SyncInfo.LatestBlockHeight > 0 {
 				break
 			}
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
-			time.Sleep(time.Second)
+			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 	return nil
@@ -384,11 +386,6 @@ func (t *Testnet) Cleanup() {
 				Str("name", txsim.Name).
 				Msg("txsim failed to cleanup")
 		}
-			err = txsim.Instance.WaitInstanceIsStopped()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
 	}
 	// cleanup nodes
 	for _, node := range t.nodes {
