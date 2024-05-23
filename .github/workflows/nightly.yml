@@ -7,7 +7,7 @@ on:
 
 jobs:
   test-e2e:
-    uses: ./.github/workflows/e2e-tests.yml
+    uses: ./.github/workflows/test-e2e.yml
     secrets: inherit
 
   test:
