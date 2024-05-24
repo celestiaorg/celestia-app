@@ -180,7 +180,7 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 		ShareVersion:     uint32(appconsts.ShareVersionZero),
 	}
 
-	addr := signer.Address()
+	addr := signer.Account(testfactory.TestAccName).Address()
 	pfb, err := types.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, pblob)
 	assert.NoError(t, err)
 
@@ -219,7 +219,7 @@ func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 		namespacesBytes[idx] = namespace.Bytes()
 	}
 
-	addr := signer.Address()
+	addr := signer.Account(testfactory.TestAccName).Address()
 	pfb := &types.MsgPayForBlobs{
 		Signer:           addr.String(),
 		Namespaces:       namespacesBytes,
