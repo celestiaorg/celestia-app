@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -51,10 +50,13 @@ func E2ESimple(logger *log.Logger) error {
 	defer cancel()
 	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
 	err = txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-
-	if !errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("expected context.DeadlineExceeded, got %w", err)
+	if err != nil {
+		return err
 	}
+
+	// if !errors.Is(err, context.DeadlineExceeded) {
+	// 	return fmt.Errorf("expected context.DeadlineExceeded, got %w", err)
+	// }
 
 	logger.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
