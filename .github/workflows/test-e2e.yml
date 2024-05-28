@@ -1,0 +1,27 @@
+name: test-e2e
+
+on:
+  workflow_call:
+    secrets:
+      KNUU_KUBECONFIG_FILE:
+        required: true
+
+jobs:
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
+      - name: Run e2e tests
+        run: make test-e2e
