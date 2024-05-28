@@ -26,6 +26,8 @@ func init() {
 	consensus.UseWAL = true
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
+	consensus.DataChannelPriority = 10
+	consensus.DataChannelCapacity = 100
 }
 
 const (
@@ -168,6 +170,14 @@ func (p *Params) NodeCount() int {
 	return p.FullNodes + p.Validators
 }
 
+func TracingTables() []string {
+	tables := []string{}
+	// tables = append(tables, schema.MempoolTables()...)
+	tables = append(tables, schema.ConsensusTables()...)
+	tables = append(tables, schema.PeersTable)
+	return tables
+}
+
 func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg := app.DefaultConsensusConfig()
 	cmtcfg.Instrumentation.PrometheusListenAddr = ":26660"
@@ -189,7 +199,7 @@ func StandardCometConfig(params *Params) *tmconfig.Config {
 	cmtcfg.Instrumentation.TraceType = "local"
 	cmtcfg.Instrumentation.TracePushConfig = "s3.json"
 	cmtcfg.Instrumentation.TraceBufferSize = 2000
-	cmtcfg.Instrumentation.TracingTables = strings.Join(schema.AllTables(), ",")
+	cmtcfg.Instrumentation.TracingTables = strings.Join(TracingTables(), ",")
 	cmtcfg.Instrumentation.TracePullAddress = ""
 	return cmtcfg
 }
