@@ -80,10 +80,10 @@ func (s *BlobstreamIntegrationSuite) TestBlobstream() {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msgs, addr := tt.msgFunc()
-			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+			msgs, _ := tt.msgFunc()
+			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
 			require.NoError(t, err)
-			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
+			res, err := txClient.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			if tt.expectedTxCode == abci.CodeTypeOK {
 				require.NoError(t, err)
 			} else {

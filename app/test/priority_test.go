@@ -9,16 +9,19 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/go-square/namespace"
+
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/go-square/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -34,9 +37,10 @@ func TestPriorityTestSuite(t *testing.T) {
 type PriorityTestSuite struct {
 	suite.Suite
 
-	ecfg    encoding.Config
-	signers []*user.Signer
-	cctx    testnode.Context
+	ecfg         encoding.Config
+	accountNames []string
+	txClient     *user.TxClient
+	cctx         testnode.Context
 
 	rand *tmrand.Rand
 }
@@ -44,8 +48,9 @@ type PriorityTestSuite struct {
 func (s *PriorityTestSuite) SetupSuite() {
 	t := s.T()
 
+	s.accountNames = testfactory.GenerateAccounts(10)
 	cfg := testnode.DefaultConfig().
-		WithFundedAccounts(testfactory.GenerateAccounts(10)...).
+		WithFundedAccounts(s.accountNames...).
 		// use a long block time to guarantee that some transactions are included in the same block
 		WithTimeoutCommit(time.Second)
 
@@ -56,13 +61,9 @@ func (s *PriorityTestSuite) SetupSuite() {
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	for _, acc := range cfg.Genesis.Accounts() {
-		addr := sdk.AccAddress(acc.PubKey.Address())
-		signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
-		signer.SetPollTime(time.Millisecond * 300)
-		require.NoError(t, err)
-		s.signers = append(s.signers, signer)
-	}
+	var err error
+	s.txClient, err = user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
+	require.NoError(t, err)
 }
 
 // TestPriorityByGasPrice tests that transactions are sorted by gas price when
@@ -73,24 +74,22 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	t := s.T()
 
 	// quickly submit blobs with a random fee
-
-	hashes := make(chan string, len(s.signers))
+	hashes := make(chan string, len(s.accountNames))
 	blobSize := uint32(100)
 	gasLimit := blobtypes.DefaultEstimateGas([]uint32{blobSize})
 	wg := &sync.WaitGroup{}
-	for _, signer := range s.signers {
+	for _, accName := range s.accountNames {
 		wg.Add(1)
-		signer := signer // new variable per iteration
+		accName := accName // new variable per iteration
 		go func() {
 			defer wg.Done()
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(s.rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
-			resp, err := signer.SubmitPayForBlob(
+			blobs := blobfactory.ManyBlobs(s.rand, []namespace.Namespace{namespace.RandomBlobNamespace()}, []int{100})
+			resp, err := s.txClient.BroadcastPayForBlobWithAccount(
 				s.cctx.GoContext(),
-				blobfactory.ManyBlobs(
-					s.rand,
-					[]namespace.Namespace{namespace.RandomBlobNamespace()},
-					[]int{100}),
+				accName,
+				blobs,
 				user.SetGasLimitAndFee(gasLimit, gasPrice),
 			)
 			require.NoError(t, err)
