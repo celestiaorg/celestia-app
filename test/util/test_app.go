@@ -1,6 +1,7 @@
 package util
 
 import (
+	// "bytes"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -20,7 +21,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
-	"github.com/cosmos/cosmos-sdk/testutil/mock"
+	// "github.com/cosmos/cosmos-sdk/testutil/mock"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+
+	// cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	// "crypto/sha256"
+	// "crypto/rand"
+	// tmd25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -69,8 +76,8 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 			App: cparams.Version.AppVersion,
 		},
 	}})
-    fmt.Print(testApp.LastCommitID().Hash, "LAST COMMIT ID HASH")
-	
+	fmt.Print(testApp.LastCommitID().Hash, "LAST COMMIT ID HASH")
+
 	return testApp, kr
 }
 
@@ -193,11 +200,8 @@ func AddAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec)
 // GenesisStateWithSingleValidator initializes GenesisState with a single
 // validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
-	privVal := mock.NewPV()
-	pubKey, err := privVal.GetPubKey()
-	if err != nil {
-		panic(err)
-	}
+	bytes := []byte{47, 251, 209, 243, 116, 10, 95, 100, 214, 115, 6, 62, 205, 57, 238, 123, 10, 17, 195, 84, 137, 80, 30, 23, 95, 208, 146, 135, 103, 211, 125, 83}
+	pubKey := ed25519.PubKey(bytes)
 
 	// create validator set with single validator
 	validator := tmtypes.NewValidator(pubKey, 1)
@@ -213,7 +217,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 		Address: acc.GetAddress().String(),
 		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
 	})
-    fmt.Println(genAccounts, "GEN ACCS GETTING FUNDED")
+	fmt.Println(genAccounts, "GEN ACCS GETTING FUNDED")
 	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
