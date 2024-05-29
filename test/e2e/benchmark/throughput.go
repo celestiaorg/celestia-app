@@ -87,7 +87,6 @@ func E2EThroughput() error {
 			pushConfig)
 		if err != nil {
 			return fmt.Errorf("failed to download traces from S3: %w", err)
-
 		}
 	}
 

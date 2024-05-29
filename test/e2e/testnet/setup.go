@@ -73,6 +73,7 @@ func WithLocalTracing(localTracingType string) Option {
 		cfg.Instrumentation.TracePullAddress = ":26661"
 	}
 }
+
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {
