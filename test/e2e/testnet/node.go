@@ -50,12 +50,14 @@ type Node struct {
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
+// it will save it to the provided path.
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.
+	RoundState], error) {
 
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
-	err := trace.GetTable(addr, schema.RoundState{}.Table(), ".")
+	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
 	if err != nil {
 		return nil, fmt.Errorf("getting table: %w", err)
 	}
@@ -143,15 +145,14 @@ func NewNode(
 	}
 
 	return &Node{
-		Name:                name,
-		Instance:            instance,
-		Version:             version,
-		StartHeight:         startHeight,
-		InitialPeers:        peers,
-		SignerKey:           signerKey,
-		NetworkKey:          networkKey,
-		SelfDelegation:      selfDelegation,
-		remoteHomeDirectory: remoteRootDir,
+		Name:           name,
+		Instance:       instance,
+		Version:        version,
+		StartHeight:    startHeight,
+		InitialPeers:   peers,
+		SignerKey:      signerKey,
+		NetworkKey:     networkKey,
+		SelfDelegation: selfDelegation,
 	}, nil
 }
 
