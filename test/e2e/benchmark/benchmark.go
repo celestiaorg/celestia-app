@@ -63,6 +63,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithTimeoutPropose(b.manifest.TimeoutPropose),
 		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
 		testnet.WithPrometheus(b.manifest.Prometheus),
+		testnet.WithLocalTracing(b.manifest.LocalTracingType),
 	))
 	return nil
 }
