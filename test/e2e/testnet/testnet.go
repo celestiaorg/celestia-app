@@ -94,6 +94,7 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 func (t *Testnet) CreateTxClients(version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoints []string,
 ) error {

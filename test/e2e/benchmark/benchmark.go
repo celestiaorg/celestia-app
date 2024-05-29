@@ -54,6 +54,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 	err = b.CreateTxClients(b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,
+		b.manifest.BlobsPerSeq,
 		b.manifest.TxClientsResource, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
