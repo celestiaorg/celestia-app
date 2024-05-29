@@ -69,7 +69,8 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 			App: cparams.Version.AppVersion,
 		},
 	}})
-
+    fmt.Print(testApp.LastCommitID().Hash, "LAST COMMIT ID HASH")
+	
 	return testApp, kr
 }
 
@@ -212,7 +213,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 		Address: acc.GetAddress().String(),
 		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
 	})
-
+    fmt.Println(genAccounts, "GEN ACCS GETTING FUNDED")
 	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)

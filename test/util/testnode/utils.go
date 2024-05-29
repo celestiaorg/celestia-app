@@ -3,6 +3,7 @@ package testnode
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
@@ -47,6 +48,7 @@ func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
 	addresses := make([]sdk.AccAddress, len(accounts))
 	for idx, acc := range accounts {
 		rec, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
+		fmt.Println(rec.Name, "rec")
 		if err != nil {
 			panic(err)
 		}
@@ -55,6 +57,7 @@ func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
 			panic(err)
 		}
 		addresses[idx] = addr
+		fmt.Println("Address", addr)
 	}
 	return kb, addresses
 }
