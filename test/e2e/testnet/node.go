@@ -35,23 +35,18 @@ const (
 )
 
 type Node struct {
-	Name                string
-	Version             string
-	StartHeight         int64
-	InitialPeers        []string
-	SignerKey           crypto.PrivKey
-	NetworkKey          crypto.PrivKey
-	SelfDelegation      int64
-	Instance            *knuu.Instance
-	remoteHomeDirectory string
+	Name           string
+	Version        string
+	StartHeight    int64
+	InitialPeers   []string
+	SignerKey      crypto.PrivKey
+	NetworkKey     crypto.PrivKey
+	SelfDelegation int64
+	Instance       *knuu.Instance
 
 	rpcProxyPort   int
 	grpcProxyPort  int
 	traceProxyPort int
-}
-
-func (n *Node) GetRemoteHomeDirectory() string {
-	return n.remoteHomeDirectory
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
