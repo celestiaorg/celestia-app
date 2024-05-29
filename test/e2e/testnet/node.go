@@ -43,7 +43,7 @@ type Node struct {
 	NetworkKey          crypto.PrivKey
 	SelfDelegation      int64
 	Instance            *knuu.Instance
-	RemoteHomeDirectory string
+	remoteHomeDirectory string
 
 	rpcProxyPort   int
 	grpcProxyPort  int
@@ -51,47 +51,7 @@ type Node struct {
 }
 
 func (n *Node) GetRemoteHomeDirectory() string {
-	return n.RemoteHomeDirectory
-}
-
-// GetRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
-	tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
-	traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
-		"traces", tableFileName)
-	consensusRoundStateBytes, err := n.Instance.GetFileBytes(traceFileName)
-	if err != nil {
-		return nil, err
-	}
-	tmpFile, err := os.CreateTemp(".", tableFileName)
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	if _, err = tmpFile.Write(consensusRoundStateBytes); err != nil {
-		return nil, err
-	}
-	events, err := trace.DecodeFile[schema.RoundState](tmpFile)
-	if err != nil {
-		return nil, fmt.Errorf("decoding file: %w", err)
-	}
-	return events, nil
-}
-
-// PullReceivedBytes retrieves the round state traces from a node.
-func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
-	error,
-) {
-
-	addr := n.AddressTracing()
-	log.Info().Str("Address", addr).Msg("Pulling round state traces")
-
-	err := trace.GetTable(addr, schema.ReceivedBytes{}.Table(), ".")
-	if err != nil {
-		return nil, fmt.Errorf("getting table: %w", err)
-	}
-	return nil, nil
+	return n.remoteHomeDirectory
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
@@ -196,7 +156,7 @@ func NewNode(
 		SignerKey:           signerKey,
 		NetworkKey:          networkKey,
 		SelfDelegation:      selfDelegation,
-		RemoteHomeDirectory: remoteRootDir,
+		remoteHomeDirectory: remoteRootDir,
 	}, nil
 }
 
