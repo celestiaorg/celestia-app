@@ -69,12 +69,14 @@ func E2EThroughput() error {
 
 	// post test data collection and validation
 
-	// if local tracing is enbaled, pull round state traces to confirm tracing is working
+	// if local tracing is enabled,
+	// pull round state traces to confirm tracing is working as expected.
 	if benchTest.manifest.LocalTracingType == "local" {
 		if _, err := benchTest.Node(0).PullRoundStateTraces("."); err != nil {
 			return fmt.Errorf("failed to pull round state traces: %w", err)
 		}
 	}
+
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(),
 		benchTest.Node(0).AddressRPC())
