@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
@@ -51,6 +52,7 @@ func E2EThroughput() error {
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
 		LocalTracingType:   "local",
 		PushTrace:          false,
+		DownloadTraces:     false,
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 	}
@@ -74,6 +76,18 @@ func E2EThroughput() error {
 	if benchTest.manifest.LocalTracingType == "local" {
 		if _, err := benchTest.Node(0).PullRoundStateTraces("."); err != nil {
 			return fmt.Errorf("failed to pull round state traces: %w", err)
+		}
+	}
+
+	// download traces from S3, if enabled
+	if benchTest.manifest.PushTrace && benchTest.manifest.DownloadTraces {
+		// download traces from S3
+		pushConfig, _ := trace.GetPushConfigFromEnv()
+		err := trace.S3Download("./traces/", benchTest.manifest.ChainID,
+			pushConfig)
+		if err != nil {
+			return fmt.Errorf("failed to download traces from S3: %w", err)
+
 		}
 	}
 
