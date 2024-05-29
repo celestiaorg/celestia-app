@@ -68,6 +68,13 @@ func E2EThroughput() error {
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
 	// post test data collection and validation
+
+	// if local tracing is enbaled, pull round state traces to confirm tracing is working
+	if benchTest.manifest.LocalTracingType == "local" {
+		if _, err := benchTest.Node(0).PullRoundStateTraces("."); err != nil {
+			return fmt.Errorf("failed to pull round state traces: %w", err)
+		}
+	}
 	log.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(),
 		benchTest.Node(0).AddressRPC())
