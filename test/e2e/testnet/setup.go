@@ -75,8 +75,6 @@ func WithLocalTracing(localTracingType string) Option {
 		cfg.Instrumentation.TraceType = localTracingType
 		cfg.Instrumentation.TraceBufferSize = 1000
 		cfg.Instrumentation.TracePullAddress = ":26661"
-		//cfg.Instrumentation.TracingTables = "consensus_round_state,received_bytes"
-		// cfg.Instrumentation.TracePushConfig = "s3.json"
 	}
 }
 func WriteAddressBook(peers []string, file string) error {
