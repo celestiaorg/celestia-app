@@ -26,6 +26,7 @@ func CreateTxClient(
 	seed int64,
 	sequences int,
 	blobRange string,
+	blobsPerSeq int,
 	pollTime int,
 	resources Resources,
 	volumePath string,
@@ -65,7 +66,7 @@ func CreateTxClient(
 		fmt.Sprintf("-t %ds", pollTime),
 		fmt.Sprintf("-b %d ", sequences),
 		fmt.Sprintf("-d %d ", seed),
-		fmt.Sprintf("-a %d ", 5),
+		fmt.Sprintf("-a %d ", blobsPerSeq),
 		fmt.Sprintf("-s %s ", blobRange),
 	}
 
