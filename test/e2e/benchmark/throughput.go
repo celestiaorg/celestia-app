@@ -49,6 +49,8 @@ func E2EThroughput() error {
 		Prometheus:         true,
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		LocalTracingType:   "local",
+		PushTrace:          false,
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 	}
