@@ -69,6 +69,14 @@ type Manifest struct {
 	MaxBlockBytes int64
 
 	// other configs
+	// tracing configs, can be local or noop
+	LocalTracingType string
+	PushTrace        bool
+	// download traces from the s3 bucket
+	// only available when PushTrace is enabled
+	DownloadTraces bool
+
+	// other configs
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
 }

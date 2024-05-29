@@ -35,72 +35,29 @@ const (
 )
 
 type Node struct {
-	Name                string
-	Version             string
-	StartHeight         int64
-	InitialPeers        []string
-	SignerKey           crypto.PrivKey
-	NetworkKey          crypto.PrivKey
-	SelfDelegation      int64
-	Instance            *knuu.Instance
-	RemoteHomeDirectory string
+	Name           string
+	Version        string
+	StartHeight    int64
+	InitialPeers   []string
+	SignerKey      crypto.PrivKey
+	NetworkKey     crypto.PrivKey
+	SelfDelegation int64
+	Instance       *knuu.Instance
 
 	rpcProxyPort   int
 	grpcProxyPort  int
 	traceProxyPort int
 }
 
-func (n *Node) GetRemoteHomeDirectory() string {
-	return n.RemoteHomeDirectory
-}
-
-// GetRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) GetRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
-	tableFileName := fmt.Sprintf("%s.json", schema.RoundState{}.Table())
-	traceFileName := filepath.Join(n.GetRemoteHomeDirectory(), "data",
-		"traces", tableFileName)
-	consensusRoundStateBytes, err := n.Instance.GetFileBytes(traceFileName)
-	if err != nil {
-		return nil, err
-	}
-	tmpFile, err := os.CreateTemp(".", tableFileName)
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	if _, err = tmpFile.Write(consensusRoundStateBytes); err != nil {
-		return nil, err
-	}
-	events, err := trace.DecodeFile[schema.RoundState](tmpFile)
-	if err != nil {
-		return nil, fmt.Errorf("decoding file: %w", err)
-	}
-	return events, nil
-}
-
-// PullReceivedBytes retrieves the round state traces from a node.
-func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
-	error,
-) {
-
-	addr := n.AddressTracing()
-	log.Info().Str("Address", addr).Msg("Pulling round state traces")
-
-	err := trace.GetTable(addr, schema.ReceivedBytes{}.Table(), ".")
-	if err != nil {
-		return nil, fmt.Errorf("getting table: %w", err)
-	}
-	return nil, nil
-}
-
 // PullRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
-
+// it will save it to the provided path.
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.
+	RoundState], error,
+) {
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
-	err := trace.GetTable(addr, schema.RoundState{}.Table(), ".")
+	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
 	if err != nil {
 		return nil, fmt.Errorf("getting table: %w", err)
 	}
@@ -188,15 +145,14 @@ func NewNode(
 	}
 
 	return &Node{
-		Name:                name,
-		Instance:            instance,
-		Version:             version,
-		StartHeight:         startHeight,
-		InitialPeers:        peers,
-		SignerKey:           signerKey,
-		NetworkKey:          networkKey,
-		SelfDelegation:      selfDelegation,
-		RemoteHomeDirectory: remoteRootDir,
+		Name:           name,
+		Instance:       instance,
+		Version:        version,
+		StartHeight:    startHeight,
+		InitialPeers:   peers,
+		SignerKey:      signerKey,
+		NetworkKey:     networkKey,
+		SelfDelegation: selfDelegation,
 	}, nil
 }
 

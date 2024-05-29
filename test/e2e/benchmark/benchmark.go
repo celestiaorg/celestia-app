@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 type BenchmarkTest struct {
@@ -54,6 +55,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 	err = b.CreateTxClients(b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,
+		b.manifest.BlobsPerSeq,
 		b.manifest.TxClientsResource, gRPCEndpoints)
 	testnet.NoError("failed to create tx clients", err)
 
@@ -63,7 +65,33 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithTimeoutPropose(b.manifest.TimeoutPropose),
 		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
 		testnet.WithPrometheus(b.manifest.Prometheus),
+		testnet.WithLocalTracing(b.manifest.LocalTracingType),
 	))
+
+	if b.manifest.PushTrace {
+		log.Println("reading trace push config")
+		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+			log.Print("Setting up trace push config")
+			for _, node := range b.Nodes() {
+				if err = node.Instance.SetEnvironmentVariable(trace.
+					PushBucketName, pushConfig.BucketName); err != nil {
+					return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
+				}
+				if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
+					return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
+				}
+				if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
+					return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
+				}
+				if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
+					return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
+				}
+				if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
+					return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
+				}
+			}
+		}
+	}
 	return nil
 }
 
