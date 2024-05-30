@@ -311,11 +311,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msgs, account := tt.msgFunc()
-			addr := testfactory.GetAddress(s.cctx.Keyring, account)
-			signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+			msgs, signer := tt.msgFunc()
+			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(signer))
 			require.NoError(t, err)
-			res, err := signer.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
+			res, err := txClient.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			if tt.expectedCode != abci.CodeTypeOK {
 				require.Error(t, err)
 			} else {

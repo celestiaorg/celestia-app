@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	rand1.Seed(1)
 	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxsSameSigner(t, rand1, signer, pfbCount)
 
-	signer.ForceSetSequence(0)
+	require.NoError(t, signer.SetSequence(testfactory.TestAccName, 0))
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
 	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxsSameSigner(t, rand2, signer, pfbCount)
