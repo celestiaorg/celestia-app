@@ -245,6 +245,8 @@ func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period 
 			if status.SyncInfo.LatestBlockHeight >= height {
 				return nil
 			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
 }
