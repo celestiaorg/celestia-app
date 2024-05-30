@@ -26,7 +26,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up mint integration test suite")
 
-	cparams := testnode.DefaultParams()
+	cparams := testnode.DefaultConsensusParams()
 	oneDay := time.Hour * 24
 	oneMonth := oneDay * 30
 	sixMonths := oneMonth * 6

@@ -115,7 +115,7 @@ func DefaultConfig() *Config {
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
-		WithConsensusParams(DefaultParams()).
+		WithConsensusParams(DefaultConsensusParams()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppConfig(DefaultAppConfig()).
 		WithGenesisOptions().
@@ -173,12 +173,17 @@ func DefaultAppOptions() *KVAppOptions {
 	return opts
 }
 
+// Deprecated: use DefaultConsensusParams instead.
 func DefaultParams() *tmproto.ConsensusParams {
-	cparams := types.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
-	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	cparams.Version.AppVersion = appconsts.LatestVersion
-	return cparams
+	return DefaultConsensusParams()
+}
+
+func DefaultConsensusParams() *tmproto.ConsensusParams {
+	consensusParams := types.DefaultConsensusParams()
+	consensusParams.Block.TimeIotaMs = 1
+	consensusParams.Block.MaxBytes = appconsts.DefaultMaxBytes
+	consensusParams.Version.AppVersion = appconsts.LatestVersion
+	return consensusParams
 }
 
 func DefaultTendermintConfig() *tmconfig.Config {
