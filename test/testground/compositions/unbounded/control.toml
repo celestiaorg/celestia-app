@@ -5,24 +5,24 @@ author = "core-app"
 [global]
 plan = "core-app"
 case = "entrypoint"
-total_instances = 2
+total_instances = 50
 builder = "docker:generic"
 runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "read-buffer-1"
+chain_id = "read-buf-nw-2"
 timeout = "50m"
 halt_height = "2000"
-latency = "70"
+latency = "100"
 random_latency = "true"
 bandwidth = "1Gb"
-validators = "2"
+validators = "50"
 topology = "seed"
 pex = "true"
 timeout_propose = "10s"
 timeout_commit = "11s"
-per_peer_bandwidth = "100Mb"
+per_peer_bandwidth = "5Mb"
 blob_sequences = "60"
 blob_sizes = "200000"
 blobs_per_sequence = "6"
@@ -45,7 +45,7 @@ builder = "docker:generic"
 memory = "12Gi"
 cpu = "8"
 [groups.instances]
-count = 2
+count = 50
 percentage = 0.0
 [groups.build_config]
 build_base_image = "golang:1.22.3"
