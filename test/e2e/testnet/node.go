@@ -220,13 +220,13 @@ func (n Node) AddressP2P(withID bool) string {
 }
 
 // AddressRPC returns an RPC endpoint address for the node.
-// This returns the local proxy port that can be used to communicate with the node
+// This returns the proxy host that can be used to communicate with the node
 func (n Node) AddressRPC() string {
 	return n.rpcProxyHost
 }
 
-// AddressGRPC returns a GRPC endpoint address for the node. This returns the
-// local proxy port that can be used to communicate with the node
+// AddressGRPC returns a GRPC endpoint address for the node.
+// This returns the proxy host that can be used to communicate with the node
 func (n Node) AddressGRPC() string {
 	return n.grpcProxyHost
 }
