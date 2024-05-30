@@ -42,6 +42,8 @@ func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 }
 
 func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
+	fmt.Println(accounts, "accounts FRPM KEYRING")
+	fmt.Println(len(accounts), "ACCOUNTS LENGTH")
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	kb := keyring.NewInMemory(cdc)
 
@@ -68,10 +70,10 @@ func RandomAddress() sdk.Address {
 	return addresses[0]
 }
 
-func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
-	kr, addresses := NewKeyring(accounts...)
-	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
-	genBalances := make([]banktypes.Balance, len(accounts))
+func FundKeyringAccounts(kr keyring.Keyring, addresses []sdk.AccAddress) ([]banktypes.Balance, []authtypes.GenesisAccount) {
+	// kr, addresses := NewKeyring(accounts...)
+	genAccounts := make([]authtypes.GenesisAccount, len(addresses))
+	genBalances := make([]banktypes.Balance, len(addresses))
 
 	for i, addr := range addresses {
 		balances := sdk.NewCoins(
@@ -81,7 +83,7 @@ func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balan
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
-	return kr, genBalances, genAccounts
+	return  genBalances, genAccounts
 }
 
 func GenerateAccounts(count int) []string {

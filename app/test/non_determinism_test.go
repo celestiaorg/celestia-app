@@ -40,8 +40,8 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 		account                  = "test"
 	)
 	accounts := deterministicAccounts(numBlobTxs + numNormalTxs)
-
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "")
+	
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	// ctx := testApp.NewContext(true, tmproto.Header{})
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts = append(accounts, account)

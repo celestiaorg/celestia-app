@@ -21,13 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
-	// "github.com/cosmos/cosmos-sdk/testutil/mock"
 	"github.com/tendermint/tendermint/crypto/ed25519"
-
-	// cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	// "crypto/sha256"
-	// "crypto/rand"
-	// tmd25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -200,25 +194,30 @@ func AddAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec)
 // GenesisStateWithSingleValidator initializes GenesisState with a single
 // validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
-	bytes := []byte{47, 251, 209, 243, 116, 10, 95, 100, 214, 115, 6, 62, 205, 57, 238, 123, 10, 17, 195, 84, 137, 80, 30, 23, 95, 208, 146, 135, 103, 211, 125, 83}
-	pubKey := ed25519.PubKey(bytes)
-
 	// create validator set with single validator
-	validator := tmtypes.NewValidator(pubKey, 1)
+	validatorPubKey := ed25519.PubKey([]byte("12345678901234567890123456789012"))
+	validator := tmtypes.NewValidator(validatorPubKey, 1)
 	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{validator})
 
-	// generate genesis account
-	senderPrivKey := secp256k1.GenPrivKey()
-	accs := make([]authtypes.GenesisAccount, 0, len(genAccounts)+1)
+	// generate sender account
+	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("09876543210987654321098765432109"))
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
+
+	// genesis and sender accounts will be added to this slice
+	accs := make([]authtypes.GenesisAccount, 0, len(genAccounts)+1)
 	accs = append(accs, acc)
+
+	// genesis accounts and sender account balances
 	balances := make([]banktypes.Balance, 0, len(genAccounts)+1)
 	balances = append(balances, banktypes.Balance{
 		Address: acc.GetAddress().String(),
 		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
 	})
-	fmt.Println(genAccounts, "GEN ACCS GETTING FUNDED")
-	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
+
+	// create a new keyring with the generated accounts
+	kr, addresses := testnode.NewKeyring(genAccounts...)
+	// fund the accounts
+	fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(kr, addresses)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
 
