@@ -26,7 +26,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up mint integration test suite")
 
-	cparams := testnode.DefaultConsensusParams()
+	consensusParams := testnode.DefaultInitialConsensusParams()
 	oneDay := time.Hour * 24
 	oneMonth := oneDay * 30
 	sixMonths := oneMonth * 6
@@ -37,12 +37,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	//
 	// Note: if TimeIotaMs is removed from CometBFT, this technique will no
 	// longer work.
-	cparams.Block.TimeIotaMs = int64(sixMonths.Milliseconds())
+	consensusParams.Block.TimeIotaMs = int64(sixMonths.Milliseconds())
 
-	cfg := testnode.DefaultConfig().
-		WithConsensusParams(cparams)
-
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	config := testnode.DefaultConfig().WithConsensusParams(consensusParams)
+	cctx, _, _ := testnode.NewNetwork(t, config)
 	s.cctx = cctx
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -183,6 +184,14 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 	consensusParams.Block.TimeIotaMs = 1
 	consensusParams.Block.MaxBytes = appconsts.DefaultMaxBytes
 	consensusParams.Version.AppVersion = appconsts.LatestVersion
+	return consensusParams
+}
+
+func DefaultInitialConsensusParams() *tmproto.ConsensusParams {
+	consensusParams := types.DefaultConsensusParams()
+	consensusParams.Block.TimeIotaMs = 1
+	consensusParams.Block.MaxBytes = appconsts.DefaultMaxBytes
+	consensusParams.Version.AppVersion = v1.Version
 	return consensusParams
 }
 
