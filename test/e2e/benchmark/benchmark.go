@@ -73,8 +73,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
 			log.Print("Setting up trace push config")
 			for _, node := range b.Nodes() {
-				if err = node.Instance.SetEnvironmentVariable(trace.
-					PushBucketName, pushConfig.BucketName); err != nil {
+				if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
 					return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
 				}
 				if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
