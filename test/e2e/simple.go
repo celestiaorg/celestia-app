@@ -54,10 +54,6 @@ func E2ESimple(logger *log.Logger) error {
 		return err
 	}
 
-	// if !errors.Is(err, context.DeadlineExceeded) {
-	// 	return fmt.Errorf("expected context.DeadlineExceeded, got %w", err)
-	// }
-
 	logger.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
