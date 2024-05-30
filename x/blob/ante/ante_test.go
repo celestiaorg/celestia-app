@@ -94,7 +94,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			txBuilder := txConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
 			tx := txBuilder.GetTx()
-			_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) { return ctx, nil })
+			_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {

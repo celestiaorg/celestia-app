@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM docker.io/golang:1.22.0-alpine3.19 as builder
+FROM docker.io/golang:1.22.3-alpine3.19 as builder
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
@@ -39,7 +39,15 @@ COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
-# p2p, rpc and prometheus port
-EXPOSE 26656 26657 1317 9090
 
+# Set the working directory to the home directory.
+WORKDIR ${CELESTIA_HOME}
+# Expose ports:
+# 1317 is the default API server port.
+# 9090 is the default GRPC server port.
+# 26656 is the default node p2p port.
+# 26657 is the default RPC port.
+# 26660 is the port used for Prometheus.
+# 26661 is the port used for tracing.
+EXPOSE 1317 9090 26656 26657 26660 26661
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]

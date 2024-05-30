@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/rsmt2d"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -51,7 +53,8 @@ func getTxNamespace(tx []byte) (ns appns.Namespace) {
 	return appns.TxNamespace
 }
 
-// NewShareInclusionProof returns an NMT inclusion proof for a set of shares
+// NewShareInclusionProof takes an ODS, extends it, then
+// returns an NMT inclusion proof for a set of shares
 // belonging to the same namespace to the data root.
 // Expects the share range to be pre-validated.
 func NewShareInclusionProof(
@@ -59,16 +62,27 @@ func NewShareInclusionProof(
 	namespace appns.Namespace,
 	shareRange shares.Range,
 ) (types.ShareProof, error) {
-	squareSize := dataSquare.Size()
-	startRow := shareRange.Start / squareSize
-	endRow := (shareRange.End - 1) / squareSize
-	startLeaf := shareRange.Start % squareSize
-	endLeaf := (shareRange.End - 1) % squareSize
-
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	if err != nil {
 		return types.ShareProof{}, err
 	}
+	return NewShareInclusionProofFromEDS(eds, namespace, shareRange)
+}
+
+// NewShareInclusionProofFromEDS takes an extended data square,
+// and returns an NMT inclusion proof for a set of shares
+// belonging to the same namespace to the data root.
+// Expects the share range to be pre-validated.
+func NewShareInclusionProofFromEDS(
+	eds *rsmt2d.ExtendedDataSquare,
+	namespace appns.Namespace,
+	shareRange shares.Range,
+) (types.ShareProof, error) {
+	squareSize := square.Size(len(eds.FlattenedODS()))
+	startRow := shareRange.Start / squareSize
+	endRow := (shareRange.End - 1) / squareSize
+	startLeaf := shareRange.Start % squareSize
+	endLeaf := (shareRange.End - 1) % squareSize
 
 	edsRowRoots, err := eds.RowRoots()
 	if err != nil {
