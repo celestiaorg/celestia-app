@@ -247,17 +247,17 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	estimated := false
+	hasUserSetFee := false
 	for _, coin := range txBuilder.GetTx().GetFee() {
 		if coin.Denom == appconsts.BondDenom {
-			estimated = true
+			hasUserSetFee = true
 			break
 		}
 	}
 
 	gasLimit := txBuilder.GetTx().GetGas()
-	if float32(gasLimit) < appconsts.DefaultMinGasPrice {
-		if !estimated {
+	if gasLimit == 0 {
+		if !hasUserSetFee {
 			// add at least 1utia as fee to builder as it affects gas calculation.
 			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
 		}
@@ -268,7 +268,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		txBuilder.SetGasLimit(gasLimit)
 	}
 
-	if !estimated {
+	if !hasUserSetFee {
 		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(fee))))
 	}
@@ -408,6 +408,8 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 	}
 }
 
+// EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
+// result will be multiplied by gasMultiplier(that is set in TxClient)
 func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
