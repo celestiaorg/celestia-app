@@ -10,9 +10,8 @@ import (
 )
 
 func TestRemoval(t *testing.T) {
-	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	sftwrUpgrd := sdkupgradetypes.MsgSoftwareUpgrade{}
-	router := app.MsgServiceRouter()
-	handler := router.Handler(&sftwrUpgrd)
+	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams())
+	softwareUpgrade := sdkupgradetypes.MsgSoftwareUpgrade{}
+	handler := app.MsgServiceRouter().Handler(&softwareUpgrade)
 	require.Nil(t, handler)
 }
