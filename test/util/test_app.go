@@ -1,7 +1,6 @@
 package util
 
 import (
-	// "bytes"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -19,15 +19,16 @@ import (
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -75,8 +76,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	return testApp, kr
 }
 
-func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
-	// var cache sdk.MultiStorePersistentCache
+func NewTestApp() *app.App {
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := EmptyAppOptions{}
 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
@@ -84,14 +84,103 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	testApp := app.New(
+	return app.New(
 		log.NewNopLogger(), db, nil,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
 		emptyOpts,
 	)
+}
 
+func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
+	// create genesis
+	gen := genesis.NewDefaultGenesis().WithChainID("test").WithConsensusParams(cparams).WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
+
+	for _, pk := range pubKeys {
+		err := gen.AddAccount(genesis.Account{
+			PubKey:  pk,
+			Balance: balance,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// hardcoding keys to make validator creation deterministic
+	consensusKey := ed25519.PrivKey(ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012")))
+	networkKey := ed25519.PrivKey(ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012")))
+
+	// question: do we want to add validator in the keyring?
+	err := gen.AddValidator(genesis.Validator{
+		KeyringAccount: genesis.KeyringAccount{
+			Name:          "validator1",
+			InitialTokens: 1_000_000_000,
+		},
+		Stake:        1_000_000,
+		ConsensusKey: consensusKey,
+		NetworkKey:   networkKey,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	genDoc, err := gen.Export()
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// initialise test app against genesis
+	_ = testApp.Info(abci.RequestInfo{})
+
+	abciParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			// choose some value large enough to not bottleneck the max square
+			// size
+			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
+			MaxGas:   cparams.Block.MaxGas,
+		},
+		Evidence:  &cparams.Evidence,
+		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
+	}
+
+	// init chain will set the validator set and initialize the genesis accounts
+	fmt.Println(genDoc.GenesisTime, "GENDOC APP STATE")
+
+	fmt.Println(abciParams, "ABCI PARAMS")
+	fmt.Println(genDoc.ChainID, "CHAIN ID")
+
+	// TODO Understand why genDoc.GenesisTime is getting reset
+	testApp.InitChain(
+		abci.RequestInitChain{
+			Time:            gen.GenesisTime,
+			Validators:      []abci.ValidatorUpdate{},
+			ConsensusParams: abciParams,
+			AppStateBytes:   genDoc.AppState,
+			ChainId:         genDoc.ChainID,
+		},
+	)
+
+	// commit genesis changes
+	testApp.Commit()
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            ChainID,
+		Height:             testApp.LastBlockHeight() + 1,
+		AppHash:            testApp.LastCommitID().Hash,
+		ValidatorsHash:     genDoc.ValidatorHash(),
+		NextValidatorsHash: genDoc.ValidatorHash(),
+		Version: tmversion.Consensus{
+			App: cparams.Version.AppVersion,
+		},
+	}})
+
+	return gen.Keyring(), gen.Accounts(), nil
+}
+
+func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
+	testApp := NewTestApp()
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")

@@ -80,7 +80,7 @@ func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
 
 func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	for _, val := range vals {
-		err := g.AddValidator(val)
+		err := g.NewValidator(val)
 		if err != nil {
 			panic(err)
 		}
@@ -139,7 +139,7 @@ func (g *Genesis) NewAccount(acc KeyringAccount) error {
 	return nil
 }
 
-func (g *Genesis) AddValidator(val Validator) error {
+func (g *Genesis) NewValidator(val Validator) error {
 	if err := val.ValidateBasic(); err != nil {
 		return err
 	}
@@ -155,6 +155,50 @@ func (g *Genesis) AddValidator(val Validator) error {
 		return err
 	}
 
+	// install the validator
+	g.genTxs = append(g.genTxs, gentx)
+	g.validators = append(g.validators, val)
+	return nil
+}
+
+// TODO improve this function to imply that we're just adding one validator to make it deterministic
+func (g *Genesis) AddValidator(val Validator) error {
+	mnemo := "body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun"
+	rec, err := g.kr.NewAccount("validator1", mnemo, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+	validatorPubKey, err := rec.GetPubKey()
+	if err != nil {
+		return err
+	}
+
+	if err := val.ValidateBasic(); err != nil {
+		return err
+	}
+
+	// make account from keyring account
+	account := Account{
+		PubKey:  validatorPubKey,
+		Balance: val.KeyringAccount.InitialTokens,
+	}
+
+	if err := g.AddAccount(account); err != nil {
+		return err
+	}
+ 
+	// TODO decide on this 
+	// add validator to genesis keyring
+	// if _, err := g.kr.Key(val.Name); err == nil {
+	// 	return fmt.Errorf("validator with name %s already exists", val.Name)
+	// }
+
+	// // Add the validator's genesis transaction
+	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
+	if err != nil {
+		return err
+	}
+	
 	// install the validator
 	g.genTxs = append(g.genTxs, gentx)
 	g.validators = append(g.validators, val)

@@ -2,6 +2,7 @@ package testfactory
 
 import (
 	"bytes"
+	// "fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"

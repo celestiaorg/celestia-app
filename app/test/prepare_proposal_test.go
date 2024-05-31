@@ -1,6 +1,8 @@
 package app_test
 
 import (
+	// "fmt"
+	"fmt"
 	"testing"
 	"time"
 
@@ -209,7 +211,9 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {
 		addr := testfactory.GetAddress(kr, acc)
+		fmt.Println(addr, "ADDR")
 		accI := testutil.DirectQueryAccount(capp, addr)
+		fmt.Println(accI, "ACC INFO")
 		infos[i] = blobfactory.AccountInfo{
 			AccountNum: accI.GetAccountNumber(),
 			Sequence:   accI.GetSequence(),
