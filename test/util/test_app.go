@@ -40,35 +40,26 @@ func init() {
 	simapp.GetSimulatorFlags()
 }
 
-type emptyAppOptions struct{}
-
-// Get implements AppOptions
-func (ao emptyAppOptions) Get(_ string) interface{} {
-	return nil
-}
-
 // SetupTestAppWithGenesisValSet initializes a new app with a validator set and
 // genesis accounts that also act as delegators. For simplicity, each validator
 // is bonded with a delegation of one consensus engine unit in the default token
 // of the app from first genesis account. A no-op logger is set in app.
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
-	// var cache sdk.MultiStorePersistentCache
-	// EmptyAppOptions is a stub implementing AppOptions
-	emptyOpts := emptyAppOptions{}
-	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
-	db := dbm.NewMemDB()
+	emptyOptions := emptyAppOptions{}
 	skipUpgradeHeights := make(map[int64]bool)
-
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := app.New(
-		log.NewNopLogger(), db, nil, true, skipUpgradeHeights,
-		cast.ToString(emptyOpts.Get(flags.FlagHome)),
-		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
-		encCfg,
-		emptyOpts,
+		log.NewNopLogger(),
+		dbm.NewMemDB(),
+		nil,
+		true,
+		skipUpgradeHeights,
+		cast.ToString(emptyOptions.Get(flags.FlagHome)),
+		cast.ToUint(emptyOptions.Get(server.FlagInvCheckPeriod)),
+		encodingConfig,
+		emptyOptions,
 	)
-	testApp.GetBaseApp().SetAppVersion(sdk.Context{}, appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
@@ -86,6 +77,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		},
 		Evidence:  &cparams.Evidence,
 		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -204,6 +205,17 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Validator: coretypes.DefaultValidatorParams(),
 		Version: tmproto.VersionParams{
 			AppVersion: appconsts.LatestVersion,
+		},
+	}
+}
+
+func DefaultInitialConsensusParams() *tmproto.ConsensusParams {
+	return &tmproto.ConsensusParams{
+		Block:     DefaultBlockParams(),
+		Evidence:  DefaultEvidenceParams(),
+		Validator: coretypes.DefaultValidatorParams(),
+		Version: tmproto.VersionParams{
+			AppVersion: v1.Version,
 		},
 	}
 }
