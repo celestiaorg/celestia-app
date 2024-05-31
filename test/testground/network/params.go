@@ -28,6 +28,7 @@ func init() {
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	consensus.DataChannelPriority = 10
 	consensus.DataChannelCapacity = 100
+	p2p.UseBufferedReceives = false
 }
 
 const (
@@ -173,8 +174,8 @@ func (p *Params) NodeCount() int {
 func TracingTables() []string {
 	tables := []string{}
 	// tables = append(tables, schema.MempoolTables()...)
-	tables = append(tables, schema.ConsensusTables()...)
-	tables = append(tables, schema.PeersTable)
+	tables = append(tables, schema.RoundStateTable, schema.BlockPartsTable, schema.BlockTable, schema.ProposalTable)
+	tables = append(tables, schema.PeersTable, schema.MessageProcessingTable)
 	return tables
 }
 
