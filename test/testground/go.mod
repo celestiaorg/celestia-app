@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/test/testground
 go 1.22.3
 
 require (
-	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240530060113-2ef46b2c2472
+	github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240531004434-d5fa28c1654f
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
@@ -224,5 +224,5 @@ replace (
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
 	github.com/spf13/viper => github.com/spf13/viper v1.15.0
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240531003327-07b424f47ee2
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240531035829-4610e6e7e896
 )
