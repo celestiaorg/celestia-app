@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "no-buff-3"
+chain_id = "buff-6"
 timeout = "50m"
 halt_height = "2000"
 latency = "70"
@@ -20,7 +20,7 @@ bandwidth = "1Gb"
 validators = "50"
 topology = "seed"
 pex = "true"
-timeout_propose = "10s"
+timeout_propose = "80s"
 timeout_commit = "11s"
 per_peer_bandwidth = "5Mb"
 blob_sequences = "60"
