@@ -20,33 +20,38 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-func TestNonDeterminismBetweenAppVersions(t *testing.T) {
-	// set up testapp with genesis state
+// TestNonDeterminismBetweenMainAndV1 executes a set of different transactions,
+// produces an app hash and compares it with the app hash produced by v1.x
+func TestNonDeterminismBetweenMainAndV1(t *testing.T) {
 	const (
 		numBlobTxs, numNormalTxs = 5, 5
 	)
 
 	expectedAppHash := []byte{100, 237, 125, 126, 116, 10, 189, 82, 156, 116, 176, 136, 169, 92, 185, 12, 72, 134, 254, 175, 234, 13, 159, 90, 139, 192, 190, 248, 67, 9, 32, 217}
 
+	// initialize testApp
 	testApp := testutil.NewTestApp()
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	// create deterministic keys
 	kr, pubKeys := DeterministicKeyRing(enc.Codec)
 
 	var addresses []string
-	krss, _ := kr.List()
-	// this is for getting names of accounts
-	for _, account := range krss {
-		addresses = append(addresses, account.Name)
+	recs, err := kr.List()
+	require.NoError(t, err)
+
+	// Get the name of the records
+	for _, rec := range recs {
+		addresses = append(addresses, rec.Name)
 	}
 
-	_, _, err := testutil.ApplyGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
+	// Apply genesis state to the app
+	_, _, err = testutil.ApplyGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
 	require.NoError(t, err)
 
 	accinfos := queryAccountInfo(testApp, addresses, kr)
-	fmt.Println("AccountInfos:", accinfos)
 
-	// create deterministic set of 10 transactions
+	// Create a set of 10 deterministic sdk transactions
 	normalTxs := testutil.SendTxsWithAccounts(
 		t,
 		testApp,
@@ -58,20 +63,19 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 		testutil.ChainID,
 	)
 
-	// maybe change this to signer.CreatePFBS
+	// Create a set of 5 deterministic blob transactions
 	blobTxs := blobfactory.ManyMultiBlobTx(t, enc.TxConfig, kr, testutil.ChainID, addresses[numBlobTxs+1:], accinfos[numBlobTxs+1:], testfactory.Repeat([]*blob.Blob{
-		blob.New(HardcodedNamespace(), []byte{1}, appconsts.DefaultShareVersion),
+		blob.New(DeterministicNamespace(), []byte{1}, appconsts.DefaultShareVersion),
 	}, numBlobTxs))
 
-	// deliver normal txs
+	// Deliver sdk txs
 	for _, tx := range normalTxs {
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tx})
 		require.EqualValues(t, 0, resp.Code, resp.Log)
 	}
 
-	// deliver blob txs
+	// Deliver blob txs
 	for _, tx := range blobTxs {
-		// fmt.Println("BlobTx:", tx)
 		blobTx, ok := blob.UnmarshalBlobTx(tx)
 		require.True(t, ok)
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: blobTx.Tx})
@@ -81,19 +85,22 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 	// Commit the state
 	testApp.Commit()
 
-	// // Get the app hash
+	// Get the app hash
 	appHash := testApp.LastCommitID().Hash
 
+	// Assert that the app hash is equal to the app hash produced by v1.x
 	require.Equal(t, expectedAppHash, appHash)
 }
 
-func HardcodedNamespace() appns.Namespace {
+// DeterministicNamespace returns a deterministic namespace
+func DeterministicNamespace() appns.Namespace {
 	return appns.Namespace{
 		Version: 0,
 		ID:      []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 67, 154, 200, 228, 130, 74, 147, 162, 11},
 	}
 }
 
+// DeterministicKeyRing returns a deterministic keyring and a list of deterministic public keys
 func DeterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 	mnemonics := []string{
 		"great myself congress genuine scale muscle view uncover pipe miracle sausage broccoli lonely swap table foam brand turtle comic gorilla firm mad grunt hazard",

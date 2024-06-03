@@ -17,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	hd "github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -113,7 +114,7 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 	}
 
 	// add validator to genesis
-	err := gen.AddDeterministicValidator()
+	err := AddDeterministicValidatorToGenesis(gen)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to add validator: %w", err)
 	}
@@ -165,6 +166,7 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 	return gen.Keyring(), gen.Accounts(), nil
 }
 
+// NewTestAppWithGenesisSet initializes a new app with a validator set and genesis accounts.
 func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
 	testApp := NewTestApp()
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
@@ -201,6 +203,48 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 		},
 	)
 	return testApp, valSet, kr
+}
+
+// AddDeterministicValidatorToGenesis adds a single deterministic validator to the genesis.
+func AddDeterministicValidatorToGenesis(g *genesis.Genesis) error {
+	// hardcoded keys for deterministic account creation
+	mnemo := "body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun"
+	consensusKey := ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012"))
+	networkKey := ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012"))
+
+	val := genesis.Validator{
+		KeyringAccount: genesis.KeyringAccount{
+			Name:          "validator1",
+			InitialTokens: 1_000_000_000,
+		},
+		Stake:        1_000_000,
+		ConsensusKey: consensusKey,
+		NetworkKey:   networkKey,
+	}
+
+	// initialize the validator's genesis account in the keyring
+	rec, err := g.Keyring().NewAccount(val.Name, mnemo, "", "", hd.Secp256k1)
+	if err != nil {
+		return fmt.Errorf("failed to create account: %w", err)
+	}
+
+	validatorPubKey, err := rec.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to get pubkey: %w", err)
+	}
+
+	// make account from keyring account
+	account := genesis.Account{
+		PubKey:  validatorPubKey,
+		Balance: val.KeyringAccount.InitialTokens,
+	}
+
+	// add the validator's account to the genesis
+	if err := g.AddAccount(account); err != nil {
+		return fmt.Errorf("failed to add account: %w", err)
+	}
+
+	return g.AddValidator(val)
 }
 
 // AddAccount mimics the cli addAccount command, providing an
@@ -292,7 +336,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	// create a new keyring with the generated accounts
 	kr, addresses := testnode.NewKeyring(genAccounts...)
 	// fund the accounts
-	fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(kr, addresses)
+	fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(addresses)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
 

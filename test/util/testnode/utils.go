@@ -65,7 +65,7 @@ func RandomAddress() sdk.Address {
 	return addresses[0]
 }
 
-func FundKeyringAccounts(kr keyring.Keyring, addresses []sdk.AccAddress) ([]banktypes.Balance, []authtypes.GenesisAccount) {
+func FundKeyringAccounts(addresses []sdk.AccAddress) ([]banktypes.Balance, []authtypes.GenesisAccount) {
 	genAccounts := make([]authtypes.GenesisAccount, len(addresses))
 	genBalances := make([]banktypes.Balance, len(addresses))
 
