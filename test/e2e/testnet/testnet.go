@@ -161,6 +161,7 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error adding keyring dir to txsim")
 		return err
 	}
+
 	err = txsim.Instance.Commit()
 	if err != nil {
 		log.Err(err).
