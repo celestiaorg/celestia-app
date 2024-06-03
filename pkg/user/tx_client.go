@@ -5,11 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/celestiaorg/go-square/blob"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -20,6 +22,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 )
 
 const (
@@ -27,7 +31,7 @@ const (
 	DefaultGasMultiplier float64 = 1.1
 )
 
-type Option func(s *TxClient)
+type Option func(client *TxClient)
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
@@ -166,83 +170,124 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (s *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	resp, err := s.BroadcastPayForBlob(ctx, blobs, opts...)
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
 		return resp, err
 	}
 
-	return s.ConfirmTx(ctx, resp.TxHash)
+	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (s *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	resp, err := s.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
+func (client *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
 		return resp, err
 	}
 
-	return s.ConfirmTx(ctx, resp.TxHash)
+	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
 // BroadcastPayForBlob signs and broadcasts a transaction to pay for blobs.
 // It does not confirm that the transaction has been committed on chain.
-func (s *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	return s.BroadcastPayForBlobWithAccount(ctx, s.defaultAccount, blobs, opts...)
+func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-func (s *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	if err := s.checkAccountLoaded(ctx, account); err != nil {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	if err := client.checkAccountLoaded(ctx, account); err != nil {
 		return nil, err
 	}
 
-	txBytes, _, err := s.signer.CreatePayForBlobs(account, blobs, opts...)
+	blobSizes := make([]uint32, len(blobs))
+	for i, blob := range blobs {
+		blobSizes[i] = uint32(len(blob.Data))
+	}
+
+	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)) * client.gasMultiplier)
+	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
+	// prepend calculated params, so it can be overwritten in case the user has specified it.
+	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
+
+	txBytes, _, err := client.signer.CreatePayForBlobs(account, blobs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.broadcastTx(ctx, txBytes, account)
+	return client.broadcastTx(ctx, txBytes, account)
 }
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (s *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	resp, err := s.BroadcastTx(ctx, msgs, opts...)
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
 		return resp, err
 	}
 
-	return s.ConfirmTx(ctx, resp.TxHash)
+	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (s *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	account, err := s.getAccountNameFromMsgs(msgs)
+func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	account, err := client.getAccountNameFromMsgs(msgs)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.checkAccountLoaded(ctx, account); err != nil {
+	if err := client.checkAccountLoaded(ctx, account); err != nil {
 		return nil, err
 	}
 
-	tx, account, _, err := s.signer.SignTx(msgs, opts...)
+	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	txBytes, err := s.signer.EncodeTx(tx)
+	hasUserSetFee := false
+	for _, coin := range txBuilder.GetTx().GetFee() {
+		if coin.Denom == appconsts.BondDenom {
+			hasUserSetFee = true
+			break
+		}
+	}
+
+	gasLimit := txBuilder.GetTx().GetGas()
+	if gasLimit == 0 {
+		if !hasUserSetFee {
+			// add at least 1utia as fee to builder as it affects gas calculation.
+			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+		}
+		gasLimit, err = client.estimateGas(ctx, txBuilder)
+		if err != nil {
+			return nil, err
+		}
+		txBuilder.SetGasLimit(gasLimit)
+	}
+
+	if !hasUserSetFee {
+		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
+		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(fee))))
+	}
+
+	account, _, err = client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.broadcastTx(ctx, txBytes, account)
+	txBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return nil, err
+	}
+
+	return client.broadcastTx(ctx, txBytes, account)
 }
 
-func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(s.grpc)
+func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
+	txClient := sdktx.NewServiceClient(client.grpc)
 	resp, err := txClient.BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
@@ -256,21 +301,21 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 	if resp.TxResponse.Code != abci.CodeTypeOK {
 		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
 			// query the account to update the sequence number on-chain for the account
-			_, seqNum, err := QueryAccount(ctx, s.grpc, s.registry, s.signer.accounts[signer].address)
+			_, seqNum, err := QueryAccount(ctx, client.grpc, client.registry, client.signer.accounts[signer].address)
 			if err != nil {
 				return nil, fmt.Errorf("querying account for new sequence number: %w\noriginal tx response: %s", err, resp.TxResponse.RawLog)
 			}
-			if err := s.signer.SetSequence(signer, seqNum); err != nil {
+			if err := client.signer.SetSequence(signer, seqNum); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
-			return s.retryBroadcastingTx(ctx, txBytes)
+			return client.retryBroadcastingTx(ctx, txBytes)
 		}
 		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
 	}
 
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
-	if err := s.signer.IncrementSequence(signer); err != nil {
+	if err := client.signer.IncrementSequence(signer); err != nil {
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
 	return resp.TxResponse, nil
@@ -278,41 +323,43 @@ func (s *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer strin
 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
-func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
+func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
 	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
 		txBytes = blobTx.Tx
 	}
-	tx, err := s.signer.DecodeTx(txBytes)
+	tx, err := client.signer.DecodeTx(txBytes)
 	if err != nil {
 		return nil, err
 	}
-	txBuilder := s.signer.txBuilder()
-	if err := txBuilder.SetMsgs(tx.GetMsgs()...); err != nil {
-		return nil, err
-	}
+
+	opts := make([]TxOption, 0)
 	if granter := tx.FeeGranter(); granter != nil {
-		txBuilder.SetFeeGranter(granter)
+		opts = append(opts, SetFeeGranter(granter))
 	}
 	if payer := tx.FeePayer(); payer != nil {
-		txBuilder.SetFeePayer(payer)
+		opts = append(opts, SetFeePayer(payer))
 	}
 	if memo := tx.GetMemo(); memo != "" {
-		txBuilder.SetMemo(memo)
+		opts = append(opts, SetMemo(memo))
 	}
 	if fee := tx.GetFee(); fee != nil {
-		txBuilder.SetFeeAmount(fee)
+		opts = append(opts, SetFeeAmount(fee))
 	}
 	if gas := tx.GetGas(); gas > 0 {
-		txBuilder.SetGasLimit(gas)
+		opts = append(opts, SetGasLimit(gas))
 	}
 
-	signer, _, err := s.signer.signTransaction(txBuilder)
+	txBuilder, err := client.signer.txBuilder(tx.GetMsgs(), opts...)
+	if err != nil {
+		return nil, err
+	}
+	signer, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return nil, fmt.Errorf("resigning transaction: %w", err)
 	}
 
-	newTxBytes, err := s.signer.EncodeTx(txBuilder.GetTx())
+	newTxBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
 	if err != nil {
 		return nil, err
 	}
@@ -325,16 +372,16 @@ func (s *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sd
 		}
 	}
 
-	return s.broadcastTx(ctx, newTxBytes, signer)
+	return client.broadcastTx(ctx, newTxBytes, signer)
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (s *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(s.grpc)
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
+	txClient := sdktx.NewServiceClient(client.grpc)
 
-	pollTicker := time.NewTicker(s.pollTime)
+	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
@@ -361,66 +408,70 @@ func (s *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxRe
 	}
 }
 
-func (s *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+// EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
+// result will be multiplied by gasMultiplier(that is set in TxClient)
+func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
 
-	txBuilder := s.signer.txBuilder(opts...)
-	if err := txBuilder.SetMsgs(msgs...); err != nil {
-		return 0, err
-	}
-
-	_, _, err := s.signer.signTransaction(txBuilder)
+	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
 		return 0, err
 	}
 
-	txBytes, err := s.signer.EncodeTx(txBuilder.GetTx())
+	return client.estimateGas(ctx, txBuilder)
+}
+
+func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
+	_, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return 0, err
 	}
-
-	resp, err := sdktx.NewServiceClient(s.grpc).Simulate(ctx, &sdktx.SimulateRequest{
+	txBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return 0, err
+	}
+	resp, err := sdktx.NewServiceClient(client.grpc).Simulate(ctx, &sdktx.SimulateRequest{
 		TxBytes: txBytes,
 	})
 	if err != nil {
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.GasInfo.GasUsed) * s.gasMultiplier)
+	gasLimit := uint64(float64(resp.GasInfo.GasUsed) * client.gasMultiplier)
 	return gasLimit, nil
 }
 
 // Account returns an account of the signer from the key name. Also returns a bool if the
 // account exists.
 // Thread-safe
-func (s *TxClient) Account(name string) (*Account, bool) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	acc, exists := s.signer.accounts[name]
+func (client *TxClient) Account(name string) (*Account, bool) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	acc, exists := client.signer.accounts[name]
 	if !exists {
 		return nil, false
 	}
 	return acc.Copy(), true
 }
 
-func (s *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	return s.signer.AccountByAddress(address)
+func (client *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	return client.signer.AccountByAddress(address)
 }
 
-func (s *TxClient) DefaultAddress() sdktypes.AccAddress {
-	return s.defaultAddress
+func (client *TxClient) DefaultAddress() sdktypes.AccAddress {
+	return client.defaultAddress
 }
 
-func (s *TxClient) DefaultAccountName() string { return s.defaultAccount }
+func (client *TxClient) DefaultAccountName() string { return client.defaultAccount }
 
-func (s *TxClient) checkAccountLoaded(ctx context.Context, account string) error {
-	if _, exists := s.signer.accounts[account]; exists {
+func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) error {
+	if _, exists := client.signer.accounts[account]; exists {
 		return nil
 	}
-	record, err := s.signer.keys.Key(account)
+	record, err := client.signer.keys.Key(account)
 	if err != nil {
 		return fmt.Errorf("trying to find account %s on keyring: %w", account, err)
 	}
@@ -428,14 +479,14 @@ func (s *TxClient) checkAccountLoaded(ctx context.Context, account string) error
 	if err != nil {
 		return fmt.Errorf("retrieving address from keyring: %w", err)
 	}
-	accNum, sequence, err := QueryAccount(ctx, s.grpc, s.registry, addr)
+	accNum, sequence, err := QueryAccount(ctx, client.grpc, client.registry, addr)
 	if err != nil {
 		return fmt.Errorf("querying account %s: %w", account, err)
 	}
-	return s.signer.AddAccount(NewAccount(account, accNum, sequence))
+	return client.signer.AddAccount(NewAccount(account, accNum, sequence))
 }
 
-func (s *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
+func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
 	var addr sdktypes.AccAddress
 	for _, msg := range msgs {
 		signers := msg.GetSigners()
@@ -449,7 +500,7 @@ func (s *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
 			return "", errors.New("not supported: got two different signers across multiple messages")
 		}
 	}
-	record, err := s.signer.keys.KeyByAddress(addr)
+	record, err := client.signer.keys.KeyByAddress(addr)
 	if err != nil {
 		return "", err
 	}
@@ -457,6 +508,6 @@ func (s *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
 }
 
 // Signer exposes the tx clients underlying signer
-func (s *TxClient) Signer() *Signer {
-	return s.signer
+func (client *TxClient) Signer() *Signer {
+	return client.signer
 }
