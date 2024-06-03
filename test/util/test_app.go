@@ -95,7 +95,10 @@ func NewTestApp() *app.App {
 
 func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
 	// create genesis
-	gen := genesis.NewDefaultGenesis().WithChainID("test").WithConsensusParams(cparams).WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
+	gen := genesis.NewDefaultGenesis().
+		WithChainID(ChainID).
+		WithConsensusParams(cparams).
+		WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
 
 	for _, pk := range pubKeys {
 		err := gen.AddAccount(genesis.Account{
@@ -126,13 +129,12 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 	}
 
 	genDoc, err := gen.Export()
-
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// initialise test app against genesis
-	_ = testApp.Info(abci.RequestInfo{})
+	testApp.Info(abci.RequestInfo{})
 
 	abciParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
@@ -145,12 +147,6 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 		Validator: &cparams.Validator,
 		Version:   &cparams.Version,
 	}
-
-	// init chain will set the validator set and initialize the genesis accounts
-	fmt.Println(genDoc.GenesisTime, "GENDOC APP STATE")
-
-	fmt.Println(abciParams, "ABCI PARAMS")
-	fmt.Println(genDoc.ChainID, "CHAIN ID")
 
 	// TODO Understand why genDoc.GenesisTime is getting reset
 	testApp.InitChain(
@@ -202,7 +198,7 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 
-	_ = testApp.Info(abci.RequestInfo{})
+	testApp.Info(abci.RequestInfo{})
 
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(

@@ -186,8 +186,8 @@ func (g *Genesis) AddValidator(val Validator) error {
 	if err := g.AddAccount(account); err != nil {
 		return err
 	}
- 
-	// TODO decide on this 
+
+	// TODO decide on this
 	// add validator to genesis keyring
 	// if _, err := g.kr.Key(val.Name); err == nil {
 	// 	return fmt.Errorf("validator with name %s already exists", val.Name)
@@ -198,7 +198,7 @@ func (g *Genesis) AddValidator(val Validator) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// install the validator
 	g.genTxs = append(g.genTxs, gentx)
 	g.validators = append(g.validators, val)

@@ -552,7 +552,6 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	}
 
 	res = app.BaseApp.InitChain(req)
-	fmt.Println(res, "RESPONSE INIT CHAIN")
 
 	ctx := app.NewContext(false, tmproto.Header{})
 	if appVersion != v1 {

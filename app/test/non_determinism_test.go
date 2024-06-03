@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -16,7 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"testing"
 )
 
 func TestNonDeterminismBetweenAppVersions(t *testing.T) {
@@ -24,6 +25,8 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 	const (
 		numBlobTxs, numNormalTxs = 5, 5
 	)
+
+	expectedAppHash := []byte{100, 237, 125, 126, 116, 10, 189, 82, 156, 116, 176, 136, 169, 92, 185, 12, 72, 134, 254, 175, 234, 13, 159, 90, 139, 192, 190, 248, 67, 9, 32, 217}
 
 	testApp := testutil.NewTestApp()
 
@@ -37,10 +40,11 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 		addresses = append(addresses, account.Name)
 	}
 
-	_, _, err := testutil.ApplyGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultConsensusParams())
+	_, _, err := testutil.ApplyGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
 	require.NoError(t, err)
 
 	accinfos := queryAccountInfo(testApp, addresses, kr)
+	fmt.Println("AccountInfos:", accinfos)
 
 	// create deterministic set of 10 transactions
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -53,9 +57,6 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 		addresses[:numNormalTxs],
 		testutil.ChainID,
 	)
-
-	fmt.Println(len(accinfos[numBlobTxs:]), "ACCINFOS LENGTH")
-	fmt.Println(len(addresses[numBlobTxs:]), "ADDRESSES LENGTH")
 
 	// maybe change this to signer.CreatePFBS
 	blobTxs := blobfactory.ManyMultiBlobTx(t, enc.TxConfig, kr, testutil.ChainID, addresses[numBlobTxs+1:], accinfos[numBlobTxs+1:], testfactory.Repeat([]*blob.Blob{
@@ -70,6 +71,7 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 
 	// deliver blob txs
 	for _, tx := range blobTxs {
+		// fmt.Println("BlobTx:", tx)
 		blobTx, ok := blob.UnmarshalBlobTx(tx)
 		require.True(t, ok)
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: blobTx.Tx})
@@ -82,7 +84,7 @@ func TestNonDeterminismBetweenAppVersions(t *testing.T) {
 	// // Get the app hash
 	appHash := testApp.LastCommitID().Hash
 
-	fmt.Println("AppHash:", appHash)
+	require.Equal(t, expectedAppHash, appHash)
 }
 
 func HardcodedNamespace() appns.Namespace {

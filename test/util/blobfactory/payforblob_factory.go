@@ -227,7 +227,7 @@ func ManyMultiBlobTx(
 	txs := make([][]byte, len(accounts))
 	opts := DefaultTxOpts()
 	for i, acc := range accounts {
-		signer, err := user.NewSigner(kr, enc, chainid, appconsts.LatestVersion, user.NewAccount(acc, accInfos[i].AccountNum, accInfos[i].Sequence))
+		signer, err := user.NewSigner(kr, enc, chainid, 1, user.NewAccount(acc, accInfos[i].AccountNum, accInfos[i].Sequence))
 		require.NoError(t, err)
 		txs[i], _, err = signer.CreatePayForBlobs(acc, blobs[i], opts...)
 		require.NoError(t, err)
