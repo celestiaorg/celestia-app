@@ -71,11 +71,11 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 			App: cparams.Version.AppVersion,
 		},
 	}})
-	fmt.Print(testApp.LastCommitID().Hash, "LAST COMMIT ID HASH")
 
 	return testApp, kr
 }
 
+// NewTestApp creates a new app instance with an empty memDB and a no-op logger.
 func NewTestApp() *app.App {
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := EmptyAppOptions{}
@@ -93,6 +93,7 @@ func NewTestApp() *app.App {
 	)
 }
 
+// ApplyGenesisState sets genesis on initialized testApp with the provided arguments.
 func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
 	// create genesis
 	gen := genesis.NewDefaultGenesis().
@@ -100,6 +101,7 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 		WithConsensusParams(cparams).
 		WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
 
+	// add accounts to genesis
 	for _, pk := range pubKeys {
 		err := gen.AddAccount(genesis.Account{
 			PubKey:  pk,
@@ -110,27 +112,15 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 		}
 	}
 
-	// hardcoding keys to make validator creation deterministic
-	consensusKey := ed25519.PrivKey(ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012")))
-	networkKey := ed25519.PrivKey(ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012")))
-
-	// question: do we want to add validator in the keyring?
-	err := gen.AddValidator(genesis.Validator{
-		KeyringAccount: genesis.KeyringAccount{
-			Name:          "validator1",
-			InitialTokens: 1_000_000_000,
-		},
-		Stake:        1_000_000,
-		ConsensusKey: consensusKey,
-		NetworkKey:   networkKey,
-	})
+	// add validator to genesis
+	err := gen.AddDeterministicValidator()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to add validator: %w", err)
 	}
 
 	genDoc, err := gen.Export()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to export genesis doc: %w", err)
 	}
 
 	// initialise test app against genesis
@@ -148,7 +138,7 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 		Version:   &cparams.Version,
 	}
 
-	// TODO Understand why genDoc.GenesisTime is getting reset
+	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
 		abci.RequestInitChain{
 			Time:            gen.GenesisTime,
@@ -288,7 +278,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("09876543210987654321098765432109"))
 	acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), 0, 0)
 
-	// genesis and sender accounts will be added to this slice
+	// append sender account to genesis accounts
 	accs := make([]authtypes.GenesisAccount, 0, len(genAccounts)+1)
 	accs = append(accs, acc)
 

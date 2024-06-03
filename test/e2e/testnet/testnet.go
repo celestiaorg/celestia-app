@@ -73,7 +73,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	if err != nil {
 		return err
 	}
-	if err := t.genesis.AddValidator(node.GenesisValidator()); err != nil {
+	if err := t.genesis.NewValidator(node.GenesisValidator()); err != nil {
 		return err
 	}
 	t.nodes = append(t.nodes, node)

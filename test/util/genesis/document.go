@@ -38,8 +38,6 @@ func Document(
 	if err != nil {
 		return nil, fmt.Errorf("packing accounts: %w", err)
 	}
-	// TODO: these are different come back to this
-	// fmt.Println("sdkAccounts", sdkAccounts)
 
 	authGenState := authtypes.DefaultGenesisState()
 	bankGenState := banktypes.DefaultGenesisState()

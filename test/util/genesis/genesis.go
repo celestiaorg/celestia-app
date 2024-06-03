@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -161,20 +162,36 @@ func (g *Genesis) NewValidator(val Validator) error {
 	return nil
 }
 
-// TODO improve this function to imply that we're just adding one validator to make it deterministic
-func (g *Genesis) AddValidator(val Validator) error {
+// AddDeterministicValidator adds a single validator to the genesis deterministically.
+func (g *Genesis) AddDeterministicValidator() error {
+	// hardcoded keys for deterministic account creation
 	mnemo := "body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun"
-	rec, err := g.kr.NewAccount("validator1", mnemo, "", "", hd.Secp256k1)
-	if err != nil {
-		return err
+	consensusKey := ed25519.PrivKey(ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012")))
+	networkKey := ed25519.PrivKey(ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012")))
+
+	val := Validator{
+		KeyringAccount: KeyringAccount{
+			Name:          "validator1",
+			InitialTokens: 1_000_000_000,
+		},
+		Stake:        1_000_000,
+		ConsensusKey: consensusKey,
+		NetworkKey:   networkKey,
 	}
+
+	// initialize the validator's genesis account in the keyring
+	rec, err := g.kr.NewAccount(val.Name, mnemo, "", "", hd.Secp256k1)
+	if err != nil {
+		return fmt.Errorf("failed to create account: %w", err)
+	}
+
 	validatorPubKey, err := rec.GetPubKey()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get pubkey: %w", err)
 	}
 
 	if err := val.ValidateBasic(); err != nil {
-		return err
+		return fmt.Errorf("failed to validate validator: %w", err)
 	}
 
 	// make account from keyring account
@@ -183,20 +200,15 @@ func (g *Genesis) AddValidator(val Validator) error {
 		Balance: val.KeyringAccount.InitialTokens,
 	}
 
+	// add the validator's account to the genesis
 	if err := g.AddAccount(account); err != nil {
-		return err
+		return fmt.Errorf("failed to add account: %w", err)
 	}
 
-	// TODO decide on this
-	// add validator to genesis keyring
-	// if _, err := g.kr.Key(val.Name); err == nil {
-	// 	return fmt.Errorf("validator with name %s already exists", val.Name)
-	// }
-
-	// // Add the validator's genesis transaction
+	// add the validator's genesis transaction
 	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to generate tx: %w", err)
 	}
 
 	// install the validator
