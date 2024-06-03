@@ -51,8 +51,7 @@ type Node struct {
 
 // PullRoundStateTraces retrieves the round state traces from a node.
 // It will save them to the provided path.
-func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.
-RoundState], error,
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error,
 ) {
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
