@@ -23,14 +23,18 @@ import (
 	"github.com/testground/sdk-go/runtime"
 )
 
+// buff-7 just had the envelope buffers enabled
+// buff-9 also had a change in the read buffer size
+
 func init() {
 	consensus.UseWAL = false
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	consensus.DataChannelPriority = 10
+	consensus.EnvelopeBuffer = 1000
 	consensus.DataChannelCapacity = 100
 	p2p.UseBufferedReceives = true
-	conn.MinReadBufferSize = 1024
+	conn.MinReadBufferSize = 32000000
 	conn.MinWriteBufferSize = 65536
 	conn.NumBatchPacketMsgs = 10
 	p2p.TCPSocketReadBuffer = 1024 * 64
@@ -182,7 +186,7 @@ func TracingTables() []string {
 	tables := []string{}
 	// tables = append(tables, schema.MempoolTables()...)
 	tables = append(tables, schema.RoundStateTable, schema.BlockPartsTable, schema.BlockTable, schema.ProposalTable)
-	tables = append(tables, schema.PeersTable, schema.MessageProcessingTable)
+	tables = append(tables, schema.PeersTable, schema.MessageProcessingTable, schema.GenericTraceTable)
 	return tables
 }
 
