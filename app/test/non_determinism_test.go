@@ -38,7 +38,7 @@ func TestNonDeterminismBetweenMainAndV1(t *testing.T) {
 
 	recs, err := kr.List()
 	require.NoError(t, err)
-	addresses := make([]string, len(recs))
+	addresses := make([]string, 0, len(recs))
 
 	// Get the name of the records
 	for _, rec := range recs {
