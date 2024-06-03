@@ -29,16 +29,16 @@ func TestNonDeterminismBetweenMainAndV1(t *testing.T) {
 
 	expectedAppHash := []byte{100, 237, 125, 126, 116, 10, 189, 82, 156, 116, 176, 136, 169, 92, 185, 12, 72, 134, 254, 175, 234, 13, 159, 90, 139, 192, 190, 248, 67, 9, 32, 217}
 
-	// initialize testApp
+	// Initialize testApp
 	testApp := testutil.NewTestApp()
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	// create deterministic keys
+	// Create deterministic keys
 	kr, pubKeys := DeterministicKeyRing(enc.Codec)
 
-	var addresses []string
 	recs, err := kr.List()
 	require.NoError(t, err)
+	addresses := make([]string, len(recs))
 
 	// Get the name of the records
 	for _, rec := range recs {
@@ -66,7 +66,7 @@ func TestNonDeterminismBetweenMainAndV1(t *testing.T) {
 	// Create a set of 5 deterministic blob transactions
 	blobTxs := blobfactory.ManyMultiBlobTx(t, enc.TxConfig, kr, testutil.ChainID, addresses[numBlobTxs+1:], accinfos[numBlobTxs+1:], testfactory.Repeat([]*blob.Blob{
 		blob.New(DeterministicNamespace(), []byte{1}, appconsts.DefaultShareVersion),
-	}, numBlobTxs))
+	}, numBlobTxs), app.DefaultInitialConsensusParams().Version.AppVersion)
 
 	// Deliver sdk txs
 	for _, tx := range normalTxs {

@@ -40,6 +40,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		testfactory.Repeat([]*blob.Blob{
 			blob.New(appns.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion),
 		}, numBlobTxs),
+		app.DefaultConsensusParams().Version.AppVersion,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -97,6 +98,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
+		app.DefaultConsensusParams().Version.AppVersion,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -136,7 +138,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	nilAccount := "carmon san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, app.DefaultConsensusParams().Version.AppVersion, 6))
 
 	type test struct {
 		name      string
