@@ -10,17 +10,11 @@ import (
 
 func NewOfflineSigner() (*user.Signer, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr, addr := NewKeyring(testfactory.TestAccName)
-	return user.NewSigner(kr, nil, addr[0], encCfg.TxConfig, testfactory.ChainID, 1, 0, appconsts.LatestVersion)
+	kr, _ := NewKeyring(testfactory.TestAccName)
+	return user.NewSigner(kr, encCfg.TxConfig, testfactory.ChainID, appconsts.LatestVersion, user.NewAccount(testfactory.TestAccName, 0, 0))
 }
 
-func NewSingleSignerFromContext(ctx Context) (*user.Signer, error) {
+func NewTxClientFromContext(ctx Context) (*user.TxClient, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	return user.SetupSingleSigner(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
-}
-
-func NewSignerFromContext(ctx Context, acc string) (*user.Signer, error) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	addr := testfactory.GetAddress(ctx.Keyring, acc)
-	return user.SetupSigner(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, addr, encCfg)
+	return user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
 }
