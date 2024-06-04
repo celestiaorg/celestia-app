@@ -200,6 +200,8 @@ github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240517012232-98ae4a
 github.com/celestiaorg/celestia-core v1.35.0-tm-v0.34.29.0.20240517012232-98ae4ae4d3ad/go.mod h1:fRIcS+rBP/0EE3dMItgSdfDBwomAga36KcFEYOW4xnc=
 github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240528210016-a0ff2b0bc58f h1:hBSqG4u8Y8Pmo6Z7RxQgSAf5eKKUDTgy4OVolMVC7KA=
 github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240528210016-a0ff2b0bc58f/go.mod h1:T9eYnsTUQAeqg/n+NLnV8E11YI/IYTd6n0CxIChMR3w=
+github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240604235646-35e265dd364c h1:6S1zm0BhRdsjH47hPfeYiKk+n4ABtn29ry5ZQMF5p1A=
+github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240604235646-35e265dd364c/go.mod h1:T9eYnsTUQAeqg/n+NLnV8E11YI/IYTd6n0CxIChMR3w=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
 github.com/charithe/durationcheck v0.0.10/go.mod h1:bCWXb7gYRysD1CU3C+u4ceO49LoGOY1C1L6uouGNreQ=
 github.com/chavacava/garif v0.0.0-20230227094218-b8c73b2037b8/go.mod h1:gakxgyXaaPkxvLw1XQxNGK4I37ys9iBRzNUx/B7pUCo=

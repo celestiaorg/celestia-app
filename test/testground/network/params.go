@@ -25,6 +25,9 @@ import (
 
 // buff-7 just had the envelope buffers enabled
 // buff-9 also had a change in the read buffer size
+// buff-11 had the blocker from stats channel removed
+// buff-12 has the extra trace for the buffer sizes
+// buff-13 has the change to marking all peers as good
 
 func init() {
 	consensus.UseWAL = false
