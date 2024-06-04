@@ -11,7 +11,7 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "buff-9"
+chain_id = "buff-11"
 timeout = "50m"
 halt_height = "2000"
 latency = "70"

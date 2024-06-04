@@ -31,7 +31,7 @@ func init() {
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	consensus.DataChannelPriority = 10
-	consensus.EnvelopeBuffer = 1000
+	consensus.EnvelopeBuffer = 10000
 	consensus.DataChannelCapacity = 100
 	p2p.UseBufferedReceives = true
 	conn.MinReadBufferSize = 32000000
