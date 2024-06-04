@@ -174,10 +174,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 			return fmt.Errorf("error creating directory %s: %w", dir, err)
 		}
 	}
-
-	//if err := MakeTracePushConfig(filepath.Join(nodeDir, "config")); err != nil {
-	//	return fmt.Errorf("error creating trace push config: %w", err)
-	//}
+	
 	// Create and write the config file
 	cfg, err := MakeConfig(n, configOptions...)
 	if err != nil {
