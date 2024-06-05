@@ -45,6 +45,7 @@ celestia-appd init ${CHAIN_ID} \
   --home "${CELESTIA_APP_HOME}" \
   > /dev/null 2>&1 # Hide output to reduce terminal noise
 
+
 echo "Adding a new key to the keyring..."
 celestia-appd keys add ${KEY_NAME} \
   --keyring-backend=${KEYRING_BACKEND} \

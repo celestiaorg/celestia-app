@@ -20,6 +20,7 @@ type LatencyParams struct {
 
 // Manifest defines the parameters for a testnet.
 type Manifest struct {
+	TestnetName  string
 	ChainID      string
 	TestDuration time.Duration
 	// Number of validators in the testnet
@@ -41,7 +42,6 @@ type Manifest struct {
 	EnableLatency bool
 	// LatencyParams defines the network latency parameters
 	LatencyParams LatencyParams
-
 	// tx client settings
 	// Number of blobs per sequence
 	BlobsPerSeq int
@@ -69,10 +69,14 @@ type Manifest struct {
 	MaxBlockBytes int64
 
 	// other configs
+	// tracing configs, can be local or noop
+	LocalTracingType string
+	PushTrace        bool
+
+	// other configs
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
 }
-
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	var modifiers []genesis.Modifier
