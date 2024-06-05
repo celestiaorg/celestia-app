@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
+	github.com/aws/aws-sdk-go v1.44.122
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.0.1
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
@@ -50,7 +51,6 @@ require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
-	github.com/aws/aws-sdk-go v1.44.122 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect

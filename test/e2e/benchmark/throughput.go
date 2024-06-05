@@ -202,7 +202,8 @@ func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
 	manifest.MaxBlockBytes = 8 * toMiB
 	manifest.Validators = 50
 	manifest.TxClients = 50
-	manifest.BlobsPerSeq = 20
+	manifest.BlobSequences = 20
+	manifest.TestDuration = 15 * time.Minute
 
 	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_8MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -228,7 +229,7 @@ func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
 	manifest.MaxBlockBytes = 32 * toMiB
 	manifest.Validators = 50
 	manifest.TxClients = 50
-	manifest.BlobsPerSeq = 20
+	manifest.BlobSequences = 20
 
 	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_32MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -254,7 +255,7 @@ func LargeNetwork_BigBlock_64MiB(logger *log.Logger) error {
 	manifest.MaxBlockBytes = 64 * toMiB
 	manifest.Validators = 50
 	manifest.TxClients = 50
-	manifest.BlobsPerSeq = 20
+	manifest.BlobSequences = 20
 
 	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_64MiB", &manifest)
 	testnet.NoError("failed to create benchmark test", err)
