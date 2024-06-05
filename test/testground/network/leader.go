@@ -140,7 +140,7 @@ func (l *Leader) Execute(ctx context.Context, runenv *runtime.RunEnv, initCtx *r
 	switch l.params.Experiment {
 	case UnboundedBlockSize:
 		runenv.RecordMessage(fmt.Sprintf("leader running experiment %s", l.params.Experiment))
-		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 25)
+		err := l.unboundedBlockSize(ctx, runenv, initCtx, l.ecfg.Codec, 30)
 		if err != nil {
 			runenv.RecordMessage(fmt.Sprintf("error unbounded block size test: %v", err))
 		}

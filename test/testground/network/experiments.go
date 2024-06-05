@@ -61,7 +61,7 @@ func (l *Leader) unboundedBlockSize(
 	go func() {
 		// blockSize is the starting block size limit in bytes. This is
 		// incremented by blockIncrement each loop.
-		blockSizes := []int{7800000, 31000000, 62000000}
+		blockSizes := []int{31000000, 62000000}
 		cursor := 0
 
 		proposalCount := uint64(1)
