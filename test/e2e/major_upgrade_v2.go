@@ -71,7 +71,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
-		testnet.NoError("failed to wait for height", waitForHeight(testNet, testNet.Node(i), upgradeHeight, time.Minute))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
 		testnet.NoError("failed to get header", err)
@@ -116,21 +116,24 @@ func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (in
 	}
 }
 
-func waitForHeight(testnet *testnet.Testnet, node *testnet.Node, height int64, period time.Duration) error {
-	timer := time.NewTimer(period)
+func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, period)
+	defer cancel()
+
 	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-timer.C:
-			return fmt.Errorf("failed to reach height %d in %.2f seconds", height, period.Seconds())
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for height %d", height)
 		case <-ticker.C:
-			executor, err := testnet.GetExecutor()
+			currentHeight, err := getHeight(ctx, client, period)
 			if err != nil {
-				return fmt.Errorf("failed to get executor: %w", err)
-			}
-			currentHeight, err := node.GetHeight(executor)
-			if err != nil {
-				return err
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
+				continue
 			}
 			if currentHeight >= height {
 				return nil
