@@ -72,8 +72,8 @@ func (s *Signer) CreateTx(msgs []sdktypes.Msg, opts ...TxOption) ([]byte, error)
 }
 
 func (s *Signer) SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, string, uint64, error) {
-	txBuilder := s.txBuilder(opts...)
-	if err := txBuilder.SetMsgs(msgs...); err != nil {
+	txBuilder, err := s.txBuilder(msgs, opts...)
+	if err != nil {
 		return nil, "", 0, err
 	}
 
@@ -272,12 +272,16 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 }
 
 // txBuilder returns the default sdk Tx builder using the celestia-app encoding config
-func (s *Signer) txBuilder(opts ...TxOption) client.TxBuilder {
+func (s *Signer) txBuilder(msgs []sdktypes.Msg, opts ...TxOption) (client.TxBuilder, error) {
 	builder := s.enc.NewTxBuilder()
+	if err := builder.SetMsgs(msgs...); err != nil {
+		return nil, err
+	}
+
 	for _, opt := range opts {
 		builder = opt(builder)
 	}
-	return builder
+	return builder, nil
 }
 
 func (s *Signer) getSignatureV2(sequence uint64, pubKey cryptotypes.PubKey, signature []byte) signing.SignatureV2 {

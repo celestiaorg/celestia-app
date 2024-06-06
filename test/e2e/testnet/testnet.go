@@ -55,7 +55,9 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
+		selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources,
+		t.grafana)
 	if err != nil {
 		return err
 	}
@@ -78,13 +80,14 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 func (t *Testnet) CreateTxClients(version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoints []string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(name, version, sequences,
-			blobRange, resources, grpcEndpoint)
+			blobRange, blobPerSequence, resources, grpcEndpoint)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -113,6 +116,7 @@ func (t *Testnet) CreateTxClient(name,
 	version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoint string,
 ) error {
@@ -130,7 +134,7 @@ func (t *Testnet) CreateTxClient(name,
 
 	// Create a txsim node using the key stored in the txsimKeyringDir
 	txsim, err := CreateTxClient(name, version, grpcEndpoint, t.seed,
-		sequences, blobRange, 1, resources, txsimRootDir)
+		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
@@ -221,7 +225,9 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
+		startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources,
+		t.grafana)
 	if err != nil {
 		return err
 	}

@@ -66,6 +66,14 @@ func WithBroadcastTxs(broadcast bool) Option {
 	}
 }
 
+func WithLocalTracing(localTracingType string) Option {
+	return func(cfg *config.Config) {
+		cfg.Instrumentation.TraceType = localTracingType
+		cfg.Instrumentation.TraceBufferSize = 1000
+		cfg.Instrumentation.TracePullAddress = ":26661"
+	}
+}
+
 func WriteAddressBook(peers []string, file string) error {
 	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {

@@ -324,8 +324,8 @@ github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29 h1:BuYworCMtFxAYyM5l1C0
 github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29/go.mod h1:AL7kotb6ucKF4bpKKhGIzGhGL7dwYj2nFstiFC6PGxM=
 github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16 h1:THZrswVVqGtMo2dMdW9R+5JGxjfD7+eaGZIJ7ne0ejE=
 github.com/celestiaorg/cosmos-sdk v1.22.0-sdk-v0.46.16/go.mod h1:AmuR63HTlX8vNV3+NGWNPIZa95J1UweTUmWDHSdTGj0=
-github.com/celestiaorg/go-square v1.0.1 h1:LEG1zrw4i03VBMElQF8GAbKYgh1bT1uGzWxasU2ePuo=
-github.com/celestiaorg/go-square v1.0.1/go.mod h1:XMv5SGCeGSkynW2OOsedugaW/rQlvzxGzWGxTKsyYOU=
+github.com/celestiaorg/go-square v1.1.0 h1:K4tBL5PCJwDtpBfyDxxZ3N962aC9VYb5/bw3LjagEtY=
+github.com/celestiaorg/go-square v1.1.0/go.mod h1:1EXMErhDrWJM8B8V9hN7dqJ2kUTClfwdqMOmF9yQUa0=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 h1:PYInrsYzrDIsZW9Yb86OTi2aEKuPcpgJt6Mc0Jlc/yg=
 github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076/go.mod h1:hlidgivKyvv7m4Yl2Fdf2mSTmazZYxX8+bnr5IQrI98=
 github.com/celestiaorg/knuu v0.14.0 h1:96uaDHTzlTfhDLrAiygq9Ewow7UzOzGAbUvMwws1S4A=
