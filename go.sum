@@ -522,8 +522,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/ethereum/c-kzg-4844 v1.0.0 h1:0X1LBXxaEtYD9xsyj9B9ctQEZIpnvVDeoBx8aHEwTNA=
 github.com/ethereum/c-kzg-4844 v1.0.0/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
 github.com/ethereum/go-ethereum v1.10.17/go.mod h1:Lt5WzjM07XlXc95YzrhosmR4J9Ahd6X2wyEV2SvGhk0=
-github.com/ethereum/go-ethereum v1.14.4 h1:AI1778nnI9vb3eCcLo6XTw/lqp6ilVHQmbWmJOUHGU8=
-github.com/ethereum/go-ethereum v1.14.4/go.mod h1:VEDGGhSxY7IEjn98hJRFXl/uFvpRgbIIf2PpXiyGGgc=
+github.com/ethereum/go-ethereum v1.14.5 h1:szuFzO1MhJmweXjoM5nSAeDvjNUH3vIQoMzzQnfvjpw=
+github.com/ethereum/go-ethereum v1.14.5/go.mod h1:VEDGGhSxY7IEjn98hJRFXl/uFvpRgbIIf2PpXiyGGgc=
 github.com/ethereum/go-verkle v0.1.1-0.20240306133620-7d920df305f0 h1:KrE8I4reeVvf7C1tm8elRjj4BdscTYzz/WAbYyf/JI4=
 github.com/ethereum/go-verkle v0.1.1-0.20240306133620-7d920df305f0/go.mod h1:D9AJLVXSyZQXJQVk8oh1EwjISE+sJTn2duYIZC0dy3w=
 github.com/evanphx/json-patch v4.12.0+incompatible h1:4onqiflcdA9EOZ4RxV643DvftH5pOlLGNtQ5lPWQu84=
