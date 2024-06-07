@@ -7,22 +7,18 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-
-	// "github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	// "github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
 	hd "github.com/cosmos/cosmos-sdk/crypto/hd"
 	keyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
@@ -39,13 +35,14 @@ type blobTxStruct struct {
 	txOptions []user.TxOption
 }
 
-// TestConsistentAppHash executes transactions,
-// produces an app hash and compares it with the app hash produced by v1.x.
-// testApp is running v1.
+// TestConsistentAppHash executes a set of txs, generates an app hash,
+// and compares it against a previously generated hash from the same set of transactions.
+// App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
-	// expectedAppHash := []byte{100, 237, 125, 126, 116, 10, 189, 82, 156, 116, 176, 136, 169, 92, 185, 12, 72, 134, 254, 175, 234, 13, 159, 90, 139, 192, 190, 248, 67, 9, 32, 217}
+	// Expected app hash produced by v1.x - TODO: link to the test producing the hash
+	expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
 
-	// Initialize testApp 
+	// Initialize testApp
 	testApp := testutil.NewTestApp()
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -69,7 +66,7 @@ func TestConsistentAppHash(t *testing.T) {
 	accountInfos := queryAccountInfo(testApp, accountNames, kr)
 
 	// Create accounts for the signer
-	var accounts []*user.Account
+	accounts := make([]*user.Account, 0, len(accountInfos))
 	for i, accountInfo := range accountInfos {
 		account := user.NewAccount(accountNames[i], accountInfo.AccountNum, accountInfo.Sequence)
 		accounts = append(accounts, account)
@@ -86,7 +83,8 @@ func TestConsistentAppHash(t *testing.T) {
 		sdkMsgs: []sdk.Msg{
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
-				amount)},
+				amount),
+		},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 
@@ -130,10 +128,9 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Get the app hash
 	appHash := testApp.LastCommitID().Hash
-	fmt.Println(appHash)
 
-	// Require that the app hash is equal to the app hash produced by v1.x
-	// require.Equal(t, expectedAppHash, appHash)
+	// Require that the app hash is equal to the app hash produced on a different commit
+	require.Equal(t, expectedAppHash, appHash)
 }
 
 // DeterministicNamespace returns a deterministic namespace
