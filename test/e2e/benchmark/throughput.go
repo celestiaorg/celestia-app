@@ -38,9 +38,9 @@ func E2EThroughput() error {
 		TxClientVersion:    testnet.TxsimVersion,
 		EnableLatency:      true,
 		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
-		BlobsPerSeq:        1,
-		BlobSequences:      1,
-		BlobSizes:          "10000-10000",
+		BlobsPerSeq:        6,
+		BlobSequences:      50,
+		BlobSizes:          "200000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
