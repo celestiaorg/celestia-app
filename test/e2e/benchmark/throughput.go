@@ -36,7 +36,7 @@ func E2EThroughput() error {
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: latestVersion,
 		TxClientVersion:    testnet.TxsimVersion,
-		EnableLatency:      true,
+		EnableLatency:      false,
 		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
 		BlobsPerSeq:        6,
 		BlobSequences:      50,
@@ -53,7 +53,7 @@ func E2EThroughput() error {
 		LocalTracingType:   "local",
 		PushTrace:          false,
 		DownloadTraces:     false,
-		TestDuration:       30 * time.Second,
+		TestDuration:       1 * time.Minute,
 		TxClients:          2,
 	}
 
