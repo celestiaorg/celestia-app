@@ -47,7 +47,6 @@ func TestProcessProposal(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
-		app.DefaultConsensusParams().Version.AppVersion,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers

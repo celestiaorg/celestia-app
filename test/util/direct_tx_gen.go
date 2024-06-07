@@ -192,7 +192,6 @@ func SendTxsWithAccounts(
 			chainid,
 			acc.GetSequence(),
 			acc.GetAccountNumber(),
-			appconsts.LatestVersion,
 			opts...,
 		)
 	}
@@ -210,11 +209,10 @@ func SendTxWithManualSequence(
 	amount uint64,
 	chainid string,
 	sequence, accountNum uint64,
-	appVersion uint64,
 	opts ...user.TxOption,
 ) coretypes.Tx {
 	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
-	signer, err := user.NewSigner(kr, cfg, chainid, appVersion, user.NewAccount(fromAcc, accountNum, sequence))
+	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(fromAcc, accountNum, sequence))
 	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
