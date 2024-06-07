@@ -93,5 +93,7 @@ func WriteAddressBook(peers []string, file string) error {
 func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
+	srvCfg.GRPC.MaxRecvMsgSize = 128 * 1024 * 1024
+	srvCfg.GRPC.MaxSendMsgSize = 128 * 1024 * 1024
 	return srvCfg, srvCfg.ValidateBasic()
 }
