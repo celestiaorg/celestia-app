@@ -7,22 +7,17 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
-
-	// "github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	// "github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	// "github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
-	hd "github.com/cosmos/cosmos-sdk/crypto/hd"
-	keyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/stretchr/testify/require"
-
-	"github.com/celestiaorg/celestia-app/pkg/user"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
@@ -71,7 +66,7 @@ func TestConsistentAppHash(t *testing.T) {
 	accountInfos := queryAccountInfo(testApp, accountNames, kr)
 
 	// Create accounts for the signer
-	var accounts []*user.Account
+	accounts := make([]*user.Account, 0, len(accountInfos))
 	for i, accountInfo := range accountInfos {
 		account := user.NewAccount(accountNames[i], accountInfo.AccountNum, accountInfo.Sequence)
 		accounts = append(accounts, account)
@@ -88,7 +83,8 @@ func TestConsistentAppHash(t *testing.T) {
 		sdkMsgs: []sdk.Msg{
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
-				amount)},
+				amount),
+		},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 

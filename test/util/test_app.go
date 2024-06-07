@@ -55,7 +55,6 @@ func (ao EmptyAppOptions) Get(_ string) interface{} {
 func NewTestApp() *app.App {
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := EmptyAppOptions{}
-	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -75,7 +74,7 @@ func NewTestApp() *app.App {
 
 // ApplyGenesisState applies genesis with a specified state on initialized testApp.
 func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
-	// Create genesis
+	// Create default genesis state
 	gen := genesis.NewDefaultGenesis().WithChainID(ChainID).WithConsensusParams(cparams).WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
 
 	// Add accounts to the genesis state
@@ -127,7 +126,6 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 	}
 
 	// Init chain will set the validator set and initialize the genesis accounts
-	// TODO: Understand why genDoc.GenesisTime is getting reset
 	testApp.InitChain(
 		abci.RequestInitChain{
 			Time:            gen.GenesisTime,
