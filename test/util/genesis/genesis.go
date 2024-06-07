@@ -1,16 +1,15 @@
 package genesis
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -50,7 +49,7 @@ func NewDefaultGenesis() *Genesis {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	g := &Genesis{
 		ecfg:            ecfg,
-		ConsensusParams: DefaultConsensusParams(),
+		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         tmrand.Str(6),
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(ecfg.Codec),
@@ -81,7 +80,7 @@ func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
 
 func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	for _, val := range vals {
-		err := g.AddValidator(val)
+		err := g.NewValidator(val)
 		if err != nil {
 			panic(err)
 		}
@@ -89,9 +88,11 @@ func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	return g
 }
 
-func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
+// WithKeyringAccounts adds the given keyring accounts to the genesis. If an
+// account with the same name already exists, it panics.
+func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 	for _, acc := range accs {
-		err := g.AddAccount(acc)
+		err := g.NewAccount(acc)
 		if err != nil {
 			panic(err)
 		}
@@ -99,33 +100,100 @@ func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
 	return g
 }
 
-func (g *Genesis) AddAccount(acc Account) error {
-	_, err := g.kr.Key(acc.Name)
-	if err == nil {
-		return fmt.Errorf("account with name %s already exists", acc.Name)
+func (g *Genesis) AddAccount(account Account) error {
+	for _, acc := range g.accounts {
+		if bytes.Equal(acc.PubKey.Bytes(), account.PubKey.Bytes()) {
+			return fmt.Errorf("account with pubkey %s already exists", account.PubKey.String())
+		}
 	}
-	if err := acc.ValidateBasic(); err != nil {
-		return err
-	}
-	_, _, err = g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return err
-	}
-	g.accounts = append(g.accounts, acc)
+	g.accounts = append(g.accounts, account)
 	return nil
 }
 
-func (g *Genesis) AddValidator(val Validator) error {
+func (g *Genesis) NewAccount(acc KeyringAccount) error {
+	if err := acc.ValidateBasic(); err != nil {
+		return err
+	}
+	// check that the account does not already exist
+	if _, err := g.kr.Key(acc.Name); err == nil {
+		return fmt.Errorf("account with name %s already exists", acc.Name)
+	}
+
+	// generate the keys and add it to the genesis keyring
+	record, _, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+
+	pubKey, err := record.GetPubKey()
+	if err != nil {
+		return err
+	}
+
+	account := Account{
+		PubKey:  pubKey,
+		Balance: acc.InitialTokens,
+	}
+
+	g.accounts = append(g.accounts, account)
+	return nil
+}
+
+func (g *Genesis) NewValidator(val Validator) error {
 	if err := val.ValidateBasic(); err != nil {
 		return err
 	}
 
 	// Add the validator's genesis account
-	if err := g.AddAccount(val.Account); err != nil {
+	if err := g.NewAccount(val.KeyringAccount); err != nil {
 		return err
 	}
 
 	// Add the validator's genesis transaction
+	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
+	if err != nil {
+		return err
+	}
+
+	// install the validator
+	g.genTxs = append(g.genTxs, gentx)
+	g.validators = append(g.validators, val)
+	return nil
+}
+
+// TODO improve this function to imply that we're just adding one validator to make it deterministic
+func (g *Genesis) AddValidator(val Validator) error {
+	mnemo := "body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun"
+	rec, err := g.kr.NewAccount("validator1", mnemo, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+	validatorPubKey, err := rec.GetPubKey()
+	if err != nil {
+		return err
+	}
+
+	if err := val.ValidateBasic(); err != nil {
+		return err
+	}
+
+	// make account from keyring account
+	account := Account{
+		PubKey:  validatorPubKey,
+		Balance: val.KeyringAccount.InitialTokens,
+	}
+
+	if err := g.AddAccount(account); err != nil {
+		return err
+	}
+
+	// TODO decide on this
+	// add validator to genesis keyring
+	// if _, err := g.kr.Key(val.Name); err == nil {
+	// 	return fmt.Errorf("validator with name %s already exists", val.Name)
+	// }
+
+	// // Add the validator's genesis transaction
 	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
 	if err != nil {
 		return err
@@ -142,31 +210,7 @@ func (g *Genesis) Accounts() []Account {
 }
 
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
-	addrs := make([]string, 0, len(g.accounts))
-	pubKeys := make([]cryptotypes.PubKey, 0, len(g.accounts))
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
-
-	for _, acc := range g.Accounts() {
-		rec, err := g.kr.Key(acc.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		addr, err := rec.GetAddress()
-		if err != nil {
-			return nil, err
-		}
-
-		addrs = append(addrs, addr.String())
-
-		pubK, err := rec.GetPubKey()
-		if err != nil {
-			return nil, err
-		}
-
-		pubKeys = append(pubKeys, pubK)
-	}
-
 	for _, genTx := range g.genTxs {
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
 		if err != nil {
@@ -181,8 +225,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		g.ConsensusParams,
 		g.ChainID,
 		gentxs,
-		addrs,
-		pubKeys,
+		g.accounts,
 		g.genOps...,
 	)
 }
@@ -202,11 +245,4 @@ func (g *Genesis) Validator(i int) (Validator, bool) {
 		return g.validators[i], true
 	}
 	return Validator{}, false
-}
-
-func DefaultConsensusParams() *tmproto.ConsensusParams {
-	cparams := coretypes.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
-	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	return cparams
 }
