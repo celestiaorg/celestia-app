@@ -1,10 +1,7 @@
 name: test-e2e
 
 on:
-  workflow_call:
-    secrets:
-      KNUU_KUBECONFIG_FILE:
-        required: true
+  push:
 
 jobs:
   test-e2e:
