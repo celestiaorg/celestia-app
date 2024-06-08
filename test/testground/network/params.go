@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/p2p/conn"
 	"github.com/tendermint/tendermint/pkg/trace/schema"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
@@ -29,19 +31,21 @@ import (
 // buff-13 has the change to marking all peers as good
 
 func init() {
-	consensus.UseWAL = true
+	consensus.UseWAL = false
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	consensus.DataChannelPriority = 10
 	// consensus.EnvelopeBuffer = 10000
 	consensus.DataChannelCapacity = 100
-	// p2p.UseBufferedReceives = true
-	// conn.MinReadBufferSize = 32000000
-	// conn.MinWriteBufferSize = 65536
-	// conn.NumBatchPacketMsgs = 10
+	p2p.UseBufferedReceives = true
+	conn.MinReadBufferSize = 1024 * 1024 * 32
+	// conn.DataMaxSize = 1024
+	// conn.DataMaxSizeUint = 2048
+	conn.MinWriteBufferSize = 65536
+	conn.NumBatchPacketMsgs = 10
 	// p2p.TCPSocketReadBuffer = 1024 * 64
 	// p2p.TCPSocketWriteBuffer = 1024 * 64
-	// p2p.SetTCPBuffers = false
+	p2p.SetTCPBuffers = false
 }
 
 const (
@@ -114,6 +118,12 @@ func ParseParams(ecfg encoding.Config, runenv *runtime.RunEnv) (*Params, error) 
 
 	p.ChainID = runenv.StringParam(ChainIDParam)
 
+	PerPeerBandwidth, err := parseBandwidth(runenv.StringParam("per_peer_bandwidth"))
+	if err != nil {
+		return nil, err
+	}
+	p.PerPeerBandwidth = int(PerPeerBandwidth)
+
 	p.Validators = runenv.IntParam(ValidatorsParam)
 
 	p.FullNodes = runenv.IntParam(FullNodesParam)
@@ -185,11 +195,11 @@ func (p *Params) NodeCount() int {
 }
 
 func TracingTables() []string {
-	// tables := []string{}
-	// // tables = append(tables, schema.MempoolTables()...)
-	// tables = append(tables, schema.RoundStateTable, schema.BlockPartsTable, schema.BlockTable, schema.ProposalTable)
-	// tables = append(tables, schema.PeersTable, schema.MessageProcessingTable, schema.GenericTraceTable)
-	return schema.AllTables()
+	tables := []string{}
+	// tables = append(tables, schema.MempoolTables()...)
+	tables = append(tables, schema.RoundStateTable, schema.BlockPartsTable, schema.BlockTable, schema.ProposalTable)
+	tables = append(tables, schema.PeersTable, schema.MessageProcessingTable)
+	return tables
 }
 
 func StandardCometConfig(params *Params) *tmconfig.Config {
@@ -244,4 +254,40 @@ func (p *Params) getGenesisModifiers(ecfg encoding.Config) []genesis.Modifier {
 	modifiers = append(modifiers, genesis.ImmediateProposals(ecfg.Codec))
 
 	return modifiers
+}
+
+// parseBandwidth is a crude helper function to parse bandwidth strings. For
+// example Kib, Kb, or KB are all valid units. Kb and KB are treated as 1000.
+// Kib is 1024.
+func parseBandwidth(s string) (uint64, error) {
+	var multiplier uint64
+
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, "Kib") {
+		multiplier = 1 << 10
+	} else if strings.HasSuffix(s, "Mib") {
+		multiplier = 1 << 20
+	} else if strings.HasSuffix(s, "Gib") {
+		multiplier = 1 << 30
+	} else if strings.HasSuffix(s, "Tib") {
+		multiplier = 1 << 40
+	} else if strings.HasSuffix(s, "Kb") || strings.HasSuffix(s, "KB") {
+		multiplier = 1000
+	} else if strings.HasSuffix(s, "Mb") || strings.HasSuffix(s, "MB") {
+		multiplier = 1000 * 1000
+	} else if strings.HasSuffix(s, "Gb") || strings.HasSuffix(s, "GB") {
+		multiplier = 1000 * 1000 * 1000
+	} else if strings.HasSuffix(s, "Tb") || strings.HasSuffix(s, "TB") {
+		multiplier = 1000 * 1000 * 1000 * 1000
+	} else {
+		return 0, fmt.Errorf("unknown unit in string: %s", s)
+	}
+
+	numberStr := strings.TrimRight(s, "KMGTib")
+	number, err := strconv.ParseFloat(numberStr, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(number * float64(multiplier)), nil
 }
