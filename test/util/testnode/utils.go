@@ -65,9 +65,10 @@ func RandomAddress() sdk.Address {
 	return addresses[0]
 }
 
-func FundKeyringAccounts(addresses []sdk.AccAddress) ([]banktypes.Balance, []authtypes.GenesisAccount) {
-	genAccounts := make([]authtypes.GenesisAccount, len(addresses))
-	genBalances := make([]banktypes.Balance, len(addresses))
+func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
+	kr, addresses := NewKeyring(accounts...)
+	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
+	genBalances := make([]banktypes.Balance, len(accounts))
 
 	for i, addr := range addresses {
 		balances := sdk.NewCoins(
@@ -77,7 +78,7 @@ func FundKeyringAccounts(addresses []sdk.AccAddress) ([]banktypes.Balance, []aut
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
-	return genBalances, genAccounts
+	return kr, genBalances, genAccounts
 }
 
 func GenerateAccounts(count int) []string {

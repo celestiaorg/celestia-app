@@ -94,8 +94,8 @@ func NewTestApp() *app.App {
 	)
 }
 
-// ApplyGenesisState sets genesis on initialized testApp with the provided arguments.
-func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
+// SetupDeterministicGenesisState sets genesis on initialized testApp with the provided arguments.
+func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
 	// create genesis
 	gen := genesis.NewDefaultGenesis().
 		WithChainID(ChainID).
@@ -334,9 +334,8 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	})
 
 	// create a new keyring with the generated accounts
-	kr, addresses := testnode.NewKeyring(genAccounts...)
-	// fund the accounts
-	fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(addresses)
+	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
+
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
 
