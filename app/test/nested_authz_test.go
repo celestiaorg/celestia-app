@@ -21,10 +21,12 @@ import (
 )
 
 func TestNestedAuthz(t *testing.T) {
-	senderAccount := "sender"
-	receiverAccount := "receiver"
-	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	const (
+		senderAccount   = "sender"
+		receiverAccount = "receiver"
+	)
 
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), senderAccount, receiverAccount)
 	appVersion := uint64(1)
 	info := testApp.Info(abci.RequestInfo{})
@@ -53,21 +55,9 @@ func TestNestedAuthz(t *testing.T) {
 // 	return nestedBankSend
 // }
 
-func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
-	rec, err := kr.Key(account)
-	if err != nil {
-		panic(err)
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		panic(err)
-	}
-	return addr
-}
-
 func sendTx(t *testing.T, keyRing keyring.Keyring, signer *user.Signer, senderAccount string, receiverAccount string, amount uint64) coretypes.Tx {
-	senderAddress := getAddress(senderAccount, keyRing)
-	receiverAddress := getAddress(receiverAccount, keyRing)
+	senderAddress := getAddress(t, senderAccount, keyRing)
+	receiverAddress := getAddress(t, receiverAccount, keyRing)
 
 	msg := banktypes.NewMsgSend(senderAddress, receiverAddress, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
 	options := blobfactory.FeeTxOpts(1e9)
@@ -76,4 +66,14 @@ func sendTx(t *testing.T, keyRing keyring.Keyring, signer *user.Signer, senderAc
 	require.NoError(t, err)
 
 	return rawTx
+}
+
+func getAddress(t *testing.T, account string, keyRing keyring.Keyring) sdk.AccAddress {
+	record, err := keyRing.Key(account)
+	require.NoError(t, err)
+
+	address, err := record.GetAddress()
+	require.NoError(t, err)
+
+	return address
 }
