@@ -18,7 +18,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/p2p/conn"
 	"github.com/tendermint/tendermint/pkg/trace/schema"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/testground/sdk-go/runtime"
@@ -31,21 +30,20 @@ import (
 // buff-13 has the change to marking all peers as good
 
 func init() {
-	consensus.UseWAL = false
+	consensus.UseWAL = true
 	node.PushMetrics = false
 	node.PushGateWayURL = "http://51.159.176.205:9191"
 	consensus.DataChannelPriority = 10
 	// consensus.EnvelopeBuffer = 10000
 	consensus.DataChannelCapacity = 100
-	p2p.UseBufferedReceives = true
-	conn.MinReadBufferSize = 1024 * 1024 * 32
-	// conn.DataMaxSize = 1024
-	// conn.DataMaxSizeUint = 2048
-	conn.MinWriteBufferSize = 65536
-	conn.NumBatchPacketMsgs = 10
+	// p2p.UseBufferedReceives = true
+	// conn.MinReadBufferSize = 1024 * 1024 * 32
+	// conn.SetDataMaxSize(2048)
+	// conn.MinWriteBufferSize = 65536
+	// conn.NumBatchPacketMsgs = 10
 	// p2p.TCPSocketReadBuffer = 1024 * 64
 	// p2p.TCPSocketWriteBuffer = 1024 * 64
-	p2p.SetTCPBuffers = false
+	// p2p.SetTCPBuffers = false
 }
 
 const (
@@ -195,11 +193,7 @@ func (p *Params) NodeCount() int {
 }
 
 func TracingTables() []string {
-	tables := []string{}
-	// tables = append(tables, schema.MempoolTables()...)
-	tables = append(tables, schema.RoundStateTable, schema.BlockPartsTable, schema.BlockTable, schema.ProposalTable)
-	tables = append(tables, schema.PeersTable, schema.MessageProcessingTable)
-	return tables
+	return schema.AllTables()
 }
 
 func StandardCometConfig(params *Params) *tmconfig.Config {
