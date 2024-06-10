@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "**.go"
+      - go.mod
+      - go.sum
 
 jobs:
   test-e2e:
