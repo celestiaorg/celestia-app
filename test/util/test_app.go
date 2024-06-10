@@ -166,7 +166,7 @@ func ApplyGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance i
 	return gen.Keyring(), gen.Accounts(), nil
 }
 
-// NewTestAppWithGenesisSet initializes a new app with a validator set and genesis accounts.
+// NewTestAppWithGenesisSet initializes a new app with genesis accounts and returns the testApp, validator set and keyring.
 func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
 	testApp := NewTestApp()
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
