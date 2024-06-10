@@ -14,6 +14,8 @@ import (
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
@@ -24,6 +26,7 @@ const (
 	p2pPort        = 26656
 	grpcPort       = 9090
 	prometheusPort = 26660
+	tracingPort    = 26661
 	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
@@ -41,8 +44,23 @@ type Node struct {
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
-	rpcProxyPort  int
-	grpcProxyPort int
+	rpcProxyPort   int
+	grpcProxyPort  int
+	traceProxyPort int
+}
+
+// PullRoundStateTraces retrieves the round state traces from a node.
+// It will save them to the provided path.
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error,
+) {
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+
+	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	return nil, nil
 }
 
 // Resources defines the resource requirements for a Node.
@@ -84,6 +102,10 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
+	if err := instance.AddPortTCP(tracingPort); err != nil {
+		return nil, err
+	}
+
 	if grafana != nil {
 		// add support for metrics
 		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Scope()), "1m"); err != nil {
@@ -251,6 +273,18 @@ func (n Node) RemoteAddressRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
 }
 
+func (n Node) AddressTracing() string {
+	return fmt.Sprintf("http://127.0.0.1:%d", n.traceProxyPort)
+}
+
+func (n Node) RemoteAddressTracing() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("http://%s:26661", ip), nil
+}
+
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
 }
@@ -306,8 +340,14 @@ func (n *Node) forwardPorts() error {
 		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
 	}
 
+	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
+	}
+
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort
+	n.traceProxyPort = traceProxyPort
 
 	return nil
 }
