@@ -24,12 +24,12 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-type sdkTx struct {
+type SdkTx struct {
 	sdkMsgs   []sdk.Msg
 	txOptions []user.TxOption
 }
 
-type blobTx struct {
+type BlobTx struct {
 	author    string
 	blobs     []*blob.Blob
 	txOptions []user.TxOption
@@ -59,7 +59,7 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 
 	// Apply genesis state to the app.
-	_, _, err = testutil.ApplyGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
+	_, _, err = testutil.SetupDeterministicGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
 	require.NoError(t, err)
 
 	// Query keyring account infos
@@ -79,7 +79,7 @@ func TestConsistentAppHash(t *testing.T) {
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000)))
 
 	// Create an SDK Tx
-	sdkTx := sdkTx{
+	sdkTx := SdkTx{
 		sdkMsgs: []sdk.Msg{
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
@@ -89,7 +89,7 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 
 	// Create a Blob Tx
-	blobTx := blobTx{
+	blobTx := BlobTx{
 		author:    accountNames[2],
 		blobs:     []*blob.Blob{blob.New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
