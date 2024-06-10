@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -24,44 +26,27 @@ func TestNestedAuthz(t *testing.T) {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), senderAccount, receiverAccount)
-	require.Equal(t, uint64(1), testApp.AppVersion())
+	appVersion := uint64(1)
+	info := testApp.Info(abci.RequestInfo{})
+	require.Equal(t, appVersion, info.AppVersion)
+	require.Equal(t, appVersion, testApp.AppVersion())
 
-	// records, err := keyRing.List()
-	// require.NoError(t, err)
-	// require.Len(t, records, 2)
-	// sender := records[0]
-	// reciever := records[1]
-
-	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, 1, user.NewAccount(senderAccount, 0, 0))
+	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, 1, user.NewAccount(senderAccount, 1, 0))
 	require.NoError(t, err)
 
 	rawTx := sendTx(t, keyRing, signer, senderAccount, receiverAccount, 1)
 
-	resp := testApp.CheckTx(abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
-	assert.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	check := testApp.CheckTx(abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
+	assert.Equal(t, abci.CodeTypeOK, check.Code, check.Log)
 
-	// tx := nestedAuthzTx(t)
-	// tx := sendTx(t)
+	header := tmproto.Header{Version: version.Consensus{App: appVersion}}
+	ctx := testApp.NewContext(true, header)
+	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
+	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawTx})
 
-	// ctx := testApp.NewContext(true, tmproto.Header{Height: 4})
-	// testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: tmproto.Header{}})
-	// res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: []byte{}})
-	// assert.Equal(t, 0, res.Code)
-	// assert.Empty(t, res.Log)
-
-	// _, err = testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
-	// 	Subspace: blobstreamtypes.ModuleName,
-	// 	Key:      string(blobstreamtypes.ParamsStoreKeyDataCommitmentWindow),
-	// })
+	assert.Equal(t, 0, res.Code)
+	assert.NotEmpty(t, res.Log)
 }
-
-// func sendTx(t *testing.T) Tx {
-// 	return banktypes.NewMsgSend(
-// 		sdktypes.AccAddress{},
-// 		sdktypes.AccAddress{},
-// 		sdktypes.NewCoins(sdktypes.NewInt64Coin("stake", 100)),
-// 	)
-// }
 
 // func nestedAuthzTx(t *testing.T) coretypes.Tx {
 // 	nestedBankSend := authz.NewMsgExec(sdktypes.AccAddress{}, []sdktypes.Msg{&banktypes.MsgSend{}})
