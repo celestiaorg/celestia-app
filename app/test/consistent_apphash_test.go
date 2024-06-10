@@ -24,12 +24,12 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-type sdkTxStruct struct {
+type sdkTx struct {
 	sdkMsgs   []sdk.Msg
 	txOptions []user.TxOption
 }
 
-type blobTxStruct struct {
+type blobTx struct {
 	author    string
 	blobs     []*blob.Blob
 	txOptions []user.TxOption
@@ -47,7 +47,7 @@ func TestConsistentAppHash(t *testing.T) {
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	// Create deterministic keys
-	kr, pubKeys := DeterministicKeyRing(enc.Codec)
+	kr, pubKeys := deterministicKeyRing(enc.Codec)
 
 	recs, err := kr.List()
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestConsistentAppHash(t *testing.T) {
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000)))
 
 	// Create an SDK Tx
-	sdkTx := sdkTxStruct{
+	sdkTx := sdkTx{
 		sdkMsgs: []sdk.Msg{
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
@@ -89,9 +89,9 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 
 	// Create a Blob Tx
-	blobTx := blobTxStruct{
+	blobTx := blobTx{
 		author:    accountNames[2],
-		blobs:     []*blob.Blob{blob.New(Namespace(), []byte{1}, appconsts.DefaultShareVersion)},
+		blobs:     []*blob.Blob{blob.New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 
@@ -133,16 +133,16 @@ func TestConsistentAppHash(t *testing.T) {
 	require.Equal(t, expectedAppHash, appHash)
 }
 
-// DeterministicNamespace returns a deterministic namespace
-func Namespace() appns.Namespace {
+// fixedNamespace returns a hardcoded namespace
+func fixedNamespace() appns.Namespace {
 	return appns.Namespace{
 		Version: 0,
 		ID:      []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 67, 154, 200, 228, 130, 74, 147, 162, 11},
 	}
 }
 
-// DeterministicKeyRing returns a deterministic keyring and a list of deterministic public keys
-func DeterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
+// deterministicKeyRing returns a deterministic keyring and a list of deterministic public keys
+func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 	mnemonics := []string{
 		"great myself congress genuine scale muscle view uncover pipe miracle sausage broccoli lonely swap table foam brand turtle comic gorilla firm mad grunt hazard",
 		"cheap job month trigger flush cactus chest juice dolphin people limit crunch curious secret object beach shield snake hunt group sketch cousin puppy fox",
