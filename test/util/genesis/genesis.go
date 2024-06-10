@@ -44,6 +44,21 @@ type Genesis struct {
 	genOps []Modifier
 }
 
+// Accounts getter
+func (g *Genesis) Accounts() []Account {
+	return g.accounts
+}
+
+// Keyring getter
+func (g *Genesis) Keyring() keyring.Keyring {
+	return g.kr
+}
+
+// Validators getter
+func (g *Genesis) Validators() []Validator {
+	return g.validators
+}
+
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
@@ -58,29 +73,34 @@ func NewDefaultGenesis() *Genesis {
 	return g
 }
 
+// WithModifier adds a genesis modifier to the genesis.
 func (g *Genesis) WithModifiers(ops ...Modifier) *Genesis {
 	g.genOps = append(g.genOps, ops...)
 	return g
 }
 
+// WithConsensusParams sets the consensus parameters of the genesis.
 func (g *Genesis) WithConsensusParams(params *tmproto.ConsensusParams) *Genesis {
 	g.ConsensusParams = params
 	return g
 }
 
+// WithChainID sets the chain ID of the genesis.
 func (g *Genesis) WithChainID(chainID string) *Genesis {
 	g.ChainID = chainID
 	return g
 }
 
+// WithGenesisTime sets the genesis time of the genesis.
 func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
 	g.GenesisTime = genesisTime
 	return g
 }
 
+// WithAccounts adds the given validators to the genesis.
 func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	for _, val := range vals {
-		err := g.AddValidator(val)
+		err := g.NewValidator(val)
 		if err != nil {
 			panic(err)
 		}
@@ -100,6 +120,7 @@ func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 	return g
 }
 
+// AddAccount adds an existing account to the genesis.
 func (g *Genesis) AddAccount(account Account) error {
 	for _, acc := range g.accounts {
 		if bytes.Equal(acc.PubKey.Bytes(), account.PubKey.Bytes()) {
@@ -110,6 +131,7 @@ func (g *Genesis) AddAccount(account Account) error {
 	return nil
 }
 
+// NewAccount creates a new account and adds it to the genesis.
 func (g *Genesis) NewAccount(acc KeyringAccount) error {
 	if err := acc.ValidateBasic(); err != nil {
 		return err
@@ -139,13 +161,9 @@ func (g *Genesis) NewAccount(acc KeyringAccount) error {
 	return nil
 }
 
+// AddValidator verifies and adds a given validator to the genesis.
 func (g *Genesis) AddValidator(val Validator) error {
 	if err := val.ValidateBasic(); err != nil {
-		return err
-	}
-
-	// Add the validator's genesis account
-	if err := g.NewAccount(val.KeyringAccount); err != nil {
 		return err
 	}
 
@@ -161,10 +179,17 @@ func (g *Genesis) AddValidator(val Validator) error {
 	return nil
 }
 
-func (g *Genesis) Accounts() []Account {
-	return g.accounts
+// Creates a new validator account and adds it to the genesis.
+func (g *Genesis) NewValidator(val Validator) error {
+	// Add the validator's genesis account
+	if err := g.NewAccount(val.KeyringAccount); err != nil {
+		return err
+	}
+
+	return g.AddValidator(val)
 }
 
+// Export returns the genesis document of the network.
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
 	for _, genTx := range g.genTxs {
@@ -184,14 +209,6 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		g.accounts,
 		g.genOps...,
 	)
-}
-
-func (g *Genesis) Keyring() keyring.Keyring {
-	return g.kr
-}
-
-func (g *Genesis) Validators() []Validator {
-	return g.validators
 }
 
 // Validator returns the validator at the given index. False is returned if the
