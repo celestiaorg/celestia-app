@@ -30,9 +30,8 @@ func Threshold(_ uint64) sdk.Dec {
 }
 
 type Keeper struct {
-	// storeKey uses the same key as the Cosmos SDK x/upgrade module so that
-	// existing IBC client state can safely be ported over without any
-	// migration.
+	// storeKey is key that is used to fetch the signal store from the multi
+	// store.
 	storeKey storetypes.StoreKey
 
 	// quorumVersion is the version that has received a quorum of validators
@@ -45,7 +44,7 @@ type Keeper struct {
 	stakingKeeper StakingKeeper
 }
 
-// NewKeeper returns an upgrade keeper.
+// NewKeeper returns a signal keeper.
 func NewKeeper(
 	storeKey storetypes.StoreKey,
 	stakingKeeper StakingKeeper,
