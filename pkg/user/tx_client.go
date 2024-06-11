@@ -564,16 +564,9 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 	}
 	localMinPrice := localMinCoins.AmountOf(app.BondDenom).MustFloat64()
 
-	paramsClient := paramtypes.NewQueryClient(grpcConn)
-	// NOTE: that we don't prove that this is the correct value
-	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfee.ModuleName, Key: string(minfee.KeyGlobalMinGasPrice)})
+	globalMinPrice, err := QueryGlobalMinGasPrice(ctx, grpcConn)
 	if err != nil {
-		return 0, fmt.Errorf("querying params module: %w", err)
-	}
-
-	globalMinPrice, err := strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
-	if err != nil {
-		return 0, fmt.Errorf("parsing global min gas price: %w", err)
+		return 0, err
 	}
 
 	// return the highest value of the two
@@ -581,4 +574,23 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 		return globalMinPrice, nil
 	}
 	return localMinPrice, nil
+}
+
+func QueryGlobalMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
+	paramsClient := paramtypes.NewQueryClient(grpcConn)
+	// NOTE: that we don't prove that this is the correct value
+	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfee.ModuleName, Key: string(minfee.KeyGlobalMinGasPrice)})
+	if err != nil {
+		return 0, fmt.Errorf("querying params module: %w", err)
+	}
+
+	var globalMinPrice float64
+	// Value is empty if global min gas price is not supported i.e. v1 state machine
+	if paramResponse.Param.Value != "" {
+		globalMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
+		if err != nil {
+			return 0, fmt.Errorf("parsing global min gas price: %w", err)
+		}
+	}
+	return globalMinPrice, nil
 }
