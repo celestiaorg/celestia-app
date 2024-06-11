@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
@@ -12,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,31 +25,52 @@ import (
 
 func TestCircuitBreaker(t *testing.T) {
 	const (
-		sender       = "sender"
-		receiver     = "receiver"
+		a            = "a"
+		b            = "b"
+		c            = "c"
 		appVersion   = v1.Version
 		amountToSend = 1
 	)
+	var (
+		now        = time.Now()
+		expiration = now.Add(time.Hour)
+	)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), sender, receiver)
+	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), a, b, c)
 	info := testApp.Info(abci.RequestInfo{})
 	require.Equal(t, appVersion, info.AppVersion)
 
-	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(sender, 1, 0))
+	aSigner, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(a, 1, 0))
+	require.NoError(t, err)
+	bSigner, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(b, 1, 0))
 	require.NoError(t, err)
 
-	rawTx := sendTx(t, keyRing, signer, sender, receiver, amountToSend)
+	aAddress := getAddress(t, a, keyRing)
+	bAddress := getAddress(t, b, keyRing)
+	cAddress := getAddress(t, c, keyRing)
+	sendTx := newSendTx(t, aSigner, aAddress, bAddress, amountToSend)
 
-	// check := testApp.CheckTx(abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
-	// assert.Equal(t, abci.CodeTypeOK, check.Code, check.Log)
-
-	header := tmproto.Header{Version: version.Consensus{App: appVersion}}
+	header := tmproto.Header{Height: 2, Version: version.Consensus{App: appVersion}}
 	ctx := testApp.NewContext(true, header)
 	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
-	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawTx})
-
+	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: sendTx})
 	assert.Equal(t, uint32(0), res.Code, res.Log)
+	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
+	testApp.Commit()
+
+	authorization := banktypes.NewSendAuthorization(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10))))
+	msg, err := authz.NewMsgGrant(aAddress, bAddress, authorization, &expiration)
+	require.NoError(t, err)
+	testApp.AuthzKeeper.Grant(ctx, msg)
+	newSendTx := newSendTx(t, bSigner, aAddress, cAddress, 5)
+	header = tmproto.Header{Height: 3, Version: version.Consensus{App: appVersion}}
+	ctx = testApp.NewContext(true, header)
+	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
+	res = testApp.DeliverTx(abci.RequestDeliverTx{Tx: newSendTx})
+	assert.Equal(t, uint32(0), res.Code, res.Log)
+	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
+	testApp.Commit()
 }
 
 // func nestedAuthzTx(t *testing.T) coretypes.Tx {
@@ -55,10 +78,7 @@ func TestCircuitBreaker(t *testing.T) {
 // 	return nestedBankSend
 // }
 
-func sendTx(t *testing.T, keyRing keyring.Keyring, signer *user.Signer, senderAccount string, receiverAccount string, amount uint64) coretypes.Tx {
-	senderAddress := getAddress(t, senderAccount, keyRing)
-	receiverAddress := getAddress(t, receiverAccount, keyRing)
-
+func newSendTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress, receiverAddress sdk.AccAddress, amount uint64) coretypes.Tx {
 	msg := banktypes.NewMsgSend(senderAddress, receiverAddress, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
 	options := blobfactory.FeeTxOpts(1e9)
 
