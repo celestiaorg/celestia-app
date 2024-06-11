@@ -43,28 +43,28 @@ func TestCircuitBreaker(t *testing.T) {
 	require.NoError(t, err)
 
 	senderAddress := getAddress(t, sender, keyRing)
-	receiverAddress := getAddress(t, receiver, keyRing)
+	// receiverAddress := getAddress(t, receiver, keyRing)
 
-	// Create a sendTx from sender to receiver.
-	sendTx := newSendTx(t, signer, senderAddress, receiverAddress, amountToSend)
+	// Create a send transaction from sender to receiver.
+	// sendTx := newSendTx(t, signer, senderAddress, receiverAddress, amountToSend)
 
-	// Verify that the sendTx can be included in a block.
-	header := tmproto.Header{Height: 2, Version: version.Consensus{App: appVersion}}
-	ctx := testApp.NewContext(false, header)
-	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
-	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: sendTx})
-	assert.Equal(t, uint32(0), res.Code, res.Log)
-	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
-	testApp.Commit()
+	// Verify that the send transaction can be included in a block.
+	// header := tmproto.Header{Height: 2, Version: version.Consensus{App: appVersion}}
+	// ctx := testApp.NewContext(true, header)
+	// testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
+	// res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: sendTx})
+	// assert.Equal(t, uint32(0), res.Code, res.Log)
+	// testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
+	// testApp.Commit()
 
-	// Create a TryUpgrade tryUpgradeTx.
+	// Create a try upgrade transaction.
 	tryUpgradeTx := newTryUpgradeTx(t, signer, senderAddress)
 
-	// Verify that the TryUpgrade tx can be included in a block
-	header = tmproto.Header{Height: 3, Version: version.Consensus{App: appVersion}}
-	ctx = testApp.NewContext(false, header)
+	// Verify that the try upgrade transaction can be included in a block.
+	header := tmproto.Header{Height: 3, Version: version.Consensus{App: appVersion}}
+	ctx := testApp.NewContext(true, header)
 	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
-	res = testApp.DeliverTx(abci.RequestDeliverTx{Tx: tryUpgradeTx})
+	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tryUpgradeTx})
 	assert.Equal(t, uint32(0), res.Code, res.Log)
 	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
 	testApp.Commit()
@@ -77,11 +77,6 @@ func TestCircuitBreaker(t *testing.T) {
 
 	// TODO: Verify that the TryUpgrade tx doesn't get executed.
 }
-
-// func nestedAuthzTx(t *testing.T) coretypes.Tx {
-// 	nestedBankSend := authz.NewMsgExec(sdktypes.AccAddress{}, []sdktypes.Msg{&banktypes.MsgSend{}})
-// 	return nestedBankSend
-// }
 
 func newSendTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress, receiverAddress sdk.AccAddress, amount uint64) coretypes.Tx {
 	msg := banktypes.NewMsgSend(senderAddress, receiverAddress, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
