@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -211,7 +212,7 @@ func (client *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, accoun
 // BroadcastPayForBlob signs and broadcasts a transaction to pay for blobs.
 // It does not confirm that the transaction has been committed on chain.
 // If no gas or gas price is set, it will estimate the gas and use
-// the provided gas price 
+// the provided gas price
 func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
@@ -557,10 +558,11 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 		return 0, err
 	}
 
-	localMinPrice, err := parseGasPrices(cfgRsp.MinimumGasPrice)
+	localMinCoins, err := sdktypes.ParseDecCoins(cfgRsp.MinimumGasPrice)
 	if err != nil {
 		return 0, err
 	}
+	localMinPrice := localMinCoins.AmountOf(app.BondDenom).MustFloat64()
 
 	paramsClient := paramtypes.NewQueryClient(grpcConn)
 	// NOTE: that we don't prove that this is the correct value
@@ -569,9 +571,9 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 		return 0, fmt.Errorf("querying params module: %w", err)
 	}
 
-	globalMinPrice, err := parseGasPrices(paramResponse.Param.Value)
+	globalMinPrice, err := strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("parsing global min gas price: %w", err)
 	}
 
 	// return the highest value of the two
@@ -579,12 +581,4 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 		return globalMinPrice, nil
 	}
 	return localMinPrice, nil
-}
-
-func parseGasPrices(gasPrice string) (float64, error) {
-	coins, err := sdktypes.ParseDecCoins(gasPrice)
-	if err != nil {
-		return 0, err
-	}
-	return coins.AmountOf(app.BondDenom).MustFloat64(), nil
 }
