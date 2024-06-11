@@ -33,9 +33,9 @@ type Signer struct {
 	addressToAccountMap map[string]string
 }
 
-// NewSigner returns a new signer using the provided keyring.
-// There must be at least one account in the keyring.
-// The first account provided will be set as the default.
+// NewSigner returns a new signer using the provided keyring
+// There must be at least one account in the keyring
+// The first account provided will be set as the default
 func NewSigner(
 	keys keyring.Keyring,
 	encCfg client.TxConfig,
