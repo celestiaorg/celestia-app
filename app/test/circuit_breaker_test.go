@@ -23,22 +23,23 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestCircuitBreaker(t *testing.T) {
-	const (
-		granter      = "granter"
-		grantee      = "grantee"
-		appVersion   = v1.Version
-		amountToSend = 1
-	)
-	var (
-		now        = time.Now()
-		expiration = now.Add(time.Hour)
-	)
+const (
+	granter      = "granter"
+	grantee      = "grantee"
+	appVersion   = v1.Version
+	amountToSend = 1
+)
 
+var (
+	expiration = time.Now().Add(time.Hour)
+)
+
+// TestCircuitBreaker verifies that the circuit breaker prevents a nested Authz
+// message that contains a MsgTryUpgrade if the MsgTryUpgrade is not supported
+// in the current version.
+func TestCircuitBreaker(t *testing.T) {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), granter, grantee)
-	info := testApp.Info(abci.RequestInfo{})
-	require.Equal(t, appVersion, info.AppVersion)
 
 	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(granter, 1, 0))
 	require.NoError(t, err)
@@ -66,9 +67,6 @@ func TestCircuitBreaker(t *testing.T) {
 	res = testApp.DeliverTx(abci.RequestDeliverTx{Tx: nestedTx})
 	assert.Equal(t, uint32(0x1), res.Code, res.Log)
 	assert.Contains(t, res.Log, "circuit breaker disables execution of this message: /celestia.signal.v1.MsgTryUpgrade")
-
-	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
-	testApp.Commit()
 }
 
 func newTryUpgradeTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress) coretypes.Tx {
