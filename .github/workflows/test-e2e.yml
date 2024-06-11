@@ -1,10 +1,13 @@
 name: test-e2e
 
 on:
-  workflow_call:
-    secrets:
-      KNUU_KUBECONFIG_FILE:
-        required: true
+  push:
+    branches:
+      - main
+    paths:
+      - "**.go"
+      - go.mod
+      - go.sum
 
 jobs:
   test-e2e:
