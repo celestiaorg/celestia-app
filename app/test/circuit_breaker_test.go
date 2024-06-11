@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
@@ -13,6 +14,7 @@ import (
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -29,8 +31,8 @@ func TestCircuitBreaker(t *testing.T) {
 		amountToSend = 1
 	)
 	var (
-	// now        = time.Now()
-	// expiration = now.Add(time.Hour)
+		now        = time.Now()
+		expiration = now.Add(time.Hour)
 	)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -42,27 +44,31 @@ func TestCircuitBreaker(t *testing.T) {
 	require.NoError(t, err)
 
 	granterAddress := getAddress(t, granter, keyRing)
+	granteeAddress := getAddress(t, grantee, keyRing)
 
-	// Create a try upgrade transaction.
-	tryUpgradeTx := newTryUpgradeTx(t, signer, granterAddress)
-
-	// Verify that the try upgrade transaction can be included in a block.
+	authorization := authz.NewGenericAuthorization(signaltypes.URLMsgTryUpgrade)
+	msg, err := authz.NewMsgGrant(granterAddress, granteeAddress, authorization, &expiration)
+	require.NoError(t, err)
 	header := tmproto.Header{Height: 3, Version: version.Consensus{App: appVersion}}
 	ctx := testApp.NewContext(true, header)
+	_, err = testApp.AuthzKeeper.Grant(ctx, msg)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "/celestia.signal.v1.Msg/TryUpgrade doesn't exist.: invalid type")
+
 	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
+
+	tryUpgradeTx := newTryUpgradeTx(t, signer, granterAddress)
 	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tryUpgradeTx})
 	assert.Equal(t, uint32(0x25), res.Code, res.Log)
 	assert.Contains(t, res.Log, "message type /celestia.signal.v1.MsgTryUpgrade is not supported in version 1: feature not supported")
+
+	nestedTx := newNestedTx(t, signer, granterAddress, granteeAddress)
+	res = testApp.DeliverTx(abci.RequestDeliverTx{Tx: nestedTx})
+	assert.Equal(t, uint32(0x1), res.Code, res.Log)
+	assert.Contains(t, res.Log, "circuit breaker disables execution of this message: /celestia.signal.v1.MsgTryUpgrade")
+
 	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
 	testApp.Commit()
-
-	// Create a nested TryUpgrade tx.
-	// authorization := authz.NewGenericAuthorization(signaltypes.URLMsgTryUpgrade)
-	// msg, err := authz.NewMsgGrant(senderAddress, receiverAddress, authorization, &expiration)
-	// require.NoError(t, err)
-	// testApp.AuthzKeeper.Grant(ctx, msg)
-
-	// TODO: Verify that the TryUpgrade tx doesn't get executed.
 }
 
 func newTryUpgradeTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress) coretypes.Tx {
@@ -70,6 +76,18 @@ func newTryUpgradeTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAdd
 	options := blobfactory.FeeTxOpts(1e9)
 
 	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, options...)
+	require.NoError(t, err)
+
+	return rawTx
+}
+
+func newNestedTx(t *testing.T, signer *user.Signer, granterAddress sdk.AccAddress, granteeAddress sdk.AccAddress) coretypes.Tx {
+	innerMsg := signaltypes.NewMsgTryUpgrade(granterAddress)
+	msg := authz.NewMsgExec(granterAddress, []sdk.Msg{innerMsg})
+
+	options := blobfactory.FeeTxOpts(1e9)
+
+	rawTx, err := signer.CreateTx([]sdk.Msg{&msg}, options...)
 	require.NoError(t, err)
 
 	return rawTx
