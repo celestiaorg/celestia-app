@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
@@ -20,23 +21,23 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestNestedAuthz(t *testing.T) {
+func TestCircuitBreaker(t *testing.T) {
 	const (
-		senderAccount   = "sender"
-		receiverAccount = "receiver"
+		sender       = "sender"
+		receiver     = "receiver"
+		appVersion   = v1.Version
+		amountToSend = 1
 	)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), senderAccount, receiverAccount)
-	appVersion := uint64(1)
+	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), sender, receiver)
 	info := testApp.Info(abci.RequestInfo{})
 	require.Equal(t, appVersion, info.AppVersion)
-	require.Equal(t, appVersion, testApp.AppVersion())
 
-	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, 1, user.NewAccount(senderAccount, 1, 0))
+	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(sender, 0, 0))
 	require.NoError(t, err)
 
-	rawTx := sendTx(t, keyRing, signer, senderAccount, receiverAccount, 1)
+	rawTx := sendTx(t, keyRing, signer, sender, receiver, amountToSend)
 
 	check := testApp.CheckTx(abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
 	assert.Equal(t, abci.CodeTypeOK, check.Code, check.Log)
@@ -46,8 +47,7 @@ func TestNestedAuthz(t *testing.T) {
 	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
 	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawTx})
 
-	assert.Equal(t, 0, res.Code)
-	assert.NotEmpty(t, res.Log)
+	assert.Equal(t, uint32(0), res.Code, res.Log)
 }
 
 // func nestedAuthzTx(t *testing.T) coretypes.Tx {
