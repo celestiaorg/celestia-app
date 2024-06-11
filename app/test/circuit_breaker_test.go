@@ -13,7 +13,6 @@ import (
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -24,8 +23,8 @@ import (
 
 func TestCircuitBreaker(t *testing.T) {
 	const (
-		sender       = "sender"
-		receiver     = "receiver"
+		granter      = "granter"
+		grantee      = "grantee"
 		appVersion   = v1.Version
 		amountToSend = 1
 	)
@@ -35,37 +34,25 @@ func TestCircuitBreaker(t *testing.T) {
 	)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), sender, receiver)
+	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), granter, grantee)
 	info := testApp.Info(abci.RequestInfo{})
 	require.Equal(t, appVersion, info.AppVersion)
 
-	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(sender, 1, 0))
+	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(granter, 1, 0))
 	require.NoError(t, err)
 
-	senderAddress := getAddress(t, sender, keyRing)
-	// receiverAddress := getAddress(t, receiver, keyRing)
-
-	// Create a send transaction from sender to receiver.
-	// sendTx := newSendTx(t, signer, senderAddress, receiverAddress, amountToSend)
-
-	// Verify that the send transaction can be included in a block.
-	// header := tmproto.Header{Height: 2, Version: version.Consensus{App: appVersion}}
-	// ctx := testApp.NewContext(true, header)
-	// testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
-	// res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: sendTx})
-	// assert.Equal(t, uint32(0), res.Code, res.Log)
-	// testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
-	// testApp.Commit()
+	granterAddress := getAddress(t, granter, keyRing)
 
 	// Create a try upgrade transaction.
-	tryUpgradeTx := newTryUpgradeTx(t, signer, senderAddress)
+	tryUpgradeTx := newTryUpgradeTx(t, signer, granterAddress)
 
 	// Verify that the try upgrade transaction can be included in a block.
 	header := tmproto.Header{Height: 3, Version: version.Consensus{App: appVersion}}
 	ctx := testApp.NewContext(true, header)
 	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
 	res := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tryUpgradeTx})
-	assert.Equal(t, uint32(0), res.Code, res.Log)
+	assert.Equal(t, uint32(0x25), res.Code, res.Log)
+	assert.Contains(t, res.Log, "message type /celestia.signal.v1.MsgTryUpgrade is not supported in version 1: feature not supported")
 	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
 	testApp.Commit()
 
@@ -76,16 +63,6 @@ func TestCircuitBreaker(t *testing.T) {
 	// testApp.AuthzKeeper.Grant(ctx, msg)
 
 	// TODO: Verify that the TryUpgrade tx doesn't get executed.
-}
-
-func newSendTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress, receiverAddress sdk.AccAddress, amount uint64) coretypes.Tx {
-	msg := banktypes.NewMsgSend(senderAddress, receiverAddress, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
-	options := blobfactory.FeeTxOpts(1e9)
-
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, options...)
-	require.NoError(t, err)
-
-	return rawTx
 }
 
 func newTryUpgradeTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress) coretypes.Tx {
