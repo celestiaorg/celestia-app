@@ -224,6 +224,38 @@ func TestTallyingLogic(t *testing.T) {
 	require.EqualValues(t, 0, res.VotingPower)
 }
 
+// TestCanSkipVersion verifies that the signal keeper can upgrade to an app
+// version greater than the next app version. Example: if the current version is
+// 1, the next version is 2, but the chain can upgrade directly from 1 to 3.
+func TestCanSkipVersion(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+	goCtx := sdk.WrapSDKContext(ctx)
+
+	require.Equal(t, uint64(1), ctx.BlockHeader().Version.App)
+
+	validators := []sdk.ValAddress{
+		testutil.ValAddrs[0],
+		testutil.ValAddrs[1],
+		testutil.ValAddrs[2],
+		testutil.ValAddrs[3],
+	}
+	// signal version 3 for all validators
+	for _, validator := range validators {
+		_, err := upgradeKeeper.SignalVersion(sdk.WrapSDKContext(ctx), &types.MsgSignalVersion{
+			ValidatorAddress: validator.String(),
+			Version:          3,
+		})
+		require.NoError(t, err)
+	}
+
+	_, err := upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+	require.NoError(t, err)
+
+	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade()
+	require.True(t, shouldUpgrade)
+	require.Equal(t, uint64(3), version)
+}
+
 func TestEmptyStore(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 	goCtx := sdk.WrapSDKContext(ctx)
