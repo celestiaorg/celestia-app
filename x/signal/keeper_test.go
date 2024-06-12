@@ -158,7 +158,7 @@ func TestTallyingLogic(t *testing.T) {
 
 	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
-	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade()
+	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade)
 	require.Equal(t, uint64(0), version)
 
@@ -171,9 +171,19 @@ func TestTallyingLogic(t *testing.T) {
 
 	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
-	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade()
+
+	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
+	require.False(t, shouldUpgrade)
+	require.Equal(t, uint64(0), version)
+
+	// advance the block height by 48 hours worth of 12 second blocks.
+	upgradeHeightDelay := int64(48 * 60 * 60 / 12)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + upgradeHeightDelay)
+
+	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
 	require.Equal(t, uint64(2), version)
+
 	// update the version to 2
 	ctx = ctx.WithBlockHeader(tmproto.Header{
 		Version: tmversion.Consensus{

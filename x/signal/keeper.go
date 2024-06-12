@@ -18,6 +18,11 @@ var (
 
 	// defaultSignalThreshold is 5/6 or approximately 83.33%
 	defaultSignalThreshold = sdk.NewDec(5).Quo(sdk.NewDec(6))
+
+	// defaultUpgradeHeightDelay is the number of blocks after a quorum has been
+	// reached that the chain should upgrade to the new version. Assuming a
+	// block interval of 12 seconds, this is 48 hours.
+	defaultUpgradeHeightDelay = int64(48 * 60 * 60 / 12) // 48 hours * 60 minutes * 60 seconds / 12 seconds per block = 14,400 blocks.
 )
 
 // Threshold is the fraction of voting power that is required
@@ -35,9 +40,12 @@ type Keeper struct {
 	storeKey storetypes.StoreKey
 
 	// quorumVersion is the version that has received a quorum of validators
-	// to signal for it. This variable is relevant just for the scope of the
-	// lifetime of the block.
+	// to signal for it. It is set to 0 if no version has reached quorum.
 	quorumVersion uint64
+
+	// upgradeHeight is the height at which the network should upgrade to the
+	// quorumVersion. It is set to 0 if no version has reached quorum.
+	upgradeHeight int64
 
 	// stakingKeeper is used to fetch validators to calculate the total power
 	// signalled to a version.
@@ -89,6 +97,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
 	if hasQuorum {
 		k.quorumVersion = version
+		k.upgradeHeight = sdkCtx.BlockHeight() + defaultUpgradeHeightDelay
 	}
 	return &types.MsgTryUpgradeResponse{}, nil
 }
@@ -172,15 +181,20 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt()
 }
 
-// ShouldUpgrade returns true if the signalling mechanism has concluded
-// that the network is ready to upgrade. It also returns the version
-// that the node should upgrade to.
-func (k *Keeper) ShouldUpgrade() (bool, uint64) {
-	return k.quorumVersion != 0, k.quorumVersion
+// ShouldUpgrade returns whether the signalling mechanism has concluded that the
+// network is ready to upgrade and the version to upgrade to. It returns false
+// and 0 if no version has reached quorum.
+func (k *Keeper) ShouldUpgrade(ctx sdk.Context) (shouldUpgrade bool, version uint64) {
+	shouldUpgrade = k.quorumVersion != 0 && ctx.BlockHeight() >= k.upgradeHeight
+	if shouldUpgrade {
+		return shouldUpgrade, k.quorumVersion
+	}
+	return false, 0
 }
 
 // ResetTally resets the tally after a version change. It iterates over the
-// store and deletes all versions. It also resets the quorumVersion to 0.
+// store and deletes all versions. It also resets the quorumVersion and
+// upgradeHeight to 0.
 func (k *Keeper) ResetTally(ctx sdk.Context) {
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(nil, nil)
@@ -189,6 +203,7 @@ func (k *Keeper) ResetTally(ctx sdk.Context) {
 		store.Delete(iterator.Key())
 	}
 	k.quorumVersion = 0
+	k.upgradeHeight = 0
 }
 
 func VersionToBytes(version uint64) []byte {
