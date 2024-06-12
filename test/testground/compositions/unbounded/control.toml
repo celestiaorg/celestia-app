@@ -11,10 +11,10 @@ runner = "cluster:k8s"
 disable_metrics = false
 
 [global.run.test_params]
-chain_id = "50nl-s-1"
+chain_id = "50l-c-2"
 timeout = "50m"
 halt_height = "2000"
-latency = "0"
+latency = "70"
 random_latency = "false"
 bandwidth = "1Gb"
 validators = "50"
@@ -51,7 +51,7 @@ percentage = 0.0
 build_base_image = "golang:1.22.3"
 enable_go_build_cache = true
 enabled = true
-go_version = "1.22"
+go_version = "1.22.3"
 [groups.build]
 [groups.run]
 artifact = ""
