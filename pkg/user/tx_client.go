@@ -45,10 +45,10 @@ func WithGasMultiplier(multiplier float64) Option {
 	}
 }
 
-// WithGasPrice sets the gas price.
-func WithGasPrice(price float64) Option {
+// WithDefaultGasPrice sets the gas price.
+func WithDefaultGasPrice(price float64) Option {
 	return func(c *TxClient) {
-		c.gasPrice = price
+		c.defaultGasPrice = price
 	}
 }
 
@@ -65,15 +65,22 @@ func WithDefaultAddress(address sdktypes.AccAddress) Option {
 			panic(err)
 		}
 		c.defaultAccount = record.Name
+		c.defaultAddress = address
 	}
 }
 
 func WithDefaultAccount(name string) Option {
 	return func(c *TxClient) {
-		if _, err := c.signer.keys.Key(name); err != nil {
+		rec, err := c.signer.keys.Key(name)
+		if err != nil {
+			panic(err)
+		}
+		addr, err := rec.GetAddress()
+		if err != nil {
 			panic(err)
 		}
 		c.defaultAccount = name
+		c.defaultAddress = addr
 	}
 }
 
@@ -89,10 +96,11 @@ type TxClient struct {
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
 	// gasMultiplier is used to increase gas limit as it is sometimes underestimated
-	gasMultiplier  float64
-	gasPrice       float64
-	defaultAccount string
-	defaultAddress sdktypes.AccAddress
+	gasMultiplier float64
+	// defaultGasPrice is the price used if no price is provided
+	defaultGasPrice float64
+	defaultAccount  string
+	defaultAddress  sdktypes.AccAddress
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -117,14 +125,14 @@ func NewTxClient(
 	}
 
 	txClient := &TxClient{
-		signer:         signer,
-		registry:       registry,
-		grpc:           conn,
-		pollTime:       DefaultPollTime,
-		gasMultiplier:  DefaultGasMultiplier,
-		gasPrice:       appconsts.DefaultMinGasPrice,
-		defaultAccount: records[0].Name,
-		defaultAddress: addr,
+		signer:          signer,
+		registry:        registry,
+		grpc:            conn,
+		pollTime:        DefaultPollTime,
+		gasMultiplier:   DefaultGasMultiplier,
+		defaultGasPrice: appconsts.DefaultMinGasPrice,
+		defaultAccount:  records[0].Name,
+		defaultAddress:  addr,
 	}
 
 	for _, opt := range options {
@@ -179,7 +187,7 @@ func SetupTxClient(
 	if err != nil {
 		return nil, fmt.Errorf("querying minimum gas price: %w", err)
 	}
-	options = append([]Option{WithGasPrice(minPrice)}, options...)
+	options = append([]Option{WithDefaultGasPrice(minPrice)}, options...)
 
 	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, appVersion, accounts...)
 	if err != nil {
@@ -200,7 +208,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (client *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
 		return resp, err
@@ -538,10 +546,10 @@ func (client *TxClient) Signer() *Signer {
 	return client.signer
 }
 
-func (client *TxClient) SetGasPrice(price float64) {
+func (client *TxClient) SetDefaultGasPrice(price float64) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	client.gasPrice = price
+	client.defaultGasPrice = price
 }
 
 func (client *TxClient) SetGasMultiplier(multiplier float64) {
