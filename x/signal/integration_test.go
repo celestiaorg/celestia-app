@@ -54,6 +54,21 @@ func TestUpgradeIntegration(t *testing.T) {
 	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
 	require.NoError(t, err)
 
+	// Verify that if a subsequent call to TryUpgrade is made, it returns an
+	// error because an upgrade is already pending.
+	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, types.ErrUpgradePending)
+
+	// Verify that if a validator tries to change their signal version, it
+	// returns an error because an upgrade is pending.
+	_, err = app.SignalKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
+		ValidatorAddress: valAddr.String(),
+		Version:          3,
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, types.ErrUpgradePending)
+
 	shouldUpgrade, version := app.SignalKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade)
 	require.EqualValues(t, 0, version)
