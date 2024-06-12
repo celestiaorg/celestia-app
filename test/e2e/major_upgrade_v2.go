@@ -68,6 +68,13 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
+		// check for early errors from txsim
+		select {
+		case <-errCh:
+			return fmt.Errorf("txsim err: %w", ctx.Err())
+		default:
+		}
+
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
@@ -84,6 +91,25 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		testnet.NoError("failed to get header", err)
 		if resp.Header.Version.App != v2.Version {
 			return fmt.Errorf("version mismatch after upgrade: expected %d, got %d", v2.Version, resp.Header.Version.App)
+		}
+	}
+
+	// make all nodes in the network restart and ensure that progress is still made
+	for _, node := range testNet.Nodes() {
+		client, err := node.Client()
+		testnet.NoError("failed to get client", err)
+
+		height, err := getHeight(ctx, client, time.Minute)
+		if err != nil {
+			return fmt.Errorf("failed to get height: %w", err)
+		}
+
+		if err := node.Upgrade(latestVersion); err != nil {
+			return fmt.Errorf("failed to restart node: %w", err)
+		}
+
+		if err := waitForHeight(testNet, node, height+1, time.Minute); err != nil {
+			return fmt.Errorf("failed to wait for height: %w", err)
 		}
 	}
 
