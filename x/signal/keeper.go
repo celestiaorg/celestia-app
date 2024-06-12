@@ -65,6 +65,10 @@ func NewKeeper(
 
 // SignalVersion is a method required by the MsgServer interface.
 func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) (*types.MsgSignalVersionResponse, error) {
+	if k.isUpgradePending() {
+		return &types.MsgSignalVersionResponse{}, types.ErrUpgradePending.Wrapf("can not signal version")
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	valAddr, err := sdk.ValAddressFromBech32(req.ValidatorAddress)
 	if err != nil {
@@ -92,6 +96,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 // If one version has quorum, it is set as the quorum version
 // which the application can use as signal to upgrade to that version.
 func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
+	if k.isUpgradePending() {
+		return &types.MsgTryUpgradeResponse{}, types.ErrUpgradePending.Wrapf("can not try upgrade")
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
@@ -212,4 +220,11 @@ func VersionToBytes(version uint64) []byte {
 
 func VersionFromBytes(version []byte) uint64 {
 	return binary.BigEndian.Uint64(version)
+}
+
+// isUpgradePending returns true if a version has reached quorum and the chain
+// will upgrade to quorumVersion at upgradeHeight. While the keeper has an
+// upgrade pending actions like SignalVersion and TryUpgrade will be rejected.
+func (k *Keeper) isUpgradePending() bool {
+	return k.quorumVersion != 0 && k.upgradeHeight != 0
 }
