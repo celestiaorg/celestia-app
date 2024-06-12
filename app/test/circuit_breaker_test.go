@@ -11,8 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
@@ -45,8 +45,8 @@ func TestCircuitBreaker(t *testing.T) {
 	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(granter, 1, 0))
 	require.NoError(t, err)
 
-	granterAddress := getAddress(t, granter, keyRing)
-	granteeAddress := getAddress(t, grantee, keyRing)
+	granterAddress := testfactory.GetAddress(keyRing, granter)
+	granteeAddress := testfactory.GetAddress(keyRing, grantee)
 
 	authorization := authz.NewGenericAuthorization(signaltypes.URLMsgTryUpgrade)
 	msg, err := authz.NewMsgGrant(granterAddress, granteeAddress, authorization, &expiration)
@@ -89,14 +89,4 @@ func newNestedTx(t *testing.T, signer *user.Signer, granterAddress sdk.AccAddres
 	require.NoError(t, err)
 
 	return rawTx
-}
-
-func getAddress(t *testing.T, account string, keyRing keyring.Keyring) sdk.AccAddress {
-	record, err := keyRing.Key(account)
-	require.NoError(t, err)
-
-	address, err := record.GetAddress()
-	require.NoError(t, err)
-
-	return address
 }
