@@ -45,7 +45,7 @@ func WithGasMultiplier(multiplier float64) Option {
 	}
 }
 
-// WithGasPrice sets the gas price
+// WithGasPrice sets the gas price.
 func WithGasPrice(price float64) Option {
 	return func(c *TxClient) {
 		c.gasPrice = price
@@ -550,7 +550,7 @@ func (client *TxClient) SetGasMultiplier(multiplier float64) {
 	client.gasMultiplier = multiplier
 }
 
-// queryMinimumGasPrice queries both the nodes local and network wide
+// QueryMinimumGasPrice queries both the nodes local and network wide
 // minimum gas prices, returning the maximum of the two
 func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
 	cfgRsp, err := nodeservice.NewServiceClient(grpcConn).Config(ctx, &nodeservice.ConfigRequest{})
