@@ -45,7 +45,7 @@ func WithGasMultiplier(multiplier float64) Option {
 	}
 }
 
-// WithGasPrice sets the price the
+// WithGasPrice sets the gas price
 func WithGasPrice(price float64) Option {
 	return func(c *TxClient) {
 		c.gasPrice = price
@@ -212,7 +212,7 @@ func (client *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, accoun
 // BroadcastPayForBlob signs and broadcasts a transaction to pay for blobs.
 // It does not confirm that the transaction has been committed on chain.
 // If no gas or gas price is set, it will estimate the gas and use
-// the provided gas price
+// the max effective gas price: max(localMinGasPrice, globalMinGasPrice).
 func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
