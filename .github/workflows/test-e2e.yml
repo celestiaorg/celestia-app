@@ -35,7 +35,7 @@ jobs:
           status: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
           notification_title: "E2E test failure"
-          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          message_format: "{emoji} *{workflow}* {status_message} in <{run_url}|{repo}>"
           # This is the coreapp user group
           mention_groups: "C077R275SRH"
         env:
