@@ -2,21 +2,21 @@ name: test-e2e
 
 on:
   push:
-    # branches:
-      # - main
-    # paths:
-    #   - "**.go"
-    #   - go.mod
-    #   - go.sum
+    branches:
+      - main
+    paths:
+      - "**.go"
+      - go.mod
+      - go.sum
 
 jobs:
   test-e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        # with:
-          # fetch-depth: 0
-          # ref: main
+        with:
+          fetch-depth: 0
+          ref: main
       - uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
@@ -28,6 +28,7 @@ jobs:
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
       - name: Run e2e tests
         run: make test-e2e
+
       - name: Notify slack on failure
         if: failure()
         uses: ravsamhq/notify-slack-action@v2
@@ -36,7 +37,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           notification_title: "E2E test failure"
           message_format: "{emoji} *{workflow}* {status_message} in <{run_url}|{repo}>"
-          # This is the coreapp user group
+          # This is the core-app user group
           mention_groups: "C077R275SRH"
         env:
           # This is an org level secret and is currently set to #releases in
