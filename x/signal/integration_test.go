@@ -73,9 +73,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.EqualValues(t, 0, version)
 
-	// advance the block height by 48 hours worth of 12 second blocks.
-	upgradeHeightDelay := int64(48 * 60 * 60 / 12)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + upgradeHeightDelay)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + defaultUpgradeHeightDelay)
 
 	shouldUpgrade, version = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)

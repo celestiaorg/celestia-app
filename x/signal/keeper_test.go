@@ -24,6 +24,8 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
+const defaultUpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 12) // 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 50,400 blocks.
+
 func TestGetVotingPowerThreshold(t *testing.T) {
 	bigInt := big.NewInt(0)
 	bigInt.SetString("23058430092136939509", 10)
@@ -176,9 +178,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.Equal(t, uint64(0), version)
 
-	// advance the block height by 48 hours worth of 12 second blocks.
-	upgradeHeightDelay := int64(48 * 60 * 60 / 12)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + upgradeHeightDelay)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + defaultUpgradeHeightDelay)
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
