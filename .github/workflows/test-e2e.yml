@@ -36,4 +36,4 @@ jobs:
           channel-id: 'C077R275SRH' # ID of Slack Channel you want to post to
           slack-message: 'E2E tests failed!' # The message you want to post
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_WEBHOOK_E2E_TEST_FAILURES }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_NOTIFICATIONS_BOT_TOKEN }}
