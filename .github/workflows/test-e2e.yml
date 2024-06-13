@@ -33,7 +33,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
-          channel-id: 'C077R275SRH' # ID of Slack Channel you want to post to
+          channel-id: 'D077TLSD4J0' # ID of Slack Channel you want to post to
           slack-message: 'E2E tests failed!' # The message you want to post
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_NOTIFICATIONS_BOT_TOKEN }}
