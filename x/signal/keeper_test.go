@@ -175,14 +175,16 @@ func TestTallyingLogic(t *testing.T) {
 	require.NoError(t, err)
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
-	require.False(t, shouldUpgrade)
+	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), version)
 
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + defaultUpgradeHeightDelay)
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
-	require.True(t, shouldUpgrade)
+	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
 	require.Equal(t, uint64(2), version)
+
+	upgradeKeeper.ResetTally(ctx)
 
 	// update the version to 2
 	ctx = ctx.WithBlockHeader(tmproto.Header{
@@ -196,6 +198,16 @@ func TestTallyingLogic(t *testing.T) {
 	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[0].String(),
 		Version:          3,
+	})
+	require.NoError(t, err)
+	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[1].String(),
+		Version:          2,
+	})
+	require.NoError(t, err)
+	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[2].String(),
+		Version:          2,
 	})
 	require.NoError(t, err)
 
@@ -294,6 +306,49 @@ func TestResetTally(t *testing.T) {
 	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), resp.VotingPower)
+}
+
+func TestTryUpgrade(t *testing.T) {
+	t.Run("should return an error if an upgrade is already pending", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		goCtx := sdk.WrapSDKContext(ctx)
+
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 2})
+		require.NoError(t, err)
+
+		// This TryUpgrade should succeed.
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.NoError(t, err)
+
+		// This TryUpgrade should fail because an upgrade is pending.
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.Error(t, err)
+		require.ErrorIs(t, err, types.ErrUpgradePending)
+	})
+
+	t.Run("should return an error if quorum version is less than or equal to the current version", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		goCtx := sdk.WrapSDKContext(ctx)
+
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 1})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 1})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 1})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 1})
+		require.NoError(t, err)
+
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.Error(t, err)
+		require.ErrorIs(t, err, types.ErrInvalidUpgradeVersion)
+	})
 }
 
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {

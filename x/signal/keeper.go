@@ -103,7 +103,10 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
-	if hasQuorum {
+	if hasQuorum && version <= sdkCtx.BlockHeader().Version.App {
+		return &types.MsgTryUpgradeResponse{}, types.ErrInvalidUpgradeVersion.Wrapf("can not upgrade to version %v because it is less than or equal to current version %v", version, sdkCtx.BlockHeader().Version.App)
+	}
+	if hasQuorum && version > sdkCtx.BlockHeader().Version.App {
 		k.quorumVersion = version
 		k.upgradeHeight = sdkCtx.BlockHeight() + defaultUpgradeHeightDelay
 	}
@@ -192,10 +195,12 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 // ShouldUpgrade returns whether the signalling mechanism has concluded that the
 // network is ready to upgrade and the version to upgrade to. It returns false
 // and 0 if no version has reached quorum.
-func (k *Keeper) ShouldUpgrade(ctx sdk.Context) (shouldUpgrade bool, version uint64) {
-	shouldUpgrade = k.quorumVersion != 0 && ctx.BlockHeight() >= k.upgradeHeight
-	if shouldUpgrade {
-		return shouldUpgrade, k.quorumVersion
+func (k *Keeper) ShouldUpgrade(ctx sdk.Context) (isQuorumVersion bool, version uint64) {
+	hasQuorumVersion := k.quorumVersion != 0
+	hasUpgradeHeightBeenReached := ctx.BlockHeight() >= k.upgradeHeight
+
+	if hasQuorumVersion && hasUpgradeHeightBeenReached {
+		return true, k.quorumVersion
 	}
 	return false, 0
 }
