@@ -6,24 +6,29 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
+	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 
+	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 )
 
 const (
@@ -40,6 +45,13 @@ func WithGasMultiplier(multiplier float64) Option {
 	}
 }
 
+// WithDefaultGasPrice sets the gas price.
+func WithDefaultGasPrice(price float64) Option {
+	return func(c *TxClient) {
+		c.defaultGasPrice = price
+	}
+}
+
 func WithPollTime(time time.Duration) Option {
 	return func(c *TxClient) {
 		c.pollTime = time
@@ -53,15 +65,22 @@ func WithDefaultAddress(address sdktypes.AccAddress) Option {
 			panic(err)
 		}
 		c.defaultAccount = record.Name
+		c.defaultAddress = address
 	}
 }
 
 func WithDefaultAccount(name string) Option {
 	return func(c *TxClient) {
-		if _, err := c.signer.keys.Key(name); err != nil {
+		rec, err := c.signer.keys.Key(name)
+		if err != nil {
+			panic(err)
+		}
+		addr, err := rec.GetAddress()
+		if err != nil {
 			panic(err)
 		}
 		c.defaultAccount = name
+		c.defaultAddress = addr
 	}
 }
 
@@ -77,9 +96,11 @@ type TxClient struct {
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
 	// gasMultiplier is used to increase gas limit as it is sometimes underestimated
-	gasMultiplier  float64
-	defaultAccount string
-	defaultAddress sdktypes.AccAddress
+	gasMultiplier float64
+	// defaultGasPrice is the price used if no price is provided
+	defaultGasPrice float64
+	defaultAccount  string
+	defaultAddress  sdktypes.AccAddress
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -104,13 +125,14 @@ func NewTxClient(
 	}
 
 	txClient := &TxClient{
-		signer:         signer,
-		registry:       registry,
-		grpc:           conn,
-		pollTime:       DefaultPollTime,
-		gasMultiplier:  DefaultGasMultiplier,
-		defaultAccount: records[0].Name,
-		defaultAddress: addr,
+		signer:          signer,
+		registry:        registry,
+		grpc:            conn,
+		pollTime:        DefaultPollTime,
+		gasMultiplier:   DefaultGasMultiplier,
+		defaultGasPrice: appconsts.DefaultMinGasPrice,
+		defaultAccount:  records[0].Name,
+		defaultAddress:  addr,
 	}
 
 	for _, opt := range options {
@@ -160,6 +182,13 @@ func SetupTxClient(
 		accounts = append(accounts, NewAccount(record.Name, accNum, seqNum))
 	}
 
+	// query the min gas price from the chain
+	minPrice, err := QueryMinimumGasPrice(ctx, conn)
+	if err != nil {
+		return nil, fmt.Errorf("querying minimum gas price: %w", err)
+	}
+	options = append([]Option{WithDefaultGasPrice(minPrice)}, options...)
+
 	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, appVersion, accounts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create signer: %w", err)
@@ -179,7 +208,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (client *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
 		return resp, err
@@ -190,6 +219,8 @@ func (client *TxClient) SubmitPayForBlobsWithAccount(ctx context.Context, accoun
 
 // BroadcastPayForBlob signs and broadcasts a transaction to pay for blobs.
 // It does not confirm that the transaction has been committed on chain.
+// If no gas or gas price is set, it will estimate the gas and use
+// the max effective gas price: max(localMinGasPrice, globalMinGasPrice).
 func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
@@ -423,6 +454,9 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
+	// add at least 1utia as fee to builder as it affects gas calculation.
+	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+
 	_, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return 0, err
@@ -445,14 +479,14 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 // Account returns an account of the signer from the key name. Also returns a bool if the
 // account exists.
 // Thread-safe
-func (client *TxClient) Account(name string) (*Account, bool) {
+func (client *TxClient) Account(name string) *Account {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	acc, exists := client.signer.accounts[name]
 	if !exists {
-		return nil, false
+		return nil
 	}
-	return acc.Copy(), true
+	return acc.Copy()
 }
 
 func (client *TxClient) AccountByAddress(address sdktypes.AccAddress) *Account {
@@ -510,4 +544,61 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
+}
+
+func (client *TxClient) SetDefaultGasPrice(price float64) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	client.defaultGasPrice = price
+}
+
+func (client *TxClient) SetGasMultiplier(multiplier float64) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	client.gasMultiplier = multiplier
+}
+
+// QueryMinimumGasPrice queries both the nodes local and network wide
+// minimum gas prices, returning the maximum of the two
+func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
+	cfgRsp, err := nodeservice.NewServiceClient(grpcConn).Config(ctx, &nodeservice.ConfigRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	localMinCoins, err := sdktypes.ParseDecCoins(cfgRsp.MinimumGasPrice)
+	if err != nil {
+		return 0, err
+	}
+	localMinPrice := localMinCoins.AmountOf(app.BondDenom).MustFloat64()
+
+	globalMinPrice, err := QueryGlobalMinGasPrice(ctx, grpcConn)
+	if err != nil {
+		return 0, err
+	}
+
+	// return the highest value of the two
+	if globalMinPrice > localMinPrice {
+		return globalMinPrice, nil
+	}
+	return localMinPrice, nil
+}
+
+func QueryGlobalMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
+	paramsClient := paramtypes.NewQueryClient(grpcConn)
+	// NOTE: that we don't prove that this is the correct value
+	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfee.ModuleName, Key: string(minfee.KeyGlobalMinGasPrice)})
+	if err != nil {
+		return 0, fmt.Errorf("querying params module: %w", err)
+	}
+
+	var globalMinPrice float64
+	// Value is empty if global min gas price is not supported i.e. v1 state machine
+	if paramResponse.Param.Value != "" {
+		globalMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
+		if err != nil {
+			return 0, fmt.Errorf("parsing global min gas price: %w", err)
+		}
+	}
+	return globalMinPrice, nil
 }
