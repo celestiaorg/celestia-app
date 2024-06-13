@@ -9,7 +9,6 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
@@ -30,9 +29,7 @@ const (
 	amountToSend = 1
 )
 
-var (
-	expiration = time.Now().Add(time.Hour)
-)
+var expiration = time.Now().Add(time.Hour)
 
 // TestCircuitBreaker verifies that the circuit breaker prevents a nested Authz
 // message that contains a MsgTryUpgrade if the MsgTryUpgrade is not supported
@@ -42,7 +39,7 @@ func TestCircuitBreaker(t *testing.T) {
 	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), granter, grantee)
 	header := tmproto.Header{Height: 2, Version: version.Consensus{App: appVersion}}
 
-	signer, err := user.NewSigner(keyRing, config.TxConfig, testutil.ChainID, appVersion, user.NewAccount(granter, 1, 0))
+	signer, err := user.NewSigner(keyRing, config.TxConfig, util.ChainID, appVersion, user.NewAccount(granter, 1, 0))
 	require.NoError(t, err)
 
 	granterAddress := testfactory.GetAddress(keyRing, granter)
