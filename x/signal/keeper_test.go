@@ -73,12 +73,13 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 func TestSignalVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 	goCtx := sdk.WrapSDKContext(ctx)
-	t.Run("should not return an error if the signal version is less than the current version", func(t *testing.T) {
+	t.Run("should return an error if the signal version is less than the current version", func(t *testing.T) {
 		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
 			ValidatorAddress: testutil.ValAddrs[0].String(),
 			Version:          0,
 		})
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, types.ErrInvalidVersion)
 	})
 	t.Run("should not return an error if the signal version is greater than the next version", func(t *testing.T) {
 		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
@@ -119,7 +120,9 @@ func TestTallyingLogic(t *testing.T) {
 		ValidatorAddress: testutil.ValAddrs[0].String(),
 		Version:          0,
 	})
-	require.NoError(t, err)
+	require.Error(t, err)
+	require.ErrorIs(t, err, types.ErrInvalidVersion)
+
 	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[0].String(),
 		Version:          3,
