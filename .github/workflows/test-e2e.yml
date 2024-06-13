@@ -28,12 +28,16 @@ jobs:
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
       - name: Run e2e tests
         run: make test-e2e
-      - name: Publish to slack channel via bot token
-        if: failure() # This step will only run if the previous steps fail
-        id: slack
-        uses: slackapi/slack-github-action@v1.26.0
+      - name: Notify slack on failure
+        uses: ravsamhq/notify-slack-action@v2
         with:
-          channel-id: 'D077TLSD4J0' # ID of Slack Channel you want to post to
-          slack-message: 'E2E tests failed!' # The message you want to post
+          status: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          notification_title: "E2E test failure"
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          # This is the coreapp user group
+          mention_groups: "C077R275SRH"
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_NOTIFICATIONS_BOT_TOKEN }}
+          # This is an org level secret and is currently set to #releases in
+          # slack
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_E2E_TEST_FAILURES }}
