@@ -91,10 +91,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 	return &types.MsgSignalVersionResponse{}, nil
 }
 
-// TryUpgrade is a method required by the MsgServer interface.
-// It tallies the voting power that has voted on each version.
-// If one version has quorum, it is set as the quorum version
-// which the application can use as signal to upgrade to that version.
+// TryUpgrade is a method required by the MsgServer interface. It tallies the
+// voting power that has voted on each version. If one version has reached a
+// quorum, an upgrade is persisted to the store. The upgrade is used by the
+// application later when it is time to upgrade to that version.
 func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
@@ -225,13 +225,15 @@ func (k *Keeper) ResetTally(ctx sdk.Context) {
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
+	// delete all signals
 	for ; iterator.Valid(); iterator.Next() {
-		// skip over the upgrade key
 		if bytes.Equal(iterator.Key(), types.UpgradeKey) {
+			// skip over the upgrade key
 			continue
 		}
 		store.Delete(iterator.Key())
 	}
+	// delete the upgrade value
 	store.Delete(types.UpgradeKey)
 }
 
@@ -243,30 +245,31 @@ func VersionFromBytes(version []byte) uint64 {
 	return binary.BigEndian.Uint64(version)
 }
 
-// isUpgradePending returns true if a version has reached quorum and the chain
-// will upgrade to the upgrade app version at the upgrade height. While the
-// keeper has an upgrade pending actions like SignalVersion and TryUpgrade will
+// isUpgradePending returns true if an app version has reached quorum and the
+// chain should upgrade to the app version at the upgrade height. While the
+// keeper has an upgrade pending the SignalVersion and TryUpgrade messages will
 // be rejected.
 func (k *Keeper) isUpgradePending(ctx sdk.Context) bool {
 	_, ok := k.getUpgrade(ctx)
 	return ok
 }
 
-// getUpgrade returns the upgrade from the store if it exists along with a
-// boolean indicating its existence.
+// getUpgrade returns the current upgrade information from the store.
+// If an upgrade is found, it returns the upgrade object and true.
+// If no upgrade is found, it returns an empty upgrade object and false.
 func (k *Keeper) getUpgrade(ctx sdk.Context) (upgrade types.Upgrade, ok bool) {
 	store := ctx.KVStore(k.storeKey)
-	bz := store.Get(types.UpgradeKey)
-	if bz == nil {
+	value := store.Get(types.UpgradeKey)
+	if value == nil {
 		return types.Upgrade{}, false
 	}
-	k.binaryCodec.MustUnmarshal(bz, &upgrade)
+	k.binaryCodec.MustUnmarshal(value, &upgrade)
 	return upgrade, true
 }
 
 // setUpgrade sets the upgrade in the store.
 func (k *Keeper) setUpgrade(ctx sdk.Context, upgrade types.Upgrade) {
 	store := ctx.KVStore(k.storeKey)
-	b := k.binaryCodec.MustMarshal(&upgrade)
-	store.Set(types.UpgradeKey, b)
+	value := k.binaryCodec.MustMarshal(&upgrade)
+	store.Set(types.UpgradeKey, value)
 }
