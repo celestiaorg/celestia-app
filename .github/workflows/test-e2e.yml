@@ -1,20 +1,25 @@
-name: nightly
+name: test-e2e
+
 on:
-  schedule:
-    # runs every day at 6am UTC
-    - cron: "0 6 * * *"
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.go"
+      - go.mod
+      - go.sum
 
 jobs:
   test-e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0
+          ref: main
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
-
+          go-version-file: "go.mod"
       - name: Setup kubeconfig
         env:
           KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
@@ -23,6 +28,3 @@ jobs:
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
       - name: Run e2e tests
         run: make test-e2e
-
-  test:
-    uses: ./.github/workflows/test.yml
