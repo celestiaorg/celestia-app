@@ -24,3 +24,4 @@ go.work.sum
 
 received_bytes.jsonl
 consensus_round_state.jsonl
+blockchain_*.csv
