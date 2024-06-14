@@ -37,7 +37,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           notification_title: "E2E test failure"
           message_format: "{emoji} *{workflow}* {status_message} in <{run_url}|{repo}>"
-          # This is the core-app user group
-          mention_groups: "C077R275SRH"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_E2E_TEST_FAILURES }}
