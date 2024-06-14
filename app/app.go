@@ -276,7 +276,7 @@ func New(
 		),
 	)
 
-	app.SignalKeeper = signal.NewKeeper(keys[signaltypes.StoreKey], app.StakingKeeper)
+	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec,

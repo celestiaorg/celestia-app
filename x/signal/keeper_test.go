@@ -10,6 +10,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/x/signal"
 	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -64,8 +66,9 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
-			k := signal.NewKeeper(nil, stakingKeeper)
+			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
 			got := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
@@ -372,7 +375,8 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 		},
 	)
 
-	upgradeKeeper := signal.NewKeeper(signalStore, mockStakingKeeper)
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }
 

@@ -6,6 +6,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
+	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -35,17 +36,12 @@ func Threshold(_ uint64) sdk.Dec {
 }
 
 type Keeper struct {
+	// binaryCodec is used to marshal and unmarshal data from the store.
+	binaryCodec codec.BinaryCodec
+
 	// storeKey is key that is used to fetch the signal store from the multi
 	// store.
 	storeKey storetypes.StoreKey
-
-	// quorumVersion is the version that has received a quorum of validators
-	// to signal for it. It is set to 0 if no version has reached quorum.
-	quorumVersion uint64
-
-	// upgradeHeight is the height at which the network should upgrade to the
-	// quorumVersion. It is set to 0 if no version has reached quorum.
-	upgradeHeight int64
 
 	// stakingKeeper is used to fetch validators to calculate the total power
 	// signalled to a version.
@@ -54,10 +50,12 @@ type Keeper struct {
 
 // NewKeeper returns a signal keeper.
 func NewKeeper(
+	binaryCodec codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
 	stakingKeeper StakingKeeper,
 ) Keeper {
 	return Keeper{
+		binaryCodec:   binaryCodec,
 		storeKey:      storeKey,
 		stakingKeeper: stakingKeeper,
 	}
@@ -65,11 +63,12 @@ func NewKeeper(
 
 // SignalVersion is a method required by the MsgServer interface.
 func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) (*types.MsgSignalVersionResponse, error) {
-	if k.isUpgradePending() {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	if k.isUpgradePending(sdkCtx) {
 		return &types.MsgSignalVersionResponse{}, types.ErrUpgradePending.Wrapf("can not signal version")
 	}
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	valAddr, err := sdk.ValAddressFromBech32(req.ValidatorAddress)
 	if err != nil {
 		return nil, err
@@ -96,19 +95,23 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 // If one version has quorum, it is set as the quorum version
 // which the application can use as signal to upgrade to that version.
 func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
-	if k.isUpgradePending() {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	if k.isUpgradePending(sdkCtx) {
 		return &types.MsgTryUpgradeResponse{}, types.ErrUpgradePending.Wrapf("can not try upgrade")
 	}
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	threshold := k.GetVotingPowerThreshold(sdkCtx)
 	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
-	if hasQuorum && version <= sdkCtx.BlockHeader().Version.App {
-		return &types.MsgTryUpgradeResponse{}, types.ErrInvalidUpgradeVersion.Wrapf("can not upgrade to version %v because it is less than or equal to current version %v", version, sdkCtx.BlockHeader().Version.App)
-	}
-	if hasQuorum && version > sdkCtx.BlockHeader().Version.App {
-		k.quorumVersion = version
-		k.upgradeHeight = sdkCtx.BlockHeight() + defaultUpgradeHeightDelay
+	if hasQuorum {
+		if version <= sdkCtx.BlockHeader().Version.App {
+			return &types.MsgTryUpgradeResponse{}, types.ErrInvalidUpgradeVersion.Wrapf("can not upgrade to version %v because it is less than or equal to current version %v", version, sdkCtx.BlockHeader().Version.App)
+		}
+		upgrade := types.Upgrade{
+			AppVersion:    version,
+			UpgradeHeight: sdkCtx.BlockHeader().Height + defaultUpgradeHeightDelay,
+		}
+		k.setUpgrade(sdkCtx, upgrade)
 	}
 	return &types.MsgTryUpgradeResponse{}, nil
 }
@@ -196,11 +199,14 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 // network is ready to upgrade and the version to upgrade to. It returns false
 // and 0 if no version has reached quorum.
 func (k *Keeper) ShouldUpgrade(ctx sdk.Context) (isQuorumVersion bool, version uint64) {
-	hasQuorumVersion := k.quorumVersion != 0
-	hasUpgradeHeightBeenReached := ctx.BlockHeight() >= k.upgradeHeight
+	upgrade, ok := k.getUpgrade(ctx)
+	if !ok {
+		return false, 0
+	}
 
-	if hasQuorumVersion && hasUpgradeHeightBeenReached {
-		return true, k.quorumVersion
+	hasUpgradeHeightBeenReached := ctx.BlockHeight() >= upgrade.UpgradeHeight
+	if hasUpgradeHeightBeenReached {
+		return true, upgrade.AppVersion
 	}
 	return false, 0
 }
@@ -215,8 +221,7 @@ func (k *Keeper) ResetTally(ctx sdk.Context) {
 	for ; iterator.Valid(); iterator.Next() {
 		store.Delete(iterator.Key())
 	}
-	k.quorumVersion = 0
-	k.upgradeHeight = 0
+	k.setUpgrade(ctx, types.Upgrade{})
 }
 
 func VersionToBytes(version uint64) []byte {
@@ -228,8 +233,29 @@ func VersionFromBytes(version []byte) uint64 {
 }
 
 // isUpgradePending returns true if a version has reached quorum and the chain
-// will upgrade to quorumVersion at upgradeHeight. While the keeper has an
-// upgrade pending actions like SignalVersion and TryUpgrade will be rejected.
-func (k *Keeper) isUpgradePending() bool {
-	return k.quorumVersion != 0 && k.upgradeHeight != 0
+// will upgrade to the upgrade app version at the upgrade height. While the
+// keeper has an upgrade pending actions like SignalVersion and TryUpgrade will
+// be rejected.
+func (k *Keeper) isUpgradePending(ctx sdk.Context) bool {
+	_, ok := k.getUpgrade(ctx)
+	return ok
+}
+
+// getUpgrade returns the upgrade from the store if it exists along with a
+// boolean indicating its existence.
+func (k *Keeper) getUpgrade(ctx sdk.Context) (upgrade types.Upgrade, ok bool) {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.UpgradeKey)
+	if bz == nil {
+		return types.Upgrade{}, false
+	}
+	k.binaryCodec.MustUnmarshal(bz, &upgrade)
+	return upgrade, true
+}
+
+// setUpgrade sets the upgrade in the store.
+func (k *Keeper) setUpgrade(ctx sdk.Context, upgrade types.Upgrade) {
+	store := ctx.KVStore(k.storeKey)
+	b := k.binaryCodec.MustMarshal(&upgrade)
+	store.Set(types.UpgradeKey, b)
 }
