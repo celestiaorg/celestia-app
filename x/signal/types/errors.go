@@ -4,4 +4,4 @@ import (
 	"cosmossdk.io/errors"
 )
 
-var ErrInvalidVersion = errors.Register(ModuleName, 1, "signalled version must be either the current version or one greater")
+var ErrInvalidVersion = errors.Register(ModuleName, 1, "signalled version can not be less than the current version")
