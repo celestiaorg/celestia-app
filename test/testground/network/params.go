@@ -28,6 +28,7 @@ import (
 // buff-11 had the blocker from stats channel removed
 // buff-12 has the extra trace for the buffer sizes
 // buff-13 has the change to marking all peers as good
+// "mut-1 has the mutex contention fix"
 
 func init() {
 	consensus.UseWAL = true

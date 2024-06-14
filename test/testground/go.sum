@@ -544,8 +544,8 @@ github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZI
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
 github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240612211721-04d4ab2da3fb h1:SjlJCXdl2t46xwqaXIPRwtNmwB/UA4H/GC/RF8jiOKk=
 github.com/celestiaorg/celestia-app v1.0.0-rc0.0.20240612211721-04d4ab2da3fb/go.mod h1:hfJfGKCfD3Ka+J9N60GQ/mPJtLNmXklBNbEkMwC71g8=
-github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240612205305-a8c691f91b23 h1:/mEonDNxaUiYBrvCfZaB7Zppt/xFP5HbjvFH1mqYBc8=
-github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240612205305-a8c691f91b23/go.mod h1:T9eYnsTUQAeqg/n+NLnV8E11YI/IYTd6n0CxIChMR3w=
+github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240614043138-23914e052856 h1:FmHB7tLb+sOTs8U3PI5VD6v0E8Kn8ao1iRPZx7fUWFw=
+github.com/celestiaorg/celestia-core v1.36.1-tm-v0.34.29.0.20240614043138-23914e052856/go.mod h1:T9eYnsTUQAeqg/n+NLnV8E11YI/IYTd6n0CxIChMR3w=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16 h1:9U9UthIJSOyVjabD5PkD6aczvqlWOyAFTOXw0duPT5k=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16/go.mod h1:Tvsc3YnqvflXTYC8xIy/Q07Es95xZ1pZC/imoKogtbg=
 github.com/celestiaorg/go-square v1.0.0-rc0 h1:QtYyGICIWAx7t9k29s28hpZa8CjbDOZv3fgKSEAt7JI=
