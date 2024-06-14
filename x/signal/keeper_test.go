@@ -24,7 +24,7 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-const defaultUpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 12) // 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 50,400 blocks.
+const defaultUpgradeHeightDelay = int64(3 * 7 * 24 * 60 * 60 / 12) // 3 weeks * 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 151,200 blocks.
 
 func TestGetVotingPowerThreshold(t *testing.T) {
 	bigInt := big.NewInt(0)

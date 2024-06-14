@@ -22,7 +22,7 @@ var (
 	// defaultUpgradeHeightDelay is the number of blocks after a quorum has been
 	// reached that the chain should upgrade to the new version. Assuming a
 	// block interval of 12 seconds, this is 48 hours.
-	defaultUpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 12) // 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 50,400 blocks.
+	defaultUpgradeHeightDelay = int64(3 * 7 * 24 * 60 * 60 / 12) // 3 weeks * 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 151,200 blocks.
 )
 
 // Threshold is the fraction of voting power that is required
