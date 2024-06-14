@@ -168,7 +168,7 @@ test-fuzz:
 ## test-interchain: Run interchain tests in verbose mode. Requires Docker.
 test-interchain:
 	@echo "--> Running interchain tests"
-	@go test ./test/interchain -v
+	cd ./test/interchain && go test -v
 .PHONY: test-interchain
 
 # Add an alias so that test-ic invokes test-interchain.
