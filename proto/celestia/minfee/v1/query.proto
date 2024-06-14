@@ -1,0 +1,26 @@
+syntax = "proto3";
+package celestia.minfee.v1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
+
+// Query defines the gRPC querier service.
+service Query {
+  // NetworkMinGasPrice queries the network wide minimum fee
+  rpc NetworkMinGasPrice(QueryNetworkMinGasPrice) returns (QueryNetworkMinGasPriceResponse) {
+    option (google.api.http).get = "/celestia/minfee/v1/min_gas_price";
+  }
+}
+
+message QueryNetworkMinGasPrice {}
+
+message QueryNetworkMinGasPriceResponse {
+  string network_min_gas_price = 1 [
+    (cosmos_proto.scalar) = "cosmos.Dec",
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable) = false
+  ];
+}
