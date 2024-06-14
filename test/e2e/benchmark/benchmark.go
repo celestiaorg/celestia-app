@@ -97,8 +97,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
 			log.Print("Setting up trace push config")
 			for _, node := range b.Nodes() {
-				if err = node.Instance.SetEnvironmentVariable(trace.
-					PushBucketName, pushConfig.BucketName); err != nil {
+				if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
 					return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
 				}
 				if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
@@ -130,9 +129,6 @@ func (b *BenchmarkTest) Run() error {
 	// add latency if specified in the manifest
 	if b.manifest.EnableLatency {
 		for _, node := range b.Nodes() {
-			if err = node.ForwardBitTwisterPort(); err != nil {
-				return fmt.Errorf("failed to forward bit twister port: %v", err)
-			}
 			if err = node.Instance.SetLatencyAndJitter(b.manifest.LatencyParams.
 				Latency, b.manifest.LatencyParams.Jitter); err != nil {
 				return fmt.Errorf("failed to set latency and jitter: %v", err)

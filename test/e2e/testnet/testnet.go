@@ -21,23 +21,10 @@ type Testnet struct {
 	knuuScope string
 	seed      int64
 	nodes     []*Node
-	executor  *knuu.Executor
 	genesis   *genesis.Genesis
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
-}
-
-// GetKnuuScope returns the scope of the testnet
-func (t *Testnet) GetKnuuScope() string {
-	return t.knuuScope
-}
-
-func (t *Testnet) GetExecutor() (*knuu.Executor, error) {
-	if t.executor == nil {
-		return nil, fmt.Errorf("testnet not initialized")
-	}
-	return t.executor, nil
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
@@ -49,19 +36,12 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 		return nil, err
 	}
 
-	executor, err := knuu.NewExecutor()
-	if err != nil {
-		return nil, err
-	}
-
 	return &Testnet{
-		knuuScope: identifier,
-		seed:      seed,
-		nodes:     make([]*Node, 0),
-		genesis:   genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:    newKeyGenerator(seed),
-		grafana:   grafana,
-		executor:  executor,
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
 }
 
@@ -162,14 +142,7 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error creating txsim")
 		return err
 	}
-	err = txsim.Instance.Commit()
-	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
-		return err
-	}
-
+    
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
@@ -177,6 +150,14 @@ func (t *Testnet) CreateTxClient(name,
 			Str("directory", txsimKeyringDir).
 			Str("name", name).
 			Msg("error adding keyring dir to txsim")
+		return err
+	}
+
+	err = txsim.Instance.Commit()
+	if err != nil {
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
 		return err
 	}
 
@@ -295,13 +276,14 @@ func (t *Testnet) RPCEndpoints() []string {
 	return rpcEndpoints
 }
 
-func (t *Testnet) GRPCEndpoints() []string {
-	grpcEndpoints := make([]string, len(t.nodes))
-	for idx, node := range t.nodes {
-		grpcEndpoints[idx] = node.AddressGRPC()
-	}
-	return grpcEndpoints
-}
+// FIXME: This does not work currently with the reverse proxy
+// func (t *Testnet) GRPCEndpoints() []string {
+// 	grpcEndpoints := make([]string, len(t.nodes))
+// 	for idx, node := range t.nodes {
+// 		grpcEndpoints[idx] = node.AddressGRPC()
+// 	}
+// 	return grpcEndpoints
+// }
 
 // RemoteGRPCEndpoints retrieves the gRPC endpoint addresses of the
 // testnet's validator nodes.
@@ -361,6 +343,10 @@ func (t *Testnet) Start() error {
 		}
 	}
 	// wait for nodes to sync
+	err := t.StartTxClients()
+	if err != nil {
+		return err
+	}
 	for _, node := range genesisNodes {
 		client, err := node.Client()
 		if err != nil {
@@ -369,7 +355,11 @@ func (t *Testnet) Start() error {
 		for i := 0; i < 10; i++ {
 			resp, err := client.Status(context.Background())
 			if err != nil {
-				return fmt.Errorf("node %s status response: %w", node.Name, err)
+				if i == 9 {
+					return fmt.Errorf("node %s status response: %w", node.Name, err)
+				}
+				time.Sleep(time.Second)
+				continue
 			}
 			if resp.SyncInfo.LatestBlockHeight > 0 {
 				break
@@ -401,10 +391,15 @@ func (t *Testnet) Cleanup() {
 			log.Err(err).
 				Str("name", node.Name).
 				Msg("node failed to cleanup")
+	// stop and cleanup txsim
+	for _, txsim := range t.txClients {
+		err = txsim.Instance.Destroy()
+    if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to cleanup")
 		}
-	}
-	if err := t.executor.Destroy(); err != nil {
-		log.Err(err).Msg("executor failed to cleanup")
+		}
 	}
 }
 

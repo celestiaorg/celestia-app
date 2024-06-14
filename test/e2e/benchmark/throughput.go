@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
@@ -77,6 +81,9 @@ func TwoNodeSimple(_ *log.Logger) error {
 		Prometheus:         true,
 		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
 		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		LocalTracingType:   "local",
+		PushTrace:          false,
+		DownloadTraces:     false,
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
 		LocalTracingType:   "local",
@@ -95,7 +102,42 @@ func TwoNodeSimple(_ *log.Logger) error {
 
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	// post test data collection and validation
+
+	// if local tracing is enabled,
+	// pull round state traces to confirm tracing is working as expected.
+	if benchTest.manifest.LocalTracingType == "local" {
+		if _, err := benchTest.Node(0).PullRoundStateTraces("."); err != nil {
+			return fmt.Errorf("failed to pull round state traces: %w", err)
+		}
+	}
+
+	// download traces from S3, if enabled
+	if benchTest.manifest.PushTrace && benchTest.manifest.DownloadTraces {
+		// download traces from S3
+		pushConfig, _ := trace.GetPushConfigFromEnv()
+		err := trace.S3Download("./traces/", benchTest.manifest.ChainID,
+			pushConfig)
+		if err != nil {
+			return fmt.Errorf("failed to download traces from S3: %w", err)
+		}
+	}
+
+	log.Println("Reading blockchain")
+	blockchain, err := testnode.ReadBlockchain(context.Background(),
+		benchTest.Node(0).AddressRPC())
+	testnet.NoError("failed to read blockchain", err)
+
+	totalTxs := 0
+	for _, block := range blockchain {
+		if appconsts.LatestVersion != block.Version.App {
+			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
+		}
+		totalTxs += len(block.Data.Txs)
+	}
+	if totalTxs < 10 {
+		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
+	}
 
 	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
