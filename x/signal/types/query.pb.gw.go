@@ -181,7 +181,7 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_VersionTally_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"upgrade", "v1", "tally", "version"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_VersionTally_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"signal", "v1", "tally", "version"}, "", runtime.AssumeColonVerbOpt(false)))
 )
 
 var (
