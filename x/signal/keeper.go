@@ -1,6 +1,7 @@
 package signal
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 
@@ -126,6 +127,9 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
+		if bytes.Equal(iterator.Key(), types.UpgradeKey) {
+			continue
+		}
 		valAddress := sdk.ValAddress(iterator.Key())
 		power := k.stakingKeeper.GetLastValidatorPower(sdkCtx, valAddress)
 		version := VersionFromBytes(iterator.Value())
@@ -162,6 +166,9 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
+		if bytes.Equal(iterator.Key(), types.UpgradeKey) {
+			continue
+		}
 		valAddress := sdk.ValAddress(iterator.Key())
 		// check that the validator is still part of the bonded set
 		val, found := k.stakingKeeper.GetValidator(ctx, valAddress)
@@ -219,6 +226,9 @@ func (k *Keeper) ResetTally(ctx sdk.Context) {
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
+		if bytes.Equal(iterator.Key(), types.UpgradeKey) {
+			continue
+		}
 		store.Delete(iterator.Key())
 	}
 	k.setUpgrade(ctx, types.Upgrade{})
