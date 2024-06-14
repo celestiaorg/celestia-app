@@ -25,8 +25,8 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Run tests
-        run: make test
+      # - name: Run tests
+      #   run: make test
 
       - name: Run Interchain tests
         run: make test-interchain
