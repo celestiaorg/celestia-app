@@ -48,6 +48,8 @@ type Node struct {
 	rpcProxyPort   int
 	grpcProxyPort  int
 	traceProxyPort int
+
+	tsharkToS3 bool
 }
 
 func (n *Node) GetRemoteHomeDirectory() string {
@@ -127,6 +129,7 @@ func NewNode(
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,
+	tsharkToS3 bool,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -185,6 +188,13 @@ func NewNode(
 	err = instance.SetArgs(args...)
 	if err != nil {
 		return nil, err
+	}
+
+	if tsharkToS3 {
+		err = instance.EnableTsharkCollector("100Gi", os.Getenv("S3_ACCESS_KEY"), os.Getenv("S3_SECRET_KEY"), os.Getenv("S3_REGION"), os.Getenv("S3_BUCKET_NAME"), "tshark/"+knuu.Scope())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Node{
@@ -422,7 +432,7 @@ func (n *Node) ForwardBitTwisterPort() error {
 		return err
 	}
 	n.Instance.BitTwister.SetPort(fwdBtPort)
-	n.Instance.BitTwister.SetNewClientByIPAddr("http://localhost")
+	n.Instance.BitTwister.SetNewClientByURL("http://localhost")
 	log.Info().Str("address", fmt.Sprintf("http://localhost:%d", fwdBtPort)).Msg("BitTwister is listening")
 	return nil
 }

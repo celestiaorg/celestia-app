@@ -34,12 +34,22 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 // There will be manifest.Validators validators and manifest.TxClients tx clients.
 // Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
 func (b *BenchmarkTest) SetupNodes() error {
-	err := b.CreateGenesisNodes(b.manifest.Validators,
-		b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
-		b.manifest.UpgradeHeight, b.manifest.ValidatorResource)
-	if err != nil {
-		return fmt.Errorf("failed to create genesis nodes: %v", err)
-
+	if b.manifest.Validators == 1 {
+		err := b.CreateGenesisNodes(1, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true)
+		if err != nil {
+			return fmt.Errorf("failed to create genesis node: %v", err)
+		}
+	} else {
+		err := b.CreateGenesisNodes(2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true)
+		if err != nil {
+			return fmt.Errorf("failed to create genesis nodes with tsharkToS3 enabled: %v", err)
+		}
+		if b.manifest.Validators > 2 {
+			err = b.CreateGenesisNodes(b.manifest.Validators-2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, false)
+			if err != nil {
+				return fmt.Errorf("failed to create remaining genesis nodes: %v", err)
+			}
+		}
 	}
 	// enable latency if specified in the manifest
 	if b.manifest.EnableLatency {

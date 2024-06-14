@@ -18,6 +18,7 @@ import (
 )
 
 type Testnet struct {
+	knuuScope string
 	seed      int64
 	nodes     []*Node
 	executor  *knuu.Executor
@@ -25,6 +26,11 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
+}
+
+// GetKnuuScope returns the scope of the testnet
+func (t *Testnet) GetKnuuScope() string {
+	return t.knuuScope
 }
 
 func (t *Testnet) GetExecutor() (*knuu.Executor, error) {
@@ -49,12 +55,13 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 	}
 
 	return &Testnet{
-		seed:     seed,
-		nodes:    make([]*Node, 0),
-		genesis:  genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:   newKeyGenerator(seed),
-		grafana:  grafana,
-		executor: executor,
+		knuuScope: identifier,
+		seed:      seed,
+		nodes:     make([]*Node, 0),
+		genesis:   genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:    newKeyGenerator(seed),
+		grafana:   grafana,
+		executor:  executor,
 	}, nil
 }
 
@@ -66,12 +73,12 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources) error {
+func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources, tsharkToS3 bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
 		selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana)
+		t.grafana, tsharkToS3)
 	if err != nil {
 		return err
 	}
@@ -82,9 +89,9 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64, resources Resources) error {
+func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, upgradeHeight int64, resources Resources, tsharkToS3 bool) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources); err != nil {
+		if err := t.CreateGenesisNode(version, selfDelegation, upgradeHeight, resources, tsharkToS3); err != nil {
 			return err
 		}
 	}
@@ -242,12 +249,12 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	return kr, nil
 }
 
-func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources) error {
+func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources, tsharkToS3 bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
 		startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana)
+		t.grafana, tsharkToS3)
 	if err != nil {
 		return err
 	}

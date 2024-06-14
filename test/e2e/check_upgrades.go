@@ -55,7 +55,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
+		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources, false))
 	}
 
 	kr, err := testNet.CreateAccount("alice", 1e12, "")
@@ -157,7 +157,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnet.DefaultResources)
+		err := testNet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnet.DefaultResources, false)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
