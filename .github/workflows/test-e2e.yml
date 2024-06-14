@@ -40,6 +40,4 @@ jobs:
           # This is the core-app user group
           mention_groups: "C077R275SRH"
         env:
-          # This is an org level secret and is currently set to #releases in
-          # slack
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_E2E_TEST_FAILURES }}
