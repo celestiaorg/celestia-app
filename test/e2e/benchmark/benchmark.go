@@ -136,13 +136,6 @@ func (b *BenchmarkTest) Run() error {
 		}
 	}
 
-	// once the testnet is up, start tx clients
-	log.Println("Starting tx clients")
-	err = b.StartTxClients()
-	if err != nil {
-		return fmt.Errorf("failed to start tx clients: %v", err)
-	}
-
 	// wait some time for the tx clients to submit transactions
 	log.Println("Waiting for", b.manifest.TestDuration, "for the tx clients to submit transactions")
 	time.Sleep(b.manifest.TestDuration)
