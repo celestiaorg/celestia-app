@@ -6,11 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 )
 
@@ -31,9 +28,11 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnet.DefaultResources))
 
-	logger.Println("Creating account")
-	kr, err := testNet.CreateAccount("alice", 1e12, "")
-	testnet.NoError("failed to create account", err)
+	logger.Println("Creating txsim")
+	endpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get remote gRPC endpoints", err)
+	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
 	testnet.NoError("failed to setup testnets", testNet.Setup())
@@ -41,18 +40,8 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start())
 
-	logger.Println("Running txsim")
-	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
-
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
-	err = txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	if err != nil {
-		return err
-	}
+	// wait for 30 seconds
+	time.Sleep(30 * time.Second)
 
 	logger.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())

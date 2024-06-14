@@ -5,15 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
@@ -49,22 +46,16 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		testnet.NoError("failed to create genesis node", err)
 	}
 
-	kr, err := testNet.CreateAccount("alice", 1e12, "")
-	testnet.NoError("failed to create account", err)
+	logger.Println("Creating txsim")
+	endpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get remote gRPC endpoints", err)
+	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start())
-
-	errCh := make(chan error)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
-	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
-	go func() {
-		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	}()
 
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
@@ -87,13 +78,8 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		}
 	}
 
-	// end txsim
 	cancel()
 
-	err = <-errCh
-	if !strings.Contains(err.Error(), context.Canceled.Error()) {
-		return fmt.Errorf("expected context.Canceled error, got: %w", err)
-	}
 	return nil
 }
 

@@ -42,8 +42,9 @@ type Node struct {
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
-	rpcProxyHost   string
-	grpcProxyHost  string
+	rpcProxyHost string
+	// FIXME: This does not work currently with the reverse proxy
+	// grpcProxyHost  string
 	traceProxyHost string
 }
 
@@ -247,11 +248,12 @@ func (n Node) AddressRPC() string {
 	return n.rpcProxyHost
 }
 
-// AddressGRPC returns a GRPC endpoint address for the node.
-// This returns the proxy host that can be used to communicate with the node
-func (n Node) AddressGRPC() string {
-	return n.grpcProxyHost
-}
+// FIXME: This does not work currently with the reverse proxy
+// // AddressGRPC returns a GRPC endpoint address for the node.
+// // This returns the proxy host that can be used to communicate with the node
+// func (n Node) AddressGRPC() string {
+// 	return n.grpcProxyHost
+// }
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressGRPC() (string, error) {
@@ -307,11 +309,12 @@ func (n *Node) Start() error {
 	}
 	n.rpcProxyHost = rpcProxyHost
 
-	err, grpcProxyHost := n.Instance.AddHost(grpcPort)
-	if err != nil {
-		return err
-	}
-	n.grpcProxyHost = grpcProxyHost
+	// FIXME: This does not work currently with the reverse proxy
+	// err, grpcProxyHost := n.Instance.AddHost(grpcPort)
+	// if err != nil {
+	// 	return err
+	// }
+	// n.grpcProxyHost = grpcProxyHost
 
 	err, traceProxyHost := n.Instance.AddHost(tracingPort)
 	if err != nil {

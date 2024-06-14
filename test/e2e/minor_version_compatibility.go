@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -12,11 +11,9 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
@@ -36,6 +33,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	defer testNet.Cleanup()
 
@@ -57,27 +57,17 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
 	}
 
-	kr, err := testNet.CreateAccount("alice", 1e12, "")
-	testnet.NoError("failed to create account", err)
+	logger.Println("Creating txsim")
+	endpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get remote gRPC endpoints", err)
+	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	testnet.NoError("failed to create tx client", err)
 
 	// start the testnet
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start())
-
-	// TODO: with upgrade tests we should simulate a far broader range of transactions
-	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
-
-	errCh := make(chan error)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	}()
 
 	for i := 0; i < len(versions)*2; i++ {
 		// FIXME: skip the first node because we need them available to
@@ -118,14 +108,6 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		}
 	}
 
-	// end the tx sim
-	cancel()
-
-	err = <-errCh
-
-	if !errors.Is(err, context.Canceled) {
-		return fmt.Errorf("expected context.Canceled error, got: %w", err)
-	}
 	return nil
 }
 
