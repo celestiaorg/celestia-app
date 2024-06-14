@@ -43,5 +43,5 @@ func (s *CLITestSuite) TestCmdGetUpgrade() {
 	cmd := cli.CmdGetUpgrade()
 	output, err := testutil.ExecTestCLICmd(s.ctx.Context, cmd, []string{})
 	s.Require().NoError(err)
-	s.Require().Contains(output.String(), "no upgrade is pending.")
+	s.Require().Contains(output.String(), "No upgrade is pending.")
 }
