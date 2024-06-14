@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	knuuinstance "github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/rs/zerolog/log"
@@ -93,15 +95,6 @@ func (n *Node) PullReceivedBytes() ([]trace.Event[schema.ReceivedBytes],
 		return nil, fmt.Errorf("getting table: %w", err)
 	}
 	return nil, nil
-}
-
-// PullRoundStateTraces retrieves the round state traces from a node.
-func (n *Node) PullRoundStateTraces() ([]trace.Event[schema.RoundState], error) {
-
-	addr := n.AddressTracing()
-	log.Info().Str("Address", addr).Msg("Pulling round state traces")
-
-	err := trace.GetTable(addr, schema.RoundState{}.Table(), ".")
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
@@ -200,7 +193,18 @@ func NewNode(
 	}
 
 	if tsharkToS3 {
-		err = instance.EnableTsharkCollector("100Gi", os.Getenv("S3_ACCESS_KEY"), os.Getenv("S3_SECRET_KEY"), os.Getenv("S3_REGION"), os.Getenv("S3_BUCKET_NAME"), "tshark/"+knuu.Scope())
+		tsharkConfig := knuuinstance.TsharkCollectorConfig{
+			VolumeSize:     "100Gi",
+			S3AccessKey:    os.Getenv("S3_ACCESS_KEY"),
+			S3SecretKey:    os.Getenv("S3_SECRET_KEY"),
+			S3Region:       os.Getenv("S3_REGION"),
+			S3Bucket:       os.Getenv("S3_BUCKET_NAME"),
+			CreateBucket:   true,
+			S3KeyPrefix:    os.Getenv("S3_KEY_PREFIX"),
+			S3Endpoint:     os.Getenv("S3_ENDPOINT"),
+			UploadInterval: 5 * time.Minute,
+		}
+		err = instance.EnableTsharkCollector(tsharkConfig)
 		if err != nil {
 			return nil, err
 		}

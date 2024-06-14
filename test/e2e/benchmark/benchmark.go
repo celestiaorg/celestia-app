@@ -156,7 +156,7 @@ func (b *BenchmarkTest) CheckResults() error {
 
 	// If pulling traced data is enabled, pull the data and return an error if it fails
 	if true {
-		if _, err := b.Node(0).PullRoundStateTraces(); err != nil {
+		if _, err := b.Node(0).PullRoundStateTraces("."); err != nil {
 			return fmt.Errorf("failed to pull round state traces: %w", err)
 		}
 		if _, err := b.Node(0).PullReceivedBytes(); err != nil {

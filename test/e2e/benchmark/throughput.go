@@ -86,8 +86,6 @@ func TwoNodeSimple(_ *log.Logger) error {
 		DownloadTraces:     false,
 		TestDuration:       30 * time.Second,
 		TxClients:          2,
-		LocalTracingType:   "local",
-		PushTrace:          false,
 	}
 
 	benchTest, err := NewBenchmarkTest("TwoNodeSimple", &manifest)

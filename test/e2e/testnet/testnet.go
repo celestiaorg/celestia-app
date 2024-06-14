@@ -142,7 +142,7 @@ func (t *Testnet) CreateTxClient(name,
 			Msg("error creating txsim")
 		return err
 	}
-    
+
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
@@ -391,14 +391,15 @@ func (t *Testnet) Cleanup() {
 			log.Err(err).
 				Str("name", node.Name).
 				Msg("node failed to cleanup")
+		}
+	}
 	// stop and cleanup txsim
 	for _, txsim := range t.txClients {
-		err = txsim.Instance.Destroy()
-    if err != nil {
+		err := txsim.Instance.Destroy()
+		if err != nil {
 			log.Err(err).
 				Str("name", txsim.Name).
 				Msg("txsim failed to cleanup")
-		}
 		}
 	}
 }
