@@ -66,7 +66,7 @@ func NewKeeper(
 func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) (*types.MsgSignalVersionResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	if k.isUpgradePending(sdkCtx) {
+	if k.IsUpgradePending(sdkCtx) {
 		return &types.MsgSignalVersionResponse{}, types.ErrUpgradePending.Wrapf("can not signal version")
 	}
 
@@ -75,11 +75,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 		return nil, err
 	}
 
-	// The signalled version must be either the current version or the next
-	// version.
+	// The signalled version can not be less than the current version.
 	currentVersion := sdkCtx.BlockHeader().Version.App
-	if req.Version != currentVersion && req.Version != currentVersion+1 {
-		return nil, types.ErrInvalidVersion
+	if req.Version < currentVersion {
+		return nil, types.ErrInvalidSignalVersion.Wrapf("signalled version %d, current version %d", req.Version, currentVersion)
 	}
 
 	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)
@@ -98,7 +97,7 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types.MsgTryUpgradeResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	if k.isUpgradePending(sdkCtx) {
+	if k.IsUpgradePending(sdkCtx) {
 		return &types.MsgTryUpgradeResponse{}, types.ErrUpgradePending.Wrapf("can not try upgrade")
 	}
 
@@ -245,11 +244,11 @@ func VersionFromBytes(version []byte) uint64 {
 	return binary.BigEndian.Uint64(version)
 }
 
-// isUpgradePending returns true if an app version has reached quorum and the
+// IsUpgradePending returns true if an app version has reached quorum and the
 // chain should upgrade to the app version at the upgrade height. While the
 // keeper has an upgrade pending the SignalVersion and TryUpgrade messages will
 // be rejected.
-func (k *Keeper) isUpgradePending(ctx sdk.Context) bool {
+func (k *Keeper) IsUpgradePending(ctx sdk.Context) bool {
 	_, ok := k.getUpgrade(ctx)
 	return ok
 }

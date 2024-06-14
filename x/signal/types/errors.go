@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	ErrInvalidVersion        = errors.Register(ModuleName, 1, "signalled version must be either the current version or one greater")
-	ErrUpgradePending        = errors.Register(ModuleName, 2, "upgrade is already pending")
+	ErrInvalidSignalVersion  = errors.Register(ModuleName, 1, "invalid signal version because signal version can not be less than the current version")
 	ErrInvalidUpgradeVersion = errors.Register(ModuleName, 3, "invalid upgrade version")
+	ErrUpgradePending        = errors.Register(ModuleName, 2, "upgrade is already pending")
 )
