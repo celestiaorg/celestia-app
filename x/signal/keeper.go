@@ -226,12 +226,13 @@ func (k *Keeper) ResetTally(ctx sdk.Context) {
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
 	for ; iterator.Valid(); iterator.Next() {
+		// skip over the upgrade key
 		if bytes.Equal(iterator.Key(), types.UpgradeKey) {
 			continue
 		}
 		store.Delete(iterator.Key())
 	}
-	k.setUpgrade(ctx, types.Upgrade{})
+	store.Delete(types.UpgradeKey)
 }
 
 func VersionToBytes(version uint64) []byte {
