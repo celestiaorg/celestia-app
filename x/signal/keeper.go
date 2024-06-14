@@ -244,6 +244,15 @@ func VersionFromBytes(version []byte) uint64 {
 	return binary.BigEndian.Uint64(version)
 }
 
+// GetUpgrade returns the current upgrade information.
+func (k Keeper) GetUpgrade(ctx context.Context, request *types.QueryGetUpgradeRequest) (*types.QueryGetUpgradeResponse, error) {
+	upgrade, ok := k.getUpgrade(sdk.UnwrapSDKContext(ctx))
+	if !ok {
+		return &types.QueryGetUpgradeResponse{}, nil
+	}
+	return &types.QueryGetUpgradeResponse{Upgrade: &upgrade}, nil
+}
+
 // IsUpgradePending returns true if an app version has reached quorum and the
 // chain should upgrade to the app version at the upgrade height. While the
 // keeper has an upgrade pending the SignalVersion and TryUpgrade messages will

@@ -386,6 +386,37 @@ func TestTryUpgrade(t *testing.T) {
 	})
 }
 
+func TestGetUpgrade(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+	goCtx := sdk.WrapSDKContext(ctx)
+
+	t.Run("should return an empty upgrade if no upgrade is pending", func(t *testing.T) {
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Nil(t, got.Upgrade)
+	})
+
+	t.Run("should return an upgrade if an upgrade is pending", func(t *testing.T) {
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 2})
+		require.NoError(t, err)
+
+		// This TryUpgrade should succeed.
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.NoError(t, err)
+
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
+		assert.Equal(t, int64(defaultUpgradeHeightDelay), got.Upgrade.UpgradeHeight)
+	})
+}
+
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	signalStore := sdk.NewKVStoreKey(types.StoreKey)
 	db := tmdb.NewMemDB()

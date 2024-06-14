@@ -24,11 +24,11 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Upgrade is a type that represents a network upgrade.
 type Upgrade struct {
-	// AppVersion is the version that has received a quorum of validators to
-	// signal for it. It is set to 0 if no version has reached quorum.
+	// AppVersion is the app version that has received a quorum of validators to
+	// signal for it.
 	AppVersion uint64 `protobuf:"varint,1,opt,name=app_version,json=appVersion,proto3" json:"app_version,omitempty"`
 	// UpgradeHeight is the height at which the network should upgrade to the
-	// AppVersion. It is set to 0 if no version has reached quorum.
+	// AppVersion.
 	UpgradeHeight int64 `protobuf:"varint,2,opt,name=upgrade_height,json=upgradeHeight,proto3" json:"upgrade_height,omitempty"`
 }
 

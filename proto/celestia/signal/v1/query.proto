@@ -2,6 +2,7 @@ syntax = "proto3";
 package celestia.signal.v1;
 
 import "google/api/annotations.proto";
+import "celestia/signal/v1/upgrade.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
@@ -13,6 +14,12 @@ service Query {
       returns (QueryVersionTallyResponse) {
     option (google.api.http).get = "/upgrade/v1/tally/{version}";
   }
+
+  // GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
+  rpc GetUpgrade(QueryGetUpgradeRequest)
+      returns (QueryGetUpgradeResponse) {
+    option (google.api.http).get = "/signal/v1/upgrade";
+  }
 }
 
 // QueryVersionTallyRequest is the request type for the VersionTally query.
@@ -23,4 +30,12 @@ message QueryVersionTallyResponse {
   uint64 voting_power = 1;
   uint64 threshold_power = 2;
   uint64 total_voting_power = 3;
+}
+
+// QueryGetUpgradeRequest is the request type for the GetUpgrade query.
+message QueryGetUpgradeRequest {}
+
+// QueryGetUpgradeResponse is the response type for the GetUpgrade query.
+message QueryGetUpgradeResponse {
+  Upgrade upgrade = 1;
 }
