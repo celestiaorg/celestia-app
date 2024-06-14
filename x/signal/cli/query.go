@@ -62,7 +62,7 @@ func CmdGetUpgrade() *cobra.Command {
 		Short:   "Query for the upgrade information if an upgrade is pending",
 		Args:    cobra.NoArgs,
 		Example: "upgrade",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
@@ -75,11 +75,9 @@ func CmdGetUpgrade() *cobra.Command {
 			}
 
 			if resp.Upgrade != nil {
-				clientCtx.PrintString(fmt.Sprintf("An upgrade is pending to app version %d at height %d.\n", resp.Upgrade.AppVersion, resp.Upgrade.UpgradeHeight))
-				return nil
+				return clientCtx.PrintString(fmt.Sprintf("An upgrade is pending to app version %d at height %d.\n", resp.Upgrade.AppVersion, resp.Upgrade.UpgradeHeight))
 			}
-			clientCtx.PrintString("No upgrade is pending.\n")
-			return nil
+			return clientCtx.PrintString("No upgrade is pending.\n")
 		},
 	}
 

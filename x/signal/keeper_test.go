@@ -413,7 +413,7 @@ func TestGetUpgrade(t *testing.T) {
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
 		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
-		assert.Equal(t, int64(defaultUpgradeHeightDelay), got.Upgrade.UpgradeHeight)
+		assert.Equal(t, defaultUpgradeHeightDelay, got.Upgrade.UpgradeHeight)
 	})
 }
 

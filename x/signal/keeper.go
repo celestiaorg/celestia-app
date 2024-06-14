@@ -245,7 +245,7 @@ func VersionFromBytes(version []byte) uint64 {
 }
 
 // GetUpgrade returns the current upgrade information.
-func (k Keeper) GetUpgrade(ctx context.Context, request *types.QueryGetUpgradeRequest) (*types.QueryGetUpgradeResponse, error) {
+func (k Keeper) GetUpgrade(ctx context.Context, _ *types.QueryGetUpgradeRequest) (*types.QueryGetUpgradeResponse, error) {
 	upgrade, ok := k.getUpgrade(sdk.UnwrapSDKContext(ctx))
 	if !ok {
 		return &types.QueryGetUpgradeResponse{}, nil
