@@ -209,5 +209,4 @@ func TestPFM(t *testing.T) {
 	cosmosUser2Balance, err := cosmosHub2.GetBalance(ctx, cosmosAddr2, firstHopDenomTrace.IBCDenom())
 	require.NoError(t, err)
 	require.True(t, cosmosUser2Balance.Equal(transferAmount))
-	fmt.Println(cosmosUser2Balance, "COSMOS 2 BALANCE")
 }
