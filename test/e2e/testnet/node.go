@@ -194,15 +194,15 @@ func NewNode(
 
 	if tsharkToS3 {
 		tsharkConfig := knuuinstance.TsharkCollectorConfig{
-			VolumeSize:     "100Gi",
+			VolumeSize:     "500Gi",
 			S3AccessKey:    os.Getenv("S3_ACCESS_KEY"),
 			S3SecretKey:    os.Getenv("S3_SECRET_KEY"),
 			S3Region:       os.Getenv("S3_REGION"),
 			S3Bucket:       os.Getenv("S3_BUCKET_NAME"),
-			CreateBucket:   true,
-			S3KeyPrefix:    os.Getenv("S3_KEY_PREFIX"),
+			CreateBucket:   false,
+			S3KeyPrefix:    "tshark/" + knuu.Scope(),
 			S3Endpoint:     os.Getenv("S3_ENDPOINT"),
-			UploadInterval: 5 * time.Minute,
+			UploadInterval: 10 * time.Second,
 		}
 		err = instance.EnableTsharkCollector(tsharkConfig)
 		if err != nil {

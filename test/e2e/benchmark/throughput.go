@@ -84,7 +84,7 @@ func TwoNodeSimple(_ *log.Logger) error {
 		LocalTracingType:   "local",
 		PushTrace:          false,
 		DownloadTraces:     false,
-		TestDuration:       30 * time.Second,
+		TestDuration:       1 * time.Minute,
 		TxClients:          2,
 	}
 
@@ -240,8 +240,8 @@ func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
 	manifest.TestnetName = "LargeNetwork_BigBlock_8MiB"
 	manifest.ChainID = "large-network-big-block-8mib"
 	manifest.MaxBlockBytes = 8 * toMiB
-	manifest.Validators = 50
-	manifest.TxClients = 50
+	manifest.Validators = 100
+	manifest.TxClients = 100
 	manifest.BlobSequences = 20
 	manifest.TestDuration = 15 * time.Minute
 

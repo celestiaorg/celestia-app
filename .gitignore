@@ -20,3 +20,7 @@ vendor
 go.work
 go.work.sum
 .env
+
+
+received_bytes.jsonl
+consensus_round_state.jsonl
