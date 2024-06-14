@@ -9,7 +9,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
 
 // Query defines the gRPC querier service.
 service Query {
-  // NetworkMinGasPrice queries the network wide minimum fee
+  // NetworkMinGasPrice queries the network wide minimum gas price.
   rpc NetworkMinGasPrice(QueryNetworkMinGasPrice) returns (QueryNetworkMinGasPriceResponse) {
     option (google.api.http).get = "/celestia/minfee/v1/min_gas_price";
   }

@@ -24,5 +24,5 @@ func TestQueryNetworkMinGasPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the response
-	require.Equal(t, resp.NetworkMinGasPrice.MustFloat64(), v2.GlobalMinGasPrice)
+	require.Equal(t, v2.GlobalMinGasPrice, resp.NetworkMinGasPrice.MustFloat64())
 }

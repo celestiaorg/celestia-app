@@ -21,13 +21,13 @@ func NewQueryServerImpl(paramsKeeper keeper.Keeper) *QueryServerImpl {
 	return &QueryServerImpl{paramsKeeper: paramsKeeper}
 }
 
-// NetworkMinGasPrice returns the global minimum gas price.
+// NetworkMinGasPrice returns the network minimum gas price.
 func (q *QueryServerImpl) NetworkMinGasPrice(ctx context.Context, _ *QueryNetworkMinGasPrice) (*QueryNetworkMinGasPriceResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	var params Params
 	subspace, found := q.paramsKeeper.GetSubspace(ModuleName)
 	if !found {
-		return nil, status.Errorf(codes.NotFound, "subspace not found for minfee. Minfee is only active v2 and onwards")
+		return nil, status.Errorf(codes.NotFound, "subspace not found for minfee. Minfee is only active in app version 2 and onwards")
 	}
 	subspace.GetParamSet(sdkCtx, &params)
 	return &QueryNetworkMinGasPriceResponse{NetworkMinGasPrice: params.GlobalMinGasPrice}, nil
