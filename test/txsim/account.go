@@ -248,7 +248,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		if !ok {
 			return fmt.Errorf("account not found for address %s", address.String())
 		}
-		res, err = am.txClient.SubmitPayForBlobsWithAccount(ctx, accName, op.Blobs, opts...)
+		res, err = am.txClient.SubmitPayForBlobWithAccount(ctx, accName, op.Blobs, opts...)
 		if err != nil {
 			// log the failed tx
 			log.Err(err).
