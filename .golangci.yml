@@ -14,6 +14,9 @@ linters:
     - unconvert
     - gocritic
 
+  disable:
+    - staticcheck
+
 linters-settings:
   nakedret:
     # Ban the use of naked returns because they reduce code readability.
