@@ -31,6 +31,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice RPC method.
 type QueryNetworkMinGasPrice struct {
 }
 
@@ -67,6 +68,7 @@ func (m *QueryNetworkMinGasPrice) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryNetworkMinGasPrice proto.InternalMessageInfo
 
+// QueryNetworkMinGasPriceResponse is the response type for  Query/NetworkMinGasPrice RPC method.
 type QueryNetworkMinGasPriceResponse struct {
 	NetworkMinGasPrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=network_min_gas_price,json=networkMinGasPrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"network_min_gas_price"`
 }
@@ -148,7 +150,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
-	// NetworkMinGasPrice queries the network wide minimum fee
+	// NetworkMinGasPrice queries the network wide minimum gas price.
 	NetworkMinGasPrice(ctx context.Context, in *QueryNetworkMinGasPrice, opts ...grpc.CallOption) (*QueryNetworkMinGasPriceResponse, error)
 }
 
@@ -171,7 +173,7 @@ func (c *queryClient) NetworkMinGasPrice(ctx context.Context, in *QueryNetworkMi
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
-	// NetworkMinGasPrice queries the network wide minimum fee
+	// NetworkMinGasPrice queries the network wide minimum gas price.
 	NetworkMinGasPrice(context.Context, *QueryNetworkMinGasPrice) (*QueryNetworkMinGasPriceResponse, error)
 }
 
