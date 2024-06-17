@@ -26,7 +26,7 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func TestCheckTxFeeWithNetworkMinGasPrices(t *testing.T) {
+func TestValidateTxFee(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	builder := encCfg.TxConfig.NewTxBuilder()
