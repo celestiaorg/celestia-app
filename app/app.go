@@ -375,9 +375,6 @@ func New(
 	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
 	app.IBCKeeper.SetRouter(ibcRouter)
 
-	// Register the parameter key table for the minfee module in its associated subspace.
-	minfee.RegisterMinFeeParamTable(app.GetSubspace(minfee.ModuleName))
-
 	/****  Module Options ****/
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
