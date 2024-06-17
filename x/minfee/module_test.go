@@ -32,7 +32,7 @@ func TestNewModuleInitializesKeyTable(t *testing.T) {
 	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
 	subspace := paramsKeeper.Subspace(minfee.ModuleName)
 
-	// Initialize the minfee module which register set the key table
+	// Initialize the minfee module which registers the key table
 	minfee.NewAppModule(paramsKeeper)
 
 	// Require key table to be initialized
