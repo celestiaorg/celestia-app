@@ -130,7 +130,7 @@ func TestTallyingLogic(t *testing.T) {
 		ValidatorAddress: testutil.ValAddrs[0].String(),
 		Version:          3,
 	})
-	require.NoError(t, err)
+	require.NoError(t, err) // version 3 is valid because it is greater than the current version
 
 	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[0].String(),
