@@ -116,13 +116,13 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 
 	subspace = RegisterMinFeeParamTable(subspace)
 
-	// Set the global min gas price initial value
-	globalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
+	// Set the network min gas price initial value
+	networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.NetworkMinGasPrice))
 	if err != nil {
-		panic("failed to convert GlobalMinGasPrice to sdk.Dec")
+		panic("failed to convert NetworkMinGasPrice to sdk.Dec")
 	}
 
-	subspace.SetParamSet(ctx, &Params{GlobalMinGasPrice: globalMinGasPriceDec})
+	subspace.SetParamSet(ctx, &Params{NetworkMinGasPrice: networkMinGasPriceDec})
 
 	return []abci.ValidatorUpdate{}
 }
