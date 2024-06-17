@@ -301,7 +301,7 @@ func New(
 
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
 
-	// register the proposal types
+	// Register the proposal types
 	govRouter := oldgovtypes.NewRouter()
 	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
@@ -326,7 +326,7 @@ func New(
 		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
 	)
-	// transfer stack contains (from top to bottom):
+	// Transfer stack contains (from top to bottom):
 	// - Token Filter
 	// - Packet Forwarding Middleware
 	// - Transfer
@@ -339,9 +339,9 @@ func New(
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
-	// packetForwardMiddleware is used only for version 2
+	// PacketForwardMiddleware is used only for version 2
 	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
-	// token filter wraps packet forward middleware and is thus the first module in the transfer stack
+	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack
 	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
 	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
 
@@ -374,6 +374,9 @@ func New(
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
 	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
 	app.IBCKeeper.SetRouter(ibcRouter)
+
+	// Register the parameter key table for the minfee module in its associated subspace.
+	minfee.RegisterMinFeeParamTable(app.GetSubspace(minfee.ModuleName))
 
 	/****  Module Options ****/
 
