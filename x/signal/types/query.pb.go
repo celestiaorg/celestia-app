@@ -271,6 +271,7 @@ type QueryClient interface {
 	// signalled for a particular version.
 	VersionTally(ctx context.Context, in *QueryVersionTallyRequest, opts ...grpc.CallOption) (*QueryVersionTallyResponse, error)
 	// GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
+	// The response will be empty if no upgrade is pending.
 	GetUpgrade(ctx context.Context, in *QueryGetUpgradeRequest, opts ...grpc.CallOption) (*QueryGetUpgradeResponse, error)
 }
 
@@ -306,6 +307,7 @@ type QueryServer interface {
 	// signalled for a particular version.
 	VersionTally(context.Context, *QueryVersionTallyRequest) (*QueryVersionTallyResponse, error)
 	// GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
+	// The response will be empty if no upgrade is pending.
 	GetUpgrade(context.Context, *QueryGetUpgradeRequest) (*QueryGetUpgradeResponse, error)
 }
 

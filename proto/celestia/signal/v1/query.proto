@@ -16,6 +16,7 @@ service Query {
   }
 
   // GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
+  // The response will be empty if no upgrade is pending.
   rpc GetUpgrade(QueryGetUpgradeRequest)
       returns (QueryGetUpgradeResponse) {
     option (google.api.http).get = "/signal/v1/upgrade";
