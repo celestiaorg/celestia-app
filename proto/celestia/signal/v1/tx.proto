@@ -5,17 +5,17 @@ import "google/api/annotations.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
-// Msg defines the upgrade Msg service.
+// Msg defines the signal Msg service.
 service Msg {
-  // SignalVersion allows a validator to signal for an upgrade.
+  // SignalVersion allows a validator to signal for a version.
   rpc SignalVersion(MsgSignalVersion) returns (MsgSignalVersionResponse) {
-    option (google.api.http).post = "/upgrade/v1/signal";
+    option (google.api.http).post = "/signal/v1/signal";
   }
 
-  // TryUpgrade tallies all the votes and if a quorum is reached, it will
-  // trigger an upgrade for the following height.
+  // TryUpgrade tallies all the votes for all the versions to determine if a
+  // quorum has been reached for a version.
   rpc TryUpgrade(MsgTryUpgrade) returns (MsgTryUpgradeResponse) {
-    option (google.api.http).post = "/upgrade/v1/upgrade";
+    option (google.api.http).post = "/signal/v1/upgrade";
   }
 }
 
