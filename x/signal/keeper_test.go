@@ -313,32 +313,44 @@ func TestThresholdVotingPower(t *testing.T) {
 	}
 }
 
-// TestResetTally verifies that the VotingPower for all versions is reset to
-// zero after calling ResetTally.
+// TestResetTally verifies that ResetTally resets the VotingPower for all
+// versions to 0 and any pending upgrade is cleared.
 func TestResetTally(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 
-	_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 1})
+	_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 2})
 	require.NoError(t, err)
-	resp, err := upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	resp, err := upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(40), resp.VotingPower)
 
-	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 3})
 	require.NoError(t, err)
-	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 3})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), resp.VotingPower)
 
-	upgradeKeeper.ResetTally(ctx)
-
-	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 2})
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0), resp.VotingPower)
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 2})
+	require.NoError(t, err)
+
+	_, err = upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{})
+	require.NoError(t, err)
+
+	assert.True(t, upgradeKeeper.IsUpgradePending(ctx))
+
+	upgradeKeeper.ResetTally(ctx)
 
 	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), resp.VotingPower)
+
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 3})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), resp.VotingPower)
+
+	assert.False(t, upgradeKeeper.IsUpgradePending(ctx))
 }
 
 func TestTryUpgrade(t *testing.T) {

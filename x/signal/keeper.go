@@ -224,16 +224,10 @@ func (k *Keeper) ResetTally(ctx sdk.Context) {
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(nil, nil)
 	defer iterator.Close()
-	// delete all signals
+	// delete the value in the upgrade key and all signals.
 	for ; iterator.Valid(); iterator.Next() {
-		if bytes.Equal(iterator.Key(), types.UpgradeKey) {
-			// skip over the upgrade key
-			continue
-		}
 		store.Delete(iterator.Key())
 	}
-	// delete the upgrade value
-	store.Delete(types.UpgradeKey)
 }
 
 func VersionToBytes(version uint64) []byte {
