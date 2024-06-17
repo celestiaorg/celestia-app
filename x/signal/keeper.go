@@ -13,6 +13,11 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
+// DefaultUpgradeHeightDelay is the number of blocks after a quorum has been
+// reached that the chain should upgrade to the new version. Assuming a
+// block interval of 12 seconds, this is 48 hours.
+const DefaultUpgradeHeightDelay = int64(3 * 7 * 24 * 60 * 60 / 12) // 3 weeks * 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 151,200 blocks.
+
 // Keeper implements the MsgServer and QueryServer interfaces
 var (
 	_ types.MsgServer   = &Keeper{}
@@ -20,11 +25,6 @@ var (
 
 	// defaultSignalThreshold is 5/6 or approximately 83.33%
 	defaultSignalThreshold = sdk.NewDec(5).Quo(sdk.NewDec(6))
-
-	// defaultUpgradeHeightDelay is the number of blocks after a quorum has been
-	// reached that the chain should upgrade to the new version. Assuming a
-	// block interval of 12 seconds, this is 48 hours.
-	defaultUpgradeHeightDelay = int64(3 * 7 * 24 * 60 * 60 / 12) // 3 weeks * 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 151,200 blocks.
 )
 
 // Threshold is the fraction of voting power that is required
@@ -109,7 +109,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		}
 		upgrade := types.Upgrade{
 			AppVersion:    version,
-			UpgradeHeight: sdkCtx.BlockHeader().Height + defaultUpgradeHeightDelay,
+			UpgradeHeight: sdkCtx.BlockHeader().Height + DefaultUpgradeHeightDelay,
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}
