@@ -301,13 +301,13 @@ func New(
 
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
 
-	// Register the proposal types
+	// Register the proposal types.
 	govRouter := oldgovtypes.NewRouter()
 	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
-	// Create Transfer Keepers
+	// Create Transfer Keepers.
 	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
 
 	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
@@ -339,9 +339,9 @@ func New(
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
-	// PacketForwardMiddleware is used only for version 2
+	// PacketForwardMiddleware is used only for version 2.
 	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
-	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack
+	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
 	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
 	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
 
