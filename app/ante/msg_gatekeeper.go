@@ -50,7 +50,7 @@ func (mgk MsgVersioningGateKeeper) hasInvalidMsg(ctx sdk.Context, acceptedMsgs m
 				return err
 			}
 			// App version 2 introduces a new constraint that prevents a MsgExec inside a MsgExec.
-			if ctx.BlockHeader().Version.App > 2 {
+			if ctx.BlockHeader().Version.App >= 2 {
 				if err = mgk.hasNestedMsgExec(ctx, nestedMsgs); err != nil {
 					return err
 				}
