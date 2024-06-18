@@ -16,14 +16,14 @@ const (
 	seed = 42
 )
 
-func TwoNodeSimple(_ *log.Logger) error {
+func TwoNodeSimple(logger *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
-	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
+	logger.Println("=== RUN TwoNodeSimple", "version:", latestVersion)
 
 	manifest := Manifest{
-		ChainID:            "test-e2e-throughput",
+		ChainID:            "test-e2e-two-node-simple",
 		Validators:         2,
 		ValidatorResource:  testnet.DefaultResources,
 		TxClientsResource:  testnet.DefaultResources,
@@ -99,5 +99,6 @@ func TwoNodeSimple(_ *log.Logger) error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
+
 	return nil
 }
