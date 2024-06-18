@@ -574,6 +574,12 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 
 	globalMinPrice, err := QueryGlobalMinGasPrice(ctx, grpcConn)
 	if err != nil {
+		// check if the network version supports a global min gas
+		// price using a regex check. If not (i.e. v1) use the
+		// local price only
+		if strings.Contains(err.Error(), "unknown subspace: minfee") {
+			return localMinPrice, nil
+		}
 		return 0, err
 	}
 

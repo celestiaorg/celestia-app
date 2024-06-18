@@ -77,6 +77,13 @@ type AppModule struct {
 
 // NewAppModule creates a new AppModule object
 func NewAppModule(k params.Keeper) AppModule {
+	// Register the parameter key table in its associated subspace.
+	subspace, exists := k.GetSubspace(ModuleName)
+	if !exists {
+		panic("minfee subspace not set")
+	}
+	RegisterMinFeeParamTable(subspace)
+
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		paramsKeeper:   k,
