@@ -25,17 +25,17 @@ import (
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
-	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
+	accounts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	infos := queryAccountInfo(testApp, accnts, kr)
+	infos := queryAccountInfo(testApp, accounts, kr)
 
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
 		encCfg.TxConfig,
 		kr,
 		testutil.ChainID,
-		accnts[:numBlobTxs],
+		accounts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*blob.Blob{
 			blob.New(appns.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion),
@@ -48,8 +48,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		encCfg.TxConfig,
 		kr,
 		1000,
-		accnts[0],
-		accnts[numBlobTxs:],
+		accounts[0],
+		accounts[numBlobTxs:],
 		testutil.ChainID,
 	)
 	txs := blobTxs
@@ -205,6 +205,58 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	}
 }
 
+// TestPrepareProposalBlockDataSize verifies that prepare proposal returns a
+// response where the size of response.BlockData.Txs is less than or equal to
+// the request.BlockDataSize.
+//
+// Note: this unit test is contrived because the application's prepare proposal
+// doesn't actually enforce this constaint. Instead, celestia-core will panic if
+// the size of response.BlockData.Txs exceeds the request.BlockDataSize.
+func TestPrepareProposalBlockDataSize(t *testing.T) {
+	numBlobTxs := 1
+	numNormalTxs := 1
+	accounts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encCfg.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[:numBlobTxs],
+		infos[:numBlobTxs],
+		testfactory.Repeat([]*blob.Blob{
+			blob.New(appns.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion),
+		}, numBlobTxs),
+	)
+
+	normalTxs := testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encCfg.TxConfig,
+		kr,
+		1000,
+		accounts[0],
+		accounts[numBlobTxs:],
+		testutil.ChainID,
+	)
+	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+	request := abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{
+			Txs: txs,
+		},
+		BlockDataSize: getSize(txs),
+		ChainId:       testutil.ChainID,
+		Height:        testApp.LastBlockHeight() + 1,
+		Time:          time.Now(),
+	}
+
+	got := testApp.PrepareProposal(request)
+	require.LessOrEqual(t, getSize(got.BlockData.Txs), request.BlockDataSize)
+}
+
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {
@@ -216,4 +268,11 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 		}
 	}
 	return infos
+}
+
+func getSize(txs [][]byte) (size int64) {
+	for _, tx := range txs {
+		size += int64(len(tx))
+	}
+	return size
 }
