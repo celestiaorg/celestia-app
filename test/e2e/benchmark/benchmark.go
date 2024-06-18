@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package main
 
 import (
@@ -105,9 +106,6 @@ func (b *BenchmarkTest) Run() error {
 	// add latency if specified in the manifest
 	if b.manifest.EnableLatency {
 		for _, node := range b.Nodes() {
-			if err = node.ForwardBitTwisterPort(); err != nil {
-				return fmt.Errorf("failed to forward bit twister port: %v", err)
-			}
 			if err = node.Instance.SetLatencyAndJitter(b.manifest.LatencyParams.
 				Latency, b.manifest.LatencyParams.Jitter); err != nil {
 				return fmt.Errorf("failed to set latency and jitter: %v", err)

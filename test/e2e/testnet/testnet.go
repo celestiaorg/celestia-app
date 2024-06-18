@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package testnet
 
 import (
@@ -20,18 +21,10 @@ import (
 type Testnet struct {
 	seed      int64
 	nodes     []*Node
-	executor  *knuu.Executor
 	genesis   *genesis.Genesis
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
-}
-
-func (t *Testnet) GetExecutor() (*knuu.Executor, error) {
-	if t.executor == nil {
-		return nil, fmt.Errorf("testnet not initialized")
-	}
-	return t.executor, nil
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
@@ -43,18 +36,12 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 		return nil, err
 	}
 
-	executor, err := knuu.NewExecutor()
-	if err != nil {
-		return nil, err
-	}
-
 	return &Testnet{
-		seed:     seed,
-		nodes:    make([]*Node, 0),
-		genesis:  genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:   newKeyGenerator(seed),
-		grafana:  grafana,
-		executor: executor,
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
 }
 
@@ -282,13 +269,14 @@ func (t *Testnet) RPCEndpoints() []string {
 	return rpcEndpoints
 }
 
-func (t *Testnet) GRPCEndpoints() []string {
-	grpcEndpoints := make([]string, len(t.nodes))
-	for idx, node := range t.nodes {
-		grpcEndpoints[idx] = node.AddressGRPC()
-	}
-	return grpcEndpoints
-}
+// FIXME: This does not work currently with the reverse proxy
+// func (t *Testnet) GRPCEndpoints() []string {
+// 	grpcEndpoints := make([]string, len(t.nodes))
+// 	for idx, node := range t.nodes {
+// 		grpcEndpoints[idx] = node.AddressGRPC()
+// 	}
+// 	return grpcEndpoints
+// }
 
 // RemoteGRPCEndpoints retrieves the gRPC endpoint addresses of the
 // testnet's validator nodes.
@@ -339,6 +327,10 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+	err := t.StartTxClients()
+	if err != nil {
+		return err
+	}
 	for _, node := range genesisNodes {
 		client, err := node.Client()
 		if err != nil {
@@ -347,7 +339,11 @@ func (t *Testnet) Start() error {
 		for i := 0; i < 10; i++ {
 			resp, err := client.Status(context.Background())
 			if err != nil {
-				return fmt.Errorf("node %s status response: %w", node.Name, err)
+				if i == 9 {
+					return fmt.Errorf("node %s status response: %w", node.Name, err)
+				}
+				time.Sleep(time.Second)
+				continue
 			}
 			if resp.SyncInfo.LatestBlockHeight > 0 {
 				break
@@ -399,7 +395,7 @@ func (t *Testnet) Cleanup() {
 			if err != nil {
 				log.Err(err).
 					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
+					Msg("failed to wait for txsim to stop")
 			}
 			err = txsim.Instance.Destroy()
 			if err != nil {
@@ -408,9 +404,6 @@ func (t *Testnet) Cleanup() {
 					Msg("txsim failed to cleanup")
 			}
 		}
-	}
-	if err := t.executor.Destroy(); err != nil {
-		log.Err(err).Msg("executor failed to cleanup")
 	}
 }
 
