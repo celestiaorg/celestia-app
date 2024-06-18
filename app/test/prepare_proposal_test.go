@@ -242,7 +242,10 @@ func TestPrepareProposalBlockDataSize(t *testing.T) {
 		accounts[numBlobTxs:],
 		testutil.ChainID,
 	)
-	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+
+	txs := blobTxs
+	txs = append(txs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+
 	request := abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
 			Txs: txs,
