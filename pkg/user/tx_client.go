@@ -220,7 +220,7 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 // BroadcastPayForBlob signs and broadcasts a transaction to pay for blobs.
 // It does not confirm that the transaction has been committed on chain.
 // If no gas or gas price is set, it will estimate the gas and use
-// the max effective gas price: max(localMinGasPrice, globalMinGasPrice).
+// the max effective gas price: max(localMinGasPrice, networkMinGasPrice).
 func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
@@ -559,7 +559,7 @@ func (client *TxClient) SetGasMultiplier(multiplier float64) {
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide
-// minimum gas prices, returning the maximum of the two
+// minimum gas prices, returning the maximum of the two.
 func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
 	cfgRsp, err := nodeservice.NewServiceClient(grpcConn).Config(ctx, &nodeservice.ConfigRequest{})
 	if err != nil {
@@ -572,33 +572,39 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 	}
 	localMinPrice := localMinCoins.AmountOf(app.BondDenom).MustFloat64()
 
-	globalMinPrice, err := QueryGlobalMinGasPrice(ctx, grpcConn)
+	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
 	if err != nil {
+		// check if the network version supports a global min gas
+		// price using a regex check. If not (i.e. v1) use the
+		// local price only
+		if strings.Contains(err.Error(), "unknown subspace: minfee") {
+			return localMinPrice, nil
+		}
 		return 0, err
 	}
 
 	// return the highest value of the two
-	if globalMinPrice > localMinPrice {
-		return globalMinPrice, nil
+	if networkMinPrice > localMinPrice {
+		return networkMinPrice, nil
 	}
 	return localMinPrice, nil
 }
 
-func QueryGlobalMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
+func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
 	paramsClient := paramtypes.NewQueryClient(grpcConn)
 	// NOTE: that we don't prove that this is the correct value
-	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfee.ModuleName, Key: string(minfee.KeyGlobalMinGasPrice)})
+	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfee.ModuleName, Key: string(minfee.KeyNetworkMinGasPrice)})
 	if err != nil {
 		return 0, fmt.Errorf("querying params module: %w", err)
 	}
 
-	var globalMinPrice float64
-	// Value is empty if global min gas price is not supported i.e. v1 state machine
+	var networkMinPrice float64
+	// Value is empty if network min gas price is not supported i.e. v1 state machine.
 	if paramResponse.Param.Value != "" {
-		globalMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
+		networkMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
 		if err != nil {
-			return 0, fmt.Errorf("parsing global min gas price: %w", err)
+			return 0, fmt.Errorf("parsing network min gas price: %w", err)
 		}
 	}
-	return globalMinPrice, nil
+	return networkMinPrice, nil
 }

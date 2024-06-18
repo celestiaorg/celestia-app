@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 var (
@@ -32,15 +33,35 @@ func (mgk MsgVersioningGateKeeper) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	if !exists {
 		return ctx, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", ctx.BlockHeader().Version.App)
 	}
-	for _, msg := range tx.GetMsgs() {
-		msgTypeURL := sdk.MsgTypeURL(msg)
-		_, exists := acceptedMsgs[msgTypeURL]
-		if !exists {
-			return ctx, sdkerrors.ErrNotSupported.Wrapf("message type %s is not supported in version %d", msgTypeURL, ctx.BlockHeader().Version.App)
-		}
+
+	if err := mgk.hasInvalidMsg(ctx, acceptedMsgs, tx.GetMsgs()); err != nil {
+		return ctx, err
 	}
 
 	return next(ctx, tx, simulate)
+}
+
+func (mgk MsgVersioningGateKeeper) hasInvalidMsg(ctx sdk.Context, acceptedMsgs map[string]struct{}, msgs []sdk.Msg) error {
+	for _, msg := range msgs {
+		// Recursively check for invalid messages in nested authz messages.
+		if execMsg, ok := msg.(*authz.MsgExec); ok {
+			nestedMsgs, err := execMsg.GetMessages()
+			if err != nil {
+				return err
+			}
+			if err = mgk.hasInvalidMsg(ctx, acceptedMsgs, nestedMsgs); err != nil {
+				return err
+			}
+		}
+
+		msgTypeURL := sdk.MsgTypeURL(msg)
+		_, exists := acceptedMsgs[msgTypeURL]
+		if !exists {
+			return sdkerrors.ErrNotSupported.Wrapf("message type %s is not supported in version %d", msgTypeURL, ctx.BlockHeader().Version.App)
+		}
+	}
+
+	return nil
 }
 
 func (mgk MsgVersioningGateKeeper) IsAllowed(ctx context.Context, msgName string) (bool, error) {

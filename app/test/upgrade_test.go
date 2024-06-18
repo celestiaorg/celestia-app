@@ -30,7 +30,7 @@ import (
 // TestAppUpgrades verifies that the all module's params are overridden during an
 // upgrade from v1 -> v2 and the app version changes correctly.
 func TestAppUpgrades(t *testing.T) {
-	GlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+	NetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.NetworkMinGasPrice))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -42,8 +42,8 @@ func TestAppUpgrades(t *testing.T) {
 		{
 			module:        "MinFee",
 			subspace:      minfee.ModuleName,
-			key:           string(minfee.KeyGlobalMinGasPrice),
-			expectedValue: GlobalMinGasPriceDec.String(),
+			key:           string(minfee.KeyNetworkMinGasPrice),
+			expectedValue: NetworkMinGasPriceDec.String(),
 		},
 		{
 			module:        "ICA",
