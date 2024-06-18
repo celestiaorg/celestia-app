@@ -49,6 +49,12 @@ func (mgk MsgVersioningGateKeeper) hasInvalidMsg(ctx sdk.Context, acceptedMsgs m
 			if err != nil {
 				return err
 			}
+			// App version 2 introduces a new constraint that prevents a MsgExec inside a MsgExec.
+			if ctx.BlockHeader().Version.App > 2 {
+				if err = mgk.hasNestedMsgExec(ctx, nestedMsgs); err != nil {
+					return err
+				}
+			}
 			if err = mgk.hasInvalidMsg(ctx, acceptedMsgs, nestedMsgs); err != nil {
 				return err
 			}
@@ -61,6 +67,17 @@ func (mgk MsgVersioningGateKeeper) hasInvalidMsg(ctx sdk.Context, acceptedMsgs m
 		}
 	}
 
+	return nil
+}
+
+// hasNestedMsgExec returns an error if the given nested messages contain a
+// MsgExec.
+func (mgk MsgVersioningGateKeeper) hasNestedMsgExec(_ sdk.Context, nestedMsgs []sdk.Msg) error {
+	for _, nestedMsg := range nestedMsgs {
+		if _, ok := nestedMsg.(*authz.MsgExec); ok {
+			return sdkerrors.ErrNotSupported.Wrapf("nested MsgExec is not allowed in MsgExec")
+		}
+	}
 	return nil
 }
 

@@ -17,6 +17,7 @@ import (
 func TestMsgGateKeeperAnteHandler(t *testing.T) {
 	nestedBankSend := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}})
 	nestedMultiSend := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgMultiSend{}})
+	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&nestedBankSend})
 
 	// Define test cases
 	tests := []struct {
@@ -58,6 +59,18 @@ func TestMsgGateKeeperAnteHandler(t *testing.T) {
 		{
 			name:      "Reject nested MsgSend with version 2",
 			msg:       &nestedBankSend,
+			acceptMsg: false,
+			version:   2,
+		},
+		{
+			name:      "Allow MsgExec inside MsgExec with app version 1",
+			msg:       &nestedMsgExec,
+			acceptMsg: true,
+			version:   1,
+		},
+		{
+			name:      "Reject MsgExec inside MsgExec with app version 2",
+			msg:       &nestedMsgExec,
 			acceptMsg: false,
 			version:   2,
 		},
