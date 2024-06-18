@@ -16,13 +16,7 @@ const (
 	seed = 42
 )
 
-func main() {
-	if err := E2EThroughput(); err != nil {
-		log.Fatalf("--- ERROR Throughput test: %v", err.Error())
-	}
-}
-
-func E2EThroughput() error {
+func TwoNodeSimple(_ *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
@@ -105,7 +99,5 @@ func E2EThroughput() error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
-
-	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }
