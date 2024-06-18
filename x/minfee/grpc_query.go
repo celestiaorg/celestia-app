@@ -30,5 +30,5 @@ func (q *QueryServerImpl) NetworkMinGasPrice(ctx context.Context, _ *QueryNetwor
 		return nil, status.Errorf(codes.NotFound, "subspace not found for minfee. Minfee is only active in app version 2 and onwards")
 	}
 	subspace.GetParamSet(sdkCtx, &params)
-	return &QueryNetworkMinGasPriceResponse{NetworkMinGasPrice: params.GlobalMinGasPrice}, nil
+	return &QueryNetworkMinGasPriceResponse{NetworkMinGasPrice: params.NetworkMinGasPrice}, nil
 }
