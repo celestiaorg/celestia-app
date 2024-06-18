@@ -28,3 +28,14 @@ jobs:
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
       - name: Run e2e tests
         run: make test-e2e
+
+      - name: If the e2e test fails, notify Slack channel #e2e-test-failures
+        if: failure()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          notification_title: "E2E test failure"
+          message_format: "{emoji} *{workflow}* {status_message} in <{run_url}|{repo}>"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_E2E_TEST_FAILURES }}

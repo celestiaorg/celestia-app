@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -14,6 +15,9 @@ import (
 )
 
 func TestMsgGateKeeperAnteHandler(t *testing.T) {
+	nestedBankSend := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}})
+	nestedMultiSend := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgMultiSend{}})
+
 	// Define test cases
 	tests := []struct {
 		name      string
@@ -28,8 +32,20 @@ func TestMsgGateKeeperAnteHandler(t *testing.T) {
 			version:   1,
 		},
 		{
+			name:      "Accept nested MsgSend",
+			msg:       &nestedBankSend,
+			acceptMsg: true,
+			version:   1,
+		},
+		{
 			name:      "Reject MsgMultiSend",
 			msg:       &banktypes.MsgMultiSend{},
+			acceptMsg: false,
+			version:   1,
+		},
+		{
+			name:      "Reject nested MsgMultiSend",
+			msg:       &nestedMultiSend,
 			acceptMsg: false,
 			version:   1,
 		},
@@ -39,11 +55,18 @@ func TestMsgGateKeeperAnteHandler(t *testing.T) {
 			acceptMsg: false,
 			version:   2,
 		},
+		{
+			name:      "Reject nested MsgSend with version 2",
+			msg:       &nestedBankSend,
+			acceptMsg: false,
+			version:   2,
+		},
 	}
 
 	msgGateKeeper := ante.NewMsgVersioningGateKeeper(map[uint64]map[string]struct{}{
 		1: {
-			"/cosmos.bank.v1beta1.MsgSend": {},
+			"/cosmos.bank.v1beta1.MsgSend":  {},
+			"/cosmos.authz.v1beta1.MsgExec": {},
 		},
 		2: {},
 	})
@@ -56,7 +79,19 @@ func TestMsgGateKeeperAnteHandler(t *testing.T) {
 			txBuilder := cdc.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.msg))
 			_, err := anteHandler(ctx, txBuilder.GetTx(), false)
-			allowed, err2 := msgGateKeeper.IsAllowed(ctx, sdk.MsgTypeURL(tc.msg))
+
+			msg := tc.msg
+			if sdk.MsgTypeURL(msg) == "/cosmos.authz.v1beta1.MsgExec" {
+				execMsg, ok := msg.(*authz.MsgExec)
+				require.True(t, ok)
+
+				nestedMsgs, err := execMsg.GetMessages()
+				require.NoError(t, err)
+				msg = nestedMsgs[0]
+			}
+
+			allowed, err2 := msgGateKeeper.IsAllowed(ctx, sdk.MsgTypeURL(msg))
+
 			require.NoError(t, err2)
 			if tc.acceptMsg {
 				require.NoError(t, err, "expected message to be accepted")
