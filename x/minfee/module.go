@@ -109,7 +109,9 @@ func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 }
 
 // RegisterServices registers module services.
-func (am AppModule) RegisterServices(_ sdkmodule.Configurator) {}
+func (am AppModule) RegisterServices(cfg sdkmodule.Configurator) {
+	RegisterQueryServer(cfg.QueryServer(), NewQueryServerImpl(am.paramsKeeper))
+}
 
 // InitGenesis performs genesis initialization for the minfee module. It returns no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
