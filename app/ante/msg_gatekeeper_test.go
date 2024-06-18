@@ -7,112 +7,218 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-func TestMsgGateKeeperAnteHandler(t *testing.T) {
-	nestedBankSend := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}})
-	nestedMultiSend := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgMultiSend{}})
-	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&nestedBankSend})
+var (
+	nestedBankSend  = authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}})      // allowed in v1 and v3
+	nestedMultiSend = authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgMultiSend{}}) // allowed in v3
+	nestedMsgExec   = authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&nestedBankSend})           // allowed in v1
 
-	// Define test cases
+	acceptedList = map[uint64]map[string]struct{}{
+		1: {
+			"/cosmos.authz.v1beta1.MsgExec": {},
+			"/cosmos.bank.v1beta1.MsgSend":  {},
+		},
+		2: {
+			"/cosmos.authz.v1beta1.MsgExec": {},
+		},
+		3: {
+			"/cosmos.authz.v1beta1.MsgExec":     {},
+			"/cosmos.bank.v1beta1.MsgSend":      {},
+			"/cosmos.bank.v1beta1.MsgMultiSend": {},
+		},
+	}
+)
+
+func TestMsgGateKeeperAnteHandler(t *testing.T) {
 	tests := []struct {
-		name      string
-		msg       sdk.Msg
-		acceptMsg bool
-		version   uint64
+		name       string
+		msg        sdk.Msg
+		appVersion uint64
+		wantErr    error
 	}{
 		{
-			name:      "Accept MsgSend",
-			msg:       &banktypes.MsgSend{},
-			acceptMsg: true,
-			version:   1,
+			name:       "Accept MsgSend in v1",
+			msg:        &banktypes.MsgSend{},
+			appVersion: 1,
 		},
 		{
-			name:      "Accept nested MsgSend",
-			msg:       &nestedBankSend,
-			acceptMsg: true,
-			version:   1,
+			name:       "Reject MsgSend in v2",
+			msg:        &banktypes.MsgSend{},
+			appVersion: 2,
+			wantErr:    sdkerrors.ErrNotSupported,
 		},
 		{
-			name:      "Reject MsgMultiSend",
-			msg:       &banktypes.MsgMultiSend{},
-			acceptMsg: false,
-			version:   1,
+			name:       "Accept MsgSend in v3",
+			msg:        &banktypes.MsgSend{},
+			appVersion: 3,
 		},
 		{
-			name:      "Reject nested MsgMultiSend",
-			msg:       &nestedMultiSend,
-			acceptMsg: false,
-			version:   1,
+			name:       "Accept nestedBankSend in v1",
+			msg:        &nestedBankSend,
+			appVersion: 1,
 		},
 		{
-			name:      "Reject MsgSend with version 2",
-			msg:       &banktypes.MsgSend{},
-			acceptMsg: false,
-			version:   2,
+			name:       "Reject nestedBankSend in v2",
+			msg:        &nestedBankSend,
+			appVersion: 2,
+			wantErr:    sdkerrors.ErrNotSupported,
 		},
 		{
-			name:      "Reject nested MsgSend with version 2",
-			msg:       &nestedBankSend,
-			acceptMsg: false,
-			version:   2,
+			name:       "Accept nestedBankSend in v3",
+			msg:        &nestedBankSend,
+			appVersion: 3,
 		},
 		{
-			name:      "Allow MsgExec inside MsgExec with app version 1",
-			msg:       &nestedMsgExec,
-			acceptMsg: true,
-			version:   1,
+			name:       "Reject MsgMultiSend in v1",
+			msg:        &banktypes.MsgMultiSend{},
+			appVersion: 1,
+			wantErr:    sdkerrors.ErrNotSupported,
 		},
 		{
-			name:      "Reject MsgExec inside MsgExec with app version 2",
-			msg:       &nestedMsgExec,
-			acceptMsg: false,
-			version:   2,
+			name:       "Reject MsgMultiSend in v2",
+			msg:        &banktypes.MsgMultiSend{},
+			appVersion: 2,
+			wantErr:    sdkerrors.ErrNotSupported,
+		},
+		{
+			name:       "Accept MsgMultiSend in v3",
+			msg:        &banktypes.MsgMultiSend{},
+			appVersion: 3,
+		},
+		{
+			name:       "Reject nestedMultiSend in v1",
+			msg:        &nestedMultiSend,
+			appVersion: 1,
+			wantErr:    sdkerrors.ErrNotSupported,
+		},
+		{
+			name:       "Reject nestedMultiSend in v2",
+			msg:        &nestedMultiSend,
+			appVersion: 2,
+			wantErr:    sdkerrors.ErrNotSupported,
+		},
+		{
+			name:       "Accept nestedMultiSend in v3",
+			msg:        &nestedMultiSend,
+			appVersion: 3,
+		},
+		{
+			name:       "Accept nestedMsgExec in v1",
+			msg:        &nestedMsgExec,
+			appVersion: 1,
+		},
+		{
+			name:       "Reject nestedMsgExec in v2",
+			msg:        &nestedMsgExec,
+			appVersion: 2,
+			wantErr:    sdkerrors.ErrNotSupported,
+		},
+		{
+			name:       "Reject nestedMsgExec in v3",
+			msg:        &nestedMsgExec,
+			appVersion: 3,
+			wantErr:    sdkerrors.ErrNotSupported,
 		},
 	}
 
-	msgGateKeeper := ante.NewMsgVersioningGateKeeper(map[uint64]map[string]struct{}{
-		1: {
-			"/cosmos.bank.v1beta1.MsgSend":  {},
-			"/cosmos.authz.v1beta1.MsgExec": {},
-		},
-		2: {},
-	})
+	msgGateKeeper := ante.NewMsgVersioningGateKeeper(acceptedList)
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	anteHandler := sdk.ChainAnteDecorators(msgGateKeeper)
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := sdk.NewContext(nil, tmproto.Header{Version: version.Consensus{App: tc.version}}, false, nil)
+			ctx := sdk.NewContext(nil, tmproto.Header{Version: version.Consensus{App: tc.appVersion}}, false, nil)
 			txBuilder := cdc.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.msg))
+
 			_, err := anteHandler(ctx, txBuilder.GetTx(), false)
+			assert.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}
 
-			msg := tc.msg
-			if sdk.MsgTypeURL(msg) == "/cosmos.authz.v1beta1.MsgExec" {
-				execMsg, ok := msg.(*authz.MsgExec)
-				require.True(t, ok)
+func TestIsAllowed(t *testing.T) {
+	type testCase struct {
+		name       string
+		msg        sdk.Msg
+		appVersion uint64
+		want       bool
+	}
+	testCases := []testCase{
+		{
+			name:       "Accept MsgExec in v1",
+			msg:        &authz.MsgExec{},
+			appVersion: 1,
+			want:       true,
+		},
+		{
+			name:       "Accept MsgExec in v2",
+			msg:        &authz.MsgExec{},
+			appVersion: 2,
+			want:       true,
+		},
+		{
+			name:       "Accept MsgExec in v3",
+			msg:        &authz.MsgExec{},
+			appVersion: 3,
+			want:       true,
+		},
+		{
+			name:       "Accept MsgSend in v1",
+			msg:        &banktypes.MsgSend{},
+			appVersion: 1,
+			want:       true,
+		},
+		{
+			name:       "Reject MsgSend in v2",
+			msg:        &banktypes.MsgSend{},
+			appVersion: 2,
+			want:       false,
+		},
+		{
+			name:       "Accept MsgSend in v3",
+			msg:        &banktypes.MsgSend{},
+			appVersion: 3,
+			want:       true,
+		},
+		{
+			name:       "Reject MsgMultiSend in v1",
+			msg:        &banktypes.MsgMultiSend{},
+			appVersion: 1,
+			want:       false,
+		},
+		{
+			name:       "Reject MsgMultiSend in v2",
+			msg:        &banktypes.MsgMultiSend{},
+			appVersion: 2,
+			want:       false,
+		},
+		{
+			name:       "Accept MsgMultiSend in v3",
+			msg:        &banktypes.MsgMultiSend{},
+			appVersion: 3,
+			want:       true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			msgGateKeeper := ante.NewMsgVersioningGateKeeper(acceptedList)
+			cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			ctx := sdk.NewContext(nil, tmproto.Header{Version: version.Consensus{App: tc.appVersion}}, false, nil)
 
-				nestedMsgs, err := execMsg.GetMessages()
-				require.NoError(t, err)
-				msg = nestedMsgs[0]
-			}
+			txBuilder := cdc.TxConfig.NewTxBuilder()
+			require.NoError(t, txBuilder.SetMsgs(tc.msg))
 
-			allowed, err2 := msgGateKeeper.IsAllowed(ctx, sdk.MsgTypeURL(msg))
-
-			require.NoError(t, err2)
-			if tc.acceptMsg {
-				require.NoError(t, err, "expected message to be accepted")
-				require.True(t, allowed)
-			} else {
-				require.Error(t, err, "expected message to be rejected")
-				require.False(t, allowed)
-			}
+			got, _ := msgGateKeeper.IsAllowed(ctx, sdk.MsgTypeURL(tc.msg))
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
