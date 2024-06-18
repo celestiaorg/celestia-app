@@ -1,8 +1,7 @@
+//nolint:staticcheck
 package testnet
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,9 +43,10 @@ type Node struct {
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
-	rpcProxyPort   int
-	grpcProxyPort  int
-	traceProxyPort int
+	rpcProxyHost string
+	// FIXME: This does not work currently with the reverse proxy
+	// grpcProxyHost  string
+	traceProxyHost string
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
@@ -248,16 +248,17 @@ func (n Node) AddressP2P(withID bool) string {
 }
 
 // AddressRPC returns an RPC endpoint address for the node.
-// This returns the local proxy port that can be used to communicate with the node
+// This returns the proxy host that can be used to communicate with the node
 func (n Node) AddressRPC() string {
-	return fmt.Sprintf("http://127.0.0.1:%d", n.rpcProxyPort)
+	return n.rpcProxyHost
 }
 
-// AddressGRPC returns a GRPC endpoint address for the node. This returns the
-// local proxy port that can be used to communicate with the node
-func (n Node) AddressGRPC() string {
-	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
-}
+// FIXME: This does not work currently with the reverse proxy
+// // AddressGRPC returns a GRPC endpoint address for the node.
+// // This returns the proxy host that can be used to communicate with the node
+// func (n Node) AddressGRPC() string {
+// 	return n.grpcProxyHost
+// }
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressGRPC() (string, error) {
@@ -278,7 +279,7 @@ func (n Node) RemoteAddressRPC() (string, error) {
 }
 
 func (n Node) AddressTracing() string {
-	return fmt.Sprintf("http://127.0.0.1:%d", n.traceProxyPort)
+	return n.traceProxyHost
 }
 
 func (n Node) RemoteAddressTracing() (string, error) {
@@ -294,6 +295,7 @@ func (n Node) IsValidator() bool {
 }
 
 func (n Node) Client() (*http.HTTP, error) {
+	log.Debug().Str("RPC Address", n.AddressRPC()).Msg("Creating HTTP client for node")
 	return http.New(n.AddressRPC(), "/websocket")
 }
 
@@ -318,7 +320,27 @@ func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
-	return n.forwardPorts()
+
+	err, rpcProxyHost := n.Instance.AddHost(rpcPort)
+	if err != nil {
+		return err
+	}
+	n.rpcProxyHost = rpcProxyHost
+
+	// FIXME: This does not work currently with the reverse proxy
+	// err, grpcProxyHost := n.Instance.AddHost(grpcPort)
+	// if err != nil {
+	// 	return err
+	// }
+	// n.grpcProxyHost = grpcProxyHost
+
+	err, traceProxyHost := n.Instance.AddHost(tracingPort)
+	if err != nil {
+		return err
+	}
+	n.traceProxyHost = traceProxyHost
+
+	return nil
 }
 
 func (n *Node) GenesisValidator() genesis.Validator {
@@ -341,59 +363,9 @@ func (n *Node) Upgrade(version string) error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
-
-	return n.forwardPorts()
-}
-
-func (n *Node) forwardPorts() error {
-	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
-	}
-
-	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
-	}
-
-	traceProxyPort, err := n.Instance.PortForwardTCP(tracingPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", tracingPort, err)
-	}
-
-	n.rpcProxyPort = rpcProxyPort
-	n.grpcProxyPort = grpcProxyPort
-	n.traceProxyPort = traceProxyPort
-
-	return nil
-}
-
-func (n *Node) ForwardBitTwisterPort() error {
-	fwdBtPort, err := n.Instance.PortForwardTCP(n.Instance.BitTwister.Port())
-	if err != nil {
-		return err
-	}
-	n.Instance.BitTwister.SetPort(fwdBtPort)
-	n.Instance.BitTwister.SetNewClientByIPAddr("http://localhost")
-	log.Info().Str("address", fmt.Sprintf("http://localhost:%d", fwdBtPort)).Msg("BitTwister is listening")
 	return nil
 }
 
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
-}
-
-func (n *Node) GetHeight(executor *knuu.Executor) (int64, error) {
-	status, err := getStatus(executor, n.Instance)
-	if err == nil {
-		blockHeight, err := latestBlockHeightFromStatus(status)
-		if err == nil {
-			return blockHeight, nil
-		}
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return 0, err
-	}
-
-	return 0, fmt.Errorf("error getting height: %w", err)
 }

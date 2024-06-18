@@ -10,7 +10,7 @@ import (
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
-	bstypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -153,11 +153,11 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	t.Helper()
 
 	// Initialize store keys
-	bsKey := sdk.NewKVStoreKey(bstypes.StoreKey)
-	keyAcc := sdk.NewKVStoreKey(authtypes.StoreKey)
+	keyBlobstream := sdk.NewKVStoreKey(blobstreamtypes.StoreKey)
+	keyAuth := sdk.NewKVStoreKey(authtypes.StoreKey)
 	keyStaking := sdk.NewKVStoreKey(stakingtypes.StoreKey)
 	keyBank := sdk.NewKVStoreKey(banktypes.StoreKey)
-	keyDistro := sdk.NewKVStoreKey(distrtypes.StoreKey)
+	keyDistribution := sdk.NewKVStoreKey(distrtypes.StoreKey)
 	keyParams := sdk.NewKVStoreKey(paramstypes.StoreKey)
 	tkeyParams := sdk.NewTransientStoreKey(paramstypes.TStoreKey)
 	keySlashing := sdk.NewKVStoreKey(slashingtypes.StoreKey)
@@ -165,18 +165,17 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	// Initialize memory database and mount stores on it
 	db := dbm.NewMemDB()
 	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(bsKey, storetypes.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyAcc, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyBlobstream, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyAuth, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyParams, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyStaking, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyBank, storetypes.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyDistro, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyDistribution, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(tkeyParams, storetypes.StoreTypeTransient, db)
 	ms.MountStoreWithDB(keySlashing, storetypes.StoreTypeIAVL, db)
 	err := ms.LoadLatestVersion()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
-	// Create sdk.Context
 	ctx := sdk.NewContext(ms, tmproto.Header{
 		Version: tmversion.Consensus{
 			Block: 0,
@@ -211,29 +210,29 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	paramsKeeper.Subspace(banktypes.ModuleName)
 	paramsKeeper.Subspace(stakingtypes.ModuleName)
 	paramsKeeper.Subspace(distrtypes.ModuleName)
-	paramsKeeper.Subspace(bstypes.DefaultParamspace)
+	paramsKeeper.Subspace(blobstreamtypes.DefaultParamspace)
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
 
 	// this is also used to initialize module accounts for all the map keys
-	maccPerms := map[string][]string{
+	moduleAccountPermissions := map[string][]string{
 		authtypes.FeeCollectorName:     nil,
 		distrtypes.ModuleName:          nil,
 		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		bstypes.ModuleName:             {authtypes.Minter, authtypes.Burner},
+		blobstreamtypes.ModuleName:     {authtypes.Minter, authtypes.Burner},
 	}
 
 	accountKeeper := authkeeper.NewAccountKeeper(
 		marshaler,
-		keyAcc, // target store
+		keyAuth, // target store
 		getSubspace(paramsKeeper, authtypes.ModuleName),
 		authtypes.ProtoBaseAccount, // prototype
-		maccPerms,
+		moduleAccountPermissions,
 		app.Bech32PrefixAccAddr,
 	)
 
-	blockedAddr := make(map[string]bool, len(maccPerms))
-	for acc := range maccPerms {
+	blockedAddr := make(map[string]bool, len(moduleAccountPermissions))
+	for acc := range moduleAccountPermissions {
 		blockedAddr[authtypes.NewModuleAddress(acc).String()] = true
 	}
 	bankKeeper := bankkeeper.NewBaseKeeper(
@@ -254,32 +253,28 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	stakingKeeper := stakingkeeper.NewKeeper(marshaler, keyStaking, accountKeeper, bankKeeper, getSubspace(paramsKeeper, stakingtypes.ModuleName))
 	stakingKeeper.SetParams(ctx, TestingStakeParams)
 
-	distKeeper := distrkeeper.NewKeeper(marshaler, keyDistro, getSubspace(paramsKeeper, distrtypes.ModuleName), accountKeeper, bankKeeper, stakingKeeper, authtypes.FeeCollectorName)
+	distKeeper := distrkeeper.NewKeeper(marshaler, keyDistribution, getSubspace(paramsKeeper, distrtypes.ModuleName), accountKeeper, bankKeeper, stakingKeeper, authtypes.FeeCollectorName)
 	distKeeper.SetParams(ctx, distrtypes.DefaultParams())
-
-	// set genesis items required for distribution
 	distKeeper.SetFeePool(ctx, distrtypes.InitialFeePool())
 
-	// total supply to track this
-	totalSupply := sdk.NewCoins(sdk.NewInt64Coin("stake", 100000000))
-
 	// set up initial accounts
-	for name, perms := range maccPerms {
-		mod := authtypes.NewEmptyModuleAccount(name, perms...)
+	for name, permissions := range moduleAccountPermissions {
+		moduleAccount := authtypes.NewEmptyModuleAccount(name, permissions...)
+		totalSupply := sdk.NewCoins(sdk.NewInt64Coin("stake", 100000000))
 		if name == stakingtypes.NotBondedPoolName {
-			err = bankKeeper.MintCoins(ctx, bstypes.ModuleName, totalSupply)
+			err = bankKeeper.MintCoins(ctx, blobstreamtypes.ModuleName, totalSupply)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, bstypes.ModuleName, mod.Name, totalSupply)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, blobstreamtypes.ModuleName, moduleAccount.Name, totalSupply)
 			require.NoError(t, err)
 		} else if name == distrtypes.ModuleName {
 			// some big pot to pay out
 			amt := sdk.NewCoins(sdk.NewInt64Coin("stake", 500000))
-			err = bankKeeper.MintCoins(ctx, bstypes.ModuleName, amt)
+			err = bankKeeper.MintCoins(ctx, blobstreamtypes.ModuleName, amt)
 			require.NoError(t, err)
-			err = bankKeeper.SendCoinsFromModuleToModule(ctx, bstypes.ModuleName, mod.Name, amt)
+			err = bankKeeper.SendCoinsFromModuleToModule(ctx, blobstreamtypes.ModuleName, moduleAccount.Name, amt)
 			require.NoError(t, err)
 		}
-		accountKeeper.SetModuleAccount(ctx, mod)
+		accountKeeper.SetModuleAccount(ctx, moduleAccount)
 	}
 
 	stakeAddr := authtypes.NewModuleAddress(stakingtypes.BondedPoolName)
@@ -290,22 +285,21 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 		marshaler,
 		keySlashing,
 		&stakingKeeper,
-		getSubspace(paramsKeeper, slashingtypes.ModuleName).WithKeyTable(slashingtypes.ParamKeyTable()),
+		getSubspace(paramsKeeper, slashingtypes.ModuleName),
 	)
 
-	k := keeper.NewKeeper(marshaler, bsKey, getSubspace(paramsKeeper, bstypes.DefaultParamspace), &stakingKeeper)
-	testBlobstreamParams := bstypes.DefaultGenesis().Params
-	k.SetParams(ctx, *testBlobstreamParams)
+	blobstreamKeeper := keeper.NewKeeper(marshaler, keyBlobstream, getSubspace(paramsKeeper, blobstreamtypes.DefaultParamspace), &stakingKeeper)
+	blobstreamKeeper.SetParams(ctx, *blobstreamtypes.DefaultGenesis().Params)
 
 	stakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
 			distKeeper.Hooks(),
 			slashingKeeper.Hooks(),
-			k.Hooks(),
+			blobstreamKeeper.Hooks(),
 		),
 	)
 	return TestInput{
-		BlobstreamKeeper: *k,
+		BlobstreamKeeper: *blobstreamKeeper,
 		AccountKeeper:    accountKeeper,
 		BankKeeper:       bankKeeper,
 		StakingKeeper:    stakingKeeper,
@@ -335,7 +329,7 @@ func MakeTestCodec() *codec.LegacyAmino {
 	sdk.RegisterLegacyAminoCodec(cdc)
 	ccodec.RegisterCrypto(cdc)
 	params.AppModuleBasic{}.RegisterLegacyAminoCodec(cdc)
-	bstypes.RegisterLegacyAminoCodec(cdc)
+	blobstreamtypes.RegisterLegacyAminoCodec(cdc)
 	return cdc
 }
 
@@ -350,7 +344,7 @@ func MakeTestMarshaler() codec.Codec {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	std.RegisterInterfaces(interfaceRegistry)
 	ModuleBasics.RegisterInterfaces(interfaceRegistry)
-	bstypes.RegisterInterfaces(interfaceRegistry)
+	blobstreamtypes.RegisterInterfaces(interfaceRegistry)
 	return codec.NewProtoCodec(interfaceRegistry)
 }
 
@@ -392,8 +386,8 @@ func CreateValidator(
 	)
 
 	// Set the balance for the account
-	require.NoError(t, input.BankKeeper.MintCoins(input.Context, bstypes.ModuleName, InitCoins))
-	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, bstypes.ModuleName, acc.GetAddress(), InitCoins)
+	require.NoError(t, input.BankKeeper.MintCoins(input.Context, blobstreamtypes.ModuleName, InitCoins))
+	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, blobstreamtypes.ModuleName, acc.GetAddress(), InitCoins)
 	require.NoError(t, err)
 
 	// Set the account in state
@@ -413,7 +407,7 @@ func RegisterEVMAddress(
 	evmAddr gethcommon.Address,
 ) {
 	bsMsgServer := keeper.NewMsgServerImpl(input.BlobstreamKeeper)
-	registerMsg := bstypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
+	registerMsg := blobstreamtypes.NewMsgRegisterEVMAddress(valAddr, evmAddr)
 	_, err := bsMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 	require.NoError(t, err)
 }
@@ -468,8 +462,8 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 		// Set the balance for the account
 		weightCoins := sdk.NewCoins(sdk.NewInt64Coin(TestingStakeParams.BondDenom, int64(weight)))
-		require.NoError(t, input.BankKeeper.MintCoins(input.Context, bstypes.ModuleName, weightCoins))
-		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, bstypes.ModuleName, accAddr, weightCoins))
+		require.NoError(t, input.BankKeeper.MintCoins(input.Context, blobstreamtypes.ModuleName, weightCoins))
+		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, blobstreamtypes.ModuleName, accAddr, weightCoins))
 
 		// Set the account in state
 		input.AccountKeeper.SetAccount(input.Context, acc)
@@ -482,7 +476,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		)
 		require.NoError(t, err)
 
-		registerMsg := bstypes.NewMsgRegisterEVMAddress(valAddr, EVMAddrs[i])
+		registerMsg := blobstreamtypes.NewMsgRegisterEVMAddress(valAddr, EVMAddrs[i])
 		_, err = bsMsgServer.RegisterEVMAddress(input.Context, registerMsg)
 		require.NoError(t, err)
 

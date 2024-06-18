@@ -5,13 +5,13 @@ import "google/api/annotations.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
-// Query defines the upgrade Query service.
+// Query defines the signal Query service.
 service Query {
-  // VersionTally enables a client to query for the tally of voting power has
-  // signalled for a particular version.
+  // VersionTally enables a client to query for the tally of voting power that
+  // has signalled for a particular version.
   rpc VersionTally(QueryVersionTallyRequest)
       returns (QueryVersionTallyResponse) {
-    option (google.api.http).get = "/upgrade/v1/tally/{version}";
+    option (google.api.http).get = "/signal/v1/tally/{version}";
   }
 }
 
