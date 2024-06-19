@@ -5,7 +5,7 @@ var (
 	// pending.
 	UpgradeKey = []byte{0x00}
 
-	// FirstSignalKey is used as a divier to separate the UpgradeKey from all
+	// FirstSignalKey is used as a divider to separate the UpgradeKey from all
 	// the keys associated with signals from validators. In practice, this key
 	// isn't expected to be set or retrieved.
 	FirstSignalKey = []byte{0x000}
