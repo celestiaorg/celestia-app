@@ -221,11 +221,15 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	if err := n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
-		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
+	err = n.Instance.Commit()
+	if err != nil {
+		return fmt.Errorf("committing instance: %w", err)
 	}
 
-	return n.Instance.Commit()
+	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
+	}
+	return nil
 }
 
 // AddressP2P returns a P2P endpoint address for the node. This is used for
@@ -296,10 +300,23 @@ func (n Node) Client() (*http.HTTP, error) {
 }
 
 func (n *Node) Start() error {
-	if err := n.Instance.Start(); err != nil {
+	if err := n.StartAsync(); err != nil {
 		return err
 	}
+	if err := n.WaitUntilStartedAndForwardPorts(); err != nil {
+		return err
+	}
+	return nil
+}
 
+func (n *Node) StartAsync() error {
+	if err := n.Instance.StartAsync(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
