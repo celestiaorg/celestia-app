@@ -62,8 +62,8 @@ func TestCircuitBreaker(t *testing.T) {
 
 	nestedTx := newNestedTx(t, signer, granterAddress)
 	res = testApp.DeliverTx(abci.RequestDeliverTx{Tx: nestedTx})
-	assert.Equal(t, uint32(0x1), res.Code, res.Log)
-	assert.Contains(t, res.Log, "circuit breaker disables execution of this message: /celestia.signal.v1.MsgTryUpgrade")
+	assert.Equal(t, uint32(0x25), res.Code, res.Log)
+	assert.Contains(t, res.Log, "message type /celestia.signal.v1.MsgTryUpgrade is not supported in version 1: feature not supported")
 }
 
 func newTryUpgradeTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAddress) coretypes.Tx {
