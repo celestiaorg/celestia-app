@@ -50,15 +50,22 @@ func WithDefaultAddress(address sdktypes.AccAddress) Option {
 			panic(err)
 		}
 		c.defaultAccount = record.Name
+		c.defaultAddress = address
 	}
 }
 
 func WithDefaultAccount(name string) Option {
 	return func(c *TxClient) {
-		if _, err := c.signer.keys.Key(name); err != nil {
+		rec, err := c.signer.keys.Key(name)
+		if err != nil {
+			panic(err)
+		}
+		addr, err := rec.GetAddress()
+		if err != nil {
 			panic(err)
 		}
 		c.defaultAccount = name
+		c.defaultAddress = addr
 	}
 }
 
