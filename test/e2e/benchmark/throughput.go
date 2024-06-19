@@ -261,6 +261,35 @@ func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
 	return nil
 }
 
+func LargeNetwork_BigBlock_8MiB_Latency(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_8MiB_Latency")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "LargeNetwork_BigBlock_8MiB_Latency"
+	manifest.ChainID = "large-network-big-block-8mib-latency"
+	manifest.MaxBlockBytes = 8 * toMiB
+	manifest.Validators = 100
+	manifest.TxClients = 100
+	manifest.BlobSequences = 20
+	manifest.TestDuration = 15 * time.Minute
+	manifest.EnableLatency = true
+	manifest.LatencyParams = LatencyParams{70, 0} // in  milliseconds
+
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_8MiB_Latency", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: LargeNetwork_BigBlock_8MiB_Latency")
+	return nil
+}
+
 func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
 	logger.Println("Running LargeNetwork_BigBlock_32MiB")
 	manifest := bigBlockManifest
