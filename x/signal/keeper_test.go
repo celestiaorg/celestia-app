@@ -12,6 +12,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/x/signal"
 	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -184,7 +186,7 @@ func TestTallyingLogic(t *testing.T) {
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
-	require.Equal(t, uint64(2), version)
+	require.Equal(t, v2.Version, version)
 
 	upgradeKeeper.ResetTally(ctx)
 
@@ -257,7 +259,7 @@ func TestCanSkipVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 	goCtx := sdk.WrapSDKContext(ctx)
 
-	require.Equal(t, uint64(1), ctx.BlockHeader().Version.App)
+	require.Equal(t, v1.Version, ctx.BlockHeader().Version.App)
 
 	validators := []sdk.ValAddress{
 		testutil.ValAddrs[0],
@@ -422,7 +424,7 @@ func TestGetUpgrade(t *testing.T) {
 
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, uint64(2), got.Upgrade.AppVersion)
+		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
 		assert.Equal(t, signal.DefaultUpgradeHeightDelay, got.Upgrade.UpgradeHeight)
 	})
 }
