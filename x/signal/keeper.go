@@ -63,11 +63,10 @@ func (k Keeper) SignalVersion(ctx context.Context, req *types.MsgSignalVersion) 
 		return nil, err
 	}
 
-	// The signalled version must be either the current version or the next
-	// version.
+	// The signalled version can not be less than the current version.
 	currentVersion := sdkCtx.BlockHeader().Version.App
-	if req.Version != currentVersion && req.Version != currentVersion+1 {
-		return nil, types.ErrInvalidVersion
+	if req.Version < currentVersion {
+		return nil, types.ErrInvalidVersion.Wrapf("signalled version %d, current version %d", req.Version, currentVersion)
 	}
 
 	_, found := k.stakingKeeper.GetValidator(sdkCtx, valAddr)

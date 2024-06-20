@@ -77,6 +77,13 @@ type AppModule struct {
 
 // NewAppModule creates a new AppModule object
 func NewAppModule(k params.Keeper) AppModule {
+	// Register the parameter key table in its associated subspace.
+	subspace, exists := k.GetSubspace(ModuleName)
+	if !exists {
+		panic("minfee subspace not set")
+	}
+	RegisterMinFeeParamTable(subspace)
+
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		paramsKeeper:   k,
@@ -102,7 +109,9 @@ func (am AppModule) LegacyQuerierHandler(_ *codec.LegacyAmino) sdk.Querier {
 }
 
 // RegisterServices registers module services.
-func (am AppModule) RegisterServices(_ sdkmodule.Configurator) {}
+func (am AppModule) RegisterServices(cfg sdkmodule.Configurator) {
+	RegisterQueryServer(cfg.QueryServer(), NewQueryServerImpl(am.paramsKeeper))
+}
 
 // InitGenesis performs genesis initialization for the minfee module. It returns no validator updates.
 func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
@@ -116,13 +125,13 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 
 	subspace = RegisterMinFeeParamTable(subspace)
 
-	// Set the global min gas price initial value
-	globalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.GlobalMinGasPrice))
+	// Set the network min gas price initial value
+	networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.NetworkMinGasPrice))
 	if err != nil {
-		panic("failed to convert GlobalMinGasPrice to sdk.Dec")
+		panic("failed to convert NetworkMinGasPrice to sdk.Dec")
 	}
 
-	subspace.SetParamSet(ctx, &Params{GlobalMinGasPrice: globalMinGasPriceDec})
+	subspace.SetParamSet(ctx, &Params{NetworkMinGasPrice: networkMinGasPriceDec})
 
 	return []abci.ValidatorUpdate{}
 }
