@@ -24,30 +24,30 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-type sdkTxStruct struct {
+type SdkTx struct {
 	sdkMsgs   []sdk.Msg
 	txOptions []user.TxOption
 }
 
-type blobTxStruct struct {
+type BlobTx struct {
 	author    string
 	blobs     []*tmproto.Blob
 	txOptions []user.TxOption
 }
 
-// TestConsistentAppHash executes a set of txs, generating an app hash,
+// TestConsistentAppHash executes a set of txs, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
-	// App hash produced on a different commit
-	originalAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
+	// App hash produced from executing txs on this branch
+	expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
 
 	// Initialize testApp
 	testApp := testutil.NewTestApp()
 
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	// Create deterministic keys
-	kr, pubKeys := DeterministicKeyRing(enc.Codec)
+	kr, pubKeys := deterministicKeyRing(enc.Codec)
 
 	recs, err := kr.List()
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 
 	// Apply genesis state to the app.
-	_, _, err = testutil.ApplyGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
+	_, _, err = testutil.SetupDeterministicGenesisState(testApp, pubKeys, 1_000_000_000, app.DefaultInitialConsensusParams())
 	require.NoError(t, err)
 
 	// Query keyring account infos
@@ -79,7 +79,7 @@ func TestConsistentAppHash(t *testing.T) {
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000)))
 
 	// Create an SDK Tx
-	sdkTx := sdkTxStruct{
+	sdkTx := SdkTx{
 		sdkMsgs: []sdk.Msg{
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
@@ -89,9 +89,9 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 
 	// Create a Blob Tx
-	blobTx := blobTxStruct{
+	blobTx := BlobTx{
 		author:    accountNames[2],
-		blobs:     []*tmproto.Blob{New(Namespace(), []byte{1}, appconsts.DefaultShareVersion)},
+		blobs:     []*tmproto.Blob{New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 
@@ -127,22 +127,22 @@ func TestConsistentAppHash(t *testing.T) {
 	testApp.Commit()
 
 	// Get the app hash
-	currentAppHash := testApp.LastCommitID().Hash
+	appHash := testApp.LastCommitID().Hash
 
-	// Require that the current app hash is equal to the one produced on a different commit
-	require.Equal(t, originalAppHash, currentAppHash)
+	// Require that the app hash is equal to the app hash produced on a different commit
+	require.Equal(t, expectedAppHash, appHash)
 }
 
-// DeterministicNamespace returns a deterministic namespace
-func Namespace() appns.Namespace {
+// fixedNamespace returns a hardcoded namespace
+func fixedNamespace() appns.Namespace {
 	return appns.Namespace{
 		Version: 0,
 		ID:      []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 67, 154, 200, 228, 130, 74, 147, 162, 11},
 	}
 }
 
-// DeterministicKeyRing returns a deterministic keyring and a list of deterministic public keys
-func DeterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
+// deterministicKeyRing returns a deterministic keyring and a list of deterministic public keys
+func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 	mnemonics := []string{
 		"great myself congress genuine scale muscle view uncover pipe miracle sausage broccoli lonely swap table foam brand turtle comic gorilla firm mad grunt hazard",
 		"cheap job month trigger flush cactus chest juice dolphin people limit crunch curious secret object beach shield snake hunt group sketch cousin puppy fox",
