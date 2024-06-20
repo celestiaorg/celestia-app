@@ -10,6 +10,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/x/signal"
 	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -62,8 +66,9 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
-			k := signal.NewKeeper(nil, stakingKeeper)
+			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
 			got := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
@@ -79,7 +84,7 @@ func TestSignalVersion(t *testing.T) {
 			Version:          0,
 		})
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, types.ErrInvalidVersion)
+		assert.ErrorIs(t, err, types.ErrInvalidSignalVersion)
 	})
 	t.Run("should not return an error if the signal version is greater than the next version", func(t *testing.T) {
 		_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
@@ -121,7 +126,7 @@ func TestTallyingLogic(t *testing.T) {
 		Version:          0,
 	})
 	require.Error(t, err)
-	require.ErrorIs(t, err, types.ErrInvalidVersion) // version 0 is invalid because it is less than the current version
+	require.ErrorIs(t, err, types.ErrInvalidSignalVersion)
 
 	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[0].String(),
@@ -159,7 +164,7 @@ func TestTallyingLogic(t *testing.T) {
 
 	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
-	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade()
+	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade)
 	require.Equal(t, uint64(0), version)
 
@@ -172,9 +177,19 @@ func TestTallyingLogic(t *testing.T) {
 
 	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
-	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade()
-	require.True(t, shouldUpgrade)
-	require.Equal(t, uint64(2), version)
+
+	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
+	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
+	require.Equal(t, uint64(0), version)
+
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + signal.DefaultUpgradeHeightDelay)
+
+	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
+	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
+	require.Equal(t, v2.Version, version)
+
+	upgradeKeeper.ResetTally(ctx)
+
 	// update the version to 2
 	ctx = ctx.WithBlockHeader(tmproto.Header{
 		Version: tmversion.Consensus{
@@ -187,6 +202,16 @@ func TestTallyingLogic(t *testing.T) {
 	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
 		ValidatorAddress: testutil.ValAddrs[0].String(),
 		Version:          3,
+	})
+	require.NoError(t, err)
+	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[1].String(),
+		Version:          2,
+	})
+	require.NoError(t, err)
+	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[2].String(),
+		Version:          2,
 	})
 	require.NoError(t, err)
 
@@ -234,7 +259,7 @@ func TestCanSkipVersion(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 	goCtx := sdk.WrapSDKContext(ctx)
 
-	require.Equal(t, uint64(1), ctx.BlockHeader().Version.App)
+	require.Equal(t, v1.Version, ctx.BlockHeader().Version.App)
 
 	validators := []sdk.ValAddress{
 		testutil.ValAddrs[0],
@@ -254,9 +279,8 @@ func TestCanSkipVersion(t *testing.T) {
 	_, err := upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
 	require.NoError(t, err)
 
-	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade()
-	require.True(t, shouldUpgrade)
-	require.Equal(t, uint64(3), version)
+	isUpgradePending := upgradeKeeper.IsUpgradePending(ctx)
+	require.True(t, isUpgradePending)
 }
 
 func TestEmptyStore(t *testing.T) {
@@ -291,32 +315,118 @@ func TestThresholdVotingPower(t *testing.T) {
 	}
 }
 
-// TestResetTally verifies that the VotingPower for all versions is reset to
-// zero after calling ResetTally.
+// TestResetTally verifies that ResetTally resets the VotingPower for all
+// versions to 0 and any pending upgrade is cleared.
 func TestResetTally(t *testing.T) {
 	upgradeKeeper, ctx, _ := setup(t)
 
-	_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 1})
+	_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 2})
 	require.NoError(t, err)
-	resp, err := upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	resp, err := upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(40), resp.VotingPower)
 
-	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 3})
 	require.NoError(t, err)
-	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 3})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), resp.VotingPower)
 
-	upgradeKeeper.ResetTally(ctx)
-
-	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 1})
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 2})
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0), resp.VotingPower)
+	_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 2})
+	require.NoError(t, err)
+
+	_, err = upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{})
+	require.NoError(t, err)
+
+	assert.True(t, upgradeKeeper.IsUpgradePending(ctx))
+
+	upgradeKeeper.ResetTally(ctx)
 
 	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 2})
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0), resp.VotingPower)
+
+	resp, err = upgradeKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{Version: 3})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(0), resp.VotingPower)
+
+	assert.False(t, upgradeKeeper.IsUpgradePending(ctx))
+}
+
+func TestTryUpgrade(t *testing.T) {
+	t.Run("should return an error if an upgrade is already pending", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		goCtx := sdk.WrapSDKContext(ctx)
+
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 2})
+		require.NoError(t, err)
+
+		// This TryUpgrade should succeed.
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.NoError(t, err)
+
+		// This TryUpgrade should fail because an upgrade is pending.
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.Error(t, err)
+		require.ErrorIs(t, err, types.ErrUpgradePending)
+	})
+
+	t.Run("should return an error if quorum version is less than or equal to the current version", func(t *testing.T) {
+		upgradeKeeper, ctx, _ := setup(t)
+		goCtx := sdk.WrapSDKContext(ctx)
+
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 1})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 1})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 1})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 1})
+		require.NoError(t, err)
+
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.Error(t, err)
+		require.ErrorIs(t, err, types.ErrInvalidUpgradeVersion)
+	})
+}
+
+func TestGetUpgrade(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+	goCtx := sdk.WrapSDKContext(ctx)
+
+	t.Run("should return an empty upgrade if no upgrade is pending", func(t *testing.T) {
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Nil(t, got.Upgrade)
+	})
+
+	t.Run("should return an upgrade if an upgrade is pending", func(t *testing.T) {
+		_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[0].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[1].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[2].String(), Version: 2})
+		require.NoError(t, err)
+		_, err = upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: testutil.ValAddrs[3].String(), Version: 2})
+		require.NoError(t, err)
+
+		// This TryUpgrade should succeed.
+		_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+		require.NoError(t, err)
+
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
+		assert.Equal(t, signal.DefaultUpgradeHeightDelay, got.Upgrade.UpgradeHeight)
+	})
 }
 
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
@@ -340,7 +450,8 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 		},
 	)
 
-	upgradeKeeper := signal.NewKeeper(signalStore, mockStakingKeeper)
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }
 
