@@ -65,13 +65,13 @@ func TwoNodeSimple(logger *log.Logger) error {
 		ValidatorResource:  testnet.DefaultResources,
 		TxClientsResource:  testnet.DefaultResources,
 		SelfDelegation:     10000000,
-		CelestiaAppVersion: latestVersion,
-		TxClientVersion:    testnet.TxsimVersion,
+		CelestiaAppVersion: "pr-3541", //latestVersion,
+		TxClientVersion:    "pr-3541", // testnet.TxsimVersion,
 		EnableLatency:      true,
 		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
-		BlobsPerSeq:        1,
-		BlobSequences:      1,
-		BlobSizes:          "10000-10000",
+		BlobsPerSeq:        6,
+		BlobSequences:      60,
+		BlobSizes:          "200000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
@@ -84,7 +84,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		LocalTracingType:   "local",
 		PushTrace:          false,
 		DownloadTraces:     false,
-		TestDuration:       30 * time.Second,
+		TestDuration:       120 * time.Second,
 		TxClients:          2,
 	}
 
