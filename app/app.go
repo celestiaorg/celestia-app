@@ -276,7 +276,7 @@ func New(
 		),
 	)
 
-	app.SignalKeeper = signal.NewKeeper(keys[signaltypes.StoreKey], app.StakingKeeper)
+	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec,
@@ -301,13 +301,13 @@ func New(
 
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
 
-	// register the proposal types
+	// Register the proposal types.
 	govRouter := oldgovtypes.NewRouter()
 	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
-	// Create Transfer Keepers
+	// Create Transfer Keepers.
 	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
 
 	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
@@ -326,7 +326,7 @@ func New(
 		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
 	)
-	// transfer stack contains (from top to bottom):
+	// Transfer stack contains (from top to bottom):
 	// - Token Filter
 	// - Packet Forwarding Middleware
 	// - Transfer
@@ -339,9 +339,9 @@ func New(
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
-	// packetForwardMiddleware is used only for version 2
+	// PacketForwardMiddleware is used only for version 2.
 	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
-	// token filter wraps packet forward middleware and is thus the first module in the transfer stack
+	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
 	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
 	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
 
@@ -464,7 +464,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			}
 		}
 		// from v2 to v3 and onwards we use a signalling mechanism
-	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(); shouldUpgrade {
+	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.SetAppVersion(ctx, newVersion)

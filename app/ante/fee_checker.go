@@ -27,7 +27,7 @@ func ValidateTxFeeWrapper(paramKeeper params.Keeper) ante.TxFeeChecker {
 
 // ValidateTxFee implements default fee validation logic for transactions.
 // It ensures that the provided transaction fee meets a minimum threshold for the node
-// as well as a global minimum threshold and computes the tx priority based on the gas price.
+// as well as a network minimum threshold and computes the tx priority based on the gas price.
 func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
@@ -50,24 +50,24 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.C
 		}
 	}
 
-	// Ensure that the provided fee meets a global minimum threshold.
-	// Global minimum fee only applies to app versions greater than one
+	// Ensure that the provided fee meets a network minimum threshold.
+	// Network minimum fee only applies to app versions greater than one.
 	if ctx.BlockHeader().Version.App > v1.Version {
 		subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
 		if !exists {
 			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
 		}
 
-		if !subspace.Has(ctx, minfee.KeyGlobalMinGasPrice) {
-			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "GlobalMinGasPrice")
+		if !subspace.Has(ctx, minfee.KeyNetworkMinGasPrice) {
+			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "NetworkMinGasPrice")
 		}
 
-		var globalMinGasPrice sdk.Dec
-		// Gets the global minimum gas price from the param store
-		// panics if not configured properly
-		subspace.Get(ctx, minfee.KeyGlobalMinGasPrice, &globalMinGasPrice)
+		var networkMinGasPrice sdk.Dec
+		// Gets the network minimum gas price from the param store.
+		// Panics if not configured properly.
+		subspace.Get(ctx, minfee.KeyNetworkMinGasPrice, &networkMinGasPrice)
 
-		err := verifyMinFee(fee, gas, globalMinGasPrice, "insufficient gas price for the network")
+		err := verifyMinFee(fee, gas, networkMinGasPrice, "insufficient gas price for the network")
 		if err != nil {
 			return nil, 0, err
 		}

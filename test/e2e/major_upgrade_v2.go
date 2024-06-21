@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package main
 
 import (
@@ -5,15 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/txsim"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
@@ -25,7 +23,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	numNodes := 4
-	upgradeHeight := int64(12)
+	upgradeHeight := int64(10)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -49,29 +47,24 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		testnet.NoError("failed to create genesis node", err)
 	}
 
-	kr, err := testNet.CreateAccount("alice", 1e12, "")
-	testnet.NoError("failed to create account", err)
+	logger.Println("Creating txsim")
+	endpoints, err := testNet.RemoteGRPCEndpoints()
+	testnet.NoError("failed to get remote gRPC endpoints", err)
+	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start())
 
-	errCh := make(chan error)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	opts := txsim.DefaultOptions().WithSeed(seed).SuppressLogs()
-	sequences := txsim.NewBlobSequence(txsim.NewRange(200, 4000), txsim.NewRange(1, 3)).Clone(5)
-	sequences = append(sequences, txsim.NewSendSequence(4, 1000, 100).Clone(5)...)
-	go func() {
-		errCh <- txsim.Run(ctx, testNet.GRPCEndpoints()[0], kr, encCfg, opts, sequences...)
-	}()
-
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
+
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
-		testnet.NoError("failed to wait for height", waitForHeight(testNet, testNet.Node(i), upgradeHeight, time.Minute))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
 		testnet.NoError("failed to get header", err)
@@ -87,13 +80,25 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		}
 	}
 
-	// end txsim
-	cancel()
+	// make all nodes in the network restart and ensure that progress is still made
+	for _, node := range testNet.Nodes() {
+		client, err := node.Client()
+		testnet.NoError("failed to get client", err)
 
-	err = <-errCh
-	if !strings.Contains(err.Error(), context.Canceled.Error()) {
-		return fmt.Errorf("expected context.Canceled error, got: %w", err)
+		height, err := getHeight(ctx, client, time.Minute)
+		if err != nil {
+			return fmt.Errorf("failed to get height: %w", err)
+		}
+
+		if err := node.Upgrade(latestVersion); err != nil {
+			return fmt.Errorf("failed to restart node: %w", err)
+		}
+
+		if err := waitForHeight(ctx, client, height+3, time.Minute); err != nil {
+			return fmt.Errorf("failed to wait for height: %w", err)
+		}
 	}
+
 	return nil
 }
 
@@ -116,21 +121,24 @@ func getHeight(ctx context.Context, client *http.HTTP, period time.Duration) (in
 	}
 }
 
-func waitForHeight(testnet *testnet.Testnet, node *testnet.Node, height int64, period time.Duration) error {
-	timer := time.NewTimer(period)
+func waitForHeight(ctx context.Context, client *http.HTTP, height int64, period time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, period)
+	defer cancel()
+
 	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-timer.C:
-			return fmt.Errorf("failed to reach height %d in %.2f seconds", height, period.Seconds())
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for height %d", height)
 		case <-ticker.C:
-			executor, err := testnet.GetExecutor()
+			currentHeight, err := getHeight(ctx, client, period)
 			if err != nil {
-				return fmt.Errorf("failed to get executor: %w", err)
-			}
-			currentHeight, err := node.GetHeight(executor)
-			if err != nil {
-				return err
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
+				continue
 			}
 			if currentHeight >= height {
 				return nil

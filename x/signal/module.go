@@ -22,7 +22,7 @@ func init() {
 }
 
 const (
-	// consensusVersion defines the current x/upgrade module consensus version.
+	// consensusVersion defines the current x/signal module consensus version.
 	consensusVersion uint64 = 3
 )
 

@@ -13,20 +13,20 @@ const ModuleName = "minfee"
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyGlobalMinGasPrice     = []byte("GlobalMinGasPrice")
-	DefaultGlobalMinGasPrice sdk.Dec
+	KeyNetworkMinGasPrice     = []byte("NetworkMinGasPrice")
+	DefaultNetworkMinGasPrice sdk.Dec
 )
 
 func init() {
-	DefaultGlobalMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+	DefaultNetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.NetworkMinGasPrice))
 	if err != nil {
 		panic(err)
 	}
-	DefaultGlobalMinGasPrice = DefaultGlobalMinGasPriceDec
+	DefaultNetworkMinGasPrice = DefaultNetworkMinGasPriceDec
 }
 
 type Params struct {
-	GlobalMinGasPrice sdk.Dec
+	NetworkMinGasPrice sdk.Dec
 }
 
 // RegisterMinFeeParamTable returns a subspace with a key table attached.
@@ -37,7 +37,7 @@ func RegisterMinFeeParamTable(subspace paramtypes.Subspace) paramtypes.Subspace 
 	return subspace.WithKeyTable(ParamKeyTable())
 }
 
-// ParamKeyTable returns the param key table for the global min gas price module
+// ParamKeyTable returns the param key table for the minfee module.
 func ParamKeyTable() paramtypes.KeyTable {
 	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }
@@ -45,7 +45,7 @@ func ParamKeyTable() paramtypes.KeyTable {
 // ParamSetPairs gets the param key-value pair
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(KeyGlobalMinGasPrice, &p.GlobalMinGasPrice, ValidateMinGasPrice),
+		paramtypes.NewParamSetPair(KeyNetworkMinGasPrice, &p.NetworkMinGasPrice, ValidateMinGasPrice),
 	}
 }
 
