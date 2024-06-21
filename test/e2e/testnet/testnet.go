@@ -333,7 +333,7 @@ func (t *Testnet) Start() error {
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
-	}
+		log.Info().Str("name", node.Name).Msg("validator started")
 	err := t.StartTxClients()
 	if err != nil {
 		return err
@@ -367,7 +367,7 @@ func (t *Testnet) Start() error {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10000 * time.Millisecond)
 		}
 	}
 	return nil
