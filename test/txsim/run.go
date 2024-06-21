@@ -42,10 +42,9 @@ func Run(
 	opts.Fill()
 	r := rand.New(rand.NewSource(opts.seed))
 
-	conn, err := grpc.NewClient(grpcEndpoint, grpc.WithTransportCredentials(
-		insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.
-		MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.
-		MaxCallSendMsgSize(grpcMaxSendMsgSize)))
+	conn, err := grpc.NewClient(grpcEndpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
 	if err != nil {
 		return fmt.Errorf("dialing %s: %w", grpcEndpoint, err)
 	}
