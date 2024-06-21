@@ -100,7 +100,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	// post test data collection and validation
+	testnet.NoError("failed to check results", benchTest.CheckResults())
 
 	return nil
 }
@@ -124,7 +124,6 @@ func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 	testnet.NoError("failed to check results", benchTest.CheckResults())
 
-	log.Println("--- PASS ✅: TwoNodeBigBlock_8MiB")
 	return nil
 }
 
@@ -147,7 +146,6 @@ func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 	testnet.NoError("failed to check results", benchTest.CheckResults())
 
-	log.Println("--- PASS ✅: TwoNodeBigBlock_8MiB_Latency")
 	return nil
 }
 
@@ -169,7 +167,6 @@ func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 	testnet.NoError("failed to check results", benchTest.CheckResults())
 
-	log.Println("--- PASS ✅: TwoNodeBigBlock_32MiB")
 	return nil
 }
 
@@ -191,6 +188,5 @@ func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 	testnet.NoError("failed to check results", benchTest.CheckResults())
 
-	log.Println("--- PASS ✅: TwoNodeBigBlock_64MiB")
 	return nil
 }
