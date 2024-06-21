@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-const dynamicTimeoutVersion = "4c8ce77"
+const dynamicTimeoutVersion = "5299334"
 
 func main() {
 	if err := Run(); err != nil {
@@ -25,7 +27,7 @@ func Run() error {
 	}
 	defer network.Cleanup()
 
-	err = network.CreateGenesisNodes(2, dynamicTimeoutVersion, 10000000, 0, testnet.DefaultResources)
+	err = network.CreateGenesisNodes(4, dynamicTimeoutVersion, 10000000, 0, testnet.DefaultResources)
 	if err != nil {
 		return err
 	}
@@ -38,7 +40,7 @@ func Run() error {
 	err = network.CreateTxClient(
 		"txsim",
 		dynamicTimeoutVersion,
-		1,
+		10,
 		"10000-10000",
 		1,
 		testnet.DefaultResources,
@@ -49,7 +51,7 @@ func Run() error {
 	}
 
 	log.Printf("Setting up network\n")
-	err = network.Setup(testnet.WithTimeoutCommit(time.Second))
+	err = network.Setup(testnet.WithTimeoutCommit(300*time.Millisecond), testnet.WithTimeoutPropose(300*time.Millisecond))
 	if err != nil {
 		return err
 	}
@@ -62,7 +64,7 @@ func Run() error {
 
 	// run the test for 5 minutes
 	ticker := time.NewTicker(10 * time.Second)
-	timeout := time.NewTimer(10 * time.Minute)
+	timeout := time.NewTimer(5 * time.Minute)
 	rpc := network.Node(0).AddressRPC()
 	client, err := http.New(rpc, "/websocket")
 	if err != nil {
@@ -77,7 +79,8 @@ func Run() error {
 			}
 			log.Printf("Height: %v", status.SyncInfo.LatestBlockHeight)
 		case <-timeout.C:
-			if err := printStartTimes(network); err != nil {
+			log.Println("--- PRINTING START TIMES")
+			if err := saveStartTimes(network); err != nil {
 				return err
 			}
 			log.Println("--- FINISHED ✅: Dynamic Timeouts")
@@ -86,7 +89,7 @@ func Run() error {
 	}
 }
 
-func printStartTimes(testnet *testnet.Testnet) error {
+func saveStartTimes(testnet *testnet.Testnet) error {
 	rpcClients := make([]*http.HTTP, len(testnet.Nodes()))
 	earliestLatestHeight := int64(0)
 	for i, node := range testnet.Nodes() {
@@ -103,15 +106,39 @@ func printStartTimes(testnet *testnet.Testnet) error {
 			earliestLatestHeight = status.SyncInfo.LatestBlockHeight
 		}
 	}
-	for height := int64(0); height < earliestLatestHeight; height++ {
-		fmt.Println("Height: ", height)
+
+	// Create a CSV file
+	file, err := os.Create("start_times.csv")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write headers
+	headers := make([]string, len(testnet.Nodes()))
+	for i := range headers {
+		headers[i] = fmt.Sprintf("Node %d", i)
+	}
+	if err := writer.Write(headers); err != nil {
+		return err
+	}
+
+	// Write data for each height
+	for height := int64(1); height < earliestLatestHeight; height++ {
+		row := make([]string, len(rpcClients))
 		for i, client := range rpcClients {
 			resp, err := client.StartTime(context.Background(), &height)
 			if err != nil {
-				fmt.Printf("Error getting start time for node %d: %v\n", i, err)
+				row[i] = fmt.Sprintf("Error: %v", err)
 				continue
 			}
-			fmt.Printf("Node %d started at %v\n", i, resp.StartTime)
+			row[i] = fmt.Sprintf("%d", resp.StartTime.UnixNano())
+		}
+		if err := writer.Write(row); err != nil {
+			return err
 		}
 	}
 	return nil
