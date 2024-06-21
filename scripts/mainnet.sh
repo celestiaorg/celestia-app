@@ -11,7 +11,6 @@ SEEDS="e6116822e1a5e283d8a85d3ec38f4d232274eaf3@consensus-full-seed-1.celestia-b
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
 
-echo "celestia-app home: ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
 echo ""
 

@@ -192,7 +192,6 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 }
 
 // Submit executes on an operation. This is thread safe.
-// Submit executes on an operation. This is thread safe.
 func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	if len(op.Msgs) == 0 {
 		return errors.New("operation must contain at least one message")
