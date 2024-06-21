@@ -1,6 +1,6 @@
 # BUILD_BASE_IMAGE is the base image to use for the build. It contains a rolling
 # accumulation of Go build/package caches.
-ARG BUILD_BASE_IMAGE=docker.io/golang:1.22.3-alpine3.19
+ARG BUILD_BASE_IMAGE=docker.io/golang:1.22.4-alpine3.19
 # This Dockerfile performs a multi-stage build and RUNTIME_IMAGE is the image
 # onto which to copy the resulting binary.
 #
