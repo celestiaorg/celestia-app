@@ -59,11 +59,6 @@ func Run() error {
 		return err
 	}
 
-	err = network.StartTxClients()
-	if err != nil {
-		return err
-	}
-
 	// run the test for 5 minutes
 	ticker := time.NewTicker(5 * time.Second)
 	timeout := time.NewTimer(10 * time.Minute)
