@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -148,7 +147,7 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 
 	modules, versionSupported := m.versionedModules[appVersion]
 	if !versionSupported {
-		modules = m.versionedModules[appconsts.LatestVersion]
+		panic(fmt.Sprintf("version %d not supported", appVersion))
 	}
 	for _, moduleName := range m.OrderInitGenesis {
 		if genesisData[moduleName] == nil {
