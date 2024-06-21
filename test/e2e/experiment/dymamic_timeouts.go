@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-const dynamicTimeoutVersion = "e74b11f"
+const dynamicTimeoutVersion = "cb5e222"
 
 func main() {
 	if err := Run(); err != nil {
@@ -48,7 +49,7 @@ func Run() error {
 	}
 
 	log.Printf("Setting up network\n")
-	err = network.Setup()
+	err = network.Setup(testnet.WithTimeoutCommit(time.Second))
 	if err != nil {
 		return err
 	}
@@ -60,7 +61,7 @@ func Run() error {
 	}
 
 	// run the test for 5 minutes
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	timeout := time.NewTimer(10 * time.Minute)
 	rpc := network.Node(0).AddressRPC()
 	client, err := http.New(rpc, "/websocket")
@@ -76,8 +77,39 @@ func Run() error {
 			}
 			log.Printf("Height: %v", status.SyncInfo.LatestBlockHeight)
 		case <-timeout.C:
+			printStartTimes(network)
 			log.Println("--- FINISHED ✅: Dynamic Timeouts")
 			return nil
 		}
 	}
+}
+
+func printStartTimes(testnet *testnet.Testnet) error {
+	rpcClients := make([]*http.HTTP, len(testnet.Nodes()))
+	earliestLatestHeight := int64(0)
+	for i, node := range testnet.Nodes() {
+		client, err := node.Client()
+		if err != nil {
+			return err
+		}
+		rpcClients[i] = client
+		status, err := client.Status(context.Background())
+		if err != nil {
+			return err
+		}
+		if earliestLatestHeight == 0 || earliestLatestHeight < status.SyncInfo.LatestBlockHeight {
+			earliestLatestHeight = status.SyncInfo.LatestBlockHeight
+		}
+	}
+	for height := int64(0); height < earliestLatestHeight; height++ {
+		fmt.Println("Height: ", height)
+		for i, client := range rpcClients {
+			startTime, err := client.StartTime(context.Background(), &height)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Node %d started at %v\n", i, startTime)
+		}
+	}
+	return nil
 }
