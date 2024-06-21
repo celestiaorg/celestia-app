@@ -14,7 +14,48 @@ import (
 
 const (
 	seed = 42
+
+	toMiB = 1024 * 1024
+	toMB  = 1000 * 1000
 )
+
+var bigBlockManifest = Manifest{
+	ChainID:    "test",
+	Validators: 2,
+	TxClients:  2,
+	ValidatorResource: testnet.Resources{
+		MemoryRequest: "12Gi",
+		MemoryLimit:   "12Gi",
+		CPU:           "8",
+		Volume:        "20Gi",
+	},
+	TxClientsResource: testnet.Resources{
+		MemoryRequest: "1Gi",
+		MemoryLimit:   "3Gi",
+		CPU:           "2",
+		Volume:        "1Gi",
+	},
+	SelfDelegation:     10000000,
+	CelestiaAppVersion: "pr-3261",
+	TxClientVersion:    "pr-3261",
+	EnableLatency:      false,
+	LatencyParams:      LatencyParams{0, 0}, // in  milliseconds
+	BlobSequences:      60,
+	BlobsPerSeq:        6,
+	BlobSizes:          "200000",
+	PerPeerBandwidth:   5 * toMB,
+	UpgradeHeight:      0,
+	TimeoutCommit:      11 * time.Second,
+	TimeoutPropose:     80 * time.Second,
+	Mempool:            "v1", // ineffective as it always defaults to v1
+	BroadcastTxs:       true,
+	Prometheus:         false,
+	GovMaxSquareSize:   512,
+	MaxBlockBytes:      7800000,
+	TestDuration:       15 * time.Minute,
+	LocalTracingType:   "local",
+	PushTrace:          true,
+}
 
 func TwoNodeSimple(logger *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
