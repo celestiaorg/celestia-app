@@ -143,3 +143,96 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	return nil
 }
+
+func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_8MiB")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_8MiB"
+	manifest.MaxBlockBytes = 8 * toMB
+	manifest.ChainID = "two-node-big-block-8mb"
+	logger.Println("ChainID: ", manifest.ChainID)
+
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_8MiB", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: TwoNodeBigBlock_8MiB")
+	return nil
+}
+
+func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_8MiB_Latency")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_8MiB_Latency"
+	manifest.ChainID = "two-node-big-block-8mib-latency"
+	manifest.MaxBlockBytes = 8 * toMiB
+	manifest.EnableLatency = true
+
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_8MiB_Latency", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: TwoNodeBigBlock_8MiB_Latency")
+	return nil
+}
+
+func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_32MiB")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_32MiB"
+	manifest.ChainID = "two-node-big-block-32mb"
+	manifest.MaxBlockBytes = 32 * toMB
+
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_32MiB", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: TwoNodeBigBlock_32MiB")
+	return nil
+}
+
+func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_64MiB")
+	manifest := bigBlockManifest
+	manifest.ChainID = "two-node-big-block-64mb"
+	manifest.MaxBlockBytes = 64 * toMB
+
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_64MiB", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: TwoNodeBigBlock_64MiB")
+	return nil
+}
