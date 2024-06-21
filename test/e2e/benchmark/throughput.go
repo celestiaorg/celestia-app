@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
@@ -106,48 +102,12 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	// post test data collection and validation
 
-	// if local tracing is enabled,
-	// pull round state traces to confirm tracing is working as expected.
-	if benchTest.manifest.LocalTracingType == "local" {
-		if _, err := benchTest.Node(0).PullRoundStateTraces("."); err != nil {
-			return fmt.Errorf("failed to pull round state traces: %w", err)
-		}
-	}
-
-	// download traces from S3, if enabled
-	if benchTest.manifest.PushTrace && benchTest.manifest.DownloadTraces {
-		// download traces from S3
-		pushConfig, _ := trace.GetPushConfigFromEnv()
-		err := trace.S3Download("./traces/", benchTest.manifest.ChainID,
-			pushConfig)
-		if err != nil {
-			return fmt.Errorf("failed to download traces from S3: %w", err)
-		}
-	}
-
-	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(),
-		benchTest.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain", err)
-
-	totalTxs := 0
-	for _, block := range blockchain {
-		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
-		}
-		totalTxs += len(block.Data.Txs)
-	}
-	if totalTxs < 10 {
-		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
-	}
-
 	return nil
 }
 
 func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_8MiB")
 	manifest := bigBlockManifest
-	manifest.TestnetName = "TwoNodeBigBlock_8MiB"
 	manifest.MaxBlockBytes = 8 * toMB
 	manifest.ChainID = "two-node-big-block-8mb"
 	logger.Println("ChainID: ", manifest.ChainID)
@@ -171,7 +131,6 @@ func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
 func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_8MiB_Latency")
 	manifest := bigBlockManifest
-	manifest.TestnetName = "TwoNodeBigBlock_8MiB_Latency"
 	manifest.ChainID = "two-node-big-block-8mib-latency"
 	manifest.MaxBlockBytes = 8 * toMiB
 	manifest.EnableLatency = true
@@ -195,7 +154,6 @@ func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
 func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_32MiB")
 	manifest := bigBlockManifest
-	manifest.TestnetName = "TwoNodeBigBlock_32MiB"
 	manifest.ChainID = "two-node-big-block-32mb"
 	manifest.MaxBlockBytes = 32 * toMB
 

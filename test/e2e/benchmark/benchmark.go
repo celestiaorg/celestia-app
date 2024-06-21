@@ -2,11 +2,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/tendermint/tendermint/pkg/trace"
 )
 
@@ -115,6 +118,47 @@ func (b *BenchmarkTest) Run() error {
 
 	// wait some time for the tx clients to submit transactions
 	time.Sleep(b.manifest.TestDuration)
+
+	return nil
+}
+
+func (b *BenchmarkTest) CheckResults() error {
+	log.Println("Checking results")
+
+	// if local tracing is enabled,
+	// pull round state traces to confirm tracing is working as expected.
+	if b.manifest.LocalTracingType == "local" {
+		if _, err := b.Node(0).PullRoundStateTraces("."); err != nil {
+			return fmt.Errorf("failed to pull round state traces: %w", err)
+		}
+	}
+
+	// download traces from S3, if enabled
+	if b.manifest.PushTrace && b.manifest.DownloadTraces {
+		// download traces from S3
+		pushConfig, _ := trace.GetPushConfigFromEnv()
+		err := trace.S3Download("./traces/", b.manifest.ChainID,
+			pushConfig)
+		if err != nil {
+			return fmt.Errorf("failed to download traces from S3: %w", err)
+		}
+	}
+
+	log.Println("Reading blockchain")
+	blockchain, err := testnode.ReadBlockchain(context.Background(),
+		b.Node(0).AddressRPC())
+	testnet.NoError("failed to read blockchain", err)
+
+	totalTxs := 0
+	for _, block := range blockchain {
+		if appconsts.LatestVersion != block.Version.App {
+			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
+		}
+		totalTxs += len(block.Data.Txs)
+	}
+	if totalTxs < 10 {
+		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
+	}
 
 	return nil
 }
