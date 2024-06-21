@@ -9,63 +9,84 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 const (
-	seed         = 42
-	txsimVersion = "a92de72"
+	seed = 42
 )
 
-func main() {
-	if err := E2EThroughput(); err != nil {
-		log.Fatalf("--- ERROR Throughput test: %v", err.Error())
-	}
-}
-
-func E2EThroughput() error {
+func TwoNodeSimple(logger *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
-	log.Println("=== RUN E2EThroughput", "version:", latestVersion)
+	logger.Println("=== RUN TwoNodeSimple", "version:", latestVersion)
 
-	// create a new testnet
-	testNet, err := testnet.New("E2EThroughput", seed, testnet.GetGrafanaInfoFromEnvVar())
-	testnet.NoError("failed to create testnet", err)
+	manifest := Manifest{
+		ChainID:            "test-e2e-two-node-simple",
+		Validators:         2,
+		ValidatorResource:  testnet.DefaultResources,
+		TxClientsResource:  testnet.DefaultResources,
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: latestVersion,
+		TxClientVersion:    testnet.TxsimVersion,
+		EnableLatency:      true,
+		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
+		BlobsPerSeq:        1,
+		BlobSequences:      1,
+		BlobSizes:          "10000-10000",
+		PerPeerBandwidth:   5 * 1024 * 1024,
+		UpgradeHeight:      0,
+		TimeoutCommit:      1 * time.Second,
+		TimeoutPropose:     1 * time.Second,
+		Mempool:            "v1",
+		BroadcastTxs:       true,
+		Prometheus:         true,
+		GovMaxSquareSize:   appconsts.DefaultGovMaxSquareSize,
+		MaxBlockBytes:      appconsts.DefaultMaxBytes,
+		LocalTracingType:   "local",
+		PushTrace:          false,
+		DownloadTraces:     false,
+		TestDuration:       30 * time.Second,
+		TxClients:          2,
+	}
+
+	benchTest, err := NewBenchmarkTest("E2EThroughput", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		testNet.Cleanup()
+		benchTest.Cleanup()
 	}()
 
-	// add 2 validators
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(2, latestVersion, 10000000, 0, testnet.DefaultResources))
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 
-	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := testNet.RemoteGRPCEndpoints()
-	testnet.NoError("failed to get validators GRPC endpoints", err)
-	log.Println("validators GRPC endpoints", gRPCEndpoints)
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	// create txsim nodes and point them to the validators
-	log.Println("Creating txsim nodes")
+	// post test data collection and validation
 
-	err = testNet.CreateTxClients(txsimVersion, 1, "10000-10000", testnet.DefaultResources, gRPCEndpoints)
-	testnet.NoError("failed to create tx clients", err)
+	// if local tracing is enabled,
+	// pull round state traces to confirm tracing is working as expected.
+	if benchTest.manifest.LocalTracingType == "local" {
+		if _, err := benchTest.Node(0).PullRoundStateTraces("."); err != nil {
+			return fmt.Errorf("failed to pull round state traces: %w", err)
+		}
+	}
 
-	// start the testnet
-	log.Println("Setting up testnet")
-	testnet.NoError("failed to setup testnet", testNet.Setup())
-	log.Println("Starting testnet")
-	testnet.NoError("failed to start testnet", testNet.Start())
-
-	// once the testnet is up, start the txsim
-	log.Println("Starting txsim nodes")
-	testnet.NoError("failed to start tx clients", testNet.StartTxClients())
-
-	// wait some time for the txsim to submit transactions
-	time.Sleep(1 * time.Minute)
+	// download traces from S3, if enabled
+	if benchTest.manifest.PushTrace && benchTest.manifest.DownloadTraces {
+		// download traces from S3
+		pushConfig, _ := trace.GetPushConfigFromEnv()
+		err := trace.S3Download("./traces/", benchTest.manifest.ChainID,
+			pushConfig)
+		if err != nil {
+			return fmt.Errorf("failed to download traces from S3: %w", err)
+		}
+	}
 
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchain(context.Background(),
+		benchTest.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
@@ -78,6 +99,6 @@ func E2EThroughput() error {
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
-	log.Println("--- PASS ✅: E2EThroughput")
+
 	return nil
 }

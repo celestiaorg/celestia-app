@@ -4,13 +4,10 @@ import (
 	"log"
 	"os"
 	"strings"
-
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 )
 
 const (
-	MajorVersion = v1.Version
-	seed         = 42
+	seed = 42
 )
 
 type TestFunc func(*log.Logger) error
@@ -43,7 +40,7 @@ func main() {
 
 	if !specificTestFound {
 		logger.Println("No particular test specified. Running all tests.")
-		logger.Println("go run ./test/e2e <test_name> to run a specific test")
+		logger.Println("make test-e2e <test_name> to run a specific test")
 		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
 		// if no specific test is passed, run all tests
 		for _, test := range tests {

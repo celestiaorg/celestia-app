@@ -1,8 +1,7 @@
+//nolint:staticcheck
 package testnet
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +13,8 @@ import (
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
@@ -24,6 +25,7 @@ const (
 	p2pPort        = 26656
 	grpcPort       = 9090
 	prometheusPort = 26660
+	tracingPort    = 26661
 	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
@@ -41,8 +43,24 @@ type Node struct {
 	SelfDelegation int64
 	Instance       *knuu.Instance
 
-	rpcProxyPort  int
-	grpcProxyPort int
+	rpcProxyHost string
+	// FIXME: This does not work currently with the reverse proxy
+	// grpcProxyHost  string
+	traceProxyHost string
+}
+
+// PullRoundStateTraces retrieves the round state traces from a node.
+// It will save them to the provided path.
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error,
+) {
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+
+	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	return nil, nil
 }
 
 // Resources defines the resource requirements for a Node.
@@ -84,6 +102,10 @@ func NewNode(
 	if err := instance.AddPortTCP(grpcPort); err != nil {
 		return nil, err
 	}
+	if err := instance.AddPortTCP(tracingPort); err != nil {
+		return nil, err
+	}
+
 	if grafana != nil {
 		// add support for metrics
 		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Scope()), "1m"); err != nil {
@@ -133,7 +155,7 @@ func NewNode(
 	}, nil
 }
 
-func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
+func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -154,7 +176,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 	}
 
 	// Create and write the config file
-	cfg, err := MakeConfig(n)
+	cfg, err := MakeConfig(n, configOptions...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
@@ -199,11 +221,15 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string) error {
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	if err := n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
-		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
+	err = n.Instance.Commit()
+	if err != nil {
+		return fmt.Errorf("committing instance: %w", err)
 	}
 
-	return n.Instance.Commit()
+	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
+	}
+	return nil
 }
 
 // AddressP2P returns a P2P endpoint address for the node. This is used for
@@ -222,16 +248,17 @@ func (n Node) AddressP2P(withID bool) string {
 }
 
 // AddressRPC returns an RPC endpoint address for the node.
-// This returns the local proxy port that can be used to communicate with the node
+// This returns the proxy host that can be used to communicate with the node
 func (n Node) AddressRPC() string {
-	return fmt.Sprintf("http://127.0.0.1:%d", n.rpcProxyPort)
+	return n.rpcProxyHost
 }
 
-// AddressGRPC returns a GRPC endpoint address for the node. This returns the
-// local proxy port that can be used to communicate with the node
-func (n Node) AddressGRPC() string {
-	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
-}
+// FIXME: This does not work currently with the reverse proxy
+// // AddressGRPC returns a GRPC endpoint address for the node.
+// // This returns the proxy host that can be used to communicate with the node
+// func (n Node) AddressGRPC() string {
+// 	return n.grpcProxyHost
+// }
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressGRPC() (string, error) {
@@ -251,24 +278,69 @@ func (n Node) RemoteAddressRPC() (string, error) {
 	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
 }
 
+func (n Node) AddressTracing() string {
+	return n.traceProxyHost
+}
+
+func (n Node) RemoteAddressTracing() (string, error) {
+	ip, err := n.Instance.GetIP()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("http://%s:26661", ip), nil
+}
+
 func (n Node) IsValidator() bool {
 	return n.SelfDelegation != 0
 }
 
 func (n Node) Client() (*http.HTTP, error) {
+	log.Debug().Str("RPC Address", n.AddressRPC()).Msg("Creating HTTP client for node")
 	return http.New(n.AddressRPC(), "/websocket")
 }
 
 func (n *Node) Start() error {
-	if err := n.Instance.Start(); err != nil {
+	if err := n.StartAsync(); err != nil {
 		return err
 	}
+	if err := n.WaitUntilStartedAndForwardPorts(); err != nil {
+		return err
+	}
+	return nil
+}
 
+func (n *Node) StartAsync() error {
+	if err := n.Instance.StartAsync(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
 
-	return n.forwardPorts()
+	err, rpcProxyHost := n.Instance.AddHost(rpcPort)
+	if err != nil {
+		return err
+	}
+	n.rpcProxyHost = rpcProxyHost
+
+	// FIXME: This does not work currently with the reverse proxy
+	// err, grpcProxyHost := n.Instance.AddHost(grpcPort)
+	// if err != nil {
+	// 	return err
+	// }
+	// n.grpcProxyHost = grpcProxyHost
+
+	err, traceProxyHost := n.Instance.AddHost(tracingPort)
+	if err != nil {
+		return err
+	}
+	n.traceProxyHost = traceProxyHost
+
+	return nil
 }
 
 func (n *Node) GenesisValidator() genesis.Validator {
@@ -291,42 +363,9 @@ func (n *Node) Upgrade(version string) error {
 	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
-
-	return n.forwardPorts()
-}
-
-func (n *Node) forwardPorts() error {
-	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
-	}
-
-	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
-	if err != nil {
-		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
-	}
-
-	n.rpcProxyPort = rpcProxyPort
-	n.grpcProxyPort = grpcProxyPort
-
 	return nil
 }
 
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
-}
-
-func (n *Node) GetHeight(executor *knuu.Executor) (int64, error) {
-	status, err := getStatus(executor, n.Instance)
-	if err == nil {
-		blockHeight, err := latestBlockHeightFromStatus(status)
-		if err == nil {
-			return blockHeight, nil
-		}
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return 0, err
-	}
-
-	return 0, fmt.Errorf("error getting height: %w", err)
 }

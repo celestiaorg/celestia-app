@@ -73,14 +73,14 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 		},
 	}
 
-	signer, err := testnode.NewSignerFromContext(s.cctx, s.accounts[0])
+	txClient, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
 			defer cancel()
-			res, err := signer.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimitAndFee(1e9, appconsts.DefaultMinGasPrice))
+			res, err := txClient.SubmitPayForBlob(subCtx, []*blob.Blob{tc.blob}, user.SetGasLimitAndFee(1e9, appconsts.DefaultMinGasPrice))
 			require.Error(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, tc.want, res.Code, res.Logs)

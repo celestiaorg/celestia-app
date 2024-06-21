@@ -26,7 +26,7 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
+func TestValidateTxFee(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	builder := encCfg.TxConfig.NewTxBuilder()
@@ -58,7 +58,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     true,
@@ -66,7 +66,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "good tx; fee equal to required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     false,
@@ -74,7 +74,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "good tx; fee above required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     false,
@@ -82,7 +82,7 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 		{
 			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / v2.GlobalMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
 			appVersion: uint64(1),
 			isCheckTx:  false,
 			expErr:     false,
@@ -143,12 +143,12 @@ func TestCheckTxFeeWithGlobalMinGasPrices(t *testing.T) {
 
 			ctx = ctx.WithMinGasPrices(sdk.DecCoins{validatorMinGasPriceCoin})
 
-			globalminGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.GlobalMinGasPrice))
+			networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.NetworkMinGasPrice))
 			require.NoError(t, err)
 
 			subspace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
-			minfee.RegisterMinFeeParamTable(subspace)
-			subspace.Set(ctx, minfee.KeyGlobalMinGasPrice, globalminGasPriceDec)
+			subspace = minfee.RegisterMinFeeParamTable(subspace)
+			subspace.Set(ctx, minfee.KeyNetworkMinGasPrice, networkMinGasPriceDec)
 
 			_, _, err = ante.ValidateTxFee(ctx, tx, paramsKeeper)
 			if tc.expErr {
@@ -173,7 +173,7 @@ func setUp(t *testing.T) (paramkeeper.Keeper, storetypes.CommitMultiStore) {
 
 	registry := codectypes.NewInterfaceRegistry()
 
-	// Create a params keeper and set the global min gas price
+	// Create a params keeper and set the network min gas price.
 	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
 	paramsKeeper.Subspace(minfee.ModuleName)
 	return paramsKeeper, stateStore

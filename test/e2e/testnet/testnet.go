@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package testnet
 
 import (
@@ -20,38 +21,27 @@ import (
 type Testnet struct {
 	seed      int64
 	nodes     []*Node
-	executor  *knuu.Executor
 	genesis   *genesis.Genesis
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
 }
 
-func (t *Testnet) GetExecutor() (*knuu.Executor, error) {
-	if t.executor == nil {
-		return nil, fmt.Errorf("testnet not initialized")
-	}
-	return t.executor, nil
-}
-
-func New(name string, seed int64, grafana *GrafanaInfo) (*Testnet, error) {
+func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
+	genesisModifiers ...genesis.Modifier) (
+	*Testnet, error,
+) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	if err := knuu.InitializeWithScope(identifier); err != nil {
 		return nil, err
 	}
 
-	executor, err := knuu.NewExecutor()
-	if err != nil {
-		return nil, err
-	}
-
 	return &Testnet{
-		seed:     seed,
-		nodes:    make([]*Node, 0),
-		executor: executor,
-		genesis:  genesis.NewDefaultGenesis().WithChainID("test"),
-		keygen:   newKeyGenerator(seed),
-		grafana:  grafana,
+		seed:    seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:  newKeyGenerator(seed),
+		grafana: grafana,
 	}, nil
 }
 
@@ -59,14 +49,20 @@ func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
 	t.genesis.WithConsensusParams(params)
 }
 
+func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
+	t.genesis.ConsensusParams.Block.MaxBytes = size
+}
+
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
+		selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources,
+		t.grafana)
 	if err != nil {
 		return err
 	}
-	if err := t.genesis.AddValidator(node.GenesisValidator()); err != nil {
+	if err := t.genesis.NewValidator(node.GenesisValidator()); err != nil {
 		return err
 	}
 	t.nodes = append(t.nodes, node)
@@ -85,13 +81,14 @@ func (t *Testnet) CreateGenesisNodes(num int, version string, selfDelegation, up
 func (t *Testnet) CreateTxClients(version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoints []string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(name, version, sequences,
-			blobRange, resources, grpcEndpoint)
+			blobRange, blobPerSequence, resources, grpcEndpoint)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -120,6 +117,7 @@ func (t *Testnet) CreateTxClient(name,
 	version string,
 	sequences int,
 	blobRange string,
+	blobPerSequence int,
 	resources Resources,
 	grpcEndpoint string,
 ) error {
@@ -137,13 +135,21 @@ func (t *Testnet) CreateTxClient(name,
 
 	// Create a txsim node using the key stored in the txsimKeyringDir
 	txsim, err := CreateTxClient(name, version, grpcEndpoint, t.seed,
-		sequences, blobRange, 1, resources, txsimRootDir)
+		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
 			Msg("error creating txsim")
 		return err
 	}
+	err = txsim.Instance.Commit()
+	if err != nil {
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
+		return err
+	}
+
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
@@ -154,21 +160,13 @@ func (t *Testnet) CreateTxClient(name,
 		return err
 	}
 
-	err = txsim.Instance.Commit()
-	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
-		return err
-	}
-
 	t.txClients = append(t.txClients, txsim)
 	return nil
 }
 
 func (t *Testnet) StartTxClients() error {
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.Start()
+		err := txsim.Instance.StartWithoutWait()
 		if err != nil {
 			log.Err(err).
 				Str("name", txsim.Name).
@@ -178,6 +176,13 @@ func (t *Testnet) StartTxClients() error {
 		log.Info().
 			Str("name", txsim.Name).
 			Msg("txsim started")
+	}
+	// wait for txsims to start
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.WaitInstanceIsRunning()
+		if err != nil {
+			return fmt.Errorf("txsim %s failed to start: %w", txsim.Name, err)
+		}
 	}
 	return nil
 }
@@ -227,7 +232,9 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana)
+	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
+		startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources,
+		t.grafana)
 	if err != nil {
 		return err
 	}
@@ -235,7 +242,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	return nil
 }
 
-func (t *Testnet) Setup() error {
+func (t *Testnet) Setup(configOpts ...Option) error {
 	genesis, err := t.genesis.Export()
 	if err != nil {
 		return err
@@ -251,7 +258,7 @@ func (t *Testnet) Setup() error {
 			}
 		}
 
-		err := node.Init(genesis, peers)
+		err := node.Init(genesis, peers, configOpts...)
 		if err != nil {
 			return err
 		}
@@ -268,13 +275,14 @@ func (t *Testnet) RPCEndpoints() []string {
 	return rpcEndpoints
 }
 
-func (t *Testnet) GRPCEndpoints() []string {
-	grpcEndpoints := make([]string, len(t.nodes))
-	for idx, node := range t.nodes {
-		grpcEndpoints[idx] = node.AddressGRPC()
-	}
-	return grpcEndpoints
-}
+// FIXME: This does not work currently with the reverse proxy
+// func (t *Testnet) GRPCEndpoints() []string {
+// 	grpcEndpoints := make([]string, len(t.nodes))
+// 	for idx, node := range t.nodes {
+// 		grpcEndpoints[idx] = node.AddressGRPC()
+// 	}
+// 	return grpcEndpoints
+// }
 
 // RemoteGRPCEndpoints retrieves the gRPC endpoint addresses of the
 // testnet's validator nodes.
@@ -319,12 +327,25 @@ func (t *Testnet) Start() error {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
+	// start genesis nodes asynchronously
 	for _, node := range genesisNodes {
-		err := node.Start()
+		err := node.StartAsync()
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+	err := t.StartTxClients()
+	if err != nil {
+		return err
+	}
+	// wait for instances to be running
+	for _, node := range genesisNodes {
+		err := node.WaitUntilStartedAndForwardPorts()
+		if err != nil {
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+	}
+	// wait for nodes to sync
 	for _, node := range genesisNodes {
 		client, err := node.Client()
 		if err != nil {
@@ -333,7 +354,11 @@ func (t *Testnet) Start() error {
 		for i := 0; i < 10; i++ {
 			resp, err := client.Status(context.Background())
 			if err != nil {
-				return fmt.Errorf("node %s status response: %w", node.Name, err)
+				if i == 9 {
+					return fmt.Errorf("node %s status response: %w", node.Name, err)
+				}
+				time.Sleep(time.Second)
+				continue
 			}
 			if resp.SyncInfo.LatestBlockHeight > 0 {
 				break
@@ -341,62 +366,31 @@ func (t *Testnet) Start() error {
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
-			time.Sleep(time.Second)
+			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 	return nil
 }
 
 func (t *Testnet) Cleanup() {
-	for _, node := range t.nodes {
-		if node.Instance.IsInState(knuu.Started) {
-			if err := node.Instance.Stop(); err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to stop")
-				continue
-			}
-			if err := node.Instance.WaitInstanceIsStopped(); err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to stop")
-				continue
-			}
-		}
-		if node.Instance.IsInState(knuu.Started, knuu.Stopped) {
-			err := node.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", node.Name).
-					Msg("node  failed to cleanup")
-			}
-		}
-	}
-	// stop and cleanup txsim
+	// cleanup txsim
 	for _, txsim := range t.txClients {
-		if txsim.Instance.IsInState(knuu.Started) {
-			err := txsim.Instance.Stop()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.WaitInstanceIsStopped()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to stop")
-			}
-			err = txsim.Instance.Destroy()
-			if err != nil {
-				log.Err(err).
-					Str("name", txsim.Name).
-					Msg("txsim failed to cleanup")
-			}
+		err := txsim.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", txsim.Name).
+				Msg("txsim failed to cleanup")
 		}
 	}
-	if err := t.executor.Destroy(); err != nil {
-		log.Err(err).Msg("executor failed to cleanup")
+	// cleanup nodes
+	for _, node := range t.nodes {
+		err := node.Instance.Destroy()
+		if err != nil {
+			log.Err(err).
+				Str("name", node.Name).
+				Msg("node failed to cleanup")
+		}
 	}
 }
 

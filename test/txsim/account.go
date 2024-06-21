@@ -1,7 +1,6 @@
 package txsim
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -36,11 +35,12 @@ type AccountManager struct {
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
-	master       *user.Signer
+	txClient     *user.TxClient
 	balance      uint64
 	latestHeight uint64
 	lastUpdated  time.Time
-	subaccounts  map[string]*user.Signer
+	accountIndex int
+	addressMap   map[string]string
 }
 
 func NewAccountManager(
@@ -62,13 +62,14 @@ func NewAccountManager(
 	}
 
 	am := &AccountManager{
-		keys:        keys,
-		subaccounts: make(map[string]*user.Signer),
-		encCfg:      encCfg,
-		pending:     make([]*account, 0),
-		conn:        conn,
-		pollTime:    pollTime,
-		useFeegrant: useFeegrant,
+		keys:         keys,
+		encCfg:       encCfg,
+		pending:      make([]*account, 0),
+		conn:         conn,
+		pollTime:     pollTime,
+		useFeegrant:  useFeegrant,
+		addressMap:   make(map[string]string),
+		accountIndex: len(records),
 	}
 
 	if masterAccName == "" {
@@ -145,13 +146,13 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context, masterAccName 
 		return fmt.Errorf("error getting master account %s balance: %w", masterAccName, err)
 	}
 
-	am.master, err = user.SetupSigner(ctx, am.keys, am.conn, masterAddress, am.encCfg)
+	am.txClient, err = user.SetupTxClient(ctx, am.keys, am.conn, am.encCfg, user.WithDefaultAccount(masterAccName), user.WithPollTime(am.pollTime))
 	if err != nil {
 		return err
 	}
 
 	log.Info().
-		Str("address", am.master.Address().String()).
+		Str("address", masterAddress.String()).
 		Uint64("balance", am.balance).
 		Msg("set master account")
 
@@ -171,7 +172,8 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 	path := hd.CreateHDPath(types.CoinType, 0, 0).String()
 	addresses := make([]types.AccAddress, n)
 	for i := 0; i < n; i++ {
-		record, _, err := am.keys.NewMnemonic(am.nextAccountName(), keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+		name := am.nextAccountName()
+		record, _, err := am.keys.NewMnemonic(name, keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 		if err != nil {
 			panic(err)
 		}
@@ -181,6 +183,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 		}
 
 		am.pending = append(am.pending, &account{
+			keyName: name,
 			address: addresses[i],
 			balance: uint64(balance),
 		})
@@ -208,6 +211,8 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 		if address == nil {
 			address = signers[0]
+		} else if !address.Equals(signers[0]) {
+			return fmt.Errorf("all messages must be signed by the same account")
 		}
 	}
 
@@ -217,11 +222,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		if err := am.waitDelay(ctx, op.Delay); err != nil {
 			return fmt.Errorf("error delaying tx submission: %w", err)
 		}
-	}
-
-	signer, err := am.getSubAccount(address)
-	if err != nil {
-		return err
 	}
 
 	opts := make([]user.TxOption, 0)
@@ -237,24 +237,29 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	if am.useFeegrant {
-		opts = append(opts, user.SetFeeGranter(am.master.Address()))
+		opts = append(opts, user.SetFeeGranter(am.txClient.DefaultAddress()))
 	}
 
-	var res *types.TxResponse
-	var size int64
+	var (
+		res *types.TxResponse
+		err error
+	)
 	if len(op.Blobs) > 0 {
-		size = getSize(op.Blobs)
-		res, err = signer.SubmitPayForBlob(ctx, op.Blobs, opts...)
+		accName, ok := am.addressMap[address.String()]
+		if !ok {
+			return fmt.Errorf("account not found for address %s", address.String())
+		}
+		res, err = am.txClient.SubmitPayForBlobWithAccount(ctx, accName, op.Blobs, opts...)
 		if err != nil {
 			// log the failed tx
 			log.Err(err).
 				Str("address", address.String()).
 				Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
-				Int64("total byte size of blobs", size).
+				Int64("total byte size of blobs", getSize(op.Blobs)).
 				Msg("tx failed")
 		}
 	} else {
-		res, err = signer.SubmitTx(ctx, op.Msgs, opts...)
+		res, err = am.txClient.SubmitTx(ctx, op.Msgs, opts...)
 		// log the failed tx
 		if err != nil {
 			log.Err(err).
@@ -287,7 +292,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 			Int64("height", res.Height).
 			Str("address", address.String()).
 			Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
-			Int64("total byte size of blobs", size).
+			Int64("total byte size of blobs", getSize(op.Blobs)).
 			Msg("tx committed")
 	} else {
 		log.Info().
@@ -325,7 +330,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 
 		if am.useFeegrant {
 			// create a feegrant message so that the master account pays for all the fees of the sub accounts
-			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.master.Address(), acc.address)
+			feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.txClient.DefaultAddress(), acc.address)
 			if err != nil {
 				return fmt.Errorf("error creating feegrant message: %w", err)
 			}
@@ -333,7 +338,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 			gasLimit += FeegrantGasLimit
 		}
 
-		bankMsg := bank.NewMsgSend(am.master.Address(), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
+		bankMsg := bank.NewMsgSend(am.txClient.DefaultAddress(), acc.address, types.NewCoins(types.NewInt64Coin(appconsts.BondDenom, int64(acc.balance))))
 		msgs = append(msgs, bankMsg)
 		gasLimit += SendGasLimit
 	}
@@ -343,23 +348,13 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 		return fmt.Errorf("error funding accounts: %w", err)
 	}
 
-	// check that the account now exists
+	// print the new accounts
 	for _, acc := range am.pending {
-		signer, err := user.SetupSigner(ctx, am.keys, am.conn, acc.address, am.encCfg)
-		if err != nil {
-			return err
-		}
-
-		signer.SetPollTime(am.pollTime)
-
-		// set the account
-		am.mtx.Lock()
-		am.subaccounts[acc.address.String()] = signer
-		am.mtx.Unlock()
+		am.accountIndex++
+		am.addressMap[acc.address.String()] = acc.keyName
 		log.Info().
 			Str("address", acc.address.String()).
 			Uint64("balance", acc.balance).
-			Uint64("account number", signer.AccountNumber()).
 			Msg("initialized account")
 	}
 
@@ -378,19 +373,6 @@ func (am *AccountManager) getBalance(ctx context.Context, address types.AccAddre
 		return 0, fmt.Errorf("error getting balance for %s: %w", address.String(), err)
 	}
 	return balanceResp.GetBalance().Amount.Uint64(), nil
-}
-
-func (am *AccountManager) getSubAccount(address types.AccAddress) (*user.Signer, error) {
-	am.mtx.Lock()
-	defer am.mtx.Unlock()
-	signer, exists := am.subaccounts[address.String()]
-	if !exists {
-		if bytes.Equal(am.master.Address(), address) {
-			return am.master, nil
-		}
-		return nil, fmt.Errorf("account %s does not exist", address)
-	}
-	return signer, nil
 }
 
 func (am *AccountManager) waitDelay(ctx context.Context, blocks uint64) error {
@@ -442,10 +424,11 @@ func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 func (am *AccountManager) nextAccountName() string {
 	am.mtx.Lock()
 	defer am.mtx.Unlock()
-	return accountName(len(am.pending) + len(am.subaccounts))
+	return accountName(len(am.pending) + am.accountIndex)
 }
 
 type account struct {
+	keyName string
 	address types.AccAddress
 	balance uint64
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // TestTimeInPrepareProposalContext checks for an edge case where the block time
@@ -29,18 +28,15 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestTimeInPrepareProposalContext test in short mode.")
 	}
-	accounts := make([]string, 35)
-	for i := 0; i < len(accounts); i++ {
-		accounts[i] = tmrand.Str(9)
-	}
-	cfg := testnode.DefaultConfig().WithFundedAccounts(accounts...)
+	sendAccName := "sending"
+	vestAccName := "vesting"
+	cfg := testnode.DefaultConfig().WithFundedAccounts(sendAccName)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	vestAccName := "vesting"
+
 	type test struct {
-		name         string
-		msgFunc      func() (msgs []sdk.Msg, signer string)
-		expectedCode uint32
+		name    string
+		msgFunc func() (msgs []sdk.Msg, signer string)
 	}
 	tests := []test{
 		{
@@ -48,8 +44,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				_, _, err := cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
 				require.NoError(t, err)
-				sendAcc := accounts[0]
-				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAcc)
+				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAccName)
 				vestAccAddr := testfactory.GetAddress(cctx.Keyring, vestAccName)
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
@@ -59,15 +54,13 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 					time.Now().Add(time.Second*100).Unix(),
 					false,
 				)
-				return []sdk.Msg{msg}, sendAcc
+				return []sdk.Msg{msg}, sendAccName
 			},
-			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "send funds from the vesting account after it has been created",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				sendAcc := accounts[1]
-				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAcc)
+				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAccName)
 				vestAccAddr := testfactory.GetAddress(cctx.Keyring, vestAccName)
 				msg := banktypes.NewMsgSend(
 					vestAccAddr,
@@ -76,25 +69,19 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 				)
 				return []sdk.Msg{msg}, vestAccName
 			},
-			expectedCode: abci.CodeTypeOK,
 		},
 	}
 
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msgs, account := tt.msgFunc()
-			addr := testfactory.GetAddress(cctx.Keyring, account)
-			signer, err := user.SetupSigner(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, addr, ecfg)
+			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, ecfg)
 			require.NoError(t, err)
-			res, err := signer.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
-			if tt.expectedCode != abci.CodeTypeOK {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			msgs, _ := tt.msgFunc()
+			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
+			require.NoError(t, err)
 			require.NotNil(t, res)
-			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
+			assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 		})
 	}
 }

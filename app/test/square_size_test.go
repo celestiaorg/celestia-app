@@ -61,13 +61,13 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 // block with spam txs to measure that the desired max is getting hit
 func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
+	const numBlocks = 10
 
 	type test struct {
 		name                  string
 		govMaxSquareSize      int
 		maxBytes              int
 		expectedMaxSquareSize int
-		pfbsPerBlock          int
 	}
 
 	tests := []test{
@@ -76,32 +76,55 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
 			maxBytes:              appconsts.DefaultMaxBytes,
 			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
-			pfbsPerBlock:          20,
 		},
 		{
 			name:                  "max bytes constrains square size",
 			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
 			maxBytes:              appconsts.DefaultMaxBytes,
 			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
-			pfbsPerBlock:          40,
 		},
 		{
 			name:                  "gov square size == hardcoded max",
 			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
 			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
 			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
-			pfbsPerBlock:          40,
 		},
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error)
+	go func() {
+		seqs := txsim.NewBlobSequence(
+			txsim.NewRange(100_000, 100_000),
+			txsim.NewRange(1, 1),
+		).Clone(100)
+		err := txsim.Run(
+			ctx,
+			s.grpcAddr,
+			s.cctx.Keyring,
+			encoding.MakeConfig(app.ModuleEncodingRegisters...),
+			txsim.DefaultOptions().
+				WithSeed(rand.Int63()).
+				WithPollTime(time.Second).
+				SuppressLogs(),
+			seqs...,
+		)
+		errCh <- err
+	}()
+
+	require.NoError(t, s.cctx.WaitForBlocks(2))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(100_000, 10, tt.pfbsPerBlock, 20*time.Second)
+			require.NoError(t, s.cctx.WaitForBlocks(numBlocks))
 
 			// check that we're not going above the specified size and that we hit the specified size
 			actualMaxSize := 0
-			for i := start; i < end; i++ {
+			end, err := s.cctx.LatestHeight()
+			require.NoError(t, err)
+			for i := end - numBlocks; i < end; i++ {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
@@ -114,39 +137,9 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 			require.Equal(t, tt.expectedMaxSquareSize, actualMaxSize)
 		})
 	}
-}
-
-// fillBlock runs txsim with blob sequences using the provided
-// arguments. The start and end blocks are returned.
-func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
-	t := s.T()
-	seqs := txsim.NewBlobSequence(
-		txsim.NewRange(blobSize/2, blobSize),
-		txsim.NewRange(blobsPerPFB/2, blobsPerPFB),
-	).Clone(pfbsPerBlock)
-
-	ctx, cancel := context.WithTimeout(context.Background(), period)
-	defer cancel()
-
-	startBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
-	require.NoError(t, err)
-
-	_ = txsim.Run(
-		ctx,
-		s.grpcAddr,
-		s.cctx.Keyring,
-		encoding.MakeConfig(app.ModuleEncodingRegisters...),
-		txsim.DefaultOptions().
-			WithSeed(rand.Int63()).
-			WithPollTime(time.Second).
-			SuppressLogs(),
-		seqs...,
-	)
-
-	endBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
-	require.NoError(t, err)
-
-	return startBlock.Block.Height, endBlock.Block.Height
+	cancel()
+	err := <-errCh
+	require.Contains(t, err.Error(), context.Canceled.Error())
 }
 
 // setBlockSizeParams will use the validator account to set the square size and
@@ -175,10 +168,10 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	)
 	require.NoError(t, err)
 
-	signer, err := user.SetupSigner(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, addr, s.ecfg)
+	txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
 	require.NoError(t, err)
 
-	res, err := signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
 
@@ -192,7 +185,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 
 	// create and submit a new vote
 	vote := v1.NewMsgVote(testfactory.GetAddress(s.cctx.Keyring, account), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
-	res, err = signer.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote}, blobfactory.DefaultTxOpts()...)
+	res, err = txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{vote}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, res.Code)
 

@@ -13,10 +13,12 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// Manager defines a module manager that provides the high level utility for managing and executing
-// operations for a group of modules. This implemention maps the state machine version to different
-// versions of the module. It also provides a way to run migrations between different versions of a
-// module.
+// Manager defines a module manager that provides the high level utility for
+// managing and executing operations for a group of modules. This implementation
+// was originally inspired by the module manager defined in Cosmos SDK but this
+// implemention maps the state machine version to different versions of the
+// module. It also provides a way to run migrations between different versions
+// of a module.
 type Manager struct {
 	// versionedModules is a map from app version -> module name -> module.
 	versionedModules map[uint64]map[string]sdkmodule.AppModule
@@ -39,7 +41,7 @@ type Manager struct {
 
 // NewManager returns a new Manager object.
 func NewManager(modules []VersionedModule) (*Manager, error) {
-	moduleMap := make(map[uint64]map[string]sdkmodule.AppModule)
+	versionedModules := make(map[uint64]map[string]sdkmodule.AppModule)
 	allModules := make([]sdkmodule.AppModule, len(modules))
 	modulesStr := make([]string, 0, len(modules))
 	uniqueModuleVersions := make(map[string]map[uint64][2]uint64)
@@ -53,13 +55,13 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 			return nil, sdkerrors.ErrLogic.Wrapf("FromVersion cannot be greater than ToVersion for module %s", module.Module.Name())
 		}
 		for version := module.FromVersion; version <= module.ToVersion; version++ {
-			if moduleMap[version] == nil {
-				moduleMap[version] = make(map[string]sdkmodule.AppModule)
+			if versionedModules[version] == nil {
+				versionedModules[version] = make(map[string]sdkmodule.AppModule)
 			}
-			if _, exists := moduleMap[version][name]; exists {
+			if _, exists := versionedModules[version][name]; exists {
 				return nil, sdkerrors.ErrLogic.Wrapf("Two different modules with domain %s are registered with the same version %d", name, version)
 			}
-			moduleMap[version][module.Module.Name()] = module.Module
+			versionedModules[version][module.Module.Name()] = module.Module
 		}
 		allModules[idx] = module.Module
 		modulesStr = append(modulesStr, name)
@@ -68,11 +70,11 @@ func NewManager(modules []VersionedModule) (*Manager, error) {
 		}
 		uniqueModuleVersions[name][moduleVersion] = [2]uint64{module.FromVersion, module.ToVersion}
 	}
-	firstVersion := slices.Min(getKeys(moduleMap))
-	lastVersion := slices.Max(getKeys(moduleMap))
+	firstVersion := slices.Min(getKeys(versionedModules))
+	lastVersion := slices.Max(getKeys(versionedModules))
 
 	m := &Manager{
-		versionedModules:     moduleMap,
+		versionedModules:     versionedModules,
 		uniqueModuleVersions: uniqueModuleVersions,
 		allModules:           allModules,
 		firstVersion:         firstVersion,
@@ -180,11 +182,17 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 	}
 }
 
-// ExportGenesis performs export genesis functionality for modules
+// ExportGenesis performs export genesis functionality for the modules supported
+// in a particular version.
 func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec, version uint64) map[string]json.RawMessage {
 	genesisData := make(map[string]json.RawMessage)
 	modules := m.versionedModules[version]
-	for _, moduleName := range m.OrderExportGenesis {
+	moduleNamesForVersion := m.ModuleNames(version)
+	moduleNamesToExport := filter(m.OrderExportGenesis, func(moduleName string) bool {
+		// filter out modules that are not supported by this version
+		return slices.Contains(moduleNamesForVersion, moduleName)
+	})
+	for _, moduleName := range moduleNamesToExport {
 		genesisData[moduleName] = modules[moduleName].ExportGenesis(ctx, cdc)
 	}
 

@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package testnet
 
 import (
@@ -26,6 +27,7 @@ func CreateTxClient(
 	seed int64,
 	sequences int,
 	blobRange string,
+	blobsPerSeq int,
 	pollTime int,
 	resources Resources,
 	volumePath string,
@@ -38,13 +40,13 @@ func CreateTxClient(
 	log.Info().
 		Str("name", name).
 		Str("image", image).
-		Msg("setting image for txsim node")
+		Msg("setting image for tx client")
 	err = instance.SetImage(image)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
 			Str("image", image).
-			Msg("failed to set image for txsim node")
+			Msg("failed to set image for tx client")
 		return nil, err
 	}
 	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
@@ -65,7 +67,7 @@ func CreateTxClient(
 		fmt.Sprintf("-t %ds", pollTime),
 		fmt.Sprintf("-b %d ", sequences),
 		fmt.Sprintf("-d %d ", seed),
-		fmt.Sprintf("-a %d ", 5),
+		fmt.Sprintf("-a %d ", blobsPerSeq),
 		fmt.Sprintf("-s %s ", blobRange),
 	}
 

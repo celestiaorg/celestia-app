@@ -1,0 +1,41 @@
+name: test-e2e
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.go"
+      - go.mod
+      - go.sum
+
+jobs:
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
+      - name: Run e2e tests
+        run: make test-e2e
+
+      - name: If the e2e test fails, notify Slack channel #e2e-test-failures
+        if: failure()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          notification_title: "E2E test failure"
+          message_format: "{emoji} *{workflow}* {status_message} in <{run_url}|{repo}>"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_E2E_TEST_FAILURES }}

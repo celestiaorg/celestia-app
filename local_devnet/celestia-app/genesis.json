@@ -342,7 +342,7 @@
       }
     },
     "minfee": {
-      "global_min_gas_price": "0.000001000000000000"
+      "network_min_gas_price": "0.000001000000000000"
     },
     "mint": {
       "bond_denom": "utia"
