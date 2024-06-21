@@ -146,7 +146,6 @@ func (m *Manager) getAppVersionsForModule(moduleName string, moduleVersion uint6
 func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage, appVersion uint64) abci.ResponseInitChain {
 	var validatorUpdates []abci.ValidatorUpdate
 	ctx.Logger().Info("initializing blockchain state from genesis.json")
-
 	modules, versionSupported := m.versionedModules[appVersion]
 	if !versionSupported {
 		panic(fmt.Sprintf("version %d not supported", appVersion))
