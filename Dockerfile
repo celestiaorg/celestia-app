@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM docker.io/golang:1.22.3-alpine3.19 as builder
+FROM docker.io/golang:1.22.4-alpine3.19 as builder
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
