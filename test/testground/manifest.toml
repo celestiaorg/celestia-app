@@ -6,8 +6,8 @@ runner = "local:docker"
 
 [builders."docker:generic"]
 enabled = true
-build_base_image = "golang:1.22.3"
-go_version = "1.22.3"
+build_base_image = "golang:1.22.4"
+go_version = "1.22.4"
 enable_go_build_cache = true
 
 [runners."local:docker"]
