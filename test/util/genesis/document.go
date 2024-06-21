@@ -23,26 +23,25 @@ func Document(
 	params *tmproto.ConsensusParams,
 	chainID string,
 	gentxs []json.RawMessage,
-	addrs []string,
-	pubkeys []cryptotypes.PubKey,
+	accounts []Account,
 	mods ...Modifier,
 ) (*coretypes.GenesisDoc, error) {
 	genutilGenState := genutiltypes.DefaultGenesisState()
 	genutilGenState.GenTxs = gentxs
 
-	genBals, genAccs, err := accountsToSDKTypes(addrs, pubkeys)
+	genBals, genAccs, err := accountsToSDKTypes(accounts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("converting accounts into sdk types: %w", err)
 	}
 
-	accounts, err := authtypes.PackAccounts(genAccs)
+	sdkAccounts, err := authtypes.PackAccounts(genAccs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("packing accounts: %w", err)
 	}
 
 	authGenState := authtypes.DefaultGenesisState()
 	bankGenState := banktypes.DefaultGenesisState()
-	authGenState.Accounts = append(authGenState.Accounts, accounts...)
+	authGenState.Accounts = append(authGenState.Accounts, sdkAccounts...)
 	bankGenState.Balances = append(bankGenState.Balances, genBals...)
 	bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
 
@@ -58,17 +57,18 @@ func Document(
 	}
 
 	state := app.ModuleBasics.DefaultGenesis(ecfg.Codec)
+
 	state[authtypes.ModuleName] = ecfg.Codec.MustMarshalJSON(authGenState)
 	state[banktypes.ModuleName] = ecfg.Codec.MustMarshalJSON(bankGenState)
 	state[genutiltypes.ModuleName] = ecfg.Codec.MustMarshalJSON(genutilGenState)
 
-	for _, modifer := range mods {
-		state = modifer(state)
+	for _, modifier := range mods {
+		state = modifier(state)
 	}
 
 	stateBz, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshalling genesis state: %w", err)
 	}
 
 	// Create the genesis doc
@@ -83,33 +83,42 @@ func Document(
 }
 
 // accountsToSDKTypes converts the genesis accounts to native SDK types.
-func accountsToSDKTypes(addrs []string, pubkeys []cryptotypes.PubKey) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
-	if len(addrs) != len(pubkeys) {
-		return nil, nil, fmt.Errorf("length of addresses and public keys are not equal")
-	}
-	genBals := make([]banktypes.Balance, len(addrs))
-	genAccs := make([]authtypes.GenesisAccount, len(addrs))
-	hasMap := make(map[string]bool)
-	for i, addr := range addrs {
-		if hasMap[addr] {
+func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
+	genBals := make([]banktypes.Balance, len(accounts))
+	genAccs := make([]authtypes.GenesisAccount, len(accounts))
+	hasMap := make(map[string]struct{})
+	for i, account := range accounts {
+		if err := account.ValidateBasic(); err != nil {
+			return nil, nil, fmt.Errorf("invalid account %d: %v", i, err)
+		}
+		addr := sdk.AccAddress(account.PubKey.Address())
+		if _, ok := hasMap[addr.String()]; ok {
 			return nil, nil, fmt.Errorf("duplicate account address %s", addr)
 		}
-		hasMap[addr] = true
-
-		pubKey := pubkeys[i]
+		hasMap[addr.String()] = struct{}{}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(999_999_999_999_999_999)),
+			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(account.Balance)),
 		)
 
-		genBals[i] = banktypes.Balance{Address: addr, Coins: balances.Sort()}
+		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 
-		parsedAddress, err := sdk.AccAddressFromBech32(addr)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		genAccs[i] = authtypes.NewBaseAccount(parsedAddress, pubKey, uint64(i), 0)
+		genAccs[i] = authtypes.NewBaseAccount(addr, account.PubKey, uint64(i), 0)
 	}
 	return genBals, genAccs, nil
+}
+
+type Account struct {
+	PubKey  cryptotypes.PubKey
+	Balance int64
+}
+
+func (ga Account) ValidateBasic() error {
+	if ga.PubKey == nil {
+		return fmt.Errorf("pubkey cannot be empty")
+	}
+	if ga.Balance <= 0 {
+		return fmt.Errorf("balance must be greater than 0")
+	}
+	return nil
 }

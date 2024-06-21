@@ -2,6 +2,7 @@ package blobfactory
 
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/user"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -10,6 +11,18 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+func DefaultTxOpts() []user.TxOption {
+	return FeeTxOpts(10_000_000)
+}
+
+func FeeTxOpts(gas uint64) []user.TxOption {
+	fee := uint64(float64(gas)*appconsts.DefaultMinGasPrice) + 1
+	return []user.TxOption{
+		user.SetFee(fee),
+		user.SetGasLimit(gas),
+	}
+}
 
 func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
 	const acc = "signer"

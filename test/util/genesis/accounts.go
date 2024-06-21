@@ -1,6 +1,7 @@
 package genesis
 
 import (
+	"errors"
 	"fmt"
 	mrand "math/rand"
 	"time"
@@ -15,15 +16,22 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 )
 
-type Account struct {
+const (
+	DefaultInitialBalance = 1e15 // 1 billion TIA
+)
+
+// KeyringAccount represents a user account on the Celestia network.
+// Either the name, if using the genesis keyring, or an address
+// needs to be provided
+type KeyringAccount struct {
 	Name          string
 	InitialTokens int64
 }
 
-func NewAccounts(initBal int64, names ...string) []Account {
-	accounts := make([]Account, len(names))
+func NewKeyringAccounts(initBal int64, names ...string) []KeyringAccount {
+	accounts := make([]KeyringAccount, len(names))
 	for i, name := range names {
-		accounts[i] = Account{
+		accounts[i] = KeyringAccount{
 			Name:          name,
 			InitialTokens: initBal,
 		}
@@ -31,18 +39,18 @@ func NewAccounts(initBal int64, names ...string) []Account {
 	return accounts
 }
 
-func (ga *Account) ValidateBasic() error {
+func (ga *KeyringAccount) ValidateBasic() error {
 	if ga.Name == "" {
-		return fmt.Errorf("name cannot be empty")
+		return errors.New("name cannot be empty")
 	}
 	if ga.InitialTokens <= 0 {
-		return fmt.Errorf("initial tokens must be positive")
+		return errors.New("initial tokens must be positive")
 	}
 	return nil
 }
 
 type Validator struct {
-	Account
+	KeyringAccount
 	Stake int64
 
 	// ConsensusKey is the key used by the validator to sign votes.
@@ -53,11 +61,11 @@ type Validator struct {
 func NewDefaultValidator(name string) Validator {
 	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 	return Validator{
-		Account: Account{
+		KeyringAccount: KeyringAccount{
 			Name:          name,
-			InitialTokens: 999_999_999_999_999_999,
+			InitialTokens: DefaultInitialBalance,
 		},
-		Stake:        99_999_999_999_999_999, // save some tokens for fees
+		Stake:        DefaultInitialBalance / 2, // save some tokens for fees
 		ConsensusKey: GenerateEd25519(NewSeed(r)),
 		NetworkKey:   GenerateEd25519(NewSeed(r)),
 	}
@@ -65,17 +73,17 @@ func NewDefaultValidator(name string) Validator {
 
 // ValidateBasic performs stateless validation on the validitor
 func (v *Validator) ValidateBasic() error {
-	if err := v.Account.ValidateBasic(); err != nil {
+	if err := v.KeyringAccount.ValidateBasic(); err != nil {
 		return err
 	}
 	if v.Stake <= 0 {
-		return fmt.Errorf("stake must be positive")
+		return errors.New("stake must be positive")
 	}
 	if v.ConsensusKey == nil {
-		return fmt.Errorf("consensus key cannot be empty")
+		return errors.New("consensus key cannot be empty")
 	}
 	if v.Stake > v.InitialTokens {
-		return fmt.Errorf("stake cannot be greater than initial tokens")
+		return errors.New("stake cannot be greater than initial tokens")
 	}
 	return nil
 }
@@ -115,7 +123,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
+	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(20000)))
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)
 	if err != nil {

@@ -1,16 +1,15 @@
 package genesis
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -45,12 +44,27 @@ type Genesis struct {
 	genOps []Modifier
 }
 
+// Accounts getter
+func (g *Genesis) Accounts() []Account {
+	return g.accounts
+}
+
+// Keyring getter
+func (g *Genesis) Keyring() keyring.Keyring {
+	return g.kr
+}
+
+// Validators getter
+func (g *Genesis) Validators() []Validator {
+	return g.validators
+}
+
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 	g := &Genesis{
 		ecfg:            ecfg,
-		ConsensusParams: DefaultConsensusParams(),
+		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         tmrand.Str(6),
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(ecfg.Codec),
@@ -59,29 +73,34 @@ func NewDefaultGenesis() *Genesis {
 	return g
 }
 
+// WithModifier adds a genesis modifier to the genesis.
 func (g *Genesis) WithModifiers(ops ...Modifier) *Genesis {
 	g.genOps = append(g.genOps, ops...)
 	return g
 }
 
+// WithConsensusParams sets the consensus parameters of the genesis.
 func (g *Genesis) WithConsensusParams(params *tmproto.ConsensusParams) *Genesis {
 	g.ConsensusParams = params
 	return g
 }
 
+// WithChainID sets the chain ID of the genesis.
 func (g *Genesis) WithChainID(chainID string) *Genesis {
 	g.ChainID = chainID
 	return g
 }
 
+// WithGenesisTime sets the genesis time of the genesis.
 func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
 	g.GenesisTime = genesisTime
 	return g
 }
 
+// WithAccounts adds the given validators to the genesis.
 func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	for _, val := range vals {
-		err := g.AddValidator(val)
+		err := g.NewValidator(val)
 		if err != nil {
 			panic(err)
 		}
@@ -89,9 +108,11 @@ func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	return g
 }
 
-func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
+// WithKeyringAccounts adds the given keyring accounts to the genesis. If an
+// account with the same name already exists, it panics.
+func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 	for _, acc := range accs {
-		err := g.AddAccount(acc)
+		err := g.NewAccount(acc)
 		if err != nil {
 			panic(err)
 		}
@@ -99,29 +120,50 @@ func (g *Genesis) WithAccounts(accs ...Account) *Genesis {
 	return g
 }
 
-func (g *Genesis) AddAccount(acc Account) error {
-	_, err := g.kr.Key(acc.Name)
-	if err == nil {
-		return fmt.Errorf("account with name %s already exists", acc.Name)
+// AddAccount adds an existing account to the genesis.
+func (g *Genesis) AddAccount(account Account) error {
+	for _, acc := range g.accounts {
+		if bytes.Equal(acc.PubKey.Bytes(), account.PubKey.Bytes()) {
+			return fmt.Errorf("account with pubkey %s already exists", account.PubKey.String())
+		}
 	}
-	if err := acc.ValidateBasic(); err != nil {
-		return err
-	}
-	_, _, err = g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return err
-	}
-	g.accounts = append(g.accounts, acc)
+	g.accounts = append(g.accounts, account)
 	return nil
 }
 
-func (g *Genesis) AddValidator(val Validator) error {
-	if err := val.ValidateBasic(); err != nil {
+// NewAccount creates a new account and adds it to the genesis.
+func (g *Genesis) NewAccount(acc KeyringAccount) error {
+	if err := acc.ValidateBasic(); err != nil {
+		return err
+	}
+	// check that the account does not already exist
+	if _, err := g.kr.Key(acc.Name); err == nil {
+		return fmt.Errorf("account with name %s already exists", acc.Name)
+	}
+
+	// generate the keys and add it to the genesis keyring
+	record, _, err := g.kr.NewMnemonic(acc.Name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
 		return err
 	}
 
-	// Add the validator's genesis account
-	if err := g.AddAccount(val.Account); err != nil {
+	pubKey, err := record.GetPubKey()
+	if err != nil {
+		return err
+	}
+
+	account := Account{
+		PubKey:  pubKey,
+		Balance: acc.InitialTokens,
+	}
+
+	g.accounts = append(g.accounts, account)
+	return nil
+}
+
+// AddValidator verifies and adds a given validator to the genesis.
+func (g *Genesis) AddValidator(val Validator) error {
+	if err := val.ValidateBasic(); err != nil {
 		return err
 	}
 
@@ -137,36 +179,19 @@ func (g *Genesis) AddValidator(val Validator) error {
 	return nil
 }
 
-func (g *Genesis) Accounts() []Account {
-	return g.accounts
-}
-
-func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
-	addrs := make([]string, 0, len(g.accounts))
-	pubKeys := make([]cryptotypes.PubKey, 0, len(g.accounts))
-	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
-
-	for _, acc := range g.Accounts() {
-		rec, err := g.kr.Key(acc.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		addr, err := rec.GetAddress()
-		if err != nil {
-			return nil, err
-		}
-
-		addrs = append(addrs, addr.String())
-
-		pubK, err := rec.GetPubKey()
-		if err != nil {
-			return nil, err
-		}
-
-		pubKeys = append(pubKeys, pubK)
+// Creates a new validator account and adds it to the genesis.
+func (g *Genesis) NewValidator(val Validator) error {
+	// Add the validator's genesis account
+	if err := g.NewAccount(val.KeyringAccount); err != nil {
+		return err
 	}
 
+	return g.AddValidator(val)
+}
+
+// Export returns the genesis document of the network.
+func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
+	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
 	for _, genTx := range g.genTxs {
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
 		if err != nil {
@@ -181,18 +206,9 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		g.ConsensusParams,
 		g.ChainID,
 		gentxs,
-		addrs,
-		pubKeys,
+		g.accounts,
 		g.genOps...,
 	)
-}
-
-func (g *Genesis) Keyring() keyring.Keyring {
-	return g.kr
-}
-
-func (g *Genesis) Validators() []Validator {
-	return g.validators
 }
 
 // Validator returns the validator at the given index. False is returned if the
@@ -202,11 +218,4 @@ func (g *Genesis) Validator(i int) (Validator, bool) {
 		return g.validators[i], true
 	}
 	return Validator{}, false
-}
-
-func DefaultConsensusParams() *tmproto.ConsensusParams {
-	cparams := coretypes.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
-	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	return cparams
 }
