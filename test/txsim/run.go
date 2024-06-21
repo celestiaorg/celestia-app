@@ -18,6 +18,11 @@ import (
 
 const DefaultSeed = 900183116
 
+const (
+	grpcMaxRecvMsgSize = 128 * 1024 * 1024
+	grpcMaxSendMsgSize = 128 * 1024 * 1024
+)
+
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
 // through the context. At least one grpc and rpc endpoint must be provided. The client relies on a
 // single funded master account present in the keyring. The client allocates subaccounts for sequences
@@ -39,7 +44,9 @@ func Run(
 	opts.Fill()
 	r := rand.New(rand.NewSource(opts.seed))
 
-	conn, err := grpc.NewClient(grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(grpcEndpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
 	if err != nil {
 		return fmt.Errorf("dialing %s: %w", grpcEndpoint, err)
 	}
