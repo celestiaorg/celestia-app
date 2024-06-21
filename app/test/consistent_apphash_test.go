@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -25,6 +26,14 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
+	// crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	// evidence "github.com/cosmos/cosmos-sdk/x/evidence/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	// slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	// govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	// TODO: Find out if we want to test this
+	// upgrade "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	// "time"
 )
 
@@ -86,7 +95,7 @@ func TestConsistentAppHash(t *testing.T) {
 
 	validators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
 
-	authorization := authz.NewGenericAuthorization("role1")
+	authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
 	msgGrant, err := authz.NewMsgGrant(
 		signer.Account(accountNames[0]).Address(),
 		signer.Account(accountNames[1]).Address(),
@@ -97,8 +106,25 @@ func TestConsistentAppHash(t *testing.T) {
 	msgRevoke := authz.NewMsgRevoke(
 		signer.Account(accountNames[0]).Address(),
 		signer.Account(accountNames[1]).Address(),
-		"role1",
+		blobtypes.URLMsgPayForBlobs,
 	)
+
+	msgExec := authz.NewMsgExec(signer.Account(accountNames[0]).Address(), []sdk.Msg{&msgRevoke})
+
+	feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{
+		SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000))),
+	}, signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address())
+	require.NoError(t, err)
+
+	// revoke
+	feeGrantRevoke := feegrant.NewMsgRevokeAllowance(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address())
+
+	// submit proposal
+	// TODO: Fix this
+	// proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
+	// 	signer.Account(accountNames[1]).Address(),
+	// 	amount)}, amount, signer.Account(accountNames[3]).Address().String(), "")
+	// require.NoError(t, err)
 
 	// Create an SDK Tx
 	sdkTx := SdkTx{
@@ -120,11 +146,33 @@ func TestConsistentAppHash(t *testing.T) {
 						amount,
 					),
 				}),
-			// msgExec := authz.NewMsgExec(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address(), []sdk.Msg{&banktypes.MsgSend{}})
 			msgGrant,
-			&msgRevoke,
+			&msgExec,
+			// TODO: figure out how to test invariants correctly
+			// crisisTypes.NewMsgVerifyInvariant(signer.Account(accountNames[0]).Address(), banktypes.ModuleName, ),
+			distribution.NewMsgFundCommunityPool(amount, signer.Account(accountNames[0]).Address()),
+			distribution.NewMsgSetWithdrawAddress(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address()),
+			// TODO: figure out how to withdraw delegator reward
+			// distribution.NewMsgWithdrawDelegatorReward(signer.Account(accountNames[0]).Address(), validators[0].GetOperator()),
+			// TODO: figure out how to withdraw validator commission
+			// distribution.NewMsgWithdrawValidatorCommission(validators[2].GetOperator()),
+			// TODO: figure out how to submit evidence properly
+			// evidence.NewMsgSubmitEvidence(signer.Account(accountNames[0]).Address(), evidence.Equivocation{}),
+			feegrantMsg,
+			&feeGrantRevoke,
+			// proposal,
+			// govtypes.NewMsgVote(signer.Account(accountNames[0]).Address(), 0, govtypes.OptionYes, ""),
+			// govtypes.NewMsgVoteWeighted(signer.Account(accountNames[0]).Address(), 0, []govtypes.WeightedVoteOption{{Option: govtypes.OptionYes, Weight: "1.0"}}, "")
+			// govtypes.NewMsgDeposit(signer.Account(accountNames[0]).Address(), 0, amount),
+			// TODO: Fix slashing
+			// slashingtypes.NewMsgUnjail(validators[0].GetOperator()),
+			// TODO: Fix staking
+			// stakingtypes.NewMsgCreateValidator(),
+			// stakintypes.NewMsgEditValidator(),
+			stakingtypes.NewMsgDelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), amount[0]),
 			stakingtypes.NewMsgBeginRedelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), validators[1].GetOperator(), amount[0]),
 			stakingtypes.NewMsgUndelegate(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), amount[0]),
+			// stakingtypes.NewMsgCancelUnbondingDelegation(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), amount[0].Amount.Int64()),
 		},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
