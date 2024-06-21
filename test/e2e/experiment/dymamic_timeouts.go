@@ -10,7 +10,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-const dynamicTimeoutVersion = "cb5e222"
+const dynamicTimeoutVersion = "4c8ce77"
 
 func main() {
 	if err := Run(); err != nil {
@@ -77,7 +77,9 @@ func Run() error {
 			}
 			log.Printf("Height: %v", status.SyncInfo.LatestBlockHeight)
 		case <-timeout.C:
-			printStartTimes(network)
+			if err := printStartTimes(network); err != nil {
+				return err
+			}
 			log.Println("--- FINISHED ✅: Dynamic Timeouts")
 			return nil
 		}
@@ -104,11 +106,12 @@ func printStartTimes(testnet *testnet.Testnet) error {
 	for height := int64(0); height < earliestLatestHeight; height++ {
 		fmt.Println("Height: ", height)
 		for i, client := range rpcClients {
-			startTime, err := client.StartTime(context.Background(), &height)
+			resp, err := client.StartTime(context.Background(), &height)
 			if err != nil {
-				return err
+				fmt.Printf("Error getting start time for node %d: %v\n", i, err)
+				continue
 			}
-			fmt.Printf("Node %d started at %v\n", i, startTime)
+			fmt.Printf("Node %d started at %v\n", i, resp.StartTime)
 		}
 	}
 	return nil
