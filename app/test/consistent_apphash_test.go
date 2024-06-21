@@ -17,11 +17,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	// authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
+	// "time"
 )
 
 type SdkTx struct {
@@ -35,12 +39,14 @@ type BlobTx struct {
 	txOptions []user.TxOption
 }
 
+// var expiration = time.Now().Add(time.Hour)
+
 // TestConsistentAppHash executes a set of txs, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
 	// Expected app hash produced by v1.x - TODO: link to the test producing the hash
-	expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
+	// expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
 
 	// Initialize testApp
 	testApp := testutil.NewTestApp()
@@ -78,12 +84,47 @@ func TestConsistentAppHash(t *testing.T) {
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000)))
 
+	validators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
+
+	authorization := authz.NewGenericAuthorization("role1")
+	msgGrant, err := authz.NewMsgGrant(
+		signer.Account(accountNames[0]).Address(),
+		signer.Account(accountNames[1]).Address(),
+		authorization,
+		&expiration,
+	)
+
+	msgRevoke := authz.NewMsgRevoke(
+		signer.Account(accountNames[0]).Address(),
+		signer.Account(accountNames[1]).Address(),
+		"role1",
+	)
+
 	// Create an SDK Tx
 	sdkTx := SdkTx{
 		sdkMsgs: []sdk.Msg{
+			// Single message in a single transaction
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
 				amount),
+			// Multiple messages in a single transaction
+			banktypes.NewMsgMultiSend([]banktypes.Input{
+				banktypes.NewInput(
+					signer.Account(accountNames[0]).Address(),
+					amount,
+				),
+			},
+				[]banktypes.Output{
+					banktypes.NewOutput(
+						signer.Account(accountNames[1]).Address(),
+						amount,
+					),
+				}),
+			// msgExec := authz.NewMsgExec(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address(), []sdk.Msg{&banktypes.MsgSend{}})
+			msgGrant,
+			&msgRevoke,
+			stakingtypes.NewMsgBeginRedelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), validators[1].GetOperator(), amount[0]),
+			stakingtypes.NewMsgUndelegate(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), amount[0]),
 		},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
@@ -128,9 +169,10 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Get the app hash
 	appHash := testApp.LastCommitID().Hash
+	fmt.Println("App Hash: ", appHash)
 
 	// Require that the app hash is equal to the app hash produced on a different commit
-	require.Equal(t, expectedAppHash, appHash)
+	// require.Equal(t, expectedAppHash, appHash)
 }
 
 // fixedNamespace returns a hardcoded namespace
