@@ -47,7 +47,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		LocalTracingType:   "local",
 		PushTrace:          false,
 		DownloadTraces:     false,
-		TestDuration:       1 * time.Minute,
+		TestDuration:       2 * time.Minute,
 		TxClients:          2,
 	}
 
