@@ -2,6 +2,7 @@
 package testnet
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -319,58 +320,58 @@ func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	return rpcEndpoints, nil
 }
 
-//func (t *Testnet) Start() error {
-//	genesisNodes := make([]*Node, 0)
-//	for _, node := range t.nodes {
-//		if node.StartHeight == 0 {
-//			genesisNodes = append(genesisNodes, node)
-//		}
-//	}
-//	// start genesis nodes asynchronously
-//	for _, node := range genesisNodes {
-//		err := node.StartAsync()
-//		if err != nil {
-//			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
-//		}
-//		log.Info().Str("name", node.Name).Msg("validator started")
-//	err := t.StartTxClients()
-//	if err != nil {
-//		return err
-//	}
-//	// wait for instances to be running
-//	for _, node := range genesisNodes {
-//		err := node.WaitUntilStartedAndForwardPorts()
-//		if err != nil {
-//			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
-//		}
-//	}
-//	// wait for nodes to sync
-//	for _, node := range genesisNodes {
-//		client, err := node.Client()
-//		if err != nil {
-//			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
-//		}
-//		for i := 0; i < 10; i++ {
-//			resp, err := client.Status(context.Background())
-//			if err != nil {
-//				if i == 9 {
-//					return fmt.Errorf("node %s status response: %w", node.Name, err)
-//				}
-//				time.Sleep(time.Second)
-//				continue
-//			}
-//			if resp.SyncInfo.LatestBlockHeight > 0 {
-//				break
-//			}
-//			if i == 9 {
-//				return fmt.Errorf("failed to start node %s", node.Name)
-//			}
-//			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
-//			time.Sleep(10000 * time.Millisecond)
-//		}
-//	}
-//	return nil
-//}
+func (t *Testnet) Start() error {
+	genesisNodes := make([]*Node, 0)
+	for _, node := range t.nodes {
+		if node.StartHeight == 0 {
+			genesisNodes = append(genesisNodes, node)
+		}
+	}
+	// start genesis nodes asynchronously
+	for _, node := range genesisNodes {
+		err := node.StartAsync()
+		if err != nil {
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+	}
+	err := t.StartTxClients()
+	if err != nil {
+		return err
+	}
+	// wait for instances to be running
+	for _, node := range genesisNodes {
+		err := node.WaitUntilStartedAndForwardPorts()
+		if err != nil {
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+	}
+	// wait for nodes to sync
+	for _, node := range genesisNodes {
+		client, err := node.Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
+		}
+		for i := 0; i < 10; i++ {
+			resp, err := client.Status(context.Background())
+			if err != nil {
+				if i == 9 {
+					return fmt.Errorf("node %s status response: %w", node.Name, err)
+				}
+				time.Sleep(time.Second)
+				continue
+			}
+			if resp.SyncInfo.LatestBlockHeight > 0 {
+				break
+			}
+			if i == 9 {
+				return fmt.Errorf("failed to start node %s", node.Name)
+			}
+			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
+			time.Sleep(1 * time.Second)
+		}
+	}
+	return nil
+}
 
 func (t *Testnet) Cleanup() {
 	// cleanup txsim
