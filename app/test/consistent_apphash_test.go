@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	// "time"
+
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -18,20 +20,21 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	// authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	// evidence "github.com/cosmos/cosmos-sdk/x/evidence/types"
+	// "github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
-	// crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	// evidence "github.com/cosmos/cosmos-sdk/x/evidence/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
+
 	// slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-	// govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	// TODO: Find out if we want to test this
 	// upgrade "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	// "time"
@@ -87,9 +90,19 @@ func TestConsistentAppHash(t *testing.T) {
 		accounts = append(accounts, account)
 	}
 
+	// cfg := testnode.DefaultConfig()
+	// WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec))
+
+	// Initialize testnode
+	// cctx, _, _ := testnode.NewNetwork(t, cfg)
+
 	// Create a signer with keyring accounts
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
 	require.NoError(t, err)
+
+	signer2, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
+	require.NoError(t, err)
+	fmt.Println(signer, signer2)
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000)))
 
@@ -119,17 +132,37 @@ func TestConsistentAppHash(t *testing.T) {
 	// revoke
 	feeGrantRevoke := feegrant.NewMsgRevokeAllowance(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address())
 
-	// submit proposal
-	// TODO: Fix this
-	// proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
-	// 	signer.Account(accountNames[1]).Address(),
-	// 	amount)}, amount, signer.Account(accountNames[3]).Address().String(), "")
+	// evidence doesn't work
+	// valConsAddr, err  := validators[0].GetConsAddr()
 	// require.NoError(t, err)
+	// fmt.Println(valConsAddr.String(), "ValConsAddr")
+	// msgEvidence, err := evidence.NewMsgSubmitEvidence(signer.Account(accountNames[0]).Address(),  &evidence.Equivocation{
+	// 	Height:           10,
+	// 	Power:            100,
+	// 	Time:             time.Now().UTC(),
+	// 	ConsensusAddress:  valConsAddr.String(),
+	// })
+	// require.NoError(t, err)
+
+	// submit proposal
+	govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false, tmproto.Header{})).GetAddress()
+	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&banktypes.MsgSend{FromAddress: govAccount.String(),
+		ToAddress: signer.Account(accountNames[1]).Address().String(), Amount: amount}}, amount, signer.Account(accountNames[0]).Address().String(), "")
+	require.NoError(t, err)
+
+	msgValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountNames[2]),
+		signer.Account(accountNames[2]).PubKey(),
+		amount[0],
+		stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
+		stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
+		sdk.OneInt())
+	require.NoError(t, err)
+	// testutil.NewTestMsgCreateValidator(sdk.ValAddress(signer.Account(accountNames[0]).Address().String()), signer.Account(accountNames[2]).PubKey(), amount[0].Amount)
 
 	// Create an SDK Tx
 	sdkTx := SdkTx{
 		sdkMsgs: []sdk.Msg{
-			// Single message in a single transaction
+			// Single message in a single transactiFon
 			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
 				signer.Account(accountNames[1]).Address(),
 				amount),
@@ -148,31 +181,34 @@ func TestConsistentAppHash(t *testing.T) {
 				}),
 			msgGrant,
 			&msgExec,
-			// TODO: figure out how to test invariants correctly
-			// crisisTypes.NewMsgVerifyInvariant(signer.Account(accountNames[0]).Address(), banktypes.ModuleName, ),
-			distribution.NewMsgFundCommunityPool(amount, signer.Account(accountNames[0]).Address()),
-			distribution.NewMsgSetWithdrawAddress(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address()),
-			// TODO: figure out how to withdraw delegator reward
-			// distribution.NewMsgWithdrawDelegatorReward(signer.Account(accountNames[0]).Address(), validators[0].GetOperator()),
-			// TODO: figure out how to withdraw validator commission
-			// distribution.NewMsgWithdrawValidatorCommission(validators[2].GetOperator()),
-			// TODO: figure out how to submit evidence properly
-			// evidence.NewMsgSubmitEvidence(signer.Account(accountNames[0]).Address(), evidence.Equivocation{}),
+			crisisTypes.NewMsgVerifyInvariant(signer.Account(accountNames[0]).Address(), banktypes.ModuleName, "nonnegative-outstanding"),
 			feegrantMsg,
 			&feeGrantRevoke,
-			// proposal,
-			// govtypes.NewMsgVote(signer.Account(accountNames[0]).Address(), 0, govtypes.OptionYes, ""),
-			// govtypes.NewMsgVoteWeighted(signer.Account(accountNames[0]).Address(), 0, []govtypes.WeightedVoteOption{{Option: govtypes.OptionYes, Weight: "1.0"}}, "")
-			// govtypes.NewMsgDeposit(signer.Account(accountNames[0]).Address(), 0, amount),
+			// msgEvidence,
+			proposal,
+			govtypes.NewMsgVote(signer.Account(accountNames[0]).Address(), 1, govtypes.OptionYes, ""),
+			// govtypes.NewMsgVoteWeighted(
+			// 	signer.Account(accountNames[0]).Address(),
+			// 	1,
+			// 	govtypes.WeightedVoteOptions([]*govtypes.WeightedVoteOption{{Option: govtypes.OptionYes, Weight: "1.0"}}), // Cast the slice to the expected type
+			// 	"",
+			// ),
+			govtypes.NewMsgDeposit(signer.Account(accountNames[0]).Address(), 1, amount),
 			// TODO: Fix slashing
 			// slashingtypes.NewMsgUnjail(validators[0].GetOperator()),
 			// TODO: Fix staking
-			// stakingtypes.NewMsgCreateValidator(),
+			msgValidator,
 			// stakintypes.NewMsgEditValidator(),
 			stakingtypes.NewMsgDelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), amount[0]),
 			stakingtypes.NewMsgBeginRedelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), validators[1].GetOperator(), amount[0]),
 			stakingtypes.NewMsgUndelegate(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), amount[0]),
-			// stakingtypes.NewMsgCancelUnbondingDelegation(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), amount[0].Amount.Int64()),
+			// stakingtypes.NewMsgCancelUnbondingDelegation(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), 1, amount[0]),
+			stakingtypes.NewMsgDelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), amount[0]),
+			distribution.NewMsgSetWithdrawAddress(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address()),
+			distribution.NewMsgFundCommunityPool(amount, signer.Account(accountNames[0]).Address()),
+			distribution.NewMsgWithdrawDelegatorReward(signer.Account(accountNames[0]).Address(), validators[0].GetOperator()),
+			// This needs a multisig account
+			// distribution.NewMsgWithdrawValidatorCommission(validators[0].GetOperator()),
 		},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
