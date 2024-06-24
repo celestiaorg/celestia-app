@@ -15,9 +15,9 @@ func main() {
 		{"TwoNodeBigBlock_32MiB", TwoNodeBigBlock_32MiB},
 		{"TwoNodeBigBlock_8MiB_Latency", TwoNodeBigBlock_8MiB_Latency},
 		{"TwoNodeBigBlock_64MiB", TwoNodeBigBlock_64MiB},
-		//{"LargeNetwork_BigBlock_8MiB", LargeNetwork_BigBlock_8MiB},
-		//{"LargeNetwork_BigBlock_32MiB", LargeNetwork_BigBlock_32MiB},
-		//{"LargeNetwork_BigBlock_64MiB", LargeNetwork_BigBlock_64MiB},
+		{"LargeNetwork_BigBlock_8MiB", LargeNetwork_BigBlock_8MiB},
+		{"LargeNetwork_BigBlock_32MiB", LargeNetwork_BigBlock_32MiB},
+		{"LargeNetwork_BigBlock_64MiB", LargeNetwork_BigBlock_64MiB},
 	}
 
 	// check the test name passed as an argument and run it

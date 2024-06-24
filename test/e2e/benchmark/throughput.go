@@ -190,3 +190,77 @@ func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
 
 	return nil
 }
+
+func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_8MiB")
+	manifest := bigBlockManifest
+	manifest.ChainID = "45-3-big-block-8mb"
+	manifest.MaxBlockBytes = 8 * toMB
+	manifest.Validators = 45
+	manifest.TxClients = 45
+	manifest.BlobSequences = 2
+	manifest.TestDuration = 15 * time.Minute
+
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_8MiB", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	return nil
+}
+
+func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_32MiB")
+	manifest := bigBlockManifest
+	manifest.ChainID = "45-3-big-block-32mb"
+	manifest.MaxBlockBytes = 32 * toMB
+	manifest.Validators = 45
+	manifest.TxClients = 45
+	manifest.BlobSequences = 2
+
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_32MiB", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	return nil
+}
+
+func LargeNetwork_BigBlock_64MiB(logger *log.Logger) error {
+	logger.Println("Running LargeNetwork_BigBlock_64MiB")
+	manifest := bigBlockManifest
+	manifest.ChainID = "45-3-big-block-64mb"
+	manifest.MaxBlockBytes = 64 * toMB
+	manifest.Validators = 50
+	manifest.TxClients = 50
+	manifest.BlobSequences = 2
+
+	benchTest, err := NewBenchmarkTest("LargeNetwork_BigBlock_64MiB", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	return nil
+
+}
