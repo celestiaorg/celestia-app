@@ -28,7 +28,6 @@ func main() {
 			break
 		}
 	}
-
 }
 
 type TestFunc func(*log.Logger) error
