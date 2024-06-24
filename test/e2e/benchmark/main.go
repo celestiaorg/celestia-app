@@ -15,6 +15,7 @@ func main() {
 
 	// check the test name passed as an argument and run it
 	if len(os.Args) < 2 {
+		logger.Println("No test is specified.")
 		logger.Println("Usage: go run ./test/e2e/benchmark <test_name>")
 		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
 		return
