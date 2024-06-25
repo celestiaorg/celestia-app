@@ -21,12 +21,20 @@ func main() {
 		return
 
 	}
+	found := false
 	testName := os.Args[1]
 	for _, test := range tests {
 		if test.Name == testName {
+			found = true
 			runTest(logger, test)
 			break
 		}
+	}
+	if !found {
+		logger.Printf("Invalid test name: %s\n", testName)
+		logger.Printf("Valid tests are: %s\n", getTestNames(tests))
+		logger.Println("Usage: go run ./test/e2e/benchmark <test_name>")
+
 	}
 }
 
