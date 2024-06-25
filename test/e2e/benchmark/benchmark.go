@@ -40,16 +40,20 @@ func (b *BenchmarkTest) SetupNodes() error {
 			return fmt.Errorf("failed to create genesis node: %v", err)
 		}
 	} else {
+		err := b.CreateGenesisNodes(1, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true, "")
+		if err != nil {
+			return fmt.Errorf("failed to create genesis nodes with tsharkToS3 enabled: %v", err)
+		}
 		firstValIP, err := b.Node(0).Instance.GetIP()
 		if err != nil {
 			return fmt.Errorf("failed to get IP of first validator: %v", err)
 		}
-		err = b.CreateGenesisNodes(2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true, firstValIP)
+		err = b.CreateGenesisNodes(1, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true, firstValIP)
 		if err != nil {
 			return fmt.Errorf("failed to create genesis nodes with tsharkToS3 enabled: %v", err)
 		}
 		if b.manifest.Validators > 2 {
-			err = b.CreateGenesisNodes(b.manifest.Validators-2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, false, "")
+			err = b.CreateGenesisNodes(b.manifest.Validators-2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, false, firstValIP)
 			if err != nil {
 				return fmt.Errorf("failed to create remaining genesis nodes: %v", err)
 			}

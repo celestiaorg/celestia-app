@@ -235,8 +235,13 @@ func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
 }
 
 func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
+
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
+
 	logger.Println("Running LargeNetwork_BigBlock_8MiB")
 	manifest := bigBlockManifest
+	manifest.CelestiaAppVersion = latestVersion
 	manifest.TestnetName = "LargeNetwork_BigBlock_8MiB"
 	manifest.ChainID = "large-network-big-block-8mib"
 	manifest.MaxBlockBytes = 8 * toMiB
@@ -270,7 +275,7 @@ func LargeNetwork_BigBlock_8MiB_Latency(logger *log.Logger) error {
 	manifest.Validators = 100
 	manifest.TxClients = 100
 	manifest.BlobSequences = 20
-	manifest.TestDuration = 15 * time.Minute
+	manifest.TestDuration = 30 * time.Minute
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0} // in  milliseconds
 
