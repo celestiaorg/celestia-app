@@ -205,7 +205,7 @@ func NewNode(
 			S3KeyPrefix:    "tshark/" + knuu.Scope(),
 			S3Endpoint:     os.Getenv("S3_ENDPOINT"),
 			UploadInterval: 10 * time.Second,
-			IpFilter:       "10.0.0.0/8",
+			IpFilter:       tsharkFilterIP,
 			CompressFiles:  true,
 		}
 		err = instance.EnableTsharkCollector(tsharkConfig)
