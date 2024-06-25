@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	"github.com/stretchr/testify/assert"
 	"github.com/tendermint/tendermint/libs/log"
 	tmdb "github.com/tendermint/tm-db"
@@ -38,6 +39,11 @@ func TestNew(t *testing.T) {
 	})
 	t.Run("should not have sealed the baseapp", func(t *testing.T) {
 		assert.False(t, got.IsSealed())
+	})
+	t.Run("should have set the minfee key table", func(t *testing.T) {
+		subspace := got.GetSubspace(minfee.ModuleName)
+		hasKeyTable := subspace.HasKeyTable()
+		assert.True(t, hasKeyTable)
 	})
 }
 
