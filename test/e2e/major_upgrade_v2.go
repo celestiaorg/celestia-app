@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package main
 
 import (
@@ -22,7 +23,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	numNodes := 4
-	upgradeHeight := int64(12)
+	upgradeHeight := int64(10)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -59,6 +60,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
+
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
@@ -78,7 +80,24 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		}
 	}
 
-	cancel()
+	// make all nodes in the network restart and ensure that progress is still made
+	for _, node := range testNet.Nodes() {
+		client, err := node.Client()
+		testnet.NoError("failed to get client", err)
+
+		height, err := getHeight(ctx, client, time.Minute)
+		if err != nil {
+			return fmt.Errorf("failed to get height: %w", err)
+		}
+
+		if err := node.Upgrade(latestVersion); err != nil {
+			return fmt.Errorf("failed to restart node: %w", err)
+		}
+
+		if err := waitForHeight(ctx, client, height+3, time.Minute); err != nil {
+			return fmt.Errorf("failed to wait for height: %w", err)
+		}
+	}
 
 	return nil
 }

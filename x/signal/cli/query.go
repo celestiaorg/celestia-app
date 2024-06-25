@@ -21,6 +21,7 @@ func GetQueryCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(CmdQueryTally())
+	cmd.AddCommand(CmdGetUpgrade())
 	return cmd
 }
 
@@ -48,6 +49,35 @@ func CmdQueryTally() *cobra.Command {
 			}
 
 			return clientCtx.PrintProto(resp)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+func CmdGetUpgrade() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "upgrade",
+		Short:   "Query for the upgrade information if an upgrade is pending",
+		Args:    cobra.NoArgs,
+		Example: "upgrade",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+			resp, err := queryClient.GetUpgrade(cmd.Context(), &types.QueryGetUpgradeRequest{})
+			if err != nil {
+				return err
+			}
+
+			if resp.Upgrade != nil {
+				return clientCtx.PrintString(fmt.Sprintf("An upgrade is pending to app version %d at height %d.\n", resp.Upgrade.AppVersion, resp.Upgrade.UpgradeHeight))
+			}
+			return clientCtx.PrintString("No upgrade is pending.\n")
 		},
 	}
 

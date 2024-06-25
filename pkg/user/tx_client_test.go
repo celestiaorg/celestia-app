@@ -14,6 +14,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -36,7 +37,7 @@ type TxClientTestSuite struct {
 
 func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), testnode.DefaultConfig().WithFundedAccounts("a"))
+	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b", "c"))
 	_, err := suite.ctx.WaitForHeight(1)
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
@@ -64,6 +65,19 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.EqualValues(t, resp.GasWanted, 1e6)
+	})
+
+	t.Run("submit blob with different account", func(t *testing.T) {
+		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "c", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
+		require.NoError(t, err)
+		require.EqualValues(t, 0, resp.Code)
+		require.EqualValues(t, resp.GasWanted, 1e6)
+	})
+
+	t.Run("try submit a blob with an account that doesn't exist", func(t *testing.T) {
+		_, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "non-existent account", blobs)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "key not found")
 	})
 }
 
@@ -99,6 +113,22 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.EqualValues(t, resp.GasWanted, 1e6)
+	})
+
+	t.Run("submit tx with a different account", func(t *testing.T) {
+		addr := suite.txClient.Account("b").Address()
+		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
+		require.NoError(t, err)
+		require.EqualValues(t, 0, resp.Code)
+	})
+
+	t.Run("submit tx with an updated default gas price", func(t *testing.T) {
+		suite.txClient.SetDefaultGasPrice(appconsts.DefaultMinGasPrice / 2)
+		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
+		require.NoError(t, err)
+		require.EqualValues(t, 0, resp.Code)
+		suite.txClient.SetDefaultGasPrice(appconsts.DefaultMinGasPrice)
 	})
 }
 
@@ -192,6 +222,17 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 	require.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
 	// The gas used based deduction should be less than the fee because the fee is 1 TIA.
 	require.Less(t, gasUsedBasedDeduction, int64(fee))
+}
+
+func (suite *TxClientTestSuite) TestTxClientWithDifferentDefaultAccount() {
+	txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAccount("b"))
+	suite.NoError(err)
+	suite.Equal(txClient.DefaultAccountName(), "b")
+
+	addrC := txClient.Account("c").Address()
+	txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithDefaultAddress(addrC))
+	suite.NoError(err)
+	suite.Equal(txClient.DefaultAddress(), addrC)
 }
 
 func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {

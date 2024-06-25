@@ -58,6 +58,11 @@ var bigBlockManifest = Manifest{
 }
 
 func TwoNodeSimple(_ *log.Logger) error {
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
+
+	log.Println("=== RUN TwoNodeSimple", "version:", latestVersion)
+
 	manifest := Manifest{
 		TestnetName:        "TwoNodeSimple",
 		ChainID:            "two-node-simple",
@@ -65,13 +70,13 @@ func TwoNodeSimple(_ *log.Logger) error {
 		ValidatorResource:  testnet.DefaultResources,
 		TxClientsResource:  testnet.DefaultResources,
 		SelfDelegation:     10000000,
-		CelestiaAppVersion: "pr-3261",
+		CelestiaAppVersion: latestVersion,
 		TxClientVersion:    testnet.TxsimVersion,
-		EnableLatency:      true,
+		EnableLatency:      false,
 		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
-		BlobsPerSeq:        1,
-		BlobSequences:      1,
-		BlobSizes:          "10000-10000",
+		BlobsPerSeq:        6,
+		BlobSequences:      50,
+		BlobSizes:          "200000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
@@ -84,7 +89,7 @@ func TwoNodeSimple(_ *log.Logger) error {
 		LocalTracingType:   "local",
 		PushTrace:          false,
 		DownloadTraces:     false,
-		TestDuration:       1 * time.Minute,
+		TestDuration:       2 * time.Minute,
 		TxClients:          2,
 	}
 
@@ -137,7 +142,6 @@ func TwoNodeSimple(_ *log.Logger) error {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
 	}
 
-	log.Println("--- PASS ✅: E2EThroughput")
 	return nil
 }
 

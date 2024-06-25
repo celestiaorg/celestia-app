@@ -38,3 +38,10 @@ func (s *CLITestSuite) TestCmdQueryTally() {
 	s.Require().Contains(output.String(), "threshold_power")
 	s.Require().Contains(output.String(), "total_voting_power")
 }
+
+func (s *CLITestSuite) TestCmdGetUpgrade() {
+	cmd := cli.CmdGetUpgrade()
+	output, err := testutil.ExecTestCLICmd(s.ctx.Context, cmd, []string{})
+	s.Require().NoError(err)
+	s.Require().Contains(output.String(), "No upgrade is pending.")
+}

@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package testnet
 
 import (
@@ -62,7 +63,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	if err != nil {
 		return err
 	}
-	if err := t.genesis.AddValidator(node.GenesisValidator()); err != nil {
+	if err := t.genesis.NewValidator(node.GenesisValidator()); err != nil {
 		return err
 	}
 	t.nodes = append(t.nodes, node)
@@ -140,6 +141,13 @@ func (t *Testnet) CreateTxClient(name,
 		log.Err(err).
 			Str("name", name).
 			Msg("error creating txsim")
+		return err
+	}
+	err = txsim.Instance.Commit()
+	if err != nil {
+		log.Err(err).
+			Str("name", name).
+			Msg("error committing txsim")
 		return err
 	}
 
@@ -368,7 +376,7 @@ func (t *Testnet) Start() error {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 		}
 	}
 	return nil

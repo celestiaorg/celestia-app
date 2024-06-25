@@ -10,14 +10,14 @@ import (
 // DefaultGenesis returns the default genesis state.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		GlobalMinGasPrice: DefaultGlobalMinGasPrice,
+		NetworkMinGasPrice: DefaultNetworkMinGasPrice,
 	}
 }
 
 // ValidateGenesis performs basic validation of genesis data returning an error for any failed validation criteria.
 func ValidateGenesis(genesis *GenesisState) error {
-	if genesis.GlobalMinGasPrice.IsNegative() || genesis.GlobalMinGasPrice.IsZero() {
-		return fmt.Errorf("global min gas price cannot be negative: %g", genesis.GlobalMinGasPrice)
+	if genesis.NetworkMinGasPrice.IsNegative() || genesis.NetworkMinGasPrice.IsZero() {
+		return fmt.Errorf("network min gas price cannot be negative or zero: %g", genesis.NetworkMinGasPrice)
 	}
 
 	return nil
@@ -31,8 +31,8 @@ func ExportGenesis(ctx sdk.Context, k params.Keeper) *GenesisState {
 	}
 	subspace = RegisterMinFeeParamTable(subspace)
 
-	var globalMinGasPrice sdk.Dec
-	subspace.Get(ctx, KeyGlobalMinGasPrice, &globalMinGasPrice)
+	var networkMinGasPrice sdk.Dec
+	subspace.Get(ctx, KeyNetworkMinGasPrice, &networkMinGasPrice)
 
-	return &GenesisState{GlobalMinGasPrice: globalMinGasPrice}
+	return &GenesisState{NetworkMinGasPrice: networkMinGasPrice}
 }
