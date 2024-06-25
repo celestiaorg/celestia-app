@@ -366,6 +366,8 @@ func (t *Testnet) Start() error {
 				continue
 			}
 			if resp.SyncInfo.LatestBlockHeight > 0 {
+				log.Info().Int("Index", i).Str("name", node.Name).Msg(
+					"node has synced")
 				break
 			}
 			log.Info().Int64("height", resp.SyncInfo.LatestBlockHeight).Msg(
