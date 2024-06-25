@@ -133,6 +133,11 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
+
+	if err := instance.EnableBitTwister(); err != nil {
+		return nil, fmt.Errorf("failed to enable bit twister: %v", err)
+	}
+
 	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
 	if upgradeHeight != 0 {
 		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
