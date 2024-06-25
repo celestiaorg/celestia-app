@@ -105,7 +105,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
+func TwoNodeBigBlock8MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_8MiB")
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * toMB
@@ -127,7 +127,7 @@ func TwoNodeBigBlock_8MiB(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
+func TwoNodeBigBlock8MiBLatency(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_8MiB_Latency")
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-8mib-latency"
@@ -149,7 +149,7 @@ func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
+func TwoNodeBigBlock32MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_32MiB")
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-32mb"
@@ -170,7 +170,7 @@ func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
+func TwoNodeBigBlock64MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_64MiB")
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-64mb"
@@ -191,7 +191,7 @@ func TwoNodeBigBlock_64MiB(logger *log.Logger) error {
 	return nil
 }
 
-func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
+func LargeNetworkBigBlock8MiB(logger *log.Logger) error {
 	logger.Println("Running LargeNetwork_BigBlock_8MiB")
 	manifest := bigBlockManifest
 	manifest.ChainID = "45-3-big-block-8mb"
@@ -216,7 +216,7 @@ func LargeNetwork_BigBlock_8MiB(logger *log.Logger) error {
 	return nil
 }
 
-func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
+func LargeNetworkBigBlock32MiB(logger *log.Logger) error {
 	logger.Println("Running LargeNetwork_BigBlock_32MiB")
 	manifest := bigBlockManifest
 	manifest.ChainID = "45-3-big-block-32mb"
@@ -240,7 +240,7 @@ func LargeNetwork_BigBlock_32MiB(logger *log.Logger) error {
 	return nil
 }
 
-func LargeNetwork_BigBlock_64MiB(logger *log.Logger) error {
+func LargeNetworkBigBlock64MiB(logger *log.Logger) error {
 	logger.Println("Running LargeNetwork_BigBlock_64MiB")
 	manifest := bigBlockManifest
 	manifest.ChainID = "45-3-big-block-64mb"
@@ -262,5 +262,4 @@ func LargeNetwork_BigBlock_64MiB(logger *log.Logger) error {
 	testnet.NoError("failed to check results", benchTest.CheckResults())
 
 	return nil
-
 }
