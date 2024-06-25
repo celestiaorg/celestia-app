@@ -21,25 +21,27 @@ func main() {
 	}
 
 	// check the test name passed as an argument and run it
-	specificTestFound := false
-	for _, arg := range os.Args[1:] {
-		for _, test := range tests {
-			if test.Name == arg {
-				runTest(logger, test)
-				specificTestFound = true
-				break
-			}
+	if len(os.Args) < 2 {
+		logger.Println("No test is specified.")
+		logger.Println("Usage: go run ./test/e2e/benchmark <test_name>")
+		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
+		return
+
+	}
+	found := false
+	testName := os.Args[1]
+	for _, test := range tests {
+		if test.Name == testName {
+			found = true
+			runTest(logger, test)
+			break
 		}
 	}
+	if !found {
+		logger.Printf("Invalid test name: %s\n", testName)
+		logger.Printf("Valid tests are: %s\n", getTestNames(tests))
+		logger.Println("Usage: go run ./test/e2e/benchmark <test_name>")
 
-	if !specificTestFound {
-		logger.Println("No particular test specified. Running all tests.")
-		logger.Println("go run ./test/e2e/benchmark <test_name> to run a specific test")
-		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
-		// if no specific test is passed, run all tests
-		for _, test := range tests {
-			runTest(logger, test)
-		}
 	}
 }
 
