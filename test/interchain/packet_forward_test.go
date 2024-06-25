@@ -90,7 +90,7 @@ func TestPFM(t *testing.T) {
 	err = relayer.StartRelayer(ctx, reporter, pathCosmosHubCelestia, pathCelestiaCosmosHub2)
 	require.NoError(t, err)
 
-	err = testutil.WaitForBlocks(ctx, 2, celestia, cosmosHub)
+	err = testutil.WaitForBlocks(ctx, 2, celestia, cosmosHub, cosmosHub2)
 	require.NoError(t, err)
    
 	// Get the connections
