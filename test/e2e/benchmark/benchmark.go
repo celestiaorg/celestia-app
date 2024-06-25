@@ -35,17 +35,21 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 // Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
 func (b *BenchmarkTest) SetupNodes() error {
 	if b.manifest.Validators == 1 {
-		err := b.CreateGenesisNodes(1, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true)
+		err := b.CreateGenesisNodes(1, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true, "")
 		if err != nil {
 			return fmt.Errorf("failed to create genesis node: %v", err)
 		}
 	} else {
-		err := b.CreateGenesisNodes(2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true)
+		firstValIP, err := b.Node(0).Instance.GetIP()
+		if err != nil {
+			return fmt.Errorf("failed to get IP of first validator: %v", err)
+		}
+		err = b.CreateGenesisNodes(2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, true, firstValIP)
 		if err != nil {
 			return fmt.Errorf("failed to create genesis nodes with tsharkToS3 enabled: %v", err)
 		}
 		if b.manifest.Validators > 2 {
-			err = b.CreateGenesisNodes(b.manifest.Validators-2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, false)
+			err = b.CreateGenesisNodes(b.manifest.Validators-2, b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation, b.manifest.UpgradeHeight, b.manifest.ValidatorResource, false, "")
 			if err != nil {
 				return fmt.Errorf("failed to create remaining genesis nodes: %v", err)
 			}

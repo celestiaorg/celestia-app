@@ -26,7 +26,7 @@ func E2ESimple(logger *log.Logger) error {
 	defer testNet.Cleanup()
 
 	logger.Println("Creating testnet validators")
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnet.DefaultResources, false))
+	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnet.DefaultResources, false, ""))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()

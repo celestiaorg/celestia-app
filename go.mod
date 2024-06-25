@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/knuu v0.14.1-0.20240614112449-c904db76987b
+	github.com/celestiaorg/knuu v0.14.1-0.20240625063430-ac21f9176f37
 	github.com/celestiaorg/nmt v0.21.0
 	github.com/celestiaorg/rsmt2d v0.13.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
@@ -161,7 +161,7 @@ require (
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.0.70 // indirect
+	github.com/minio/minio-go/v7 v7.0.72 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

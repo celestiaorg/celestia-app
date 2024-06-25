@@ -132,6 +132,7 @@ func NewNode(
 	resources Resources,
 	grafana *GrafanaInfo,
 	tsharkToS3 bool,
+	tsharkFilterIP string,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -203,6 +204,8 @@ func NewNode(
 			S3KeyPrefix:    "tshark/" + knuu.Scope(),
 			S3Endpoint:     os.Getenv("S3_ENDPOINT"),
 			UploadInterval: 10 * time.Second,
+			IpFilter:       "10.0.0.0/8",
+			CompressFiles:  true,
 		}
 		err = instance.EnableTsharkCollector(tsharkConfig)
 		if err != nil {
