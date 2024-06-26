@@ -3,7 +3,6 @@ package app_test
 import (
 	"fmt"
 	"testing"
-
 	// "time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -12,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
@@ -20,10 +20,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
+
 	// evidence "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	// "github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
@@ -33,11 +35,9 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 
-	// slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	// TODO: Find out if we want to test this
-	// upgrade "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	// "time"
+	// slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
 type SdkTx struct {
@@ -70,10 +70,14 @@ func TestConsistentAppHash(t *testing.T) {
 	recs, err := kr.List()
 	require.NoError(t, err)
 	accountNames := make([]string, 0, len(recs))
+	accountAddresses := make([]sdk.AccAddress, 0, len(recs))
 
 	// Get the name of the records
 	for _, rec := range recs {
 		accountNames = append(accountNames, rec.Name)
+		accAddress, err := rec.GetAddress()
+		require.NoError(t, err)
+		accountAddresses = append(accountAddresses, accAddress)
 	}
 
 	// Apply genesis state to the app.
@@ -90,125 +94,133 @@ func TestConsistentAppHash(t *testing.T) {
 		accounts = append(accounts, account)
 	}
 
-	// cfg := testnode.DefaultConfig()
-	// WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec))
-
-	// Initialize testnode
-	// cctx, _, _ := testnode.NewNetwork(t, cfg)
-
 	// Create a signer with keyring accounts
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
 	require.NoError(t, err)
-
-	signer2, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
-	require.NoError(t, err)
-	fmt.Println(signer, signer2)
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000)))
 
 	validators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
 
-	authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
-	msgGrant, err := authz.NewMsgGrant(
-		signer.Account(accountNames[0]).Address(),
-		signer.Account(accountNames[1]).Address(),
-		authorization,
-		&expiration,
-	)
-
-	msgRevoke := authz.NewMsgRevoke(
-		signer.Account(accountNames[0]).Address(),
-		signer.Account(accountNames[1]).Address(),
-		blobtypes.URLMsgPayForBlobs,
-	)
-
-	msgExec := authz.NewMsgExec(signer.Account(accountNames[0]).Address(), []sdk.Msg{&msgRevoke})
-
-	feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{
-		SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000))),
-	}, signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address())
-	require.NoError(t, err)
-
-	// revoke
-	feeGrantRevoke := feegrant.NewMsgRevokeAllowance(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address())
-
-	// evidence doesn't work
-	// valConsAddr, err  := validators[0].GetConsAddr()
-	// require.NoError(t, err)
-	// fmt.Println(valConsAddr.String(), "ValConsAddr")
-	// msgEvidence, err := evidence.NewMsgSubmitEvidence(signer.Account(accountNames[0]).Address(),  &evidence.Equivocation{
-	// 	Height:           10,
-	// 	Power:            100,
-	// 	Time:             time.Now().UTC(),
-	// 	ConsensusAddress:  valConsAddr.String(),
-	// })
-	// require.NoError(t, err)
-
-	// submit proposal
-	govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false, tmproto.Header{})).GetAddress()
-	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&banktypes.MsgSend{FromAddress: govAccount.String(),
-		ToAddress: signer.Account(accountNames[1]).Address().String(), Amount: amount}}, amount, signer.Account(accountNames[0]).Address().String(), "")
-	require.NoError(t, err)
-
-	msgValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountNames[2]),
-		signer.Account(accountNames[2]).PubKey(),
-		amount[0],
-		stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
-		stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
-		sdk.OneInt())
-	require.NoError(t, err)
-	// testutil.NewTestMsgCreateValidator(sdk.ValAddress(signer.Account(accountNames[0]).Address().String()), signer.Account(accountNames[2]).PubKey(), amount[0].Amount)
+	oneInt := sdk.OneInt()
+	commission := sdk.NewDecWithPrec(6, 0o2)
 
 	// Create an SDK Tx
 	sdkTx := SdkTx{
 		sdkMsgs: []sdk.Msg{
 			// Single message in a single transactiFon
-			banktypes.NewMsgSend(signer.Account(accountNames[0]).Address(),
-				signer.Account(accountNames[1]).Address(),
+			banktypes.NewMsgSend(accountAddresses[0],
+				accountAddresses[1],
 				amount),
 			// Multiple messages in a single transaction
 			banktypes.NewMsgMultiSend([]banktypes.Input{
 				banktypes.NewInput(
-					signer.Account(accountNames[0]).Address(),
+					accountAddresses[0],
 					amount,
 				),
 			},
 				[]banktypes.Output{
 					banktypes.NewOutput(
-						signer.Account(accountNames[1]).Address(),
+						accountAddresses[1],
 						amount,
 					),
 				}),
-			msgGrant,
-			&msgExec,
-			crisisTypes.NewMsgVerifyInvariant(signer.Account(accountNames[0]).Address(), banktypes.ModuleName, "nonnegative-outstanding"),
-			feegrantMsg,
-			&feeGrantRevoke,
-			// msgEvidence,
-			proposal,
-			govtypes.NewMsgVote(signer.Account(accountNames[0]).Address(), 1, govtypes.OptionYes, ""),
+			func() sdk.Msg {
+				authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
+				msgGrant, err := authz.NewMsgGrant(
+					accountAddresses[0],
+					accountAddresses[1],
+					authorization,
+					&expiration,
+				)
+				require.NoError(t, err)
+				return msgGrant
+			}(),
+			func() sdk.Msg {
+				msgRevoke := authz.NewMsgRevoke(
+					accountAddresses[0],
+					accountAddresses[1],
+					blobtypes.URLMsgPayForBlobs,
+				)
+				msgExec := authz.NewMsgExec(accountAddresses[0], []sdk.Msg{&msgRevoke})
+				return &msgExec
+			}(),
+			crisisTypes.NewMsgVerifyInvariant(accountAddresses[0], banktypes.ModuleName, "nonnegative-outstanding"),
+			func() sdk.Msg {
+				basicAllowance := feegrant.BasicAllowance{
+					SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000))),
+				}
+				feegrantMsg, err := feegrant.NewMsgGrantAllowance(&basicAllowance, accountAddresses[0], accountAddresses[1])
+				require.NoError(t, err)
+				return feegrantMsg
+			}(),
+			func() sdk.Msg {
+				msgRevoke := feegrant.NewMsgRevokeAllowance(accountAddresses[0], accountAddresses[1])
+				return &msgRevoke
+			}(),
+			// func() sdk.Msg {
+			// 	valConsAddr, err  := validators[0].GetConsAddr()
+			// 	require.NoError(t, err)
+			// 	fmt.Println(valConsAddr.String(), "ValConsAddr")
+			// 	msgEvidence, err := evidence.NewMsgSubmitEvidence(accountAddresses[0],  &evidence.Equivocation{
+			// 		Height:           10,
+			// 		Power:            100,
+			// 		Time:             time.Now().UTC(),
+			// 		ConsensusAddress:  valConsAddr.String(),
+			// 	})
+			// 	require.NoError(t, err)
+			// 	return msgEvidence
+			// }(),
+			func() sdk.Msg {
+				govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false, tmproto.Header{})).GetAddress()
+				msg := banktypes.MsgSend{
+					FromAddress: govAccount.String(),
+					ToAddress:   accountAddresses[1].String(),
+					Amount:      amount,
+				}
+				proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&msg}, amount, accountAddresses[0].String(), "")
+				require.NoError(t, err)
+				return proposal
+			}(),
+			govtypes.NewMsgDeposit(accountAddresses[0], 1, amount),
+			// inactive proposal
+			// govtypes.NewMsgVote(accountAddresses[0], 1, govtypes.VoteOption_VOTE_OPTION_YES, ""),
 			// govtypes.NewMsgVoteWeighted(
-			// 	signer.Account(accountNames[0]).Address(),
+			// 	accountAddresses[0],
 			// 	1,
 			// 	govtypes.WeightedVoteOptions([]*govtypes.WeightedVoteOption{{Option: govtypes.OptionYes, Weight: "1.0"}}), // Cast the slice to the expected type
 			// 	"",
 			// ),
-			govtypes.NewMsgDeposit(signer.Account(accountNames[0]).Address(), 1, amount),
-			// TODO: Fix slashing
-			// slashingtypes.NewMsgUnjail(validators[0].GetOperator()),
-			// TODO: Fix staking
-			msgValidator,
-			// stakintypes.NewMsgEditValidator(),
-			stakingtypes.NewMsgDelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), amount[0]),
-			stakingtypes.NewMsgBeginRedelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), validators[1].GetOperator(), amount[0]),
-			stakingtypes.NewMsgUndelegate(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), amount[0]),
-			// stakingtypes.NewMsgCancelUnbondingDelegation(signer.Account(accountNames[0]).Address(), validators[1].GetOperator(), 1, amount[0]),
-			stakingtypes.NewMsgDelegate(signer.Account(accountNames[0]).Address(), validators[0].GetOperator(), amount[0]),
-			distribution.NewMsgSetWithdrawAddress(signer.Account(accountNames[0]).Address(), signer.Account(accountNames[1]).Address()),
-			distribution.NewMsgFundCommunityPool(amount, signer.Account(accountNames[0]).Address()),
-			distribution.NewMsgWithdrawDelegatorReward(signer.Account(accountNames[0]).Address(), validators[0].GetOperator()),
-			// This needs a multisig account
-			// distribution.NewMsgWithdrawValidatorCommission(validators[0].GetOperator()),
+			// func() sdk.Msg {
+			// valConsAddr, err := validators[0].GetConsAddr()
+			// require.NoError(t, err)
+			// testApp.StakingKeeper.Jail(testApp.NewContext(false, tmproto.Header{}), valConsAddr)
+			// return slashingtypes.NewMsgUnjail(validators[0].GetOperator())
+			// }(),
+			func() sdk.Msg {
+				msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[0]),
+					ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey(),
+					amount[0],
+					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
+					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
+					sdk.OneInt())
+				require.NoError(t, err)
+				return msgCreateValidator
+			}(),
+			func() sdk.Msg {
+				return stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[0]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), &commission, &oneInt)
+			}(),
+			stakingtypes.NewMsgDelegate(accountAddresses[0], validators[0].GetOperator(), amount[0]),
+			stakingtypes.NewMsgBeginRedelegate(accountAddresses[0], validators[0].GetOperator(), validators[1].GetOperator(), amount[0]),
+			stakingtypes.NewMsgUndelegate(accountAddresses[0], validators[1].GetOperator(), amount[0]),
+			// failed to execute message; message index: 4: unbonding delegation entry is not found at block height 1: not found
+			// stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], validators[1].GetOperator(), testApp.LastBlockHeight(), amount[0]),
+			stakingtypes.NewMsgDelegate(accountAddresses[0], validators[0].GetOperator(), amount[0]),
+			distribution.NewMsgSetWithdrawAddress(accountAddresses[0], accountAddresses[1]),
+			distribution.NewMsgFundCommunityPool(amount, accountAddresses[0]),
+			distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], validators[0].GetOperator()),
+			// No Delegation distribution info
+			// distribution.NewMsgWithdrawValidatorCommission(sdk.ValAddress(accountAddresses[0])),
 		},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
