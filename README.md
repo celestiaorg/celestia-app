@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.22.3
+1. [Install Go](https://go.dev/doc/install) 1.22.4
 1. Clone this repo
 1. Install the celestia-app CLI
 

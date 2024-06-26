@@ -7,4 +7,4 @@ var DefaultResources = Resources{
 	Volume:        "1Gi",
 }
 
-const TxsimVersion = "a92de72"
+const TxsimVersion = "pr-3541"

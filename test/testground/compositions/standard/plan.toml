@@ -46,10 +46,10 @@ cpu = "6"
 count = 100
 percentage = 0.0
 [groups.build_config]
-build_base_image = "golang:1.22.3"
+build_base_image = "golang:1.22.4"
 enable_go_build_cache = true
 enabled = true
-go_version = "1.22.3"
+go_version = "1.22.4"
 [groups.build]
 [groups.run]
 artifact = ""
