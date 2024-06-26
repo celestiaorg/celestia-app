@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/v2
 
-go 1.22.3
+go 1.22.4
 
 require (
 	cosmossdk.io/errors v1.0.1
