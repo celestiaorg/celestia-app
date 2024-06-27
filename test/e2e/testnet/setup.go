@@ -15,8 +15,8 @@ import (
 func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	cfg := app.DefaultConsensusConfig()
 	cfg.TxIndex.Indexer = "kv"
-	cfg.Mempool.MaxTxsBytes = 1024 * 1024 * 1024
-	cfg.Mempool.MaxTxBytes = 8 * 1024 * 1024
+	cfg.Mempool.MaxTxsBytes = 1 * GiB
+	cfg.Mempool.MaxTxBytes = 8 * MiB
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
@@ -98,7 +98,7 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 	// updating MaxRecvMsgSize and MaxSendMsgSize allows submission of 128MiB worth of
 	// transactions simultaneously which is useful for big block tests.
-	srvCfg.GRPC.MaxRecvMsgSize = 128 * 1024 * 1024 //501646900 //
-	srvCfg.GRPC.MaxSendMsgSize = 128 * 1024 * 1024 // 2501646900 //
+	srvCfg.GRPC.MaxRecvMsgSize = 128 * MiB
+	srvCfg.GRPC.MaxSendMsgSize = 128 * MiB
 	return srvCfg, srvCfg.ValidateBasic()
 }
