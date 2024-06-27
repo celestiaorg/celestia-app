@@ -105,7 +105,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	testnet.NoError("failed to check results", benchTest.CheckResults(1*mib))
+	testnet.NoError("failed to check results", benchTest.CheckResults(1*mb))
 
 	return nil
 }
