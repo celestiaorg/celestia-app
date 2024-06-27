@@ -122,7 +122,7 @@ func (b *BenchmarkTest) Run() error {
 	return nil
 }
 
-func (b *BenchmarkTest) CheckResults(expectedBlockSize int64) error {
+func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int) error {
 	log.Println("Checking results")
 
 	// if local tracing was enabled,
@@ -157,7 +157,7 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSize int64) error {
 			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
 		}
 		size := int64(block.Size())
-		if size >= expectedBlockSize {
+		if size >= expectedBlockSizeBytes {
 			targetSizeReached = true
 			break
 		}
@@ -166,7 +166,7 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSize int64) error {
 		}
 	}
 	if !targetSizeReached {
-		return fmt.Errorf("max reached block size is %d byte and is not within the expected range of %d  and %d bytes", maxBlockSize, expectedBlockSize, b.manifest.MaxBlockBytes)
+		return fmt.Errorf("max reached block size is %d byte and is not within the expected range of %d  and %d bytes", maxBlockSize, expectedBlockSizeBytes, b.manifest.MaxBlockBytes)
 	}
 
 	return nil
