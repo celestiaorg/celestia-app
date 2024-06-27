@@ -259,7 +259,7 @@ func LargeNetworkBigBlock64MiB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 
-	manifest.ChainID = "50-3-big-block-64mb"
+	manifest.ChainID = "50-2-big-block-64mb"
 	manifest.MaxBlockBytes = 64 * toMB
 	manifest.Validators = 50
 	manifest.TxClients = 50
