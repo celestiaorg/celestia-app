@@ -11,13 +11,13 @@ func main() {
 
 	tests := []Test{
 		{"TwoNodeSimple", TwoNodeSimple},
-		{"TwoNodeBigBlock8MiB", TwoNodeBigBlock8MiB},
-		{"TwoNodeBigBlock32MiB", TwoNodeBigBlock32MiB},
-		{"TwoNodeBigBlock8MiBLatency", TwoNodeBigBlock8MiBLatency},
-		{"TwoNodeBigBlock64MiB", TwoNodeBigBlock64MiB},
-		{"LargeNetworkBigBlock8MiB", LargeNetworkBigBlock8MiB},
-		{"LargeNetworkBigBlock32MiB", LargeNetworkBigBlock32MiB},
-		{"LargeNetworkBigBlock64MiB", LargeNetworkBigBlock64MiB},
+		{"TwoNodeBigBlock8MB", TwoNodeBigBlock8MB},
+		{"TwoNodeBigBlock32MB", TwoNodeBigBlock32MB},
+		{"TwoNodeBigBlock8MBLatency", TwoNodeBigBlock8MBLatency},
+		{"TwoNodeBigBlock64MB", TwoNodeBigBlock64MB},
+		{"LargeNetworkBigBlock8MB", LargeNetworkBigBlock8MB},
+		{"LargeNetworkBigBlock32MB", LargeNetworkBigBlock32MB},
+		{"LargeNetworkBigBlock64MB", LargeNetworkBigBlock64MB},
 		{"HundredNode64MB", HundredNode64MB},
 	}
 

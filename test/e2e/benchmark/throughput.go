@@ -110,8 +110,8 @@ func TwoNodeSimple(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock8MiB(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock8MiB"
+func TwoNodeBigBlock8MB(logger *log.Logger) error {
+	testName := "TwoNodeBigBlock8MB"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * toMB
@@ -134,12 +134,12 @@ func TwoNodeBigBlock8MiB(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock8MiBLatency(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock8MiBLatency"
+func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
+	testName := "TwoNodeBigBlock8MBLatency"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
-	manifest.ChainID = "two-node-big-block-8mib-latency"
-	manifest.MaxBlockBytes = 8 * toMiB
+	manifest.ChainID = "two-node-big-block-8mb-latency"
+	manifest.MaxBlockBytes = 8 * toMB
 	manifest.EnableLatency = true
 
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
@@ -158,8 +158,8 @@ func TwoNodeBigBlock8MiBLatency(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock32MiB(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock32MiB"
+func TwoNodeBigBlock32MB(logger *log.Logger) error {
+	testName := "TwoNodeBigBlock32MB"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-32mb"
@@ -181,8 +181,8 @@ func TwoNodeBigBlock32MiB(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock64MiB(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock64MiB"
+func TwoNodeBigBlock64MB(logger *log.Logger) error {
+	testName := "TwoNodeBigBlock64MB"
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
@@ -204,8 +204,8 @@ func TwoNodeBigBlock64MiB(logger *log.Logger) error {
 	return nil
 }
 
-func LargeNetworkBigBlock8MiB(logger *log.Logger) error {
-	testName := "LargeNetworkBigBlock8MiB"
+func LargeNetworkBigBlock8MB(logger *log.Logger) error {
+	testName := "LargeNetworkBigBlock8MB"
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
@@ -231,8 +231,8 @@ func LargeNetworkBigBlock8MiB(logger *log.Logger) error {
 	return nil
 }
 
-func LargeNetworkBigBlock32MiB(logger *log.Logger) error {
-	testName := "LargeNetworkBigBlock32MiB"
+func LargeNetworkBigBlock32MB(logger *log.Logger) error {
+	testName := "LargeNetworkBigBlock32MB"
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
@@ -257,8 +257,8 @@ func LargeNetworkBigBlock32MiB(logger *log.Logger) error {
 	return nil
 }
 
-func LargeNetworkBigBlock64MiB(logger *log.Logger) error {
-	testName := "LargeNetworkBigBlock64MiB"
+func LargeNetworkBigBlock64MB(logger *log.Logger) error {
+	testName := "LargeNetworkBigBlock64MB"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 
