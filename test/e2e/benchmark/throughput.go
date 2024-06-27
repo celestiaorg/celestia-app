@@ -57,7 +57,9 @@ func TwoNodeSimple(logger *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
-	logger.Println("=== RUN TwoNodeSimple", "version:", latestVersion)
+	testName := "TwoNodeSimple"
+
+	logger.Printf("=== RUN %s", "version: %s \n", testName, latestVersion)
 
 	manifest := Manifest{
 		ChainID:            "test-e2e-two-node-simple",
@@ -88,7 +90,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		TxClients:          2,
 	}
 
-	benchTest, err := NewBenchmarkTest("E2EThroughput", &manifest)
+	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
