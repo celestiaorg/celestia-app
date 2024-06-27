@@ -70,7 +70,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		EnableLatency:      false,
 		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
 		BlobsPerSeq:        6,
-		BlobSequences:      50,
+		BlobSequences:      25,
 		BlobSizes:          "200000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
