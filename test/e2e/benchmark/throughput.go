@@ -280,3 +280,30 @@ func LargeNetworkBigBlock64MiB(logger *log.Logger) error {
 
 	return nil
 }
+
+func HundredNode64MB(logger *log.Logger) error {
+	testName := "HundredNode64MB"
+	logger.Printf("Running %s\n", testName)
+	manifest := bigBlockManifest
+
+	manifest.ChainID = "100-2-big-block-64mb"
+	manifest.MaxBlockBytes = 64 * toMB
+	manifest.Validators = 100
+	manifest.TxClients = 100
+	manifest.BlobSequences = 1
+
+	benchTest, err := NewBenchmarkTest(testName, &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
+	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
+
+	return nil
+}
