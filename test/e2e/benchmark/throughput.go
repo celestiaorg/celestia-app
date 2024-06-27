@@ -11,8 +11,8 @@ import (
 const (
 	seed = 42
 
-	toMiB = 1024 * 1024
-	toMB  = 1000 * 1000
+	mib = 1024 * 1024
+	mb  = 1000 * 1000
 )
 
 var bigBlockManifest = Manifest{
@@ -42,7 +42,7 @@ var bigBlockManifest = Manifest{
 	BlobSequences:      60,
 	BlobsPerSeq:        6,
 	BlobSizes:          "200000",
-	PerPeerBandwidth:   5 * toMB,
+	PerPeerBandwidth:   5 * mb,
 	UpgradeHeight:      0,
 	TimeoutCommit:      11 * time.Second,
 	TimeoutPropose:     80 * time.Second,
@@ -77,7 +77,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		BlobsPerSeq:        6,
 		BlobSequences:      60,
 		BlobSizes:          "200000",
-		PerPeerBandwidth:   5 * toMB,
+		PerPeerBandwidth:   5 * mb,
 		UpgradeHeight:      0,
 		TimeoutCommit:      1 * time.Second,
 		TimeoutPropose:     1 * time.Second,
@@ -105,7 +105,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	testnet.NoError("failed to check results", benchTest.CheckResults(1*toMiB))
+	testnet.NoError("failed to check results", benchTest.CheckResults(1*mib))
 
 	return nil
 }
@@ -114,7 +114,7 @@ func TwoNodeBigBlock8MB(logger *log.Logger) error {
 	testName := "TwoNodeBigBlock8MB"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 8 * toMB
+	manifest.MaxBlockBytes = 8 * mb
 	manifest.ChainID = "two-node-big-block-8mb"
 	logger.Println("ChainID: ", manifest.ChainID)
 
@@ -139,7 +139,7 @@ func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-8mb-latency"
-	manifest.MaxBlockBytes = 8 * toMB
+	manifest.MaxBlockBytes = 8 * mb
 	manifest.EnableLatency = true
 
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
@@ -163,7 +163,7 @@ func TwoNodeBigBlock32MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-32mb"
-	manifest.MaxBlockBytes = 32 * toMB
+	manifest.MaxBlockBytes = 32 * mb
 
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -187,7 +187,7 @@ func TwoNodeBigBlock64MB(logger *log.Logger) error {
 
 	manifest := bigBlockManifest
 	manifest.ChainID = "two-node-big-block-64mb"
-	manifest.MaxBlockBytes = 64 * toMB
+	manifest.MaxBlockBytes = 64 * mb
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -210,7 +210,7 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 
 	manifest := bigBlockManifest
 	manifest.ChainID = "50-2-big-block-8mb"
-	manifest.MaxBlockBytes = 8 * toMB
+	manifest.MaxBlockBytes = 8 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
@@ -237,7 +237,7 @@ func LargeNetworkBigBlock32MB(logger *log.Logger) error {
 
 	manifest := bigBlockManifest
 	manifest.ChainID = "50-2-big-block-32mb"
-	manifest.MaxBlockBytes = 32 * toMB
+	manifest.MaxBlockBytes = 32 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
@@ -263,7 +263,7 @@ func LargeNetworkBigBlock64MB(logger *log.Logger) error {
 	manifest := bigBlockManifest
 
 	manifest.ChainID = "50-2-big-block-64mb"
-	manifest.MaxBlockBytes = 64 * toMB
+	manifest.MaxBlockBytes = 64 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
