@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -94,4 +95,22 @@ func (m *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = m.MaxBlockBytes
 	return cparams
+}
+
+// summary generates a summary of the Manifest struct to be used as chain id.
+func (m *Manifest) summary() string {
+	latency := 0
+	if m.EnableLatency {
+		latency = 1
+	}
+	maxBlockMB := m.MaxBlockBytes / mb
+	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-%dmb",
+		m.Validators, m.TxClients,
+		m.BlobSequences, m.PerPeerBandwidth/mb,
+		m.TimeoutCommit/time.Second, m.TimeoutPropose/time.Second,
+		latency, m.Mempool, maxBlockMB)
+	if len(summary) > 50 {
+		return summary[:50]
+	}
+	return summary
 }

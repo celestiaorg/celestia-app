@@ -115,8 +115,9 @@ func TwoNodeBigBlock8MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * mb
-	manifest.ChainID = "two-node-big-block-8mb"
-	logger.Println("ChainID: ", manifest.ChainID)
+
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -138,10 +139,12 @@ func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
 	testName := "TwoNodeBigBlock8MBLatency"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
-	manifest.ChainID = "two-node-big-block-8mb-latency"
+
 	manifest.MaxBlockBytes = 8 * mb
 	manifest.EnableLatency = true
 
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -162,9 +165,10 @@ func TwoNodeBigBlock32MB(logger *log.Logger) error {
 	testName := "TwoNodeBigBlock32MB"
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
-	manifest.ChainID = "two-node-big-block-32mb"
 	manifest.MaxBlockBytes = 32 * mb
 
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -186,8 +190,10 @@ func TwoNodeBigBlock64MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
-	manifest.ChainID = "two-node-big-block-64mb"
 	manifest.MaxBlockBytes = 64 * mb
+
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -209,12 +215,13 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
-	manifest.ChainID = "50-2-big-block-8mb"
 	manifest.MaxBlockBytes = 8 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-	manifest.TestDuration = 15 * time.Minute
+
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -236,11 +243,13 @@ func LargeNetworkBigBlock32MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
-	manifest.ChainID = "50-2-big-block-32mb"
 	manifest.MaxBlockBytes = 32 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
+
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -262,12 +271,13 @@ func LargeNetworkBigBlock64MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 
-	manifest.ChainID = "50-2-big-block-64mb"
 	manifest.MaxBlockBytes = 64 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
 
+	manifest.ChainID = manifest.summary()
+	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
