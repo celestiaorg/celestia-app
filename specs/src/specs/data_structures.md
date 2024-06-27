@@ -72,12 +72,11 @@ Implementations can prune rows containing only [tail padding](./consensus.md#res
 
 Data that is [erasure-coded](#erasure-coding) for [data availability checks](https://arxiv.org/abs/1809.09044).
 
-| name                        | type                                                    | description                                                                                                  |
-|-----------------------------|---------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for blobs to be included. |
-| `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                              |
-| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                             |
-| `blobData`                  | [BlobData](#blobdata)                                   | Blob data. Blobs are app data.                                                                               |
+| name                        | type                                                    | description                                                                                                           |
+|-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| `transactions`              | [Transaction](#transaction)                             | Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances. |
+| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                                      |
+| `blobData`                  | [BlobData](#blobdata)                                   | Blob data. Blobs are app data.                                                                                        |
 
 ### Commit
 
@@ -326,7 +325,7 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 ### Arranging Available Data Into Shares
 
-The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
+The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transaction), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
 
 Note that each [share](./shares.md) only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.
 
@@ -370,46 +369,21 @@ The blob share commitment rules may introduce empty shares that do not belong to
 
 ## Available Data
 
-### TransactionData
-
-| name                  | type                                          | description                   |
-|-----------------------|-----------------------------------------------|-------------------------------|
-| `wrappedTransactions` | [WrappedTransaction](#wrappedtransaction)`[]` | List of wrapped transactions. |
-
-#### WrappedTransaction
-
-Wrapped transactions include additional metadata by the block proposer that is committed to in the [available data matrix](#arranging-available-data-into-shares).
-
-| name             | type                        | description                                                                                                                                                                                                                                                                                                     |
-|------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `index`          | `uint64`                    | Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking a transaction to an [intermediate state root](#wrappedintermediatestateroot). |
-| `transaction`    | [Transaction](#transaction) | Actual transaction.                                                                                                                                                                                                                                                                                             |
-| `blobStartIndex` | `uint64`                    | _Optional, only used if transaction pays for a blob or padding_. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.                                                                                                     |
-
-#### Transaction
+### Transaction
 
 Celestia transactions are Cosmos SDK [transactions](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md).
 
+### IndexWrapper
+
+IndexWrapper are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the [available data matrix](#arranging-available-data-into-shares).
+
+| name            | type       | description                                                                                                                                            |
+|-----------------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `tx`            | `bytes`    | Actual transaction.                                                                                                                                    |
+| `share_indexes` | `[]uint32` | Share indexes (in row-major order) of the first share for each blob this transaction pays for. Needed for light verification of proper blob inclusion. |
+| `type_id`       | `string`   | Type ID of the IndexWrapper transaction type. Always set to `"INDX"`                                                                                   |
+
 ### PayForBlobData
-
-### IntermediateStateRootData
-
-| name                            | type                                                              | description                               |
-|---------------------------------|-------------------------------------------------------------------|-------------------------------------------|
-| `wrappedIntermediateStateRoots` | [WrappedIntermediateStateRoot](#wrappedintermediatestateroot)`[]` | List of wrapped intermediate state roots. |
-
-#### WrappedIntermediateStateRoot
-
-| name                    | type                                            | description                                                                                                                                                                                                                                                                                                                       |
-|-------------------------|-------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `index`                 | `uint64`                                        | Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a [transaction](#wrappedtransaction). |
-| `intermediateStateRoot` | [IntermediateStateRoot](#intermediatestateroot) | Intermediate state root. Used for fraud proofs.                                                                                                                                                                                                                                                                                   |
-
-#### IntermediateStateRoot
-
-| name   | type                      | description                                                                              |
-|--------|---------------------------|------------------------------------------------------------------------------------------|
-| `root` | [HashDigest](#hashdigest) | Root of intermediate state, which is composed of the global state and the validator set. |
 
 ### BlobData
 
