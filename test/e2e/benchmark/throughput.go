@@ -36,7 +36,7 @@ var bigBlockManifest = Manifest{
 	TxClientVersion:    "pr-3261",
 	EnableLatency:      false,
 	LatencyParams:      LatencyParams{0, 0}, // in  milliseconds
-	BlobSequences:      30,
+	BlobSequences:      25,
 	BlobsPerSeq:        6,
 	BlobSizes:          "200000",
 	PerPeerBandwidth:   5 * toMB,
