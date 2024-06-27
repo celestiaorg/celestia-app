@@ -49,7 +49,7 @@ type Node struct {
 	traceProxyHost string
 }
 
-// PullBlockSummaryTraces retrieves the round state traces from a node.
+// PullBlockSummaryTraces retrieves the block summary traces from a node.
 // It will save them to the provided path.
 func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error,
 ) {

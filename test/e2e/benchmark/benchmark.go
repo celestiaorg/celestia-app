@@ -125,8 +125,9 @@ func (b *BenchmarkTest) Run() error {
 func (b *BenchmarkTest) CheckResults(expectedBlockSize int64) error {
 	log.Println("Checking results")
 
-	// if local tracing is enabled,
-	// pull round state traces to confirm tracing is working as expected.
+	// if local tracing was enabled,
+	// pull block summary table from one of the nodes to confirm tracing
+	// has worked properly.
 	if b.manifest.LocalTracingType == "local" {
 		if _, err := b.Node(0).PullBlockSummaryTraces("."); err != nil {
 			return fmt.Errorf("failed to pull round state traces: %w", err)
