@@ -122,7 +122,7 @@ func (b *BenchmarkTest) Run() error {
 	return nil
 }
 
-func (b *BenchmarkTest) CheckResults() error {
+func (b *BenchmarkTest) CheckResults(expectedBlockSize int64) error {
 	log.Println("Checking results")
 
 	// if local tracing is enabled,
@@ -150,9 +150,6 @@ func (b *BenchmarkTest) CheckResults() error {
 	testnet.NoError("failed to read blockchain", err)
 
 	targetSizeReached := false
-	// check that the blockchain has at least one block with the expected size
-	// we set the expected block size to 90% of the max block size
-	expectedBlockSize := int64(0.9 * float64(b.manifest.MaxBlockBytes))
 	maxBlockSize := int64(0)
 	for _, block := range blockchain {
 		if appconsts.LatestVersion != block.Version.App {

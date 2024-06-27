@@ -102,7 +102,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(1*toMiB))
 
 	return nil
 }
@@ -125,7 +125,7 @@ func TwoNodeBigBlock8MiB(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(7*toMiB))
 
 	return nil
 }
@@ -148,7 +148,7 @@ func TwoNodeBigBlock8MiBLatency(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(7*toMiB))
 
 	return nil
 }
@@ -170,7 +170,7 @@ func TwoNodeBigBlock32MiB(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(30*toMiB))
 
 	return nil
 }
@@ -192,7 +192,7 @@ func TwoNodeBigBlock64MiB(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(60*toMiB))
 
 	return nil
 }
@@ -218,7 +218,7 @@ func LargeNetworkBigBlock8MiB(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(7*toMiB))
 
 	return nil
 }
@@ -243,7 +243,7 @@ func LargeNetworkBigBlock32MiB(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(30*toMiB))
 
 	return nil
 }
@@ -269,7 +269,7 @@ func LargeNetworkBigBlock64MiB(logger *log.Logger) error {
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	testnet.NoError("failed to check results", benchTest.CheckResults())
+	testnet.NoError("failed to check results", benchTest.CheckResults(60*toMiB))
 
 	return nil
 }
