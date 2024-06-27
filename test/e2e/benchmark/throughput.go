@@ -58,8 +58,8 @@ func TwoNodeSimple(logger *log.Logger) error {
 	testnet.NoError("failed to get latest version", err)
 
 	testName := "TwoNodeSimple"
-
-	logger.Printf("=== RUN %s", "version: %s \n", testName, latestVersion)
+	logger.Printf("Running %s\n", testName)
+	logger.Println("version", latestVersion)
 
 	manifest := Manifest{
 		ChainID:            "test-e2e-two-node-simple",
