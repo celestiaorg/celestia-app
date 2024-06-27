@@ -98,7 +98,7 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 	// updating MaxRecvMsgSize and MaxSendMsgSize allows submission of 128MiB worth of
 	// transactions simultaneously which is useful for big block tests.
-	srvCfg.GRPC.MaxRecvMsgSize = 2501646900 //128 * 1024 * 1024
-	srvCfg.GRPC.MaxSendMsgSize = 2501646900 //128 * 1024 * 1024
+	srvCfg.GRPC.MaxRecvMsgSize = 128 * 1024 * 1024 //501646900 //
+	srvCfg.GRPC.MaxSendMsgSize = 128 * 1024 * 1024 // 2501646900 //
 	return srvCfg, srvCfg.ValidateBasic()
 }
