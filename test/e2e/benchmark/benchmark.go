@@ -130,7 +130,7 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSize int64) error {
 	// has worked properly.
 	if b.manifest.LocalTracingType == "local" {
 		if _, err := b.Node(0).PullBlockSummaryTraces("."); err != nil {
-			return fmt.Errorf("failed to pull round state traces: %w", err)
+			return fmt.Errorf("failed to pull traces: %w", err)
 		}
 	}
 
