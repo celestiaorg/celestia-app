@@ -31,7 +31,10 @@ var bigBlockManifest = Manifest{
 		CPU:           "2",
 		Volume:        "1Gi",
 	},
-	SelfDelegation:     10000000,
+	SelfDelegation: 10000000,
+	// @TODO Update the CelestiaAppVersion and  TxClientVersion to the latest
+	// version of the main branch once the PR#3261 is merged by addressing this
+	// issue https://github.com/celestiaorg/celestia-app/issues/3603.
 	CelestiaAppVersion: "pr-3261",
 	TxClientVersion:    "pr-3261",
 	EnableLatency:      false,
