@@ -181,7 +181,7 @@ func (t *Testnet) StartTxClients() error {
 	for _, txsim := range t.txClients {
 		err := txsim.Instance.WaitInstanceIsRunning()
 		if err != nil {
-			return fmt.Errorf("txsim %s failed to start: %w", txsim.Name, err)
+			return fmt.Errorf("txsim %s failed to run: %w", txsim.Name, err)
 		}
 
 	}
