@@ -51,7 +51,7 @@ var bigBlockManifest = Manifest{
 	Prometheus:         false,
 	GovMaxSquareSize:   512,
 	MaxBlockBytes:      7800000,
-	TestDuration:       15 * time.Minute,
+	TestDuration:       10 * time.Minute,
 	LocalTracingType:   "local",
 	PushTrace:          true,
 }
@@ -209,10 +209,10 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
-	manifest.ChainID = "45-3-big-block-8mb"
+	manifest.ChainID = "50-2-big-block-8mb"
 	manifest.MaxBlockBytes = 8 * toMB
-	manifest.Validators = 45
-	manifest.TxClients = 45
+	manifest.Validators = 50
+	manifest.TxClients = 50
 	manifest.BlobSequences = 2
 	manifest.TestDuration = 15 * time.Minute
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
@@ -236,10 +236,10 @@ func LargeNetworkBigBlock32MB(logger *log.Logger) error {
 	logger.Printf("Running %s\n", testName)
 
 	manifest := bigBlockManifest
-	manifest.ChainID = "45-3-big-block-32mb"
+	manifest.ChainID = "50-2-big-block-32mb"
 	manifest.MaxBlockBytes = 32 * toMB
-	manifest.Validators = 45
-	manifest.TxClients = 45
+	manifest.Validators = 50
+	manifest.TxClients = 50
 	manifest.BlobSequences = 2
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -267,33 +267,6 @@ func LargeNetworkBigBlock64MB(logger *log.Logger) error {
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
-}
-
-func HundredNode64MB(logger *log.Logger) error {
-	testName := "HundredNode64MB"
-	logger.Printf("Running %s\n", testName)
-	manifest := bigBlockManifest
-
-	manifest.ChainID = "100-2-big-block-64mb"
-	manifest.MaxBlockBytes = 64 * toMB
-	manifest.Validators = 100
-	manifest.TxClients = 100
-	manifest.BlobSequences = 1
 
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
