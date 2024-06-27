@@ -149,15 +149,26 @@ func (b *BenchmarkTest) CheckResults() error {
 		b.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
-	totalTxs := 0
+	targetSizeReached := false
+	// check that the blockchain has at least one block with the expected size
+	// we set the expected block size to 90% of the max block size
+	expectedBlockSize := int64(0.9 * float64(b.manifest.MaxBlockBytes))
+	maxBlockSize := int64(0)
 	for _, block := range blockchain {
 		if appconsts.LatestVersion != block.Version.App {
 			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
 		}
-		totalTxs += len(block.Data.Txs)
+		size := int64(block.Size())
+		if size >= expectedBlockSize {
+			targetSizeReached = true
+			break
+		}
+		if size > maxBlockSize {
+			maxBlockSize = size
+		}
 	}
-	if totalTxs < 10 {
-		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
+	if !targetSizeReached {
+		return fmt.Errorf("max reached block size is %d byte and is not within the expected range of %d  and %d bytes", maxBlockSize, expectedBlockSize, b.manifest.MaxBlockBytes)
 	}
 
 	return nil
