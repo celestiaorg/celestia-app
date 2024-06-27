@@ -36,7 +36,7 @@ var bigBlockManifest = Manifest{
 	TxClientVersion:    "pr-3261",
 	EnableLatency:      false,
 	LatencyParams:      LatencyParams{0, 0}, // in  milliseconds
-	BlobSequences:      25,
+	BlobSequences:      60,
 	BlobsPerSeq:        6,
 	BlobSizes:          "200000",
 	PerPeerBandwidth:   5 * toMB,
@@ -72,7 +72,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		EnableLatency:      false,
 		LatencyParams:      LatencyParams{100, 10}, // in  milliseconds
 		BlobsPerSeq:        6,
-		BlobSequences:      25,
+		BlobSequences:      60,
 		BlobSizes:          "200000",
 		PerPeerBandwidth:   5 * 1024 * 1024,
 		UpgradeHeight:      0,
