@@ -122,7 +122,7 @@ func (b *BenchmarkTest) Run() error {
 	return nil
 }
 
-func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int) error {
+func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 	log.Println("Checking results")
 
 	// if local tracing was enabled,
