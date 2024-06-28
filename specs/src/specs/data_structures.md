@@ -72,11 +72,11 @@ Implementations can prune rows containing only [tail padding](./consensus.md#res
 
 Data that is [erasure-coded](#erasure-coding) for [data availability checks](https://arxiv.org/abs/1809.09044).
 
-| name                        | type                                                    | description                                                                                                           |
-|-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| `transactions`              | [Transaction](#transaction)                             | Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances. |
-| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                                      |
-| `blobData`                  | [BlobData](#blobdata)                                   | Blob data. Blobs are app data.                                                                                        |
+| name             | type                              | description                                                                                                           |
+|------------------|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| `transactions`   | [Transaction](#transaction)       | Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances. |
+| `payForBlobData` | [PayForBlobData](#payforblobdata) | PayForBlob data. Transactions that pay for blobs to be included.                                                      |
+| `blobData`       | [BlobData](#blobdata)             | Blob data is arbitrary user submitted data that will be published to the Celestia blockchain.                         |
 
 ### Commit
 
