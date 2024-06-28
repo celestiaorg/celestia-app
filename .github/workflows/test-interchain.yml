@@ -10,10 +10,13 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Build celestia-app Docker image
       run: make build-docker
 
-    - name: Publish docker image as artifact
+    - name: Publish Docker image as artifact
       uses: actions/upload-artifact@v3
       with:
         name: ${{ env.ARTIFACT_NAME }}
@@ -23,9 +26,11 @@ jobs:
   test-interchain:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
 
