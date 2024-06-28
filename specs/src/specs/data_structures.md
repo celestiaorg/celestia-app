@@ -373,6 +373,8 @@ The blob share commitment rules may introduce empty shares that do not belong to
 
 Celestia transactions are Cosmos SDK [transactions](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md).
 
+### PayForBlobData
+
 ### IndexWrapper
 
 IndexWrapper are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the [available data matrix](#arranging-available-data-into-shares).
@@ -382,8 +384,6 @@ IndexWrapper are wrappers around PayForBlob transactions. They include additiona
 | `tx`            | `bytes`    | Actual transaction.                                                                                                                                    |
 | `share_indexes` | `[]uint32` | Share indexes (in row-major order) of the first share for each blob this transaction pays for. Needed for light verification of proper blob inclusion. |
 | `type_id`       | `string`   | Type ID of the IndexWrapper transaction type. Always set to `"INDX"`                                                                                   |
-
-### PayForBlobData
 
 ### BlobData
 
