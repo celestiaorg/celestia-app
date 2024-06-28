@@ -417,7 +417,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>tx</code></td><td><code>bytes</code></td><td>Actual transaction.</td></tr>
 <tr><td><code>share_indexes</code></td><td><code>[]uint32</code></td><td>Share indexes (in row-major order) of the first share for each blob this transaction pays for. Needed for light verification of proper blob inclusion.</td></tr>
-<tr><td><code>type_id</code></td><td><code>string</code></td><td>Type ID of the IndexWrapper transaction type. Always set to <code>&quot;INDX&quot;</code></td></tr>
+<tr><td><code>type_id</code></td><td><code>string</code></td><td>Type ID of the IndexWrapper transaction type. This is used for encoding and decoding IndexWrapper transactions. It is always set to <code>&quot;INDX&quot;</code>.</td></tr>
 </tbody></table>
 </div>
 <h3 id="blobdata"><a class="header" href="#blobdata">BlobData</a></h3>
