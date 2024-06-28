@@ -137,7 +137,10 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 	// download traces from S3, if enabled
 	if b.manifest.PushTrace && b.manifest.DownloadTraces {
 		// download traces from S3
-		pushConfig, _ := trace.GetPushConfigFromEnv()
+		pushConfig, err := trace.GetPushConfigFromEnv()
+		if err != nil {
+			return fmt.Errorf("failed to get push config: %w", err)
+		}
 		err := trace.S3Download("./traces/", b.manifest.ChainID,
 			pushConfig)
 		if err != nil {
