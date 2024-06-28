@@ -47,5 +47,8 @@ jobs:
       - name: Load Docker image
         run: docker image load -i ${{ env.ARTIFACT_PATH }}
 
+      - name: Print Docker images
+        run: docker images
+
       - name: Run interchain tests
         run: make test-interchain
