@@ -28,6 +28,7 @@ jobs:
 
 
   test-interchain:
+    needs: build-docker
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
