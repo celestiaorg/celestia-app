@@ -3,6 +3,7 @@ on:
   workflow_call:
 
 env:
+  DOCKER_IMAGE: celestiaorg/celestia-app
   ARTIFACT_NAME: celestia-app-docker-image
   ARTIFACT_PATH: celestia-app-docker-image.tar
 
@@ -15,6 +16,9 @@ jobs:
 
       - name: Build celestia-app Docker image
         run: make build-docker
+
+      - name: Save Docker image as artifact
+        run: docker image save -o ${{ env.ARTIFACT_PATH }} ${{ env.DOCKER_IMAGE }}
 
       - name: Publish Docker image as artifact
         uses: actions/upload-artifact@v3
