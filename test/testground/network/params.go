@@ -29,6 +29,7 @@ import (
 // buff-12 has the extra trace for the buffer sizes
 // buff-13 has the change to marking all peers as good
 // "mut-1 has the mutex contention fix"
+// "mb-2" buffers and mutex fixes
 
 func init() {
 	consensus.UseWAL = true
