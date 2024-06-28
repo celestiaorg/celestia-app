@@ -10,17 +10,17 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Build celestia-app Docker image
-      run: make build-docker
+      - name: Build celestia-app Docker image
+        run: make build-docker
 
-    - name: Publish Docker image as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ env.ARTIFACT_NAME }}
-        path: ${{ env.ARTIFACT_PATH }}
+      - name: Publish Docker image as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_PATH }}
 
 
   test-interchain:
