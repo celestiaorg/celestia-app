@@ -187,6 +187,16 @@ func (t *Testnet) StartTxClients() error {
 	return nil
 }
 
+func (t *Testnet) StopTxClients() error {
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.Stop()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CreateAccount creates an account and adds it to the
 // testnet genesis. The account is created with the given name and tokens and
 // is persisted in the given txsimKeyringDir.
@@ -334,10 +344,6 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
-	err := t.StartTxClients()
-	if err != nil {
-		return err
-	}
 	// wait for instances to be running
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndForwardPorts()
@@ -370,7 +376,7 @@ func (t *Testnet) Start() error {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
-	return nil
+	return t.StartTxClients()
 }
 
 func (t *Testnet) Cleanup() {
