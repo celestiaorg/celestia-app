@@ -383,7 +383,7 @@ IndexWrapper are wrappers around PayForBlob transactions. They include additiona
 |-----------------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `tx`            | `bytes`    | Actual transaction.                                                                                                                                    |
 | `share_indexes` | `[]uint32` | Share indexes (in row-major order) of the first share for each blob this transaction pays for. Needed for light verification of proper blob inclusion. |
-| `type_id`       | `string`   | Type ID of the IndexWrapper transaction type. Always set to `"INDX"`                                                                                   |
+| `type_id`       | `string`   | Type ID of the IndexWrapper transaction type. This is used for encoding and decoding IndexWrapper transactions. It is always set to `"INDX"`.          |
 
 ### BlobData
 
