@@ -20,6 +20,7 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -196,7 +197,7 @@ func NewNode(
 
 	if tsharkToS3 {
 		tsharkConfig := knuuinstance.TsharkCollectorConfig{
-			VolumeSize:     "1000Gi",
+			VolumeSize:     resource.MustParse("1000Gi"),
 			S3AccessKey:    os.Getenv("S3_ACCESS_KEY"),
 			S3SecretKey:    os.Getenv("S3_SECRET_KEY"),
 			S3Region:       os.Getenv("S3_REGION"),
