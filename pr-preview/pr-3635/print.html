@@ -453,6 +453,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
 <h3 id="transaction"><a class="header" href="#transaction">Transaction</a></h3>
 <p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>
+<h3 id="payforblobdata"><a class="header" href="#payforblobdata">PayForBlobData</a></h3>
 <h3 id="indexwrapper"><a class="header" href="#indexwrapper">IndexWrapper</a></h3>
 <p>IndexWrapper are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the <a href="specs/data_structures.html#arranging-available-data-into-shares">available data matrix</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
@@ -461,7 +462,6 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <tr><td><code>type_id</code></td><td><code>string</code></td><td>Type ID of the IndexWrapper transaction type. Always set to <code>&quot;INDX&quot;</code></td></tr>
 </tbody></table>
 </div>
-<h3 id="payforblobdata"><a class="header" href="#payforblobdata">PayForBlobData</a></h3>
 <h3 id="blobdata"><a class="header" href="#blobdata">BlobData</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>blobs</code></td><td><a href="specs/data_structures.html#blob">Blob</a><code>[]</code></td><td>List of blobs.</td></tr>
