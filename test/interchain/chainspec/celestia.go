@@ -13,7 +13,7 @@ import (
 
 const (
 	celestiaDockerRepository = "ghcr.io/celestiaorg/celestia-app"
-	celestiaDockerTag        = "pr-3182"
+	celestiaDockerTag        = "v2.0.0-rc2"
 	celestiaUidGid           = "10001:10001"
 )
 
