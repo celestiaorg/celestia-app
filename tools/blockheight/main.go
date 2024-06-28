@@ -18,13 +18,18 @@ func main() {
 		panic(err)
 	}
 
-	now := time.Now().Truncate(time.Second)
-	target := time.Date(2024, 7, 3, 12, 0, 0, 0, location).Truncate(time.Second)
-	diffInSeconds := target.Sub(now).Seconds()
-	diffInBlockHeight := math.Floor(diffInSeconds / blockTime)
+	currentHeight := 5627
+	currentTime := time.Now().Truncate(time.Second)
+	targetTime := time.Date(2024, 7, 4, 12, 30, 0, 0, location).Truncate(time.Second) // July 4th, 2024 @ 12:30PM ET
 
-	fmt.Printf("Now: %v\n", now.String())
-	fmt.Printf("Target: %v\n", target.String())
-	fmt.Printf("Diff in seconds: %v\n", diffInSeconds)
-	fmt.Printf("Diff in block heights: %v\n", diffInBlockHeight)
+	diffInSeconds := targetTime.Sub(currentTime).Seconds()
+	diffInBlockHeight := math.Floor(diffInSeconds / blockTime)
+	targetHeight := currentHeight + int(diffInBlockHeight)
+
+	fmt.Printf("currentHeight: %v\n", currentHeight)
+	fmt.Printf("currentTime: %v\n", currentTime.String())
+	fmt.Printf("targetTime: %v\n", targetTime.String())
+	fmt.Printf("diffInSeconds: %v\n", diffInSeconds)
+	fmt.Printf("diffInBlockHeight: %v\n", diffInBlockHeight)
+	fmt.Printf("targetHeight: %v\n", targetHeight)
 }
