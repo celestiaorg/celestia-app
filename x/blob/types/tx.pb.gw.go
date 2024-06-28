@@ -75,7 +75,7 @@ func local_request_Msg_PayForBlobs_0(ctx context.Context, marshaler runtime.Mars
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterMsgHandlerFromEndpoint instead.
 func RegisterMsgHandlerServer(ctx context.Context, mux *runtime.ServeMux, server MsgServer) error {
 
-	mux.Handle("GET", pattern_Msg_PayForBlobs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Msg_PayForBlobs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -139,7 +139,7 @@ func RegisterMsgHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.C
 // "MsgClient" to call the correct interceptors.
 func RegisterMsgHandlerClient(ctx context.Context, mux *runtime.ServeMux, client MsgClient) error {
 
-	mux.Handle("GET", pattern_Msg_PayForBlobs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Msg_PayForBlobs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
