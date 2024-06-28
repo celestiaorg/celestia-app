@@ -47,9 +47,6 @@ jobs:
       - name: Load Docker image
         run: docker image load -i ${{ env.ARTIFACT_PATH }}
 
-      - name: Retag Docker image
-        run: docker tag ${{ env.DOCKER_IMAGE }}:latest ${{ env.DOCKER_IMAGE }}:local
-
       - name: Print Docker images
         run: docker images
 
