@@ -1,0 +1,41 @@
+name: test-interchain
+on:
+  workflow_call:
+
+env:
+  ARTIFACT_NAME: celestia-app-docker-image
+  ARTIFACT_PATH: celestia-app-docker-image.tar
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build celestia-app Docker image
+      run: make build-docker
+
+    - name: Publish docker image as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ env.ARTIFACT_PATH }}
+
+
+  test-interchain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+
+      - name: Load Docker image
+        run: docker image load -i ${{ env.ARTIFACT_PATH }}
+
+      - name: Run interchain tests
+        run: make test-interchain

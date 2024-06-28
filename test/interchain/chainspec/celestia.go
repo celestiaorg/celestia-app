@@ -12,11 +12,9 @@ import (
 )
 
 const (
-	celestiaDockerRepository = "ghcr.io/celestiaorg/celestia-app"
-	// TODO: update celestiaDockerTag so that this test can use the latest
-	// version of Celestia.
-	celestiaDockerTag = "v2.0.0-rc2"
-	celestiaUidGid    = "10001:10001"
+	celestiaDockerRepository = "celestiaorg/celestia-app"
+	celestiaDockerTag        = "latest"
+	celestiaUidGid           = "10001:10001"
 )
 
 // GetCelestia returns a CosmosChain for Celestia.
