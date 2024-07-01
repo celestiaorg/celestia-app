@@ -84,9 +84,9 @@ celestia-appd --help
 
 ### Environment variables
 
-| Variable        | Explanation                                                      | Default value                                             | Required |
-|-----------------|------------------------------------------------------------------|-----------------------------------------------------------|----------|
-| `CELESTIA_HOME` | Parent directory for the application directory (`.celestia-app`) | [User home directory](https://pkg.go.dev/os#UserHomeDir) | Optional |
+| Variable        | Explanation                                                       | Default value                                            | Required |
+|-----------------|-------------------------------------------------------------------|----------------------------------------------------------|----------|
+| `CELESTIA_HOME` | Where the application directory (`.celestia-app`) should be saved | [User home directory](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Create your own single node devnet
 
