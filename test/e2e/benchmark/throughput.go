@@ -51,7 +51,7 @@ var bigBlockManifest = Manifest{
 	Prometheus:         false,
 	GovMaxSquareSize:   512,
 	MaxBlockBytes:      7800000,
-	TestDuration:       10 * time.Minute,
+	TestDuration:       5 * time.Minute,
 	LocalTracingType:   "local",
 	PushTrace:          true,
 }
