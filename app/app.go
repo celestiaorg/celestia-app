@@ -444,6 +444,9 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	if req.Header.Height == app.upgradeHeightV2 {
+		app.BaseApp.Logger().Info("upgraded from app version 1 to 2")
+	}
 	return app.manager.BeginBlock(ctx, req)
 }
 
