@@ -7,11 +7,11 @@ import "time"
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
-	DefaultGovMaxSquareSize = 64
+	DefaultGovMaxSquareSize = 512
 
 	// DefaultMaxBytes is the default value for the governance modifiable
 	// maximum number of bytes allowed in a valid block.
-	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
+	DefaultMaxBytes = 100 * 1024 * 1024
 
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
 	// included in a PayForBlobs txn
