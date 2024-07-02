@@ -71,7 +71,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		TxClientsResource:  testnet.DefaultResources,
 		SelfDelegation:     10000000,
 		CelestiaAppVersion: latestVersion,
-		TxClientVersion:    latestVersion,
+		TxClientVersion:    testnet.TxsimVersion,
 		EnableLatency:      false,
 		LatencyParams:      LatencyParams{70, 0}, // in  milliseconds
 		BlobsPerSeq:        6,
