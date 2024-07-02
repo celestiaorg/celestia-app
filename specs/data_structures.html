@@ -194,10 +194,9 @@
 <h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
 <p>Data that is <a href="#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>transactionData</code></td><td><a href="#transactiondata">TransactionData</a></td><td>Transaction data. Transactions modify the validator set and balances, and pay fees for blobs to be included.</td></tr>
-<tr><td><code>intermediateStateRootData</code></td><td><a href="#intermediatestaterootdata">IntermediateStateRootData</a></td><td>Intermediate state roots used for fraud proofs.</td></tr>
+<tr><td><code>transactions</code></td><td><a href="#transaction">Transaction</a></td><td>Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances.</td></tr>
 <tr><td><code>payForBlobData</code></td><td><a href="#payforblobdata">PayForBlobData</a></td><td>PayForBlob data. Transactions that pay for blobs to be included.</td></tr>
-<tr><td><code>blobData</code></td><td><a href="#blobdata">BlobData</a></td><td>Blob data. Blobs are app data.</td></tr>
+<tr><td><code>blobData</code></td><td><a href="#blobdata">BlobData</a></td><td>Blob data is arbitrary user submitted data that will be published to the Celestia blockchain.</td></tr>
 </tbody></table>
 </div>
 <h3 id="commit"><a class="header" href="#commit">Commit</a></h3>
@@ -369,7 +368,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>Finally, the <code>availableDataRoot</code> of the block <a href="#header">Header</a> is computed as the Merkle root of the <a href="#binary-merkle-tree">binary Merkle tree</a> with the row and column roots as leaves, in that order.</p>
 <p><img src="./figures/data_root.svg" alt="fig: Available data root." /></p>
 <h3 id="arranging-available-data-into-shares"><a class="header" href="#arranging-available-data-into-shares">Arranging Available Data Into Shares</a></h3>
-<p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="#available-data">available data</a> (which includes <a href="#transactiondata">transactions</a>, <a href="#intermediatestaterootdata">intermediate state roots</a>, PayForBlob transactions, and <a href="#blobdata">blobs</a>) is arranged into the matrix in the first place.</p>
+<p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="#available-data">available data</a> (which includes <a href="#transaction">transactions</a>, PayForBlob transactions, and <a href="#blobdata">blobs</a>) is arranged into the matrix in the first place.</p>
 <p>Note that each <a href="./shares.html">share</a> only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.</p>
 <p>Then,</p>
 <ol>
@@ -410,36 +409,15 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p><img src="./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
 <p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="../specs/data_square_layout.html">rationale doc</a> for more info.</p>
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
-<h3 id="transactiondata"><a class="header" href="#transactiondata">TransactionData</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>wrappedTransactions</code></td><td><a href="#wrappedtransaction">WrappedTransaction</a><code>[]</code></td><td>List of wrapped transactions.</td></tr>
-</tbody></table>
-</div>
-<h4 id="wrappedtransaction"><a class="header" href="#wrappedtransaction">WrappedTransaction</a></h4>
-<p>Wrapped transactions include additional metadata by the block proposer that is committed to in the <a href="#arranging-available-data-into-shares">available data matrix</a>.</p>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into fixed-sized <a href="./shares.html">shares</a>, and needs to be re-added here for fraud proof support. Allows linking a transaction to an <a href="#wrappedintermediatestateroot">intermediate state root</a>.</td></tr>
-<tr><td><code>transaction</code></td><td><a href="#transaction">Transaction</a></td><td>Actual transaction.</td></tr>
-<tr><td><code>blobStartIndex</code></td><td><code>uint64</code></td><td><em>Optional, only used if transaction pays for a blob or padding</em>. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.</td></tr>
-</tbody></table>
-</div>
-<h4 id="transaction"><a class="header" href="#transaction">Transaction</a></h4>
+<h3 id="transaction"><a class="header" href="#transaction">Transaction</a></h3>
 <p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>
 <h3 id="payforblobdata"><a class="header" href="#payforblobdata">PayForBlobData</a></h3>
-<h3 id="intermediatestaterootdata"><a class="header" href="#intermediatestaterootdata">IntermediateStateRootData</a></h3>
+<h3 id="indexwrapper"><a class="header" href="#indexwrapper">IndexWrapper</a></h3>
+<p>IndexWrapper are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the <a href="#arranging-available-data-into-shares">available data matrix</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>wrappedIntermediateStateRoots</code></td><td><a href="#wrappedintermediatestateroot">WrappedIntermediateStateRoot</a><code>[]</code></td><td>List of wrapped intermediate state roots.</td></tr>
-</tbody></table>
-</div>
-<h4 id="wrappedintermediatestateroot"><a class="header" href="#wrappedintermediatestateroot">WrappedIntermediateStateRoot</a></h4>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into fixed-sized <a href="./shares.html">shares</a>, and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a <a href="#wrappedtransaction">transaction</a>.</td></tr>
-<tr><td><code>intermediateStateRoot</code></td><td><a href="#intermediatestateroot">IntermediateStateRoot</a></td><td>Intermediate state root. Used for fraud proofs.</td></tr>
-</tbody></table>
-</div>
-<h4 id="intermediatestateroot"><a class="header" href="#intermediatestateroot">IntermediateStateRoot</a></h4>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>root</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Root of intermediate state, which is composed of the global state and the validator set.</td></tr>
+<tr><td><code>tx</code></td><td><code>bytes</code></td><td>Actual transaction.</td></tr>
+<tr><td><code>share_indexes</code></td><td><code>[]uint32</code></td><td>Share indexes (in row-major order) of the first share for each blob this transaction pays for. Needed for light verification of proper blob inclusion.</td></tr>
+<tr><td><code>type_id</code></td><td><code>string</code></td><td>Type ID of the IndexWrapper transaction type. This is used for encoding and decoding IndexWrapper transactions. It is always set to <code>&quot;INDX&quot;</code>.</td></tr>
 </tbody></table>
 </div>
 <h3 id="blobdata"><a class="header" href="#blobdata">BlobData</a></h3>
