@@ -33,7 +33,7 @@ func TestExportAppStateAndValidators(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, exported)
 		// TODO: the following assertion is commented out because the exported app does not populate consensus params.version
-		// assert.Equal(t, uint64(2), exported.ConsensusParams.Version.AppVersion)
+		assert.Equal(t, uint64(2), exported.ConsensusParams.Version.AppVersion)
 	})
 }
 

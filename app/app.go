@@ -771,13 +771,3 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 
 	return paramsKeeper
 }
-
-func (app *App) InitializeAppVersion(ctx sdk.Context) {
-	appVersion := app.GetAppVersionFromParamStore(ctx)
-	if appVersion == 0 {
-		// if the param store does not have an app version set, default to v1
-		app.SetAppVersion(ctx, v1)
-	} else {
-		app.SetAppVersion(ctx, appVersion)
-	}
-}
