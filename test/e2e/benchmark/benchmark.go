@@ -61,7 +61,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		}
 	}
 	// enable latency if specified in the manifest
-	if b.manifest.EnableLatency {
+	if b.manifest.EnableLatency || b.manifest.BandwidthParams > 0 {
 		for _, node := range b.Nodes() {
 			if err := node.Instance.EnableBitTwister(); err != nil {
 				return fmt.Errorf("failed to enable bit twister: %v", err)
@@ -130,20 +130,41 @@ func (b *BenchmarkTest) SetupNodes() error {
 // Run runs the benchmark test for the specified duration in the manifest.
 func (b *BenchmarkTest) Run() error {
 	log.Println("Starting testnet")
-	err := b.Start()
+	ctx := context.Background()
+
+	err := b.StartWithFunc(
+		func(node *testnet.Node) error {
+			if !b.manifest.EnableLatency && b.manifest.BandwidthParams <= 0 {
+				return nil
+			}
+
+			if err := node.Instance.BitTwister.WaitForStart(ctx); err != nil {
+				return fmt.Errorf("failed to wait for bit twister to start: %v", err)
+			}
+
+			if b.manifest.EnableLatency {
+				err := node.Instance.SetLatencyAndJitter(
+					b.manifest.LatencyParams.Latency,
+					b.manifest.LatencyParams.Jitter,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to set latency and jitter: %v", err)
+				}
+			}
+
+			if b.manifest.BandwidthParams > 0 {
+				err := node.Instance.SetBandwidthLimit(b.manifest.BandwidthParams)
+				if err != nil {
+					return fmt.Errorf("failed to set bandwidth: %v", err)
+				}
+			}
+			return nil
+		})
 	if err != nil {
 		return fmt.Errorf("failed to start testnet: %v", err)
 	}
 
 	// add latency if specified in the manifest
-	if b.manifest.EnableLatency {
-		for _, node := range b.Nodes() {
-			if err = node.Instance.SetLatencyAndJitter(b.manifest.LatencyParams.
-				Latency, b.manifest.LatencyParams.Jitter); err != nil {
-				return fmt.Errorf("failed to set latency and jitter: %v", err)
-			}
-		}
-	}
 
 	// wait some time for the tx clients to submit transactions
 	log.Println("Waiting for", b.manifest.TestDuration, "for the tx clients to submit transactions")

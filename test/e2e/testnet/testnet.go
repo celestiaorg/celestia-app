@@ -322,6 +322,12 @@ func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 }
 
 func (t *Testnet) Start() error {
+	return t.StartWithFunc(func(node *Node) error {
+		return nil
+	})
+}
+
+func (t *Testnet) StartWithFunc(startFunc func(node *Node) error) error {
 	genesisNodes := make([]*Node, 0)
 	for _, node := range t.nodes {
 		if node.StartHeight == 0 {
@@ -340,6 +346,9 @@ func (t *Testnet) Start() error {
 		err := node.WaitUntilStartedAndForwardPorts()
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+		if err := startFunc(node); err != nil {
+			return fmt.Errorf("failed to execute the start func for node %s: %w", node.Name, err)
 		}
 	}
 	// wait for nodes to sync

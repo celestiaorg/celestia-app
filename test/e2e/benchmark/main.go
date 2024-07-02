@@ -19,6 +19,7 @@ func main() {
 		{"LargeNetwork_BigBlock_8MiB_Latency", LargeNetwork_BigBlock_8MiB_Latency},
 		{"LargeNetwork_BigBlock_32MiB", LargeNetwork_BigBlock_32MiB},
 		{"LargeNetwork_BigBlock_64MiB", LargeNetwork_BigBlock_64MiB},
+		{"TwoNodeBigBlock_8MiB_Bandwidth", TwoNodeBigBlock_8MiB_Bandwidth},
 	}
 
 	// check if a specific test is passed and run it

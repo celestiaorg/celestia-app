@@ -40,8 +40,13 @@ type Manifest struct {
 	TxClientsResource testnet.Resources
 	// EnableLatency enables network latency for the validators
 	EnableLatency bool
+
 	// LatencyParams defines the network latency parameters
 	LatencyParams LatencyParams
+
+	// BandwidthParams defines the network bandwidth parameters
+	BandwidthParams int64 // in bps e.g. 1000000 = 1Mbps
+
 	// tx client settings
 	// Number of blobs per sequence
 	BlobsPerSeq int

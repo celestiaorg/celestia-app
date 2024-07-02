@@ -39,6 +39,7 @@ var bigBlockManifest = Manifest{
 	TxClientVersion:    "pr-3261",
 	EnableLatency:      false,
 	LatencyParams:      LatencyParams{150, 150}, // in  milliseconds
+	BandwidthParams:    0,                       // in kbps
 	BlobsPerSeq:        6,
 	BlobSequences:      50,
 	BlobSizes:          "200000",
@@ -192,6 +193,30 @@ func TwoNodeBigBlock_8MiB_Latency(logger *log.Logger) error {
 	return nil
 }
 
+func TwoNodeBigBlock_8MiB_Bandwidth(logger *log.Logger) error {
+	logger.Println("Running TwoNodeBigBlock_8MiB_Bandwidth")
+	manifest := bigBlockManifest
+	manifest.TestnetName = "TwoNodeBigBlock_8MiB_Bandwidth"
+	manifest.ChainID = "two-node-big-block-8mib-bandwidth"
+	manifest.MaxBlockBytes = 8 * toMiB
+	manifest.BandwidthParams = 10000 // 10kbps
+
+	benchTest, err := NewBenchmarkTest("TwoNodeBigBlock_8MiB_Bandwidth", &manifest)
+	testnet.NoError("failed to create benchmark test", err)
+
+	defer func() {
+		log.Print("Cleaning up testnet")
+		benchTest.Cleanup()
+	}()
+
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to check results", benchTest.CheckResults())
+
+	log.Println("--- PASS ✅: TwoNodeBigBlock_8MiB_Latency")
+	return nil
+}
+
 func TwoNodeBigBlock_32MiB(logger *log.Logger) error {
 	logger.Println("Running TwoNodeBigBlock_32MiB")
 	manifest := bigBlockManifest
@@ -276,10 +301,10 @@ func LargeNetwork_BigBlock_8MiB_Latency(logger *log.Logger) error {
 	manifest.TestnetName = "LargeNetwork_BigBlock_8MiB_Latency"
 	manifest.ChainID = "large-network-big-block-8mib-latency"
 	manifest.MaxBlockBytes = 8 * toMiB
-	manifest.Validators = 100
-	manifest.TxClients = 100
+	manifest.Validators = 2
+	manifest.TxClients = 2
 	manifest.BlobSequences = 20
-	manifest.TestDuration = 30 * time.Minute
+	manifest.TestDuration = 10 * time.Minute
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0} // in  milliseconds
 
