@@ -19,8 +19,9 @@ import (
 const DefaultSeed = 900183116
 
 const (
-	grpcMaxRecvMsgSize = 128 * 1024 * 1024
-	grpcMaxSendMsgSize = 128 * 1024 * 1024
+	MiB                = 1024 * 1024
+	grpcMaxRecvMsgSize = 128 * MiB
+	grpcMaxSendMsgSize = 128 * MiB
 )
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
