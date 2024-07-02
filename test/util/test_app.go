@@ -163,9 +163,6 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 		},
 	}})
 
-	fmt.Println(gen.Accounts(), "GEN ACCOUNTS")
-	fmt.Println(gen.Validators(), "GEM VALIDATORS")
-
 	return gen.Keyring(), gen.Accounts(), nil
 }
 
@@ -209,7 +206,7 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 }
 
 // AddDeterministicValidatorToGenesis adds a single deterministic validator to the genesis.
-func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) (error) {
+func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
 	for i := range FixedMnemonics {
 		val := genesis.Validator{
 			KeyringAccount: genesis.KeyringAccount{
