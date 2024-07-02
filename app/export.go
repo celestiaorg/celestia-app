@@ -19,7 +19,13 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 		return servertypes.ExportedApp{}, err
 	}
 
-	app.InitializeAppVersion(ctx)
+	versionToInit := v1
+	if app.LastBlockHeight() >= app.upgradeHeightV2 {
+		versionToInit = v2
+	}
+	app.SetInitialAppVersionInConsensusParams(ctx, versionToInit)
+	app.SetAppVersion(ctx, versionToInit)
+
 	if !app.IsSealed() {
 		app.mountKeysAndInit(app.AppVersion())
 	}
