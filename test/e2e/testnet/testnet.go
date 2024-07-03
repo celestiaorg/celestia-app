@@ -373,7 +373,7 @@ func (t *Testnet) Start() error {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 		}
 	}
 	return t.StartTxClients()

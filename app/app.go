@@ -444,6 +444,9 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	if req.Header.Height == app.upgradeHeightV2 {
+		app.BaseApp.Logger().Info("upgraded from app version 1 to 2")
+	}
 	return app.manager.BeginBlock(ctx, req)
 }
 
@@ -455,8 +458,10 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeightV2-1 {
+			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
+
 			// The blobstream module was disabled in v2 so the following line
 			// removes the the params subspace for blobstream.
 			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {

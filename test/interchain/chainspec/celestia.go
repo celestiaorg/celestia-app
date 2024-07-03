@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	celestiaDockerRepository = "ghcr.io/celestiaorg/celestia-app"
-	celestiaDockerTag        = "pr-3182"
+	celestiaDockerRepository = "celestiaorg/celestia-app"
+	celestiaDockerTag        = "latest"
 	celestiaUidGid           = "10001:10001"
 )
 
@@ -34,7 +34,7 @@ var celestia = &interchaintest.ChainSpec{
 		Bin:                 "celestia-appd",
 		Bech32Prefix:        "celestia",
 		Denom:               "utia",
-		GasPrices:           "0.000001utia",
+		GasPrices:           "0.002utia",
 		GasAdjustment:       *gasAdjustment(),
 		TrustingPeriod:      "336hours",
 		Images:              celestiaDockerImages(),
