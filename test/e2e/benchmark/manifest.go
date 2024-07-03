@@ -103,10 +103,10 @@ func (m *Manifest) summary() string {
 	if m.EnableLatency {
 		latency = 1
 	}
-	maxBlockMB := m.MaxBlockBytes / mb
+	maxBlockMB := m.MaxBlockBytes / testnet.MB
 	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-%dmb",
 		m.Validators, m.TxClients,
-		m.BlobSequences, m.PerPeerBandwidth/mb,
+		m.BlobSequences, m.PerPeerBandwidth/testnet.MB,
 		m.TimeoutCommit/time.Second, m.TimeoutPropose/time.Second,
 		latency, m.Mempool, maxBlockMB)
 	if len(summary) > 50 {
