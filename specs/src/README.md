@@ -1,1 +1,0 @@
-# Celestia App Specifications

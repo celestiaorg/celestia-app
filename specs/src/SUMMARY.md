@@ -1,6 +1,6 @@
 # Summary
 
-[Celestia App Specifications](./README.md)
+Celestia App Specifications
 
 - [Specification](./specs/index.md)
   - [Data Structures](./specs/data_structures.md)
