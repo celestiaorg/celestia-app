@@ -20,4 +20,6 @@
   - [Resource Pricing](./specs/resource_pricing.md)
   - [Multisig](./specs/multisig.md)
 - [State Machine Modules](./specs/state_machine_modules.md)
+  - [State Machine Modules v1](./specs/state_machine_modules_v1.md)
+  - [State Machine Modules v2](./specs/state_machine_modules_v2.md)
 - [Mainnet Parameters](./specs/params.md)
