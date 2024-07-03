@@ -10,9 +10,6 @@ import (
 
 const (
 	seed = 42
-
-	mib = 1024 * 1024
-	mb  = 1000 * 1000
 )
 
 var bigBlockManifest = Manifest{
