@@ -110,15 +110,10 @@ func TwoNodeSimple(logger *log.Logger) error {
 	return nil
 }
 
-func TwoNodeBigBlock8MB(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock8MB"
+func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
 	logger.Printf("Running %s\n", testName)
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 8 * mb
-
 	manifest.ChainID = manifest.summary()
 	log.Println("ChainID: ", manifest.ChainID)
-
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
@@ -133,163 +128,57 @@ func TwoNodeBigBlock8MB(logger *log.Logger) error {
 	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
 
 	return nil
+}
+
+func TwoNodeBigBlock8MB(logger *log.Logger) error {
+	manifest := bigBlockManifest
+	manifest.MaxBlockBytes = 8 * mb
+	return runBenchmarkTest(logger, "TwoNodeBigBlock8MB", manifest)
 }
 
 func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock8MBLatency"
-	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
-
 	manifest.MaxBlockBytes = 8 * mb
 	manifest.EnableLatency = true
-
-	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
+	manifest.LatencyParams = LatencyParams{70, 0}
+	return runBenchmarkTest(logger, "TwoNodeBigBlock8MBLatency", manifest)
 }
 
 func TwoNodeBigBlock32MB(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock32MB"
-	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 32 * mb
-
-	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
+	return runBenchmarkTest(logger, "TwoNodeBigBlock32MB", manifest)
 }
 
 func TwoNodeBigBlock64MB(logger *log.Logger) error {
-	testName := "TwoNodeBigBlock64MB"
-	logger.Printf("Running %s\n", testName)
-
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 64 * mb
-
-	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
+	return runBenchmarkTest(logger, "TwoNodeBigBlock64MB", manifest)
 }
 
 func LargeNetworkBigBlock8MB(logger *log.Logger) error {
-	testName := "LargeNetworkBigBlock8MB"
-	logger.Printf("Running %s\n", testName)
-
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-
-	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
+	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
 }
 
 func LargeNetworkBigBlock32MB(logger *log.Logger) error {
-	testName := "LargeNetworkBigBlock32MB"
-	logger.Printf("Running %s\n", testName)
-
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 32 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-
-	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
+	return runBenchmarkTest(logger, "LargeNetworkBigBlock32MB", manifest)
 }
 
 func LargeNetworkBigBlock64MB(logger *log.Logger) error {
-	testName := "LargeNetworkBigBlock64MB"
-	logger.Printf("Running %s\n", testName)
 	manifest := bigBlockManifest
-
 	manifest.MaxBlockBytes = 64 * mb
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-
-	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
-	testnet.NoError("failed to create benchmark test", err)
-
-	defer func() {
-		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
-	}()
-
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
-	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
-	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
-
-	return nil
+	return runBenchmarkTest(logger, "LargeNetworkBigBlock64MB", manifest)
 }
