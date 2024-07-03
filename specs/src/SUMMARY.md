@@ -11,6 +11,8 @@
   - [Block Proposer](./specs/block_proposer.md)
   - [Block Validity Rules](./specs/block_validity_rules.md)
   - [AnteHandler](./specs/ante_handler.md)
+    - [AnteHandler v1](./specs/ante_handler_v1.md)
+    - [AnteHandler v2](./specs/ante_handler_v2.md)
   - [Fraud Proofs](./specs/fraud_proofs.md)
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
