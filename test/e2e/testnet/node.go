@@ -49,6 +49,20 @@ type Node struct {
 	traceProxyHost string
 }
 
+// PullRoundStateTraces retrieves the round state traces from a node.
+// It will save them to the provided path.
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error,
+) {
+	addr := n.AddressTracing()
+	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+
+	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
+	if err != nil {
+		return nil, fmt.Errorf("getting table: %w", err)
+	}
+	return nil, nil
+}
+
 // PullBlockSummaryTraces retrieves the block summary traces from a node.
 // It will save them to the provided path.
 func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error,
