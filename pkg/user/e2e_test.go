@@ -49,7 +49,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 		wg.Add(1)
 		go func(b *blob.Blob) {
 			defer wg.Done()
-			_, err := txClient.SubmitPayForBlob(subCtx, []*blob.Blob{b}, user.SetGasLimitAndFee(500_000, appconsts.DefaultMinGasPrice))
+			_, err := txClient.SubmitPayForBlob(subCtx, []*blob.Blob{b}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
 			if err != nil && !errors.Is(err, context.Canceled) {
 				// only catch the first error
 				select {
