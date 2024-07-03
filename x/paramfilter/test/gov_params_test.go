@@ -5,15 +5,11 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
-	"github.com/stretchr/testify/suite"
-
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v2/x/minfee"
+	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -24,9 +20,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
+	"github.com/stretchr/testify/suite"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type GovParamsTestSuite struct {
@@ -367,6 +366,32 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			func() {
 				got := suite.app.TransferKeeper.GetParams(suite.ctx).SendEnabled
 				want := false
+				assert.Equal(want, got)
+			},
+		},
+		{
+			"icahost.HostEnabled",
+			testProposal(proposal.ParamChange{
+				Subspace: icahosttypes.SubModuleName,
+				Key:      string(icahosttypes.KeyHostEnabled),
+				Value:    `false`,
+			}),
+			func() {
+				got := suite.app.ICAHostKeeper.GetParams(suite.ctx).HostEnabled
+				want := false
+				assert.Equal(want, got)
+			},
+		},
+		{
+			"icahost.AllowMessages",
+			testProposal(proposal.ParamChange{
+				Subspace: icahosttypes.SubModuleName,
+				Key:      string(icahosttypes.KeyAllowMessages),
+				Value:    `["foo"]`,
+			}),
+			func() {
+				got := suite.app.ICAHostKeeper.GetParams(suite.ctx).AllowMessages
+				want := []string{"foo"}
 				assert.Equal(want, got)
 			},
 		},
