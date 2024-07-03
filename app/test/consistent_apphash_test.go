@@ -100,6 +100,7 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Apply genesis state to the app.
 	_, _, err = testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, app.DefaultInitialConsensusParams())
+	// valRecs, err := krr.List()
 	require.NoError(t, err)
 
 	// Query keyring account infos
@@ -112,15 +113,34 @@ func TestConsistentAppHash(t *testing.T) {
 		accounts = append(accounts, account)
 	}
 
+	// valAccountNames := make([]string, 0, len(valRecs))
+	// for _, valRec := range valRecs {
+	// valAccountNames = append(valAccountNames, valRec.Name)
+	// }
+
+	// valAccInfos := queryAccountInfo(testApp, valAccountNames, krr)
+
+	// validator accounts
+	validators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
+
+	// valAccounts := make([]*user.Account, 0, len(validators))
+	// validatorNames := make([]string, 0, len(validators))
+	// for i, val := range valAccInfos {
+	// valAccount := user.NewAccount(valRecs[i].Name, val.AccountNum, val.Sequence)
+	// valAccounts = append(valAccounts, valAccount)
+	// validatorNames = append(validatorNames, valRecs[i].Name)
+	// }
+
 	// Create a signer with keyring accounts
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
 	require.NoError(t, err)
 
+	// _, err = user.NewSigner(krr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, valAccounts...)
+	// require.NoError(t, err)
+
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
 
 	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
-
-	validators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
 
 	oneInt := sdk.OneInt().Add(sdk.OneInt())
 
@@ -148,13 +168,14 @@ func TestConsistentAppHash(t *testing.T) {
 		})
 	sdkMessages = append(sdkMessages, multiSendFundsMsg)
 
+	var grantExpiration = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	// Create a new MsgGrant
 	authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
 	msgGrant, err := authz.NewMsgGrant(
 		accountAddresses[0],
 		accountAddresses[1],
 		authorization,
-		&expiration,
+		&grantExpiration,
 	)
 	require.NoError(t, err)
 	sdkMessages = append(sdkMessages, msgGrant)
@@ -193,7 +214,7 @@ func TestConsistentAppHash(t *testing.T) {
 	// sdkMessages = append(sdkMessages, msgUnjail)
 
 	// Create a new MsgCreateValidator
-	msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[0]),
+	msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[6]),
 		ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey(),
 		amount[0],
 		stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
@@ -237,7 +258,7 @@ func TestConsistentAppHash(t *testing.T) {
 	sdkMessages = append(sdkMessages, msgVoteWeighted)
 
 	// Create a new MsgEditValidator
-	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[0]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &oneInt)
+	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[6]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &oneInt)
 	sdkMessages = append(sdkMessages, msgEditValidator)
 
 	// Create a new MsgUndelegate
@@ -271,9 +292,8 @@ func TestConsistentAppHash(t *testing.T) {
 	sdkMessages = append(sdkMessages, msgWithdrawDelegatorReward)
 
 	// Create a new MsgWithdrawValidatorCommission
-	// valAddressFromBech32, err := sdk.ValAddressFromBech32("celestiavaloper1f6dxw6dgm2dchwmer6jyd6r8c4fkxfx4fv8x8e")
-	// require.NoError(t, err)
-	msgWithdrawValidatorCommission := distribution.NewMsgWithdrawValidatorCommission(validators[0].GetOperator())
+	require.NoError(t, err)
+	msgWithdrawValidatorCommission := distribution.NewMsgWithdrawValidatorCommission(sdk.ValAddress(accountAddresses[6]))
 	sdkMessages = append(sdkMessages, msgWithdrawValidatorCommission)
 
 	// ------------ Construct Txs ------------
@@ -301,21 +321,53 @@ func TestConsistentAppHash(t *testing.T) {
 	for _, tx := range txs {
 		// check if sdk tx
 		if isBlobTxEmpty(tx.blobTx) {
+			// check if it's the last array element
+			// if i == len(txs)-2 {
+			// fmt.Println("HERE VAL SIGNER")
+			// fmt.Println(valSigner.Account(valRecs[0].Name).Address().String(), "VAL ACCOUNT")
+			// rawSdkTx, err := valSigner.CreateTx(tx.sdkTx.sdkMsgs, tx.sdkTx.txOptions...)
+			// require.NoError(t, err)
+			// rawSdkTxs = append(rawSdkTxs, rawSdkTx)
+			// } else {
 			rawSdkTx, err := signer.CreateTx(tx.sdkTx.sdkMsgs, tx.sdkTx.txOptions...)
-			signer.SetSequence(accountNames[0], signer.Account(accountNames[0]).Sequence()+1)
 			require.NoError(t, err)
+
+			// Get the current signer. There's one message per transaction and therefore also one signer.
+			currentSigner := tx.sdkTx.sdkMsgs[0].GetSigners()[0]
+			// Query the account by address
+			account := signer.AccountByAddress(currentSigner)
+			// Increment the sequence number
+			signer.SetSequence(account.Name(), account.Sequence()+1)
 			rawSdkTxs = append(rawSdkTxs, rawSdkTx)
+			// }
 		} else {
 			rawBlobTx, _, err = signer.CreatePayForBlobs(tx.blobTx.author, tx.blobTx.blobs, tx.blobTx.txOptions...)
-			signer.SetSequence(accountNames[0], signer.Account(accountNames[0]).Sequence()+1)
 			require.NoError(t, err)
 		}
 	}
 
-	_, firstBlockCommitHash := executeTxs(t, testApp, []byte{}, rawSdkTxs[:11], testApp.LastCommitID().Hash)
+	// validators to abci validators
+	abciValidators := make([]abci.Validator, 0, len(validators))
+	for _, val := range validators {
+		consAddr, err := val.GetConsAddr()
+		require.NoError(t, err)
+		abciValidators = append(abciValidators, abci.Validator{
+			Address: consAddr,
+			Power:   100,
+		})
+	}
+
+	valConsAddr := sdk.GetConsAddress(ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey())
+	fmt.Println(valConsAddr, "NEW VAL CONS ADDR")
+	abciValidators = append(abciValidators, abci.Validator{
+		Address: valConsAddr,
+		Power:   100,
+	})
+
+	_, firstBlockCommitHash := executeTxs(t, testApp, []byte{}, rawSdkTxs[:11], abciValidators, testApp.LastCommitID().Hash)
 
 	// Execute the second block
-	_, finalAppHash := executeTxs(t, testApp, rawBlobTx, rawSdkTxs[11:], firstBlockCommitHash)
+	_, finalAppHash := executeTxs(t, testApp, rawBlobTx, rawSdkTxs[11:], abciValidators, firstBlockCommitHash)
 
 	fmt.Println(finalAppHash, "DATA HASH AND APP HASH")
 
@@ -378,7 +430,7 @@ func isBlobTxEmpty(tx BlobTx) bool {
 	return tx.author == "" && (tx.blobs == nil || len(tx.blobs) == 0) && len(tx.txOptions) == 0
 }
 
-func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, lastCommitHash []byte) ([]byte, []byte) {
+func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte) {
 	height := testApp.LastBlockHeight() + 1
 	chainId := testApp.GetChainID()
 
@@ -412,10 +464,46 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 		ChainID:        chainId,
 		Height:         height,
 		LastCommitHash: lastCommitHash,
+		// ProposerAddress: proposer,
 	}
 
+	fmt.Println(len(validators), "VAL LENGTH")
 	// Begin block
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: header})
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: header,
+		LastCommitInfo: abci.LastCommitInfo{
+			Votes: []abci.VoteInfo{
+				{
+					Validator:       validators[0],
+					SignedLastBlock: true,
+				},
+				{
+					Validator:       validators[1],
+					SignedLastBlock: true,
+				},
+				{
+					Validator:       validators[2],
+					SignedLastBlock: true,
+				},
+				{
+					Validator:       validators[3],
+					SignedLastBlock: true,
+				},
+				{
+					Validator:       validators[4],
+					SignedLastBlock: true,
+				},
+				// {
+				// 	Validator:       validators[5],
+				// 	SignedLastBlock: true,
+				// },
+				// add the last one
+				// {
+				// 	Validator:       validators[5],
+				// 	SignedLastBlock: true,
+				// },
+			},
+		},
+	})
 
 	for i, rawSdkTx := range rawSdkTxs {
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawSdkTx})
