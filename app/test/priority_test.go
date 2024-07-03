@@ -90,7 +90,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 				s.cctx.GoContext(),
 				accName,
 				blobs,
-				user.SetGasLimitAndFee(gasLimit, gasPrice),
+				user.SetGasLimitAndGasPrice(gasLimit, gasPrice),
 			)
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)

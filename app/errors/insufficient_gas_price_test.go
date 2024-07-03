@@ -26,7 +26,7 @@ import (
 func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	var (
 		gasLimit  uint64 = 1_000_000
-		feeAmount int64  = 10
+		feeAmount uint64 = 10
 		gasPrice         = float64(feeAmount) / float64(gasLimit)
 	)
 	account := "test"
@@ -40,14 +40,13 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(t, err)
 
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(feeAmount)))
 	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
 	require.NoError(t, err)
 
 	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.LatestVersion, b)
 	require.NoError(t, err)
 
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFeeAmount(fee))
+	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(gasLimit), user.SetFee(feeAmount))
 	require.NoError(t, err)
 
 	decorator := ante.NewDeductFeeDecorator(testApp.AccountKeeper, testApp.BankKeeper, testApp.FeeGrantKeeper, nil)
