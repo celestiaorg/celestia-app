@@ -22,4 +22,6 @@
 - [State Machine Modules](./specs/state_machine_modules.md)
   - [State Machine Modules v1](./specs/state_machine_modules_v1.md)
   - [State Machine Modules v2](./specs/state_machine_modules_v2.md)
-- [Mainnet Parameters](./specs/params.md)
+- [Parameters](./specs/parameters.md)
+  - [Parameters v1](./specs/parameters_v1.md)
+  - [Parameters v2](./specs/parameters_v2.md)
