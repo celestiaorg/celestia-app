@@ -53,6 +53,6 @@ func newLogger(cfg *UniversalTestingConfig) log.Logger {
 		return log.NewNopLogger()
 	}
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	logger = log.NewFilter(logger, log.AllowError())
+	logger = log.NewFilter(logger, log.AllowInfo())
 	return logger
 }

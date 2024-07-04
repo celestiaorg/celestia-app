@@ -16,11 +16,16 @@ import (
 // accessed via the returned client.Context or via the returned rpc and grpc
 // addresses. Configured genesis options will be applied after all accounts have
 // been initialized.
-func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr string) {
+func NewNetwork(t testing.TB, cfg *Config, validatorIndex ...int) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
+	i := 0
+	if len(validatorIndex) > 0 {
+		i = validatorIndex[0]
+	}
+
 	// initialize the genesis file and validator files for the first validator.
-	baseDir, err := genesis.InitFiles(t.TempDir(), cfg.TmConfig, cfg.Genesis, 0)
+	baseDir, err := genesis.InitFiles(t.TempDir(), cfg.TmConfig, cfg.Genesis, i)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
