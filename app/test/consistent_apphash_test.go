@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	"github.com/celestiaorg/celestia-app/v2/test/util"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
@@ -27,7 +26,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
@@ -40,22 +38,17 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-type SdkTx struct {
-	sdkMsgs   []sdk.Msg
-	txOptions []user.TxOption
-}
-
 type BlobTx struct {
 	author    string
 	blobs     []*blob.Blob
 	txOptions []user.TxOption
 }
 
-// TestConsistentAppHash executes a set of txs, generates an app hash,
+// TestConsistentAppHash executes all state machine messages, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
-	// Expected app hash produced by v1.x - TODO: link to the test producing the hash
+	// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
 	// expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
 
 	// Initialize testApp
@@ -65,41 +58,49 @@ func TestConsistentAppHash(t *testing.T) {
 	// Create deterministic keys
 	kr, pubKeys := deterministicKeyRing(enc.Codec)
 
-	accountNames := testfactory.GetAccountNames(kr)
-	accountAddresses := testfactory.GetAddresses(kr)
-
 	// Apply genesis state to the app.
 	valKeyRing, _, err := testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, app.DefaultInitialConsensusParams())
 	require.NoError(t, err)
+
+	// ------------ Genesis User Accounts ------------
+
+	// Get account names and addresses from the keyring
+	accountNames := testfactory.GetAccountNames(kr)
+	accountAddresses := testfactory.GetAddresses(kr)
 
 	// Query keyring account infos
 	accountInfos := queryAccountInfo(testApp, accountNames, kr)
 
 	// Create accounts for the signer
-	accounts := CreateAccounts(accountInfos, accountNames)
+	accounts := createAccounts(accountInfos, accountNames)
 
-	// Validator accounts from genesis
-	genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
-
-	valAccountNames := testfactory.GetAccountNames(valKeyRing)
-	valAccInfos := queryAccountInfo(testApp, valAccountNames, valKeyRing)
-
-	valAccounts := CreateAccounts(valAccInfos, valAccountNames)
-
-	// Create a signer with keyring accounts
+	// Create a signer with accounts
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
 	require.NoError(t, err)
 
+	// ------------ Genesis Validator Accounts  ------------
+
+	// Validators from genesis state
+	genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
+
+	// Get validator account names from the validator keyring
+	valAccountNames := testfactory.GetAccountNames(valKeyRing)
+
+	// Query validator account infos
+	valAccountInfos := queryAccountInfo(testApp, valAccountNames, valKeyRing)
+
+	// Create accounts for the validators' signer
+	valAccounts := createAccounts(valAccountInfos, valAccountNames)
+
+	// Create a signer with validator accounts
 	valSigner, err := user.NewSigner(valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, valAccounts...)
 	require.NoError(t, err)
 
-	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
-
-	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
-
-	twoInt := sdk.NewInt(2)
-
 	// ----------- Create SDK Messages ------------
+
+	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
+	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
+	twoInt := sdk.NewInt(2)
 
 	// ---------------- First Block ------------
 	var firstBlockSdkMsgs []sdk.Msg
@@ -124,6 +125,7 @@ func TestConsistentAppHash(t *testing.T) {
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, multiSendFundsMsg)
 
 	var grantExpiration = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+
 	// Create a new MsgGrant
 	authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
 	msgGrant, err := authz.NewMsgGrant(
@@ -183,10 +185,6 @@ func TestConsistentAppHash(t *testing.T) {
 
 	var secondBlockSdkMsgs []sdk.Msg
 
-	// Create a new MsgUnjail
-	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
-	// sdkMessages = append(sdkMessages, msgUnjail)
-
 	// Create a new MsgVote
 	msgVote := govtypes.NewMsgVote(accountAddresses[0], 1, govtypes.VoteOption_VOTE_OPTION_YES, "")
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgVote)
@@ -245,15 +243,32 @@ func TestConsistentAppHash(t *testing.T) {
 	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], genValidators[0].GetOperator())
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgWithdrawDelegatorReward)
 
+	// ------------ Third Block ------------
+
+	// The transactions within the third block are signed by the validator's signer
+	var thirdBlockSdkMsgs []sdk.Msg
+
 	// Create a new MsgWithdrawValidatorCommission
-	require.NoError(t, err)
 	msgWithdrawValidatorCommission := distribution.NewMsgWithdrawValidatorCommission(genValidators[0].GetOperator())
+	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgWithdrawValidatorCommission)
+
+	// Create a new MsgUnjail
+	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
+	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
 
 	// ------------ Construct Txs ------------
-	// Create transactions from the list of messages
-	firstBlockRawTxs := processSdkMessages(t, signer, firstBlockSdkMsgs)
-	secondBlockRawTxs := processSdkMessages(t, signer, secondBlockSdkMsgs)
-	validatorRawTxs := processSdkMessages(t, valSigner, []sdk.Msg{msgUnjail, msgWithdrawValidatorCommission})
+
+	// Create SDK transactions from the list of messages
+	// and separate them into 3 different blocks
+	firstBlockRawTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
+	require.NoError(t, err)
+
+	secondBlockRawTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
+	require.NoError(t, err)
+
+	validatorRawTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
+	require.NoError(t, err)
+
 	// Create a Blob Tx
 	blobTx := BlobTx{
 		author:    accountNames[1],
@@ -264,23 +279,21 @@ func TestConsistentAppHash(t *testing.T) {
 	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
 
-	// validators to abci validators
-	abciValidators := make([]abci.Validator, 0, len(genValidators))
-	for _, val := range genValidators {
-		consAddr, err := val.GetConsAddr()
-		require.NoError(t, err)
-		abciValidators = append(abciValidators, abci.Validator{
-			Address: consAddr,
-			Power:   100,
-		})
-	}
+	// Genesis d
+	abciValidators, err := convertToABCIValidators(genValidators)
+	require.NoError(t, err)
 
-	_, firstBlockCommitHash := executeTxs(t, testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
+	// Execute the first block
+	_, firstBlockCommitHash, err := executeTxs(testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
+	require.NoError(t, err)
 
 	// Execute the second block
-	_, secondAppHash := executeTxs(t, testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockCommitHash)
+	_, secondAppHash, err := executeTxs(testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockCommitHash)
+	require.NoError(t, err)
 
-	_, finalAppHash := executeTxs(t, testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
+	// Execute the final block and get the final app hash
+	_, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
+	require.NoError(t, err)
 
 	fmt.Println(finalAppHash, "APP HASH")
 
@@ -327,35 +340,40 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 	return kb, pubKeys
 }
 
-func processSdkMessages(t *testing.T, signer *user.Signer, sdkMessages []sdk.Msg) [][]byte {
+// processSdkMessages takes a list of sdk messages, forms transactions, signs them
+// and returns a list of raw transactions
+func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, error) {
 	rawSdkTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
 		rawSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
+
 		signerAddress := msg.GetSigners()[0]
 		signerAccount := signer.AccountByAddress(signerAddress)
-		signer.SetSequence(signerAccount.Name(), signerAccount.Sequence()+1)
+		err = signer.SetSequence(signerAccount.Name(), signerAccount.Sequence()+1)
+		if err != nil {
+			return nil, err
+		}
+
 		rawSdkTxs = append(rawSdkTxs, rawSdkTx)
 	}
-	return rawSdkTxs
+	return rawSdkTxs, nil
 }
 
-// Helper function to check if BlobTx is "empty"
-func isBlobTxEmpty(tx BlobTx) bool {
-	return tx.author == "" && (tx.blobs == nil || len(tx.blobs) == 0) && len(tx.txOptions) == 0
-}
-
-func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte) {
+// executeTxs executes a set of transactions and returns the data hash and app hash
+func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
-	chainId := testApp.GetChainID()
+	chainID := testApp.GetChainID()
 
-	genesisTime := util.GenesisTime
+	genesisTime := testutil.GenesisTime
 
 	resPrePareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
 			Txs: rawSdkTxs,
 		},
-		ChainId: chainId,
+		ChainId: chainID,
 		Height:  height,
 		Time:    genesisTime.Add(time.Duration(height) * time.Minute),
 	})
@@ -364,22 +382,23 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 
 	resProcessProposal := testApp.ProcessProposal(abci.RequestProcessProposal{
 		BlockData: resPrePareProposal.BlockData,
-		Header: core.Header{
+		Header: tmproto.Header{
 			DataHash: resPrePareProposal.BlockData.Hash,
-			ChainID:  chainId,
+			ChainID:  chainID,
 			Time:     genesisTime.Add(time.Duration(height) * time.Minute),
 			Version:  version.Consensus{App: testApp.AppVersion()},
 			Height:   height,
 		},
 	},
 	)
-
-	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resProcessProposal.Result, "ProcessProposal failed: ", resProcessProposal.Result)
+	if abci.ResponseProcessProposal_ACCEPT != resProcessProposal.Result {
+		return nil, nil, fmt.Errorf("ProcessProposal failed: %v", resProcessProposal.Result)
+	}
 
 	// BeginBlock
 	header := tmproto.Header{
 		Version:        version.Consensus{App: 1},
-		ChainID:        chainId,
+		ChainID:        chainID,
 		Height:         height,
 		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
 		LastCommitHash: lastCommitHash,
@@ -405,16 +424,22 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 
 	for i, rawSdkTx := range rawSdkTxs {
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawSdkTx})
-		require.Equal(t, uint32(0), resp.Code, "DeliverTx failed for the message at index %d: %s", i, resp.Log)
+		if resp.Code != uint32(0) {
+			return nil, nil, fmt.Errorf("DeliverTx failed for the message at index %d: %s", i, resp.Log)
+		}
 	}
 
 	if len(rawBlobTx) != 0 {
 		// Deliver Blob Tx
 		blob, isBlobTx := blob.UnmarshalBlobTx(rawBlobTx)
-		require.True(t, isBlobTx, "Not a valid BlobTx")
+		if !isBlobTx {
+			return nil, nil, fmt.Errorf("Not a valid BlobTx")
+		}
 
 		respDeliverTx := testApp.DeliverTx(abci.RequestDeliverTx{Tx: blob.Tx})
-		require.Equal(t, uint32(0), respDeliverTx.Code, "DeliverTx failed for the BlobTx: ", respDeliverTx.Log)
+		if respDeliverTx.Code != uint32(0) {
+			return nil, nil, fmt.Errorf("DeliverTx failed for the BlobTx: %s", respDeliverTx.Log)
+		}
 	}
 
 	// EndBlock
@@ -426,14 +451,31 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 	// Get the app hash
 	appHash := testApp.LastCommitID().Hash
 
-	return dataHash, appHash
+	return dataHash, appHash, nil
 }
 
-func CreateAccounts(accountInfos []blobfactory.AccountInfo, accountNames []string) []*user.Account {
+// createAccounts creates a list of user.Accounts from a list of accountInfos
+func createAccounts(accountInfos []blobfactory.AccountInfo, accountNames []string) []*user.Account {
 	accounts := make([]*user.Account, 0, len(accountInfos))
 	for i, accountInfo := range accountInfos {
 		account := user.NewAccount(accountNames[i], accountInfo.AccountNum, accountInfo.Sequence)
 		accounts = append(accounts, account)
 	}
 	return accounts
+}
+
+// convertToABCIValidators converts a list of staking.Validator to a list of abci.Validator
+func convertToABCIValidators(genValidators []stakingtypes.Validator) ([]abci.Validator, error) {
+	abciValidators := make([]abci.Validator, 0, len(genValidators))
+	for _, val := range genValidators {
+		consAddr, err := val.GetConsAddr()
+		if err != nil {
+			return nil, err
+		}
+		abciValidators = append(abciValidators, abci.Validator{
+			Address: consAddr,
+			Power:   100,
+		})
+	}
+	return abciValidators, nil
 }

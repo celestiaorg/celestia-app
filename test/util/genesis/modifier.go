@@ -36,7 +36,7 @@ func SetSlashingParams(codec codec.Codec, parans slashingtypes.Params) Modifier 
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		slashingGenState := slashingtypes.DefaultGenesisState()
 		slashingGenState.Params = parans
-		state[slashingtypes.ModuleName] = codec.MustMarshalJSON(slashingGenState)		
+		state[slashingtypes.ModuleName] = codec.MustMarshalJSON(slashingGenState)
 		return state
 	}
 }
