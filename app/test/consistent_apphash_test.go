@@ -9,8 +9,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/test/util"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 
 	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
@@ -27,29 +29,16 @@ import (
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	// "github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
-	// slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
-
-// PreBlock -> prepare proposal (set of txs) -> PostBlock + Data Root -> process proposal (compare data roots) Data Root is correct (compare to v1)
-// begin block -> Post Block -> deliver tx -> end block -> commit (compare state roots)
-
-// for _, block := range blocks {
-// 	// prepare
-// 	// proces
-
-// 	...
-// 	appHash := Commit()
-// 	nextHeader.AppHash = appHash
-// }
 
 type SdkTx struct {
 	sdkMsgs   []sdk.Msg
@@ -62,15 +51,6 @@ type BlobTx struct {
 	txOptions []user.TxOption
 }
 
-type Tx struct {
-	sdkTx  SdkTx
-	blobTx BlobTx
-}
-
-type Block struct {
-	txs []Tx
-}
-
 // TestConsistentAppHash executes a set of txs, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
@@ -80,78 +60,53 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Initialize testApp
 	testApp := testutil.NewTestApp()
-
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	// Create deterministic keys
 	kr, pubKeys := deterministicKeyRing(enc.Codec)
 
-	recs, err := kr.List()
-	require.NoError(t, err)
-	accountNames := make([]string, 0, len(recs))
-	accountAddresses := make([]sdk.AccAddress, 0, len(recs))
-
-	// Get the name of the records
-	for _, rec := range recs {
-		accountNames = append(accountNames, rec.Name)
-		accAddress, err := rec.GetAddress()
-		require.NoError(t, err)
-		accountAddresses = append(accountAddresses, accAddress)
-	}
+	accountNames := testfactory.GetAccountNames(kr)
+	accountAddresses := testfactory.GetAddresses(kr)
 
 	// Apply genesis state to the app.
-	_, _, err = testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, app.DefaultInitialConsensusParams())
-	// valRecs, err := krr.List()
+	valKeyRing, _, err := testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, app.DefaultInitialConsensusParams())
 	require.NoError(t, err)
 
 	// Query keyring account infos
 	accountInfos := queryAccountInfo(testApp, accountNames, kr)
 
 	// Create accounts for the signer
-	accounts := make([]*user.Account, 0, len(accountInfos))
-	for i, accountInfo := range accountInfos {
-		account := user.NewAccount(accountNames[i], accountInfo.AccountNum, accountInfo.Sequence)
-		accounts = append(accounts, account)
-	}
+	accounts := CreateAccounts(accountInfos, accountNames)
 
-	// valAccountNames := make([]string, 0, len(valRecs))
-	// for _, valRec := range valRecs {
-	// valAccountNames = append(valAccountNames, valRec.Name)
-	// }
+	// Validator accounts from genesis
+	genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
 
-	// valAccInfos := queryAccountInfo(testApp, valAccountNames, krr)
+	valAccountNames := testfactory.GetAccountNames(valKeyRing)
+	valAccInfos := queryAccountInfo(testApp, valAccountNames, valKeyRing)
 
-	// validator accounts
-	validators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
-
-	// valAccounts := make([]*user.Account, 0, len(validators))
-	// validatorNames := make([]string, 0, len(validators))
-	// for i, val := range valAccInfos {
-	// valAccount := user.NewAccount(valRecs[i].Name, val.AccountNum, val.Sequence)
-	// valAccounts = append(valAccounts, valAccount)
-	// validatorNames = append(validatorNames, valRecs[i].Name)
-	// }
+	valAccounts := CreateAccounts(valAccInfos, valAccountNames)
 
 	// Create a signer with keyring accounts
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
 	require.NoError(t, err)
 
-	// _, err = user.NewSigner(krr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, valAccounts...)
-	// require.NoError(t, err)
+	valSigner, err := user.NewSigner(valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, valAccounts...)
+	require.NoError(t, err)
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
 
 	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
 
-	oneInt := sdk.OneInt().Add(sdk.OneInt())
+	twoInt := sdk.NewInt(2)
 
 	// ----------- Create SDK Messages ------------
 
 	// ---------------- First Block ------------
-	var sdkMessages []sdk.Msg
+	var firstBlockSdkMsgs []sdk.Msg
 
 	// Send funds to another account
 	sendFundsMsg := banktypes.NewMsgSend(accountAddresses[0], accountAddresses[1], amount)
-	sdkMessages = append(sdkMessages, sendFundsMsg)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, sendFundsMsg)
 
 	// MultiSend funds to another account
 	multiSendFundsMsg := banktypes.NewMsgMultiSend([]banktypes.Input{
@@ -166,7 +121,7 @@ func TestConsistentAppHash(t *testing.T) {
 				amount,
 			),
 		})
-	sdkMessages = append(sdkMessages, multiSendFundsMsg)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, multiSendFundsMsg)
 
 	var grantExpiration = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	// Create a new MsgGrant
@@ -178,11 +133,11 @@ func TestConsistentAppHash(t *testing.T) {
 		&grantExpiration,
 	)
 	require.NoError(t, err)
-	sdkMessages = append(sdkMessages, msgGrant)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgGrant)
 
 	// Create a new MsgVerifyInvariant
 	msgVerifyInvariant := crisisTypes.NewMsgVerifyInvariant(accountAddresses[0], banktypes.ModuleName, "nonnegative-outstanding")
-	sdkMessages = append(sdkMessages, msgVerifyInvariant)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgVerifyInvariant)
 
 	// Create a new MsgGrantAllowance
 	basicAllowance := feegrant.BasicAllowance{
@@ -190,7 +145,7 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 	feegrantMsg, err := feegrant.NewMsgGrantAllowance(&basicAllowance, accountAddresses[0], accountAddresses[1])
 	require.NoError(t, err)
-	sdkMessages = append(sdkMessages, feegrantMsg)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, feegrantMsg)
 
 	// Create a new MsgSubmitProposal
 	govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false, tmproto.Header{})).GetAddress()
@@ -201,17 +156,10 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&msgSend}, amount, accountAddresses[0].String(), "")
 	require.NoError(t, err)
-	sdkMessages = append(sdkMessages, proposal)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, proposal)
 
 	msgDeposit := govtypes.NewMsgDeposit(accountAddresses[0], 1, depositAmount)
-	sdkMessages = append(sdkMessages, msgDeposit)
-
-	// MsgUnjail requires a validator to be jailed which requires us to manipu
-	// valConsAddr, err := validators[0].GetConsAddr()
-	// require.NoError(t, err)
-	// testApp.StakingKeeper.Jail(testApp.NewContext(false, tmproto.Header{}), valConsAddr)
-	// msgUnjail := slashingtypes.NewMsgUnjail(validators[0].GetOperator())
-	// sdkMessages = append(sdkMessages, msgUnjail)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgDeposit)
 
 	// Create a new MsgCreateValidator
 	msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[6]),
@@ -221,21 +169,27 @@ func TestConsistentAppHash(t *testing.T) {
 		stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
 		sdk.OneInt())
 	require.NoError(t, err)
-	sdkMessages = append(sdkMessages, msgCreateValidator)
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgCreateValidator)
 
 	// Create a new MsgDelegate
-	msgDelegate := stakingtypes.NewMsgDelegate(accountAddresses[0], validators[0].GetOperator(), amount[0])
-	sdkMessages = append(sdkMessages, msgDelegate)
+	msgDelegate := stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgDelegate)
 
 	// Create a new MsgBeginRedelegate
-	msgBeginRedelegate := stakingtypes.NewMsgBeginRedelegate(accountAddresses[0], validators[0].GetOperator(), validators[1].GetOperator(), amount[0])
-	sdkMessages = append(sdkMessages, msgBeginRedelegate)
+	msgBeginRedelegate := stakingtypes.NewMsgBeginRedelegate(accountAddresses[0], genValidators[0].GetOperator(), genValidators[1].GetOperator(), amount[0])
+	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgBeginRedelegate)
 
 	// ------------ Second Block ------------
 
+	var secondBlockSdkMsgs []sdk.Msg
+
+	// Create a new MsgUnjail
+	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
+	// sdkMessages = append(sdkMessages, msgUnjail)
+
 	// Create a new MsgVote
 	msgVote := govtypes.NewMsgVote(accountAddresses[0], 1, govtypes.VoteOption_VOTE_OPTION_YES, "")
-	sdkMessages = append(sdkMessages, msgVote)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgVote)
 
 	// Create a new MsgRevoke
 	msgRevoke := authz.NewMsgRevoke(
@@ -246,7 +200,7 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Create a new MsgExec to execute the revoke message
 	msgExec := authz.NewMsgExec(accountAddresses[0], []sdk.Msg{&msgRevoke})
-	sdkMessages = append(sdkMessages, &msgExec)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, &msgExec)
 
 	// Create a new MsgVoteWeighted
 	msgVoteWeighted := govtypes.NewMsgVoteWeighted(
@@ -255,57 +209,51 @@ func TestConsistentAppHash(t *testing.T) {
 		govtypes.WeightedVoteOptions([]*govtypes.WeightedVoteOption{{Option: govtypes.OptionYes, Weight: "1.0"}}), // Cast the slice to the expected type
 		"",
 	)
-	sdkMessages = append(sdkMessages, msgVoteWeighted)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgVoteWeighted)
 
 	// Create a new MsgEditValidator
-	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[6]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &oneInt)
-	sdkMessages = append(sdkMessages, msgEditValidator)
+	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[6]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &twoInt)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgEditValidator)
 
 	// Create a new MsgUndelegate
-	msgUndelegate := stakingtypes.NewMsgUndelegate(accountAddresses[0], validators[1].GetOperator(), amount[0])
-	sdkMessages = append(sdkMessages, msgUndelegate)
+	msgUndelegate := stakingtypes.NewMsgUndelegate(accountAddresses[0], genValidators[1].GetOperator(), amount[0])
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgUndelegate)
 
 	// Create a new MsgDelegate
-	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0], validators[0].GetOperator(), amount[0])
-	sdkMessages = append(sdkMessages, msgDelegate)
+	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgDelegate)
 
 	// Create a new MsgCancelUnboundingDelegation
 	// Messages are split in two blocks, this tx is part of the second block therefore the block height is incremented by 2
 	blockHeight := testApp.LastBlockHeight() + 2
-	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], validators[1].GetOperator(), blockHeight, amount[0])
-	sdkMessages = append(sdkMessages, msgCancelUnbondingDelegation)
+	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], genValidators[1].GetOperator(), blockHeight, amount[0])
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCancelUnbondingDelegation)
 
 	// Create a new MsgSetWithdrawAddress
 	msgSetWithdrawAddress := distribution.NewMsgSetWithdrawAddress(accountAddresses[0], accountAddresses[1])
-	sdkMessages = append(sdkMessages, msgSetWithdrawAddress)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgSetWithdrawAddress)
 
 	// Create a new MsgRevokeAllowance
 	msgRevokeAllowance := feegrant.NewMsgRevokeAllowance(accountAddresses[0], accountAddresses[1])
-	sdkMessages = append(sdkMessages, &msgRevokeAllowance)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, &msgRevokeAllowance)
 
 	// Create a new MsgFundCommunityPool
 	msgFundCommunityPool := distribution.NewMsgFundCommunityPool(amount, accountAddresses[0])
-	sdkMessages = append(sdkMessages, msgFundCommunityPool)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgFundCommunityPool)
 
 	// Create a new MsgWithdrawDelegatorReward
-	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], validators[0].GetOperator())
-	sdkMessages = append(sdkMessages, msgWithdrawDelegatorReward)
+	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], genValidators[0].GetOperator())
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgWithdrawDelegatorReward)
 
 	// Create a new MsgWithdrawValidatorCommission
 	require.NoError(t, err)
-	msgWithdrawValidatorCommission := distribution.NewMsgWithdrawValidatorCommission(sdk.ValAddress(accountAddresses[6]))
-	sdkMessages = append(sdkMessages, msgWithdrawValidatorCommission)
+	msgWithdrawValidatorCommission := distribution.NewMsgWithdrawValidatorCommission(genValidators[0].GetOperator())
 
 	// ------------ Construct Txs ------------
-	var txs []Tx
-
 	// Create transactions from the list of messages
-	for _, msg := range sdkMessages {
-		tx := createSdkTxWithDefaultOptions([]sdk.Msg{msg})
-
-		txs = append(txs, tx)
-	}
-
+	firstBlockRawTxs := processSdkMessages(t, signer, firstBlockSdkMsgs)
+	secondBlockRawTxs := processSdkMessages(t, signer, secondBlockSdkMsgs)
+	validatorRawTxs := processSdkMessages(t, valSigner, []sdk.Msg{msgUnjail, msgWithdrawValidatorCommission})
 	// Create a Blob Tx
 	blobTx := BlobTx{
 		author:    accountNames[1],
@@ -313,42 +261,12 @@ func TestConsistentAppHash(t *testing.T) {
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 
-	txs = append(txs, Tx{sdkTx: SdkTx{}, blobTx: blobTx})
-
-	rawSdkTxs := make([][]byte, 0, len(txs))
-	var rawBlobTx []byte
-	// Create SDK Txs
-	for _, tx := range txs {
-		// check if sdk tx
-		if isBlobTxEmpty(tx.blobTx) {
-			// check if it's the last array element
-			// if i == len(txs)-2 {
-			// fmt.Println("HERE VAL SIGNER")
-			// fmt.Println(valSigner.Account(valRecs[0].Name).Address().String(), "VAL ACCOUNT")
-			// rawSdkTx, err := valSigner.CreateTx(tx.sdkTx.sdkMsgs, tx.sdkTx.txOptions...)
-			// require.NoError(t, err)
-			// rawSdkTxs = append(rawSdkTxs, rawSdkTx)
-			// } else {
-			rawSdkTx, err := signer.CreateTx(tx.sdkTx.sdkMsgs, tx.sdkTx.txOptions...)
-			require.NoError(t, err)
-
-			// Get the current signer. There's one message per transaction and therefore also one signer.
-			currentSigner := tx.sdkTx.sdkMsgs[0].GetSigners()[0]
-			// Query the account by address
-			account := signer.AccountByAddress(currentSigner)
-			// Increment the sequence number
-			signer.SetSequence(account.Name(), account.Sequence()+1)
-			rawSdkTxs = append(rawSdkTxs, rawSdkTx)
-			// }
-		} else {
-			rawBlobTx, _, err = signer.CreatePayForBlobs(tx.blobTx.author, tx.blobTx.blobs, tx.blobTx.txOptions...)
-			require.NoError(t, err)
-		}
-	}
+	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
+	require.NoError(t, err)
 
 	// validators to abci validators
-	abciValidators := make([]abci.Validator, 0, len(validators))
-	for _, val := range validators {
+	abciValidators := make([]abci.Validator, 0, len(genValidators))
+	for _, val := range genValidators {
 		consAddr, err := val.GetConsAddr()
 		require.NoError(t, err)
 		abciValidators = append(abciValidators, abci.Validator{
@@ -357,19 +275,14 @@ func TestConsistentAppHash(t *testing.T) {
 		})
 	}
 
-	valConsAddr := sdk.GetConsAddress(ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey())
-	fmt.Println(valConsAddr, "NEW VAL CONS ADDR")
-	abciValidators = append(abciValidators, abci.Validator{
-		Address: valConsAddr,
-		Power:   100,
-	})
-
-	_, firstBlockCommitHash := executeTxs(t, testApp, []byte{}, rawSdkTxs[:11], abciValidators, testApp.LastCommitID().Hash)
+	_, firstBlockCommitHash := executeTxs(t, testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
 
 	// Execute the second block
-	_, finalAppHash := executeTxs(t, testApp, rawBlobTx, rawSdkTxs[11:], abciValidators, firstBlockCommitHash)
+	_, secondAppHash := executeTxs(t, testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockCommitHash)
 
-	fmt.Println(finalAppHash, "DATA HASH AND APP HASH")
+	_, finalAppHash := executeTxs(t, testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
+
+	fmt.Println(finalAppHash, "APP HASH")
 
 	// Require that the app hash is equal to the app hash produced on a different commit
 	// require.Equal(t, expectedAppHash, appHash)
@@ -414,15 +327,17 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 	return kb, pubKeys
 }
 
-// createSdkTxWithDefaultOptions creates a Tx with default options with the provided message
-func createSdkTxWithDefaultOptions(msgs []sdk.Msg) Tx {
-	return Tx{
-		sdkTx: SdkTx{
-			sdkMsgs:   msgs,
-			txOptions: blobfactory.DefaultTxOpts(),
-		},
-		blobTx: BlobTx{},
+func processSdkMessages(t *testing.T, signer *user.Signer, sdkMessages []sdk.Msg) [][]byte {
+	rawSdkTxs := make([][]byte, 0, len(sdkMessages))
+	for _, msg := range sdkMessages {
+		rawSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		require.NoError(t, err)
+		signerAddress := msg.GetSigners()[0]
+		signerAccount := signer.AccountByAddress(signerAddress)
+		signer.SetSequence(signerAccount.Name(), signerAccount.Sequence()+1)
+		rawSdkTxs = append(rawSdkTxs, rawSdkTx)
 	}
+	return rawSdkTxs
 }
 
 // Helper function to check if BlobTx is "empty"
@@ -434,13 +349,15 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 	height := testApp.LastBlockHeight() + 1
 	chainId := testApp.GetChainID()
 
+	genesisTime := util.GenesisTime
+
 	resPrePareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
 			Txs: rawSdkTxs,
 		},
 		ChainId: chainId,
 		Height:  height,
-		Time:    time.Now(),
+		Time:    genesisTime.Add(time.Duration(height) * time.Minute),
 	})
 
 	dataHash := resPrePareProposal.BlockData.Hash
@@ -450,6 +367,7 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 		Header: core.Header{
 			DataHash: resPrePareProposal.BlockData.Hash,
 			ChainID:  chainId,
+			Time:     genesisTime.Add(time.Duration(height) * time.Minute),
 			Version:  version.Consensus{App: testApp.AppVersion()},
 			Height:   height,
 		},
@@ -463,11 +381,12 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 		Version:        version.Consensus{App: 1},
 		ChainID:        chainId,
 		Height:         height,
+		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
 		LastCommitHash: lastCommitHash,
-		// ProposerAddress: proposer,
 	}
 
-	fmt.Println(len(validators), "VAL LENGTH")
+	validator3Signed := height == 2 // Validator 3 signs only the first block
+
 	// Begin block
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: header,
 		LastCommitInfo: abci.LastCommitInfo{
@@ -477,30 +396,9 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 					SignedLastBlock: true,
 				},
 				{
-					Validator:       validators[1],
-					SignedLastBlock: true,
-				},
-				{
-					Validator:       validators[2],
-					SignedLastBlock: true,
-				},
-				{
 					Validator:       validators[3],
-					SignedLastBlock: true,
+					SignedLastBlock: validator3Signed,
 				},
-				{
-					Validator:       validators[4],
-					SignedLastBlock: true,
-				},
-				// {
-				// 	Validator:       validators[5],
-				// 	SignedLastBlock: true,
-				// },
-				// add the last one
-				// {
-				// 	Validator:       validators[5],
-				// 	SignedLastBlock: true,
-				// },
 			},
 		},
 	})
@@ -529,4 +427,13 @@ func executeTxs(t *testing.T, testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]
 	appHash := testApp.LastCommitID().Hash
 
 	return dataHash, appHash
+}
+
+func CreateAccounts(accountInfos []blobfactory.AccountInfo, accountNames []string) []*user.Account {
+	accounts := make([]*user.Account, 0, len(accountInfos))
+	for i, accountInfo := range accountInfos {
+		account := user.NewAccount(accountNames[i], accountInfo.AccountNum, accountInfo.Sequence)
+		accounts = append(accounts, account)
+	}
+	return accounts
 }

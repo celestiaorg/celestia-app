@@ -36,10 +36,13 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 const ChainID = testfactory.ChainID
+
+var GenesisTime = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 
 // Get flags every time the simulator is run
 func init() {
@@ -96,11 +99,14 @@ func NewTestApp() *app.App {
 
 // SetupDeterministicGenesisState sets genesis on initialized testApp with the provided arguments.
 func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
+	slashingParams := slashingtypes.NewParams(2, sdk.OneDec(), time.Minute, sdk.OneDec(), sdk.OneDec())
+
 	// create genesis
 	gen := genesis.NewDefaultGenesis().
 		WithChainID(ChainID).
 		WithConsensusParams(cparams).
-		WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
+		WithModifiers(genesis.SetSlashingParams(testApp.AppCodec(), slashingParams)).
+		WithGenesisTime(GenesisTime)
 
 	// add accounts to genesis
 	for _, pk := range pubKeys {
@@ -188,14 +194,12 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 		Version:   &cparams.Version,
 	}
 
-	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-
 	testApp.Info(abci.RequestInfo{})
 
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
 		abci.RequestInitChain{
-			Time:            genesisTime,
+			Time:            GenesisTime,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: abciParams,
 			AppStateBytes:   stateBytes,
@@ -211,9 +215,9 @@ func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
 		val := genesis.Validator{
 			KeyringAccount: genesis.KeyringAccount{
 				Name:          "validator" + fmt.Sprint(i),
-				InitialTokens: 1_000_000_000,
+				InitialTokens: 5_000_000_000,
 			},
-			Stake:        1_000_000,
+			Stake:        1_000_000_000,
 			ConsensusKey: FixedConsensusPrivKeys[i],
 			NetworkKey:   FixedNetWorkPrivKeys[i],
 		}
