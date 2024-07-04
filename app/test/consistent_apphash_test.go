@@ -124,7 +124,7 @@ func TestConsistentAppHash(t *testing.T) {
 		})
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, multiSendFundsMsg)
 
-	var grantExpiration = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	grantExpiration := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	// Create a new MsgGrant
 	authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
@@ -407,7 +407,8 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 	validator3Signed := height == 2 // Validator 3 signs only the first block
 
 	// Begin block
-	testApp.BeginBlock(abci.RequestBeginBlock{Header: header,
+	testApp.BeginBlock(abci.RequestBeginBlock{
+		Header: header,
 		LastCommitInfo: abci.LastCommitInfo{
 			Votes: []abci.VoteInfo{
 				{
