@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -22,16 +21,17 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
-
-	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -105,11 +105,11 @@ func TestConsistentAppHash(t *testing.T) {
 	// ---------------- First Block ------------
 	var firstBlockSdkMsgs []sdk.Msg
 
-	// Send funds to another account
+	// NewMsgSend - sends funds from account-0 to account-1
 	sendFundsMsg := banktypes.NewMsgSend(accountAddresses[0], accountAddresses[1], amount)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, sendFundsMsg)
 
-	// MultiSend funds to another account
+	// MultiSend - creates a multi-send transaction from account-0 to account-1
 	multiSendFundsMsg := banktypes.NewMsgMultiSend([]banktypes.Input{
 		banktypes.NewInput(
 			accountAddresses[0],
@@ -124,9 +124,8 @@ func TestConsistentAppHash(t *testing.T) {
 		})
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, multiSendFundsMsg)
 
+	// NewMsgGrant - grants authorization to account-1
 	grantExpiration := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
-
-	// Create a new MsgGrant
 	authorization := authz.NewGenericAuthorization(blobtypes.URLMsgPayForBlobs)
 	msgGrant, err := authz.NewMsgGrant(
 		accountAddresses[0],
@@ -137,11 +136,11 @@ func TestConsistentAppHash(t *testing.T) {
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgGrant)
 
-	// Create a new MsgVerifyInvariant
+	// MsgVerifyInvariant - verifies the nonnegative-outstanding invariant within the bank module for the account-0
 	msgVerifyInvariant := crisisTypes.NewMsgVerifyInvariant(accountAddresses[0], banktypes.ModuleName, "nonnegative-outstanding")
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgVerifyInvariant)
 
-	// Create a new MsgGrantAllowance
+	// MsgGrantAllowance - creates a grant allowance for account-1
 	basicAllowance := feegrant.BasicAllowance{
 		SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000))),
 	}
@@ -149,7 +148,7 @@ func TestConsistentAppHash(t *testing.T) {
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, feegrantMsg)
 
-	// Create a new MsgSubmitProposal
+	// NewMsgSubmitProposal - submits a proposal to send funds from the governance account to account-1
 	govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false, tmproto.Header{})).GetAddress()
 	msgSend := banktypes.MsgSend{
 		FromAddress: govAccount.String(),
@@ -160,10 +159,11 @@ func TestConsistentAppHash(t *testing.T) {
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, proposal)
 
+	// NewMsgDeposit - deposits funds to a governance proposal
 	msgDeposit := govtypes.NewMsgDeposit(accountAddresses[0], 1, depositAmount)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgDeposit)
 
-	// Create a new MsgCreateValidator
+	// NewMsgCreateValidator - creates a new validator
 	msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[6]),
 		ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey(),
 		amount[0],
@@ -173,11 +173,11 @@ func TestConsistentAppHash(t *testing.T) {
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgCreateValidator)
 
-	// Create a new MsgDelegate
+	// NewMsgDelegate - delegates funds to validator-0
 	msgDelegate := stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgDelegate)
 
-	// Create a new MsgBeginRedelegate
+	// NewMsgBeginRedelegate - re-delegates funds from validator-0 to validator-1
 	msgBeginRedelegate := stakingtypes.NewMsgBeginRedelegate(accountAddresses[0], genValidators[0].GetOperator(), genValidators[1].GetOperator(), amount[0])
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgBeginRedelegate)
 
@@ -185,22 +185,22 @@ func TestConsistentAppHash(t *testing.T) {
 
 	var secondBlockSdkMsgs []sdk.Msg
 
-	// Create a new MsgVote
+	// NewMsgVote - votes yes on a governance proposal
 	msgVote := govtypes.NewMsgVote(accountAddresses[0], 1, govtypes.VoteOption_VOTE_OPTION_YES, "")
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgVote)
 
-	// Create a new MsgRevoke
+	// NewMsgRevoke - revokes authorization from account-1
 	msgRevoke := authz.NewMsgRevoke(
 		accountAddresses[0],
 		accountAddresses[1],
 		blobtypes.URLMsgPayForBlobs,
 	)
 
-	// Create a new MsgExec to execute the revoke message
+	// NewMsgExec - executes the revoke authorization message
 	msgExec := authz.NewMsgExec(accountAddresses[0], []sdk.Msg{&msgRevoke})
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, &msgExec)
 
-	// Create a new MsgVoteWeighted
+	// NewMsgVoteWeighted - votes with a weighted vote
 	msgVoteWeighted := govtypes.NewMsgVoteWeighted(
 		accountAddresses[0],
 		1,
@@ -209,37 +209,37 @@ func TestConsistentAppHash(t *testing.T) {
 	)
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgVoteWeighted)
 
-	// Create a new MsgEditValidator
+	// NewMsgEditValidator - edits the newly created validator's description
 	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[6]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &twoInt)
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgEditValidator)
 
-	// Create a new MsgUndelegate
+	// NewMsgUndelegate - undelegates funds from validator-1
 	msgUndelegate := stakingtypes.NewMsgUndelegate(accountAddresses[0], genValidators[1].GetOperator(), amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgUndelegate)
 
-	// Create a new MsgDelegate
+	// NewMsgDelegate - delegates funds to validator-0
 	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgDelegate)
 
-	// Create a new MsgCancelUnboundingDelegation
 	// Messages are split in two blocks, this tx is part of the second block therefore the block height is incremented by 2
 	blockHeight := testApp.LastBlockHeight() + 2
+	// NewMsgCancelUnbondingDelegation - cancels unbonding delegation from validator-1
 	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], genValidators[1].GetOperator(), blockHeight, amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCancelUnbondingDelegation)
 
-	// Create a new MsgSetWithdrawAddress
+	// NewMsgSetWithdrawAddress - sets the withdraw address for account-0
 	msgSetWithdrawAddress := distribution.NewMsgSetWithdrawAddress(accountAddresses[0], accountAddresses[1])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgSetWithdrawAddress)
 
-	// Create a new MsgRevokeAllowance
+	// NewMsgRevokeAllowance - revokes the allowance granted to account-1
 	msgRevokeAllowance := feegrant.NewMsgRevokeAllowance(accountAddresses[0], accountAddresses[1])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, &msgRevokeAllowance)
 
-	// Create a new MsgFundCommunityPool
+	// NewMsgFundCommunityPool - funds the community pool
 	msgFundCommunityPool := distribution.NewMsgFundCommunityPool(amount, accountAddresses[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgFundCommunityPool)
 
-	// Create a new MsgWithdrawDelegatorReward
+	// NewMsgWithdrawDelegatorReward - withdraws delegator rewards
 	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], genValidators[0].GetOperator())
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgWithdrawDelegatorReward)
 
@@ -248,11 +248,11 @@ func TestConsistentAppHash(t *testing.T) {
 	// The transactions within the third block are signed by the validator's signer
 	var thirdBlockSdkMsgs []sdk.Msg
 
-	// Create a new MsgWithdrawValidatorCommission
+	// NewMsgWithdrawValidatorCommission - withdraws validator-0's commission
 	msgWithdrawValidatorCommission := distribution.NewMsgWithdrawValidatorCommission(genValidators[0].GetOperator())
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgWithdrawValidatorCommission)
 
-	// Create a new MsgUnjail
+	// NewMsgUnjail - unjails validator-3
 	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
 
@@ -275,11 +275,10 @@ func TestConsistentAppHash(t *testing.T) {
 		blobs:     []*blob.Blob{blob.New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
-
 	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
 
-	// Genesis d
+	// Convert validators to abci validators
 	abciValidators, err := convertToABCIValidators(genValidators)
 	require.NoError(t, err)
 
@@ -291,7 +290,7 @@ func TestConsistentAppHash(t *testing.T) {
 	_, secondAppHash, err := executeTxs(testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockCommitHash)
 	require.NoError(t, err)
 
-	// Execute the final block and get the final app hash
+	// Execute the final block and get the data hash alongside the final app hash
 	_, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
 	require.NoError(t, err)
 
@@ -369,6 +368,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 
 	genesisTime := testutil.GenesisTime
 
+	// Prepare Proposal
 	resPrePareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
 			Txs: rawSdkTxs,
@@ -380,41 +380,37 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 
 	dataHash := resPrePareProposal.BlockData.Hash
 
+	header := tmproto.Header{
+		Version:        version.Consensus{App: 1},
+		DataHash:       resPrePareProposal.BlockData.Hash,
+		ChainID:        chainID,
+		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
+		Height:         height,
+		LastCommitHash: lastCommitHash,
+	}
+
+	// Process Proposal
 	resProcessProposal := testApp.ProcessProposal(abci.RequestProcessProposal{
 		BlockData: resPrePareProposal.BlockData,
-		Header: tmproto.Header{
-			DataHash: resPrePareProposal.BlockData.Hash,
-			ChainID:  chainID,
-			Time:     genesisTime.Add(time.Duration(height) * time.Minute),
-			Version:  version.Consensus{App: testApp.AppVersion()},
-			Height:   height,
-		},
+		Header:    header,
 	},
 	)
 	if abci.ResponseProcessProposal_ACCEPT != resProcessProposal.Result {
 		return nil, nil, fmt.Errorf("ProcessProposal failed: %v", resProcessProposal.Result)
 	}
 
-	// BeginBlock
-	header := tmproto.Header{
-		Version:        version.Consensus{App: 1},
-		ChainID:        chainID,
-		Height:         height,
-		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
-		LastCommitHash: lastCommitHash,
-	}
-
-	validator3Signed := height == 2 // Validator 3 signs only the first block
-
 	// Begin block
+	validator3Signed := height == 2 // Validator 3 signs only the first block
 	testApp.BeginBlock(abci.RequestBeginBlock{
 		Header: header,
 		LastCommitInfo: abci.LastCommitInfo{
 			Votes: []abci.VoteInfo{
+				// In order to withdraw commission for this validator
 				{
 					Validator:       validators[0],
 					SignedLastBlock: true,
 				},
+				// In order to jail this validator
 				{
 					Validator:       validators[3],
 					SignedLastBlock: validator3Signed,
@@ -423,6 +419,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 		},
 	})
 
+	// Deliver SDK Txs
 	for i, rawSdkTx := range rawSdkTxs {
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawSdkTx})
 		if resp.Code != uint32(0) {
@@ -430,6 +427,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 		}
 	}
 
+	// Deliver Blob Txs
 	if len(rawBlobTx) != 0 {
 		// Deliver Blob Tx
 		blob, isBlobTx := blob.UnmarshalBlobTx(rawBlobTx)
