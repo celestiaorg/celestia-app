@@ -35,11 +35,12 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type BlobTx struct {
 	author    string
-	blobs     []*blob.Blob
+	blobs     []*tmproto.Blob
 	txOptions []user.TxOption
 }
 
@@ -74,7 +75,7 @@ func TestConsistentAppHash(t *testing.T) {
 	accounts := createAccounts(accountInfos, accountNames)
 
 	// Create a signer with accounts
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
+	signer, err := user.NewTxSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, accounts...)
 	require.NoError(t, err)
 
 	// ------------ Genesis Validator Accounts  ------------
@@ -92,7 +93,7 @@ func TestConsistentAppHash(t *testing.T) {
 	valAccounts := createAccounts(valAccountInfos, valAccountNames)
 
 	// Create a signer with validator accounts
-	valSigner, err := user.NewSigner(valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, valAccounts...)
+	valSigner, err := user.NewTxSigner(valKeyRing, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, valAccounts...)
 	require.NoError(t, err)
 
 	// ----------- Create SDK Messages ------------
@@ -271,7 +272,7 @@ func TestConsistentAppHash(t *testing.T) {
 	// Create a Blob Tx
 	blobTx := BlobTx{
 		author:    accountNames[1],
-		blobs:     []*blob.Blob{blob.New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
+		blobs:     []*tmproto.Blob{New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
@@ -290,10 +291,11 @@ func TestConsistentAppHash(t *testing.T) {
 	require.NoError(t, err)
 
 	// Execute the final block and get the data hash alongside the final app hash
-	_, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
+	dataHash, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
 	require.NoError(t, err)
 
 	fmt.Println(finalAppHash, "APP HASH")
+	fmt.Println(dataHash, "DATA HASH")
 
 	// Require that the app hash is equal to the app hash produced on a different commit
 	// require.Equal(t, expectedAppHash, appHash)
@@ -340,7 +342,7 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 
 // processSdkMessages takes a list of sdk messages, forms transactions, signs them
 // and returns a list of raw transactions
-func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, error) {
+func processSdkMessages(signer *user.TxSigner, sdkMessages []sdk.Msg) ([][]byte, error) {
 	rawSdkTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
 		rawSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
@@ -429,7 +431,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 	// Deliver Blob Txs
 	if len(rawBlobTx) != 0 {
 		// Deliver Blob Tx
-		blob, isBlobTx := blob.UnmarshalBlobTx(rawBlobTx)
+		blob, isBlobTx := coretypes.UnmarshalBlobTx(rawBlobTx)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
 		}
@@ -501,4 +503,14 @@ func convertToABCIValidators(genValidators []stakingtypes.Validator) ([]abci.Val
 		})
 	}
 	return abciValidators, nil
+}
+
+// New creates a new tmproto.Blob from the provided data
+func New(ns appns.Namespace, blob []byte, shareVersion uint8) *tmproto.Blob {
+	return &tmproto.Blob{
+		NamespaceId:      ns.ID,
+		Data:             blob,
+		ShareVersion:     uint32(shareVersion),
+		NamespaceVersion: uint32(ns.Version),
+	}
 }
