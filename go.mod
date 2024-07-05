@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
-	github.com/celestiaorg/knuu v0.14.1-0.20240703161956-aad5806e9590
+	github.com/celestiaorg/knuu v0.14.1-0.20240705051853-d53564a24de9
 	github.com/celestiaorg/nmt v0.21.0
 	github.com/celestiaorg/rsmt2d v0.13.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
