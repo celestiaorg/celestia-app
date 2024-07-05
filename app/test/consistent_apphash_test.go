@@ -378,7 +378,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 		ChainId: chainID,
 		Height:  height,
 		// Dynamically increase time so the validator can be unjailed (1m duration)
-		Time:    genesisTime.Add(time.Duration(height) * time.Minute),
+		Time: genesisTime.Add(time.Duration(height) * time.Minute),
 	})
 
 	dataHash := resPrePareProposal.BlockData.Hash
