@@ -49,7 +49,8 @@ type BlobTx struct {
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
 	// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
-	// expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
+	expectedAppHash := []byte{84, 216, 210, 48, 113, 204, 234, 21, 150, 236, 97, 87, 242, 184, 45, 248, 116, 127, 49, 88, 134, 197, 202, 125, 44, 210, 67, 144, 107, 51, 145, 65}
+	expectedDataRoot := []byte{100, 59, 112, 241, 238, 49, 50, 64, 105, 90, 209, 211, 49, 254, 211, 83, 133, 88, 5, 89, 221, 116, 141, 72, 33, 110, 16, 78, 5, 48, 118, 72}
 
 	// Initialize testApp
 	testApp := testutil.NewTestApp()
@@ -99,6 +100,7 @@ func TestConsistentAppHash(t *testing.T) {
 	// ----------- Create SDK Messages ------------
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
+	// Minimum deposit required for a gov proposal to become active
 	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
 	twoInt := sdk.NewInt(2)
 
@@ -221,7 +223,7 @@ func TestConsistentAppHash(t *testing.T) {
 	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgDelegate)
 
-	// Messages are split in two blocks, this tx is part of the second block therefore the block height is incremented by 2
+	// Block 2 height
 	blockHeight := testApp.LastBlockHeight() + 2
 	// NewMsgCancelUnbondingDelegation - cancels unbonding delegation from validator-1
 	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], genValidators[1].GetOperator(), blockHeight, amount[0])
@@ -245,7 +247,7 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// ------------ Third Block ------------
 
-	// The transactions within the third block are signed by the validator's signer
+	// Txs within the third block are signed by the validator's signer
 	var thirdBlockSdkMsgs []sdk.Msg
 
 	// NewMsgWithdrawValidatorCommission - withdraws validator-0's commission
@@ -278,26 +280,26 @@ func TestConsistentAppHash(t *testing.T) {
 	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
 
-	// Convert validators to abci validators
+	// Convert validators to ABCI validators
 	abciValidators, err := convertToABCIValidators(genValidators)
 	require.NoError(t, err)
 
 	// Execute the first block
-	_, firstBlockCommitHash, err := executeTxs(testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
+	_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
 	require.NoError(t, err)
 
 	// Execute the second block
-	_, secondAppHash, err := executeTxs(testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockCommitHash)
+	_, secondBlockAppHash, err := executeTxs(testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockAppHash)
 	require.NoError(t, err)
 
-	// Execute the final block and get the data hash alongside the final app hash
-	_, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
+	// Execute the final block and get the data root alongside the final app hash
+	finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondBlockAppHash)
 	require.NoError(t, err)
-
-	fmt.Println(finalAppHash, "APP HASH")
 
 	// Require that the app hash is equal to the app hash produced on a different commit
-	// require.Equal(t, expectedAppHash, appHash)
+	require.Equal(t, expectedAppHash, finalAppHash)
+	// Require that the data root is equal to the data root produced on a different commit
+	require.Equal(t, expectedDataRoot, finalDataRoot)
 }
 
 // fixedNamespace returns a hardcoded namespace
@@ -375,6 +377,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 		},
 		ChainId: chainID,
 		Height:  height,
+		// Dynamically increase time so the validator can be unjailed (1m duration)
 		Time:    genesisTime.Add(time.Duration(height) * time.Minute),
 	})
 
