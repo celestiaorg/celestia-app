@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	knuuinstance "github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/rs/zerolog/log"
@@ -20,7 +18,6 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -195,25 +192,25 @@ func NewNode(
 		return nil, err
 	}
 
-	if tsharkToS3 {
-		tsharkConfig := knuuinstance.TsharkCollectorConfig{
-			VolumeSize:     resource.MustParse("1000Gi"),
-			S3AccessKey:    os.Getenv("S3_ACCESS_KEY"),
-			S3SecretKey:    os.Getenv("S3_SECRET_KEY"),
-			S3Region:       os.Getenv("S3_REGION"),
-			S3Bucket:       os.Getenv("S3_BUCKET_NAME"),
-			CreateBucket:   false,
-			S3KeyPrefix:    "tshark/" + knuu.Scope(),
-			S3Endpoint:     os.Getenv("S3_ENDPOINT"),
-			UploadInterval: 10 * time.Second,
-			IpFilter:       tsharkFilterIP,
-			CompressFiles:  true,
-		}
-		err = instance.EnableTsharkCollector(tsharkConfig)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// if tsharkToS3 {
+	// 	tsharkConfig := knuuinstance.TsharkCollectorConfig{
+	// 		VolumeSize:     resource.MustParse("1000Gi"),
+	// 		S3AccessKey:    os.Getenv("S3_ACCESS_KEY"),
+	// 		S3SecretKey:    os.Getenv("S3_SECRET_KEY"),
+	// 		S3Region:       os.Getenv("S3_REGION"),
+	// 		S3Bucket:       os.Getenv("S3_BUCKET_NAME"),
+	// 		CreateBucket:   false,
+	// 		S3KeyPrefix:    "tshark/" + knuu.Scope(),
+	// 		S3Endpoint:     os.Getenv("S3_ENDPOINT"),
+	// 		UploadInterval: 10 * time.Second,
+	// 		IpFilter:       tsharkFilterIP,
+	// 		CompressFiles:  true,
+	// 	}
+	// 	err = instance.EnableTsharkCollector(tsharkConfig)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	return &Node{
 		Name:                name,
