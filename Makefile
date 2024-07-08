@@ -40,8 +40,6 @@ install: go.sum
 mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
-	@echo "--> Updating go.mod in ./test/testground"
-	@(cd ./test/testground && go mod tidy)
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
 .PHONY: mod

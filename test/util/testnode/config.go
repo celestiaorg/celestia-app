@@ -31,7 +31,7 @@ type UniversalTestingConfig struct {
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
 	// SuppressLogs in testnode. This should be set to true when running
-	// testground tests.
+	// network tests.
 	SuppressLogs bool
 }
 
