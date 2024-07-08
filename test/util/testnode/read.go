@@ -40,7 +40,8 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 	return ReadBlockHeights(ctx, rpcAddress, 1, status.SyncInfo.LatestBlockHeight)
 }
 
-// ReadBlockchainInfo reads the blockchain info from the node at rpcAddress and returns it.
+// ReadBlockchainInfo retrieves the blockchain information from height 0 up to the latest height from the node at
+// rpcAddress and returns it.
 func ReadBlockchainInfo(ctx context.Context, rpcAddress string) (*ctypes.ResultBlockchainInfo, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
