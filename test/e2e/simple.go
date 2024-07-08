@@ -44,15 +44,16 @@ func E2ESimple(logger *log.Logger) error {
 	time.Sleep(30 * time.Second)
 
 	logger.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchainInfo(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
-	for _, block := range blockchain {
-		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d in block %d", appconsts.LatestVersion, block.Version.App, block.Height)
+	for _, blockMeta := range blockchain.BlockMetas {
+		version := blockMeta.Header.Version.App
+		if appconsts.LatestVersion != version {
+			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)
 		}
-		totalTxs += len(block.Data.Txs)
+		totalTxs += blockMeta.NumTxs
 	}
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
