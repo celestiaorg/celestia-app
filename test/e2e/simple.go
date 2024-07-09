@@ -31,7 +31,8 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 10,
+		"100-2000", 100, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
@@ -43,16 +44,17 @@ func E2ESimple(logger *log.Logger) error {
 	// wait for 30 seconds
 	time.Sleep(30 * time.Second)
 
-	logger.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain", err)
+	logger.Println("Reading blockchain information")
+	blockchain, err := testnode.ReadBlockchainInfo(context.Background(), testNet.Node(0).AddressRPC())
+	testnet.NoError("failed to read blockchain information", err)
 
 	totalTxs := 0
-	for _, block := range blockchain {
-		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d in block %d", appconsts.LatestVersion, block.Version.App, block.Height)
+	for _, blockMeta := range blockchain.BlockMetas {
+		version := blockMeta.Header.Version.App
+		if appconsts.LatestVersion != version {
+			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)
 		}
-		totalTxs += len(block.Data.Txs)
+		totalTxs += blockMeta.NumTxs
 	}
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)

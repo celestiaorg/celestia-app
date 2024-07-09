@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/go-square/blob"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client/http"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -37,6 +38,25 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 		return nil, err
 	}
 	return ReadBlockHeights(ctx, rpcAddress, 1, status.SyncInfo.LatestBlockHeight)
+}
+
+// ReadBlockchainInfo retrieves the blockchain information from height 0 up to the latest height from the node at
+// rpcAddress and returns it.
+func ReadBlockchainInfo(ctx context.Context, rpcAddress string) (*ctypes.ResultBlockchainInfo, error) {
+	client, err := http.New(rpcAddress, "/websocket")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+	lastHeight := resp.SyncInfo.LatestBlockHeight
+	res, err := client.BlockchainInfo(ctx, 0, lastHeight)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) ([]*types.Block, error) {
