@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/go-square/blob"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client/http"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -42,7 +41,7 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 
 // ReadBlockchainInfo retrieves the blockchain information from height 0 up to the latest height from the node at
 // rpcAddress and returns it.
-func ReadBlockchainInfo(ctx context.Context, rpcAddress string) (*ctypes.ResultBlockchainInfo, error) {
+func ReadBlockchainInfo(ctx context.Context, rpcAddress string) ([]*types.BlockMeta, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
 		return nil, err
@@ -51,12 +50,23 @@ func ReadBlockchainInfo(ctx context.Context, rpcAddress string) (*ctypes.ResultB
 	if err != nil {
 		return nil, err
 	}
+	blocksMeta := make([]*types.BlockMeta, 0)
 	lastHeight := resp.SyncInfo.LatestBlockHeight
-	res, err := client.BlockchainInfo(ctx, 0, lastHeight)
-	if err != nil {
-		return nil, err
+	i := int64(0)
+	for {
+		print("Reading blockchain info from height ", i, " to ", lastHeight, "\n")
+		res, err := client.BlockchainInfo(ctx, i, lastHeight)
+		if err != nil {
+			return nil, err
+		}
+		blocksMeta = append(blocksMeta, res.BlockMetas...)
+		if res.LastHeight == 0 || res.LastHeight >= lastHeight {
+			break
+		}
+		i += res.LastHeight
 	}
-	return res, nil
+
+	return blocksMeta, nil
 }
 
 func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) ([]*types.Block, error) {
