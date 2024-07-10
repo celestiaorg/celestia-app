@@ -50,7 +50,7 @@ func TestGovParamsTestSuite(t *testing.T) {
 }
 
 // TestModifiableParams verifies that the params listed as governance modifiable
-// in the specs params.md file are modifiable via governance.
+// in the specs parameters.md file are modifiable via governance.
 func (suite *GovParamsTestSuite) TestModifiableParams() {
 	assert := suite.Assert()
 
@@ -541,8 +541,8 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 }
 
 // TestUnmodifiableParams verifies that the params listed as non governance
-// modifiable in the specs params.md file cannot be modified via governance. It
-// does not include a test case for consensus.block.TimeIotaMs because
+// modifiable in the specs parameters.md file cannot be modified via governance.
+// It does not include a test case for consensus.block.TimeIotaMs because
 // TimeIotaMs is not exposed to the application.
 func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	assert := suite.Assert()
