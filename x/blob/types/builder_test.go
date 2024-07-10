@@ -61,7 +61,7 @@ func TestBroadcastPayForBlob(t *testing.T) {
 
 	RPCAddress := "127.0.0.1:9090"
 
-	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	rpcClient, err := grpc.NewClient(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestQueryAccountNumber(t *testing.T) {
 
 	RPCAddress := "127.0.0.1:9090"
 
-	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	rpcClient, err := grpc.NewClient(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)

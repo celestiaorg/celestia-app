@@ -58,7 +58,7 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 // network. The resulting grpc client connection is stored in the client context
 func GRPCConn(net *network.Network) error {
 	nodeGRPCAddr := strings.Replace(net.Validators[0].AppConfig.GRPC.Address, "0.0.0.0", "localhost", 1)
-	conn, err := grpc.Dial(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	net.Validators[0].ClientCtx.GRPCClient = conn
 	return err
 }
