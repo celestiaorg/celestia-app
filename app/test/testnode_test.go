@@ -20,24 +20,20 @@ func Test_testnode(t *testing.T) {
 		testnode.NewNetwork(t, testnode.DefaultConfig())
 	})
 	t.Run("testnode can start with a custom MinGasPrice", func(t *testing.T) {
-		// want := "0.000006stake"
-		config := testnode.DefaultConfig()
 		appConfig := testnode.DefaultAppConfig()
-		// appConfig.MinGasPrices = want
-		config.WithAppConfig(appConfig)
-		_, _, grpcAddr := testnode.NewNetwork(t, config)
+		appConfig.MinGasPrices = "0.003utia"
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		grpcConn := setup(t, ctx, grpcAddr)
-		got, err := queryMinimumGasPrice(ctx, grpcConn)
-		// got, err := user.QueryMinimumGasPrice(ctx, grpcConn)
+		config := testnode.DefaultConfig().WithAppConfig(appConfig)
+		cctx, _, grpcAddr := testnode.NewNetwork(t, config)
+
+		grpcConn := createGrpcConnection(t, cctx.GoContext(), grpcAddr)
+		got, err := queryMinimumGasPrice(cctx.GoContext(), grpcConn)
 		require.NoError(t, err)
-		assert.Equal(t, ".002utia", got)
+		assert.Equal(t, float64(0.003), got)
 	})
 }
 
-func setup(t *testing.T, ctx context.Context, grpcAddr string) *grpc.ClientConn {
+func createGrpcConnection(t *testing.T, ctx context.Context, grpcAddr string) *grpc.ClientConn {
 	client, err := grpc.NewClient(
 		grpcAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -54,6 +50,7 @@ func setup(t *testing.T, ctx context.Context, grpcAddr string) *grpc.ClientConn 
 }
 
 func queryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
+
 	cfgRsp, err := nodeservice.NewServiceClient(grpcConn).Config(ctx, &nodeservice.ConfigRequest{})
 	if err != nil {
 		return 0, err
