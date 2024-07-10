@@ -2,7 +2,7 @@
 
 Celestia inherits support for Multisig accounts from the Cosmos SDK. Multisig accounts behave similarly to regular accounts with the added requirement that a threshold of signatures is needed to authorize a transaction.
 
-The maximum number of signatures allowed for a multisig account is determined by the [parameters](./parameters.md) `auth.TxSigLimit`. The threshold and list of signers for a multisig account are set at the time of creation and can be viewed in the `pubkey` field of a key. For example:
+The maximum number of signatures allowed for a multisig account is determined by the parameter `auth.TxSigLimit` (see [parameters](./parameters.md)). The threshold and list of signers for a multisig account are set at the time of creation and can be viewed in the `pubkey` field of a key. For example:
 
 ```shell
 $ celestia-appd keys show multisig
