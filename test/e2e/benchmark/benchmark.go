@@ -149,7 +149,7 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 	}
 
 	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchainInfo(context.Background(),
+	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(),
 		b.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain information", err)
 

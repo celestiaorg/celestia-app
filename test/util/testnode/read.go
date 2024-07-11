@@ -39,9 +39,9 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 	return ReadBlockHeights(ctx, rpcAddress, 1, status.SyncInfo.LatestBlockHeight)
 }
 
-// ReadBlockchainInfo retrieves the blockchain information from height 0 up to the latest height from the node at
-// rpcAddress and returns it.
-func ReadBlockchainInfo(ctx context.Context, rpcAddress string) ([]*types.BlockMeta, error) {
+// ReadBlockchainHeaders retrieves the blockchain headers from height 0 up to
+// latest available height from the node at rpcAddress and returns it.
+func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.BlockMeta, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
 		return nil, err
@@ -55,14 +55,16 @@ func ReadBlockchainInfo(ctx context.Context, rpcAddress string) ([]*types.BlockM
 
 	// fetch the blocks meta data
 	blocksMeta := make([]*types.BlockMeta, 0)
+	// fetch headers up to maxHeight
 	maxHeight := resp.SyncInfo.LatestBlockHeight
 	lastFetchedHeight := int64(0)
 	println("max height: ", maxHeight)
 	for {
-		// BlockchainInfo may not return the requested number of blocks (a limit of 20 may be applied),
+		// BlockchainInfo applies a limit of 20 may on the range of blocks to fetch
 		// so we need to request them iteratively
-		println("fetching blocks from ", lastFetchedHeight+1, " to ", maxHeight)
-		res, err := client.BlockchainInfo(ctx, lastFetchedHeight+1, maxHeight)
+		println("fetching blocks from ", 1, " to ", maxHeight)
+		// Block headers are returned in descending order (highest first).
+		res, err := client.BlockchainInfo(ctx, 1, maxHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -73,17 +75,28 @@ func ReadBlockchainInfo(ctx context.Context, rpcAddress string) ([]*types.BlockM
 		lastFetchedHeight = res.BlockMetas[len(res.BlockMetas)-1].Header.Height
 		println("last seen height: ", lastFetchedHeight)
 
-		if lastFetchedHeight >= maxHeight {
+		// fetch until the first block
+		if lastFetchedHeight <= 1 {
 			break
 		}
+		maxHeight = lastFetchedHeight - 1
 
 	}
 
 	println("Read ", len(blocksMeta), " blocks")
+	// Block headers are returned in descending order (highest first). We need to reverse the order
+	reverseSlice(blocksMeta)
+
+	println(blocksMeta[0].Header.Height, blocksMeta[len(blocksMeta)-1].Header.Height)
 
 	return blocksMeta, nil
 }
 
+func reverseSlice[T any](s []T) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
 func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) ([]*types.Block, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
