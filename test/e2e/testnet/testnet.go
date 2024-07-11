@@ -372,7 +372,7 @@ func (t *Testnet) Start() error {
 			}
 			log.Info().Int64("height", resp.SyncInfo.LatestBlockHeight).Msg(
 				"height is 0, waiting...")
-			if i == 10 {
+			if i == 9 {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
