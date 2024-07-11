@@ -41,6 +41,7 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 
 // ReadBlockchainHeaders retrieves the blockchain headers from height 0 up to
 // latest available height from the node at rpcAddress and returns it.
+// The headers are returned in ascending order (lowest first).
 func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.BlockMeta, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
@@ -62,7 +63,6 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 	for {
 		// BlockchainInfo may apply on the range of blocks to fetch,
 		// so we need to request them iteratively.
-		println("fetching blocks from ", 1, " to ", maxHeight)
 		// block headers are returned in descending order (highest first).
 		res, err := client.BlockchainInfo(ctx, 1, maxHeight)
 		if err != nil {
@@ -70,10 +70,8 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 		}
 
 		blocksMeta = append(blocksMeta, res.BlockMetas...)
-		println("fetched ", len(res.BlockMetas), " blocks")
 
 		lastFetchedHeight = res.BlockMetas[len(res.BlockMetas)-1].Header.Height
-		println("last seen height: ", lastFetchedHeight)
 
 		// fetch until the first block
 		if lastFetchedHeight <= 1 {
@@ -83,15 +81,14 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 
 	}
 
-	println("Read ", len(blocksMeta), " blocks")
-	// Block headers are returned in descending order (highest first). We need to reverse the order
+	// blocksMeta is in descending order (highest first).
+	// We need to reverse the order.
 	reverseSlice(blocksMeta)
-
-	println(blocksMeta[0].Header.Height, blocksMeta[len(blocksMeta)-1].Header.Height)
-
+	
 	return blocksMeta, nil
 }
 
+// reverseSlice reverses the order of elements in a slice in place.
 func reverseSlice[T any](s []T) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
