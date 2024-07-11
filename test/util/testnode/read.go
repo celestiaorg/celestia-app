@@ -84,7 +84,7 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 	// blocksMeta is in descending order (highest first).
 	// We need to reverse the order.
 	reverseSlice(blocksMeta)
-	
+
 	return blocksMeta, nil
 }
 
@@ -94,6 +94,7 @@ func reverseSlice[T any](s []T) {
 		s[i], s[j] = s[j], s[i]
 	}
 }
+
 func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeight int64) ([]*types.Block, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
