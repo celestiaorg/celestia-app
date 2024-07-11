@@ -356,10 +356,10 @@ func (t *Testnet) Start() error {
 		if err != nil {
 			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
 		}
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 20; i++ {
 			resp, err := client.Status(context.Background())
 			if err != nil {
-				if i == 9 {
+				if i == 19 {
 					return fmt.Errorf("node %s status response: %w", node.Name, err)
 				}
 				time.Sleep(time.Second)
@@ -372,7 +372,7 @@ func (t *Testnet) Start() error {
 			}
 			log.Info().Int64("height", resp.SyncInfo.LatestBlockHeight).Msg(
 				"height is 0, waiting...")
-			if i == 9 {
+			if i == 19 {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
