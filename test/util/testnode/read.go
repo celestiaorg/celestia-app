@@ -60,10 +60,10 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 	lastFetchedHeight := int64(0)
 	println("max height: ", maxHeight)
 	for {
-		// BlockchainInfo applies a limit of 20 may on the range of blocks to fetch
-		// so we need to request them iteratively
+		// BlockchainInfo may apply on the range of blocks to fetch,
+		// so we need to request them iteratively.
 		println("fetching blocks from ", 1, " to ", maxHeight)
-		// Block headers are returned in descending order (highest first).
+		// block headers are returned in descending order (highest first).
 		res, err := client.BlockchainInfo(ctx, 1, maxHeight)
 		if err != nil {
 			return nil, err
