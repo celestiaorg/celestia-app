@@ -49,7 +49,7 @@ func E2ESimple(logger *log.Logger) error {
 	testnet.NoError("failed to read blockchain information", err)
 
 	totalTxs := 0
-	for _, blockMeta := range blockchain.BlockMetas {
+	for _, blockMeta := range blockchain {
 		version := blockMeta.Header.Version.App
 		if appconsts.LatestVersion != version {
 			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)

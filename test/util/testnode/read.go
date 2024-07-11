@@ -46,25 +46,40 @@ func ReadBlockchainInfo(ctx context.Context, rpcAddress string) ([]*types.BlockM
 	if err != nil {
 		return nil, err
 	}
+
+	// fetch the latest height
 	resp, err := client.Status(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	// fetch the blocks meta data
 	blocksMeta := make([]*types.BlockMeta, 0)
-	lastHeight := resp.SyncInfo.LatestBlockHeight
-	i := int64(0)
+	maxHeight := resp.SyncInfo.LatestBlockHeight
+	lastFetchedHeight := int64(0)
+	println("max height: ", maxHeight)
 	for {
-		print("Reading blockchain info from height ", i, " to ", lastHeight, "\n")
-		res, err := client.BlockchainInfo(ctx, i, lastHeight)
+		// BlockchainInfo may not return the requested number of blocks (a limit of 20 may be applied),
+		// so we need to request them iteratively
+		println("fetching blocks from ", lastFetchedHeight+1, " to ", maxHeight)
+		res, err := client.BlockchainInfo(ctx, lastFetchedHeight+1, maxHeight)
 		if err != nil {
 			return nil, err
 		}
+
 		blocksMeta = append(blocksMeta, res.BlockMetas...)
-		if res.LastHeight == 0 || res.LastHeight >= lastHeight {
+		println("fetched ", len(res.BlockMetas), " blocks")
+
+		lastFetchedHeight = res.BlockMetas[len(res.BlockMetas)-1].Header.Height
+		println("last seen height: ", lastFetchedHeight)
+
+		if lastFetchedHeight >= maxHeight {
 			break
 		}
-		i += res.LastHeight
+
 	}
+
+	println("Read ", len(blocksMeta), " blocks")
 
 	return blocksMeta, nil
 }

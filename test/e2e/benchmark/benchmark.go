@@ -155,7 +155,7 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 
 	targetSizeReached := false
 	maxBlockSize := int64(0)
-	for _, blockMeta := range blockchain.BlockMetas {
+	for _, blockMeta := range blockchain {
 		if appconsts.LatestVersion != blockMeta.Header.Version.App {
 			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, blockMeta.Header.Version.App)
 		}
