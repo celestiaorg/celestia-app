@@ -39,7 +39,7 @@ func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, err
 	return ReadBlockHeights(ctx, rpcAddress, 1, status.SyncInfo.LatestBlockHeight)
 }
 
-// ReadBlockchainHeaders retrieves the blockchain headers from height 0 up to
+// ReadBlockchainHeaders retrieves the blockchain headers from height 1 up to
 // latest available height from the node at rpcAddress and returns it.
 // The headers are returned in ascending order (lowest first).
 func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.BlockMeta, error) {
@@ -53,23 +53,23 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 	if err != nil {
 		return nil, err
 	}
-
-	// fetch the blocks metadata/headers
-	blocksMeta := make([]*types.BlockMeta, 0)
-	// fetch headers up to maxHeight
 	maxHeight := resp.SyncInfo.LatestBlockHeight
+
+	blockHeaders := make([]*types.BlockMeta, 0)
+	// fetch headers up to maxHeight
 	lastFetchedHeight := int64(0)
 	println("max height: ", maxHeight)
 	for {
-		// BlockchainInfo may apply on the range of blocks to fetch,
+		// BlockchainInfo may apply a limit on the range of blocks to fetch,
 		// so we need to request them iteratively.
-		// block headers are returned in descending order (highest first).
+		// note that block headers returned by BlockchainInfo are in descending
+		// order (highest first).
 		res, err := client.BlockchainInfo(ctx, 1, maxHeight)
 		if err != nil {
 			return nil, err
 		}
 
-		blocksMeta = append(blocksMeta, res.BlockMetas...)
+		blockHeaders = append(blockHeaders, res.BlockMetas...)
 
 		lastFetchedHeight = res.BlockMetas[len(res.BlockMetas)-1].Header.Height
 
@@ -77,15 +77,16 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 		if lastFetchedHeight <= 1 {
 			break
 		}
+
+		// set the new maxHeight to fetch the next batch of headers
 		maxHeight = lastFetchedHeight - 1
 
 	}
 
-	// blocksMeta is in descending order (highest first).
-	// We need to reverse the order.
-	reverseSlice(blocksMeta)
+	// reverse the order of headers to be ascending (lowest first).
+	reverseSlice(blockHeaders)
 
-	return blocksMeta, nil
+	return blockHeaders, nil
 }
 
 // reverseSlice reverses the order of elements in a slice in place.
