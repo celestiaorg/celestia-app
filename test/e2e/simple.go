@@ -44,9 +44,9 @@ func E2ESimple(logger *log.Logger) error {
 	// wait for 30 seconds
 	time.Sleep(30 * time.Second)
 
-	logger.Println("Reading blockchain information")
+	logger.Println("Reading blockchain headers")
 	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(), testNet.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain information", err)
+	testnet.NoError("failed to read blockchain headers", err)
 
 	totalTxs := 0
 	for _, blockMeta := range blockchain {

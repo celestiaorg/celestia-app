@@ -53,7 +53,7 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 		return nil, err
 	}
 
-	// fetch the blocks meta data
+	// fetch the blocks metadata/headers
 	blocksMeta := make([]*types.BlockMeta, 0)
 	// fetch headers up to maxHeight
 	maxHeight := resp.SyncInfo.LatestBlockHeight
