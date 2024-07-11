@@ -148,14 +148,14 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 		}
 	}
 
-	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchainInfo(context.Background(),
+	log.Println("Reading blockchain headers")
+	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(),
 		b.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain information", err)
+	testnet.NoError("failed to read blockchain headers", err)
 
 	targetSizeReached := false
 	maxBlockSize := int64(0)
-	for _, blockMeta := range blockchain.BlockMetas {
+	for _, blockMeta := range blockchain {
 		if appconsts.LatestVersion != blockMeta.Header.Version.App {
 			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, blockMeta.Header.Version.App)
 		}
