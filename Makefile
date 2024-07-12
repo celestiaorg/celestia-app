@@ -40,8 +40,6 @@ install: go.sum
 mod:
 	@echo "--> Updating go.mod"
 	@go mod tidy
-	@echo "--> Updating go.mod in ./test/testground"
-	@(cd ./test/testground && go mod tidy)
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
 .PHONY: mod
@@ -167,6 +165,7 @@ test-fuzz:
 
 ## test-interchain: Run interchain tests in verbose mode. Requires Docker.
 test-interchain:
+	@echo "Reminder: this test uses the latest celestia-app Docker image. If you would like to test recent code changes, re-build the Docker image by running: make build-docker"
 	@echo "--> Running interchain tests"
 	@cd ./test/interchain && go test . -v
 .PHONY: test-interchain
