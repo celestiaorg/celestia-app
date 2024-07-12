@@ -103,10 +103,6 @@ func (c *Config) WithGenesisTime(t time.Time) *Config {
 }
 
 // WithChainID sets the chain ID and returns the Config.
-//
-// Note: If a custom chain ID is needed, then you also need to set it on the
-// Genesis and override the genesis via WithGenesis. This is needed so so that
-// the genesis validator is created with the custom chain ID.
 func (c *Config) WithChainID(id string) *Config {
 	c.Genesis = c.Genesis.WithChainID(id)
 	return c
