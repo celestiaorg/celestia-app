@@ -109,7 +109,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
 	logger.Println("Running", testName)
-	manifest.ChainID = "third-" + manifest.summary()
+	manifest.ChainID = manifest.summary()
 	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -195,9 +195,9 @@ func LargeNetworkBigBlock8MBLatency(logger *log.Logger) error {
 	manifest.MaxBlockBytes = 8 * testnet.MB
 	manifest.Validators = 50
 	manifest.TxClients = 50
-	manifest.BlobSequences = 2
+	manifest.BlobSequences = 1
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0}
-	manifest.TestDuration = 10 * time.Minute
+	//manifest.TestDuration = 10 * time.Minute
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MBLatency", manifest)
 }
