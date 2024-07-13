@@ -18,6 +18,21 @@ func Test_testnode(t *testing.T) {
 	t.Run("testnode can start a network with default chain ID", func(t *testing.T) {
 		testnode.NewNetwork(t, testnode.DefaultConfig())
 	})
+	t.Run("testnode can query GRPC", func(t *testing.T) {
+		config := testnode.DefaultConfig()
+		cctx, _, _ := testnode.NewNetwork(t, config)
+
+		// queryClient := minfee.NewQueryClient(cctx.GRPCClient)
+		// got, err := queryClient.NetworkMinGasPrice(cctx.GoContext(), &minfee.QueryNetworkMinGasPrice{})
+		// require.NoError(t, err)
+		// fmt.Printf("got %v\n", got)
+
+		queryServer := nodeservice.NewQueryServer(cctx.Context)
+		// TODO: need to figure out the correct contex tto pass here
+		got, err := queryServer.Config(context.TODO(), &nodeservice.ConfigRequest{})
+		require.NoError(t, err)
+		fmt.Printf("got %v\n", got)
+	})
 	t.Run("testnode can start with a custom MinGasPrice", func(t *testing.T) {
 		wantMinGasPrice := float64(0.003)
 		appConfig := testnode.DefaultAppConfig()
