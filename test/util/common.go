@@ -69,7 +69,7 @@ var (
 		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456389016")),
 	}
 
-	FixedNetWorkPrivKeys = []tmed.PrivKey{
+	FixedNetworkPrivKeys = []tmed.PrivKey{
 		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012")),
 		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786013")),
 		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786014")),
