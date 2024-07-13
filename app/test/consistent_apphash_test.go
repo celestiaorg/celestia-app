@@ -368,7 +368,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 	genesisTime := testutil.GenesisTime
 
 	// Prepare Proposal
-	resPrePareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
+	resPrepareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
 			Txs: rawSdkTxs,
 		},
