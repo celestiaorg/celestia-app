@@ -259,13 +259,13 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Create SDK transactions from the list of messages
 	// and separate them into 3 different blocks
-	firstBlockRawTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
+	firstBlockEncodedTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
 	require.NoError(t, err)
 
-	secondBlockRawTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
+	secondBlockEncodedTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
 	require.NoError(t, err)
 
-	validatorRawTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
+	thirdBlockEncodedTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
 	require.NoError(t, err)
 
 	// Create a Blob Tx
@@ -274,7 +274,7 @@ func TestConsistentAppHash(t *testing.T) {
 		blobs:     []*blob.Blob{blob.New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
-	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
+	encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
 
 	// Convert validators to ABCI validators
@@ -282,15 +282,15 @@ func TestConsistentAppHash(t *testing.T) {
 	require.NoError(t, err)
 
 	// Execute the first block
-	_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
+	_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash)
 	require.NoError(t, err)
 
 	// Execute the second block
-	_, secondBlockAppHash, err := executeTxs(testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockAppHash)
+	_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockEncodedTxs, abciValidators, firstBlockAppHash)
 	require.NoError(t, err)
 
 	// Execute the final block and get the data root alongside the final app hash
-	finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondBlockAppHash)
+	finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash)
 	require.NoError(t, err)
 
 	// Require that the app hash is equal to the app hash produced on a different commit
@@ -339,11 +339,11 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 }
 
 // processSdkMessages takes a list of sdk messages, forms transactions, signs them
-// and returns a list of raw transactions
+// and returns a list of encoded transactions
 func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, error) {
-	rawSdkTxs := make([][]byte, 0, len(sdkMessages))
+	encodedTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
-		rawSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		encodedSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 		if err != nil {
 			return nil, err
 		}
@@ -355,13 +355,13 @@ func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, e
 			return nil, err
 		}
 
-		rawSdkTxs = append(rawSdkTxs, rawSdkTx)
+		encodedTxs = append(encodedTxs, encodedSdkTx)
 	}
-	return rawSdkTxs, nil
+	return encodedTxs, nil
 }
 
 // executeTxs executes a set of transactions and returns the data hash and app hash
-func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
+func executeTxs(testApp *app.App, encodedBlobTxs []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
 	chainID := testApp.GetChainID()
 
@@ -370,7 +370,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 	// Prepare Proposal
 	resPrepareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
-			Txs: rawSdkTxs,
+			Txs: encodedSdkTxs,
 		},
 		ChainId: chainID,
 		Height:  height,
@@ -420,17 +420,17 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 	})
 
 	// Deliver SDK Txs
-	for i, rawSdkTx := range rawSdkTxs {
-		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawSdkTx})
-		if resp.Code != uint32(0) {
+	for i, tx := range encodedSdkTxs {
+		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tx})
+		if resp.Code != abci.CodeTypeOK {
 			return nil, nil, fmt.Errorf("DeliverTx failed for the message at index %d: %s", i, resp.Log)
 		}
 	}
 
 	// Deliver Blob Txs
-	if len(rawBlobTx) != 0 {
+	if len(encodedBlobTxs) != 0 {
 		// Deliver Blob Tx
-		blob, isBlobTx := blob.UnmarshalBlobTx(rawBlobTx)
+		blob, isBlobTx := blob.UnmarshalBlobTx(encodedBlobTxs)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
 		}
