@@ -343,7 +343,7 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, error) {
 	encodedTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
-		encodedSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		encodedTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 		if err != nil {
 			return nil, err
 		}
@@ -355,13 +355,13 @@ func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, e
 			return nil, err
 		}
 
-		encodedTxs = append(encodedTxs, encodedSdkTx)
+		encodedTxs = append(encodedTxs, encodedTx)
 	}
 	return encodedTxs, nil
 }
 
 // executeTxs executes a set of transactions and returns the data hash and app hash
-func executeTxs(testApp *app.App, encodedBlobTxs []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
+func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
 	chainID := testApp.GetChainID()
 
@@ -428,9 +428,9 @@ func executeTxs(testApp *app.App, encodedBlobTxs []byte, encodedSdkTxs [][]byte,
 	}
 
 	// Deliver Blob Txs
-	if len(encodedBlobTxs) != 0 {
+	if len(encodedBlobTx) != 0 {
 		// Deliver Blob Tx
-		blob, isBlobTx := blob.UnmarshalBlobTx(encodedBlobTxs)
+		blob, isBlobTx := blob.UnmarshalBlobTx(encodedBlobTx)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
 		}
