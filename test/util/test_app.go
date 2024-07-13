@@ -219,7 +219,7 @@ func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
 			},
 			Stake:        1_000_000_000,
 			ConsensusKey: FixedConsensusPrivKeys[i],
-			NetworkKey:   FixedNetWorkPrivKeys[i],
+			NetworkKey:   FixedNetworkPrivKeys[i],
 		}
 
 		// Initialize the validator's genesis account in the keyring

@@ -12,14 +12,15 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -28,7 +29,6 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -378,11 +378,11 @@ func executeTxs(testApp *app.App, encodedBlobTxs []byte, encodedSdkTxs [][]byte,
 		Time: genesisTime.Add(time.Duration(height) * time.Minute),
 	})
 
-	dataHash := resPrePareProposal.BlockData.Hash
+	dataHash := resPrepareProposal.BlockData.Hash
 
 	header := tmproto.Header{
 		Version:        version.Consensus{App: 1},
-		DataHash:       resPrePareProposal.BlockData.Hash,
+		DataHash:       resPrepareProposal.BlockData.Hash,
 		ChainID:        chainID,
 		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
 		Height:         height,
@@ -391,7 +391,7 @@ func executeTxs(testApp *app.App, encodedBlobTxs []byte, encodedSdkTxs [][]byte,
 
 	// Process Proposal
 	resProcessProposal := testApp.ProcessProposal(abci.RequestProcessProposal{
-		BlockData: resPrePareProposal.BlockData,
+		BlockData: resPrepareProposal.BlockData,
 		Header:    header,
 	},
 	)
