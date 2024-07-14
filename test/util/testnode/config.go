@@ -179,10 +179,10 @@ func DefaultAppCreator() srvtypes.AppCreator {
 		return app.New(
 			log.NewNopLogger(),
 			tmdb.NewMemDB(),
-			nil,            // trace store
-			0,              // invCheckPerid
-			encodingConfig, //encoding config
-			0,              // upgrade height v2
+			nil, // trace store
+			0,   // invCheckPerid
+			encodingConfig,
+			0, // v2 upgrade height
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
