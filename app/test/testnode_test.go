@@ -3,7 +3,6 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
@@ -34,7 +33,8 @@ func Test_testnode(t *testing.T) {
 		serviceClient := nodeservice.NewServiceClient(cctx.GRPCClient)
 		resp, err := serviceClient.Config(cctx.GoContext(), &nodeservice.ConfigRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, appconsts.DefaultMinGasPrice, resp.MinimumGasPrice)
+		want := "0.002000000000000000utia"
+		assert.Equal(t, want, resp.MinimumGasPrice)
 	})
 	// t.Run("testnode can start with a custom MinGasPrice", func(t *testing.T) {
 	// 	wantMinGasPrice := float64(0.003)
