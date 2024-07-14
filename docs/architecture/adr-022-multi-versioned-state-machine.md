@@ -10,7 +10,7 @@ Implemented
 
 ## Context
 
-The Celestia application required a modification from the existing Cosmos SDK to support multiple versions of the state machine simultaneously. This capability is crucial for single binary syncs and ensuring a smooth transition during upgrades, allowing nodes to upgrade independently and then switch to the next state machine without any downtime to the network. This is important for a network which is depended on by a large number of rollups and users.
+The Celestia application required a modification from the existing Cosmos SDK to support multiple versions of the state machine simultaneously. This capability is crucial for single binary syncs and ensuring a smooth transition during upgrades, allowing nodes to upgrade independently and then switch to the next state machine without any downtime to the network. This is important for a network which is dependent on by a large number of rollups and users.
 
 ## Decision
 
