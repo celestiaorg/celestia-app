@@ -36,15 +36,4 @@ func Test_testnode(t *testing.T) {
 		want := "0.002000000000000000utia"
 		assert.Equal(t, want, resp.MinimumGasPrice)
 	})
-	// t.Run("testnode can start with a custom MinGasPrice", func(t *testing.T) {
-	// 	wantMinGasPrice := float64(0.003)
-	// 	appConfig := testnode.DefaultAppConfig()
-	// 	appConfig.MinGasPrices = fmt.Sprintf("%v%s", wantMinGasPrice, app.BondDenom)
-	// 	config := testnode.DefaultConfig().WithAppConfig(appConfig)
-	// 	cctx, _, _ := testnode.NewNetwork(t, config)
-
-	// 	got, err := queryMinimumGasPrice(cctx.GoContext(), cctx.GRPCClient)
-	// 	require.NoError(t, err)
-	// 	assert.Equal(t, wantMinGasPrice, got)
-	// })
 }
