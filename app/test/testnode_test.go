@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v2/x/minfee"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -22,16 +24,23 @@ func Test_testnode(t *testing.T) {
 		config := testnode.DefaultConfig()
 		cctx, _, _ := testnode.NewNetwork(t, config)
 
-		// queryClient := minfee.NewQueryClient(cctx.GRPCClient)
-		// got, err := queryClient.NetworkMinGasPrice(cctx.GoContext(), &minfee.QueryNetworkMinGasPrice{})
-		// require.NoError(t, err)
-		// fmt.Printf("got %v\n", got)
-
-		queryServer := nodeservice.NewQueryServer(cctx.Context)
-		// TODO: need to figure out the correct contex tto pass here
-		got, err := queryServer.Config(context.TODO(), &nodeservice.ConfigRequest{})
+		queryClient := minfee.NewQueryClient(cctx.GRPCClient)
+		got, err := queryClient.NetworkMinGasPrice(cctx.GoContext(), &minfee.QueryNetworkMinGasPrice{})
 		require.NoError(t, err)
 		fmt.Printf("got %v\n", got)
+
+		cctx.WaitForHeight(1)
+		// serviceClient := nodeservice.NewServiceClient(cctx.GRPCClient)
+		// // TODO: need to figure out the correct contex tto pass here
+		// foo, err := serviceClient.Config(cctx.GoContext(), &nodeservice.ConfigRequest{})
+		// // got, err = queryServer.Config(cctx.GoContext(), &nodeservice.ConfigRequest{})
+		// require.NoError(t, err)
+		// fmt.Printf("foo %v\n", foo.MinimumGasPrice)
+
+		bar, err := user.QueryMinimumGasPrice(cctx.GoContext(), cctx.GRPCClient)
+		require.NoError(t, err)
+		fmt.Printf("bar %v\n", bar)
+
 	})
 	t.Run("testnode can start with a custom MinGasPrice", func(t *testing.T) {
 		wantMinGasPrice := float64(0.003)
