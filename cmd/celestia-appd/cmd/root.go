@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	bscmd "github.com/celestiaorg/celestia-app/v2/x/blobstream/client"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
@@ -237,8 +235,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		cast.ToInt64(appOpts.Get(UpgradeHeightFlag)),
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
-		// baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
-		baseapp.SetMinGasPrices(fmt.Sprintf("%vutia", appconsts.DefaultMinGasPrice)),
+		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
 		baseapp.SetMinRetainBlocks(cast.ToUint64(appOpts.Get(server.FlagMinRetainBlocks))),
 		baseapp.SetHaltHeight(cast.ToUint64(appOpts.Get(server.FlagHaltHeight))),
 		baseapp.SetHaltTime(cast.ToUint64(appOpts.Get(server.FlagHaltTime))),
