@@ -60,7 +60,7 @@ With these two structs, we can safely guarantee that all staged transactions can
 
 Both `PrepareProposal` and `ProcessProposal` will as a result, call much the same methods. Verification is thus reduced to: did I create the same square as you, rather than is your version of the square valid. The main difference is that `PrepareProposal` will handle overflow of transactions by discarding them, while `ProcessProposal` will handle overflow by rejecting the block.
 
-The new algorithm will no longer need to check that the blobs are ordered by namespace and that the wrapped PFBs contain the corrext share index. `ProcessProposal` will still need to verify the `BlobTx` format (i.e that each blob has a matching PFB and that the PFBs are correctly signed)
+The new algorithm will no longer need to check that the blobs are ordered by namespace and that the wrapped PFBs contain the correct share index. `ProcessProposal` will still need to verify the `BlobTx` format (i.e that each blob has a matching PFB and that the PFBs are correctly signed)
 
 ## Consequences
 
