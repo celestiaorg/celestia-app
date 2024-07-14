@@ -31,16 +31,9 @@ const (
 	DefaultTimeout = 30 * time.Second
 )
 
-// Context holds the necessary components for making API calls to a node.
 type Context struct {
-	// rootCtx is the root context for all operations, used to control
-	// cancellation and deadlines
 	rootCtx context.Context
-	// Embedding the client.Context to inherit its methods and fields for
-	// blockchain client interactions
 	client.Context
-	// apiAddress specifies the address of the API endpoint to interact with the
-	// node
 	apiAddress string
 }
 
