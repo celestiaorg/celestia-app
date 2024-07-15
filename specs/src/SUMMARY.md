@@ -1,6 +1,6 @@
 # Summary
 
-[Celestia App Specifications](./README.md)
+Celestia App Specifications
 
 - [Specification](./specs/index.md)
   - [Data Structures](./specs/data_structures.md)
@@ -11,6 +11,8 @@
   - [Block Proposer](./specs/block_proposer.md)
   - [Block Validity Rules](./specs/block_validity_rules.md)
   - [AnteHandler](./specs/ante_handler.md)
+    - [AnteHandler v1](./specs/ante_handler_v1.md)
+    - [AnteHandler v2](./specs/ante_handler_v2.md)
   - [Fraud Proofs](./specs/fraud_proofs.md)
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
@@ -18,4 +20,8 @@
   - [Resource Pricing](./specs/resource_pricing.md)
   - [Multisig](./specs/multisig.md)
 - [State Machine Modules](./specs/state_machine_modules.md)
-- [Mainnet Parameters](./specs/params.md)
+  - [State Machine Modules v1](./specs/state_machine_modules_v1.md)
+  - [State Machine Modules v2](./specs/state_machine_modules_v2.md)
+- [Parameters](./specs/parameters.md)
+  - [Parameters v1](./specs/parameters_v1.md)
+  - [Parameters v2](./specs/parameters_v2.md)

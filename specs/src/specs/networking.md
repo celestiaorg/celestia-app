@@ -31,7 +31,7 @@ When receiving a new block proposal `proposal` from the network, the following s
 1. `proposal.pol_round` is processed identically to Tendermint.
 1. `proposal.header` must be well-formed.
 1. `proposal.header.version.block` must be [`VERSION_BLOCK`](./consensus.md#constants).
-1. `proposal.header.version.app` must be [`VERSION_APP`](./consensus.md#constants).
+1. `proposal.header.version.app` must be a supported app version.
 1. `proposal.header.height` should be previous known height + 1.
 1. `proposal.header.chain_id` must be [`CHAIN_ID`](./consensus.md#constants).
 1. `proposal.header.time` is processed identically to Tendermint.
