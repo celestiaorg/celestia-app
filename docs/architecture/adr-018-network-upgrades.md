@@ -65,7 +65,7 @@ For better performance, `VoteExtensions` should be modified such that empty mess
 There are two alternative approaches that were considered:
 
 - **Off-chain**: A new p2p reactor is introduced whereby validators sign a message indicating they are now running a new binary and are ready to switch. Once a proposer has received a quorum plus some predefined grace period, they will propose a block with the new version and the rest of the network will vote accordingly. This approach means that the application doesn't have control but rather has to listen for changes in the app version. This also requires a change to the `PrivValidator` interface to be able to sign the new message.
-- **On-chain**: Upon upgrading to a new binary, the node will submit a transaction signaling it's ability to switch version. Again after a quorum is reached and some grace period, the `upgrade` module would trigger the app version change in `EndBlock`. The drawback with this approach is that this would probably require gas to submit in order to avoid spamming the network and wouldn't necessarily be automatic i.e. nodes could upgrade and forget to signal.
+- **On-chain**: Upon upgrading to a new binary, the node will submit a transaction signaling its ability to switch version. Again after a quorum is reached and some grace period, the `upgrade` module would trigger the app version change in `EndBlock`. The drawback with this approach is that this would probably require gas to submit in order to avoid spamming the network and wouldn't necessarily be automatic i.e. nodes could upgrade and forget to signal.
 
 ### Future Work: Downgrading
 
