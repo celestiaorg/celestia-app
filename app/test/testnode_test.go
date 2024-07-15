@@ -15,6 +15,11 @@ func Test_testnode(t *testing.T) {
 	t.Run("testnode can start a network with default chain ID", func(t *testing.T) {
 		testnode.NewNetwork(t, testnode.DefaultConfig())
 	})
+	t.Run("testnode can start a network with a custom chain ID", func(t *testing.T) {
+		chainID := "custom-chain-id"
+		config := testnode.DefaultConfig().WithChainID(chainID)
+		testnode.NewNetwork(t, config)
+	})
 	t.Run("testnode can query network min gas price", func(t *testing.T) {
 		config := testnode.DefaultConfig()
 		cctx, _, _ := testnode.NewNetwork(t, config)

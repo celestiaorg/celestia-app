@@ -144,7 +144,7 @@ enum CommitFlag : uint8_t {
 | name    | type     | description          |
 |---------|----------|----------------------|
 | `block` | `uint64` | The `VERSION_BLOCK`. |
-| `app`   | `uint64` | The `VERSION_APP`.   |
+| `app`   | `uint64` | The app version.   |
 
 ## Serialization
 

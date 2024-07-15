@@ -58,7 +58,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 	testnet.NoError("failed to get latest version", err)
 
 	testName := "TwoNodeSimple"
-	logger.Printf("Running %s\n", testName)
+	logger.Println("Running", testName)
 	logger.Println("version", latestVersion)
 
 	manifest := Manifest{
@@ -108,7 +108,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 }
 
 func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
-	logger.Printf("Running %s\n", testName)
+	logger.Println("Running", testName)
 	manifest.ChainID = manifest.summary()
 	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
