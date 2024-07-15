@@ -83,7 +83,8 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 
 func (suite *TxClientTestSuite) TestSubmitTx() {
 	t := suite.T()
-	gasLimitOption := user.SetGasLimit(1e6)
+	gasLimit := uint64(1e6)
+	gasLimitOption := user.SetGasLimit(gasLimit)
 	feeOption := user.SetFee(1e6)
 	addr := suite.txClient.DefaultAddress()
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
@@ -99,7 +100,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		require.EqualValues(t, resp.GasWanted, 1e6)
+		require.EqualValues(t, gasLimit, resp.GasWanted)
 	})
 
 	t.Run("submit tx with provided fee", func(t *testing.T) {
@@ -112,7 +113,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		require.EqualValues(t, resp.GasWanted, 1e6)
+		require.EqualValues(t, gasLimit, resp.GasWanted)
 	})
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
