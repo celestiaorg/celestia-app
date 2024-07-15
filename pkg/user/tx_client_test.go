@@ -37,10 +37,7 @@ type TxClientTestSuite struct {
 
 func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	config := testnode.DefaultConfig().
-		WithFundedAccounts("a", "b", "c").
-		WithAppCreator(testnode.CustomAppCreator("0utia"))
-	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), config)
+	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b", "c"))
 	_, err := suite.ctx.WaitForHeight(1)
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))

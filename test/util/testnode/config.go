@@ -188,19 +188,3 @@ func DefaultAppCreator() srvtypes.AppCreator {
 		)
 	}
 }
-
-func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
-	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
-		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		return app.New(
-			log.NewNopLogger(),
-			tmdb.NewMemDB(),
-			nil, // trace store
-			0,   // invCheckPerid
-			encodingConfig,
-			0, // v2 upgrade height
-			simapp.EmptyAppOptions{},
-			baseapp.SetMinGasPrices(minGasPrice),
-		)
-	}
-}
