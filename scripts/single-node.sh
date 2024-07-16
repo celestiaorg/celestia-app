@@ -25,8 +25,6 @@ echo "celestia-app home: ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
 echo ""
 
-
-
 createGenesis() {
     echo "Initializing validator and node config files..."
     celestia-appd init ${CHAIN_ID} \
@@ -92,7 +90,7 @@ createGenesis() {
     echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
 }
 
-deleteCelestiaApp() {
+deleteCelestiaAppHome() {
     echo "Deleting $CELESTIA_APP_HOME..."
     rm -r "$CELESTIA_APP_HOME"
 }
@@ -111,7 +109,7 @@ if [ -f $GENESIS_FILE ]; then
   echo "Do you want to delete existing ${CELESTIA_APP_HOME} and start a new local testnet? [y/n]"
   read -r response
   if [ "$response" = "y" ]; then
-    deleteCelestiaApp
+    deleteCelestiaAppHome
     createGenesis
   fi
 else
