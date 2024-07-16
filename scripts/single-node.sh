@@ -18,21 +18,16 @@ COINS="1000000000000000utia"
 DELEGATION_AMOUNT="5000000000utia"
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
+GENESIS_FILE="${CELESTIA_APP_HOME}/config/genesis.json"
 FEES="500utia"
 
 echo "celestia-app home: ${CELESTIA_APP_HOME}"
 echo "celestia-app version: ${CELESTIA_APP_VERSION}"
 echo ""
 
-# Propose to start a new local testnet when a testnet already exists
-if [ -d "${CELESTIA_APP_HOME}" ]; then
-  echo "Do you want to start a new local testnet? [y/n]"
-  read -r response
-  if [ "$response" = "y" ]; then
-    # Delete existing app if the user responded with "y"
-    echo "Deleting $CELESTIA_APP_HOME..."
-    rm -r "$CELESTIA_APP_HOME"
 
+
+createGenesis() {
     echo "Initializing validator and node config files..."
     celestia-appd init ${CHAIN_ID} \
       --chain-id ${CHAIN_ID} \
@@ -87,21 +82,39 @@ if [ -d "${CELESTIA_APP_HOME}" ]; then
 
     trace_type="local"
     sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${CELESTIA_APP_HOME}/config/config.toml
+
     trace_pull_address=":26661"
     sed -i.bak -e "s/^trace_pull_address *=.*/trace_pull_address = \"$trace_pull_address\"/" ${CELESTIA_APP_HOME}/config/config.toml
+
     trace_push_batch_size=1000
     sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${CELESTIA_APP_HOME}/config/config.toml
+
     echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
+}
+
+deleteCelestiaApp() {
+    echo "Deleting $CELESTIA_APP_HOME..."
+    rm -r "$CELESTIA_APP_HOME"
+}
+
+startCelestiaApp() {
+  echo "Starting celestia-app..."
+  celestia-appd start \
+    --home "${CELESTIA_APP_HOME}" \
+    --api.enable \
+    --grpc.enable \
+    --grpc-web.enable \
+    --v2-upgrade-height 3
+}
+
+if [ -f $GENESIS_FILE ]; then
+  echo "Do you want to delete existing ${CELESTIA_APP_HOME} and start a new local testnet? [y/n]"
+  read -r response
+  if [ "$response" = "y" ]; then
+    deleteCelestiaApp
+    createGenesis
   fi
+else
+  createGenesis
 fi
-
-
-
-# Start celestia-app
-echo "Starting celestia-app..."
-celestia-appd start \
-  --home "${CELESTIA_APP_HOME}" \
-  --api.enable \
-  --grpc.enable \
-  --grpc-web.enable \
-  --v2-upgrade-height 3
+startCelestiaApp
