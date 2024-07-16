@@ -155,6 +155,7 @@ func (g *Genesis) NewAccount(acc KeyringAccount) error {
 	account := Account{
 		PubKey:  pubKey,
 		Balance: acc.InitialTokens,
+		Name:    acc.Name,
 	}
 
 	g.accounts = append(g.accounts, account)
