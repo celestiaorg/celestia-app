@@ -181,8 +181,9 @@ func (t *Testnet) StartTxClients() error {
 	for _, txsim := range t.txClients {
 		err := txsim.Instance.WaitInstanceIsRunning()
 		if err != nil {
-			return fmt.Errorf("txsim %s failed to start: %w", txsim.Name, err)
+			return fmt.Errorf("txsim %s failed to run: %w", txsim.Name, err)
 		}
+
 	}
 	return nil
 }
@@ -338,6 +339,7 @@ func (t *Testnet) Start() error {
 	if err != nil {
 		return err
 	}
+	log.Info().Msg("forwarding ports for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndForwardPorts()
@@ -346,7 +348,10 @@ func (t *Testnet) Start() error {
 		}
 	}
 	// wait for nodes to sync
-	for _, node := range genesisNodes {
+	log.Info().Msg("waiting for genesis nodes to sync")
+	for i, node := range genesisNodes {
+		log.Info().Int("Index", i).Str("name", node.Name).Msg(
+			"waiting for node to sync")
 		client, err := node.Client()
 		if err != nil {
 			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
@@ -361,8 +366,12 @@ func (t *Testnet) Start() error {
 				continue
 			}
 			if resp.SyncInfo.LatestBlockHeight > 0 {
+				log.Info().Int("Index", i).Str("name", node.Name).Msg(
+					"node has synced")
 				break
 			}
+			log.Info().Int64("height", resp.SyncInfo.LatestBlockHeight).Msg(
+				"height is 0, waiting...")
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s", node.Name)
 			}

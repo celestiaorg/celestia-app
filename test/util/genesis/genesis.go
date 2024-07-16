@@ -168,14 +168,6 @@ func (g *Genesis) AddValidator(val Validator) error {
 		return err
 	}
 
-	// Add the validator's genesis transaction
-	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
-	if err != nil {
-		return err
-	}
-
-	// install the validator
-	g.genTxs = append(g.genTxs, gentx)
 	g.validators = append(g.validators, val)
 	return nil
 }
@@ -193,7 +185,12 @@ func (g *Genesis) NewValidator(val Validator) error {
 // Export returns the genesis document of the network.
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
-	for _, genTx := range g.genTxs {
+	for _, val := range g.validators {
+		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
+		if err != nil {
+			return nil, err
+		}
+
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
 		if err != nil {
 			return nil, err
