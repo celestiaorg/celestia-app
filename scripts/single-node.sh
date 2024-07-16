@@ -32,7 +32,6 @@ if [ -d "${CELESTIA_APP_HOME}" ]; then
     # Delete existing app if the user responded with "y"
     echo "Deleting $CELESTIA_APP_HOME..."
     rm -r "$CELESTIA_APP_HOME"
-    app_home_exists=false
 
     echo "Initializing validator and node config files..."
     celestia-appd init ${CHAIN_ID} \
