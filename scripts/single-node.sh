@@ -28,7 +28,7 @@ echo ""
 if [ -d "${CELESTIA_APP_HOME}" ]; then
   echo "Do you want to start a new local testnet? [y/n]"
   read -r response
-  if [ "$response" == "y" ]; then
+  if [ "$response" = "y" ]; then
     # Delete existing app if the user responded with "y"
     echo "Deleting $CELESTIA_APP_HOME..."
     rm -r "$CELESTIA_APP_HOME"
