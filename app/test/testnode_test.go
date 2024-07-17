@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -62,7 +61,6 @@ func Test_testnode(t *testing.T) {
 			select {
 			case evt := <-eventChan:
 				h := evt.Data.(types.EventDataSignedBlock).Header.Height
-				fmt.Printf("Block height: %d\n", h)
 				block, err := client.Block(ctx, &h)
 				require.NoError(t, err)
 				require.GreaterOrEqual(t, block.Block.Height, int64(i))

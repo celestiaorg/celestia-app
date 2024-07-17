@@ -97,6 +97,7 @@ func DefaultAppConfig() *srvconfig.Config {
 	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
 	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
+	appCfg.IndexEvents = []string{} // index all events
 	return appCfg
 }
 
