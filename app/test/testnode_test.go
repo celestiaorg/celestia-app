@@ -1,7 +1,10 @@
 package app_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -9,6 +12,7 @@ import (
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/types"
 )
 
 func Test_testnode(t *testing.T) {
@@ -40,5 +44,34 @@ func Test_testnode(t *testing.T) {
 		require.NoError(t, err)
 		want := "0.002000000000000000utia"
 		assert.Equal(t, want, resp.MinimumGasPrice)
+	})
+	t.Run("testnode can query CometBFT events", func(t *testing.T) {
+		cctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig())
+		client := cctx.Client
+
+		newBlockSubscriber := "NewBlock/Events"
+		newDataSignedBlockQuery := types.QueryForEvent(types.EventSignedBlock).String()
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		t.Cleanup(cancel)
+
+		eventChan, err := client.Subscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery)
+		require.NoError(t, err)
+
+		for i := 1; i <= 3; i++ {
+			select {
+			case evt := <-eventChan:
+				h := evt.Data.(types.EventDataSignedBlock).Header.Height
+				fmt.Printf("Block height: %d\n", h)
+				block, err := client.Block(ctx, &h)
+				require.NoError(t, err)
+				require.GreaterOrEqual(t, block.Block.Height, int64(i))
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err())
+			}
+		}
+
+		// unsubscribe to event channel
+		require.NoError(t, client.Unsubscribe(ctx, newBlockSubscriber, newDataSignedBlockQuery))
 	})
 }
