@@ -103,10 +103,11 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 		WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
 
 	// add accounts to genesis
-	for _, pk := range pubKeys {
+	for i, pk := range pubKeys {
 		err := gen.AddAccount(genesis.Account{
 			PubKey:  pk,
 			Balance: balance,
+			Name:    fmt.Sprintf("%v", i),
 		})
 		if err != nil {
 			return nil, nil, err
@@ -237,6 +238,7 @@ func AddDeterministicValidatorToGenesis(g *genesis.Genesis) error {
 	account := genesis.Account{
 		PubKey:  validatorPubKey,
 		Balance: val.KeyringAccount.InitialTokens,
+		Name:    val.Name,
 	}
 
 	// add the validator's account to the genesis
