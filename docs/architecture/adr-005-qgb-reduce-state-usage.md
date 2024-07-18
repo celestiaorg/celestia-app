@@ -52,7 +52,7 @@ Which are `Attestations`, i.e. `Valset`s and `DataCommitmentRequest`s.
 ### QGB Rollup
 
 Deploy the QGB as a Rollup that posts its data to Celestia, and, uses a separate settlement layer for slashing.
-This might be the end goal of the QGB, but it will be very involved to build at this stage.
+This might be the end goal of the QGB, but it will be very important to build at this stage.
 
 Also, if this ADR got accepted, it will be an important stepping stone in the Rollup direction.
 
