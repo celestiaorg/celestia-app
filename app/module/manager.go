@@ -16,7 +16,7 @@ import (
 // Manager defines a module manager that provides the high level utility for
 // managing and executing operations for a group of modules. This implementation
 // was originally inspired by the module manager defined in Cosmos SDK but this
-// implemention maps the state machine version to different versions of the
+// implementation maps the state machine version to different versions of the
 // module. It also provides a way to run migrations between different versions
 // of a module.
 type Manager struct {
@@ -362,7 +362,7 @@ func (m *Manager) SupportedVersions() []uint64 {
 	return getKeys(m.versionedModules)
 }
 
-// checkUgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
+// checkUpgradeSchedule performs a dry run of all the upgrades in all versions and asserts that the consensus version
 // for a module domain i.e. auth, always increments for each module that uses the auth domain name
 func (m *Manager) checkUpgradeSchedule() error {
 	if m.firstVersion == m.lastVersion {
