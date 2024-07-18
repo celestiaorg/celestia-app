@@ -12,12 +12,12 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	// "github.com/stretchr/testify/require"
+	"encoding/json"
 	"errors"
 	"github.com/celestiaorg/celestia-app/v2/app"
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	host "github.com/cosmos/ibc-go/v6/modules/core/24-host"
 	"github.com/stretchr/testify/suite"
-	"encoding/json"
 )
 
 type PacketMetadata struct {
@@ -71,8 +71,11 @@ func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting
 	path2.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
 	path2.EndpointA.ChannelConfig.Version = types.Version
 	path2.EndpointB.ChannelConfig.Version = types.Version
+
 	return path1, path2
 }
+
+// path1EndpointB -> path1EndpointA -> path1EndpointB  -> path2EndpointB
 
 // TestPacketForwardMiddlewareTransfer asserts that native tokens on a Celestia-based chain can be transferred to
 // another chain and then return to the original Celestia chain using the packet forward middleware.
@@ -90,62 +93,42 @@ func (suite *PacketForwardTestSuit) TestPacketForwardMiddlewareTransfer() {
 	timeoutHeight := clienttypes.NewHeight(1, 300)
 	coinToSendToB := sdk.NewCoin(sdk.DefaultBondDenom, amount)
 
-	// from celestia to chainB
-	// next := fmt.Sprintf(`{
-	// 	"forward": {
-	// 	  "receiver": "%s",
-	// 	  "port": "%s",
-	// 	  "channel": "%s",
-	// 	}
-	//   }`, suite.chainB.SenderAccount.GetAddress().String(), path2.EndpointB.ChannelConfig, path2.EndpointB.ChannelID)
+	fmt.Println(path1.EndpointA.ChannelID, "channel id path 1 endpoint A")
+	fmt.Println(path1.EndpointB.ChannelID, "channel id path 1 endpoint B")
+	fmt.Println(path2.EndpointA.ChannelID, "channel id path 2 endpoint A")
+	fmt.Println(path2.EndpointB.ChannelID, "channel id path 2 endpoint B")
 
-	// // from chain A to celestia
-	// memo := fmt.Sprintf(`{
-	// 	"forward": {
-	// 	  "receiver": "%s",
-	// 	  "port": "%s",
-	// 	  "channel": "%s",
-	// 	  "next": "%s"
-	// 	}
-	//   }`, suite.celestiaChain.SenderAccount.GetAddress().String(), path1.EndpointB.ChannelConfig, path1.EndpointB.ChannelID, next)
-
-	
 	// Create the 'next' structure
 	nextStruct :=
-	&PacketMetadata{
-		Forward: &ForwardMetadata{
-			Receiver: suite.chainB.SenderAccount.GetAddress().String(),
-			Channel:  path2.EndpointB.ChannelID,
-			Port:      path2.EndpointB.ChannelConfig.PortID,
-		},
-	}
-	
+		&PacketMetadata{
+			Forward: &ForwardMetadata{
+				Receiver: suite.chainB.SenderAccount.GetAddress().String(),
+				Channel:  path2.EndpointA.ChannelID,
+				Port:     path2.EndpointA.ChannelConfig.PortID,
+			},
+		}
+
 	// Marshal 'next' to get a properly escaped string
 	nextBytes, err := json.Marshal(nextStruct)
-	// if err != nil {
-	// 	// handle error
-	// }
+	suite.Require().NoError(err) // no error
 	nextEscaped := string(nextBytes)
-	
-	// Create the 'memo' structure, embedding 'next' as a raw JSON string
-	memoStruct := 
-	&PacketMetadata{
-		Forward: &ForwardMetadata{
-			Receiver: suite.celestiaChain.SenderAccount.GetAddress().String(),
-			Channel:  path1.EndpointB.ChannelID,
-			Port:     path1.EndpointB.ChannelConfig.PortID,
-			Next:     &nextEscaped,
-		},
-	}
 
-	
+	// Create the 'memo' structure, embedding 'next' as a raw JSON string
+	memoStruct :=
+		&PacketMetadata{
+			Forward: &ForwardMetadata{
+				Receiver: suite.celestiaChain.SenderAccount.GetAddress().String(),
+				Channel:  path1.EndpointA.ChannelID,
+				Port:     path1.EndpointA.ChannelConfig.PortID,
+				Next:     &nextEscaped,
+			},
+		}
+
 	// Marshal 'memo' to get the final JSON string
 	memoBytes, err := json.Marshal(memoStruct)
-	if err != nil {
-		// handle error
-	}
+	suite.Require().NoError(err)
 	memo := string(memoBytes)
-	
+
 	// Now 'memo' contains the correctly formatted and escaped JSON string
 
 	// from celestia to chainA initially but with forwarding message in the memo to end up in chainB
@@ -158,8 +141,10 @@ func (suite *PacketForwardTestSuit) TestPacketForwardMiddlewareTransfer() {
 	suite.Require().NoError(err)
 
 	// relay send
-	err = ForwardPacket([]*ibctesting.Path{path1, path2}, packet)
-
+	fmt.Println(path1, "path 1")
+	fmt.Println(path2, "path 2")
+	fmt.Println(path2.EndpointB.ChannelID, "channel id")
+	err = ForwardPacket([]*ibctesting.Path{path1, path1, path2}, packet)
 	suite.Require().NoError(err) // relay committed
 	//
 	// fmt.Println("Relay B to A")
@@ -218,6 +203,8 @@ func TestPacketForwardTestSuit(t *testing.T) {
 
 func isPacketToEndpoint(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) bool {
 	pc := endpoint.Chain.App.GetIBCKeeper().ChannelKeeper.GetPacketCommitment(endpoint.Chain.GetContext(), packet.GetSourcePort(), packet.GetSourceChannel(), packet.GetSequence())
+	fmt.Println(pc, "PC")
+	fmt.Println(packet, "PACKET")
 	return bytes.Equal(pc, channeltypes.CommitPacket(endpoint.Chain.App.AppCodec(), packet))
 }
 
@@ -229,18 +216,25 @@ func relayPacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) (cha
 
 	res, err := endpoint.RecvPacketWithResult(packet)
 	if err != nil {
+		fmt.Println("recv packet error")
 		return channeltypes.Packet{}, nil, err
 	}
 
 	ack, err := ibctesting.ParseAckFromEvents(res.GetEvents())
 	if err != nil {
-		return channeltypes.Packet{}, nil, err
+		packet, err = ibctesting.ParsePacketFromEvents(res.GetEvents())
+		if err != nil {
+			fmt.Println("parse packet error")
+			return channeltypes.Packet{}, nil, err
+		}
+		return packet, nil, nil
 	}
 
-	packet, err = ibctesting.ParsePacketFromEvents(res.GetEvents())
-	if err != nil {
-		return channeltypes.Packet{}, nil, err
-	}
+	// packet, err = ibctesting.ParsePacketFromEvents(res.GetEvents())
+	// if err != nil {
+	// 	fmt.Println("parse packet error")
+	// 	return channeltypes.Packet{}, nil, err
+	// }
 
 	return packet, ack, nil
 }
@@ -250,17 +244,21 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 		return errors.New("path must have at least two hops to forward packet")
 	}
 
+	fmt.Println(packet, "Packet before forwarding")
+
 	var (
 		err            error
 		ack            []byte
 		rewindEndpoint = make([]*ibctesting.Endpoint, len(paths))
 		rewindPackets  = make([]channeltypes.Packet, len(paths))
 	)
-	// forward through the paths up to the last
+
+	// for i := 0; i < 2; i++ { // Outer loop to run the path loop twice
 	for idx, path := range paths[:len(paths)-1] {
-		fmt.Println("ID", idx)
+		fmt.Println(path, "PATH FIRST FORWARD")
 		rewindPackets[idx] = packet
 		if isPacketToEndpoint(path.EndpointA, packet) {
+			fmt.Println("hello from first if block")
 			packet, ack, err = relayPacket(path.EndpointB, packet)
 			if len(ack) > 0 {
 				return errors.New("unexpected acknowledgement")
@@ -270,7 +268,9 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 			}
 			rewindEndpoint[idx] = path.EndpointA
 		} else if isPacketToEndpoint(path.EndpointB, packet) {
+			fmt.Println("hello from if else block")
 			packet, ack, err = relayPacket(path.EndpointA, packet)
+			fmt.Println(packet, "Updated packet")
 			if len(ack) > 0 {
 				return errors.New("unexpected acknowledgement")
 			}
@@ -283,20 +283,27 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 			return errors.New("packet is for neither endpoint A or endpoint B")
 		}
 	}
+	// }
+
+	fmt.Println(packet.DestinationChannel, "DESTINATION CHANNEL")
 
 	fmt.Println("relay final packet")
 	rewindPackets[len(paths)-1] = packet
 	finalPath := paths[len(paths)-1]
+	fmt.Println(finalPath, "FINAL PATH")
+	fmt.Println(packet, "packeeeeeeeet")
 	if isPacketToEndpoint(finalPath.EndpointA, packet) {
 		_, ack, err = relayPacket(finalPath.EndpointB, packet)
 		if err != nil {
 			return err
 		}
+		rewindEndpoint[len(paths)-1] = finalPath.EndpointA
 	} else if isPacketToEndpoint(finalPath.EndpointB, packet) {
 		_, ack, err = relayPacket(finalPath.EndpointA, packet)
 		if err != nil {
 			return err
 		}
+		rewindEndpoint[len(paths)-1] = finalPath.EndpointB
 	} else {
 		return errors.New("packet is for neither endpoint A or endpoint B")
 	}
@@ -308,11 +315,14 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println(res, "RES")
 
-		_, err = ibctesting.ParseAckFromEvents(res.GetEvents())
+		ack, err = ibctesting.ParseAckFromEvents(res.GetEvents())
 		if err != nil {
 			return err
 		}
+		fmt.Println(ack, "ACK")
+		fmt.Println(i, "index")
 	}
 	return nil
 }
