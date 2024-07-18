@@ -254,7 +254,7 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	// The ugrade keeper is intialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
+	// The upgrade keeper is intialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
 	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
 	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
