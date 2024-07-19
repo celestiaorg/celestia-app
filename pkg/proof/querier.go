@@ -139,8 +139,8 @@ func ParseNamespace(rawShares []shares.Share, startShare int, endShare int) (app
 		return appns.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
 	}
 
-	if endShare < startShare {
-		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
+	if endShare <= startShare {
+		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower or equal to the starting share %d", endShare, startShare)
 	}
 
 	if endShare > len(rawShares) {
