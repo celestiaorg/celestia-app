@@ -38,7 +38,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.22.3
+1. [Install Go](https://go.dev/doc/install) 1.22.4
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -119,7 +119,7 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install/)
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)

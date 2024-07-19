@@ -49,7 +49,7 @@ func (s *MaxTotalBlobSizeSuite) SetupSuite() {
 	tmConfig := testnode.DefaultTendermintConfig()
 	tmConfig.Mempool.MaxTxBytes = 10 * mebibyte
 
-	cParams := testnode.DefaultParams()
+	cParams := testnode.DefaultConsensusParams()
 	cParams.Block.MaxBytes = 10 * mebibyte
 
 	cfg := testnode.DefaultConfig().

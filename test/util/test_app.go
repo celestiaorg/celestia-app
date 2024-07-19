@@ -28,11 +28,16 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
+	"github.com/celestiaorg/celestia-app/test/util/genesis"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 const (
-	ChainID = "testapp"
+	ChainID = "test-app"
 )
 
 // Get flags every time the simulator is run
@@ -40,11 +45,104 @@ func init() {
 	simapp.GetSimulatorFlags()
 }
 
-type emptyAppOptions struct{}
+type EmptyAppOptions struct{}
 
 // Get implements AppOptions
-func (ao emptyAppOptions) Get(_ string) interface{} {
+func (ao EmptyAppOptions) Get(_ string) interface{} {
 	return nil
+}
+
+// NewTestApp initializes a new app with a no-op logger and in-memory database.
+func NewTestApp() *app.App {
+	// EmptyAppOptions is a stub implementing AppOptions
+	emptyOpts := EmptyAppOptions{}
+	db := dbm.NewMemDB()
+
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	return app.New(
+		log.NewNopLogger(),
+		db,
+		nil,
+		true,
+		nil,
+		"",
+		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
+		encCfg,
+		emptyOpts,
+	)
+}
+
+// SetupDeterministicGenesisState sets genesis on initialized testApp with the provided arguments.
+func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
+	// Create genesis
+	gen := genesis.NewDefaultGenesis().
+		WithChainID(ChainID).
+		WithConsensusParams(cparams).
+		WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
+
+	// Add accounts to genesis
+	for _, pk := range pubKeys {
+		err := gen.AddAccount(genesis.Account{
+			PubKey:  pk,
+			Balance: balance,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Add validator to genesis
+	err := AddDeterministicValidatorToGenesis(gen)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to add validator: %w", err)
+	}
+
+	genDoc, err := gen.Export()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to export genesis doc: %w", err)
+	}
+
+	// Initialise test app against genesis
+	testApp.Info(abci.RequestInfo{})
+
+	abciParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			// choose some value large enough to not bottleneck the max square
+			// size
+			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
+			MaxGas:   cparams.Block.MaxGas,
+		},
+		Evidence:  &cparams.Evidence,
+		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
+	}
+
+	// Init chain will set the validator set and initialize the genesis accounts
+	testApp.InitChain(
+		abci.RequestInitChain{
+			Time:            gen.GenesisTime,
+			Validators:      []abci.ValidatorUpdate{},
+			ConsensusParams: abciParams,
+			AppStateBytes:   genDoc.AppState,
+			ChainId:         genDoc.ChainID,
+		},
+	)
+
+	// Commit genesis changes
+	testApp.Commit()
+	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            ChainID,
+		Height:             testApp.LastBlockHeight() + 1,
+		AppHash:            testApp.LastCommitID().Hash,
+		ValidatorsHash:     genDoc.ValidatorHash(),
+		NextValidatorsHash: genDoc.ValidatorHash(),
+		Version: tmversion.Consensus{
+			App: cparams.Version.AppVersion,
+		},
+	}})
+
+	return gen.Keyring(), gen.Accounts(), nil
 }
 
 // SetupTestAppWithGenesisValSet initializes a new app with a validator set and
@@ -52,23 +150,21 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 // is bonded with a delegation of one consensus engine unit in the default token
 // of the app from first genesis account. A no-op logger is set in app.
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
-	// var cache sdk.MultiStorePersistentCache
-	// EmptyAppOptions is a stub implementing AppOptions
-	emptyOpts := emptyAppOptions{}
-	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
-	db := dbm.NewMemDB()
+	emptyOptions := emptyAppOptions{}
 	skipUpgradeHeights := make(map[int64]bool)
-
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := app.New(
-		log.NewNopLogger(), db, nil, true, skipUpgradeHeights,
-		cast.ToString(emptyOpts.Get(flags.FlagHome)),
-		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
-		encCfg,
-		emptyOpts,
+		log.NewNopLogger(),
+		dbm.NewMemDB(),
+		nil,
+		true,
+		skipUpgradeHeights,
+		cast.ToString(emptyOptions.Get(flags.FlagHome)),
+		cast.ToUint(emptyOptions.Get(server.FlagInvCheckPeriod)),
+		encodingConfig,
+		emptyOptions,
 	)
-	testApp.GetBaseApp().SetAppVersion(sdk.Context{}, appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
@@ -86,6 +182,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		},
 		Evidence:  &cparams.Evidence,
 		Validator: &cparams.Validator,
+		Version:   &cparams.Version,
 	}
 
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
@@ -111,6 +208,48 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	}})
 
 	return testApp, kr
+}
+
+// AddDeterministicValidatorToGenesis adds a single deterministic validator to the genesis.
+func AddDeterministicValidatorToGenesis(g *genesis.Genesis) error {
+	// Hardcoded keys for deterministic account creation
+	mnemo := "body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun"
+	consensusKey := ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012"))
+	networkKey := ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012"))
+
+	val := genesis.Validator{
+		KeyringAccount: genesis.KeyringAccount{
+			Name:          "validator1",
+			InitialTokens: 1_000_000_000,
+		},
+		Stake:        1_000_000,
+		ConsensusKey: consensusKey,
+		NetworkKey:   networkKey,
+	}
+
+	// Initialize the validator's genesis account in the keyring
+	rec, err := g.Keyring().NewAccount(val.Name, mnemo, "", "", hd.Secp256k1)
+	if err != nil {
+		return fmt.Errorf("failed to create account: %w", err)
+	}
+
+	validatorPubKey, err := rec.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to get pubkey: %w", err)
+	}
+
+	// Make account from keyring account
+	account := genesis.Account{
+		PubKey:  validatorPubKey,
+		Balance: val.KeyringAccount.InitialTokens,
+	}
+
+	// Add the validator's account to the genesis
+	if err := g.AddAccount(account); err != nil {
+		return fmt.Errorf("failed to add account: %w", err)
+	}
+
+	return g.AddValidator(val)
 }
 
 // AddGenesisAccount mimics the cli addGenesisAccount command, providing an

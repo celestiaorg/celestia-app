@@ -266,7 +266,7 @@ type QueryClient struct {
 func NewQueryClient(grpcEndpoints []string) (*QueryClient, error) {
 	connections := make([]*grpc.ClientConn, len(grpcEndpoints))
 	for idx, endpoint := range grpcEndpoints {
-		conn, err := grpc.Dial(grpcEndpoints[0], grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(grpcEndpoints[0], grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, fmt.Errorf("dialing %s: %w", endpoint, err)
 		}

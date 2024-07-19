@@ -2,7 +2,7 @@
 # > docker build -t celestia-app .
 # > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.celestia-appd:/root/.celestia-appd -v ~/.celestia-appcli:/root/.celestia-appcli celestia-app celestia-appd init
 # > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.celestia-appd:/root/.celestia-appd -v ~/.celestia-appcli:/root/.celestia-appcli celestia-app celestia-appd start
-FROM docker.io/golang:1.22.3-alpine3.19 AS build-env
+FROM docker.io/golang:1.22.4-alpine3.19 AS build-env
 
 # Set up dependencies
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
