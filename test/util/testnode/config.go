@@ -133,9 +133,7 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(DefaultAppCreator()).
-		WithSuppressLogs(true).
-		// TODO: consider removing this line because default consensus params is invoked above.
-		WithConsensusParams(DefaultConsensusParams())
+		WithSuppressLogs(true)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
