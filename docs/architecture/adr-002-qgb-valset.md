@@ -12,7 +12,7 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `ValSet` and `ValSetConfirm` types of messages in order to track the state of the validator set.
 
-PS: The `ValsetConfirm` have been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` has been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
 
 ## Detailed Design
 
