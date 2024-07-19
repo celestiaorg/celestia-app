@@ -122,6 +122,9 @@ func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 
 // AddAccount adds an existing account to the genesis.
 func (g *Genesis) AddAccount(account Account) error {
+	if err := account.ValidateBasic(); err != nil {
+		return err
+	}
 	for _, acc := range g.accounts {
 		if bytes.Equal(acc.PubKey.Bytes(), account.PubKey.Bytes()) {
 			return fmt.Errorf("account with pubkey %s already exists", account.PubKey.String())
