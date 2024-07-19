@@ -141,29 +141,8 @@ func (suite *PacketForwardTestSuit) TestPacketForwardMiddlewareTransfer() {
 	suite.Require().NoError(err)
 
 	// relay send
-	fmt.Println(path1, "path 1")
-	fmt.Println(path2, "path 2")
-	fmt.Println(path2.EndpointB.ChannelID, "channel id")
 	err = ForwardPacket([]*ibctesting.Path{path1, path1, path2}, packet)
 	suite.Require().NoError(err) // relay committed
-	//
-	// fmt.Println("Relay B to A")
-
-	// fmt.Println("Relay A to B")
-	// err = path2.RelayPacket(packet)
-	// suite.Require().NoError(err) // relay committed
-
-	// err = path2.RelayPacket(packet)
-	// fmt.Println(err, "ERR")
-	// fmt.Println(res, "res")
-
-	// receive the packet on celestiaChain
-	// err = path1.EndpointB.AcknowledgePacket(packet)
-	// suite.Require().NoError(err)
-	// fmt.Println(res, "res")
-
-	// 	err = path2.RelayPacket(packet)
-	// 	suite.Require().NoError(err) // relay committed
 
 	//	// seqNum, _ := suite.celestiaChain.GetSimApp().IBCKeeper.ChannelKeeper.GetNextSequenceSend(suite.celestiaChain.GetContext(), path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID)
 	//	// fmt.Println(seqNum, "SEQ NUM")
@@ -203,8 +182,6 @@ func TestPacketForwardTestSuit(t *testing.T) {
 
 func isPacketToEndpoint(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) bool {
 	pc := endpoint.Chain.App.GetIBCKeeper().ChannelKeeper.GetPacketCommitment(endpoint.Chain.GetContext(), packet.GetSourcePort(), packet.GetSourceChannel(), packet.GetSequence())
-	fmt.Println(pc, "PC")
-	fmt.Println(packet, "PACKET")
 	return bytes.Equal(pc, channeltypes.CommitPacket(endpoint.Chain.App.AppCodec(), packet))
 }
 
@@ -230,12 +207,6 @@ func relayPacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) (cha
 		return packet, nil, nil
 	}
 
-	// packet, err = ibctesting.ParsePacketFromEvents(res.GetEvents())
-	// if err != nil {
-	// 	fmt.Println("parse packet error")
-	// 	return channeltypes.Packet{}, nil, err
-	// }
-
 	return packet, ack, nil
 }
 
@@ -244,8 +215,6 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 		return errors.New("path must have at least two hops to forward packet")
 	}
 
-	fmt.Println(packet, "Packet before forwarding")
-
 	var (
 		err            error
 		ack            []byte
@@ -253,12 +222,9 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 		rewindPackets  = make([]channeltypes.Packet, len(paths))
 	)
 
-	// for i := 0; i < 2; i++ { // Outer loop to run the path loop twice
 	for idx, path := range paths[:len(paths)-1] {
 		fmt.Println(path, "PATH FIRST FORWARD")
-		rewindPackets[idx] = packet
 		if isPacketToEndpoint(path.EndpointA, packet) {
-			fmt.Println("hello from first if block")
 			packet, ack, err = relayPacket(path.EndpointB, packet)
 			if len(ack) > 0 {
 				return errors.New("unexpected acknowledgement")
@@ -266,78 +232,86 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 			if err != nil {
 				return err
 			}
+			rewindPackets[idx] = packet
+			fmt.Println(packet, "packettt")
 			rewindEndpoint[idx] = path.EndpointA
+			fmt.Println(rewindEndpoint[idx], "rewind endpoint")
 		} else if isPacketToEndpoint(path.EndpointB, packet) {
 			fmt.Println("hello from if else block")
 			packet, ack, err = relayPacket(path.EndpointA, packet)
-			fmt.Println(packet, "Updated packet")
 			if len(ack) > 0 {
 				return errors.New("unexpected acknowledgement")
 			}
 			if err != nil {
 				return err
 			}
+			rewindPackets[idx] = packet
+			fmt.Println(packet, "packettt")
 			rewindEndpoint[idx] = path.EndpointB
+			fmt.Println(rewindEndpoint[idx], "rewind endpoint")
 		} else {
 			// this error should be a bit more explicit
 			return errors.New("packet is for neither endpoint A or endpoint B")
 		}
 	}
-	// }
 
-	fmt.Println(packet.DestinationChannel, "DESTINATION CHANNEL")
 
-	fmt.Println("relay final packet")
-	rewindPackets[len(paths)-1] = packet
 	finalPath := paths[len(paths)-1]
-	fmt.Println(finalPath, "FINAL PATH")
-	fmt.Println(packet, "packeeeeeeeet")
 	if isPacketToEndpoint(finalPath.EndpointA, packet) {
-		_, ack, err = relayPacket(finalPath.EndpointB, packet)
+		packet, ack, err = relayPacket(finalPath.EndpointB, packet)
 		if err != nil {
 			return err
 		}
+		rewindPackets[len(paths)-1] = packet
+		fmt.Println(packet, "packettt")
 		rewindEndpoint[len(paths)-1] = finalPath.EndpointA
+		fmt.Println(rewindEndpoint[len(paths)-1], "rewind endpoint")
 	} else if isPacketToEndpoint(finalPath.EndpointB, packet) {
-		_, ack, err = relayPacket(finalPath.EndpointA, packet)
+		packet, ack, err = relayPacket(finalPath.EndpointA, packet)
 		if err != nil {
 			return err
 		}
+		rewindPackets[len(paths)-1] = packet
+		fmt.Println(packet, "packettt")
 		rewindEndpoint[len(paths)-1] = finalPath.EndpointB
+		fmt.Println(rewindEndpoint[len(paths)-1], "rewind endpoint")
 	} else {
 		return errors.New("packet is for neither endpoint A or endpoint B")
 	}
 
+	fmt.Println(ack, "ACK JUST RECEIVED")
+
 	fmt.Println("rewind acknowledgements")
+	fmt.Println(rewindEndpoint, "rewind endpoint")
+	fmt.Println(rewindPackets, "rewind packets")
 	// now we relay to the final destination and route the acknowledgements back
+
 	for i := len(rewindEndpoint) - 1; i >= 0; i-- {
+		fmt.Println(i, "index")
+		fmt.Println(ack, "SHOULD BE UPDATED")
+		fmt.Println(rewindPackets[i], "rewind packet")
+		fmt.Println(rewindEndpoint[i], "rewind endpoint")
 		res, err := AcknowledgePacket(rewindEndpoint[i], rewindPackets[i], ack)
 		if err != nil {
 			return err
 		}
-		fmt.Println(res, "RES")
-
-		ack, err = ibctesting.ParseAckFromEvents(res.GetEvents())
+		ackk, err := ibctesting.ParseAckFromEvents(res.GetEvents())
+		fmt.Println(ackk, "ACK UPDATED")
 		if err != nil {
 			return err
 		}
-		fmt.Println(ack, "ACK")
+
+		fmt.Println(ack, "ACK Updated")
 		fmt.Println(i, "index")
 	}
 	return nil
 }
 
-func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (sdk.Result, error) {
+func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (*sdk.Result, error) {
 	packetKey := host.PacketAcknowledgementKey(packet.GetDestPort(), packet.GetDestChannel(), packet.GetSequence())
 	proof, proofHeight := endpoint.Counterparty.QueryProof(packetKey)
 
 	ackMsg := channeltypes.NewMsgAcknowledgement(packet, ack, proof, proofHeight, endpoint.Chain.SenderAccount.GetAddress().String())
 
-	// return endpoint.Chain.SendMsgs(ackMsg)
-	res, err := endpoint.Chain.SendMsgs(ackMsg)
-	if err != nil {
-		return sdk.Result{}, err
-	}
-
-	return *res, nil
+	return endpoint.Chain.SendMsgs(ackMsg)
 }
