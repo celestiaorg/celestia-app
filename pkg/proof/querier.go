@@ -133,10 +133,6 @@ func ParseNamespace(rawShares []shares.Share, startShare, endShare int) (appns.N
 		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower or equal to the starting share %d", endShare, startShare)
 	}
 
-	if endShare < startShare {
-		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
-	}
-
 	if endShare > len(rawShares) {
 		return appns.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
 	}
