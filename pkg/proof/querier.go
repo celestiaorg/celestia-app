@@ -130,6 +130,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
+// The provided range, defined by startShare and endShare, is end-exclusive.
 func ParseNamespace(rawShares []shares.Share, startShare int, endShare int) (appns.Namespace, error) {
 	if startShare < 0 {
 		return appns.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
@@ -139,8 +140,8 @@ func ParseNamespace(rawShares []shares.Share, startShare int, endShare int) (app
 		return appns.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
 	}
 
-	if endShare < startShare {
-		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
+	if endShare <= startShare {
+		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower or equal to the starting share %d", endShare, startShare)
 	}
 
 	if endShare > len(rawShares) {
