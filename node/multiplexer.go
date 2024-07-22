@@ -5,89 +5,94 @@ import abci "github.com/tendermint/tendermint/abci/types"
 // Multiplexer implements the abci.Application interface
 var _ abci.Application = (*Multiplexer)(nil)
 
+// Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
 	currentAppVersion uint64
-	apps              []abci.Application
+	applications      []abci.Application
 }
 
-func NewMultiplexer(currentAppVersion uint64, applications ...abci.Application) *Multiplexer {
+func NewMultiplexer(currentAppVersion uint64, applications []abci.Application) *Multiplexer {
 	return &Multiplexer{
 		currentAppVersion: 1,
-		apps:              applications,
+		applications:      applications,
 	}
 }
 
-// ApplySnapshotChunk implements types.Application.
-func (m *Multiplexer) ApplySnapshotChunk(abci.RequestApplySnapshotChunk) abci.ResponseApplySnapshotChunk {
-	panic("unimplemented")
+func (m *Multiplexer) getCurrentApp() abci.Application {
+	return m.applications[m.currentAppVersion]
 }
 
-// BeginBlock implements types.Application.
-func (m *Multiplexer) BeginBlock(abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	panic("unimplemented")
+func (m *Multiplexer) ApplySnapshotChunk(request abci.RequestApplySnapshotChunk) abci.ResponseApplySnapshotChunk {
+	app := m.getCurrentApp()
+	return app.ApplySnapshotChunk(request)
 }
 
-// CheckTx implements types.Application.
-func (m *Multiplexer) CheckTx(abci.RequestCheckTx) abci.ResponseCheckTx {
-	panic("unimplemented")
+func (m *Multiplexer) BeginBlock(request abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	app := m.getCurrentApp()
+	return app.BeginBlock(request)
 }
 
-// Commit implements types.Application.
+func (m *Multiplexer) CheckTx(request abci.RequestCheckTx) abci.ResponseCheckTx {
+	app := m.getCurrentApp()
+	return app.CheckTx(request)
+}
+
 func (m *Multiplexer) Commit() abci.ResponseCommit {
-	panic("unimplemented")
+	app := m.getCurrentApp()
+	return app.Commit()
 }
 
-// DeliverTx implements types.Application.
-func (m *Multiplexer) DeliverTx(abci.RequestDeliverTx) abci.ResponseDeliverTx {
-	panic("unimplemented")
+func (m *Multiplexer) DeliverTx(request abci.RequestDeliverTx) abci.ResponseDeliverTx {
+	app := m.getCurrentApp()
+	return app.DeliverTx(request)
 }
 
-// EndBlock implements types.Application.
-func (m *Multiplexer) EndBlock(abci.RequestEndBlock) abci.ResponseEndBlock {
-	panic("unimplemented")
+func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlock {
+	app := m.getCurrentApp()
+	return app.EndBlock(request)
 }
 
-// Info implements types.Application.
-func (m *Multiplexer) Info(abci.RequestInfo) abci.ResponseInfo {
-	panic("unimplemented")
+func (m *Multiplexer) Info(request abci.RequestInfo) abci.ResponseInfo {
+	app := m.getCurrentApp()
+	return app.Info(request)
 }
 
-// InitChain implements types.Application.
-func (m *Multiplexer) InitChain(abci.RequestInitChain) abci.ResponseInitChain {
-	panic("unimplemented")
+func (m *Multiplexer) InitChain(request abci.RequestInitChain) abci.ResponseInitChain {
+	app := m.getCurrentApp()
+	return app.InitChain(request)
 }
 
-// ListSnapshots implements types.Application.
-func (m *Multiplexer) ListSnapshots(abci.RequestListSnapshots) abci.ResponseListSnapshots {
-	panic("unimplemented")
+func (m *Multiplexer) ListSnapshots(request abci.RequestListSnapshots) abci.ResponseListSnapshots {
+	app := m.getCurrentApp()
+	return app.ListSnapshots(request)
 }
 
-// LoadSnapshotChunk implements types.Application.
-func (m *Multiplexer) LoadSnapshotChunk(abci.RequestLoadSnapshotChunk) abci.ResponseLoadSnapshotChunk {
-	panic("unimplemented")
+func (m *Multiplexer) LoadSnapshotChunk(request abci.RequestLoadSnapshotChunk) abci.ResponseLoadSnapshotChunk {
+	app := m.getCurrentApp()
+	return app.LoadSnapshotChunk(request)
 }
 
-// OfferSnapshot implements types.Application.
-func (m *Multiplexer) OfferSnapshot(abci.RequestOfferSnapshot) abci.ResponseOfferSnapshot {
-	panic("unimplemented")
+func (m *Multiplexer) OfferSnapshot(request abci.RequestOfferSnapshot) abci.ResponseOfferSnapshot {
+	app := m.getCurrentApp()
+	return app.OfferSnapshot(request)
 }
 
-// PrepareProposal implements types.Application.
-func (m *Multiplexer) PrepareProposal(abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	panic("unimplemented")
+func (m *Multiplexer) PrepareProposal(request abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	app := m.getCurrentApp()
+	return app.PrepareProposal(request)
 }
 
-// ProcessProposal implements types.Application.
-func (m *Multiplexer) ProcessProposal(abci.RequestProcessProposal) abci.ResponseProcessProposal {
-	panic("unimplemented")
+func (m *Multiplexer) ProcessProposal(request abci.RequestProcessProposal) abci.ResponseProcessProposal {
+	app := m.getCurrentApp()
+	return app.ProcessProposal(request)
 }
 
-// Query implements types.Application.
-func (m *Multiplexer) Query(abci.RequestQuery) abci.ResponseQuery {
-	panic("unimplemented")
+func (m *Multiplexer) Query(request abci.RequestQuery) abci.ResponseQuery {
+	app := m.getCurrentApp()
+	return app.Query(request)
 }
 
-// SetOption implements types.Application.
-func (m *Multiplexer) SetOption(abci.RequestSetOption) abci.ResponseSetOption {
-	panic("unimplemented")
+func (m *Multiplexer) SetOption(request abci.RequestSetOption) abci.ResponseSetOption {
+	app := m.getCurrentApp()
+	return app.SetOption(request)
 }
