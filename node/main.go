@@ -13,14 +13,14 @@ import (
 )
 
 func main() {
-	currentVersion := uint64(1)
-	applications := getApplications()
-	multiplexer := NewMultiplexer(currentVersion, applications)
+	currentAppVersion := uint64(1)
+	apps := getApps()
+	multiplexer := NewMultiplexer(currentAppVersion, apps)
 
 	fmt.Printf("%v\n", multiplexer)
 }
 
-func getApplications() []types.Application {
+func getApps() []types.Application {
 	v1 := NewAppV1()
 	v2 := NewAppV2()
 	return []types.Application{v1, v2}
