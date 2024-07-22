@@ -110,6 +110,7 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 type Account struct {
 	PubKey  cryptotypes.PubKey
 	Balance int64
+	Name    string
 }
 
 func (ga Account) ValidateBasic() error {
@@ -118,6 +119,9 @@ func (ga Account) ValidateBasic() error {
 	}
 	if ga.Balance <= 0 {
 		return fmt.Errorf("balance must be greater than 0")
+	}
+	if ga.Name == "" {
+		return fmt.Errorf("name cannot be empty")
 	}
 	return nil
 }
