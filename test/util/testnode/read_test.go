@@ -1,6 +1,7 @@
 package testnode
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -34,5 +35,27 @@ func TestReverseSlice(t *testing.T) {
 			reverseSlice(v)
 			require.True(t, reflect.DeepEqual(v, tt.expected), "reverseSlice(%v) = %v, want %v", original, tt.input, tt.expected)
 		}
+	}
+}
+
+func TestReadBlockchainHeaders(t *testing.T) {
+	cfg := DefaultConfig()
+	cctx, rpcAddr, _ := NewNetwork(t, cfg)
+	// wait for 30 blocks to be produced
+	cctx.WaitForBlocks(30)
+
+	// fetch headers
+	headers, err := ReadBlockchainHeaders(context.Background(), rpcAddr)
+	require.NoError(t, err)
+	// we should have at least 30 headers
+	require.True(t, len(headers) >= 30)
+
+	// check that the headers are in ascending order, starting from 1
+	i := int64(1)
+	for _, header := range headers {
+		got := header.Header.Height
+		require.Equal(t, i, got,
+			"expected height %d, got %d", i, got)
+		i++
 	}
 }

@@ -63,6 +63,7 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 		// so we need to request them iteratively.
 		// note that block headers returned by BlockchainInfo are in descending
 		// order (highest first).
+
 		res, err := client.BlockchainInfo(ctx, 1, maxHeight)
 		if err != nil {
 			return nil, err
