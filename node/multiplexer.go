@@ -8,18 +8,18 @@ var _ abci.Application = (*Multiplexer)(nil)
 // Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
 	currentAppVersion uint64
-	applications      []abci.Application
+	apps              []abci.Application
 }
 
-func NewMultiplexer(currentAppVersion uint64, applications []abci.Application) *Multiplexer {
+func NewMultiplexer(currentAppVersion uint64, apps []abci.Application) *Multiplexer {
 	return &Multiplexer{
 		currentAppVersion: 1,
-		applications:      applications,
+		apps:              apps,
 	}
 }
 
 func (m *Multiplexer) getCurrentApp() abci.Application {
-	return m.applications[m.currentAppVersion]
+	return m.apps[m.currentAppVersion]
 }
 
 func (m *Multiplexer) ApplySnapshotChunk(request abci.RequestApplySnapshotChunk) abci.ResponseApplySnapshotChunk {
