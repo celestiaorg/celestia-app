@@ -70,8 +70,10 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
 		testnet.WithPrometheus(b.manifest.Prometheus),
 		testnet.WithLocalTracing(b.manifest.LocalTracingType),
+		testnet.WithTxIndexer("kv"),
+		testnet.WithMempoolMaxTxsBytes(1*testnet.GiB),
+		testnet.WithMempoolMaxTxBytes(8*testnet.MiB),
 	))
-
 	if b.manifest.PushTrace {
 		log.Println("reading trace push config")
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {

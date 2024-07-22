@@ -13,10 +13,10 @@ import (
 )
 
 func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
-	cfg := app.DefaultConsensusConfig()
-	cfg.TxIndex.Indexer = "kv"
-	cfg.Mempool.MaxTxsBytes = 1 * GiB
-	cfg.Mempool.MaxTxBytes = 8 * MiB
+	cfg := config.DefaultConfig()
+	//cfg.TxIndex.Indexer = "kv"
+	//cfg.Mempool.MaxTxsBytes = 1 * GiB
+	//cfg.Mempool.MaxTxBytes = 8 * MiB
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
@@ -75,6 +75,25 @@ func WithLocalTracing(localTracingType string) Option {
 		cfg.Instrumentation.TraceBufferSize = 1000
 		cfg.Instrumentation.TracePullAddress = ":26661"
 	}
+}
+
+func WithTxIndexer(indexer string) Option {
+	return func(cfg *config.Config) {
+		cfg.TxIndex.Indexer = indexer
+	}
+}
+
+func WithMempoolMaxTxsBytes(maxTxsBytes int64) Option {
+	return func(cfg *config.Config) {
+		cfg.Mempool.MaxTxsBytes = maxTxsBytes
+	}
+}
+
+func WithMempoolMaxTxBytes(maxTxBytes int) Option {
+	return func(cfg *config.Config) {
+		cfg.Mempool.MaxTxBytes = maxTxBytes
+	}
+
 }
 
 func WriteAddressBook(peers []string, file string) error {
