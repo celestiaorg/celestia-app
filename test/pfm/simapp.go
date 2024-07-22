@@ -2,7 +2,6 @@ package pfm
 
 import (
 	"encoding/json"
-	// "fmt"
 	"io"
 	"net/http"
 	"os"
@@ -10,7 +9,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	_ "github.com/cosmos/cosmos-sdk/client/docs/statik" // this is used for serving docs
+	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"

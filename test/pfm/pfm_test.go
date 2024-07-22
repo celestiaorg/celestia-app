@@ -2,25 +2,19 @@ package pfm
 
 import (
 	"bytes"
-	"fmt"
-	"testing"
-	"time"
-
-	// "github.com/celestiaorg/celestia-app/app"
+	"encoding/json"
+	"errors"
+	"github.com/celestiaorg/celestia-app/v2/app"
 	utils "github.com/celestiaorg/celestia-app/v2/test/tokenfilter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
-	ibctesting "github.com/cosmos/ibc-go/v6/testing"
-
-	// "github.com/stretchr/testify/require"
-	"encoding/json"
-	"errors"
-
-	"github.com/celestiaorg/celestia-app/v2/app"
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	host "github.com/cosmos/ibc-go/v6/modules/core/24-host"
-	"github.com/stretchr/testify/suite"
+	ibctesting "github.com/cosmos/ibc-go/v6/testing"
+	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
 )
 
 type PacketMetadata struct {
@@ -37,30 +31,21 @@ type ForwardMetadata struct {
 	RefundSequence *uint64       `json:"refund_sequence,omitempty"`
 }
 
-type PacketForwardTestSuit struct {
-	suite.Suite
-	coordinator *ibctesting.Coordinator
-	// Celestia app including the packet forward middleware
-	// Default IBC Simapp
-	chainA        *ibctesting.TestChain
-	celestiaChain *ibctesting.TestChain
-	// Another chain to test the packet forward middleware
-	chainB *ibctesting.TestChain
-}
-
-func (suite *PacketForwardTestSuit) SetupTest() {
+func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
+	*ibctesting.TestChain, *ibctesting.TestChain) {
 	chains := make(map[string]*ibctesting.TestChain)
-	suite.coordinator = &ibctesting.Coordinator{
-		T:           suite.T(),
+	coordinator := &ibctesting.Coordinator{
+		T:           t,
 		CurrentTime: time.Now(),
 		Chains:      chains,
 	}
-	suite.celestiaChain = utils.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
-	suite.chainA = NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(2))
-	suite.chainB = NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(3))
-	suite.coordinator.Chains[ibctesting.GetChainID(1)] = suite.celestiaChain
-	suite.coordinator.Chains[ibctesting.GetChainID(2)] = suite.chainA
-	suite.coordinator.Chains[ibctesting.GetChainID(3)] = suite.chainB
+	celestiaChain := utils.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
+	chainA := NewTestChain(t, coordinator, ibctesting.GetChainID(2))
+	chainB := NewTestChain(t, coordinator, ibctesting.GetChainID(3))
+	coordinator.Chains[ibctesting.GetChainID(1)] = celestiaChain
+	coordinator.Chains[ibctesting.GetChainID(2)] = chainA
+	coordinator.Chains[ibctesting.GetChainID(3)] = chainB
+	return coordinator, chainA, celestiaChain, chainB
 }
 
 func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting.Path, *ibctesting.Path) {
@@ -78,84 +63,71 @@ func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting
 	return path1, path2
 }
 
-// path1EndpointB -> path1EndpointA -> path1EndpointB  -> path2EndpointB
+// TestPacketForwardMiddlewareTransfer send a PFM transfer originating from Celestia to ChainA, then back to Celestia and finally to ChainB.
+// It verifies that Celestia forwards the packet successfully, the balance of the sender account on Celestia decreases by the amount sent,
+// and the balance of the receiver account on ChainB increases by the amount sent.
+func TestPacketForwardMiddlewareTransfer(t *testing.T) {
+	coordinator, chainA, celestiaChain, chainB := SetupTest(t)
+	path1, path2 := NewTransferPaths(chainA, celestiaChain, chainB)
 
-// TestPacketForwardMiddlewareTransfer asserts that native tokens on a Celestia-based chain can be transferred to
-// another chain and then return to the original Celestia chain using the packet forward middleware.
-func (suite *PacketForwardTestSuit) TestPacketForwardMiddlewareTransfer() {
-	path1, path2 := NewTransferPaths(suite.chainA, suite.celestiaChain, suite.chainB)
-	suite.coordinator.Setup(path1)
-	suite.coordinator.Setup(path2)
+	coordinator.Setup(path1)
+	coordinator.Setup(path2)
 
-	celestiaApp := suite.celestiaChain.App.(*app.App)
-	originalCelestiaBal := celestiaApp.BankKeeper.GetBalance(suite.celestiaChain.GetContext(), suite.celestiaChain.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	celestiaApp := celestiaChain.App.(*app.App)
+	originalCelestiaBal := celestiaApp.BankKeeper.GetBalance(celestiaChain.GetContext(), celestiaChain.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 
-	fmt.Println(originalCelestiaBal, "sourceChain original balance (celestia)")
 	// take half of the original balance
 	amount := originalCelestiaBal.Amount.QuoRaw(2)
 	timeoutHeight := clienttypes.NewHeight(1, 300)
 	coinToSendToB := sdk.NewCoin(sdk.DefaultBondDenom, amount)
 
-	fmt.Println(path1.EndpointA.ChannelID, "channel id path 1 endpoint A")
-	fmt.Println(path1.EndpointB.ChannelID, "channel id path 1 endpoint B")
-	fmt.Println(path2.EndpointA.ChannelID, "channel id path 2 endpoint A")
-	fmt.Println(path2.EndpointB.ChannelID, "channel id path 2 endpoint B")
-
-	// Create the 'next' structure
-	nextStruct :=
+	// Forward the packet to ChainB
+	secondHopMetaData :=
 		&PacketMetadata{
 			Forward: &ForwardMetadata{
-				Receiver: suite.chainB.SenderAccount.GetAddress().String(),
+				Receiver: chainB.SenderAccount.GetAddress().String(),
 				Channel:  path2.EndpointA.ChannelID,
 				Port:     path2.EndpointA.ChannelConfig.PortID,
 			},
 		}
 
-	// Marshal 'next' to get a properly escaped string
-	nextBytes, err := json.Marshal(nextStruct)
-	suite.Require().NoError(err) // no error
-	nextEscaped := string(nextBytes)
+	nextBz, err := json.Marshal(secondHopMetaData)
+	require.NoError(t, err)
+	next := string(nextBz)
 
-	// Create the 'memo' structure, embedding 'next' as a raw JSON string
-	memoStruct :=
+	// Send it back to Celestia
+	firstHopMetaData :=
 		&PacketMetadata{
 			Forward: &ForwardMetadata{
-				Receiver: suite.celestiaChain.SenderAccount.GetAddress().String(),
+				Receiver: celestiaChain.SenderAccount.GetAddress().String(),
 				Channel:  path1.EndpointA.ChannelID,
 				Port:     path1.EndpointA.ChannelConfig.PortID,
-				Next:     &nextEscaped,
+				Next:     &next,
 			},
 		}
 
-	// Marshal 'memo' to get the final JSON string
-	memoBytes, err := json.Marshal(memoStruct)
-	suite.Require().NoError(err)
-	memo := string(memoBytes)
+	memo, err := json.Marshal(firstHopMetaData)
+	require.NoError(t, err)
 
-	// Now 'memo' contains the correctly formatted and escaped JSON string
+	// Transfer path: Celestia -> ChainA -> Celestia -> ChainB
+	msg := types.NewMsgTransfer(path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID, coinToSendToB, celestiaChain.SenderAccount.GetAddress().String(), chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, string(memo))
 
-	// from celestia to chainA initially but with forwarding message in the memo to end up in chainB
-	msg := types.NewMsgTransfer(path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID, coinToSendToB, suite.celestiaChain.SenderAccount.GetAddress().String(), suite.chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, memo)
-
-	res, err := suite.celestiaChain.SendMsgs(msg)
-	suite.Require().NoError(err) // message committed
+	res, err := celestiaChain.SendMsgs(msg)
+	require.NoError(t, err) 
 
 	packet, err := ibctesting.ParsePacketFromEvents(res.GetEvents())
-	suite.Require().NoError(err)
+	require.NoError(t, err) 
 
-	// relay send
 	err = ForwardPacket([]*ibctesting.Path{path1, path1, path2}, packet)
-	suite.Require().NoError(err) // relay committed
+	require.NoError(t, err)
 
-	celestiaBalanceAfter := celestiaApp.BankKeeper.GetAllBalances(suite.celestiaChain.GetContext(), suite.celestiaChain.SenderAccount.GetAddress())
-	fmt.Println(celestiaBalanceAfter, "CELESTIA BALANCE AFTER")
+	celestiaBalanceAfter := celestiaApp.BankKeeper.GetBalance(celestiaChain.GetContext(), celestiaChain.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	require.Equal(t, originalCelestiaBal.Amount.Sub(amount), celestiaBalanceAfter.Amount)
 
-	balanceAfter := suite.chainB.App.(*SimApp).BankKeeper.GetAllBalances(suite.chainB.GetContext(), sdk.AccAddress(suite.chainB.SenderAccount.GetAddress().String()))
-	fmt.Println(balanceAfter.String(), "BALANCE AFTER")
-}
+	ibcDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
+	destinationBalanceAfter := chainB.App.(*SimApp).BankKeeper.GetBalance(chainB.GetContext(), chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
 
-func TestPacketForwardTestSuit(t *testing.T) {
-	suite.Run(t, new(PacketForwardTestSuit))
+	require.Equal(t, amount, destinationBalanceAfter.Amount)
 }
 
 func isPacketToEndpoint(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) bool {
@@ -163,7 +135,7 @@ func isPacketToEndpoint(endpoint *ibctesting.Endpoint, packet channeltypes.Packe
 	return bytes.Equal(pc, channeltypes.CommitPacket(endpoint.Chain.App.AppCodec(), packet))
 }
 
-// submits packet to endpoint and returns either the acknowledgement or another packet
+// Submits packet to an endpoint and returns either the acknowledgement or another packet
 func relayPacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) (channeltypes.Packet, []byte, error) {
 	if err := endpoint.UpdateClient(); err != nil {
 		return channeltypes.Packet{}, nil, err
@@ -171,7 +143,6 @@ func relayPacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) (cha
 
 	res, err := endpoint.RecvPacketWithResult(packet)
 	if err != nil {
-		fmt.Println("recv packet error")
 		return channeltypes.Packet{}, nil, err
 	}
 
@@ -179,7 +150,6 @@ func relayPacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) (cha
 	if err != nil {
 		packet, err = ibctesting.ParsePacketFromEvents(res.GetEvents())
 		if err != nil {
-			fmt.Println("parse packet error")
 			return channeltypes.Packet{}, nil, err
 		}
 		return packet, nil, nil
@@ -188,6 +158,7 @@ func relayPacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet) (cha
 	return packet, ack, nil
 }
 
+// ForwardPacket forwards a packet through a series of paths and routes the acknowledgement back
 func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 	if len(paths) < 2 {
 		return errors.New("path must have at least two hops to forward packet")
@@ -199,9 +170,9 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 		packets        = make([]channeltypes.Packet, len(paths))
 	)
 
+	// Relay the packet through the paths and store the packets and acknowledgements
 	packets[0] = packet
 	for idx, path := range paths {
-		fmt.Println(printPacket(packet), "packet", idx, "idx")
 		if isPacketToEndpoint(path.EndpointA, packets[idx]) {
 			packet, packetAck, err := relayPacket(path.EndpointB, packets[idx])
 			if err != nil {
@@ -225,25 +196,16 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 			}
 			rewindEndpoint[idx] = path.EndpointB
 		} else {
-			// this error should be a bit more explicit
 			return errors.New("packet is for neither endpoint A or endpoint B")
 		}
 	}
-
-	fmt.Println("final packet", printPacket(packet))
 
 	if len(ack) == 0 {
 		return errors.New("no acknowledgement received from the last packet")
 	}
 
-	fmt.Println("rewind acknowledgements")
-	// now we relay to the final destination and route the acknowledgements back
-
+	// Now we route the acknowledgements back
 	for i := len(rewindEndpoint) - 1; i >= 0; i-- {
-		fmt.Println(i, "index")
-		fmt.Println(ack, "ack")
-		fmt.Println(printPacket(packets[i]), "rewind packet", i, "idx")
-		fmt.Println(rewindEndpoint[i], "rewind endpoint")
 		if err := rewindEndpoint[i].UpdateClient(); err != nil {
 			return err
 		}
@@ -259,19 +221,15 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 			}
 		}
 		rewindEndpoint[i].Chain.Coordinator.CommitBlock()
-		fmt.Println(i, "index")
 	}
 	return nil
 }
 
+// AcknowledgePacket acknowledges a packet and returns the result
 func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (*sdk.Result, error) {
 	packetKey := host.PacketAcknowledgementKey(packet.GetDestPort(), packet.GetDestChannel(), packet.GetSequence())
 	proof, proofHeight := endpoint.Counterparty.QueryProof(packetKey)
 	ackMsg := channeltypes.NewMsgAcknowledgement(packet, ack, proof, proofHeight, endpoint.Chain.SenderAccount.GetAddress().String())
 
 	return endpoint.Chain.SendMsgs(ackMsg)
-}
-
-func printPacket(packet channeltypes.Packet) string {
-	return fmt.Sprintf("%s/%s -> %s/%s (%d) - %v", packet.GetSourcePort(), packet.GetSourceChannel(), packet.GetDestPort(), packet.GetDestChannel(), packet.GetSequence(), packet.GetData())
 }
