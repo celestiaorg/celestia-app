@@ -42,7 +42,8 @@ func TestReadBlockchainHeaders(t *testing.T) {
 	cfg := DefaultConfig()
 	cctx, rpcAddr, _ := NewNetwork(t, cfg)
 	// wait for 30 blocks to be produced
-	cctx.WaitForBlocks(30)
+	err := cctx.WaitForBlocks(30)
+	require.NoError(t, err)
 
 	// fetch headers
 	headers, err := ReadBlockchainHeaders(context.Background(), rpcAddr)
