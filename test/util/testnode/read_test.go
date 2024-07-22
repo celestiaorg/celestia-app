@@ -22,11 +22,13 @@ func TestReverseSlice(t *testing.T) {
 	for _, tt := range tests {
 		switch v := tt.input.(type) {
 		case []int:
+			// reverseSlice modifies the input slice, so we need to make a copy
 			original := make([]int, len(tt.input.([]int)))
 			copy(original, tt.input.([]int))
-			reverseSlice(v) // will reverse in place
+			reverseSlice(v)
 			require.True(t, reflect.DeepEqual(v, tt.expected), "reverseSlice(%v) = %v, want %v", original, tt.input, tt.expected)
 		case []string:
+			// reverseSlice modifies the input slice, so we need to make a copy
 			original := make([]string, len(tt.input.([]string)))
 			copy(original, tt.input.([]string))
 			reverseSlice(v)
