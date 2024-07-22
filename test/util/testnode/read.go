@@ -58,7 +58,6 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 	blockHeaders := make([]*types.BlockMeta, 0)
 	// fetch headers up to maxHeight
 	lastFetchedHeight := int64(0)
-	println("max height: ", maxHeight)
 	for {
 		// BlockchainInfo may apply a limit on the range of blocks to fetch,
 		// so we need to request them iteratively.
