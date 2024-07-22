@@ -166,7 +166,7 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 			targetSizeReached = true
 			break
 		}
-        if size > maxBlockSize {
+		if size > maxBlockSize {
 			maxBlockSize = size
 		}
 	}

@@ -91,7 +91,6 @@ func WithMempoolMaxTxBytes(maxTxBytes int) Option {
 	return func(cfg *config.Config) {
 		cfg.Mempool.MaxTxBytes = maxTxBytes
 	}
-
 }
 
 func WriteAddressBook(peers []string, file string) error {
