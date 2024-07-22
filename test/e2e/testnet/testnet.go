@@ -218,6 +218,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	err = t.genesis.AddAccount(genesis.Account{
 		PubKey:  pk,
 		Balance: tokens,
+		Name:    name,
 	})
 	if err != nil {
 		return nil, err

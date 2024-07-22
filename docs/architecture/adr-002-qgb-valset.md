@@ -12,11 +12,11 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `ValSet` and `ValSetConfirm` types of messages in order to track the state of the validator set.
 
-PS: The `ValsetConfirm` have been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` has been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
 
 ## Detailed Design
 
-Since the QGB is only a one-way bridge and is not transferring assets, it doesn't require the portions of the gravity module that recreate the state from the bridged chain. We only need to keep things relating to signing over the validator set (such as`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
+Since the QGB is only a one-way bridge and does not transfer assets, it doesn't require the portions of the gravity module that recreate the state from the bridged chain. We only need to keep things relating to signing over the validator set (such as`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
 
 It works by relying on a set of signers to attest to some event on Celestia: the Celestia validator set.
 

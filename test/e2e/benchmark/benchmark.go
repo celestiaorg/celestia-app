@@ -160,12 +160,12 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, blockMeta.Header.Version.App)
 		}
 		size := int64(blockMeta.BlockSize)
-		if size >= expectedBlockSizeBytes {
-			targetSizeReached = true
-			break
-		}
 		if size > maxBlockSize {
 			maxBlockSize = size
+		}
+		if maxBlockSize >= expectedBlockSizeBytes {
+			targetSizeReached = true
+			break
 		}
 	}
 	if !targetSizeReached {
