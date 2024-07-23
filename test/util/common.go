@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
 
 	cosmosmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -40,6 +40,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	tmed "github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -57,6 +58,33 @@ var (
 		HistoricalEntries: 10000,
 		BondDenom:         "stake",
 		MinCommissionRate: sdk.NewDecWithPrec(0, 0),
+	}
+
+	// HardcodedConsensusPrivKeys
+	FixedConsensusPrivKeys = []tmed.PrivKey{
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456389013")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456389014")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456389015")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456389016")),
+	}
+
+	FixedNetworkPrivKeys = []tmed.PrivKey{
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786013")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786014")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786015")),
+		tmed.GenPrivKeyFromSecret([]byte("12345678901234567890123456786016")),
+	}
+
+	// FixedMnemonics is a set of fixed mnemonics for testing.
+	// Account names are: validator1, validator2, validator3, validator4, validator5
+	FixedMnemonics = []string{
+		"body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun",
+		"body champion street fat bone above office guess waste vivid gift around approve elevator depth fiber alarm usual skirt like organ space antique silk",
+		"cheap alpha render punch clap prize duty drive steel situate person radar smooth elegant over chronic wait danger thumb soft letter spatial acquire rough",
+		"outdoor ramp suspect office disagree world attend vanish small wish capable fall wall soon damp session emotion chest toss viable meat host clerk truth",
+		"ability evidence casino cram weasel chest brush bridge sister blur onion found glad own mansion amateur expect force fun dragon famous alien appear open",
 	}
 
 	// ConsPrivKeys generate ed25519 ConsPrivKeys to be used for validator operator keys

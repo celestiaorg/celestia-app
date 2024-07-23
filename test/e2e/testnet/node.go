@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/rs/zerolog/log"
@@ -317,17 +317,12 @@ func (n *Node) Start() error {
 	if err := n.StartAsync(); err != nil {
 		return err
 	}
-	if err := n.WaitUntilStartedAndForwardPorts(); err != nil {
-		return err
-	}
-	return nil
+
+	return n.WaitUntilStartedAndForwardPorts()
 }
 
 func (n *Node) StartAsync() error {
-	if err := n.Instance.StartAsync(); err != nil {
-		return err
-	}
-	return nil
+	return n.Instance.StartAsync()
 }
 
 func (n *Node) WaitUntilStartedAndForwardPorts() error {
@@ -374,10 +369,7 @@ func (n *Node) Upgrade(version string) error {
 		return err
 	}
 
-	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
-		return err
-	}
-	return nil
+	return n.Instance.WaitInstanceIsRunning()
 }
 
 func DockerImageName(version string) string {

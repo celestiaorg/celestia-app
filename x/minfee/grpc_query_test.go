@@ -3,10 +3,10 @@ package minfee_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/x/minfee"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
