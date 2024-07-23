@@ -44,12 +44,13 @@ type BlobTx struct {
 	txOptions []user.TxOption
 }
 
-// TestConsistentAppHash executes all state machine messages, generates an app hash,
-// and compares it against a previously generated hash from the same set of transactions.
+// TestConsistentAppHash executes all state machine messages, generates an app hash and a data root,
+// and compares it against a previously generated hashes from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
 	// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
-	// expectedAppHash := []byte{9, 208, 117, 101, 108, 61, 146, 58, 26, 190, 199, 124, 76, 178, 84, 74, 54, 159, 76, 187, 2, 169, 128, 87, 70, 78, 8, 192, 28, 144, 116, 117}
+	expectedDataRoot := []byte{100, 59, 112, 241, 238, 49, 50, 64, 105, 90, 209, 211, 49, 254, 211, 83, 133, 88, 5, 89, 221, 116, 141, 72, 33, 110, 16, 78, 5, 48, 118, 72}
+	expectedAppHash := []byte{84, 216, 210, 48, 113, 204, 234, 21, 150, 236, 97, 87, 242, 184, 45, 248, 116, 127, 49, 88, 134, 197, 202, 125, 44, 210, 67, 144, 107, 51, 145, 65} 
 
 	// Initialize testApp
 	testApp := testutil.NewTestApp()
@@ -99,6 +100,7 @@ func TestConsistentAppHash(t *testing.T) {
 	// ----------- Create SDK Messages ------------
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
+	// Minimum deposit required for a gov proposal to become active
 	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
 	twoInt := sdk.NewInt(2)
 
@@ -221,7 +223,7 @@ func TestConsistentAppHash(t *testing.T) {
 	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgDelegate)
 
-	// Messages are split in two blocks, this tx is part of the second block therefore the block height is incremented by 2
+	// Block 2 height
 	blockHeight := testApp.LastBlockHeight() + 2
 	// NewMsgCancelUnbondingDelegation - cancels unbonding delegation from validator-1
 	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], genValidators[1].GetOperator(), blockHeight, amount[0])
@@ -245,7 +247,7 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// ------------ Third Block ------------
 
-	// The transactions within the third block are signed by the validator's signer
+	// Txs within the third block are signed by the validator's signer
 	var thirdBlockSdkMsgs []sdk.Msg
 
 	// NewMsgWithdrawValidatorCommission - withdraws validator-0's commission
@@ -260,13 +262,13 @@ func TestConsistentAppHash(t *testing.T) {
 
 	// Create SDK transactions from the list of messages
 	// and separate them into 3 different blocks
-	firstBlockRawTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
+	firstBlockEncodedTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
 	require.NoError(t, err)
 
-	secondBlockRawTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
+	secondBlockEncodedTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
 	require.NoError(t, err)
 
-	validatorRawTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
+	thirdBlockEncodedTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
 	require.NoError(t, err)
 
 	// Create a Blob Tx
@@ -275,30 +277,29 @@ func TestConsistentAppHash(t *testing.T) {
 		blobs:     []*tmproto.Blob{New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
-	rawBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
+	encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
 
-	// Convert validators to abci validators
+	// Convert validators to ABCI validators
 	abciValidators, err := convertToABCIValidators(genValidators)
 	require.NoError(t, err)
 
 	// Execute the first block
-	_, firstBlockCommitHash, err := executeTxs(testApp, []byte{}, firstBlockRawTxs, abciValidators, testApp.LastCommitID().Hash)
+	_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash)
 	require.NoError(t, err)
 
 	// Execute the second block
-	_, secondAppHash, err := executeTxs(testApp, rawBlobTx, secondBlockRawTxs, abciValidators, firstBlockCommitHash)
+	_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockEncodedTxs, abciValidators, firstBlockAppHash)
 	require.NoError(t, err)
 
-	// Execute the final block and get the data hash alongside the final app hash
-	dataHash, finalAppHash, err := executeTxs(testApp, []byte{}, validatorRawTxs, abciValidators, secondAppHash)
+	// Execute the final block and get the data root alongside the final app hash
+	finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash)
 	require.NoError(t, err)
-
-	fmt.Println(finalAppHash, "APP HASH")
-	fmt.Println(dataHash, "DATA HASH")
 
 	// Require that the app hash is equal to the app hash produced on a different commit
-	// require.Equal(t, expectedAppHash, appHash)
+	require.Equal(t, expectedAppHash, finalAppHash)
+	// Require that the data root is equal to the data root produced on a different commit
+	require.Equal(t, expectedDataRoot, finalDataRoot)
 }
 
 // fixedNamespace returns a hardcoded namespace
@@ -341,11 +342,11 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 }
 
 // processSdkMessages takes a list of sdk messages, forms transactions, signs them
-// and returns a list of raw transactions
+// and returns a list of encoded transactions
 func processSdkMessages(signer *user.TxSigner, sdkMessages []sdk.Msg) ([][]byte, error) {
-	rawSdkTxs := make([][]byte, 0, len(sdkMessages))
+	encodedSdkTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
-		rawSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		encodedSdkTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 		if err != nil {
 			return nil, err
 		}
@@ -357,33 +358,34 @@ func processSdkMessages(signer *user.TxSigner, sdkMessages []sdk.Msg) ([][]byte,
 			return nil, err
 		}
 
-		rawSdkTxs = append(rawSdkTxs, rawSdkTx)
+		encodedSdkTxs = append(encodedSdkTxs, encodedSdkTx)
 	}
-	return rawSdkTxs, nil
+	return encodedSdkTxs, nil
 }
 
 // executeTxs executes a set of transactions and returns the data hash and app hash
-func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
+func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
 	chainID := testApp.GetChainID()
 
 	genesisTime := testutil.GenesisTime
 
 	// Prepare Proposal
-	resPrePareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
+	resPrepareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
-			Txs: rawSdkTxs,
+			Txs: encodedSdkTxs,
 		},
 		ChainId: chainID,
 		Height:  height,
-		Time:    genesisTime.Add(time.Duration(height) * time.Minute),
+		// Dynamically increase time so the validator can be unjailed (1m duration)
+		Time: genesisTime.Add(time.Duration(height) * time.Minute),
 	})
 
-	dataHash := resPrePareProposal.BlockData.Hash
+	dataHash := resPrepareProposal.BlockData.Hash
 
 	header := tmproto.Header{
 		Version:        version.Consensus{App: 1},
-		DataHash:       resPrePareProposal.BlockData.Hash,
+		DataHash:       resPrepareProposal.BlockData.Hash,
 		ChainID:        chainID,
 		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
 		Height:         height,
@@ -392,7 +394,7 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 
 	// Process Proposal
 	resProcessProposal := testApp.ProcessProposal(abci.RequestProcessProposal{
-		BlockData: resPrePareProposal.BlockData,
+		BlockData: resPrepareProposal.BlockData,
 		Header:    header,
 	},
 	)
@@ -421,17 +423,17 @@ func executeTxs(testApp *app.App, rawBlobTx []byte, rawSdkTxs [][]byte, validato
 	})
 
 	// Deliver SDK Txs
-	for i, rawSdkTx := range rawSdkTxs {
-		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: rawSdkTx})
-		if resp.Code != uint32(0) {
+	for i, tx := range encodedSdkTxs {
+		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tx})
+		if resp.Code != abci.CodeTypeOK {
 			return nil, nil, fmt.Errorf("DeliverTx failed for the message at index %d: %s", i, resp.Log)
 		}
 	}
 
 	// Deliver Blob Txs
-	if len(rawBlobTx) != 0 {
+	if len(encodedBlobTx) != 0 {
 		// Deliver Blob Tx
-		blob, isBlobTx := coretypes.UnmarshalBlobTx(rawBlobTx)
+		blob, isBlobTx := coretypes.UnmarshalBlobTx(encodedBlobTx)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
 		}
