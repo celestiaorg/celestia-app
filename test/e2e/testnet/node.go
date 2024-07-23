@@ -303,17 +303,12 @@ func (n *Node) Start() error {
 	if err := n.StartAsync(); err != nil {
 		return err
 	}
-	if err := n.WaitUntilStartedAndForwardPorts(); err != nil {
-		return err
-	}
-	return nil
+
+	return n.WaitUntilStartedAndForwardPorts()
 }
 
 func (n *Node) StartAsync() error {
-	if err := n.Instance.StartAsync(); err != nil {
-		return err
-	}
-	return nil
+	return n.Instance.StartAsync()
 }
 
 func (n *Node) WaitUntilStartedAndForwardPorts() error {
@@ -360,10 +355,7 @@ func (n *Node) Upgrade(version string) error {
 		return err
 	}
 
-	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
-		return err
-	}
-	return nil
+	return n.Instance.WaitInstanceIsRunning()
 }
 
 func DockerImageName(version string) string {
