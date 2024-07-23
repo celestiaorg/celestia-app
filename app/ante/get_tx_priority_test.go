@@ -3,7 +3,7 @@ package ante
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )

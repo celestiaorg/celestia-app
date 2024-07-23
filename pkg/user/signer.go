@@ -12,7 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 )
 
 // Signer is struct for building and signing Celestia transactions

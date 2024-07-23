@@ -3,11 +3,11 @@ package blobfactory_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"

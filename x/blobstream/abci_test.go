@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
 
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/stretchr/testify/assert"

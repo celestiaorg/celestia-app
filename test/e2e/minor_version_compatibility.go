@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
