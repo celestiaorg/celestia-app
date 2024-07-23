@@ -336,10 +336,6 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
-	err := t.StartTxClients()
-	if err != nil {
-		return err
-	}
 	log.Info().Msg("forwarding ports for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {
@@ -379,6 +375,10 @@ func (t *Testnet) Start() error {
 			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
 			time.Sleep(1 * time.Second)
 		}
+	}
+	err := t.StartTxClients()
+	if err != nil {
+		return err
 	}
 	return nil
 }
