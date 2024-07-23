@@ -234,12 +234,12 @@ func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
 			return fmt.Errorf("failed to get pubkey: %w", err)
 		}
 
-	// Construct account from keyring account
-	account := genesis.Account{
-		PubKey:  validatorPubKey,
-		Balance: val.KeyringAccount.InitialTokens,
-		Name:    val.Name,
-	}
+		// Construct account from keyring account
+		account := genesis.Account{
+			PubKey:  validatorPubKey,
+			Balance: val.KeyringAccount.InitialTokens,
+			Name:    val.Name,
+		}
 
 		// Add the validator's account to the genesis
 		if err := g.AddAccount(account); err != nil {
