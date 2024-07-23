@@ -2,16 +2,22 @@ package testnode
 
 import (
 	"fmt"
+	"io"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	tmconfig "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 const (
@@ -31,7 +37,7 @@ type UniversalTestingConfig struct {
 	// AppCreator is used to create the application for the testnode.
 	AppCreator srvtypes.AppCreator
 	// SuppressLogs in testnode. This should be set to true when running
-	// testground tests.
+	// network tests.
 	SuppressLogs bool
 }
 
@@ -126,9 +132,7 @@ func DefaultConfig() *Config {
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithAppCreator(cmd.NewAppServer).
-		WithSuppressLogs(true).
-		WithConsensusParams(DefaultConsensusParams()).
+		WithAppCreator(DefaultAppCreator()).
 		WithSuppressLogs(true)
 }
 
@@ -165,4 +169,36 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
 	return tmCfg
+}
+
+func DefaultAppCreator() srvtypes.AppCreator {
+	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
+		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		return app.New(
+			log.NewNopLogger(),
+			tmdb.NewMemDB(),
+			nil, // trace store
+			0,   // invCheckPerid
+			encodingConfig,
+			0, // v2 upgrade height
+			simapp.EmptyAppOptions{},
+			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
+		)
+	}
+}
+
+func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
+	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
+		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		return app.New(
+			log.NewNopLogger(),
+			tmdb.NewMemDB(),
+			nil, // trace store
+			0,   // invCheckPerid
+			encodingConfig,
+			0, // v2 upgrade height
+			simapp.EmptyAppOptions{},
+			baseapp.SetMinGasPrices(minGasPrice),
+		)
+	}
 }
