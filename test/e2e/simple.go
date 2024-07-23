@@ -31,7 +31,7 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 10, "100-2000", 1, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
@@ -40,10 +40,9 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start())
 
-	// wait for 30 seconds
+	logger.Println("Waiting for 30 seconds to produce blocks")
 	time.Sleep(30 * time.Second)
 
-	logger.Println("Reading blockchain")
 	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
