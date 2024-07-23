@@ -3,6 +3,7 @@ package testnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -361,6 +362,8 @@ func (t *Testnet) Start() error {
 						"node has synced")
 					break
 				}
+			} else {
+				err = errors.New("error getting status")
 			}
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
