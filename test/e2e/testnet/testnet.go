@@ -347,8 +347,8 @@ func (t *Testnet) Start() error {
 	}
 	// wait for nodes to sync
 	log.Info().Msg("waiting for genesis nodes to sync")
-	for i, node := range genesisNodes {
-		log.Info().Int("Index", i).Str("name", node.Name).Msg(
+	for _, node := range genesisNodes {
+		log.Info().Str("name", node.Name).Msg(
 			"waiting for node to sync")
 		client, err := node.Client()
 		if err != nil {
@@ -368,7 +368,7 @@ func (t *Testnet) Start() error {
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
 			}
-			log.Info().Str("name", node.Name).Msg(
+			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
 				"node is not synced yet, waiting...")
 			time.Sleep(time.Duration(i) * time.Second)
 		}
