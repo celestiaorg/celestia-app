@@ -376,11 +376,7 @@ func (t *Testnet) Start() error {
 			time.Sleep(1 * time.Second)
 		}
 	}
-	err := t.StartTxClients()
-	if err != nil {
-		return err
-	}
-	return nil
+	return t.StartTxClients()
 }
 
 func (t *Testnet) Cleanup() {
