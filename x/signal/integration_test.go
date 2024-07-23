@@ -3,10 +3,10 @@ package signal_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/x/signal"
-	"github.com/celestiaorg/celestia-app/v2/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/x/signal"
+	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -3,8 +3,8 @@ package mint
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/x/mint/keeper"
-	"github.com/celestiaorg/celestia-app/v2/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v3/x/mint/keeper"
+	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

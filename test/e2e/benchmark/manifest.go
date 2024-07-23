@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 

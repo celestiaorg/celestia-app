@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	"github.com/celestiaorg/celestia-app/v2/test/txsim"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/txsim"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
@@ -24,7 +24,6 @@ import (
 // A set of environment variables that can be used instead of flags
 const (
 	TxsimGRPC          = "TXSIM_GRPC"
-	TxsimRPC           = "TXSIM_RPC"
 	TxsimSeed          = "TXSIM_SEED"
 	TxsimPoll          = "TXSIM_POLL"
 	TxsimKeypath       = "TXSIM_KEYPATH"
@@ -60,7 +59,7 @@ func command() *cobra.Command {
 		Long: `
 Txsim is a tool for randomized transaction generation on celestia networks. The tool relies on
 defined sequences; recursive patterns between one or more accounts which will continually submit
-transactions. You can use flags or environment variables (TXSIM_RPC, TXSIM_GRPC, TXSIM_SEED,
+transactions. You can use flags or environment variables (TXSIM_GRPC, TXSIM_SEED,
 TXSIM_POLL, TXSIM_KEYPATH) to configure the client. The keyring provided should have at least one
 well funded account that can act as the master account. The command runs until all sequences error.`,
 		Example: "txsim --key-path /path/to/keyring --grpc-endpoint localhost:9090 --seed 1234 --poll-time 1s --blob 5",
