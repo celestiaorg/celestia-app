@@ -172,7 +172,8 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 	// Relay the packet through the paths and store the packets and acknowledgements
 	packets[0] = packet
 	for idx, path := range paths {
-		if isPacketToEndpoint(path.EndpointA, packets[idx]) {
+		switch {
+		case isPacketToEndpoint(path.EndpointA, packets[idx]):
 			packet, packetAck, err := relayPacket(path.EndpointB, packets[idx])
 			if err != nil {
 				return err
@@ -183,7 +184,7 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 				ack = packetAck
 			}
 			rewindEndpoints[idx] = path.EndpointA
-		} else if isPacketToEndpoint(path.EndpointB, packets[idx]) {
+		case isPacketToEndpoint(path.EndpointB, packets[idx]):
 			packet, packetAck, err := relayPacket(path.EndpointA, packets[idx])
 			if err != nil {
 				return err
@@ -194,8 +195,8 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 				ack = packetAck
 			}
 			rewindEndpoints[idx] = path.EndpointB
-		} else {
-			return errors.New("packet is for neither endpoint A or endpoint B")
+		default:
+			return errors.New("packet is for neither endpoint A nor endpoint B")
 		}
 	}
 

@@ -1,7 +1,6 @@
 package tokenfilter
 
 import (
-	"fmt"
 	"testing"
 	"time"
 

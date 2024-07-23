@@ -21,7 +21,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
 	tmprotoversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
@@ -204,7 +203,7 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 	app.BeginBlock(
 		abci.RequestBeginBlock{
 			Header: tmproto.Header{
-				Version: version.Consensus{
+				Version: tmprotoversion.Consensus{
 					App: consensusParams.Version.AppVersion,
 				},
 				ChainID:            chainID,
