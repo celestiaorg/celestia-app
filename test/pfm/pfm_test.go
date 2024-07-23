@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v2/app"
 	utils "github.com/celestiaorg/celestia-app/v2/test/tokenfilter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,8 +16,6 @@ import (
 	host "github.com/cosmos/ibc-go/v6/modules/core/24-host"
 	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type PacketMetadata struct {
@@ -32,7 +33,8 @@ type ForwardMetadata struct {
 }
 
 func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
-	*ibctesting.TestChain, *ibctesting.TestChain) {
+	*ibctesting.TestChain, *ibctesting.TestChain,
+) {
 	chains := make(map[string]*ibctesting.TestChain)
 	coordinator := &ibctesting.Coordinator{
 		T:           t,
@@ -82,28 +84,26 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	coinToSendToB := sdk.NewCoin(sdk.DefaultBondDenom, transferAmount)
 
 	// Forward the packet to ChainB
-	secondHopMetaData :=
-		&PacketMetadata{
-			Forward: &ForwardMetadata{
-				Receiver: chainB.SenderAccount.GetAddress().String(),
-				Channel:  path2.EndpointA.ChannelID,
-				Port:     path2.EndpointA.ChannelConfig.PortID,
-			},
-		}
+	secondHopMetaData := &PacketMetadata{
+		Forward: &ForwardMetadata{
+			Receiver: chainB.SenderAccount.GetAddress().String(),
+			Channel:  path2.EndpointA.ChannelID,
+			Port:     path2.EndpointA.ChannelConfig.PortID,
+		},
+	}
 	nextBz, err := json.Marshal(secondHopMetaData)
 	require.NoError(t, err)
 	next := string(nextBz)
 
 	// Send it back to Celestia
-	firstHopMetaData :=
-		&PacketMetadata{
-			Forward: &ForwardMetadata{
-				Receiver: celestia.SenderAccount.GetAddress().String(),
-				Channel:  path1.EndpointA.ChannelID,
-				Port:     path1.EndpointA.ChannelConfig.PortID,
-				Next:     &next,
-			},
-		}
+	firstHopMetaData := &PacketMetadata{
+		Forward: &ForwardMetadata{
+			Receiver: celestia.SenderAccount.GetAddress().String(),
+			Channel:  path1.EndpointA.ChannelID,
+			Port:     path1.EndpointA.ChannelConfig.PortID,
+			Next:     &next,
+		},
+	}
 	memo, err := json.Marshal(firstHopMetaData)
 	require.NoError(t, err)
 
@@ -164,9 +164,9 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 	}
 
 	var (
-		ack            []byte
+		ack             []byte
 		rewindEndpoints = make([]*ibctesting.Endpoint, len(paths))
-		packets        = make([]channeltypes.Packet, len(paths))
+		packets         = make([]channeltypes.Packet, len(paths))
 	)
 
 	// Relay the packet through the paths and store the packets and acknowledgements
