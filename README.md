@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.22.3
+1. [Install Go](https://go.dev/doc/install) 1.22.4
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -84,9 +84,9 @@ celestia-appd --help
 
 ### Environment variables
 
-| Variable        | Explanation                        | Default value                                            | Required |
-|-----------------|------------------------------------|----------------------------------------------------------|----------|
-| `CELESTIA_HOME` | Home directory for the application | User home dir. [Ref](https://pkg.go.dev/os#UserHomeDir). | Optional |
+| Variable        | Explanation                                                       | Default value                                            | Required |
+|-----------------|-------------------------------------------------------------------|----------------------------------------------------------|----------|
+| `CELESTIA_HOME` | Where the application directory (`.celestia-app`) should be saved | [User home directory](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
 ### Create your own single node devnet
 
@@ -108,7 +108,7 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 
 ### Usage as a library
 
-If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatabilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
+If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatibilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
 
 ## Contributing
 
@@ -153,7 +153,8 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 ## Audits
 
-| Date       | Auditor                                       | Version                                                                             | Report                                                  |
-|------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------|
-| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf) |
-| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)   |
+| Date       | Auditor                                       | Version                                                                             | Report                                                        |
+|------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf)       |
+| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)         |
+| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)   | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf) |

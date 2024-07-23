@@ -375,7 +375,7 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 		opts = append(opts, SetMemo(memo))
 	}
 	if fee := tx.GetFee(); fee != nil {
-		opts = append(opts, SetFeeAmount(fee))
+		opts = append(opts, SetFee(fee.AmountOf(appconsts.BondDenom).Uint64()))
 	}
 	if gas := tx.GetGas(); gas > 0 {
 		opts = append(opts, SetGasLimit(gas))

@@ -104,7 +104,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						true,
 						testutil.ChainID,
 						accounts[:tt.count],
-						user.SetGasLimitAndFee(1_000_000_000, 0.1),
+						user.SetGasLimitAndGasPrice(1_000_000_000, 0.1),
 					)
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
@@ -116,7 +116,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[0],
 						accounts[len(accounts)-sendTxCount:],
 						testutil.ChainID,
-						user.SetGasLimitAndFee(1_000_000, 0.1),
+						user.SetGasLimitAndGasPrice(1_000_000, 0.1),
 					)
 					txs = append(txs, sendTxs...)
 

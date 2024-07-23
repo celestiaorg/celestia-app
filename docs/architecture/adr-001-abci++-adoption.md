@@ -127,7 +127,7 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
        cs.Logger.Error("state machine returned an error when trying to process proposal block", "err", err)
    }
 
-   // Vote nil if application invalidated the block
+   // Vote nil if the application invalidated the block
    if !stateMachineValidBlock {
        // Consensus says we must vote nil
        logger.Error("prevote step: consensus deems this block to be mustVoteNil", "err", err)

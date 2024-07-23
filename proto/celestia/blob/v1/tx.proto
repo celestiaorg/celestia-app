@@ -9,7 +9,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 service Msg {
   // PayForBlobs allows the user to pay for the inclusion of one or more blobs
   rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
-    option (google.api.http).get = "/blob/v1/payforblobs";
+    option (google.api.http) = { post: "/blob/v1/payforblobs", body: "*" };
   }
 }
 
