@@ -1,8 +1,8 @@
 package appconsts
 
 import (
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 )
 
 const (
