@@ -3,6 +3,7 @@ package testnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -336,10 +337,6 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
-	err := t.StartTxClients()
-	if err != nil {
-		return err
-	}
 	log.Info().Msg("forwarding ports for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {
@@ -350,37 +347,33 @@ func (t *Testnet) Start() error {
 	}
 	// wait for nodes to sync
 	log.Info().Msg("waiting for genesis nodes to sync")
-	for i, node := range genesisNodes {
-		log.Info().Int("Index", i).Str("name", node.Name).Msg(
+	for _, node := range genesisNodes {
+		log.Info().Str("name", node.Name).Msg(
 			"waiting for node to sync")
 		client, err := node.Client()
 		if err != nil {
-			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
+			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
 		}
 		for i := 0; i < 10; i++ {
 			resp, err := client.Status(context.Background())
-			if err != nil {
-				if i == 9 {
-					return fmt.Errorf("node %s status response: %w", node.Name, err)
+			if err == nil {
+				if resp.SyncInfo.LatestBlockHeight > 0 {
+					log.Info().Int("attempts", i).Str("name", node.Name).Msg(
+						"node has synced")
+					break
 				}
-				time.Sleep(time.Second)
-				continue
+			} else {
+				err = errors.New("error getting status")
 			}
-			if resp.SyncInfo.LatestBlockHeight > 0 {
-				log.Info().Int("Index", i).Str("name", node.Name).Msg(
-					"node has synced")
-				break
-			}
-			log.Info().Int64("height", resp.SyncInfo.LatestBlockHeight).Msg(
-				"height is 0, waiting...")
 			if i == 9 {
-				return fmt.Errorf("failed to start node %s", node.Name)
+				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
 			}
-			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
-			time.Sleep(1 * time.Second)
+			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
+				"node is not synced yet, waiting...")
+			time.Sleep(time.Duration(i) * time.Second)
 		}
 	}
-	return nil
+	return t.StartTxClients()
 }
 
 func (t *Testnet) Cleanup() {
