@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "6f334a2"
+	compactBlocksVersion = "d0e24bb" //"6f334a2"
 )
 
 func main() {
@@ -44,6 +44,12 @@ func Run() error {
 	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
 	if err != nil {
 		return err
+	}
+
+	for _, node := range network.Nodes() {
+		if err := node.Instance.EnableBitTwister(); err != nil {
+			return fmt.Errorf("failed to enable bit twister: %v", err)
+		}
 	}
 
 	err = network.CreateTxClients(
@@ -104,7 +110,7 @@ func Run() error {
 			if err := saveBlockTimes(network); err != nil {
 				log.Printf("Error saving block times: %v", err)
 			}
-			log.Println("--- FINISHED ✅: Dynamic Timeouts")
+			log.Println("--- FINISHED ✅: Compact Blocks")
 			return nil
 		}
 	}
