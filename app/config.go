@@ -1,13 +1,7 @@
 package app
 
-import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
-)
-
 func init() {
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(Bech32PrefixAccAddr, Bech32PrefixAccPub)
-	cfg.SetBech32PrefixForValidator(Bech32PrefixValAddr, Bech32PrefixValPub)
-	cfg.SetBech32PrefixForConsensusNode(Bech32PrefixConsAddr, Bech32PrefixConsPub)
-	cfg.Seal()
+	// init() was invoked by celestia-app v1.x so we don't need to perform any
+	// additional config set up it in celestia-app v2.x. In fact, config can't
+	// be modified by v2.x because we'll hit a panic: "config is sealed".
 }
