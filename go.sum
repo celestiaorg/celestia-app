@@ -316,8 +316,8 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29 h1:HwbA4OegRvXX0aNchBA7Cmu+oIxnH7xRcOhISuDP0ak=
 github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29/go.mod h1:MyElURdWAOJkOp84WZnfEUJ+OLvTwOOHG2lbK9E8XRI=
-github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16 h1:N2uETI13szEKnGAdKhtTR0EsrpcW0AwRKYER74WLnuw=
-github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16/go.mod h1:Bpl1LSWiDpQumgOhhMTZBMopqa0j7fRasIhvTZB44P0=
+github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16 h1:AlBZS4WykzrwfcNbKD+yQQM1RTMz7lYDC1NS7ClAidM=
+github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16/go.mod h1:Bpl1LSWiDpQumgOhhMTZBMopqa0j7fRasIhvTZB44P0=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.21.0 h1:81MBqxNn3orByoiCtdNVjwi5WsLgMkzHwP02ZMhTBHM=
