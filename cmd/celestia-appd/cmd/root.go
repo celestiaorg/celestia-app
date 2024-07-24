@@ -38,11 +38,15 @@ import (
 )
 
 const (
+	// EnvPrefix is the environment variable prefix for celestia-appd.
+	// Environment variables that Cobra reads must be prefixed with this value.
 	EnvPrefix = "CELESTIA"
 
 	// FlagLogToFile specifies whether to log to file or not.
 	FlagLogToFile = "log-to-file"
 
+	// UpgradeHeightFlag is the flag to specify the upgrade height for v1 to v2
+	// application upgrade.
 	UpgradeHeightFlag = "v2-upgrade-height"
 )
 
