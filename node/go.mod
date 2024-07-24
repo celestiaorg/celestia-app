@@ -204,7 +204,7 @@ require (
 )
 
 replace (
-	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.3.0
+	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
