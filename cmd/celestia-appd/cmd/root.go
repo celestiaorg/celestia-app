@@ -126,6 +126,7 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 		snapshot.Cmd(NewAppServer),
 	)
 
+	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback.
 	server.AddCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addModuleInitFlags)
 }
 
