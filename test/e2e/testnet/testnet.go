@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -357,8 +357,8 @@ func (t *Testnet) Start() error {
 	}
 	// wait for nodes to sync
 	log.Info().Msg("waiting for genesis nodes to sync")
-	for i, node := range genesisNodes {
-		log.Info().Int("Index", i).Str("name", node.Name).Msg(
+	for _, node := range genesisNodes {
+		log.Info().Str("name", node.Name).Msg(
 			"waiting for node to sync")
 		client, err := node.Client()
 		if err != nil {
@@ -373,12 +373,12 @@ func (t *Testnet) Start() error {
 					break
 				}
 			} else {
-				err = errors.New("failed to get status")
+				err = errors.New("error getting status")
 			}
 			if i == 9 {
 				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
 			}
-			log.Info().Str("name", node.Name).Msg(
+			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
 				"node is not synced yet, waiting...")
 			time.Sleep(time.Duration(i) * time.Second)
 		}

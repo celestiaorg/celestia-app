@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 )
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
@@ -44,15 +44,16 @@ func E2ESimple(logger *log.Logger) error {
 	// wait for 30 seconds
 	time.Sleep(30 * time.Second)
 
-	blockchain, err := testnode.ReadBlockchain(context.Background(), testNet.Node(0).AddressRPC())
+	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(), testNet.Node(0).AddressRPC())
 	testnet.NoError("failed to read blockchain", err)
 
 	totalTxs := 0
-	for _, block := range blockchain {
-		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d in block %d", appconsts.LatestVersion, block.Version.App, block.Height)
+	for _, blockMeta := range blockchain {
+		version := blockMeta.Header.Version.App
+		if appconsts.LatestVersion != version {
+			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)
 		}
-		totalTxs += len(block.Data.Txs)
+		totalTxs += blockMeta.NumTxs
 	}
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)

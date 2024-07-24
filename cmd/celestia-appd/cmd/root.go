@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	bscmd "github.com/celestiaorg/celestia-app/v2/x/blobstream/client"
+	bscmd "github.com/celestiaorg/celestia-app/v3/x/blobstream/client"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/tendermint/tendermint/cmd/cometbft/commands"

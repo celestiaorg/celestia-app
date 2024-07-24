@@ -7,9 +7,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/tendermint/tendermint/pkg/trace"
 )
 
@@ -148,18 +148,18 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 		}
 	}
 
-	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(),
+	log.Println("Reading blockchain headers")
+	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(),
 		b.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain", err)
+	testnet.NoError("failed to read blockchain headers", err)
 
 	targetSizeReached := false
 	maxBlockSize := int64(0)
-	for _, block := range blockchain {
-		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
+	for _, blockMeta := range blockchain {
+		if appconsts.LatestVersion != blockMeta.Header.Version.App {
+			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, blockMeta.Header.Version.App)
 		}
-		size := int64(block.Size())
+		size := int64(blockMeta.BlockSize)
 		if size > maxBlockSize {
 			maxBlockSize = size
 		}

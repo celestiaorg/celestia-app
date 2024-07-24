@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 

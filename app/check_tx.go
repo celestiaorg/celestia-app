@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
