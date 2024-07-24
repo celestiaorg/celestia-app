@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"

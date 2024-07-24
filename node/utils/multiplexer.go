@@ -1,4 +1,4 @@
-package main
+package utils
 
 import abci "github.com/tendermint/tendermint/abci/types"
 
