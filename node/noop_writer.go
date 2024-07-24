@@ -1,5 +1,10 @@
 package main
 
+import "io"
+
+// NoopWriter implements the io.Writer interface.
+var _ io.Writer = (*NoopWriter)(nil)
+
 // NoopWriter is a no-op implementation of a writer.
 type NoopWriter struct{}
 
