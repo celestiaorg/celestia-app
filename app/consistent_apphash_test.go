@@ -45,7 +45,7 @@ type BlobTx struct {
 }
 
 // TestConsistentAppHash executes all state machine messages, generates an app hash and a data root,
-// and compares it against a previously generated hashes from the same set of transactions.
+// and compares it against previously generated hashes from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
 	// App hash and data root generated from executing txs on this branch
