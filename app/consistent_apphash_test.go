@@ -428,7 +428,7 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 		}
 	}
 
-	// Deliver Blob Txs
+	// Deliver Blob Tx
 	if len(encodedBlobTx) != 0 {
 		// Deliver Blob Tx
 		blob, isBlobTx := coretypes.UnmarshalBlobTx(encodedBlobTx)
