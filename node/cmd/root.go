@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -23,12 +24,19 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		currentAppVersion := uint64(1)
 		apps := utils.GetApps()
 		multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
+		fmt.Printf("multiplexer: %v\n", multiplexer)
 
-		fmt.Printf("%v\n", multiplexer)
+		config := testnode.DefaultConfig()
+		cctx, err := utils.StartNode(config)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("cctx: %v\n", cctx)
+		return nil
 	},
 }
 
