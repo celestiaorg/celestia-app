@@ -65,8 +65,7 @@ func NewRootCmd() *cobra.Command {
 		WithViper(EnvPrefix)
 
 	rootCmd := &cobra.Command{
-		Use:   "celestia-appd",
-		Short: "Start celestia app",
+		Use: "celestia-appd",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
 			if err != nil {
