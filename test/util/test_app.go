@@ -31,14 +31,16 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/genesis"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 const (
 	ChainID = "test-app"
 )
+
+var GenesisTime = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 
 // Get flags every time the simulator is run
 func init() {
@@ -75,11 +77,14 @@ func NewTestApp() *app.App {
 
 // SetupDeterministicGenesisState sets genesis on initialized testApp with the provided arguments.
 func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
+	slashingParams := slashingtypes.NewParams(2, sdk.OneDec(), time.Minute, sdk.OneDec(), sdk.OneDec())
+
 	// Create genesis
 	gen := genesis.NewDefaultGenesis().
 		WithChainID(ChainID).
 		WithConsensusParams(cparams).
-		WithGenesisTime(time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC())
+		WithModifiers(genesis.SetSlashingParams(testApp.AppCodec(), slashingParams)).
+		WithGenesisTime(GenesisTime)
 
 	// Add accounts to genesis
 	for _, pk := range pubKeys {
@@ -93,7 +98,7 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 	}
 
 	// Add validator to genesis
-	err := AddDeterministicValidatorToGenesis(gen)
+	err := AddDeterministicValidatorsToGenesis(gen)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to add validator: %w", err)
 	}
@@ -210,46 +215,44 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	return testApp, kr
 }
 
-// AddDeterministicValidatorToGenesis adds a single deterministic validator to the genesis.
-func AddDeterministicValidatorToGenesis(g *genesis.Genesis) error {
-	// Hardcoded keys for deterministic account creation
-	mnemo := "body world north giggle crop reduce height copper damp next verify orphan lens loan adjust inform utility theory now ranch motion opinion crowd fun"
-	consensusKey := ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456389012"))
-	networkKey := ed25519.GenPrivKeyFromSecret([]byte("12345678901234567890123456786012"))
+func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
+	for i := range FixedMnemonics {
+		val := genesis.Validator{
+			KeyringAccount: genesis.KeyringAccount{
+				Name:          "validator" + fmt.Sprint(i),
+				InitialTokens: 5_000_000_000,
+			},
+			Stake:        1_000_000_000,
+			ConsensusKey: FixedConsensusPrivKeys[i],
+			NetworkKey:   FixedNetWorkPrivKeys[i],
+		}
+		// initialize the validator's genesis account in the keyring
+		rec, err := g.Keyring().NewAccount(val.Name, FixedMnemonics[i], "", "", hd.Secp256k1)
+		if err != nil {
+			return fmt.Errorf("failed to create account: %w", err)
+		}
 
-	val := genesis.Validator{
-		KeyringAccount: genesis.KeyringAccount{
-			Name:          "validator1",
-			InitialTokens: 1_000_000_000,
-		},
-		Stake:        1_000_000,
-		ConsensusKey: consensusKey,
-		NetworkKey:   networkKey,
+		validatorPubKey, err := rec.GetPubKey()
+		if err != nil {
+			return fmt.Errorf("failed to get pubkey: %w", err)
+		}
+
+		// make account from keyring account
+		account := genesis.Account{
+			PubKey:  validatorPubKey,
+			Balance: val.KeyringAccount.InitialTokens,
+		}
+
+		// add the validator's account to the genesis
+		if err := g.AddAccount(account); err != nil {
+			return fmt.Errorf("failed to add account: %w", err)
+		}
+		if err := g.AddValidator(val); err != nil {
+			return fmt.Errorf("failed to add validator: %w", err)
+		}
 	}
 
-	// Initialize the validator's genesis account in the keyring
-	rec, err := g.Keyring().NewAccount(val.Name, mnemo, "", "", hd.Secp256k1)
-	if err != nil {
-		return fmt.Errorf("failed to create account: %w", err)
-	}
-
-	validatorPubKey, err := rec.GetPubKey()
-	if err != nil {
-		return fmt.Errorf("failed to get pubkey: %w", err)
-	}
-
-	// Make account from keyring account
-	account := genesis.Account{
-		PubKey:  validatorPubKey,
-		Balance: val.KeyringAccount.InitialTokens,
-	}
-
-	// Add the validator's account to the genesis
-	if err := g.AddAccount(account); err != nil {
-		return fmt.Errorf("failed to add account: %w", err)
-	}
-
-	return g.AddValidator(val)
+	return nil
 }
 
 // AddGenesisAccount mimics the cli addGenesisAccount command, providing an
