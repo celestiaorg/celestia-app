@@ -354,7 +354,7 @@ func (t *Testnet) Start() error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
 		}
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 100; i++ {
 			resp, err := client.Status(context.Background())
 			if err == nil {
 				if resp.SyncInfo.LatestBlockHeight > 0 {
@@ -365,7 +365,7 @@ func (t *Testnet) Start() error {
 			} else {
 				err = errors.New("error getting status")
 			}
-			if i == 9 {
+			if i == 99 {
 				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
 			}
 			log.Info().Str("name", node.Name).Int("attempt", i).Msg(

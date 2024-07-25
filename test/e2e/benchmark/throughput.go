@@ -179,3 +179,25 @@ func LargeNetworkBigBlock64MB(logger *log.Logger) error {
 	manifest.BlobSequences = 2
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock64MB", manifest)
 }
+
+func LargeNetworkBigBlock64MBLatency(logger *log.Logger) error {
+	manifest := bigBlockManifest
+	manifest.MaxBlockBytes = 64 * testnet.MB
+	manifest.Validators = 50
+	manifest.TxClients = 50
+	manifest.BlobSequences = 2
+	manifest.EnableLatency = true
+	manifest.LatencyParams = LatencyParams{70, 0}
+	return runBenchmarkTest(logger, "LargeNetworkBigBlock64MBLatency", manifest)
+}
+func LargeNetworkBigBlock8MBLatency(logger *log.Logger) error {
+	manifest := bigBlockManifest
+	manifest.MaxBlockBytes = 8 * testnet.MB
+	manifest.Validators = 50
+	manifest.TxClients = 50
+	manifest.BlobSequences = 2
+	manifest.EnableLatency = true
+	manifest.LatencyParams = LatencyParams{70, 0}
+	manifest.TestDuration = 10 * time.Minute
+	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MBLatency", manifest)
+}
