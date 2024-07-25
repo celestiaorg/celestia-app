@@ -6,10 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts/testground"
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 )
 
 func TestSubtreeRootThreshold(t *testing.T) {
@@ -24,10 +23,6 @@ func TestSubtreeRootThreshold(t *testing.T) {
 		{
 			version:  v2.Version,
 			expected: v2.SubtreeRootThreshold,
-		},
-		{
-			version:  testground.Version,
-			expected: testground.SubtreeRootThreshold,
 		},
 	}
 
@@ -52,10 +47,6 @@ func TestSquareSizeUpperBound(t *testing.T) {
 		{
 			version:  v2.Version,
 			expected: v2.SquareSizeUpperBound,
-		},
-		{
-			version:  testground.Version,
-			expected: testground.SquareSizeUpperBound,
 		},
 	}
 

@@ -1,8 +1,8 @@
 package ante
 
 import (
-	blobante "github.com/celestiaorg/celestia-app/v2/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v2/x/blob/keeper"
+	blobante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -44,6 +44,7 @@ func NewAnteHandler(
 		// Side effect: consumes gas from the gas meter.
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
+		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
 		// Set public keys in the context for fee-payer and all signers.

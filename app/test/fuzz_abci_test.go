@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -104,7 +104,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						true,
 						testutil.ChainID,
 						accounts[:tt.count],
-						user.SetGasLimitAndFee(1_000_000_000, 0.1),
+						user.SetGasLimitAndGasPrice(1_000_000_000, 0.1),
 					)
 					// create 100 send transactions
 					sendTxs := testutil.SendTxsWithAccounts(
@@ -116,7 +116,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[0],
 						accounts[len(accounts)-sendTxCount:],
 						testutil.ChainID,
-						user.SetGasLimitAndFee(1_000_000, 0.1),
+						user.SetGasLimitAndGasPrice(1_000_000, 0.1),
 					)
 					txs = append(txs, sendTxs...)
 

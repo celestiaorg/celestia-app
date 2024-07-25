@@ -4,16 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
-	"github.com/stretchr/testify/suite"
-
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	bsmoduletypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v2/x/minfee"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	bsmoduletypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -24,9 +20,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
+	"github.com/stretchr/testify/suite"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type GovParamsTestSuite struct {
@@ -51,7 +50,7 @@ func TestGovParamsTestSuite(t *testing.T) {
 }
 
 // TestModifiableParams verifies that the params listed as governance modifiable
-// in the specs params.md file are modifiable via governance.
+// in the specs parameters.md file are modifiable via governance.
 func (suite *GovParamsTestSuite) TestModifiableParams() {
 	assert := suite.Assert()
 
@@ -371,6 +370,32 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			},
 		},
 		{
+			"icahost.HostEnabled",
+			testProposal(proposal.ParamChange{
+				Subspace: icahosttypes.SubModuleName,
+				Key:      string(icahosttypes.KeyHostEnabled),
+				Value:    `false`,
+			}),
+			func() {
+				got := suite.app.ICAHostKeeper.GetParams(suite.ctx).HostEnabled
+				want := false
+				assert.Equal(want, got)
+			},
+		},
+		{
+			"icahost.AllowMessages",
+			testProposal(proposal.ParamChange{
+				Subspace: icahosttypes.SubModuleName,
+				Key:      string(icahosttypes.KeyAllowMessages),
+				Value:    `["foo"]`,
+			}),
+			func() {
+				got := suite.app.ICAHostKeeper.GetParams(suite.ctx).AllowMessages
+				want := []string{"foo"}
+				assert.Equal(want, got)
+			},
+		},
+		{
 			"slashing.DowntimeJailDuration",
 			testProposal(proposal.ParamChange{
 				Subspace: slashingtypes.ModuleName,
@@ -516,8 +541,8 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 }
 
 // TestUnmodifiableParams verifies that the params listed as non governance
-// modifiable in the specs params.md file cannot be modified via governance. It
-// does not include a test case for consensus.block.TimeIotaMs because
+// modifiable in the specs parameters.md file cannot be modified via governance.
+// It does not include a test case for consensus.block.TimeIotaMs because
 // TimeIotaMs is not exposed to the application.
 func (suite *GovParamsTestSuite) TestUnmodifiableParams() {
 	assert := suite.Assert()

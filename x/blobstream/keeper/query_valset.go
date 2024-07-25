@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

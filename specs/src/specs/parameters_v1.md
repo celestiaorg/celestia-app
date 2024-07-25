@@ -1,20 +1,19 @@
-# Celestia Governance Params
+# Parameters v1
 
-These are the parameters for mainnet. Note that not all of these parameters are
-changeable via governance. This list also includes parameter that require a
-hardfork to change due to being manually hardcoded in the application or they
-are blocked by the `x/paramfilter` module.
+The parameters below represent the parameters for app version 1.
 
-## Parameters
+Note that not all of these parameters are changeable via governance. This list
+also includes parameter that require a hardfork to change due to being manually
+hardcoded in the application or they are blocked by the `x/paramfilter` module.
 
-### Global parameters
+## Global parameters
 
 | Parameter         | Default | Summary                                                                                                                | Changeable via Governance |
 |-------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------|
 | MaxBlockSizeBytes | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
 | MaxSquareSize     | 128     | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False                     |
 
-### Module parameters
+## Module parameters
 
 | Module.Parameter                              | Default                                     | Summary                                                                                                                                                                                         | Changeable via Governance |
 |-----------------------------------------------|---------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
@@ -49,7 +48,6 @@ are blocked by the `x/paramfilter` module.
 | ibc.ConnectionGenesis.MaxExpectedTimePerBlock | 7500000000000 (75 seconds)                  | Maximum expected time per block in nanoseconds under normal operation.                                                                                                                          | True                      |
 | ibc.Transfer.ReceiveEnabled                   | true                                        | Enable receiving tokens via IBC.                                                                                                                                                                | True                      |
 | ibc.Transfer.SendEnabled                      | true                                        | Enable sending tokens via IBC.                                                                                                                                                                  | True                      |
-| minfee.NetworkMinGasPrice                     | 0.000001 utia                               | All transactions must have a gas price greater than or equal to this value.                                                                                                                     | True                      |
 | mint.BondDenom                                | utia                                        | Denomination that is inflated and sent to the distribution module account.                                                                                                                      | False                     |
 | mint.DisinflationRate                         | 0.10 (10%)                                  | The rate at which the inflation rate decreases each year.                                                                                                                                       | False                     |
 | mint.InitialInflationRate                     | 0.08 (8%)                                   | The inflation rate the network starts at.                                                                                                                                                       | False                     |

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -49,7 +49,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 		wg.Add(1)
 		go func(b *blob.Blob) {
 			defer wg.Done()
-			_, err := txClient.SubmitPayForBlob(subCtx, []*blob.Blob{b}, user.SetGasLimitAndFee(500_000, appconsts.DefaultMinGasPrice))
+			_, err := txClient.SubmitPayForBlob(subCtx, []*blob.Blob{b}, user.SetGasLimitAndGasPrice(500_000, appconsts.DefaultMinGasPrice))
 			if err != nil && !errors.Is(err, context.Canceled) {
 				// only catch the first error
 				select {

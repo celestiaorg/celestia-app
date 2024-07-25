@@ -4,19 +4,17 @@ import (
 	"fmt"
 	"testing"
 
-	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/stretchr/testify/require"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
@@ -44,8 +42,7 @@ func TestPFBGasEstimation(t *testing.T) {
 			require.NoError(t, err)
 			blobs := blobfactory.ManyRandBlobs(rand, tc.blobSizes...)
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
-			fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 			require.NoError(t, err)
 			blobTx, ok := blob.UnmarshalBlobTx(tx)
 			require.True(t, ok)
@@ -88,8 +85,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		require.NoError(t, err)
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
-		fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(int64(gas))))
-		tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimit(gas), user.SetFeeAmount(fee))
+		tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 		require.NoError(t, err)
 		blobTx, ok := blob.UnmarshalBlobTx(tx)
 		require.True(t, ok)

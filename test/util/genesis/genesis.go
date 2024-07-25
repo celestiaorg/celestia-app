@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -122,6 +122,9 @@ func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 
 // AddAccount adds an existing account to the genesis.
 func (g *Genesis) AddAccount(account Account) error {
+	if err := account.ValidateBasic(); err != nil {
+		return err
+	}
 	for _, acc := range g.accounts {
 		if bytes.Equal(acc.PubKey.Bytes(), account.PubKey.Bytes()) {
 			return fmt.Errorf("account with pubkey %s already exists", account.PubKey.String())
@@ -155,6 +158,7 @@ func (g *Genesis) NewAccount(acc KeyringAccount) error {
 	account := Account{
 		PubKey:  pubKey,
 		Balance: acc.InitialTokens,
+		Name:    acc.Name,
 	}
 
 	g.accounts = append(g.accounts, account)
@@ -167,14 +171,6 @@ func (g *Genesis) AddValidator(val Validator) error {
 		return err
 	}
 
-	// Add the validator's genesis transaction
-	gentx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
-	if err != nil {
-		return err
-	}
-
-	// install the validator
-	g.genTxs = append(g.genTxs, gentx)
 	g.validators = append(g.validators, val)
 	return nil
 }
@@ -192,7 +188,12 @@ func (g *Genesis) NewValidator(val Validator) error {
 // Export returns the genesis document of the network.
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
-	for _, genTx := range g.genTxs {
+	for _, val := range g.validators {
+		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
+		if err != nil {
+			return nil, err
+		}
+
 		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
 		if err != nil {
 			return nil, err

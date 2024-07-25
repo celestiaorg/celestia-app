@@ -2,11 +2,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/tendermint/tendermint/pkg/trace"
 )
 
@@ -115,6 +118,59 @@ func (b *BenchmarkTest) Run() error {
 
 	// wait some time for the tx clients to submit transactions
 	time.Sleep(b.manifest.TestDuration)
+
+	return nil
+}
+
+func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
+	log.Println("Checking results")
+
+	// if local tracing was enabled,
+	// pull block summary table from one of the nodes to confirm tracing
+	// has worked properly.
+	if b.manifest.LocalTracingType == "local" {
+		if _, err := b.Node(0).PullBlockSummaryTraces("."); err != nil {
+			return fmt.Errorf("failed to pull traces: %w", err)
+		}
+	}
+
+	// download traces from S3, if enabled
+	if b.manifest.PushTrace && b.manifest.DownloadTraces {
+		// download traces from S3
+		pushConfig, err := trace.GetPushConfigFromEnv()
+		if err != nil {
+			return fmt.Errorf("failed to get push config: %w", err)
+		}
+		err = trace.S3Download("./traces/", b.manifest.ChainID,
+			pushConfig)
+		if err != nil {
+			return fmt.Errorf("failed to download traces from S3: %w", err)
+		}
+	}
+
+	log.Println("Reading blockchain headers")
+	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(),
+		b.Node(0).AddressRPC())
+	testnet.NoError("failed to read blockchain headers", err)
+
+	targetSizeReached := false
+	maxBlockSize := int64(0)
+	for _, blockMeta := range blockchain {
+		if appconsts.LatestVersion != blockMeta.Header.Version.App {
+			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, blockMeta.Header.Version.App)
+		}
+		size := int64(blockMeta.BlockSize)
+		if size > maxBlockSize {
+			maxBlockSize = size
+		}
+		if maxBlockSize >= expectedBlockSizeBytes {
+			targetSizeReached = true
+			break
+		}
+	}
+	if !targetSizeReached {
+		return fmt.Errorf("max reached block size is %d byte and is not within the expected range of %d  and %d bytes", maxBlockSize, expectedBlockSizeBytes, b.manifest.MaxBlockBytes)
+	}
 
 	return nil
 }

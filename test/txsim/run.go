@@ -7,8 +7,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -19,8 +19,9 @@ import (
 const DefaultSeed = 900183116
 
 const (
-	grpcMaxRecvMsgSize = 128 * 1024 * 1024
-	grpcMaxSendMsgSize = 128 * 1024 * 1024
+	MiB                = 1024 * 1024
+	grpcMaxRecvMsgSize = 128 * MiB
+	grpcMaxSendMsgSize = 128 * MiB
 )
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
