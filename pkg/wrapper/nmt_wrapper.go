@@ -3,7 +3,7 @@ package wrapper
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"

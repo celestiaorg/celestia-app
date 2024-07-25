@@ -12,12 +12,12 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 )
 
 func TestTxClientTestSuite(t *testing.T) {
@@ -37,7 +37,10 @@ type TxClientTestSuite struct {
 
 func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), testnode.DefaultConfig().WithFundedAccounts("a", "b", "c"))
+	config := testnode.DefaultConfig().
+		WithFundedAccounts("a", "b", "c").
+		WithAppCreator(testnode.CustomAppCreator("0utia"))
+	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), config)
 	_, err := suite.ctx.WaitForHeight(1)
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
@@ -83,36 +86,37 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 
 func (suite *TxClientTestSuite) TestSubmitTx() {
 	t := suite.T()
-	fee := user.SetFee(1e6)
-	gas := user.SetGasLimit(1e6)
+	gasLimit := uint64(1e6)
+	gasLimitOption := user.SetGasLimit(gasLimit)
+	feeOption := user.SetFee(1e6)
 	addr := suite.txClient.DefaultAddress()
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 
 	t.Run("submit tx without provided fee and gas limit", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
-		require.EqualValues(t, 0, resp.Code)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
 		require.Greater(t, resp.GasWanted, int64(0))
 	})
 
 	t.Run("submit tx with provided gas limit", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gas)
+		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
-		require.EqualValues(t, 0, resp.Code)
-		require.EqualValues(t, resp.GasWanted, 1e6)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+		require.EqualValues(t, gasLimit, resp.GasWanted)
 	})
 
 	t.Run("submit tx with provided fee", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee)
+		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption)
 		require.NoError(t, err)
-		require.EqualValues(t, 0, resp.Code)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
 
 	t.Run("submit tx with provided fee and gas limit", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
-		require.EqualValues(t, 0, resp.Code)
-		require.EqualValues(t, resp.GasWanted, 1e6)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
+		require.EqualValues(t, gasLimit, resp.GasWanted)
 	})
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
@@ -120,14 +124,14 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
-		require.EqualValues(t, 0, resp.Code)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
 	})
 
 	t.Run("submit tx with an updated default gas price", func(t *testing.T) {
 		suite.txClient.SetDefaultGasPrice(appconsts.DefaultMinGasPrice / 2)
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
-		require.EqualValues(t, 0, resp.Code)
+		require.Equal(t, abci.CodeTypeOK, resp.Code)
 		suite.txClient.SetDefaultGasPrice(appconsts.DefaultMinGasPrice)
 	})
 }

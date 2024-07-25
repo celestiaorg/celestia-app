@@ -8,9 +8,9 @@ import (
 
 	"github.com/celestiaorg/rsmt2d"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/merkle"
 	appns "github.com/celestiaorg/go-square/namespace"

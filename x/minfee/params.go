@@ -3,7 +3,7 @@ package minfee
 import (
 	"fmt"
 
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )

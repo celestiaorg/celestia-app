@@ -9,15 +9,15 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	"github.com/celestiaorg/go-square/square"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/stretchr/testify/assert"
@@ -147,6 +147,13 @@ func TestNewShareInclusionProof(t *testing.T) {
 			name:          "ending share lower than starting share",
 			startingShare: 1,
 			endingShare:   0,
+			namespaceID:   appns.TxNamespace,
+			expectErr:     true,
+		},
+		{
+			name:          "ending share is equal to the starting share",
+			startingShare: 1,
+			endingShare:   1,
 			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},

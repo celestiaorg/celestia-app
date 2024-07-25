@@ -11,9 +11,9 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/v2/proto/celestia/core/v1/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v3/proto/celestia/core/v1/da"
 	"github.com/celestiaorg/go-square/shares"
 )
 

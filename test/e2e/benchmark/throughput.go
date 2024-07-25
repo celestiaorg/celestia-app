@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 )
 
 const (
@@ -109,7 +109,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
 	logger.Println("Running", testName)
-	manifest.ChainID = "fifth" + manifest.summary()
+	manifest.ChainID = manifest.summary()
 	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)

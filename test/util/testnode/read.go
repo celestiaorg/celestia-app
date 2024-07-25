@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/go-square/blob"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -58,12 +58,12 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 	blockHeaders := make([]*types.BlockMeta, 0)
 	// fetch headers up to maxHeight
 	lastFetchedHeight := int64(0)
-	println("max height: ", maxHeight)
 	for {
 		// BlockchainInfo may apply a limit on the range of blocks to fetch,
 		// so we need to request them iteratively.
 		// note that block headers returned by BlockchainInfo are in descending
 		// order (highest first).
+
 		res, err := client.BlockchainInfo(ctx, 1, maxHeight)
 		if err != nil {
 			return nil, err
