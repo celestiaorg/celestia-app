@@ -3,7 +3,7 @@ package appconsts
 import (
 	"math"
 
-	ns "github.com/celestiaorg/go-square/namespace"
+	ns "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
 )

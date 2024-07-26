@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -146,7 +146,7 @@ func RandBlobTxsWithManualSequence(
 			require.NoError(t, err)
 		}
 
-		cTx, err := blob.MarshalBlobTx(tx, blobs...)
+		cTx, err := share.MarshalBlobTx(tx, blobs...)
 		if err != nil {
 			panic(err)
 		}

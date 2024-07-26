@@ -5,8 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -60,7 +59,7 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
-	if !shares.IsPowerOfTwo(len(s)) {
+	if !square.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	squareSize := square.Size(len(s))

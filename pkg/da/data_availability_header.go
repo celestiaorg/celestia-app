@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/v3/proto/celestia/core/v1/da"
-	"github.com/celestiaorg/go-square/shares"
 )
 
 var (

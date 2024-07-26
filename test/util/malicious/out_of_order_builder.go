@@ -6,11 +6,9 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/inclusion"
-	"github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -28,16 +26,17 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (sq
 	}
 	normalTxs := make([][]byte, 0, len(txs))
 	blobTxs := make([][]byte, 0, len(txs))
-	for _, tx := range txs {
-		blobTx, isBlobTx := blob.UnmarshalBlobTx(tx)
+	for idx, tx := range txs {
+		blobTx, isBlobTx, err := share.UnmarshalBlobTx(tx)
 		if isBlobTx {
+			if err != nil {
+				return nil, nil, fmt.Errorf("unmarshaling blob tx %d: %w", idx, err)
+			}
 			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
 			}
-		} else {
-			if builder.AppendTx(tx) {
-				normalTxs = append(normalTxs, tx)
-			}
+		} else if builder.AppendTx(tx) {
+			normalTxs = append(normalTxs, tx)
 		}
 	}
 	// note that this is using the malicious Export function
@@ -89,7 +88,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	}
 
 	// write all the regular transactions into compact shares
-	txWriter := shares.NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
+	txWriter := share.NewCompactShareSplitter(share.TxNamespace, appconsts.ShareVersionZero)
 	for _, tx := range b.Txs {
 		if err := txWriter.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("writing tx into compact shares: %w", err)
@@ -100,7 +99,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	nonReservedStart := b.TxCounter.Size() + b.PfbCounter.Size()
 	cursor := nonReservedStart
 	endOfLastBlob := nonReservedStart
-	blobWriter := shares.NewSparseShareSplitter()
+	blobWriter := share.NewSparseShareSplitter()
 	for i, element := range b.Blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
@@ -135,7 +134,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 
 	// write all the pay for blob transactions into compact shares. We need to do this after allocating the blobs to their
 	// appropriate shares as the starting index of each blob needs to be included in the PFB transaction
-	pfbWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
+	pfbWriter := share.NewCompactShareSplitter(share.PayForBlobNamespace, appconsts.ShareVersionZero)
 	for _, iw := range b.Pfbs {
 		iwBytes, err := proto.Marshal(iw)
 		if err != nil {

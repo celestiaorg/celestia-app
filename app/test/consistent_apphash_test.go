@@ -13,8 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -37,7 +36,7 @@ import (
 
 type BlobTx struct {
 	author    string
-	blobs     []*blob.Blob
+	blobs     []*share.Blob
 	txOptions []user.TxOption
 }
 
@@ -268,10 +267,13 @@ func TestConsistentAppHash(t *testing.T) {
 	thirdBlockEncodedTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
 	require.NoError(t, err)
 
+	blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+	require.NoError(t, err)
+
 	// Create a Blob Tx
 	blobTx := BlobTx{
 		author:    accountNames[1],
-		blobs:     []*blob.Blob{blob.New(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion)},
+		blobs:     []*share.Blob{blob},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 	encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
@@ -300,11 +302,12 @@ func TestConsistentAppHash(t *testing.T) {
 }
 
 // fixedNamespace returns a hardcoded namespace
-func fixedNamespace() appns.Namespace {
-	return appns.Namespace{
-		Version: 0,
-		ID:      []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 67, 154, 200, 228, 130, 74, 147, 162, 11},
+func fixedNamespace() share.Namespace {
+	ns, err := share.NewNamespace(0, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 67, 154, 200, 228, 130, 74, 147, 162, 11})
+	if err != nil {
+		panic(err)
 	}
+	return ns
 }
 
 // deterministicKeyRing returns a deterministic keyring and a list of deterministic public keys
@@ -430,9 +433,12 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 	// Deliver Blob Txs
 	if len(encodedBlobTx) != 0 {
 		// Deliver Blob Tx
-		blob, isBlobTx := blob.UnmarshalBlobTx(encodedBlobTx)
+		blob, isBlobTx, err := share.UnmarshalBlobTx(encodedBlobTx)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("Not a valid BlobTx: %w", err)
 		}
 
 		respDeliverTx := testApp.DeliverTx(abci.RequestDeliverTx{Tx: blob.Tx})

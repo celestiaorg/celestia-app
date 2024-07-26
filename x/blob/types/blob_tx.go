@@ -3,10 +3,8 @@ package types
 import (
 	"bytes"
 
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/inclusion"
-	appns "github.com/celestiaorg/go-square/namespace"
-	shares "github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -14,7 +12,8 @@ import (
 
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, error) {
+func NewBlob(ns share.Namespace, data []byte, shareVersion uint8) (*share.Blob, error) {
+	// checks that it is a non reserved, valid namespace
 	err := ValidateBlobNamespace(ns)
 	if err != nil {
 		return nil, err
@@ -24,17 +23,12 @@ func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, e
 		return nil, ErrZeroBlobSize
 	}
 
-	return &blob.Blob{
-		NamespaceId:      ns.ID,
-		Data:             data,
-		ShareVersion:     uint32(shareVersion),
-		NamespaceVersion: uint32(ns.Version),
-	}, nil
+	return share.NewBlob(ns, data, shareVersion, nil)
 }
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRootThreshold int) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *share.BlobTx, subtreeRootThreshold int) error {
 	if bTx == nil {
 		return ErrNoBlobs
 	}
@@ -63,7 +57,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRoot
 	// perform basic checks on the blobs
 	sizes := make([]uint32, len(bTx.Blobs))
 	for i, pblob := range bTx.Blobs {
-		sizes[i] = uint32(len(pblob.Data))
+		sizes[i] = uint32(len(pblob.Data()))
 	}
 	err = ValidateBlobs(bTx.Blobs...)
 	if err != nil {
@@ -76,20 +70,13 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRoot
 	}
 
 	for i, ns := range msgPFB.Namespaces {
-		msgPFBNamespace, err := appns.From(ns)
+		msgPFBNamespace, err := share.NewNamespaceFromBytes(ns)
 		if err != nil {
 			return err
 		}
 
-		// this not only checks that the pfb namespaces match the ones in the blobs
-		// but that the namespace version and namespace id are valid
-		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
-		if err != nil {
-			return err
-		}
-
-		if !bytes.Equal(blobNamespace.Bytes(), msgPFBNamespace.Bytes()) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", blobNamespace.Bytes(), msgPFB.Namespaces[i])
+		if !bytes.Equal(bTx.Blobs[i].Namespace().Bytes(), msgPFBNamespace.Bytes()) {
+			return ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
 		}
 	}
 
@@ -110,7 +97,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRoot
 func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 	sharesUsed := 0
 	for _, blob := range btx.Blobs {
-		sharesUsed += shares.SparseSharesNeeded(uint32(len(blob.Data)))
+		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 	return sharesUsed
 }

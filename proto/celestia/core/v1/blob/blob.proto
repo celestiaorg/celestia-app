@@ -1,7 +1,7 @@
 syntax = "proto3";
 package celestia.core.v1.blob;
 
-option go_package = "github.com/celestiaorg/go-square/blob";
+option go_package = "github.com/celestiaorg/go-square/v2/share";
 
 // Blob (named after binary large object) is a chunk of data submitted by a user
 // to be published to the Celestia blockchain. The data of a Blob is published
