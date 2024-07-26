@@ -161,6 +161,7 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	manifest.BlobSequences = 1
 	manifest.TimeoutCommit = 1 * time.Second
 	manifest.TimeoutPropose = 10 * time.Second
+	manifest.CelestiaAppVersion = "pr-3737"
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
 }
 
