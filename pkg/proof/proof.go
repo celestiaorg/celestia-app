@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	"math"
 
 	"github.com/celestiaorg/rsmt2d"
 
@@ -132,13 +132,6 @@ func NewShareInclusionProofFromEDS(
 		NamespaceID:      namespace.ID,
 		NamespaceVersion: uint32(namespace.Version),
 	}, nil
-}
-
-func safeConvertUint64ToInt(val uint64) (int, error) {
-	if val > math.MaxInt {
-		return 0, fmt.Errorf("value %d is too large to convert to int", val)
-	}
-	return int(val), nil
 }
 
 // CreateShareToRowRootProofs takes a set of shares and their corresponding row roots, and generates
