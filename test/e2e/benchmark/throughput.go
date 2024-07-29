@@ -109,7 +109,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
 	logger.Println("Running", testName)
-	manifest.ChainID = "del-" + manifest.summary()
+	//manifest.ChainID = "del-" + manifest.summary()
 	log.Println("ChainID: ", manifest.ChainID)
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
@@ -163,6 +163,7 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	manifest.TimeoutPropose = 10 * time.Second
 	manifest.CelestiaAppVersion = "pr-3737"
 	manifest.TxClientVersion = "pr-3737"
+	manifest.ChainID = "fix-" + manifest.summary()
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
 }
 
