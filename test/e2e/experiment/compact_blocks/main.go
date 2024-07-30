@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	// "github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 const (
-	compactBlocksVersion = "a77609b"
+	compactBlocksVersion = "db47b99"
 )
 
 func main() {
@@ -24,13 +25,18 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 5
-		timeoutCommit  = 5 * time.Second
-		timeoutPropose = 4 * time.Second
+		nodes          = 4
+		timeoutCommit  = 3 * time.Second
+		timeoutPropose = 2 * time.Second
 		version        = compactBlocksVersion
 	)
 
-	network, err := testnet.New("compact-blocks", 864, nil, "test")
+	// blobParams := blobtypes.DefaultParams()
+	// // set the square size to 128
+	// blobParams.GovMaxSquareSize = 128
+	// ecfg := encoding.MakeConfig(app.ModuleBasics)
+
+	network, err := testnet.New("compact-blocks", 864, testnet.GetGrafanaInfoFromEnvVar(), "test")
 	if err != nil {
 		return err
 	}
@@ -40,6 +46,10 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+
+	// cparams := app.DefaultConsensusParams()
+	// cparams.Block.MaxBytes = 8 * 1024 * 1024
+	// network.SetConsensusParams(cparams)
 
 	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
 	if err != nil {
@@ -54,11 +64,11 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		5,
+		40,
 		"1000-8000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:2],
+		gRPCEndpoints,
 	)
 	if err != nil {
 		return err
