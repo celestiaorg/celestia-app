@@ -36,7 +36,7 @@ func Run() error {
 	// blobParams.GovMaxSquareSize = 128
 	// ecfg := encoding.MakeConfig(app.ModuleBasics)
 
-	network, err := testnet.New("compact-blocks", 864, testnet.GetGrafanaInfoFromEnvVar(), "test")
+	network, err := testnet.New("compact-blocks", 864, nil, "test")
 	if err != nil {
 		return err
 	}
