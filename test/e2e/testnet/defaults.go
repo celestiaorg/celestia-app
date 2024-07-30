@@ -1,8 +1,8 @@
 package testnet
 
 var DefaultResources = Resources{
-	MemoryRequest: "500Mi",
-	MemoryLimit:   "500Mi",
+	MemoryRequest: "800Mi",
+	MemoryLimit:   "800Mi",
 	CPU:           "300m",
 	Volume:        "1Gi",
 }

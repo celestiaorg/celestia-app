@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "60e2d6b"
+	compactBlocksVersion = "05e2acd"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 20
+		nodes          = 10
 		timeoutCommit  = time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
@@ -76,7 +76,7 @@ func Run() error {
 		testnet.WithMempool("v2"),
 		func(cfg *config.Config) {
 			// create a partially connected network by only dialing 5 peers
-			cfg.P2P.MaxNumOutboundPeers = 5
+			cfg.P2P.MaxNumOutboundPeers = 4
 		},
 	)
 	if err != nil {
