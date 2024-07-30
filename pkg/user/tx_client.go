@@ -339,6 +339,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 			if err := client.signer.SetSequence(signer, seqNum); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
+			fmt.Println("retrying broadcast with new sequence", signer, seqNum, resp.TxResponse.RawLog)
 			return client.retryBroadcastingTx(ctx, txBytes)
 		}
 		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)

@@ -10,11 +10,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	// "github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 const (
-	compactBlocksVersion = "db47b99"
+	compactBlocksVersion = "60e2d6b"
 )
 
 func main() {
@@ -25,9 +26,9 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 4
-		timeoutCommit  = 3 * time.Second
-		timeoutPropose = 2 * time.Second
+		nodes          = 20
+		timeoutCommit  = time.Second
+		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
 	)
 
@@ -56,19 +57,13 @@ func Run() error {
 		return err
 	}
 
-	for _, node := range network.Nodes() {
-		if err := node.Instance.EnableBitTwister(); err != nil {
-			return fmt.Errorf("failed to enable bit twister: %v", err)
-		}
-	}
-
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		40,
+		50,
 		"1000-8000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints,
+		gRPCEndpoints[:5],
 	)
 	if err != nil {
 		return err
@@ -79,6 +74,10 @@ func Run() error {
 		testnet.WithTimeoutCommit(timeoutCommit),
 		testnet.WithTimeoutPropose(timeoutPropose),
 		testnet.WithMempool("v2"),
+		func(cfg *config.Config) {
+			// create a partially connected network by only dialing 5 peers
+			cfg.P2P.MaxNumOutboundPeers = 5
+		},
 	)
 	if err != nil {
 		return err
@@ -88,13 +87,6 @@ func Run() error {
 	err = network.Start()
 	if err != nil {
 		return err
-	}
-
-	for _, node := range network.Nodes() {
-		err = node.Instance.SetLatencyAndJitter(100, 10)
-		if err != nil {
-			return err
-		}
 	}
 
 	// run the test for 5 minutes
