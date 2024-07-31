@@ -3,8 +3,8 @@ package keeper
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/rootulp/celestia-app/x/blob/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

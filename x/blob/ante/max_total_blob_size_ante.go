@@ -4,9 +4,9 @@ import (
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	blobtypes "github.com/rootulp/celestia-app/x/blob/types"
 )
 
 // MaxTotalBlobSizeDecorator helps to prevent a PFB from being included in a

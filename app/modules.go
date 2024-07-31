@@ -5,8 +5,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/app/module"
-	"github.com/celestiaorg/celestia-app/v2/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v2/x/blobstream"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
@@ -14,6 +12,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v2/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
