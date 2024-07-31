@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -55,6 +57,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 				"error", err,
 				"msgs", msgTypes(sdkTx),
 			)
+			fmt.Println("filtering already checked transaction", coretypes.Tx(tx).Hash(), err, msgTypes(sdkTx))
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			continue
 		}
@@ -86,11 +89,11 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
+			fmt.Println("filtering already checked blob transaction", coretypes.Tx(tx.Tx).Hash(), err, msgTypes(sdkTx))
 			continue
 		}
 		txs[n] = tx
 		n++
-
 	}
 
 	return txs[:n], ctx

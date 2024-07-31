@@ -314,8 +314,8 @@ github.com/bufbuild/protocompile v0.5.1/go.mod h1:G5iLmavmF4NsYtpZFvE3B/zFch2GIY
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v1.36.0-tm-v0.34.29 h1:qLsTxyS0CHMuMO4S0ug1Zntv+gFB6OVdDNmG3pz5mHI=
-github.com/celestiaorg/celestia-core v1.36.0-tm-v0.34.29/go.mod h1:AL7kotb6ucKF4bpKKhGIzGhGL7dwYj2nFstiFC6PGxM=
+github.com/celestiaorg/celestia-core v1.36.0-tm-v0.34.29.0.20240731143607-84ea5f363087 h1:UVkwKyhSizwpCmSSRUleVvFR+APEF1ZwRmKBaUn1qBI=
+github.com/celestiaorg/celestia-core v1.36.0-tm-v0.34.29.0.20240731143607-84ea5f363087/go.mod h1:AL7kotb6ucKF4bpKKhGIzGhGL7dwYj2nFstiFC6PGxM=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16 h1:9U9UthIJSOyVjabD5PkD6aczvqlWOyAFTOXw0duPT5k=
 github.com/celestiaorg/cosmos-sdk v1.20.1-sdk-v0.46.16/go.mod h1:Tvsc3YnqvflXTYC8xIy/Q07Es95xZ1pZC/imoKogtbg=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
