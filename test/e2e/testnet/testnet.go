@@ -388,6 +388,7 @@ func (t *Testnet) StartNodes() error {
 	}
 	return nil
 }
+
 func (t *Testnet) Start() error {
 	// start nodes and forward ports
 	err := t.StartNodes()
