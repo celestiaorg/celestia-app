@@ -323,30 +323,15 @@ func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	return rpcEndpoints, nil
 }
 
-func (t *Testnet) Start() error {
+// WaitToSync waits for the started nodes to sync with the network and move
+// past the genesis block.
+func (t *Testnet) WaitToSync() error {
 	genesisNodes := make([]*Node, 0)
 	for _, node := range t.nodes {
 		if node.StartHeight == 0 {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
-	// start genesis nodes asynchronously
-	for _, node := range genesisNodes {
-		err := node.StartAsync()
-		if err != nil {
-			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
-		}
-	}
-	log.Info().Msg("forwarding ports for genesis nodes")
-	// wait for instances to be running
-	for _, node := range genesisNodes {
-		err := node.WaitUntilStartedAndForwardPorts()
-		if err != nil {
-			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
-		}
-	}
-	// wait for nodes to sync
-	log.Info().Msg("waiting for genesis nodes to sync")
 	for _, node := range genesisNodes {
 		log.Info().Str("name", node.Name).Msg(
 			"waiting for node to sync")
@@ -373,6 +358,49 @@ func (t *Testnet) Start() error {
 			time.Sleep(time.Duration(i) * time.Second)
 		}
 	}
+	return nil
+}
+
+// StartNodes starts the testnet nodes and forwards the ports.
+// It does not wait for the nodes to produce blocks.
+// For that, use WaitToSync.
+func (t *Testnet) StartNodes() error {
+	genesisNodes := make([]*Node, 0)
+	for _, node := range t.nodes {
+		if node.StartHeight == 0 {
+			genesisNodes = append(genesisNodes, node)
+		}
+	}
+	// start genesis nodes asynchronously
+	for _, node := range genesisNodes {
+		err := node.StartAsync()
+		if err != nil {
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+	}
+	log.Info().Msg("forwarding ports for genesis nodes")
+	// wait for instances to be running
+	for _, node := range genesisNodes {
+		err := node.WaitUntilStartedAndForwardPorts()
+		if err != nil {
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+	}
+	return nil
+}
+func (t *Testnet) Start() error {
+	// start nodes and forward ports
+	err := t.StartNodes()
+	if err != nil {
+		return err
+	}
+	// wait for nodes to sync
+	log.Info().Msg("waiting for genesis nodes to sync")
+	err = t.WaitToSync()
+	if err != nil {
+		return err
+	}
+
 	return t.StartTxClients()
 }
 
