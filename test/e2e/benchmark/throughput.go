@@ -208,6 +208,6 @@ func LargeNetworkBigBlock8MBLatency(logger *log.Logger) error {
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0}
 	manifest.TestDuration = 15 * time.Minute
-	manifest.ChainID = "2-" + manifest.summary()
+	manifest.ChainID = "3-" + manifest.summary()
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MBLatency", manifest)
 }
