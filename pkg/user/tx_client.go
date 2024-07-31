@@ -327,16 +327,18 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		},
 	)
 	if err != nil {
+		fmt.Println("error broadcasting tx", err)
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
 		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
+			fmt.Println("retrying to broadcast tx", signer)
 			// query the account to update the sequence number on-chain for the account
 			_, seqNum, err := QueryAccount(ctx, client.grpc, client.registry, client.signer.accounts[signer].address)
 			if err != nil {
 				return nil, fmt.Errorf("querying account for new sequence number: %w\noriginal tx response: %s", err, resp.TxResponse.RawLog)
 			}
-			if err := client.signer.SetSequence(signer, seqNum+1); err != nil {
+			if err := client.signer.SetSequence(signer, seqNum); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
 			return client.retryBroadcastingTx(ctx, txBytes)
