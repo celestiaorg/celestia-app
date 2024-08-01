@@ -22,7 +22,6 @@ import (
 
 // simulation signature values used to estimate gas consumption
 var (
-	// simulation signature values used to estimate gas consumption
 	key                = make([]byte, secp256k1.PubKeySize)
 	simSecp256k1Pubkey = &secp256k1.PubKey{Key: key}
 	simSecp256k1Sig    [64]byte
@@ -136,13 +135,13 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 	return false
 }
 
+// consumeGasForTxSize consumes gas based on the size of the transaction.
+// It uses different parameters depending on the app version.
 func consumeGasForTxSize(ctx sdk.Context, cost uint64, params auth.Params) {
 	// For app v2 and below we should get txSizeCostPerByte from auth module
 	if ctx.BlockHeader().Version.App <= v2.Version {
-		// fmt.Println("HERE <= 2")
 		ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*cost, "txSize")
 	} else {
-		// fmt.Println("HERE < 2")
 		// From v3 onwards, we should get txSizeCostPerByte from appconsts
 		ctx.GasMeter().ConsumeGas(appconsts.TxSizeCostPerByte(v3.Version)*cost, "txSize")
 	}

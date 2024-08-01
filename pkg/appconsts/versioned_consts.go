@@ -39,4 +39,5 @@ var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
 	DefaultTxSizeCostPerByte    = TxSizeCostPerByte(LatestVersion)
+	DefaultGasPerBlobByte       = GasPerBlobByte(LatestVersion)
 )

@@ -7,6 +7,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -95,8 +97,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
 			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
-			params := app.AccountKeeper.GetParams(ctx)
-			expectedGas := sdk.Gas(len(txBytes)) * params.TxSizeCostPerByte
+			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(v3.Version)
 
 			// Set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)

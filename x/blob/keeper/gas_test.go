@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -58,5 +59,29 @@ func TestPayForBlobGas(t *testing.T) {
 				t.Errorf("Gas consumed by %s: %d, want: %d", tc.name, ctx.GasMeter().GasConsumed(), tc.wantGasConsumed)
 			}
 		})
+	}
+}
+
+func TestChangingGasParam(t *testing.T) {
+	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
+	k, stateStore, _ := CreateKeeper(t, v2.Version)
+	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+
+	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+	_, err := k.PayForBlobs(sdk.WrapSDKContext(ctx1), &msg)
+	require.NoError(t, err)
+
+	params := k.GetParams(tempCtx)
+	params.GasPerBlobByte++
+	k.SetParams(tempCtx, params)
+
+	ctx2 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+	_, err = k.PayForBlobs(sdk.WrapSDKContext(ctx2), &msg)
+	require.NoError(t, err)
+
+	if ctx1.GasMeter().GasConsumed() >= ctx2.GasMeter().GasConsumedToLimit() {
+		t.Errorf("Gas consumed was not increased upon incrementing param, before: %d, after: %d",
+			ctx1.GasMeter().GasConsumed(), ctx2.GasMeter().GasConsumedToLimit(),
+		)
 	}
 }

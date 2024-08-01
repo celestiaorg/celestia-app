@@ -13,10 +13,6 @@ const (
 	// maximum number of bytes allowed in a valid block.
 	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
 
-	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
-	// included in a PayForBlobs txn
-	DefaultGasPerBlobByte = 8
-
 	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
 	// The min gas price acts as a filter. Transactions below that limit will not pass
 	// a nodes `CheckTx` and thus not be proposed by that node.
