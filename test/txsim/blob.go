@@ -69,7 +69,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	sizes := make([]int, numBlobs)
 	namespaces := make([]share.Namespace, numBlobs)
 	for i := range sizes {
-		if s.namespace.ID() != nil {
+		if s.namespace.Bytes() != nil {
 			namespaces[i] = s.namespace
 		} else {
 			// generate a random namespace for the blob

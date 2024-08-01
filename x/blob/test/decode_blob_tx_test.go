@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/tendermint/tendermint/proto/tendermint/blockchain"
@@ -79,7 +79,7 @@ func getTestdataBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
 }
 
 func getTxBytes(txBytes []byte) []byte {
-	bTx, isBlob, err := share.UnmarshalBlobTx(txBytes)
+	bTx, isBlob, err := tx.UnmarshalBlobTx(txBytes)
 	if isBlob {
 		if err != nil {
 			panic(err)

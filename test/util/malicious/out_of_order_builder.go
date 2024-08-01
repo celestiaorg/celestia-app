@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -27,7 +28,7 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (sq
 	normalTxs := make([][]byte, 0, len(txs))
 	blobTxs := make([][]byte, 0, len(txs))
 	for idx, tx := range txs {
-		blobTx, isBlobTx, err := share.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			if err != nil {
 				return nil, nil, fmt.Errorf("unmarshaling blob tx %d: %w", idx, err)

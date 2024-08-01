@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -83,12 +84,12 @@ func TestCheckTx(t *testing.T) {
 					[]int{100},
 				)[0]
 
-				dtx, _, err := share.UnmarshalBlobTx(btx)
+				dtx, _, err := tx.UnmarshalBlobTx(btx)
 				require.NoError(t, err)
-				newBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+				newBlob, err := share.NewBlob(share.RandomBlobNamespace(), dtx.Blobs[0].Data(), appconsts.DefaultShareVersion, nil)
 				require.NoError(t, err)
 				dtx.Blobs[0] = newBlob
-				bbtx, err := share.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
+				bbtx, err := tx.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
 			},

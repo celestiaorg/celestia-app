@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -124,7 +124,7 @@ func RandBlobTxsWithManualSequence(
 		}
 
 		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
-		tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+		transaction, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 		require.NoError(t, err)
 		if invalidSignature {
 			builder := cfg.NewTxBuilder()
@@ -142,11 +142,11 @@ func RandBlobTxsWithManualSequence(
 			})
 			require.NoError(t, err)
 
-			tx, err = signer.EncodeTx(builder.GetTx())
+			transaction, err = signer.EncodeTx(builder.GetTx())
 			require.NoError(t, err)
 		}
 
-		cTx, err := share.MarshalBlobTx(tx, blobs...)
+		cTx, err := tx.MarshalBlobTx(transaction, blobs...)
 		if err != nil {
 			panic(err)
 		}

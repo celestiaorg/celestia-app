@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -433,7 +434,7 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 	// Deliver Blob Txs
 	if len(encodedBlobTx) != 0 {
 		// Deliver Blob Tx
-		blob, isBlobTx, err := share.UnmarshalBlobTx(encodedBlobTx)
+		blob, isBlobTx, err := tx.UnmarshalBlobTx(encodedBlobTx)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
 		}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -28,7 +29,7 @@ func NewBlob(ns share.Namespace, data []byte, shareVersion uint8) (*share.Blob, 
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *share.BlobTx, subtreeRootThreshold int) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int) error {
 	if bTx == nil {
 		return ErrNoBlobs
 	}

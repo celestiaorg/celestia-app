@@ -13,6 +13,7 @@ import (
 
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 )
 
 // Signer is struct for building and signing Celestia transactions
@@ -106,7 +107,7 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts
 		return nil, 0, err
 	}
 
-	blobTx, err := share.MarshalBlobTx(txBytes, blobs...)
+	blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
 	return blobTx, sequence, err
 }
 

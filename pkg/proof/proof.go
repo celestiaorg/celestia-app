@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/tendermint/tendermint/crypto/merkle"
 )
 
@@ -27,12 +28,12 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (ShareProof, 
 	if err != nil {
 		return ShareProof{}, err
 	}
-
+	
 	dataSquare, err := builder.Export()
 	if err != nil {
 		return ShareProof{}, err
 	}
-
+	
 	txIndexInt, err := safeConvertUint64ToInt(txIndex)
 	if err != nil {
 		return ShareProof{}, err
@@ -47,7 +48,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (ShareProof, 
 }
 
 func getTxNamespace(tx []byte) (ns share.Namespace) {
-	_, isBlobTx, _ := share.UnmarshalBlobTx(tx)
+	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx)
 	if isBlobTx {
 		return share.PayForBlobNamespace
 	}

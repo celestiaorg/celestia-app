@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -304,7 +305,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Si
 
 	require.NoError(t, err)
 
-	btx, err := share.MarshalBlobTx(rawTx, blobs...)
+	btx, err := tx.MarshalBlobTx(rawTx, blobs...)
 	require.NoError(t, err)
 	return btx
 }

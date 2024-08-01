@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -355,7 +356,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
 func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
-	blobTx, isBlobTx, err := share.UnmarshalBlobTx(txBytes)
+	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
 		// only check the error if the bytes are supposed to be of type blob tx
 		if err != nil {
@@ -401,7 +402,7 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 
 	// rewrap the blob tx if it was originally a blob tx
 	if isBlobTx {
-		newTxBytes, err = share.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
 		if err != nil {
 			return nil, err
 		}

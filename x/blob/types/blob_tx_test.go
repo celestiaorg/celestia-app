@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func TestValidateBlobTx(t *testing.T) {
 
 	type test struct {
 		name        string
-		getTx       func() *share.BlobTx
+		getTx       func() *tx.BlobTx
 		expectedErr error
 	}
 
@@ -61,9 +62,9 @@ func TestValidateBlobTx(t *testing.T) {
 	tests := []test{
 		{
 			name: "normal transaction",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				rawBtx := validRawBtx()
-				btx, _, err := share.UnmarshalBlobTx(rawBtx)
+				btx, _, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 				return btx
 			},
@@ -71,9 +72,9 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "invalid transaction, mismatched namespace",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				rawBtx := validRawBtx()
-				btx, _, err := share.UnmarshalBlobTx(rawBtx)
+				btx, _, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 
 				originalBlob := btx.Blobs[0]
@@ -87,11 +88,11 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "invalid transaction, no pfb",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(signer, 1)
 				b, err := types.NewBlob(share.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
-				return &share.BlobTx{
+				return &tx.BlobTx{
 					Tx:    sendTx[0],
 					Blobs: []*share.Blob{b},
 				}
@@ -100,9 +101,9 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "mismatched number of pfbs and blobs",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				rawBtx := validRawBtx()
-				btx, _, err := share.UnmarshalBlobTx(rawBtx)
+				btx, _, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 				blob, err := types.NewBlob(share.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
@@ -113,7 +114,7 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "invalid share commitment",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				b, err := types.NewBlob(share.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
@@ -137,7 +138,7 @@ func TestValidateBlobTx(t *testing.T) {
 				rawTx, err := signer.CreateTx([]sdk.Msg{msg})
 				require.NoError(t, err)
 
-				btx := &share.BlobTx{
+				btx := &tx.BlobTx{
 					Tx:    rawTx,
 					Blobs: []*share.Blob{b},
 				}
@@ -147,15 +148,15 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "complex transaction with one send and one pfb",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
-				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
+				transaction := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
 					tmrand.NewRand(),
 					signer,
 					sendMsg,
 				)
-				btx, ok, err := share.UnmarshalBlobTx(tx)
+				btx, ok, err := tx.UnmarshalBlobTx(transaction)
 				require.NoError(t, err)
 				require.True(t, ok)
 				return btx
@@ -164,9 +165,9 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "only send tx",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				sendtx := blobfactory.GenerateManyRawSendTxs(signer, 1)[0]
-				return &share.BlobTx{
+				return &tx.BlobTx{
 					Tx: sendtx,
 				}
 			},
@@ -174,13 +175,13 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with two blobs w/ different namespaces",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
 					blobfactory.RandBlobsWithNamespace(
 						[]share.Namespace{share.RandomBlobNamespace(), share.RandomBlobNamespace()},
 						[]int{100, 100}))
 				require.NoError(t, err)
-				btx, isBlobTx, err := share.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 				require.True(t, isBlobTx)
 				return btx
@@ -189,14 +190,14 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with two large blobs w/ different namespaces",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
 					blobfactory.RandBlobsWithNamespace(
 						[]share.Namespace{share.RandomBlobNamespace(), share.RandomBlobNamespace()},
 						[]int{100000, 1000000}),
 				)
 				require.NoError(t, err)
-				btx, isBlobTx, err := share.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 				require.True(t, isBlobTx)
 				return btx
@@ -205,7 +206,7 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with two blobs w/ same namespace",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				ns := share.RandomBlobNamespace()
 				rawBtx, _, err := signer.CreatePayForBlobs(acc.Name(),
 					blobfactory.RandBlobsWithNamespace(
@@ -213,7 +214,7 @@ func TestValidateBlobTx(t *testing.T) {
 						[]int{100, 100}),
 				)
 				require.NoError(t, err)
-				btx, isBlobTx, err := share.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 				require.True(t, isBlobTx)
 				return btx
@@ -222,7 +223,7 @@ func TestValidateBlobTx(t *testing.T) {
 		},
 		{
 			name: "normal transaction with one hundred blobs of the same namespace",
-			getTx: func() *share.BlobTx {
+			getTx: func() *tx.BlobTx {
 				count := 100
 				ns := share.RandomBlobNamespace()
 				sizes := make([]int, count)
@@ -237,7 +238,7 @@ func TestValidateBlobTx(t *testing.T) {
 						sizes,
 					))
 				require.NoError(t, err)
-				btx, isBlobTx, err := share.UnmarshalBlobTx(rawBtx)
+				btx, isBlobTx, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
 				require.True(t, isBlobTx)
 				return btx

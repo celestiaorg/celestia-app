@@ -11,6 +11,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -55,7 +56,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		blobTx, isBlobTx, err := share.UnmarshalBlobTx(rawTx)
+		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with blob tx %d", idx), err)
