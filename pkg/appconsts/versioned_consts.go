@@ -3,6 +3,7 @@ package appconsts
 import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 )
 
 const (
@@ -26,7 +27,16 @@ func SquareSizeUpperBound(_ uint64) int {
 	return v1.SquareSizeUpperBound
 }
 
+func TxSizeCostPerByte(_ uint64) uint64 {
+	return v3.TxSizeCostPerByte
+}
+
+func GasPerBlobByte(_ uint64) uint32 {
+	return v3.GasPerBlobByte
+}
+
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
+	DefaultTxSizeCostPerByte    = TxSizeCostPerByte(LatestVersion)
 )

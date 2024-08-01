@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	appv3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -107,6 +108,7 @@ var maccPerms = map[string][]string{
 const (
 	v1                    = appv1.Version
 	v2                    = appv2.Version
+	v3                    = appv3.Version
 	DefaultInitialVersion = v1
 )
 
@@ -165,7 +167,7 @@ type App struct {
 	configurator module.Configurator
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
-	upgradeHeightV2 int64
+	upgradeHeightV3 int64
 	// MsgGateKeeper is used to define which messages are accepted for a given
 	// app version.
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
@@ -183,7 +185,7 @@ func New(
 	traceStore io.Writer,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeHeightV2 int64,
+	upgradeHeightV3 int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -209,7 +211,7 @@ func New(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
-		upgradeHeightV2:   upgradeHeightV2,
+		upgradeHeightV3:   upgradeHeightV3,
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, encodingConfig.Amino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
@@ -444,7 +446,7 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	if req.Header.Height == app.upgradeHeightV2 {
+	if req.Header.Height == app.upgradeHeightV3 {
 		app.BaseApp.Logger().Info("upgraded from app version 1 to 2")
 	}
 	return app.manager.BeginBlock(ctx, req)
@@ -457,8 +459,8 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
-		if req.Height == app.upgradeHeightV2-1 {
-			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
+		if req.Height == app.upgradeHeightV3-1 {
+			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 3", currentVersion))
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
 

@@ -6,11 +6,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/shares"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 const (
@@ -89,7 +92,12 @@ func TestPFBAnteHandler(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
-			ctx := sdk.Context{}.WithGasMeter(sdk.NewGasMeter(tc.txGas)).WithIsCheckTx(true)
+			ctx := sdk.NewContext(nil, tmproto.Header{
+				Version: version.Consensus{
+					App: v1.Version,
+				},
+			}, true, nil).WithGasMeter(sdk.NewGasMeter(tc.txGas))
+
 			ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
 			txBuilder := txConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
