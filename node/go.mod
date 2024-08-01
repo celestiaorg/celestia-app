@@ -3,8 +3,8 @@ module github.com/celestiaorg/celestia-app/node
 go 1.22.4
 
 require (
-	github.com/celestiaorg/celestia-app v1.13.0
-	github.com/celestiaorg/celestia-app/v2 v2.0.0-rc4
+	github.com/celestiaorg/celestia-app/v2 v2.0.0
+	github.com/celestiaorg/celestia-app/x/blob v0.0.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
@@ -34,11 +34,11 @@ require (
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
+	github.com/celestiaorg/celestia-app v1.13.0 // indirect
 	github.com/celestiaorg/go-square v1.1.0 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240627094109-7d01436067a3 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.22.0 // indirect
-	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 // indirect
 	github.com/celestiaorg/rsmt2d v0.14.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -208,6 +208,7 @@ replace (
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
 	github.com/celestiaorg/celestia-app/v2 => ../
+	github.com/celestiaorg/celestia-app/x/blob => ../x/blob
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0

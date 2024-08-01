@@ -1,8 +1,8 @@
 package ante
 
 import (
-	blobante "github.com/celestiaorg/celestia-app/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/x/blob/keeper"
+	blobsnewante "github.com/celestiaorg/celestia-app/x/blob/ante"
+	blobkeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -15,7 +15,7 @@ import (
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
 	bankKeeper authtypes.BankKeeper,
-	blobKeeper blob.Keeper,
+	blobKeeper blobkeeper.Keeper,
 	feegrantKeeper ante.FeegrantKeeper,
 	signModeHandler signing.SignModeHandler,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
@@ -63,14 +63,14 @@ func NewAnteHandler(
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
-		blobante.NewMinGasPFBDecorator(blobKeeper),
+		blobsnewante.NewMinGasPFBDecorator(blobKeeper),
 		// Ensure that the tx's total blob size is <= the max blob size.
 		// Only applies to app version == 1.
-		blobante.NewMaxTotalBlobSizeDecorator(blobKeeper),
+		blobsnewante.NewMaxTotalBlobSizeDecorator(blobKeeper),
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square. Only applies to app version
 		// >= 2.
-		blobante.NewBlobShareDecorator(blobKeeper),
+		blobsnewante.NewBlobShareDecorator(blobKeeper),
 		// Ensure that tx's with a MsgSubmitProposal have at least one proposal
 		// message.
 		NewGovProposalDecorator(),
