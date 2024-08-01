@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "2cd70a5"
+	compactBlocksVersion = "73d2276"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 10
+		nodes          = 5
 		timeoutCommit  = time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
@@ -57,13 +57,14 @@ func Run() error {
 		return err
 	}
 
-	err = network.CreateTxClients(
+	err = network.CreateTxClient(
+		"txsim",
 		compactBlocksVersion,
-		50,
+		80,
 		"1000-8000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:5],
+		gRPCEndpoints[0],
 	)
 	if err != nil {
 		return err
