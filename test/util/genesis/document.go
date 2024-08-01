@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -110,6 +110,7 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 type Account struct {
 	PubKey  cryptotypes.PubKey
 	Balance int64
+	Name    string
 }
 
 func (ga Account) ValidateBasic() error {
@@ -118,6 +119,9 @@ func (ga Account) ValidateBasic() error {
 	}
 	if ga.Balance <= 0 {
 		return fmt.Errorf("balance must be greater than 0")
+	}
+	if ga.Name == "" {
+		return fmt.Errorf("name cannot be empty")
 	}
 	return nil
 }

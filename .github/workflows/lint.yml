@@ -20,9 +20,9 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - uses: golangci/golangci-lint-action@v6.0.1
+      - uses: golangci/golangci-lint-action@v6.1.0
         with:
-          version: v1.57.0
+          version: v1.59.1
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
           skip-pkg-cache: true

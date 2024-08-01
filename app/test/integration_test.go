@@ -8,9 +8,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,12 +18,12 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/go-square/square"

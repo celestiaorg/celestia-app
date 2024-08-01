@@ -3,14 +3,15 @@ package testnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -218,6 +219,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	err = t.genesis.AddAccount(genesis.Account{
 		PubKey:  pk,
 		Balance: tokens,
+		Name:    name,
 	})
 	if err != nil {
 		return nil, err
@@ -321,7 +323,48 @@ func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	return rpcEndpoints, nil
 }
 
-func (t *Testnet) Start() error {
+// WaitToSync waits for the started nodes to sync with the network and move
+// past the genesis block.
+func (t *Testnet) WaitToSync() error {
+	genesisNodes := make([]*Node, 0)
+	for _, node := range t.nodes {
+		if node.StartHeight == 0 {
+			genesisNodes = append(genesisNodes, node)
+		}
+	}
+	for _, node := range genesisNodes {
+		log.Info().Str("name", node.Name).Msg(
+			"waiting for node to sync")
+		client, err := node.Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
+		}
+		for i := 0; i < 10; i++ {
+			resp, err := client.Status(context.Background())
+			if err == nil {
+				if resp.SyncInfo.LatestBlockHeight > 0 {
+					log.Info().Int("attempts", i).Str("name", node.Name).Msg(
+						"node has synced")
+					break
+				}
+			} else {
+				err = errors.New("error getting status")
+			}
+			if i == 9 {
+				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
+			}
+			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
+				"node is not synced yet, waiting...")
+			time.Sleep(time.Duration(i) * time.Second)
+		}
+	}
+	return nil
+}
+
+// StartNodes starts the testnet nodes and forwards the ports.
+// It does not wait for the nodes to produce blocks.
+// For that, use WaitToSync.
+func (t *Testnet) StartNodes() error {
 	genesisNodes := make([]*Node, 0)
 	for _, node := range t.nodes {
 		if node.StartHeight == 0 {
@@ -335,10 +378,6 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
-	err := t.StartTxClients()
-	if err != nil {
-		return err
-	}
 	log.Info().Msg("forwarding ports for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {
@@ -347,39 +386,23 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+	return nil
+}
+
+func (t *Testnet) Start() error {
+	// start nodes and forward ports
+	err := t.StartNodes()
+	if err != nil {
+		return err
+	}
 	// wait for nodes to sync
 	log.Info().Msg("waiting for genesis nodes to sync")
-	for i, node := range genesisNodes {
-		log.Info().Int("Index", i).Str("name", node.Name).Msg(
-			"waiting for node to sync")
-		client, err := node.Client()
-		if err != nil {
-			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
-		}
-		for i := 0; i < 10; i++ {
-			resp, err := client.Status(context.Background())
-			if err != nil {
-				if i == 9 {
-					return fmt.Errorf("node %s status response: %w", node.Name, err)
-				}
-				time.Sleep(time.Second)
-				continue
-			}
-			if resp.SyncInfo.LatestBlockHeight > 0 {
-				log.Info().Int("Index", i).Str("name", node.Name).Msg(
-					"node has synced")
-				break
-			}
-			log.Info().Int64("height", resp.SyncInfo.LatestBlockHeight).Msg(
-				"height is 0, waiting...")
-			if i == 9 {
-				return fmt.Errorf("failed to start node %s", node.Name)
-			}
-			fmt.Printf("node %s is not synced yet, waiting...\n", node.Name)
-			time.Sleep(1 * time.Second)
-		}
+	err = t.WaitToSync()
+	if err != nil {
+		return err
 	}
-	return nil
+
+	return t.StartTxClients()
 }
 
 func (t *Testnet) Cleanup() {

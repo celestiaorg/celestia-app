@@ -108,7 +108,7 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 
 ### Usage as a library
 
-If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatabilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
+If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatibilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
 
 ## Contributing
 
@@ -118,7 +118,7 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.57.0
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.59.1
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)

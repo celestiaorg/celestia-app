@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	bstypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	bstypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
 // Modifier allows for arbitrary changes to be made on the genesis state
@@ -26,6 +27,16 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) Modifier {
 		blobGenState := blobtypes.DefaultGenesis()
 		blobGenState.Params = params
 		state[blobtypes.ModuleName] = codec.MustMarshalJSON(blobGenState)
+		return state
+	}
+}
+
+// SetSlashingParams will set the provided slashing params as genesis state.
+func SetSlashingParams(codec codec.Codec, parans slashingtypes.Params) Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		slashingGenState := slashingtypes.DefaultGenesisState()
+		slashingGenState.Params = parans
+		state[slashingtypes.ModuleName] = codec.MustMarshalJSON(slashingGenState)
 		return state
 	}
 }
