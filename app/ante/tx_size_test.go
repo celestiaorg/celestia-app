@@ -59,8 +59,6 @@ func setup() (*app.App, sdk.Context, client.Context, sdk.AnteHandler, error) {
 func TestConsumeGasForTxSize(t *testing.T) {
 	app, ctx, clientCtx, _, err := setup()
 	require.NoError(t, err)
-	sub, exs := app.ParamsKeeper.GetSubspace(authtypes.ModuleName)
-	fmt.Println(sub, exs)
 	var txBuilder client.TxBuilder
 
 	// keys and addresses
