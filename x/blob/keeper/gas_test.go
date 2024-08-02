@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -64,7 +63,7 @@ func TestPayForBlobGas(t *testing.T) {
 
 func TestChangingGasParam(t *testing.T) {
 	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
-	k, stateStore, _ := CreateKeeper(t, v2.Version)
+	k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
 	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
 
 	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)

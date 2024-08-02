@@ -21,7 +21,7 @@ import (
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	require "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -33,7 +33,7 @@ func setup() (*app.App, sdk.Context, client.Context, sdk.AnteHandler, error) {
 
 	// Set up TxConfig.
 	encodingConfig := simapp.MakeTestEncodingConfig()
-	// We're using TestMsg encoding in some tests, so register it here.
+	// We're using TestMsg encoding in the test, so register it here.
 	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
 	testdata.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 
@@ -97,7 +97,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 
 			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(v3.Version)
 
-			// Set suite.ctx with TxBytes manually
+			// set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)
 
 			// track how much gas is necessary to retrieve parameters
@@ -141,7 +141,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	}
 }
 
-// CreateTestTx is a helper function to create a tx given multiple inputs.
+// CreateTestTx creates a test tx given multiple inputs.
 func CreateTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []cryptotypes.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.

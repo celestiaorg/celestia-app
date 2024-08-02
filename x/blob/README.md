@@ -46,7 +46,7 @@ message Params {
 
 #### `GasPerBlobByte`
 
-in v1 and v2 `GasPerBlobByte` is the amount of gas that is consumed per byte of blob data
+In v1 and v2`GasPerBlobByte` is the amount of gas that is consumed per byte of blob data
 when a `MsgPayForBlobs` is processed. Currently, the default value is 8. This
 value is set below that of normal transaction gas consumption, which is 10.
 
