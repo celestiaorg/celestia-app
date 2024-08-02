@@ -1,7 +1,7 @@
 package ante
 
 import (
-	"github.com/rootulp/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"

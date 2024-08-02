@@ -16,11 +16,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/rootulp/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	paycli "github.com/celestiaorg/celestia-app/v2/x/blob/client/cli"
 	appns "github.com/celestiaorg/go-square/namespace"
-	paycli "github.com/rootulp/celestia-app/x/blob/client/cli"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
