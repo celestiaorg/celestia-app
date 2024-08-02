@@ -5,24 +5,24 @@ import (
 	"io"
 	"slices"
 
-	"github.com/celestiaorg/celestia-app/v2/app/ante"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/app/module"
-	"github.com/celestiaorg/celestia-app/v2/app/posthandler"
-	appv1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
-	appv2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v2/pkg/proof"
-	blobkeeper "github.com/celestiaorg/celestia-app/v2/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	blobstreamkeeper "github.com/celestiaorg/celestia-app/v2/x/blobstream/keeper"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
-	"github.com/celestiaorg/celestia-app/v2/x/minfee"
-	mintkeeper "github.com/celestiaorg/celestia-app/v2/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v2/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
-	"github.com/celestiaorg/celestia-app/v2/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v2/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v2/x/tokenfilter"
+	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app/module"
+	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
+	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobstreamkeeper "github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	mintkeeper "github.com/celestiaorg/celestia-app/v3/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v3/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v3/x/tokenfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -430,7 +430,7 @@ func New(
 	// assert that keys are present for all supported versions
 	app.assertAllKeysArePresent()
 
-	// we don't seal the store until the app version has been initailised
+	// we don't seal the store until the app version has been initialised
 	// this will just initialize the base keys (i.e. the param store)
 	if err := app.CommitMultiStore().LoadLatestVersion(); err != nil {
 		tmos.Exit(err.Error())
@@ -463,7 +463,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SetAppVersion(ctx, v2)
 
 			// The blobstream module was disabled in v2 so the following line
-			// removes the the params subspace for blobstream.
+			// removes the params subspace for blobstream.
 			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {
 				panic(err)
 			}
@@ -571,7 +571,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 func (app *App) mountKeysAndInit(appVersion uint64) {
 	app.MountKVStores(app.versionedKeys(appVersion))
 
-	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
+	// Invoke load latest version for its side-effect of invoking baseapp.Init()
 	if err := app.LoadLatestVersion(); err != nil {
 		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
 	}

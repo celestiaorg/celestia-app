@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
 	wrapper "github.com/celestiaorg/blobstream-contracts/v3/wrappers/Blobstream.sol"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"

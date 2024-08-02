@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
+	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
