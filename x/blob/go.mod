@@ -1,4 +1,4 @@
-module github.com/rootulp/celestia-app/x/blob
+module github.com/celestiaorg/celestia-app/x/blob
 
 go 1.22.4
 
