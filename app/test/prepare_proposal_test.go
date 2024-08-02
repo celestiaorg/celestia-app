@@ -197,7 +197,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			})
 			// check that we have the expected number of transactions
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
-			// check the the expected txs were removed
+			// check that the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
 				require.NotContains(t, resp.BlockData.Txs, ptx)
 			}
