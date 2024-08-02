@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
-	github.com/celestiaorg/celestia-app/x/blob v0.0.0
+	github.com/celestiaorg/celestia-app/x/blob v1.0.0
 	github.com/celestiaorg/go-square v1.1.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240627094109-7d01436067a3
 	github.com/celestiaorg/knuu v0.14.0

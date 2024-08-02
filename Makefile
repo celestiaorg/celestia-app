@@ -217,6 +217,6 @@ prebuilt-binary:
 build-node:
 	@echo "--> Building celestia-app/node and outputting binary to build/node"
 	@mkdir -p build/
-	@cd ./node && go build -v -o ../build/node .
+	@cd ./node && go build -o ../build/node .
 	@go mod tidy
 .PHONY: build-node
