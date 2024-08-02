@@ -8,5 +8,5 @@ import (
 
 func TestGetApps(t *testing.T) {
 	got := GetApps()
-	assert.Len(t, got, 1)
+	assert.Len(t, got, 2)
 }
