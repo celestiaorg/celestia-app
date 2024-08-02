@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -20,6 +19,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/input"
 	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/rootulp/celestia-app/x/blob/types"
 )
 
 const (

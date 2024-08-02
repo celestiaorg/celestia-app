@@ -6,9 +6,8 @@ require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
-	github.com/celestiaorg/celestia-app/x/blob v1.0.0
 	github.com/celestiaorg/go-square v1.1.0
-	github.com/celestiaorg/go-square/merkle v0.0.0-20240627094109-7d01436067a3
+	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/knuu v0.14.0
 	github.com/celestiaorg/nmt v0.22.0
 	github.com/celestiaorg/rsmt2d v0.14.0
@@ -25,15 +24,16 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/cast v1.6.0
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
 	github.com/tendermint/tm-db v0.6.7
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	google.golang.org/genproto/googleapis/api v0.0.0-20240730163845-b1a4ccb954bf
+	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a
+	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -131,6 +131,7 @@ require (
 	github.com/hashicorp/go-getter v1.7.4 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
+	github.com/hashicorp/go-uuid v1.0.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -184,6 +185,7 @@ require (
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rs/cors v1.8.3 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
@@ -217,20 +219,19 @@ require (
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.24.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/term v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/api v0.169.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240725223205-93522f1f2a9f // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.28.2 // indirect
 	k8s.io/apimachinery v0.28.2 // indirect
@@ -246,7 +247,6 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/celestia-app/x/blob => ./x/blob
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0

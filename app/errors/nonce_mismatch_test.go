@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	blob "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"

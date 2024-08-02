@@ -6,10 +6,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/v2/x/blobstream/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v2/x/minfee"
 	"github.com/celestiaorg/celestia-app/v2/x/paramfilter"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"

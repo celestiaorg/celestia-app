@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/rootulp/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )

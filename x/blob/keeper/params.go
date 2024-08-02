@@ -1,8 +1,8 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/rootulp/celestia-app/x/blob/types"
 )
 
 // GetParams gets all parameters as types.Params

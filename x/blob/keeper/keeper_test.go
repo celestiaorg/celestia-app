@@ -7,8 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -16,6 +14,8 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/rootulp/celestia-app/x/blob/keeper"
+	"github.com/rootulp/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"

@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/blob"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

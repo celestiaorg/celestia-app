@@ -3,8 +3,8 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/rootulp/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 )
 
