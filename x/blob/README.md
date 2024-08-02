@@ -11,7 +11,7 @@ To use the blob module, users create and submit a `BlobTx` that is composed of:
 1. A single [`sdk.Tx`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.15.0-sdk-v0.46.13/docs/architecture/adr-020-protobuf-transaction-encoding.md) which encapsulates a message of type `MsgPayForBlobs`.
 1. Multiple `Blob`s: the data they wish to publish.
 
-After the `BlobTx` is submitted to the network, a block producer separates 
+After the `BlobTx` is submitted to the network, a block producer separates
 the `sdk.Tx` from the blob(s). Both components get included in the
 [data square](../../specs/src/specs/data_square_layout.md) in different namespaces:
 
