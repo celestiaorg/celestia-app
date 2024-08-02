@@ -28,7 +28,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// TxStatusRequest is the request type for the TxStatus gRPC method.
 type TxStatusRequest struct {
+	// this is the hex encoded transaction hash (should be 64 bytes long)
 	TxId string `protobuf:"bytes,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
 }
 
@@ -72,6 +74,7 @@ func (m *TxStatusRequest) GetTxId() string {
 	return ""
 }
 
+// TxStatusResponse is the response type for the TxStatus gRPC method.
 type TxStatusResponse struct {
 	Height int64  `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
 	Index  uint32 `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`

@@ -101,7 +101,6 @@ type TxClient struct {
 	defaultGasPrice float64
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
-	
 }
 
 // NewTxClient returns a new signer using the provided keyring
