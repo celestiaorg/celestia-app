@@ -1,5 +1,5 @@
 syntax = "proto3";
-package celestia.blob.v1;
+package celestia.blob.v2;
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 

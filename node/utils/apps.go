@@ -11,9 +11,9 @@ import (
 )
 
 func GetApps() []types.Application {
-	// v1 := NewAppV1()
-	v2 := NewAppV2()
-	return []types.Application{v2}
+	v1 := NewAppV1()
+	// v2 := NewAppV2()
+	return []types.Application{v1}
 }
 
 func NewAppV1() *v1.App {

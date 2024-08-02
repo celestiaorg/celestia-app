@@ -1,5 +1,5 @@
 syntax = "proto3";
-package celestia.qgb.v1;
+package celestia.qgb.v2;
 
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";

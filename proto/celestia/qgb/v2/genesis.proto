@@ -1,8 +1,8 @@
 syntax = "proto3";
-package celestia.qgb.v1;
+package celestia.qgb.v2;
 
 import "gogoproto/gogo.proto";
-import "celestia/qgb/v1/types.proto";
+import "celestia/qgb/v2/types.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 
