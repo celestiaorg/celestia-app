@@ -13,10 +13,10 @@ import (
 )
 
 func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
-	cfg := app.DefaultConsensusConfig() //config.DefaultConfig()
+	cfg := app.DefaultConsensusConfig()
+	cfg.TxIndex.Indexer = "kv"
 	cfg.Consensus.TimeoutPropose = config.DefaultConsensusConfig().TimeoutPropose
 	cfg.Consensus.TimeoutCommit = config.DefaultConsensusConfig().TimeoutCommit
-	cfg.TxIndex.Indexer = "kv"
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
