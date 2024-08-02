@@ -3,8 +3,6 @@ module github.com/celestiaorg/celestia-app/node
 go 1.22.4
 
 require (
-	github.com/celestiaorg/celestia-app v0.0.0
-	github.com/celestiaorg/celestia-app/x/blob v0.0.0
 	github.com/celestiaorg/celestia-app/v2 v2.0.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/spf13/cobra v1.8.1
@@ -35,7 +33,8 @@ require (
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
-	github.com/celestiaorg/celestia-app v1.13.0 // indirect
+	github.com/celestiaorg/celestia-app v1.14.0 // indirect
+	github.com/celestiaorg/celestia-app/x/blob v0.0.0 // indirect
 	github.com/celestiaorg/go-square v1.1.0 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240627094109-7d01436067a3 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
@@ -181,13 +180,13 @@ require (
 	go.opentelemetry.io/otel/sdk v1.26.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/api v0.171.0 // indirect
@@ -208,11 +207,11 @@ replace (
 	// replace errors to avoid a panic when registering duplicate errors
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
 	// replace celestia-app with a fork because this fork _should_ not include x/blob any more.
-	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.1.0
-	// replace x/blob with a distinct Go module that contains x/blob.
-	github.com/celestiaorg/celestia-app/x/blob => github.com/rootulp/celestia-app/x/blob v1.4.0
+	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.20.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init().
 	github.com/celestiaorg/celestia-app/v2 => ../
+	// replace x/blob with a distinct Go module that contains x/blob.
+	// github.com/celestiaorg/celestia-app/x/blob => github.com/rootulp/blob v1.1.0
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
