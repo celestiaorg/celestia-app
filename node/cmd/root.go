@@ -14,16 +14,7 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "node",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
+	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		currentAppVersion := uint64(1)
 		apps := utils.GetApps()
@@ -33,9 +24,27 @@ to quickly create a Cobra application.`,
 		config := testnode.DefaultConfig()
 		cctx, err := utils.StartNode(config)
 		if err != nil {
+			fmt.Printf("Failed to start node: %v\n", err)
 			return err
 		}
 		fmt.Printf("cctx: %v\n", cctx)
+		fmt.Printf("chainID %v\n", cctx.ChainID)
+		latestHeight, err := cctx.LatestHeight()
+		if err != nil {
+			fmt.Printf("Failed to get latest height: %v\n", err)
+			return err
+		}
+		fmt.Printf("latestHeight %v\n", latestHeight)
+		err = cctx.WaitForNextBlock()
+		if err != nil {
+			fmt.Printf("waiting for next block failed: %v\n", err) // fails because context canceled
+		}
+		// height, err := cctx.WaitForHeight(2)
+		// if err != nil {
+		// 	fmt.Printf("WaitForHeight failed: %v\n", err)
+		// 	return err
+		// }
+		// fmt.Printf("height %v\n", height)
 		return nil
 	},
 }
