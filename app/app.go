@@ -5,9 +5,31 @@ import (
 	"os"
 	"path/filepath"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+=======
+	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	celestiatx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v3/app/module"
+	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
+	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
+	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobstreamkeeper "github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	mintkeeper "github.com/celestiaorg/celestia-app/v3/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v3/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v3/x/tokenfilter"
+>>>>>>> bb4f7128 (feat: gRPC server for TxStatus endpoint (#3754))
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -682,11 +704,13 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 
 	// Register the
 	ModuleBasics.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
+	celestiatx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 }
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
+	celestiatx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

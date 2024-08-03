@@ -5,9 +5,24 @@ import (
 	"testing"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+=======
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/go-square/namespace"
+	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
+>>>>>>> bb4f7128 (feat: gRPC server for TxStatus endpoint (#3754))
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -293,6 +308,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	}
 }
 
+<<<<<<< HEAD
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 	rec, err := kr.Key(account)
 	if err != nil {
@@ -303,4 +319,50 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
+=======
+func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
+	t := s.T()
+	t.Run("testnode can query network min gas price", func(t *testing.T) {
+		queryClient := minfee.NewQueryClient(s.cctx.GRPCClient)
+		resp, err := queryClient.NetworkMinGasPrice(s.cctx.GoContext(), &minfee.QueryNetworkMinGasPrice{})
+		require.NoError(t, err)
+		got, err := resp.NetworkMinGasPrice.Float64()
+		require.NoError(t, err)
+		assert.Equal(t, v2.NetworkMinGasPrice, got)
+	})
+	t.Run("testnode can query local min gas price", func(t *testing.T) {
+		serviceClient := nodeservice.NewServiceClient(s.cctx.GRPCClient)
+		resp, err := serviceClient.Config(s.cctx.GoContext(), &nodeservice.ConfigRequest{})
+		require.NoError(t, err)
+		want := "0.002000000000000000utia"
+		assert.Equal(t, want, resp.MinimumGasPrice)
+	})
+
+	t.Run("testnode can query tx status", func(t *testing.T) {
+		// Create a dummy tx hash
+		dummyTxHash := "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+
+		// Create a new tx client
+		txClient := tx.NewTxClient(s.cctx.GRPCClient)
+
+		// Query for the tx status
+		resp, err := txClient.TxStatus(s.cctx.GoContext(), &tx.TxStatusRequest{
+			TxId: dummyTxHash,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, resp.Status, "UNKNOWN")
+
+		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
+		require.NoError(t, err)
+		blobs := blobfactory.RandBlobsWithNamespace([]namespace.Namespace{namespace.RandomNamespace()}, []int{1000})
+		res, err := txSubmitter.SubmitPayForBlob(s.cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
+		require.NoError(t, err)
+
+		resp, err = txClient.TxStatus(s.cctx.GoContext(), &tx.TxStatusRequest{
+			TxId: res.TxHash,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, resp.Status, "COMMITTED")
+	})
+>>>>>>> bb4f7128 (feat: gRPC server for TxStatus endpoint (#3754))
 }
