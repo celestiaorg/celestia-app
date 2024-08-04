@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -24,7 +23,7 @@ func StartNode(config *testnode.Config, multiplexer *Multiplexer) (cctx testnode
 		return testnode.Context{}, err
 	}
 
-	cometNode, _, err := newCometNode(baseDir, &config.UniversalTestingConfig, multiplexer)
+	cometNode, err := newCometNode(baseDir, &config.UniversalTestingConfig, multiplexer)
 	if err != nil {
 		return testnode.Context{}, err
 	}
@@ -46,40 +45,31 @@ func StartNode(config *testnode.Config, multiplexer *Multiplexer) (cctx testnode
 // newCometNode creates a ready to use comet node that operates a single
 // validator celestia-app network. It expects that all configuration files are
 // already initialized and saved to the baseDir.
-func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app abci.Application, err error) {
-	// dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	// db, err := dbm.NewGoLevelDB("application", dbPath)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
+func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, err error) {
 	config.AppOptions.Set(flags.FlagHome, baseDir)
-
-	logger := newLogger(config)
-	app = newApp(multiplexer)
-
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
 	cometNode, err = node.NewNode(
 		config.TmConfig,
 		privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile()),
 		nodeKey,
-		proxy.NewLocalClientCreator(app),
+		newProxyClientCreator(multiplexer),
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
-		logger,
+		newLogger(config),
 	)
-
-	return cometNode, app, err
+	if err != nil {
+		return nil, err
+	}
+	return cometNode, err
 }
 
-func newApp(multiplexer *Multiplexer) abci.Application {
+func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {
 	// TODO: need to be able to switch between apps
-	return multiplexer.apps[0]
+	return proxy.NewLocalClientCreator(multiplexer.apps[0])
 }
 
 func newLogger(config *testnode.UniversalTestingConfig) log.Logger {
