@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -22,7 +23,7 @@ var rootCmd = &cobra.Command{
 		fmt.Printf("multiplexer: %v\n", multiplexer)
 
 		config := testnode.DefaultConfig()
-		cctx, err := utils.StartNode(config)
+		cctx, err := utils.StartNode(config, multiplexer)
 		if err != nil {
 			fmt.Printf("Failed to start node: %v\n", err)
 			return err
@@ -45,6 +46,7 @@ var rootCmd = &cobra.Command{
 		// 	return err
 		// }
 		// fmt.Printf("height %v\n", height)
+		time.Sleep(10 * time.Second)
 		return nil
 	},
 }
