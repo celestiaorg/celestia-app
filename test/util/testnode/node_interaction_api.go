@@ -32,28 +32,28 @@ const (
 )
 
 type Context struct {
-	rootCtx context.Context
+	goContext context.Context
 	client.Context
 	apiAddress string
 }
 
-func NewContext(goCtx context.Context, kr keyring.Keyring, tmCfg *tmconfig.Config, chainID, apiAddress string) Context {
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	cctx := client.Context{}.
-		WithKeyring(kr).
-		WithHomeDir(tmCfg.RootDir).
+func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tmconfig.Config, chainID, apiAddress string) Context {
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	clientContext := client.Context{}.
+		WithKeyring(keyring).
+		WithHomeDir(tmConfig.RootDir).
 		WithChainID(chainID).
-		WithInterfaceRegistry(ecfg.InterfaceRegistry).
-		WithCodec(ecfg.Codec).
-		WithLegacyAmino(ecfg.Amino).
-		WithTxConfig(ecfg.TxConfig).
+		WithInterfaceRegistry(config.InterfaceRegistry).
+		WithCodec(config.Codec).
+		WithLegacyAmino(config.Amino).
+		WithTxConfig(config.TxConfig).
 		WithAccountRetriever(authtypes.AccountRetriever{})
 
-	return Context{rootCtx: goCtx, Context: cctx, apiAddress: apiAddress}
+	return Context{goContext: goContext, Context: clientContext, apiAddress: apiAddress}
 }
 
 func (c *Context) GoContext() context.Context {
-	return c.rootCtx
+	return c.goContext
 }
 
 // GenesisTime returns the genesis block time.
@@ -94,7 +94,7 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	ctx, cancel := context.WithTimeout(c.rootCtx, t)
+	ctx, cancel := context.WithTimeout(c.goContext, t)
 	defer cancel()
 
 	var (
@@ -104,8 +104,8 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	for {
 		select {
 		case <-ctx.Done():
-			if c.rootCtx.Err() != nil {
-				return latestHeight, c.rootCtx.Err()
+			if c.goContext.Err() != nil {
+				return latestHeight, c.goContext.Err()
 			}
 			return latestHeight, fmt.Errorf("timeout (%v) exceeded waiting for network to reach height %d. Got to height %d", t, h, latestHeight)
 		case <-ticker.C:
@@ -125,7 +125,7 @@ func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (tim
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	ctx, cancel := context.WithTimeout(c.rootCtx, d)
+	ctx, cancel := context.WithTimeout(c.goContext, d)
 	defer cancel()
 
 	var latestTimestamp time.Time
@@ -195,7 +195,7 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(c.rootCtx, DefaultTimeout)
+	ctx, cancel := context.WithTimeout(c.goContext, DefaultTimeout)
 	defer cancel()
 
 	for {
