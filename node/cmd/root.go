@@ -1,14 +1,20 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
+	"github.com/tendermint/tendermint/proxy"
 )
 
 var cfgFile string
@@ -17,32 +23,65 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		currentAppVersion := uint64(1)
+		// Create a logger
+		logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+
+		// Load configuration
+		cfg := config.DefaultConfig()
+		cfg.RootDir = "."
+		cfg.P2P.ListenAddress = "tcp://0.0.0.0:26656"
+		cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+
+		// Initialize a CometBFT node
 		apps := utils.GetApps()
-		multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
+		// currentAppVersion := uint64(1)
+		// multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
+		// utils.NewMultiplexer(currentAppVersion, apps)
+		proxyApp := proxy.NewLocalClientCreator(apps[0])
+
+		nodeKey, err := p2p.LoadOrGenNodeKey(filepath.Join(cfg.RootDir, "config", "node_key.json"))
+		if err != nil {
+			logger.Error("failed to load or generate node key", "error", err)
+			return err
+		}
+
+		privValidatorKeyFile := filepath.Join(cfg.RootDir, "config", "priv_validator_key.json")
+		privValidatorStateFile := filepath.Join(cfg.RootDir, "data", "priv_validator_state.json")
+		privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
 		config := testnode.DefaultConfig()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		cctx, err := utils.StartNode(ctx, config, multiplexer)
+		genesisDocProvider := node.DefaultGenesisDocProviderFunc(cfg)
+
+		node, err := node.NewNode(
+			cfg,
+			privValidator,
+			nodeKey,
+			proxyApp,
+			genesisDocProvider,
+			node.DefaultDBProvider,
+			node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
+			logger,
+		)
 		if err != nil {
-			fmt.Printf("Failed to start node: %v\n", err)
+			logger.Error("failed to create node", "error", err)
 			return err
 		}
-		fmt.Printf("chainID %v\n", cctx.ChainID)
 
-		latestHeight, err := cctx.LatestHeight()
-		if err != nil {
-			fmt.Printf("Failed to get latest height: %v\n", err)
+		// Start the CometBFT node
+		if err := node.Start(); err != nil {
+			logger.Error("failed to start node", "error", err)
 			return err
 		}
-		fmt.Printf("latestHeight %v\n", latestHeight)
 
-		err = cctx.WaitForNextBlock()
-		if err != nil {
-			fmt.Printf("waiting for next block failed: %v\n", err) // fails because context canceled
-		}
-		return nil
+		// Wait for the node to shut down
+		defer func() {
+			if err := node.Stop(); err != nil {
+				logger.Error("failed to stop node", "error", err)
+			}
+		}()
+
+		// Keep the process running
+		select {}
 	},
 }
 
