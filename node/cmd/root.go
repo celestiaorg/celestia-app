@@ -30,18 +30,18 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("chainID %v\n", cctx.ChainID)
+
 		latestHeight, err := cctx.LatestHeight()
 		if err != nil {
 			fmt.Printf("Failed to get latest height: %v\n", err)
 			return err
 		}
 		fmt.Printf("latestHeight %v\n", latestHeight)
+
 		err = cctx.WaitForNextBlock()
 		if err != nil {
 			fmt.Printf("waiting for next block failed: %v\n", err) // fails because context canceled
 		}
-
-		// time.Sleep(10 * time.Second)
 		return nil
 	},
 }
