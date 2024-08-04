@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -20,15 +20,15 @@ var rootCmd = &cobra.Command{
 		currentAppVersion := uint64(1)
 		apps := utils.GetApps()
 		multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
-		fmt.Printf("multiplexer: %v\n", multiplexer)
-
 		config := testnode.DefaultConfig()
-		cctx, err := utils.StartNode(config, multiplexer)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		cctx, err := utils.StartNode(ctx, config, multiplexer)
 		if err != nil {
 			fmt.Printf("Failed to start node: %v\n", err)
 			return err
 		}
-		fmt.Printf("cctx: %v\n", cctx)
 		fmt.Printf("chainID %v\n", cctx.ChainID)
 		latestHeight, err := cctx.LatestHeight()
 		if err != nil {
@@ -40,13 +40,8 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("waiting for next block failed: %v\n", err) // fails because context canceled
 		}
-		// height, err := cctx.WaitForHeight(2)
-		// if err != nil {
-		// 	fmt.Printf("WaitForHeight failed: %v\n", err)
-		// 	return err
-		// }
-		// fmt.Printf("height %v\n", height)
-		time.Sleep(10 * time.Second)
+
+		// time.Sleep(10 * time.Second)
 		return nil
 	},
 }

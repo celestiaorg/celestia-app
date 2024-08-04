@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"os"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -17,7 +16,7 @@ import (
 
 const baseDir = "~/.celestia-app-start-node"
 
-func StartNode(config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, err error) {
+func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, err error) {
 	baseDir, err := genesis.InitFiles(baseDir, config.TmConfig, config.Genesis, 0)
 	if err != nil {
 		return testnode.Context{}, err
@@ -27,9 +26,6 @@ func StartNode(config *testnode.Config, multiplexer *Multiplexer) (cctx testnode
 	if err != nil {
 		return testnode.Context{}, err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	cctx = testnode.NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 
@@ -42,9 +38,6 @@ func StartNode(config *testnode.Config, multiplexer *Multiplexer) (cctx testnode
 	return cctx, nil
 }
 
-// newCometNode creates a ready to use comet node that operates a single
-// validator celestia-app network. It expects that all configuration files are
-// already initialized and saved to the baseDir.
 func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, err error) {
 	config.AppOptions.Set(flags.FlagHome, baseDir)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
