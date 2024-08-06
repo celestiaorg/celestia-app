@@ -22,6 +22,8 @@ func MakeConfig(node *Node, opts ...Option) (*config.Config, error) {
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
 	cfg.Instrumentation.Prometheus = true
+	cfg.P2P.MaxNumInboundPeers = 6
+	cfg.P2P.MaxNumOutboundPeers = 6
 
 	for _, opt := range opts {
 		opt(cfg)
