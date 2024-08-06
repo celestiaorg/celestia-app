@@ -320,6 +320,7 @@ github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZI
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
 github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29.0.20240731004513-c544f8a947c2 h1:66MyFXfm7xmhGaadcalR6RbmNS6rhFI9NBAop/+DoSc=
 github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29.0.20240731004513-c544f8a947c2/go.mod h1:gr8NlCcouMlH2bPBHySRXRXlTEZWLw8UpFyY0seMpR0=
+github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29.0.20240806230210-9b7daaba0542/go.mod h1:gr8NlCcouMlH2bPBHySRXRXlTEZWLw8UpFyY0seMpR0=
 github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16 h1:AlBZS4WykzrwfcNbKD+yQQM1RTMz7lYDC1NS7ClAidM=
 github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16/go.mod h1:Bpl1LSWiDpQumgOhhMTZBMopqa0j7fRasIhvTZB44P0=
 github.com/celestiaorg/go-square v1.1.0 h1:K4tBL5PCJwDtpBfyDxxZ3N962aC9VYb5/bw3LjagEtY=
