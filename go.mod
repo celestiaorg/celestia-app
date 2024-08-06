@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/v2
 
-go 1.22.4
+go 1.22.5
 
 require (
 	cosmossdk.io/errors v1.0.1
@@ -9,7 +9,7 @@ require (
 	github.com/celestiaorg/go-square v1.1.0
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
 	github.com/celestiaorg/knuu v0.14.0
-	github.com/celestiaorg/nmt v0.21.0
+	github.com/celestiaorg/nmt v0.22.0
 	github.com/celestiaorg/rsmt2d v0.13.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.46.16
@@ -249,11 +249,11 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.39.0-tm-v0.34.29
 )
