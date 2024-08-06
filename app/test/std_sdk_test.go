@@ -7,7 +7,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -303,4 +305,43 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
+}
+
+func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
+	t := s.T()
+	t.Run("testnode can query local min gas price", func(t *testing.T) {
+		serviceClient := nodeservice.NewServiceClient(s.cctx.GRPCClient)
+		resp, err := serviceClient.Config(s.cctx.GoContext(), &nodeservice.ConfigRequest{})
+		require.NoError(t, err)
+		want := ""
+		assert.Equal(t, want, resp.MinimumGasPrice)
+	})
+
+	t.Run("testnode can query tx status", func(t *testing.T) {
+		// Create a dummy tx hash
+		dummyTxHash := "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+
+		// Create a new tx client
+		txClient := tx.NewTxClient(s.cctx.GRPCClient)
+
+		// Query for the tx status
+		resp, err := txClient.TxStatus(s.cctx.GoContext(), &tx.TxStatusRequest{
+			TxId: dummyTxHash,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, resp.Status, "UNKNOWN")
+
+		fromAddr := s.unusedAccount()
+		toAddr := s.unusedAccount()
+
+		msg := banktypes.NewMsgSend(getAddress(fromAddr, s.cctx.Keyring), getAddress(toAddr, s.cctx.Keyring), sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))))
+		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, fromAddr, msg)
+		require.NoError(t, err)
+
+		resp, err = txClient.TxStatus(s.cctx.GoContext(), &tx.TxStatusRequest{
+			TxId: res.TxHash,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, resp.Status, "PENDING")
+	})
 }
