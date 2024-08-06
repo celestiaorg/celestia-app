@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -20,8 +19,8 @@ var rootCmd = &cobra.Command{
 		currentAppVersion := uint64(1)
 		apps := utils.GetApps()
 		multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
-		config := testnode.DefaultConfig()
 
+		config := utils.GetConfig()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		cctx, err := utils.StartNode(ctx, config, multiplexer)

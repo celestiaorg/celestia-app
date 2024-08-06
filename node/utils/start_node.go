@@ -52,7 +52,7 @@ func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multi
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
-		newLogger(config),
+		newLogger(),
 	)
 	if err != nil {
 		return nil, err
@@ -64,12 +64,8 @@ func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {
 	return proxy.NewLocalClientCreator(multiplexer)
 }
 
-// TODO: double check that this doesn't create a no-op logger and actually emits to STDOUT.
-func newLogger(config *testnode.UniversalTestingConfig) log.Logger {
-	if config.SuppressLogs {
-		return log.NewNopLogger()
-	}
+func newLogger() log.Logger {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	logger = log.NewFilter(logger, log.AllowError())
+	logger = log.NewFilter(logger, log.AllowDebug())
 	return logger
 }
