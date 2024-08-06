@@ -31,6 +31,12 @@ func TestVersionedConsts(t *testing.T) {
 			got:              appconsts.SubtreeRootThreshold(v2.Version),
 		},
 		{
+			name:             "SubtreeRootThreshold v3",
+			version:          v3.Version,
+			expectedConstant: v3.SubtreeRootThreshold,
+			got:              appconsts.SubtreeRootThreshold(v3.Version),
+		},
+		{
 			name:             "SquareSizeUpperBound v1",
 			version:          v1.Version,
 			expectedConstant: v1.SquareSizeUpperBound,
@@ -41,6 +47,12 @@ func TestVersionedConsts(t *testing.T) {
 			version:          v2.Version,
 			expectedConstant: v2.SquareSizeUpperBound,
 			got:              appconsts.SquareSizeUpperBound(v2.Version),
+		},
+		{
+			name:             "SquareSizeUpperBound v3",
+			version:          v3.Version,
+			expectedConstant: v3.SquareSizeUpperBound,
+			got:              appconsts.SquareSizeUpperBound(v3.Version),
 		},
 		{
 			name:             "TxSizeCostPerByte v3",

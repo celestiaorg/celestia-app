@@ -3,7 +3,7 @@ package app_test
 import (
 	"testing"
 
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -29,7 +29,7 @@ func Test_testnode(t *testing.T) {
 		require.NoError(t, err)
 		got, err := resp.NetworkMinGasPrice.Float64()
 		require.NoError(t, err)
-		assert.Equal(t, v2.NetworkMinGasPrice, got)
+		assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, got)
 	})
 	t.Run("testnode can query local min gas price", func(t *testing.T) {
 		config := testnode.DefaultConfig()

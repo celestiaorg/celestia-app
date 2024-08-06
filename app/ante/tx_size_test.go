@@ -1,7 +1,6 @@
 package ante_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -18,14 +17,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-func setup() (*app.App, sdk.Context, client.Context, sdk.AnteHandler, error) {
+func setup() (*app.App, sdk.Context, client.Context, error) {
 	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := app.NewContext(false, tmproto.Header{})
 	app.AccountKeeper.SetParams(ctx, authtypes.DefaultParams())
@@ -40,24 +38,11 @@ func setup() (*app.App, sdk.Context, client.Context, sdk.AnteHandler, error) {
 	clientCtx := client.Context{}.
 		WithTxConfig(encodingConfig.TxConfig)
 
-	anteHandler, err := authante.NewAnteHandler(
-		authante.HandlerOptions{
-			AccountKeeper:   app.AccountKeeper,
-			BankKeeper:      app.BankKeeper,
-			FeegrantKeeper:  app.FeeGrantKeeper,
-			SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
-			SigGasConsumer:  authante.DefaultSigVerificationGasConsumer,
-		},
-	)
-	if err != nil {
-		return nil, sdk.Context{}, client.Context{}, nil, fmt.Errorf("error creating AnteHandler: %v", err)
-	}
-
-	return app, ctx, clientCtx, anteHandler, nil
+	return app, ctx, clientCtx, nil
 }
 
 func TestConsumeGasForTxSize(t *testing.T) {
-	app, ctx, clientCtx, _, err := setup()
+	app, ctx, clientCtx, err := setup()
 	require.NoError(t, err)
 	var txBuilder client.TxBuilder
 

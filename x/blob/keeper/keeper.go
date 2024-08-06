@@ -50,7 +50,7 @@ func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*
 	if ctx.BlockHeader().Version.App <= v2.Version {
 		gasToConsume = types.GasToConsume(msg.BlobSizes, k.GasPerBlobByte(ctx))
 	} else {
-		gasToConsume = types.GasToConsume(msg.BlobSizes, appconsts.GasPerBlobByte(appconsts.LatestVersion))
+		gasToConsume = types.GasToConsume(msg.BlobSizes, appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App))
 	}
 
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
