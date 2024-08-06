@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# stage 1 Generate celestia-appd Binary
-FROM docker.io/golang:1.22.4-alpine3.19 as builder
-=======
 # This Dockerfile performs a multi-stage build. BUILDER_IMAGE is the image used
 # to compile the celestia-appd binary. RUNTIME_IMAGE is the image that will be
 # returned with the final celestia-appd binary.
@@ -20,7 +16,6 @@ ARG TARGETARCH
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
->>>>>>> 4f4d0f7f (chore: bump sdk to v1.24.1 and core to v1.39.0 (#3749))
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \

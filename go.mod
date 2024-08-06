@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.22.5
 
 require (
-	github.com/celestiaorg/nmt v0.21.0
+	github.com/celestiaorg/nmt v0.22.0
 	github.com/ethereum/go-ethereum v1.13.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.4
