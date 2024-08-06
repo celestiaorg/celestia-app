@@ -1,5 +1,21 @@
-# stage 1 Generate celestia-appd Binary
-FROM docker.io/golang:1.22.4-alpine3.19 as builder
+# This Dockerfile performs a multi-stage build. BUILDER_IMAGE is the image used
+# to compile the celestia-appd binary. RUNTIME_IMAGE is the image that will be
+# returned with the final celestia-appd binary.
+#
+# Separating the builder and runtime image allows the runtime image to be
+# considerably smaller because it doesn't need to have Golang installed.
+ARG BUILDER_IMAGE=docker.io/golang:1.22.5-alpine3.19
+ARG RUNTIME_IMAGE=docker.io/alpine:3.19
+ARG TARGETOS
+ARG TARGETARCH
+
+# Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
+# Ignore hadolint rule because hadolint can't parse the variable.
+# See https://github.com/hadolint/hadolint/issues/339
+# hadolint ignore=DL3006
+FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
