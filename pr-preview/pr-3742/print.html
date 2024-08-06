@@ -543,7 +543,7 @@ It is the responsibility of these applications to be cautious and manage the imp
 Among the potential consequences is the <em>Woods Attack</em>, as elaborated in this forum post: <a href="https://forum.celestia.org/t/woods-attack-on-celestia/59">Woods Attack on Celestia</a>.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See the <a href="https://github.com/celestiaorg/go-square/v2/share/be3c2801e902a0f90f694c062b9c4e6a7e01154e/namespace/namespace.go">namespace implementation in go-square</a>.
-For the most recent version, which may not reflect the current specifications, refer to <a href="https://github.com/celestiaorg/go-square/v2/share/main/share/namespace.go">the latest namespace code</a>.</p>
+For the most recent version, which may not reflect the current specifications, refer to <a href="https://github.com/celestiaorg/go-square/main/share/namespace.go">the latest namespace code</a>.</p>
 <h2 id="go-definition"><a class="header" href="#go-definition">Go Definition</a></h2>
 <pre><code class="language-go">type Namespace struct {
 	Version uint8
@@ -646,7 +646,7 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <li>Shares are assumed to be byte slices of length 512. Parsing shares of a different length WILL result in an error.</li>
 </ul>
 <h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
-<p>See <a href="https://github.com/celestiaorg/go-square/v2/tree/be3c2801e902a0f90f694c062b9c4e6a7e01154e/shares">go-square/shares</a>.</p>
+<p>See <a href="https://github.com/celestiaorg/go-square/tree/be3c2801e902a0f90f694c062b9c4e6a7e01154e/shares">go-square/shares</a>.</p>
 <h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <ol>
 <li><a href="specs/../../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
