@@ -61,10 +61,10 @@ func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multi
 }
 
 func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {
-	// TODO: need to be able to switch between apps
-	return proxy.NewLocalClientCreator(multiplexer.apps[0])
+	return proxy.NewLocalClientCreator(multiplexer)
 }
 
+// TODO: double check that this doesn't create a no-op logger and actually emits to STDOUT.
 func newLogger(config *testnode.UniversalTestingConfig) log.Logger {
 	if config.SuppressLogs {
 		return log.NewNopLogger()

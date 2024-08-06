@@ -58,6 +58,7 @@ func (m *Multiplexer) Info(request abci.RequestInfo) abci.ResponseInfo {
 }
 
 func (m *Multiplexer) InitChain(request abci.RequestInitChain) abci.ResponseInitChain {
+	// TODO consider getting app version from request.ConsensusParams.Version.AppVersion
 	app := m.getCurrentApp()
 	return app.InitChain(request)
 }

@@ -40,7 +40,7 @@ var rootCmd = &cobra.Command{
 
 		err = cctx.WaitForNextBlock()
 		if err != nil {
-			fmt.Printf("waiting for next block failed: %v\n", err) // fails because context canceled
+			fmt.Printf("waiting for next block failed: %v\n", err)
 		}
 		return nil
 	},
