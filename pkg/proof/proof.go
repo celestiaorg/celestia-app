@@ -28,12 +28,12 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (ShareProof, 
 	if err != nil {
 		return ShareProof{}, err
 	}
-	
+
 	dataSquare, err := builder.Export()
 	if err != nil {
 		return ShareProof{}, err
 	}
-	
+
 	txIndexInt, err := safeConvertUint64ToInt(txIndex)
 	if err != nil {
 		return ShareProof{}, err
