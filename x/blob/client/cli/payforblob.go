@@ -24,11 +24,11 @@ import (
 
 const (
 	// FlagShareVersion allows the user to override the share version when
-	// submitting a PayForshare.
+	// submitting a PayForBlob.
 	FlagShareVersion = "share-version"
 
 	// FlagNamespaceVersion allows the user to override the namespace version when
-	// submitting a PayForshare.
+	// submitting a PayForBlob.
 	FlagNamespaceVersion = "namespace-version"
 
 	// FlagFileInput allows the user to provide the path to a JSON file for

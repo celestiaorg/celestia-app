@@ -83,7 +83,7 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name: "PFB with many single byte blobs should fit",
 			pfb: &blob.MsgPayForBlobs{
-				// 4095 blobs each of size 1 byte should occupy 4095 share.
+				// 4095 blobs each of size 1 byte should occupy 4095 shares.
 				// When square size is 64, there are 4095 shares available to
 				// blob shares so we don't expect an error for this test case.
 				BlobSizes: repeat(4095, 1),
@@ -93,7 +93,7 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name: "PFB with too many single byte blobs should not fit",
 			pfb: &blob.MsgPayForBlobs{
-				// 4096 blobs each of size 1 byte should occupy 4096 share.
+				// 4096 blobs each of size 1 byte should occupy 4096 shares.
 				// When square size is 64, there are 4095 shares available to
 				// blob shares so we expect an error for this test case.
 				BlobSizes: repeat(4096, 1),
