@@ -137,11 +137,6 @@ func TestValidateBasic(t *testing.T) {
 			msg:     noShareCommitments,
 			wantErr: types.ErrNoShareCommitments,
 		},
-		{
-			name:    "invalid namespace version",
-			msg:     invalidNamespaceVersionMsgPayForBlobs(t),
-			wantErr: types.ErrInvalidNamespaceVersion,
-		},
 	}
 
 	for _, tt := range tests {
@@ -188,40 +183,6 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	return pfb
 }
 
-func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
-	signer, err := testnode.NewOfflineSigner()
-	require.NoError(t, err)
-	ns1 := share.NamespaceVersionZeroPrefix
-	ns1 = append(ns1, bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize)...)
-	ns := share.MustNewNamespace(255, ns1)
-	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
-
-	blob, err := share.NewV0Blob(ns, data)
-	require.NoError(t, err)
-	blobs := []*share.Blob{blob}
-
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
-	require.NoError(t, err)
-
-	namespaces, sizes, shareVersions := types.ExtractBlobComponents(blobs)
-
-	namespacesBytes := make([][]byte, len(namespaces))
-	for idx, namespace := range namespaces {
-		namespacesBytes[idx] = namespace.Bytes()
-	}
-
-	addr := signer.Account(testfactory.TestAccName).Address()
-	pfb := &types.MsgPayForBlobs{
-		Signer:           addr.String(),
-		Namespaces:       namespacesBytes,
-		ShareCommitments: commitments,
-		BlobSizes:        sizes,
-		ShareVersions:    shareVersions,
-	}
-
-	return pfb
-}
-
 func TestNewMsgPayForBlobs(t *testing.T) {
 	type testCase struct {
 		name        string
@@ -251,14 +212,6 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 				mustNewBlob(t, ns2, []byte{2}, appconsts.ShareVersionZero, nil),
 			},
 			expectedErr: false,
-		},
-		{
-			name:   "unsupported share version returns an error",
-			signer: testfactory.TestAccAddr,
-			blobs: []*share.Blob{
-				mustNewBlob(t, ns1, tmrand.Bytes(1000000), 10, nil),
-			},
-			expectedErr: true,
 		},
 		{
 			name:   "msg PFB with tx namespace returns an error",
@@ -319,13 +272,13 @@ func TestValidateBlobs(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "invalid share version",
-			blob:        mustNewBlob(t, share.RandomBlobNamespace(), []byte{1}, 4, nil),
+			name:        "invalid namespace",
+			blob:        mustNewBlob(t, share.TxNamespace, []byte{1}, appconsts.DefaultShareVersion, nil),
 			expectError: true,
 		},
 		{
-			name:        "invalid namespace",
-			blob:        mustNewBlob(t, share.TxNamespace, []byte{1}, appconsts.DefaultShareVersion, nil),
+			name:        "empty blob",
+			blob:        &share.Blob{},
 			expectError: true,
 		},
 	}

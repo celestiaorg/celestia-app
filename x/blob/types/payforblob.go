@@ -210,7 +210,7 @@ func ValidateBlobs(blobs ...*share.Blob) error {
 			return err
 		}
 
-		if len(blob.Data()) == 0 {
+		if blob.IsEmpty() {
 			return ErrZeroBlobSize
 		}
 

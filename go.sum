@@ -324,6 +324,8 @@ github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16 h1:AlBZS4WykzrwfcNbKD+yQQ
 github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16/go.mod h1:Bpl1LSWiDpQumgOhhMTZBMopqa0j7fRasIhvTZB44P0=
 github.com/celestiaorg/go-square v1.1.0 h1:K4tBL5PCJwDtpBfyDxxZ3N962aC9VYb5/bw3LjagEtY=
 github.com/celestiaorg/go-square v1.1.0/go.mod h1:1EXMErhDrWJM8B8V9hN7dqJ2kUTClfwdqMOmF9yQUa0=
+github.com/celestiaorg/go-square/v2 v2.0.0-rc2 h1:4D+ASgZGYVCsffc2uhPagACrvNiLZu9/CqNYvnlHCgg=
+github.com/celestiaorg/go-square/v2 v2.0.0-rc2/go.mod h1:eeaU8f8jBpk3ZS/gaDZIlTesJR2F51QAmveNzWH6aEU=
 github.com/celestiaorg/knuu v0.14.0 h1:96uaDHTzlTfhDLrAiygq9Ewow7UzOzGAbUvMwws1S4A=
 github.com/celestiaorg/knuu v0.14.0/go.mod h1:5x/+tlLebBSfLmmSBm2ps6aLjnKLn5bOaZpUfI5FpsA=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=

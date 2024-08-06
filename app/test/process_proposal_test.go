@@ -127,21 +127,6 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid namespace TailPadding",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
-				require.NoError(t, err)
-				newBlob, err := share.NewBlob(share.TailPaddingNamespace, data, appconsts.ShareVersionZero, nil)
-				require.NoError(t, err)
-				blobTx.Blobs[0] = newBlob
-				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-				d.Txs[0] = blobTxBytes
-			},
-			appVersion:     appconsts.LatestVersion,
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
@@ -152,39 +137,6 @@ func TestProcessProposal(t *testing.T) {
 				blobTx.Blobs[0] = newBlob
 				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
 				d.Txs[0] = blobTxBytes
-			},
-			appVersion:     appconsts.LatestVersion,
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
-			name:  "invalid namespace ParityShares",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
-				require.NoError(t, err)
-				newBlob, err := share.NewBlob(share.ParitySharesNamespace, data, appconsts.ShareVersionZero, nil)
-				require.NoError(t, err)
-				blobTx.Blobs[0] = newBlob
-				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-				d.Txs[0] = blobTxBytes
-			},
-			appVersion:     appconsts.LatestVersion,
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
-			name:  "pfb namespace version does not match blob",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
-				require.NoError(t, err)
-				nsMax, err := share.NewNamespace(share.NamespaceVersionMax, ns1.ID())
-				require.NoError(t, err)
-				newBlob, err := share.NewBlob(nsMax, data, appconsts.ShareVersionZero, nil)
-				require.NoError(t, err)
-				blobTx.Blobs[0] = newBlob
-				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-				d.Txs[0] = blobTxBytes
-				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
