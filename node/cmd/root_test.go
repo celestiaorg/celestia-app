@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,8 +13,10 @@ func TestRun(t *testing.T) {
 	currentAppVersion := uint64(1)
 	apps := utils.GetApps()
 	multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
-	config := testnode.DefaultConfig()
+	config := utils.GetConfig()
+
 	tempDir := t.TempDir()
+	fmt.Printf("rootDir %v\n", config.TmConfig.RootDir)
 	fmt.Printf("dbPath %v\n", config.TmConfig.DBPath)
 	fmt.Printf("dbDir %v\n", config.TmConfig.DBDir())
 	fmt.Printf("tempDir %v\n", tempDir)

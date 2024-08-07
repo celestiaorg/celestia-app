@@ -19,18 +19,18 @@ func InitFiles(
 	tmConfig *config.Config,
 	genesis *Genesis,
 	validatorIndex int,
-) (string, error) {
+) (basePath string, err error) {
 	val, has := genesis.Validator(validatorIndex)
 	if !has {
 		return "", fmt.Errorf("validator %d not found", validatorIndex)
 	}
 
-	basePath := filepath.Join(rootDir, ".celestia-app")
+	basePath = filepath.Join(rootDir, ".celestia-app")
 	tmConfig.SetRoot(basePath)
 
 	// save the genesis file
 	configPath := filepath.Join(basePath, "config")
-	err := os.MkdirAll(configPath, os.ModePerm)
+	err = os.MkdirAll(configPath, os.ModePerm)
 	if err != nil {
 		return "", err
 	}

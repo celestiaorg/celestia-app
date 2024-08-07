@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"os"
-	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -18,12 +17,13 @@ import (
 )
 
 func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer, rootDir string) (cctx testnode.Context, err error) {
-	baseDir, err := genesis.InitFiles(rootDir, config.TmConfig, config.Genesis, 0)
+	basePath, err := genesis.InitFiles(config.TmConfig.RootDir, config.TmConfig, config.Genesis, 0)
 	if err != nil {
 		return testnode.Context{}, err
 	}
+	config.AppOptions.Set(flags.FlagHome, basePath)
 
-	cometNode, app, err := newCometNode(baseDir, &config.UniversalTestingConfig, multiplexer)
+	cometNode, app, err := newCometNode(&config.UniversalTestingConfig, multiplexer)
 	if err != nil {
 		return testnode.Context{}, err
 	}
@@ -50,12 +50,9 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 	return cctx, nil
 }
 
-func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
-	config.AppOptions.Set(flags.FlagHome, baseDir)
-
+func newCometNode(config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
 	logger := newLogger()
-	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	db, err := tmdb.NewGoLevelDB("application", dbPath)
+	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	if err != nil {
 		return nil, nil, err
 	}

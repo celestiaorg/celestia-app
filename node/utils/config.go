@@ -8,5 +8,8 @@ func GetConfig() *testnode.Config {
 	tmConfig.P2P.ListenAddress = "tcp://127.0.0.1:26656"
 	tmConfig.RPC.ListenAddress = "tcp://127.0.0.1:26657"
 	tmConfig.RPC.GRPCListenAddress = "tcp://127.0.0.1:26658"
+	tmConfig.DBPath = "data"
+	tmConfig.DBBackend = "goleveldb"
+	tmConfig.RootDir = "rootDir"
 	return testnode.DefaultConfig().WithTendermintConfig(tmConfig).WithSuppressLogs(false)
 }
