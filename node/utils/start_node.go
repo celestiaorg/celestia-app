@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
@@ -14,10 +15,14 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 )
 
-const baseDir = "~/.celestia-app-start-node"
-
 func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, err error) {
-	baseDir, err := genesis.InitFiles(baseDir, config.TmConfig, config.Genesis, 0)
+	tempDir, err := os.MkdirTemp("", "example")
+	if err != nil {
+		return cctx, fmt.Errorf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	baseDir, err := genesis.InitFiles(tempDir, config.TmConfig, config.Genesis, 0)
 	if err != nil {
 		return testnode.Context{}, err
 	}
