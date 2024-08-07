@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -24,6 +25,8 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
@@ -117,7 +120,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
 				require.NoError(t, err)
-				newBlob, err := share.NewBlob(ns1, data, appconsts.ShareVersionZero, nil)
+				newBlob, err := share.NewBlob(ns1, data, share.ShareVersionZero, nil)
 				require.NoError(t, err)
 				blobTx.Blobs[0] = newBlob
 				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
@@ -132,7 +135,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				blobTx, _, err := tx.UnmarshalBlobTx(blobTxs[0])
 				require.NoError(t, err)
-				newBlob, err := share.NewBlob(share.TxNamespace, data, appconsts.ShareVersionZero, nil)
+				newBlob, err := share.NewBlob(share.TxNamespace, data, share.ShareVersionZero, nil)
 				require.NoError(t, err)
 				blobTx.Blobs[0] = newBlob
 				blobTxBytes, _ := tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
@@ -255,6 +258,43 @@ func TestProcessProposal(t *testing.T) {
 				// replace the hash of the prepare proposal response with the hash of a data
 				// square with a tampered sequence start indicator
 				d.Hash = dah.Hash()
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "valid v1 authored blob",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				addr := signer.Account(accounts[0]).Address()
+				blob, err := share.NewV1Blob(ns1, data, addr)
+				require.NoError(t, err)
+				rawTx, _, err := signer.CreatePayForBlobs(accounts[0], []*share.Blob{blob}, user.SetGasLimit(100000), user.SetFee(100000))
+				require.NoError(t, err)
+				d.Txs[0] = rawTx
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:  "v1 authored blob with invalid signer",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				addr := signer.Account(accounts[0]).Address()
+				falseAddr := testnode.RandomAddress().(sdk.AccAddress)
+				blob, err := share.NewV1Blob(ns1, data, falseAddr)
+				require.NoError(t, err)
+				msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blob)
+				require.NoError(t, err)
+
+				rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(100000))
+				require.NoError(t, err)
+
+				blobTxBytes, err := tx.MarshalBlobTx(rawTx, blob)
+				require.NoError(t, err)
+				d.Txs[0] = blobTxBytes
+				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,

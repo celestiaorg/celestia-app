@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	appns "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -56,7 +56,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options 
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	options = append(options, nmt.NamespaceIDSize(appconsts.NamespaceSize))
+	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
 	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: options, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
@@ -94,16 +94,16 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
 		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex)
 	}
-	if len(data) < appconsts.NamespaceSize {
+	if len(data) < share.NamespaceSize {
 		return fmt.Errorf("data is too short to contain namespace ID")
 	}
-	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
-	copy(nidAndData[appconsts.NamespaceSize:], data)
+	nidAndData := make([]byte, share.NamespaceSize+len(data))
+	copy(nidAndData[share.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
 	if w.isQuadrantZero() {
-		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
+		copy(nidAndData[:share.NamespaceSize], data[:share.NamespaceSize])
 	} else {
-		copy(nidAndData[:appconsts.NamespaceSize], appns.ParitySharesNamespace.Bytes())
+		copy(nidAndData[:share.NamespaceSize], share.ParitySharesNamespace.Bytes())
 	}
 	err := w.tree.Push(nidAndData)
 	if err != nil {

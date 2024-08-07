@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -89,7 +90,7 @@ func NewTestApp() *app.App {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	return app.New(
-		log.NewNopLogger(), db, nil,
+		log.NewTMLogger(os.Stdout), db, nil,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
@@ -138,7 +139,7 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 		Block: &abci.BlockParams{
 			// Choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
+			MaxBytes: appconsts.DefaultMaxBytes,
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,
@@ -187,7 +188,7 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 		Block: &abci.BlockParams{
 			// choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
+			MaxBytes: appconsts.DefaultMaxBytes,
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,

@@ -21,9 +21,10 @@ const fundsForGas int = 1e9 // 1000 TIA
 // BlobSequence defines a pattern whereby a single user repeatedly sends a pay for blob
 // message roughly every height. The PFB may consist of several blobs
 type BlobSequence struct {
-	namespace   share.Namespace
-	sizes       Range
-	blobsPerPFB Range
+	namespace     share.Namespace
+	sizes         Range
+	blobsPerPFB   Range
+	shareVersions []uint8
 
 	account     types.AccAddress
 	useFeegrant bool
@@ -31,8 +32,9 @@ type BlobSequence struct {
 
 func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
 	return &BlobSequence{
-		sizes:       sizes,
-		blobsPerPFB: blobsPerPFB,
+		sizes:         sizes,
+		blobsPerPFB:   blobsPerPFB,
+		shareVersions: []uint8{share.ShareVersionZero, share.ShareVersionOne},
 	}
 }
 
@@ -43,13 +45,24 @@ func (s *BlobSequence) WithNamespace(namespace share.Namespace) *BlobSequence {
 	return s
 }
 
+// WithShareVersion provides the option of fixing a predefined share version for
+// all blobs else it will randomly select a share version for each blob.
+func (s *BlobSequence) WithShareVersion(version uint8) *BlobSequence {
+	if version != share.ShareVersionZero && version != share.ShareVersionOne {
+		panic(fmt.Sprintf("invalid share version %d", version))
+	}
+	s.shareVersions = []uint8{version}
+	return s
+}
+
 func (s *BlobSequence) Clone(n int) []Sequence {
 	sequenceGroup := make([]Sequence, n)
 	for i := 0; i < n; i++ {
 		sequenceGroup[i] = &BlobSequence{
-			namespace:   s.namespace,
-			sizes:       s.sizes,
-			blobsPerPFB: s.blobsPerPFB,
+			namespace:     s.namespace,
+			sizes:         s.sizes,
+			blobsPerPFB:   s.blobsPerPFB,
+			shareVersions: s.shareVersions,
 		}
 	}
 	return sequenceGroup
@@ -83,7 +96,15 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 		sizes[i] = s.sizes.Rand(rand)
 	}
 	// generate the blobs
-	blobs := blobfactory.RandBlobsWithNamespace(namespaces, sizes)
+	var blobs []*share.Blob
+	switch s.shareVersions[rand.Intn(len(s.shareVersions))] {
+	case share.ShareVersionZero:
+		blobs = blobfactory.RandV0BlobsWithNamespace(namespaces, sizes)
+	case share.ShareVersionOne:
+		blobs = blobfactory.RandV1BlobsWithNamespace(namespaces, sizes, s.account)
+	default:
+		return Operation{}, fmt.Errorf("invalid share version: %d", s.shareVersions[rand.Intn(len(s.shareVersions))])
+	}
 	// derive the pay for blob message
 	msg, err := blob.NewMsgPayForBlobs(s.account.String(), appconsts.LatestVersion, blobs...)
 	if err != nil {
