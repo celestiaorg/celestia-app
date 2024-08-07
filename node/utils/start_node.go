@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -14,6 +15,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, err error) {
@@ -56,7 +58,14 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 }
 
 func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
+	logger := newLogger()
+	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
+	db, err := tmdb.NewGoLevelDB("application", dbPath)
+	if err != nil {
+		return nil, nil, err
+	}
 	config.AppOptions.Set(flags.FlagHome, baseDir)
+	app = config.AppCreator(logger, db, nil, config.AppOptions)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
 		return nil, nil, err
@@ -65,7 +74,8 @@ func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multi
 		config.TmConfig,
 		privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile()),
 		nodeKey,
-		newProxyClientCreator(multiplexer),
+		// newProxyClientCreator(multiplexer),
+		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
@@ -74,7 +84,7 @@ func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multi
 	if err != nil {
 		return nil, nil, err
 	}
-	return cometNode, nil, err
+	return cometNode, app, err
 }
 
 func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {

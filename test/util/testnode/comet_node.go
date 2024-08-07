@@ -9,7 +9,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
-	dbm "github.com/tendermint/tm-db"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 // NewCometNode creates a ready to use comet node that operates a single
@@ -18,7 +18,7 @@ import (
 func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, servertypes.Application, error) {
 	logger := newLogger(config)
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	db, err := dbm.NewGoLevelDB("application", dbPath)
+	db, err := tmdb.NewGoLevelDB("application", dbPath)
 	if err != nil {
 		return nil, nil, err
 	}
