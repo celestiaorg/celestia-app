@@ -17,10 +17,6 @@ func TestRun(t *testing.T) {
 	config := utils.GetConfig()
 
 	tempDir := t.TempDir()
-	fmt.Printf("rootDir %v\n", config.TmConfig.RootDir)
-	fmt.Printf("dbPath %v\n", config.TmConfig.DBPath)
-	fmt.Printf("dbDir %v\n", config.TmConfig.DBDir())
-	fmt.Printf("tempDir %v\n", tempDir)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
