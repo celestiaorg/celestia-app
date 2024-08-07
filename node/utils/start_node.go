@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -58,13 +57,15 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 }
 
 func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
+	config.AppOptions.Set(flags.FlagHome, baseDir)
+
 	logger := newLogger()
-	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
+	// dbPath := filepath.Join(config.TmConfig.RootDir, "data")
+	dbPath := config.TmConfig.DBPath
 	db, err := tmdb.NewGoLevelDB("application", dbPath)
 	if err != nil {
 		return nil, nil, err
 	}
-	config.AppOptions.Set(flags.FlagHome, baseDir)
 	app = config.AppCreator(logger, db, nil, config.AppOptions)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
