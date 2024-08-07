@@ -30,17 +30,15 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 
 	cctx = testnode.NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 
-	cctx, stopNode, err := testnode.StartNode(cometNode, cctx)
+	cctx, _, err = testnode.StartNode(cometNode, cctx)
 	if err != nil {
 		return testnode.Context{}, err
 	}
-	defer stopNode()
 
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, config.AppConfig, cctx)
+	cctx, _, err = testnode.StartGRPCServer(app, config.AppConfig, cctx)
 	if err != nil {
 		return testnode.Context{}, err
 	}
-	defer cleanupGRPC()
 
 	_, err = testnode.StartAPIServer(app, *config.AppConfig, cctx)
 	if err != nil {
