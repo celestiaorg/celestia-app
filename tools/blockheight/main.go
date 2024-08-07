@@ -16,8 +16,8 @@ const (
 	// the output from the blocktime tool.
 	blockTime = 11.30 // seconds between blocks for Arabica
 
-	// nodeRpcArabica is an example node RPC URL for the Arabica testnet.
-	nodeRpcArabica = "https://rpc.celestia-arabica-11.com:443"
+	// exampleNodeRPC is an example node RPC endpoint for the Arabica testnet.
+	exampleNodeRPC = "https://rpc.celestia-arabica-11.com:443"
 
 	// targetTime is an example target time for the block height prediction.
 	targetTime = "2024-08-14T14:00:00"
@@ -35,12 +35,12 @@ func main() {
 func Run() error {
 	if len(os.Args) < 3 {
 		fmt.Printf("Usage: %s <node_rpc> <target_time>\n", os.Args[0])
-		fmt.Printf("Example: %s %s %s\n", os.Args[0], nodeRpcArabica, targetTime)
+		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleNodeRPC, targetTime)
 		return nil
 	}
 
-	_, nodeRpc, targetTimeArg := os.Args[0], os.Args[1], os.Args[2]
-	c, err := http.New(nodeRpc, "/websocket")
+	_, nodeRPC, targetTimeArg := os.Args[0], os.Args[1], os.Args[2]
+	c, err := http.New(nodeRPC, "/websocket")
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,6 @@ func Run() error {
 	currentHeight := resp.SyncInfo.LatestBlockHeight
 	currentTime := resp.SyncInfo.LatestBlockTime
 
-	// Parse the targetTimeArg string into targetTime
 	targetTime, err := time.Parse(layout, targetTimeArg)
 	if err != nil {
 		return fmt.Errorf("error parsing target time: %v", err)
@@ -71,5 +70,7 @@ func Run() error {
 	fmt.Printf("currentTime: %v\n", currentTime.String())
 	fmt.Printf("targetHeight: %v\n", targetHeight)
 	fmt.Printf("targetTime: %v\n", targetTime.String())
+	fmt.Printf("diffInSeconds: %v\n", math.Floor(diffInSeconds))
+	fmt.Printf("diffInBlockHeight: %v\n", diffInBlockHeight)
 	return nil
 }
