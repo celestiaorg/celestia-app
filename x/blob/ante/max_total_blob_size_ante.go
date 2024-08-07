@@ -5,7 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -53,7 +53,7 @@ func (d MaxTotalBlobSizeDecorator) maxTotalBlobSize(ctx sdk.Context) int {
 	// The PFB tx share must occupy at least one share so the # of blob shares
 	// is at least one less than totalShares.
 	blobShares := totalShares - 1
-	return shares.AvailableBytesFromSparseShares(blobShares)
+	return share.AvailableBytesFromSparseShares(blobShares)
 }
 
 // getMaxSquareSize returns the maximum square size based on the current values

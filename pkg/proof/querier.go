@@ -7,10 +7,9 @@ import (
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 
-	appns "github.com/celestiaorg/go-square/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -113,7 +112,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	shareRange := shares.NewRange(begin, end)
+	shareRange := share.NewRange(begin, end)
 	// create and marshal the share inclusion proof, which we return in the form of []byte
 	shareProof, err := NewShareInclusionProof(dataSquare, nID, shareRange)
 	if err != nil {
@@ -131,35 +130,28 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
 // The provided range, defined by startShare and endShare, is end-exclusive.
-func ParseNamespace(rawShares []shares.Share, startShare int, endShare int) (appns.Namespace, error) {
+func ParseNamespace(rawShares []share.Share, startShare int, endShare int) (share.Namespace, error) {
 	if startShare < 0 {
-		return appns.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
+		return share.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
 	}
 
 	if endShare < 0 {
-		return appns.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
+		return share.Namespace{}, fmt.Errorf("end share %d should be positive", endShare)
 	}
 
 	if endShare <= startShare {
-		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower or equal to the starting share %d", endShare, startShare)
+		return share.Namespace{}, fmt.Errorf("end share %d cannot be lower or equal to the starting share %d", endShare, startShare)
 	}
 
 	if endShare > len(rawShares) {
-		return appns.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
+		return share.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
 	}
 
-	startShareNs, err := rawShares[startShare].Namespace()
-	if err != nil {
-		return appns.Namespace{}, err
-	}
-
-	for i, share := range rawShares[startShare:endShare] {
-		ns, err := share.Namespace()
-		if err != nil {
-			return appns.Namespace{}, err
-		}
+	startShareNs := rawShares[startShare].Namespace()
+	for i, sh := range rawShares[startShare:endShare] {
+		ns := sh.Namespace()
 		if !bytes.Equal(startShareNs.Bytes(), ns.Bytes()) {
-			return appns.Namespace{}, fmt.Errorf("shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns)
+			return share.Namespace{}, fmt.Errorf("shares range contain different namespaces at index %d: %v and %v ", i, startShareNs, ns)
 		}
 	}
 	return startShareNs, nil

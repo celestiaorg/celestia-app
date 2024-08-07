@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	appns "github.com/celestiaorg/go-square/namespace"
+	appns "github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

@@ -19,8 +19,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
@@ -30,6 +29,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
+	protoBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+	require.NoError(t, err)
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
 		encCfg.TxConfig,
@@ -37,9 +38,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		testutil.ChainID,
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
-		testfactory.Repeat([]*blob.Blob{
-			blob.New(appns.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion),
-		}, numBlobTxs),
+		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
