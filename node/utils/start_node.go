@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -27,7 +28,7 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 		return testnode.Context{}, err
 	}
 
-	cometNode, err := newCometNode(baseDir, &config.UniversalTestingConfig, multiplexer)
+	cometNode, app, err := newCometNode(baseDir, &config.UniversalTestingConfig, multiplexer)
 	if err != nil {
 		return testnode.Context{}, err
 	}
@@ -40,14 +41,25 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 	}
 	defer stopNode()
 
+	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, config.AppConfig, cctx)
+	if err != nil {
+		return testnode.Context{}, err
+	}
+	defer cleanupGRPC()
+
+	_, err = testnode.StartAPIServer(app, *config.AppConfig, cctx)
+	if err != nil {
+		return testnode.Context{}, err
+	}
+
 	return cctx, nil
 }
 
-func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, err error) {
+func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
 	config.AppOptions.Set(flags.FlagHome, baseDir)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cometNode, err = node.NewNode(
 		config.TmConfig,
@@ -60,9 +72,9 @@ func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multi
 		newLogger(),
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return cometNode, err
+	return cometNode, nil, err
 }
 
 func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {
