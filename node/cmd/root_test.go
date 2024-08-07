@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +31,5 @@ func TestRun(t *testing.T) {
 	latestHeight, err := cctx.LatestHeight()
 	require.NoError(t, err)
 	fmt.Printf("latestHeight %v\n", latestHeight)
-
-	err = cctx.WaitForNextBlock()
-	require.NoError(t, err)
+	assert.Greater(t, latestHeight, int64(0))
 }

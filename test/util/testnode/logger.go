@@ -6,9 +6,19 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 )
 
-func newLogger(config *UniversalTestingConfig) log.Logger {
+func NewLogger(config *UniversalTestingConfig) log.Logger {
 	if config.SuppressLogs {
 		return log.NewNopLogger()
 	}
-	return log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	switch config.TmConfig.LogLevel {
+	case "error":
+		return log.NewFilter(logger, log.AllowError())
+	case "info":
+		return log.NewFilter(logger, log.AllowInfo())
+	case "debug":
+		return log.NewFilter(logger, log.AllowDebug())
+	default:
+		return logger
+	}
 }

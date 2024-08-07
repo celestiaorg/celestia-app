@@ -16,7 +16,7 @@ import (
 // validator celestia-app network. It expects that all configuration files are
 // already initialized and saved to the baseDir.
 func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, servertypes.Application, error) {
-	logger := newLogger(config)
+	logger := NewLogger(config)
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
 	db, err := tmdb.NewGoLevelDB("application", dbPath)
 	if err != nil {

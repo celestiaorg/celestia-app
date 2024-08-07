@@ -2,13 +2,11 @@ package utils
 
 import (
 	"context"
-	"os"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -49,7 +47,7 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 }
 
 func newCometNode(config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
-	logger := newLogger()
+	logger := testnode.NewLogger(config)
 	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	if err != nil {
 		return nil, nil, err
@@ -68,7 +66,7 @@ func newCometNode(config *testnode.UniversalTestingConfig, multiplexer *Multiple
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
-		newLogger(),
+		logger,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -78,10 +76,4 @@ func newCometNode(config *testnode.UniversalTestingConfig, multiplexer *Multiple
 
 func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {
 	return proxy.NewLocalClientCreator(multiplexer)
-}
-
-func newLogger() log.Logger {
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	logger = log.NewFilter(logger, log.AllowDebug())
-	return logger
 }
