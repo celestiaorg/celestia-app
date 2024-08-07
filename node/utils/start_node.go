@@ -2,8 +2,8 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
@@ -17,14 +17,8 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, err error) {
-	tempDir, err := os.MkdirTemp("", "example")
-	if err != nil {
-		return cctx, fmt.Errorf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	baseDir, err := genesis.InitFiles(tempDir, config.TmConfig, config.Genesis, 0)
+func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer, rootDir string) (cctx testnode.Context, err error) {
+	baseDir, err := genesis.InitFiles(rootDir, config.TmConfig, config.Genesis, 0)
 	if err != nil {
 		return testnode.Context{}, err
 	}
@@ -60,8 +54,7 @@ func newCometNode(baseDir string, config *testnode.UniversalTestingConfig, multi
 	config.AppOptions.Set(flags.FlagHome, baseDir)
 
 	logger := newLogger()
-	// dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	dbPath := config.TmConfig.DBPath
+	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
 	db, err := tmdb.NewGoLevelDB("application", dbPath)
 	if err != nil {
 		return nil, nil, err

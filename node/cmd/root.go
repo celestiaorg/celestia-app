@@ -12,6 +12,8 @@ import (
 
 var cfgFile string
 
+const rootDir = "rootDir"
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use: "node",
@@ -23,7 +25,12 @@ var rootCmd = &cobra.Command{
 		config := utils.GetConfig()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		cctx, err := utils.StartNode(ctx, config, multiplexer)
+
+		err := os.Mkdir(rootDir, 0755)
+		if err != nil {
+			return err
+		}
+		cctx, err := utils.StartNode(ctx, config, multiplexer, rootDir)
 		if err != nil {
 			fmt.Printf("Failed to start node: %v\n", err)
 			return err

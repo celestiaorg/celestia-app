@@ -15,10 +15,14 @@ func TestRun(t *testing.T) {
 	apps := utils.GetApps()
 	multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
 	config := testnode.DefaultConfig()
+	tempDir := t.TempDir()
+	fmt.Printf("dbPath %v\n", config.TmConfig.DBPath)
+	fmt.Printf("dbDir %v\n", config.TmConfig.DBDir())
+	fmt.Printf("tempDir %v\n", tempDir)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cctx, err := utils.StartNode(ctx, config, multiplexer)
+	cctx, err := utils.StartNode(ctx, config, multiplexer, tempDir)
 	require.NoError(t, err)
 	fmt.Printf("chainID %v\n", cctx.ChainID)
 
