@@ -139,7 +139,7 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 		Block: &abci.BlockParams{
 			// Choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: appconsts.DefaultMaxBytes,
+			MaxBytes: int64(appconsts.DefaultUpperBoundMaxBytes),
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,
@@ -188,7 +188,7 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 		Block: &abci.BlockParams{
 			// choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: appconsts.DefaultMaxBytes,
+			MaxBytes: int64(appconsts.DefaultUpperBoundMaxBytes),
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,

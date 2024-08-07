@@ -31,3 +31,7 @@ const (
 	// time can be subject to slashing under conditions of misbehavior.
 	DefaultUnbondingTime = 3 * 7 * 24 * time.Hour
 )
+
+var (
+	DefaultUpperBoundMaxBytes = DefaultSquareSizeUpperBound * DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize
+)

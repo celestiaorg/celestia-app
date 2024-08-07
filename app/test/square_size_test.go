@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -87,7 +86,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 		{
 			name:                  "gov square size == hardcoded max",
 			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
-			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize,
+			maxBytes:              appconsts.DefaultUpperBoundMaxBytes,
 			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
 		},
 	}
