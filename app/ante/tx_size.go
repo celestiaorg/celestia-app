@@ -95,15 +95,15 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 			}
 
 			sigBz := legacy.Cdc.MustMarshal(simSig)
-			cost := sdk.Gas(len(sigBz) + 6)
+			txBytes := sdk.Gas(len(sigBz) + 6)
 
 			// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
 			// number of signers.
 			if _, ok := pubkey.(*multisig.LegacyAminoPubKey); ok {
-				cost *= params.TxSigLimit
+				txBytes *= params.TxSigLimit
 			}
 
-			consumeGasForTxSize(ctx, cost, params)
+			consumeGasForTxSize(ctx, txBytes, params)
 		}
 	}
 
@@ -135,12 +135,12 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 
 // consumeGasForTxSize consumes gas based on the size of the transaction.
 // It uses different parameters depending on the app version.
-func consumeGasForTxSize(ctx sdk.Context, cost uint64, params auth.Params) {
+func consumeGasForTxSize(ctx sdk.Context, txBytes uint64, params auth.Params) {
 	// For app v2 and below we should get txSizeCostPerByte from auth module
 	if ctx.BlockHeader().Version.App <= v2.Version {
-		ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*cost, "txSize")
+		ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*txBytes, "txSize")
 	} else {
 		// From v3 onwards, we should get txSizeCostPerByte from appconsts
-		ctx.GasMeter().ConsumeGas(appconsts.TxSizeCostPerByte(v3.Version)*cost, "txSize")
+		ctx.GasMeter().ConsumeGas(appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)*txBytes, "txSize")
 	}
 }

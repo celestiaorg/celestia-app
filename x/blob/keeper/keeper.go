@@ -45,7 +45,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	// GasPerBlobByte is a versioned variable from version 3 onwards.
+	// GasPerBlobByte is a versioned param from version 3 onwards.
 	var gasToConsume uint64
 	if ctx.BlockHeader().Version.App <= v2.Version {
 		gasToConsume = types.GasToConsume(msg.BlobSizes, k.GasPerBlobByte(ctx))

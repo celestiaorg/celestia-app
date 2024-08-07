@@ -23,7 +23,8 @@ const (
 	// time can be subject to slashing under conditions of misbehavior.
 	DefaultUnbondingTime = 3 * 7 * 24 * time.Hour
 
-	// NetworkMinGasPrice is used by x/minfee to prevent transactions from being
+	// DefaultNetworkMinGasPrice is used by x/minfee to prevent transactions from being
 	// included in a block if they specify a gas price lower than this.
+	// Only applies to app version >= 2
 	DefaultNetworkMinGasPrice = 0.000001 // utia
 )

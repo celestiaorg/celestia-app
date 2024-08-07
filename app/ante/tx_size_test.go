@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -74,13 +73,13 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			txBuilder.SetMemo(strings.Repeat("01234567890", 10))
 
 			privs, accNums, accSeqs := []cryptotypes.PrivKey{priv1}, []uint64{0}, []uint64{0}
-			tx, err := CreateTestTx(txBuilder, clientCtx, privs, accNums, accSeqs, ctx.ChainID())
+			tx, err := createTestTx(txBuilder, clientCtx, privs, accNums, accSeqs, ctx.ChainID())
 			require.NoError(t, err)
 
 			txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
 			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
-			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(v3.Version)
+			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(appconsts.LatestVersion)
 
 			// set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)
@@ -126,8 +125,8 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	}
 }
 
-// CreateTestTx creates a test tx given multiple inputs.
-func CreateTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []cryptotypes.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
+// createTestTx creates a test tx given multiple inputs.
+func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []cryptotypes.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	sigsV2 := make([]signing.SignatureV2, 0, len(privs))
