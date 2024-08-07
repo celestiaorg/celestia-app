@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	tmconfig "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
@@ -35,7 +35,7 @@ type UniversalTestingConfig struct {
 	// AppOptions are the application options of the test node.
 	AppOptions *KVAppOptions
 	// AppCreator is used to create the application for the testnode.
-	AppCreator servertypes.AppCreator
+	AppCreator srvtypes.AppCreator
 	// SuppressLogs in testnode. This should be set to true when running
 	// network tests.
 	SuppressLogs bool
@@ -71,7 +71,7 @@ func (c *Config) WithAppOptions(opts *KVAppOptions) *Config {
 }
 
 // WithAppCreator sets the AppCreator and returns the Config.
-func (c *Config) WithAppCreator(creator servertypes.AppCreator) *Config {
+func (c *Config) WithAppCreator(creator srvtypes.AppCreator) *Config {
 	c.AppCreator = creator
 	return c
 }
@@ -145,34 +145,34 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 }
 
 func DefaultTendermintConfig() *tmconfig.Config {
-	tmConfig := tmconfig.DefaultConfig()
+	tmCfg := tmconfig.DefaultConfig()
 	// Reduce the timeout commit to 1ms to speed up the rate at which the test
 	// node produces blocks.
-	tmConfig.Consensus.TimeoutCommit = 1 * time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 
 	// Override the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
 	maxTxBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
-	tmConfig.Mempool.MaxTxBytes = maxTxBytes
+	tmCfg.Mempool.MaxTxBytes = maxTxBytes
 
 	// Override the MaxBodyBytes to allow the testnode to accept very large
 	// transactions and respond to queries with large responses (200 MiB was
 	// chosen only as an arbitrary large number).
-	tmConfig.RPC.MaxBodyBytes = 200 * mebibyte
+	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
 
-	tmConfig.RPC.TimeoutBroadcastTxCommit = time.Minute
+	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
 
 	// set all the ports to random open ones
-	tmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-	tmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
-	tmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 
-	return tmConfig
+	return tmCfg
 }
 
-func DefaultAppCreator() servertypes.AppCreator {
-	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ servertypes.AppOptions) servertypes.Application {
+func DefaultAppCreator() srvtypes.AppCreator {
+	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		return app.New(
 			log.NewNopLogger(),
@@ -187,8 +187,8 @@ func DefaultAppCreator() servertypes.AppCreator {
 	}
 }
 
-func CustomAppCreator(minGasPrice string) servertypes.AppCreator {
-	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ servertypes.AppOptions) servertypes.Application {
+func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
+	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		return app.New(
 			log.NewNopLogger(),

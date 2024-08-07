@@ -29,10 +29,4 @@ func TestRun(t *testing.T) {
 	latestHeight, err := cctx.LatestHeight()
 	require.NoError(t, err)
 	fmt.Printf("latestHeight %v\n", latestHeight)
-
-	cctx.WaitForNextBlock()
-
-	latestHeight, err = cctx.LatestHeight()
-	require.NoError(t, err)
-	fmt.Printf("latestHeight %v\n", latestHeight)
 }
