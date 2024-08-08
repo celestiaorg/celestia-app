@@ -1,12 +1,15 @@
 package ante_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -20,11 +23,14 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-func setup() (*app.App, sdk.Context, client.Context, error) {
+func setup(appVersion uint64) (*app.App, sdk.Context, client.Context, error) {
 	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := app.NewContext(false, tmproto.Header{})
+	ctx := app.NewContext(false, tmproto.Header{Version: version.Consensus{
+		App: appVersion,
+	}})
 	app.AccountKeeper.SetParams(ctx, authtypes.DefaultParams())
 	ctx = ctx.WithBlockHeight(1)
 
@@ -41,86 +47,91 @@ func setup() (*app.App, sdk.Context, client.Context, error) {
 }
 
 func TestConsumeGasForTxSize(t *testing.T) {
-	app, ctx, clientCtx, err := setup()
-	require.NoError(t, err)
-	var txBuilder client.TxBuilder
-
-	// keys and addresses
-	priv1, _, addr1 := testdata.KeyTestPubAddr()
-
-	// msg and signatures
-	msg := testdata.NewTestMsg(addr1)
-	feeAmount := testdata.NewTestFeeAmount()
-	gasLimit := testdata.NewTestGasLimit()
-
-	cgtsd := ante.NewConsumeGasForTxSizeDecorator(app.AccountKeeper)
-	antehandler := sdk.ChainAnteDecorators(cgtsd)
-
-	testCases := []struct {
-		name  string
-		sigV2 signing.SignatureV2
-	}{
-		{"SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
-		{"MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			txBuilder = clientCtx.TxConfig.NewTxBuilder()
-			require.NoError(t, txBuilder.SetMsgs(msg))
-			txBuilder.SetFeeAmount(feeAmount)
-			txBuilder.SetGasLimit(gasLimit)
-			txBuilder.SetMemo(strings.Repeat("01234567890", 10))
-
-			privs, accNums, accSeqs := []cryptotypes.PrivKey{priv1}, []uint64{0}, []uint64{0}
-			tx, err := createTestTx(txBuilder, clientCtx, privs, accNums, accSeqs, ctx.ChainID())
+	versions := []uint64{v2.Version, v3.Version}
+	for _, version := range versions {
+		t.Run("AppVersion-"+fmt.Sprint(version), func(t *testing.T) {
+			app, ctx, clientCtx, err := setup(version)
 			require.NoError(t, err)
+			var txBuilder client.TxBuilder
 
-			txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
-			require.Nil(t, err, "Cannot marshal tx: %v", err)
+			// keys and addresses
+			priv1, _, addr1 := testdata.KeyTestPubAddr()
 
-			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(appconsts.LatestVersion)
+			// msg and signatures
+			msg := testdata.NewTestMsg(addr1)
+			feeAmount := testdata.NewTestFeeAmount()
+			gasLimit := testdata.NewTestGasLimit()
 
-			// set suite.ctx with TxBytes manually
-			ctx = ctx.WithTxBytes(txBytes)
+			cgtsd := ante.NewConsumeGasForTxSizeDecorator(app.AccountKeeper)
+			antehandler := sdk.ChainAnteDecorators(cgtsd)
 
-			// track how much gas is necessary to retrieve parameters
-			beforeGas := ctx.GasMeter().GasConsumed()
-			app.AccountKeeper.GetParams(ctx)
-			afterGas := ctx.GasMeter().GasConsumed()
-			expectedGas += afterGas - beforeGas
+			testCases := []struct {
+				name  string
+				sigV2 signing.SignatureV2
+			}{
+				{"SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
+				{"MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
+			}
 
-			beforeGas = ctx.GasMeter().GasConsumed()
-			ctx, err = antehandler(ctx, tx, false)
-			require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					txBuilder = clientCtx.TxConfig.NewTxBuilder()
+					require.NoError(t, txBuilder.SetMsgs(msg))
+					txBuilder.SetFeeAmount(feeAmount)
+					txBuilder.SetGasLimit(gasLimit)
+					txBuilder.SetMemo(strings.Repeat("01234567890", 10))
 
-			// require that decorator consumes expected amount of gas
-			consumedGas := ctx.GasMeter().GasConsumed() - beforeGas
-			require.Equal(t, expectedGas, consumedGas, "Decorator did not consume the correct amount of gas")
+					privs, accNums, accSeqs := []cryptotypes.PrivKey{priv1}, []uint64{0}, []uint64{0}
+					tx, err := createTestTx(txBuilder, clientCtx, privs, accNums, accSeqs, ctx.ChainID())
+					require.NoError(t, err)
 
-			// simulation must not underestimate gas of this decorator even with nil signatures
-			txBuilder, err := clientCtx.TxConfig.WrapTxBuilder(tx)
-			require.NoError(t, err)
-			require.NoError(t, txBuilder.SetSignatures(tc.sigV2))
-			tx = txBuilder.GetTx()
+					txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
+					require.Nil(t, err, "Cannot marshal tx: %v", err)
 
-			simTxBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
-			require.Nil(t, err, "Cannot marshal tx: %v", err)
-			// require that simulated tx is smaller than tx with signatures
-			require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
+					expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(appconsts.LatestVersion)
 
-			// Set suite.ctx with smaller simulated TxBytes manually
-			ctx = ctx.WithTxBytes(simTxBytes)
+					// set suite.ctx with TxBytes manually
+					ctx = ctx.WithTxBytes(txBytes)
 
-			beforeSimGas := ctx.GasMeter().GasConsumed()
+					// track how much gas is necessary to retrieve parameters
+					beforeGas := ctx.GasMeter().GasConsumed()
+					app.AccountKeeper.GetParams(ctx)
+					afterGas := ctx.GasMeter().GasConsumed()
+					expectedGas += afterGas - beforeGas
 
-			// run antehandler with simulate=true
-			ctx, err = antehandler(ctx, tx, true)
-			consumedSimGas := ctx.GasMeter().GasConsumed() - beforeSimGas
+					beforeGas = ctx.GasMeter().GasConsumed()
+					ctx, err = antehandler(ctx, tx, false)
+					require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
 
-			// require that antehandler passes and does not underestimate decorator cost
-			require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
-			require.True(t, consumedSimGas >= expectedGas, "Simulate mode underestimates gas on AnteDecorator. Simulated cost: %d, expected cost: %d", consumedSimGas, expectedGas)
+					// require that decorator consumes expected amount of gas
+					consumedGas := ctx.GasMeter().GasConsumed() - beforeGas
+					require.Equal(t, expectedGas, consumedGas, "Decorator did not consume the correct amount of gas")
+
+					// simulation must not underestimate gas of this decorator even with nil signatures
+					txBuilder, err := clientCtx.TxConfig.WrapTxBuilder(tx)
+					require.NoError(t, err)
+					require.NoError(t, txBuilder.SetSignatures(tc.sigV2))
+					tx = txBuilder.GetTx()
+
+					simTxBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
+					require.Nil(t, err, "Cannot marshal tx: %v", err)
+					// require that simulated tx is smaller than tx with signatures
+					require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
+
+					// Set suite.ctx with smaller simulated TxBytes manually
+					ctx = ctx.WithTxBytes(simTxBytes)
+
+					beforeSimGas := ctx.GasMeter().GasConsumed()
+
+					// run antehandler with simulate=true
+					ctx, err = antehandler(ctx, tx, true)
+					consumedSimGas := ctx.GasMeter().GasConsumed() - beforeSimGas
+
+					// require that antehandler passes and does not underestimate decorator cost
+					require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
+					require.True(t, consumedSimGas >= expectedGas, "Simulate mode underestimates gas on AnteDecorator. Simulated cost: %d, expected cost: %d", consumedSimGas, expectedGas)
+				})
+			}
 		})
 	}
 }
