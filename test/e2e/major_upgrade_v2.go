@@ -33,10 +33,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	defer testNet.Cleanup()
 
-	cparams := app.DefaultInitialConsensusParams()
-	cparams.Version.AppVersion = v1.Version
-
-	testNet.SetConsensusParams(cparams)
+	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	preloader, err := knuu.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
