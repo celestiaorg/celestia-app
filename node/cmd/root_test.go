@@ -20,7 +20,8 @@ func TestRun(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cctx, err := utils.StartNode(ctx, config, multiplexer, tempDir)
+	cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, tempDir)
+	defer cleanup()
 	require.NoError(t, err)
 	fmt.Printf("chainID %v\n", cctx.ChainID)
 

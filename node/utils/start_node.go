@@ -14,48 +14,55 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer, rootDir string) (cctx testnode.Context, err error) {
+func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer, rootDir string) (cctx testnode.Context, cleanup func() error, err error) {
 	basePath, err := genesis.InitFiles(config.TmConfig.RootDir, config.TmConfig, config.Genesis, 0)
 	if err != nil {
-		return testnode.Context{}, err
+		return testnode.Context{}, nil, err
 	}
 	config.AppOptions.Set(flags.FlagHome, basePath)
 
-	cometNode, app, err := newCometNode(&config.UniversalTestingConfig, multiplexer)
+	cometNode, app, cleanupComet, err := newCometNode(config, multiplexer)
 	if err != nil {
-		return testnode.Context{}, err
+		return testnode.Context{}, nil, err
 	}
 
 	cctx = testnode.NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 
-	cctx, _, err = testnode.StartNode(cometNode, cctx)
+	cctx, cleanupNode, err := testnode.StartNode(cometNode, cctx)
 	if err != nil {
-		return testnode.Context{}, err
+		return testnode.Context{}, nil, err
 	}
 
-	cctx, _, err = testnode.StartGRPCServer(app, config.AppConfig, cctx)
+	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, config.AppConfig, cctx)
 	if err != nil {
-		return testnode.Context{}, err
+		return testnode.Context{}, nil, err
 	}
 
 	_, err = testnode.StartAPIServer(app, *config.AppConfig, cctx)
 	if err != nil {
-		return testnode.Context{}, err
+		return testnode.Context{}, nil, err
 	}
 
-	return cctx, nil
+	cleanup = func() error {
+		cleanupComet()
+		cleanupNode()
+		cleanupGRPC()
+		return nil
+	}
+
+	return cctx, cleanup, nil
 }
 
-func newCometNode(config *testnode.UniversalTestingConfig, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, err error) {
-	logger := testnode.NewLogger(config)
+func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, cleanupComet func() error, err error) {
+	logger := testnode.NewLogger(&config.UniversalTestingConfig)
 	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	app = config.AppCreator(logger, db, nil, config.AppOptions)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	cometNode, err = node.NewNode(
 		config.TmConfig,
@@ -69,9 +76,12 @@ func newCometNode(config *testnode.UniversalTestingConfig, multiplexer *Multiple
 		logger,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return cometNode, app, err
+	cleanup := func() error {
+		return db.Close()
+	}
+	return cometNode, app, cleanup, err
 }
 
 func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {

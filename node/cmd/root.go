@@ -30,7 +30,8 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		cctx, err := utils.StartNode(ctx, config, multiplexer, rootDir)
+		cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, rootDir)
+		defer cleanup()
 		if err != nil {
 			fmt.Printf("Failed to start node: %v\n", err)
 			return err
