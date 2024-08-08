@@ -5,6 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	mocks "github.com/celestiaorg/celestia-app/v3/app/module/mocks"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	"github.com/golang/mock/gomock"
@@ -23,7 +25,7 @@ func TestVersionedIBCModule(t *testing.T) {
 	mockWrappedModule := mocks.NewMockIBCModule(ctrl)
 	mockNextModule := mocks.NewMockIBCModule(ctrl)
 
-	versionedModule := module.NewVersionedIBCModule(mockWrappedModule, mockNextModule, 2, 2)
+	versionedModule := module.NewVersionedIBCModule(mockWrappedModule, mockNextModule, v2.Version, appconsts.LatestVersion)
 
 	testCases := []struct {
 		name          string
@@ -190,6 +192,17 @@ func TestVersionedIBCModule(t *testing.T) {
 		},
 		{
 			name:    "OnAcknowledgementPacket with supported version",
+			version: 3,
+			setupMocks: func(ctx sdk.Context) {
+				mockWrappedModule.EXPECT().OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{}).Return(nil)
+			},
+			method: func(ctx sdk.Context) (interface{}, error) {
+				return nil, versionedModule.OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{})
+			},
+			expectedValue: nil,
+		},
+		{
+			name:    "OnAcknowledgementPacket with supported version",
 			version: 2,
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{}).Return(nil)
@@ -207,6 +220,17 @@ func TestVersionedIBCModule(t *testing.T) {
 			},
 			method: func(ctx sdk.Context) (interface{}, error) {
 				return nil, versionedModule.OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{})
+			},
+			expectedValue: nil,
+		},
+		{
+			name:    "OnTimeoutPacket with supported version",
+			version: 3,
+			setupMocks: func(ctx sdk.Context) {
+				mockWrappedModule.EXPECT().OnTimeoutPacket(ctx, types.Packet{}, sdk.AccAddress{}).Return(nil)
+			},
+			method: func(ctx sdk.Context) (interface{}, error) {
+				return nil, versionedModule.OnTimeoutPacket(ctx, types.Packet{}, sdk.AccAddress{})
 			},
 			expectedValue: nil,
 		},

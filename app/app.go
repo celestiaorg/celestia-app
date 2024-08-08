@@ -10,6 +10,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
@@ -341,10 +342,10 @@ func New(
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
 	// PacketForwardMiddleware is used only for version 2.
-	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
+	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, appconsts.LatestVersion)
 	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
 	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
+	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, appconsts.LatestVersion)
 
 	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
 		appCodec,

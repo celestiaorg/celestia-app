@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
@@ -159,7 +160,7 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 	infoResp = testApp.Info(abci.RequestInfo{})
 	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
 
-	supportedVersions := []uint64{v1.Version, v2.Version}
+	supportedVersions := []uint64{v1.Version, v2.Version, v3.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
 
 	_ = testApp.Commit()

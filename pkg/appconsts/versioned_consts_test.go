@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 )
 
 func TestSubtreeRootThreshold(t *testing.T) {
@@ -22,7 +23,11 @@ func TestSubtreeRootThreshold(t *testing.T) {
 		},
 		{
 			version:  v2.Version,
-			expected: v2.SubtreeRootThreshold,
+			expected: v1.SubtreeRootThreshold,
+		},
+		{
+			version:  v3.Version,
+			expected: v1.SubtreeRootThreshold,
 		},
 	}
 
@@ -46,7 +51,11 @@ func TestSquareSizeUpperBound(t *testing.T) {
 		},
 		{
 			version:  v2.Version,
-			expected: v2.SquareSizeUpperBound,
+			expected: v1.SquareSizeUpperBound,
+		},
+		{
+			version:  v3.Version,
+			expected: v1.SquareSizeUpperBound,
 		},
 	}
 
