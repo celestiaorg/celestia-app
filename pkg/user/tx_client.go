@@ -26,6 +26,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
@@ -199,13 +200,17 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, *tx.TxStatusResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		return resp, err
+		return resp, nil, err
 	}
 
-	return client.ConfirmTx(ctx, resp.TxHash)
+	statusResponse, err := client.ConfirmTx(ctx, resp.TxHash)
+	if err != nil {
+		return resp, nil, err
+	}
+	return resp, statusResponse, nil
 }
 
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
@@ -409,32 +414,34 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*tx.TxStatusResponse, error) {
+	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
-		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err == nil {
-			if resp.TxResponse.Code != 0 {
-				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+			switch resp.Status {
+			case "PENDING":
+				// Continue polling if the transaction is still pending
+				select {
+				case <-ctx.Done():
+					return &tx.TxStatusResponse{}, ctx.Err()
+				case <-pollTicker.C:
+					continue
+				}
+			case "COMMITTED":
+				if resp.ExecutionCode != 0 {
+					return resp, fmt.Errorf("tx was included but failed with code %d: %s", resp.ExecutionCode, resp.Status)
+				}
+				return resp, nil
+			case "EVICTED":
+				return resp, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+			default:
+				return resp, fmt.Errorf("unknown tx: %s", txHash)
 			}
-			return resp.TxResponse, nil
-		}
-		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
-		// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
-		// signer more information on the status of their transaction and then update the logic here
-		if !strings.Contains(err.Error(), "not found") {
-			return &sdktypes.TxResponse{}, err
-		}
-
-		// Wait for the next round.
-		select {
-		case <-ctx.Done():
-			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-pollTicker.C:
 		}
 	}
 }
