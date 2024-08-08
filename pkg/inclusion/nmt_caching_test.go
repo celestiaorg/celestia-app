@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +21,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 	strc := newSubTreeRootCacher()
 	squareSize := uint64(8)
 	tr := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0, nmt.NodeVisitor(strc.Visit))
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 
 	data := append(ns1.Bytes(), []byte("data")...)
 	for i := 0; i < 8; i++ {
@@ -191,7 +191,7 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 func generateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
 		rawData := tmrand.Bytes(appconsts.ShareSize)
-		namespace := appns.RandomBlobNamespace().Bytes()
+		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)
 	}

@@ -9,8 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -95,7 +95,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound, OutOfOrderExport)
 	require.NoError(t, err)
 
-	rawSquare := shares.ToBytes(s)
+	rawSquare := share.ToBytes(s)
 	eds, err := ExtendShares(rawSquare)
 	require.NoError(t, err)
 
@@ -109,7 +109,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	goodEds, err := da.ExtendShares(shares.ToBytes(correctSquare))
+	goodEds, err := da.ExtendShares(share.ToBytes(correctSquare))
 	require.NoError(t, err)
 
 	goodDah, err := da.NewDataAvailabilityHeader(goodEds)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
 )
@@ -84,7 +84,7 @@ func validateGovMaxSquareSize(v interface{}) error {
 		return fmt.Errorf("gov max square size cannot be zero")
 	}
 
-	if !shares.IsPowerOfTwo(govMaxSquareSize) {
+	if !square.IsPowerOfTwo(govMaxSquareSize) {
 		return fmt.Errorf(
 			"gov max square size must be a power of two: %d",
 			govMaxSquareSize,

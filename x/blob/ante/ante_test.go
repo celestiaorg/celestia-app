@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -33,7 +33,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			name: "valid pfb single blob",
 			pfb: &blob.MsgPayForBlobs{
 				// 1 share = 512 bytes = 5120 gas
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1))},
 			},
 			txGas:       appconsts.ShareSize * testGasPerBlobByte,
 			gasConsumed: 0,
@@ -42,7 +42,7 @@ func TestPFBAnteHandler(t *testing.T) {
 		{
 			name: "valid pfb multi blob",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1)), uint32(shares.AvailableBytesFromSparseShares(2))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1)), uint32(share.AvailableBytesFromSparseShares(2))},
 			},
 			txGas:       3 * appconsts.ShareSize * testGasPerBlobByte,
 			gasConsumed: 0,
@@ -52,7 +52,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			name: "pfb single blob not enough gas",
 			pfb: &blob.MsgPayForBlobs{
 				// 2 share = 1024 bytes = 10240 gas
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1) + 1)},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1) + 1)},
 			},
 			txGas:       2*appconsts.ShareSize*testGasPerBlobByte - 1,
 			gasConsumed: 0,
@@ -61,7 +61,7 @@ func TestPFBAnteHandler(t *testing.T) {
 		{
 			name: "pfb mulit blob not enough gas",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1)), uint32(shares.AvailableBytesFromSparseShares(2))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1)), uint32(share.AvailableBytesFromSparseShares(2))},
 			},
 			txGas:       3*appconsts.ShareSize*testGasPerBlobByte - 1,
 			gasConsumed: 0,
@@ -71,7 +71,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			name: "pfb with existing gas consumed",
 			pfb: &blob.MsgPayForBlobs{
 				// 1 share = 512 bytes = 5120 gas
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1))},
 			},
 			txGas:       appconsts.ShareSize*testGasPerBlobByte + 10000 - 1,
 			gasConsumed: 10000,
@@ -81,7 +81,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			name: "valid pfb with existing gas consumed",
 			pfb: &blob.MsgPayForBlobs{
 				// 1 share = 512 bytes = 5120 gas
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(10))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(10))},
 			},
 			txGas:       1000000,
 			gasConsumed: 10000,

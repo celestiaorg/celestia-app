@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
-	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -365,7 +365,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 
 		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
 		require.NoError(t, err)
-		blobs := blobfactory.RandBlobsWithNamespace([]namespace.Namespace{namespace.RandomNamespace()}, []int{1000})
+		blobs := blobfactory.RandBlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
 		res, err := txSubmitter.SubmitPayForBlob(s.cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 		require.NoError(t, err)
 

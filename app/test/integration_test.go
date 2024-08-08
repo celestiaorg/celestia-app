@@ -24,9 +24,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/square"
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -287,8 +286,12 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 	}
 }
 
-func newBlobWithSize(size int) *blob.Blob {
-	ns := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+func newBlobWithSize(size int) *share.Blob {
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	data := tmrand.Bytes(size)
-	return blob.New(ns, data, appconsts.ShareVersionZero)
+	blob, err := share.NewBlob(ns, data, appconsts.ShareVersionZero, nil)
+	if err != nil {
+		panic(err)
+	}
+	return blob
 }
