@@ -15,11 +15,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
-	"github.com/celestiaorg/go-square/square"
+	square "github.com/celestiaorg/go-square/v2"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,13 +95,13 @@ func TestNewTxInclusionProof(t *testing.T) {
 }
 
 func TestNewShareInclusionProof(t *testing.T) {
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	ns2 := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
-	ns3 := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
+	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	ns2 := share.MustNewV0Namespace(bytes.Repeat([]byte{2}, share.NamespaceVersionZeroIDSize))
+	ns3 := share.MustNewV0Namespace(bytes.Repeat([]byte{3}, share.NamespaceVersionZeroIDSize))
 
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []appns.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
+	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []share.Namespace{ns1, ns2, ns3}, []int{500, 500, 500})
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
@@ -112,7 +111,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	}
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle
@@ -125,7 +124,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 		name          string
 		startingShare int
 		endingShare   int
-		namespaceID   appns.Namespace
+		namespaceID   share.Namespace
 		expectErr     bool
 	}
 	tests := []test{
@@ -133,70 +132,70 @@ func TestNewShareInclusionProof(t *testing.T) {
 			name:          "negative starting share",
 			startingShare: -1,
 			endingShare:   99,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "negative ending share",
 			startingShare: 0,
 			endingShare:   -99,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share lower than starting share",
 			startingShare: 1,
 			endingShare:   0,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share is equal to the starting share",
 			startingShare: 1,
 			endingShare:   1,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share higher than number of shares available in square size of 32",
 			startingShare: 0,
 			endingShare:   4097,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "1 transaction share",
 			startingShare: 0,
 			endingShare:   1,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "10 transaction shares",
 			startingShare: 0,
 			endingShare:   10,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "53 transaction shares",
 			startingShare: 0,
 			endingShare:   53,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "shares from different namespaces",
 			startingShare: 48,
 			endingShare:   55,
-			namespaceID:   appns.TxNamespace,
+			namespaceID:   share.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "shares from PFB namespace",
 			startingShare: 53,
 			endingShare:   55,
-			namespaceID:   appns.PayForBlobNamespace,
+			namespaceID:   share.PayForBlobNamespace,
 			expectErr:     false,
 		},
 		{
@@ -227,7 +226,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 			proof, err := proof.NewShareInclusionProof(
 				dataSquare,
 				tt.namespaceID,
-				shares.NewRange(tt.startingShare, tt.endingShare),
+				share.NewRange(tt.startingShare, tt.endingShare),
 			)
 			require.NoError(t, err)
 			assert.NoError(t, proof.Validate(dataRoot))
@@ -246,7 +245,7 @@ func TestAllSharesInclusionProof(t *testing.T) {
 	assert.Equal(t, 256, len(dataSquare))
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle
@@ -257,11 +256,11 @@ func TestAllSharesInclusionProof(t *testing.T) {
 
 	actualNamespace, err := proof.ParseNamespace(dataSquare, 0, 256)
 	require.NoError(t, err)
-	require.Equal(t, appns.TxNamespace, actualNamespace)
+	require.Equal(t, share.TxNamespace, actualNamespace)
 	proof, err := proof.NewShareInclusionProof(
 		dataSquare,
-		appns.TxNamespace,
-		shares.NewRange(0, 256),
+		share.TxNamespace,
+		share.NewRange(0, 256),
 	)
 	require.NoError(t, err)
 	assert.NoError(t, proof.Validate(dataRoot))

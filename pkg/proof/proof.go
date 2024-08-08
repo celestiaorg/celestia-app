@@ -11,11 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/merkle"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	"github.com/tendermint/tendermint/crypto/merkle"
 )
 
 // NewTxInclusionProof returns a new share inclusion proof for the given
@@ -48,12 +47,12 @@ func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (ShareProof, 
 	return NewShareInclusionProof(dataSquare, namespace, shareRange)
 }
 
-func getTxNamespace(tx []byte) (ns appns.Namespace) {
-	_, isBlobTx := blob.UnmarshalBlobTx(tx)
+func getTxNamespace(tx []byte) (ns share.Namespace) {
+	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx)
 	if isBlobTx {
-		return appns.PayForBlobNamespace
+		return share.PayForBlobNamespace
 	}
-	return appns.TxNamespace
+	return share.TxNamespace
 }
 
 // NewShareInclusionProof takes an ODS, extends it, then
@@ -62,10 +61,10 @@ func getTxNamespace(tx []byte) (ns appns.Namespace) {
 // Expects the share range to be pre-validated.
 func NewShareInclusionProof(
 	dataSquare square.Square,
-	namespace appns.Namespace,
-	shareRange shares.Range,
+	namespace share.Namespace,
+	shareRange share.Range,
 ) (ShareProof, error) {
-	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	if err != nil {
 		return ShareProof{}, err
 	}
@@ -78,8 +77,8 @@ func NewShareInclusionProof(
 // Expects the share range to be pre-validated.
 func NewShareInclusionProofFromEDS(
 	eds *rsmt2d.ExtendedDataSquare,
-	namespace appns.Namespace,
-	shareRange shares.Range,
+	namespace share.Namespace,
+	shareRange share.Range,
 ) (ShareProof, error) {
 	squareSize := square.Size(len(eds.FlattenedODS()))
 	startRow := shareRange.Start / squareSize
@@ -112,18 +111,46 @@ func NewShareInclusionProofFromEDS(
 	}
 
 	// get the extended rows containing the shares.
-	rows := make([][]shares.Share, endRow-startRow+1)
+	rows := make([][]share.Share, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
-		shares, err := shares.FromBytes(eds.Row(uint(i)))
+		shares, err := share.FromBytes(eds.Row(uint(i)))
 		if err != nil {
 			return ShareProof{}, err
 		}
 		rows[i-startRow] = shares
 	}
 
-	var shareProofs []*NMTProof //nolint:prealloc
+	shareProofs, rawShares, err := CreateShareToRowRootProofs(squareSize, rows, rowRoots, startLeaf, endLeaf)
+	if err != nil {
+		return ShareProof{}, err
+	}
+	return ShareProof{
+		RowProof: &RowProof{
+			RowRoots: rowRoots,
+			Proofs:   rowProofs,
+			StartRow: uint32(startRow),
+			EndRow:   uint32(endRow),
+		},
+		Data:             rawShares,
+		ShareProofs:      shareProofs,
+		NamespaceId:      namespace.ID(),
+		NamespaceVersion: uint32(namespace.Version()),
+	}, nil
+}
+
+func safeConvertUint64ToInt(val uint64) (int, error) {
+	if val > math.MaxInt {
+		return 0, fmt.Errorf("value %d is too large to convert to int", val)
+	}
+	return int(val), nil
+}
+
+// CreateShareToRowRootProofs takes a set of shares and their corresponding row roots, and generates
+// an NMT inclusion proof of a set of shares, defined by startLeaf and endLeaf, to their corresponding row roots.
+func CreateShareToRowRootProofs(squareSize int, rowShares [][]share.Share, rowRoots [][]byte, startLeaf, endLeaf int) ([]*NMTProof, [][]byte, error) {
+	shareProofs := make([]*NMTProof, 0, len(rowRoots))
 	var rawShares [][]byte
-	for i, row := range rows {
+	for i, row := range rowShares {
 		// create an nmt to generate a proof.
 		// we have to re-create the tree as the eds one is not accessible.
 		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), uint(i))
@@ -132,17 +159,17 @@ func NewShareInclusionProofFromEDS(
 				share.ToBytes(),
 			)
 			if err != nil {
-				return ShareProof{}, err
+				return nil, nil, err
 			}
 		}
 
 		// make sure that the generated root is the same as the eds row root.
 		root, err := tree.Root()
 		if err != nil {
-			return ShareProof{}, err
+			return nil, nil, err
 		}
 		if !bytes.Equal(rowRoots[i], root) {
-			return ShareProof{}, errors.New("eds row root is different than tree root")
+			return nil, nil, errors.New("eds row root is different than tree root")
 		}
 
 		startLeafPos := startLeaf
@@ -153,14 +180,14 @@ func NewShareInclusionProofFromEDS(
 			startLeafPos = 0
 		}
 		// if this is not the last row, then select for the rest of the row
-		if i != (len(rows) - 1) {
+		if i != (len(rowShares) - 1) {
 			endLeafPos = squareSize - 1
 		}
 
-		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
+		rawShares = append(rawShares, share.ToBytes(row[startLeafPos:endLeafPos+1])...)
 		proof, err := tree.ProveRange(startLeafPos, endLeafPos+1)
 		if err != nil {
-			return ShareProof{}, err
+			return nil, nil, err
 		}
 
 		shareProofs = append(shareProofs, &NMTProof{
@@ -170,24 +197,5 @@ func NewShareInclusionProofFromEDS(
 			LeafHash: proof.LeafHash(),
 		})
 	}
-
-	return ShareProof{
-		RowProof: &RowProof{
-			RowRoots: rowRoots,
-			Proofs:   rowProofs,
-			StartRow: uint32(startRow),
-			EndRow:   uint32(endRow),
-		},
-		Data:             rawShares,
-		ShareProofs:      shareProofs,
-		NamespaceId:      namespace.ID,
-		NamespaceVersion: uint32(namespace.Version),
-	}, nil
-}
-
-func safeConvertUint64ToInt(val uint64) (int, error) {
-	if val > math.MaxInt {
-		return 0, fmt.Errorf("value %d is too large to convert to int", val)
-	}
-	return int(val), nil
+	return shareProofs, rawShares, nil
 }

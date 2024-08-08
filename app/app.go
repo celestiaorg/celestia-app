@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	celestiatx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
@@ -430,7 +431,7 @@ func New(
 	// assert that keys are present for all supported versions
 	app.assertAllKeysArePresent()
 
-	// we don't seal the store until the app version has been initailised
+	// we don't seal the store until the app version has been initialised
 	// this will just initialize the base keys (i.e. the param store)
 	if err := app.CommitMultiStore().LoadLatestVersion(); err != nil {
 		tmos.Exit(err.Error())
@@ -463,7 +464,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SetAppVersion(ctx, v2)
 
 			// The blobstream module was disabled in v2 so the following line
-			// removes the the params subspace for blobstream.
+			// removes the params subspace for blobstream.
 			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {
 				panic(err)
 			}
@@ -571,7 +572,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 func (app *App) mountKeysAndInit(appVersion uint64) {
 	app.MountKVStores(app.versionedKeys(appVersion))
 
-	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
+	// Invoke load latest version for its side-effect of invoking baseapp.Init()
 	if err := app.LoadLatestVersion(); err != nil {
 		panic(fmt.Sprintf("loading latest version: %s", err.Error()))
 	}
@@ -718,11 +719,13 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 	// Register node gRPC service for grpc-gateway.
 	nodeservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	ModuleBasics.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
+	celestiatx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 }
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
+	celestiatx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

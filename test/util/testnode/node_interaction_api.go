@@ -13,9 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -222,7 +220,7 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 // PostData will create and submit PFB transaction containing the namespace and
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
-func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
+func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, blobData []byte) (*sdk.TxResponse, error) {
 	rec, err := c.Keyring.Key(account)
 	if err != nil {
 		return nil, err
@@ -252,7 +250,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
 	opts := blobfactory.FeeTxOpts(gas)
 
-	blobTx, _, err := signer.CreatePayForBlobs(account, []*blob.Blob{b}, opts...)
+	blobTx, _, err := signer.CreatePayForBlobs(account, []*share.Blob{b}, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +295,8 @@ func (c *Context) FillBlock(squareSize int, account string, broadcastMode string
 	shareCount := (squareSize - 1) * squareSize
 
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
-	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
-	return c.PostData(account, broadcastMode, appns.RandomBlobNamespace(), tmrand.Bytes(blobSize))
+	blobSize := share.AvailableBytesFromSparseShares(shareCount)
+	return c.PostData(account, broadcastMode, share.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }
 
 // HeightForTimestamp returns the block height for the first block after a

@@ -3,7 +3,7 @@ package inclusion
 import (
 	"math"
 
-	"github.com/celestiaorg/go-square/inclusion"
+	"github.com/celestiaorg/go-square/v2/inclusion"
 )
 
 type path struct {

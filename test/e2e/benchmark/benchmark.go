@@ -70,8 +70,10 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
 		testnet.WithPrometheus(b.manifest.Prometheus),
 		testnet.WithLocalTracing(b.manifest.LocalTracingType),
+		testnet.WithTxIndexer("kv"),
+		testnet.WithMempoolMaxTxsBytes(1*testnet.GiB),
+		testnet.WithMempoolMaxTxBytes(8*testnet.MiB),
 	))
-
 	if b.manifest.PushTrace {
 		log.Println("reading trace push config")
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
@@ -100,8 +102,10 @@ func (b *BenchmarkTest) SetupNodes() error {
 
 // Run runs the benchmark test for the specified duration in the manifest.
 func (b *BenchmarkTest) Run() error {
-	log.Println("Starting testnet")
-	err := b.Start()
+	log.Println("Starting benchmark testnet")
+
+	log.Println("Starting nodes")
+	err := b.StartNodes()
 	if err != nil {
 		return fmt.Errorf("failed to start testnet: %v", err)
 	}
@@ -114,6 +118,20 @@ func (b *BenchmarkTest) Run() error {
 				return fmt.Errorf("failed to set latency and jitter: %v", err)
 			}
 		}
+	}
+
+	// wait for the nodes to sync
+	log.Println("Waiting for nodes to sync")
+	err = b.WaitToSync()
+	if err != nil {
+		return err
+	}
+
+	// start tx clients
+	log.Println("Starting tx clients")
+	err = b.StartTxClients()
+	if err != nil {
+		return fmt.Errorf("failed to start tx clients: %v", err)
 	}
 
 	// wait some time for the tx clients to submit transactions

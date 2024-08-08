@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	appns "github.com/celestiaorg/go-square/namespace"
+	appns "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"

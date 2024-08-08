@@ -1,15 +1,14 @@
 module github.com/celestiaorg/celestia-app/v3
 
-go 1.22.4
+go 1.22.5
 
 require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
-	github.com/celestiaorg/go-square v1.1.0
-	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076
+	github.com/celestiaorg/go-square/v2 v2.0.0-rc2
 	github.com/celestiaorg/knuu v0.14.0
-	github.com/celestiaorg/nmt v0.22.0
+	github.com/celestiaorg/nmt v0.22.1
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.46.16
@@ -248,7 +247,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.0-sdk-v0.46.16
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4

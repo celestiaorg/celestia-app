@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/go-square/merkle"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/v3/proto/celestia/core/v1/da"
-	"github.com/celestiaorg/go-square/shares"
 )
 
 var (
@@ -64,7 +65,7 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that the length of the square is a power of 2.
-	if !shares.IsPowerOfTwo(len(s)) {
+	if !square.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
 	squareSize := SquareSize(len(s))
@@ -191,13 +192,13 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // MinShares returns one tail-padded share.
 func MinShares() [][]byte {
-	return shares.ToBytes(EmptySquareShares())
+	return share.ToBytes(EmptySquareShares())
 }
 
 // EmptySquare is a copy of the function defined in the square package to avoid
 // a circular dependency. TODO deduplicate
-func EmptySquareShares() []shares.Share {
-	return shares.TailPaddingShares(appconsts.MinShareCount)
+func EmptySquareShares() []share.Share {
+	return share.TailPaddingShares(appconsts.MinShareCount)
 }
 
 // SquareSize is a copy of the function defined in the square package to avoid
