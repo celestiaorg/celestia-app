@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
@@ -96,75 +97,75 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	app.manager, err = module.NewManager([]module.VersionedModule{
 		{
 			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, app.txConfig),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      auth.NewAppModule(app.appCodec, app.AccountKeeper, nil),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      bank.NewAppModule(app.appCodec, app.BankKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      capability.NewAppModule(app.appCodec, *app.CapabilityKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      feegrantmodule.NewAppModule(app.appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      gov.NewAppModule(app.appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      mint.NewAppModule(app.appCodec, app.MintKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      slashing.NewAppModule(app.appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      distr.NewAppModule(app.appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      staking.NewAppModule(app.appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      evidence.NewAppModule(app.EvidenceKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      authzmodule.NewAppModule(app.appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      ibc.NewAppModule(app.IBCKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      params.NewAppModule(app.ParamsKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      transfer.NewAppModule(app.TransferKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      blob.NewAppModule(app.appCodec, app.BlobKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
@@ -172,19 +173,19 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      minfee.NewAppModule(app.ParamsKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: appconsts.LatestVersion,
 		},
 		{
 			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: appconsts.LatestVersion,
 		},
 	})
 	if err != nil {
@@ -337,6 +338,26 @@ func versionedStoreKeys() map[uint64][]string {
 			minttypes.StoreKey,
 			packetforwardtypes.StoreKey, // added in v2
 			signaltypes.StoreKey,        // added in v2
+			slashingtypes.StoreKey,
+			stakingtypes.StoreKey,
+			upgradetypes.StoreKey,
+		},
+		3: {
+			authtypes.StoreKey,
+			authzkeeper.StoreKey,
+			banktypes.StoreKey,
+			blobtypes.StoreKey,
+			capabilitytypes.StoreKey,
+			distrtypes.StoreKey,
+			evidencetypes.StoreKey,
+			feegrant.StoreKey,
+			govtypes.StoreKey,
+			ibchost.StoreKey,
+			ibctransfertypes.StoreKey,
+			icahosttypes.StoreKey,
+			minttypes.StoreKey,
+			packetforwardtypes.StoreKey,
+			signaltypes.StoreKey,
 			slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
