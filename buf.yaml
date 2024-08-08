@@ -31,9 +31,3 @@ lint:
 breaking:
   use:
     - FILE
-  ignore:
-    - tendermint
-    - gogoproto
-    - cosmos_proto
-    - google
-    - confio

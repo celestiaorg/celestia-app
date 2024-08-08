@@ -4,7 +4,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -77,7 +77,7 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 // the blobs described by blobSizes.
 func getSharesNeeded(blobSizes []uint32) (sum int) {
 	for _, blobSize := range blobSizes {
-		sum += shares.SparseSharesNeeded(blobSize)
+		sum += share.SparseSharesNeeded(blobSize)
 	}
 	return sum
 }
