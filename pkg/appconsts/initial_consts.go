@@ -32,6 +32,4 @@ const (
 	DefaultUnbondingTime = 3 * 7 * 24 * time.Hour
 )
 
-var (
-	DefaultUpperBoundMaxBytes = DefaultSquareSizeUpperBound * DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize
-)
+var DefaultUpperBoundMaxBytes = DefaultSquareSizeUpperBound * DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize
