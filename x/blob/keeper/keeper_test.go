@@ -43,6 +43,7 @@ func TestPayForBlobs(t *testing.T) {
 			namespaces := [][]byte{namespace.Bytes()}
 			blobData := []byte("blob")
 			blobSizes := []uint32{uint32(len(blobData))}
+			
 			// verify no events exist yet
 			events := ctx.EventManager().Events().ToABCIEvents()
 			assert.Len(t, events, 0)
