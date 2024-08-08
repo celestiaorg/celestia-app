@@ -42,6 +42,11 @@ func init() {
 // in or empty.
 // CONTRACT: To use this decorator, signatures of transaction must be represented
 // as legacytx.StdSignature otherwise simulate mode will incorrectly estimate gas cost.
+
+// The code was copied from celestia's fork of the cosmos-sdk:
+// https://github.com/celestiaorg/cosmos-sdk/blob/release/v0.46.x-celestia/x/auth/ante/basic.go
+// In app versions v2 and below, the txSizeCostPerByte used for gas cost estimation is taken from the auth module.
+// In app v3 and above, the versioned constant appconsts.TxSizeCostPerByte is used.
 type ConsumeTxSizeGasDecorator struct {
 	ak ante.AccountKeeper
 }
