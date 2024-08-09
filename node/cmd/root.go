@@ -28,6 +28,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer os.RemoveAll(rootDir)
 		cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, rootDir)
 		defer cleanup()
 		if err != nil {
