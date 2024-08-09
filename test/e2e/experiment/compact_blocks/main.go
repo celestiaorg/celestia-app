@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "73d2276"
+	compactBlocksVersion = "a2ed41f"
 )
 
 func main() {
@@ -60,7 +60,7 @@ func Run() error {
 	err = network.CreateTxClient(
 		"txsim",
 		compactBlocksVersion,
-		80,
+		100,
 		"1000-8000",
 		1,
 		testnet.DefaultResources,
@@ -78,6 +78,9 @@ func Run() error {
 		func(cfg *config.Config) {
 			// create a partially connected network by only dialing 5 peers
 			cfg.P2P.MaxNumOutboundPeers = 4
+			cfg.Mempool.TTLNumBlocks = 100
+			cfg.Mempool.TTLDuration = 10 * time.Minute
+			cfg.Mempool.MaxTxsBytes *= 4
 		},
 	)
 	if err != nil {
