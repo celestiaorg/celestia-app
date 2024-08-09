@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	InitialAppVersion = 1
+	initialAppVersion = 1
 )
 
 // TODO: modify v1 state machine to contain an upgrade height and have an EndBlocker that returns with ConsensusParamsUpdates app version 2
@@ -27,12 +27,10 @@ type Multiplexer struct {
 }
 
 func NewMultiplexer() *Multiplexer {
-	applications := GetApplications()
-
 	return &Multiplexer{
-		applications:      applications,
-		currentAppVersion: InitialAppVersion,
-		nextAppVersion:    InitialAppVersion,
+		applications:      GetApplications(),
+		currentAppVersion: initialAppVersion,
+		nextAppVersion:    initialAppVersion,
 	}
 }
 
