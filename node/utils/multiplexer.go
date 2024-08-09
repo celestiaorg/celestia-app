@@ -81,7 +81,9 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 	// because it is operating on a branch of state.
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
-	if m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
+	if got.ConsensusParamUpdates != nil &&
+		got.ConsensusParamUpdates.Version != nil &&
+		m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
 		if _, ok := m.applications[m.nextAppVersion]; !ok {
 			panic(fmt.Sprintf("multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
 		}
