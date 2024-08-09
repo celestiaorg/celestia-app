@@ -26,7 +26,6 @@ import (
 	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
 	"github.com/cosmos/cosmos-sdk/server/rosetta"
 	crgserver "github.com/cosmos/cosmos-sdk/server/rosetta/lib/server"
-	"github.com/cosmos/cosmos-sdk/server/types"
 	srvrtypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -532,7 +531,13 @@ func wrapCPUProfile(ctx *server.Context, callback func() error) error {
 	return server.WaitForQuitSignals()
 }
 
-func addCommands(rootCmd *cobra.Command, defaultNodeHome string, appCreator types.AppCreator, appExport types.AppExporter, addStartFlags types.ModuleInitFlags) {
+func addCommands(
+	rootCmd *cobra.Command,
+	defaultNodeHome string,
+	appCreator srvrtypes.AppCreator,
+	appExport srvrtypes.AppExporter,
+	addStartFlags srvrtypes.ModuleInitFlags,
+) {
 	tendermintCmd := &cobra.Command{
 		Use:     "tendermint",
 		Aliases: []string{"comet", "cometbft"},
