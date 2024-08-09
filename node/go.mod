@@ -4,10 +4,11 @@ go 1.22.4
 
 require (
 	github.com/celestiaorg/celestia-app v1.13.0
-	github.com/celestiaorg/celestia-app/v2 v2.0.0-rc4
+	github.com/celestiaorg/celestia-app/v2 v2.0.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
+	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
 	github.com/tendermint/tm-db v0.6.7
 )
@@ -158,7 +159,6 @@ require (
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/supranational/blst v0.3.11 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
@@ -204,10 +204,12 @@ require (
 )
 
 replace (
-	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
-	github.com/celestiaorg/celestia-app/v2 => ../
 	// replace errors to avoid a panic when registering duplicate errors
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
+	// replace celestia-app v1 with fork that has a hard-coded upgrade height of 3
+	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.21.0
+	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
+	github.com/celestiaorg/celestia-app/v2 => ../
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
