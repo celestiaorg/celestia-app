@@ -29,9 +29,9 @@ func NewMsgVersioningGateKeeper(acceptedList map[uint64]map[string]struct{}) *Ms
 
 // AnteHandle implements the ante.Decorator interface
 func (mgk MsgVersioningGateKeeper) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
-	acceptedMsgs, exists := mgk.acceptedMsgs[ctx.BlockHeader().Version.App]
+	acceptedMsgs, exists := mgk.acceptedMsgs[ctx.ConsensusParams().Version.AppVersion]
 	if !exists {
-		return ctx, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", ctx.BlockHeader().Version.App)
+		return ctx, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", ctx.ConsensusParams().Version.AppVersion)
 	}
 
 	if err := mgk.hasInvalidMsg(ctx, acceptedMsgs, tx.GetMsgs()); err != nil {
@@ -65,10 +65,11 @@ func (mgk MsgVersioningGateKeeper) hasInvalidMsg(ctx sdk.Context, acceptedMsgs m
 }
 
 func (mgk MsgVersioningGateKeeper) IsAllowed(ctx context.Context, msgName string) (bool, error) {
-	appVersion := sdk.UnwrapSDKContext(ctx).BlockHeader().Version.App
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	appVersion := sdkCtx.ConsensusParams().Version.AppVersion
 	acceptedMsgs, exists := mgk.acceptedMsgs[appVersion]
 	if !exists {
-		return false, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", appVersion)
+		return false, sdkerrors.ErrNotSupported.Wrapf("circuit breaker: app version %d is not supported", appVersion)
 	}
 	_, exists = acceptedMsgs[msgName]
 	if !exists {

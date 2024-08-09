@@ -3,7 +3,6 @@ package testnet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -189,6 +188,16 @@ func (t *Testnet) StartTxClients() error {
 	return nil
 }
 
+func (t *Testnet) StopTxClients() error {
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.Stop()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CreateAccount creates an account and adds it to the
 // testnet genesis. The account is created with the given name and tokens and
 // is persisted in the given txsimKeyringDir.
@@ -348,10 +357,11 @@ func (t *Testnet) WaitToSync() error {
 					break
 				}
 			} else {
-				err = errors.New("error getting status")
+				log.Info().Err(err).Str("name", node.Name).Msg(
+					"getting status")
 			}
 			if i == 9 {
-				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
+				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
 				"node is not synced yet, waiting...")
