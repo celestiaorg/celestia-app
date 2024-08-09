@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "a2ed41f"
+	compactBlocksVersion = "8f93462"
 )
 
 func main() {
@@ -57,14 +57,13 @@ func Run() error {
 		return err
 	}
 
-	err = network.CreateTxClient(
-		"txsim",
+	err = network.CreateTxClients(
 		compactBlocksVersion,
 		100,
-		"1000-8000",
+		"4000-16000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[0],
+		gRPCEndpoints[:3],
 	)
 	if err != nil {
 		return err
@@ -111,21 +110,25 @@ func Run() error {
 			log.Printf("Height: %v", status.SyncInfo.LatestBlockHeight)
 
 		case <-timeout.C:
-			network.StopTxClients()
+			if err := network.StopTxClients(); err != nil {
+				log.Printf("Error stopping tx clients: %v", err)
+			}
 			log.Println("--- COLLECTING DATA")
-			if err := saveBlockTimes(network); err != nil {
+			throughput, err := saveBlockTimes(network)
+			if err != nil {
 				log.Printf("Error saving block times: %v", err)
 			}
+			log.Printf("Throughput: %v", throughput)
 			log.Println("--- FINISHED ✅: Compact Blocks")
 			return nil
 		}
 	}
 }
 
-func saveBlockTimes(testnet *testnet.Testnet) error {
+func saveBlockTimes(testnet *testnet.Testnet) (float64, error) {
 	file, err := os.Create(fmt.Sprintf("%s-%s-block-times.csv", time.Now().Format("2006-01-02-15-04-05"), testnet.Node(0).Version))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer file.Close()
 
@@ -134,7 +137,7 @@ func saveBlockTimes(testnet *testnet.Testnet) error {
 
 	err = writer.Write([]string{"height", "block time", "block size", "last commit round"})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	nodes := testnet.Nodes()
@@ -142,12 +145,15 @@ func saveBlockTimes(testnet *testnet.Testnet) error {
 	for i, node := range nodes {
 		clients[i], err = node.Client()
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
+
+	totalBlockSize := 0
+	startTime := int64(0)
 	status, err := clients[0].Status(context.Background())
 	if err != nil {
-		return err
+		return 0, err
 	}
 	index := 0
 	for height := status.SyncInfo.EarliestBlockHeight; height <= status.SyncInfo.LatestBlockHeight; height++ {
@@ -156,7 +162,7 @@ func saveBlockTimes(testnet *testnet.Testnet) error {
 			log.Printf("Error getting header for height %d: %v", height, err)
 			index++
 			if index == len(nodes) {
-				return fmt.Errorf("all nodes failed to get header for height %d", height)
+				return 0, fmt.Errorf("all nodes failed to get header for height %d", height)
 			}
 			// retry the height
 			height--
@@ -166,10 +172,21 @@ func saveBlockTimes(testnet *testnet.Testnet) error {
 		for _, tx := range resp.Block.Txs {
 			blockSize += len(tx)
 		}
+		if blockSize > 0 {
+			totalBlockSize += blockSize
+			if startTime == 0 {
+				startTime = resp.Block.Time.UnixNano()
+			}
+		}
+		if resp.Block.LastCommit.Round > 0 {
+			log.Printf("Block %d has a last commit round of %d", resp.Block.LastCommit.Height, resp.Block.LastCommit.Round)
+		}
 		err = writer.Write([]string{fmt.Sprintf("%d", height), fmt.Sprintf("%d", resp.Block.Time.UnixNano()), fmt.Sprintf("%d", blockSize), fmt.Sprintf("%d", resp.Block.LastCommit.Round)})
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return nil
+
+	duration := time.Since(time.Unix(0, startTime))
+	return float64(totalBlockSize) / duration.Seconds(), nil
 }
