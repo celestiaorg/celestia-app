@@ -1128,8 +1128,8 @@ github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6L
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
-github.com/rootulp/celestia-app v1.21.0 h1:Iwl7cHOwLhVE3pW/yq3ma59nwb1xFHkvIsGVBvPyiwE=
-github.com/rootulp/celestia-app v1.21.0/go.mod h1:OPkbzIvBUGwTvfunQ/uh7qEekjkix59kB0CsK8+i6uM=
+github.com/rootulp/celestia-app v1.22.0 h1:lmABO3WXa7LTSkkNzhvadFZdq4R04+vfEvrxqsRCSQ4=
+github.com/rootulp/celestia-app v1.22.0/go.mod h1:OPkbzIvBUGwTvfunQ/uh7qEekjkix59kB0CsK8+i6uM=
 github.com/rootulp/cosmos-sdk/errors v1.4.0 h1:JWU+WRfL+fDPuNzCAfdcr89DLSnB1jDef8CPOS5opn0=
 github.com/rootulp/cosmos-sdk/errors v1.4.0/go.mod h1:ZQBrhEyjHm/xvyGUczhkBaF9i2zvVdqxMpxQiNdHS14=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
