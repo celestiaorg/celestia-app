@@ -115,9 +115,16 @@ The blob must be a hex encoded string of non-zero length.
 				return err
 			}
 
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			signer := clientCtx.FromAddress
+
 			// In case of no file input, get the namespaceID and blob from the arguments
 			if path == "" {
-				blob, err := getBlobFromArguments(args[0], args[1], namespaceVersion, shareVersion)
+				blob, err := getBlobFromArguments(args[0], args[1], namespaceVersion, shareVersion, signer)
 				if err != nil {
 					return err
 				}
@@ -132,7 +139,7 @@ The blob must be a hex encoded string of non-zero length.
 
 			var blobs []*share.Blob
 			for _, paresdBlob := range paresdBlobs {
-				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion)
+				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion, signer)
 				if err != nil {
 					return err
 				}
@@ -151,7 +158,7 @@ The blob must be a hex encoded string of non-zero length.
 	return cmd
 }
 
-func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shareVersion uint8) (*share.Blob, error) {
+func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shareVersion uint8, signer sdk.AccAddress) (*share.Blob, error) {
 	namespaceID, err := hex.DecodeString(strings.TrimPrefix(namespaceIDArg, "0x"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode hex namespace ID: %w", err)
@@ -166,12 +173,14 @@ func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shar
 		return nil, fmt.Errorf("failure to decode hex blob value %s: %s", hexStr, err.Error())
 	}
 
-	blob, err := types.NewBlob(namespace, rawblob, shareVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
+	switch shareVersion {
+	case share.ShareVersionZero:
+		return types.NewV0Blob(namespace, rawblob)
+	case share.ShareVersionOne:
+		return types.NewV1Blob(namespace, rawblob, signer)
+	default:
+		return nil, fmt.Errorf("share version %d is not supported", shareVersion)
 	}
-
-	return blob, nil
 }
 
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (share.Namespace, error) {
@@ -197,8 +206,6 @@ func broadcastPFB(cmd *cobra.Command, b ...*share.Blob) error {
 		return err
 	}
 
-	// TODO: allow the user to override the share version via a new flag
-	// See https://github.com/celestiaorg/celestia-app/issues/1041
 	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), appconsts.LatestVersion, b...)
 	if err != nil {
 		return err

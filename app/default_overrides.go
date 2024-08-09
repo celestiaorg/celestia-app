@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -268,7 +269,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// We set a loose upper bound on what we expect the transaction to
 	// be based on the upper bound size of the entire block for the given
 	// version. This acts as a first line of DoS protection
-	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize
 	cfg.Mempool.MaxTxBytes = upperBoundBytes
 	cfg.Mempool.MaxTxsBytes = int64(upperBoundBytes) * cfg.Mempool.TTLNumBlocks
 	cfg.Mempool.Version = "v1" // prioritized mempool

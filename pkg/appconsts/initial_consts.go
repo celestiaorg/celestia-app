@@ -1,6 +1,10 @@
 package appconsts
 
-import "time"
+import (
+	"time"
+
+	"github.com/celestiaorg/go-square/v2/share"
+)
 
 // The following defaults correspond to initial parameters of the network that can be changed, not via app versions
 // but other means such as on-chain governance, or the nodes local config
@@ -11,7 +15,7 @@ const (
 
 	// DefaultMaxBytes is the default value for the governance modifiable
 	// maximum number of bytes allowed in a valid block.
-	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
+	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * share.ContinuationSparseShareContentSize
 
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
 	// included in a PayForBlobs txn
@@ -27,3 +31,5 @@ const (
 	// time can be subject to slashing under conditions of misbehavior.
 	DefaultUnbondingTime = 3 * 7 * 24 * time.Hour
 )
+
+var DefaultUpperBoundMaxBytes = DefaultSquareSizeUpperBound * DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize

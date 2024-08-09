@@ -31,7 +31,7 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {
 func GenerateBlobsWithNamespace(count int, blobSize int, ns share.Namespace) []*share.Blob {
 	blobs := make([]*share.Blob, count)
 	for i := 0; i < count; i++ {
-		blob, err := share.NewBlob(ns, tmrand.Bytes(blobSize), appconsts.ShareVersionZero, nil)
+		blob, err := share.NewBlob(ns, tmrand.Bytes(blobSize), appconsts.DefaultShareVersion, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -48,7 +48,7 @@ func GenerateBlobsWithNamespace(count int, blobSize int, ns share.Namespace) []*
 
 func GenerateRandomBlob(dataSize int) *share.Blob {
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, share.NamespaceVersionZeroIDSize))
-	blob, err := share.NewBlob(ns, tmrand.Bytes(dataSize), appconsts.ShareVersionZero, nil)
+	blob, err := share.NewBlob(ns, tmrand.Bytes(dataSize), appconsts.DefaultShareVersion, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +58,7 @@ func GenerateRandomBlob(dataSize int) *share.Blob {
 // GenerateRandomBlobOfShareCount returns a blob that spans the given
 // number of shares
 func GenerateRandomBlobOfShareCount(count int) *share.Blob {
-	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
+	size := rawBlobSize(share.FirstSparseShareContentSize * count)
 	return GenerateRandomBlob(size)
 }
 

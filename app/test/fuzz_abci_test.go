@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -62,17 +63,17 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		},
 		{
 			"max",
-			maxShareCount * appconsts.ContinuationSparseShareContentSize,
+			maxShareCount * share.ContinuationSparseShareContentSize,
 			appconsts.DefaultSquareSizeUpperBound,
 		},
 		{
 			"larger MaxBytes than SquareSize",
-			maxShareCount * appconsts.ContinuationSparseShareContentSize,
+			maxShareCount * share.ContinuationSparseShareContentSize,
 			appconsts.DefaultGovMaxSquareSize,
 		},
 		{
 			"smaller MaxBytes than SquareSize",
-			32 * 32 * appconsts.ContinuationSparseShareContentSize,
+			32 * 32 * share.ContinuationSparseShareContentSize,
 			appconsts.DefaultGovMaxSquareSize,
 		},
 	}

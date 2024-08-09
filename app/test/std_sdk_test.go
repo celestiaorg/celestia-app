@@ -365,7 +365,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 
 		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
 		require.NoError(t, err)
-		blobs := blobfactory.RandBlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
+		blobs := blobfactory.RandV0BlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
 		res, err := txSubmitter.SubmitPayForBlob(s.cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 		require.NoError(t, err)
 

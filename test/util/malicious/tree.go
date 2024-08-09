@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -43,10 +44,10 @@ func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructo
 // wrapper.ErasuredNamespacedMerkleTree with predefined square size and
 // nmt.Options.
 func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-	hasher := NewNmtHasher(appconsts.NewBaseHashFunc(), appconsts.NamespaceSize, true)
+	hasher := NewNmtHasher(appconsts.NewBaseHashFunc(), share.NamespaceSize, true)
 	copts := []nmt.Option{
 		nmt.CustomHasher(hasher),
-		nmt.NamespaceIDSize(appconsts.NamespaceSize),
+		nmt.NamespaceIDSize(share.NamespaceSize),
 		nmt.IgnoreMaxNamespace(true),
 	}
 	copts = append(copts, c.opts...)

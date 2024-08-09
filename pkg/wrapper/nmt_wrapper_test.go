@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	appns "github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -50,7 +50,7 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
 	data := testfactory.GenerateRandNamespacedRawData(size)
 	nmtErasured := wrapper.NewErasuredNamespacedMerkleTree(uint64(size), 0)
-	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
+	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(share.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
 	for _, d := range data {
 		err := nmtErasured.Push(d)
@@ -169,9 +169,9 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 
 			var namespaceID nmtnamespace.ID
 			if i < sqaureSize {
-				namespaceID = data[i][:appconsts.NamespaceSize]
+				namespaceID = data[i][:share.NamespaceSize]
 			} else {
-				namespaceID = appns.ParitySharesNamespace.Bytes()
+				namespaceID = share.ParitySharesNamespace.Bytes()
 			}
 			verified := proof.VerifyInclusion(appconsts.NewBaseHashFunc(), namespaceID, [][]byte{data[i]}, root)
 			assert.True(t, verified)

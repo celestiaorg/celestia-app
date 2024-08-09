@@ -289,7 +289,7 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 func newBlobWithSize(size int) *share.Blob {
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	data := tmrand.Bytes(size)
-	blob, err := share.NewBlob(ns, data, appconsts.ShareVersionZero, nil)
+	blob, err := share.NewBlob(ns, data, share.ShareVersionZero, nil)
 	if err != nil {
 		panic(err)
 	}
