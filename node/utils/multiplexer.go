@@ -46,6 +46,10 @@ func (m *Multiplexer) ApplySnapshotChunk(request abci.RequestApplySnapshotChunk)
 
 func (m *Multiplexer) BeginBlock(request abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	app := m.getCurrentApp()
+	got := app.Info(abci.RequestInfo{})
+	if got.AppVersion != m.currentAppVersion {
+		panic(fmt.Sprintf("current app version %v does not match app version from current app %v\n", m.currentAppVersion, got.AppVersion))
+	}
 	return app.BeginBlock(request)
 }
 
