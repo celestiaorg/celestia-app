@@ -66,8 +66,8 @@ func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode 
 		privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile()),
 		nodeKey,
 		// TODO: use multiplexer instead of singular app
-		// newProxyClientCreator(multiplexer),
-		proxy.NewLocalClientCreator(app),
+		newProxyClientCreator(multiplexer),
+		// proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
