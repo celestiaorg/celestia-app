@@ -38,11 +38,6 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 		return testnode.Context{}, nil, err
 	}
 
-	_, err = testnode.StartAPIServer(app, *config.AppConfig, cctx)
-	if err != nil {
-		return testnode.Context{}, nil, err
-	}
-
 	cleanup = func() error {
 		cleanupComet()
 		cleanupNode()
@@ -59,6 +54,8 @@ func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode 
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
+	// TODO: remove this line
 	app = config.AppCreator(logger, db, nil, config.AppOptions)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
@@ -68,6 +65,7 @@ func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode 
 		config.TmConfig,
 		privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile()),
 		nodeKey,
+		// TODO: use multiplexer instead of singular app
 		// newProxyClientCreator(multiplexer),
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
