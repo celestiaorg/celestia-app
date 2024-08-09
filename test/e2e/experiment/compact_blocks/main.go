@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "8f93462"
+	compactBlocksVersion = "27bf8ce"
 )
 
 func main() {
@@ -60,10 +60,10 @@ func Run() error {
 	err = network.CreateTxClients(
 		compactBlocksVersion,
 		100,
-		"4000-16000",
+		"8000-32000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:3],
+		gRPCEndpoints[:5],
 	)
 	if err != nil {
 		return err
