@@ -6,7 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -21,7 +20,7 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 	}
 	config.AppOptions.Set(flags.FlagHome, basePath)
 
-	cometNode, app, cleanupComet, err := newCometNode(config, multiplexer)
+	cometNode, cleanupComet, err := newCometNode(config, multiplexer)
 	if err != nil {
 		return testnode.Context{}, nil, err
 	}
@@ -33,33 +32,30 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 		return testnode.Context{}, nil, err
 	}
 
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, config.AppConfig, cctx)
-	if err != nil {
-		return testnode.Context{}, nil, err
-	}
-
 	cleanup = func() error {
 		cleanupComet()
 		cleanupNode()
-		cleanupGRPC()
 		return nil
 	}
 
 	return cctx, cleanup, nil
 }
 
-func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode *node.Node, app servertypes.Application, cleanupComet func() error, err error) {
+// HACKHACK: this is a temporary solution to get the CometBFT node running. The
+// CometBFT node is connected to the multiplexer but the returned application is
+// a singular app (not a multiplexed app).
+func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode *node.Node, cleanupComet func() error, err error) {
 	logger := testnode.NewLogger(&config.UniversalTestingConfig)
 	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// TODO: remove this line
-	app = config.AppCreator(logger, db, nil, config.AppOptions)
+	// app = config.AppCreator(logger, db, nil, config.AppOptions)
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	cometNode, err = node.NewNode(
 		config.TmConfig,
@@ -74,12 +70,12 @@ func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode 
 		logger,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	cleanup := func() error {
 		return db.Close()
 	}
-	return cometNode, app, cleanup, err
+	return cometNode, cleanup, err
 }
 
 func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {

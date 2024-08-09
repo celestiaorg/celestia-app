@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,8 +25,9 @@ func TestRun(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Printf("chainID %v\n", cctx.ChainID)
 
-	latestHeight, err := cctx.LatestHeight()
-	require.NoError(t, err)
-	fmt.Printf("latestHeight %v\n", latestHeight)
-	assert.Greater(t, latestHeight, int64(0))
+	require.Eventually(t, func() bool {
+		latestHeight, err := cctx.LatestHeight()
+		require.NoError(t, err)
+		return latestHeight > 0
+	}, time.Second*10, time.Second)
 }
