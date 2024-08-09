@@ -3,11 +3,12 @@ package utils
 import (
 	"fmt"
 
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
-	initialAppVersion = 1
+	initialAppVersion = v1.Version
 )
 
 // TODO: modify v1 state machine to contain an upgrade height and have an EndBlocker that returns with ConsensusParamsUpdates app version 2
@@ -81,14 +82,16 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 	// because it is operating on a branch of state.
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
-	if got.ConsensusParamUpdates != nil &&
-		got.ConsensusParamUpdates.Version != nil &&
-		m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
-		if _, ok := m.applications[m.nextAppVersion]; !ok {
-			panic(fmt.Sprintf("multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
+	if got.ConsensusParamUpdates != nil && got.ConsensusParamUpdates.Version != nil {
+		fmt.Printf("EndBlock height %v with current app version %v next app version %v returned app version %v\n", request.Height, m.currentAppVersion, m.nextAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
+		if m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
+			if _, ok := m.applications[got.ConsensusParamUpdates.Version.AppVersion]; !ok {
+				panic(fmt.Sprintf("multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
+			}
+			m.nextAppVersion = got.ConsensusParamUpdates.Version.AppVersion
 		}
-		m.nextAppVersion = got.ConsensusParamUpdates.Version.AppVersion
-		fmt.Printf("EndBlock height %v with current app version %v returned new app version %v\n", request.Height, m.currentAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
+	} else {
+		fmt.Printf("EndBlock height %v with current app version %v next app version %v returned nil app version\n", request.Height, m.currentAppVersion, m.nextAppVersion)
 	}
 	return got
 }
