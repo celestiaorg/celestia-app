@@ -1,6 +1,13 @@
 package utils
 
-import abci "github.com/tendermint/tendermint/abci/types"
+import (
+	"fmt"
+
+	abci "github.com/tendermint/tendermint/abci/types"
+)
+
+// TODO: modify v1 state machine to contain an upgrade height and have an EndBlocker that returns with ConsensusParamsUpdates app version 2
+// TODO: extend the abci.Application interface to include a method called "RunMigration"
 
 // Multiplexer implements the abci.Application interface
 var _ abci.Application = (*Multiplexer)(nil)
@@ -8,7 +15,9 @@ var _ abci.Application = (*Multiplexer)(nil)
 // Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
 	currentAppVersion uint64
-	apps              []abci.Application
+	// TODO: refactor apps to a map from appVersion to app
+	apps           []abci.Application
+	nextAppVersion uint64
 }
 
 func NewMultiplexer(currentAppVersion uint64, apps []abci.Application) *Multiplexer {
@@ -38,8 +47,20 @@ func (m *Multiplexer) CheckTx(request abci.RequestCheckTx) abci.ResponseCheckTx 
 }
 
 func (m *Multiplexer) Commit() abci.ResponseCommit {
+	// Note: the application can create or delete stores in this method
 	app := m.getCurrentApp()
-	return app.Commit()
+	got := app.Commit()
+
+	if m.nextAppVersion != 0 {
+		m.currentAppVersion = m.nextAppVersion
+		m.nextAppVersion = 0
+		// TODO need to add RunMigrations to the abci.Application interface then uncomment:
+		// app := m.getCurrentApp()
+		// appHash := app.RunMigrations()
+		// got.Data = appHash
+		return got
+	}
+	return got
 }
 
 func (m *Multiplexer) DeliverTx(request abci.RequestDeliverTx) abci.ResponseDeliverTx {
@@ -48,8 +69,18 @@ func (m *Multiplexer) DeliverTx(request abci.RequestDeliverTx) abci.ResponseDeli
 }
 
 func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlock {
+	// Note: the application can't create or delete stores in this method
+	// because it is operating on a branch of state.
 	app := m.getCurrentApp()
-	return app.EndBlock(request)
+	got := app.EndBlock(request)
+	if got.ConsensusParamUpdates.Version.AppVersion != m.currentAppVersion {
+		if int(got.ConsensusParamUpdates.Version.AppVersion) >= len(m.apps) {
+			panic("multiplexer: app version out of range")
+		}
+		fmt.Printf("setting nextAppVersion %v\n", got.ConsensusParamUpdates.Version.AppVersion)
+		m.nextAppVersion = got.ConsensusParamUpdates.Version.AppVersion
+	}
+	return got
 }
 
 func (m *Multiplexer) Info(request abci.RequestInfo) abci.ResponseInfo {
