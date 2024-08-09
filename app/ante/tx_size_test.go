@@ -1,7 +1,6 @@
 package ante_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -26,11 +25,9 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-func setup(appVersion uint64) (*app.App, sdk.Context, client.Context, error) {
+func setup() (*app.App, sdk.Context, client.Context, error) {
 	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := app.NewContext(false, tmproto.Header{Version: version.Consensus{
-		App: appVersion,
-	}})
+	ctx := app.NewContext(false, tmproto.Header{})
 	app.AccountKeeper.SetParams(ctx, authtypes.DefaultParams())
 	ctx = ctx.WithBlockHeight(1)
 
@@ -47,91 +44,94 @@ func setup(appVersion uint64) (*app.App, sdk.Context, client.Context, error) {
 }
 
 func TestConsumeGasForTxSize(t *testing.T) {
-	versions := []uint64{v2.Version, v3.Version}
-	for _, version := range versions {
-		t.Run("AppVersion-"+fmt.Sprint(version), func(t *testing.T) {
-			app, ctx, clientCtx, err := setup(version)
+	app, ctx, clientCtx, err := setup()
+	require.NoError(t, err)
+	var txBuilder client.TxBuilder
+
+	// keys and addresses
+	priv1, _, addr1 := testdata.KeyTestPubAddr()
+
+	// msg and signatures
+	msg := testdata.NewTestMsg(addr1)
+	feeAmount := testdata.NewTestFeeAmount()
+	gasLimit := testdata.NewTestGasLimit()
+
+	cgtsd := ante.NewConsumeGasForTxSizeDecorator(app.AccountKeeper)
+	antehandler := sdk.ChainAnteDecorators(cgtsd)
+
+	testCases := []struct {
+		version uint64
+		name    string
+		sigV2   signing.SignatureV2
+	}{
+		{v2.Version, "SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
+		{v2.Version, "MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
+		{v3.Version, "SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
+		{v3.Version, "MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// set the version
+			ctx = app.NewContext(false, tmproto.Header{Version: version.Consensus{
+				App: tc.version,
+			}})
+
+			txBuilder = clientCtx.TxConfig.NewTxBuilder()
+			require.NoError(t, txBuilder.SetMsgs(msg))
+			txBuilder.SetFeeAmount(feeAmount)
+			txBuilder.SetGasLimit(gasLimit)
+			txBuilder.SetMemo(strings.Repeat("01234567890", 10))
+
+			privs, accNums, accSeqs := []cryptotypes.PrivKey{priv1}, []uint64{0}, []uint64{0}
+			tx, err := createTestTx(txBuilder, clientCtx, privs, accNums, accSeqs, ctx.ChainID())
 			require.NoError(t, err)
-			var txBuilder client.TxBuilder
 
-			// keys and addresses
-			priv1, _, addr1 := testdata.KeyTestPubAddr()
+			txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
+			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
-			// msg and signatures
-			msg := testdata.NewTestMsg(addr1)
-			feeAmount := testdata.NewTestFeeAmount()
-			gasLimit := testdata.NewTestGasLimit()
+			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(appconsts.LatestVersion)
 
-			cgtsd := ante.NewConsumeGasForTxSizeDecorator(app.AccountKeeper)
-			antehandler := sdk.ChainAnteDecorators(cgtsd)
+			// set suite.ctx with TxBytes manually
+			ctx = ctx.WithTxBytes(txBytes)
 
-			testCases := []struct {
-				name  string
-				sigV2 signing.SignatureV2
-			}{
-				{"SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
-				{"MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
-			}
+			// track how much gas is necessary to retrieve parameters
+			beforeGas := ctx.GasMeter().GasConsumed()
+			app.AccountKeeper.GetParams(ctx)
+			afterGas := ctx.GasMeter().GasConsumed()
+			expectedGas += afterGas - beforeGas
 
-			for _, tc := range testCases {
-				t.Run(tc.name, func(t *testing.T) {
-					txBuilder = clientCtx.TxConfig.NewTxBuilder()
-					require.NoError(t, txBuilder.SetMsgs(msg))
-					txBuilder.SetFeeAmount(feeAmount)
-					txBuilder.SetGasLimit(gasLimit)
-					txBuilder.SetMemo(strings.Repeat("01234567890", 10))
+			beforeGas = ctx.GasMeter().GasConsumed()
+			ctx, err = antehandler(ctx, tx, false)
+			require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
 
-					privs, accNums, accSeqs := []cryptotypes.PrivKey{priv1}, []uint64{0}, []uint64{0}
-					tx, err := createTestTx(txBuilder, clientCtx, privs, accNums, accSeqs, ctx.ChainID())
-					require.NoError(t, err)
+			// require that decorator consumes expected amount of gas
+			consumedGas := ctx.GasMeter().GasConsumed() - beforeGas
+			require.Equal(t, expectedGas, consumedGas, "Decorator did not consume the correct amount of gas")
 
-					txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
-					require.Nil(t, err, "Cannot marshal tx: %v", err)
+			// simulation must not underestimate gas of this decorator even with nil signatures
+			txBuilder, err := clientCtx.TxConfig.WrapTxBuilder(tx)
+			require.NoError(t, err)
+			require.NoError(t, txBuilder.SetSignatures(tc.sigV2))
+			tx = txBuilder.GetTx()
 
-					expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(appconsts.LatestVersion)
+			simTxBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
+			require.Nil(t, err, "Cannot marshal tx: %v", err)
+			// require that simulated tx is smaller than tx with signatures
+			require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
 
-					// set suite.ctx with TxBytes manually
-					ctx = ctx.WithTxBytes(txBytes)
+			// Set suite.ctx with smaller simulated TxBytes manually
+			ctx = ctx.WithTxBytes(simTxBytes)
 
-					// track how much gas is necessary to retrieve parameters
-					beforeGas := ctx.GasMeter().GasConsumed()
-					app.AccountKeeper.GetParams(ctx)
-					afterGas := ctx.GasMeter().GasConsumed()
-					expectedGas += afterGas - beforeGas
+			beforeSimGas := ctx.GasMeter().GasConsumed()
 
-					beforeGas = ctx.GasMeter().GasConsumed()
-					ctx, err = antehandler(ctx, tx, false)
-					require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
+			// run antehandler with simulate=true
+			ctx, err = antehandler(ctx, tx, true)
+			consumedSimGas := ctx.GasMeter().GasConsumed() - beforeSimGas
 
-					// require that decorator consumes expected amount of gas
-					consumedGas := ctx.GasMeter().GasConsumed() - beforeGas
-					require.Equal(t, expectedGas, consumedGas, "Decorator did not consume the correct amount of gas")
-
-					// simulation must not underestimate gas of this decorator even with nil signatures
-					txBuilder, err := clientCtx.TxConfig.WrapTxBuilder(tx)
-					require.NoError(t, err)
-					require.NoError(t, txBuilder.SetSignatures(tc.sigV2))
-					tx = txBuilder.GetTx()
-
-					simTxBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
-					require.Nil(t, err, "Cannot marshal tx: %v", err)
-					// require that simulated tx is smaller than tx with signatures
-					require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
-
-					// Set suite.ctx with smaller simulated TxBytes manually
-					ctx = ctx.WithTxBytes(simTxBytes)
-
-					beforeSimGas := ctx.GasMeter().GasConsumed()
-
-					// run antehandler with simulate=true
-					ctx, err = antehandler(ctx, tx, true)
-					consumedSimGas := ctx.GasMeter().GasConsumed() - beforeSimGas
-
-					// require that antehandler passes and does not underestimate decorator cost
-					require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
-					require.True(t, consumedSimGas >= expectedGas, "Simulate mode underestimates gas on AnteDecorator. Simulated cost: %d, expected cost: %d", consumedSimGas, expectedGas)
-				})
-			}
+			// require that antehandler passes and does not underestimate decorator cost
+			require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
+			require.True(t, consumedSimGas >= expectedGas, "Simulate mode underestimates gas on AnteDecorator. Simulated cost: %d, expected cost: %d", consumedSimGas, expectedGas)
 		})
 	}
 }
