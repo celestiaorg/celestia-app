@@ -6,8 +6,13 @@ IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
+<<<<<<< HEAD
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
 GOLANG_CROSS_VERSION  ?= v1.22.5
+=======
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
+GOLANG_CROSS_VERSION  ?= v1.22.6
+>>>>>>> 3ddf196c (chore(deps): upgrade to Go 1.22.6 (#3764))
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
