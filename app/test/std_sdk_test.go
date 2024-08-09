@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
@@ -339,7 +339,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 		require.NoError(t, err)
 		got, err := resp.NetworkMinGasPrice.Float64()
 		require.NoError(t, err)
-		assert.Equal(t, v2.NetworkMinGasPrice, got)
+		assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, got)
 	})
 	t.Run("testnode can query local min gas price", func(t *testing.T) {
 		serviceClient := nodeservice.NewServiceClient(s.cctx.GRPCClient)

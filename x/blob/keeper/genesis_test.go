@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ func TestGenesis(t *testing.T) {
 		Params: types.DefaultParams(),
 	}
 
-	k, _, ctx := CreateKeeper(t)
+	k, _, ctx := CreateKeeper(t, appconsts.LatestVersion)
 	blob.InitGenesis(ctx, *k, genesisState)
 	got := blob.ExportGenesis(ctx, *k)
 	require.NotNil(t, got)

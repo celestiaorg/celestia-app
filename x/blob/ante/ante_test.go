@@ -11,6 +11,8 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 const (
@@ -89,7 +91,12 @@ func TestPFBAnteHandler(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
-			ctx := sdk.Context{}.WithGasMeter(sdk.NewGasMeter(tc.txGas)).WithIsCheckTx(true)
+			ctx := sdk.NewContext(nil, tmproto.Header{
+				Version: version.Consensus{
+					App: appconsts.LatestVersion,
+				},
+			}, true, nil).WithGasMeter(sdk.NewGasMeter(tc.txGas))
+
 			ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
 			txBuilder := txConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))

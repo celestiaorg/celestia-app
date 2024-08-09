@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,5 +24,5 @@ func TestQueryNetworkMinGasPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the response
-	require.Equal(t, v2.NetworkMinGasPrice, resp.NetworkMinGasPrice.MustFloat64())
+	require.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.NetworkMinGasPrice.MustFloat64())
 }
