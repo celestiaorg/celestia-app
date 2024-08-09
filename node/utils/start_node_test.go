@@ -27,6 +27,6 @@ func TestStartNode(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		latestHeight, err := cctx.LatestHeight()
 		require.NoError(t, err)
-		return latestHeight > 0
+		return latestHeight > 1
 	}, time.Second*10, time.Second)
 }
