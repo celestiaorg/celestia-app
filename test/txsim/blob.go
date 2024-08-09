@@ -97,13 +97,14 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	}
 	// generate the blobs
 	var blobs []*share.Blob
-	switch s.shareVersions[rand.Intn(len(s.shareVersions))] {
+	shareVersion := s.shareVersions[rand.Intn(len(s.shareVersions))]
+	switch shareVersion {
 	case share.ShareVersionZero:
 		blobs = blobfactory.RandV0BlobsWithNamespace(namespaces, sizes)
 	case share.ShareVersionOne:
 		blobs = blobfactory.RandV1BlobsWithNamespace(namespaces, sizes, s.account)
 	default:
-		return Operation{}, fmt.Errorf("invalid share version: %d", s.shareVersions[rand.Intn(len(s.shareVersions))])
+		return Operation{}, fmt.Errorf("invalid share version: %d", shareVersion)
 	}
 	// derive the pay for blob message
 	msg, err := blob.NewMsgPayForBlobs(s.account.String(), appconsts.LatestVersion, blobs...)
