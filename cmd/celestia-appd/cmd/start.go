@@ -349,7 +349,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 			}
 
 			// If grpc is enabled, configure grpc client for grpc gateway.
-			grpcClient, err := grpc.Dial(
+			grpcClient, err := grpc.NewClient(
 				config.GRPC.Address,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithDefaultCallOptions(
@@ -622,7 +622,7 @@ func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 
 func openTraceWriter(traceWriterFile string) (w io.Writer, err error) {
 	if traceWriterFile == "" {
-		return
+		return nil, nil
 	}
 	return os.OpenFile(
 		traceWriterFile,
