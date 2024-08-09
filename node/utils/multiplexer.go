@@ -6,6 +6,10 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
+const (
+	InitialAppVersion = 1
+)
+
 // TODO: modify v1 state machine to contain an upgrade height and have an EndBlocker that returns with ConsensusParamsUpdates app version 2
 // TODO: extend the abci.Application interface to include a method called "RunMigration"
 
@@ -14,21 +18,24 @@ var _ abci.Application = (*Multiplexer)(nil)
 
 // Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
+	// applications is a map from appVersion to application
+	applications map[uint64]abci.Application
+	// currentAppVersion is the version of the application that is currently running
 	currentAppVersion uint64
-	// TODO: refactor apps to a map from appVersion to app
-	apps           []abci.Application
+	// nextAppVersion is the version of the application that should be upgraded to. Usually this value is the same as currentAppVersion except if the current height is an upgrade height.
 	nextAppVersion uint64
 }
 
-func NewMultiplexer(currentAppVersion uint64, apps []abci.Application) *Multiplexer {
+func NewMultiplexer(apps map[uint64]abci.Application, currentAppVersion uint64) *Multiplexer {
 	return &Multiplexer{
-		currentAppVersion: 1,
-		apps:              apps,
+		applications:      apps,
+		currentAppVersion: InitialAppVersion,
+		nextAppVersion:    InitialAppVersion,
 	}
 }
 
 func (m *Multiplexer) getCurrentApp() abci.Application {
-	return m.apps[m.currentAppVersion]
+	return m.applications[m.currentAppVersion]
 }
 
 func (m *Multiplexer) ApplySnapshotChunk(request abci.RequestApplySnapshotChunk) abci.ResponseApplySnapshotChunk {
@@ -51,9 +58,8 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 	app := m.getCurrentApp()
 	got := app.Commit()
 
-	if m.nextAppVersion != 0 {
+	if m.isUpgradePending() {
 		m.currentAppVersion = m.nextAppVersion
-		m.nextAppVersion = 0
 		// TODO need to add RunMigrations to the abci.Application interface then uncomment:
 		// app := m.getCurrentApp()
 		// appHash := app.RunMigrations()
@@ -73,11 +79,10 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 	// because it is operating on a branch of state.
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
-	if got.ConsensusParamUpdates.Version.AppVersion != m.currentAppVersion {
-		if int(got.ConsensusParamUpdates.Version.AppVersion) >= len(m.apps) {
-			panic("multiplexer: app version out of range")
+	if m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
+		if _, ok := m.applications[m.nextAppVersion]; !ok {
+			panic(fmt.Sprintf("multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
 		}
-		fmt.Printf("setting nextAppVersion %v\n", got.ConsensusParamUpdates.Version.AppVersion)
 		m.nextAppVersion = got.ConsensusParamUpdates.Version.AppVersion
 	}
 	return got
@@ -127,4 +132,8 @@ func (m *Multiplexer) Query(request abci.RequestQuery) abci.ResponseQuery {
 func (m *Multiplexer) SetOption(request abci.RequestSetOption) abci.ResponseSetOption {
 	app := m.getCurrentApp()
 	return app.SetOption(request)
+}
+
+func (m *Multiplexer) isUpgradePending() bool {
+	return m.currentAppVersion != m.nextAppVersion
 }
