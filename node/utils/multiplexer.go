@@ -59,7 +59,7 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 	got := app.Commit()
 
 	if m.isUpgradePending() {
-		fmt.Printf("upgrade is pending from %v to %v", m.currentAppVersion, m.nextAppVersion)
+		fmt.Printf("upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		m.currentAppVersion = m.nextAppVersion
 		// TODO need to add RunMigrations to the abci.Application interface then uncomment:
 		// app := m.getCurrentApp()
@@ -76,6 +76,7 @@ func (m *Multiplexer) DeliverTx(request abci.RequestDeliverTx) abci.ResponseDeli
 }
 
 func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlock {
+	fmt.Printf("EndBlock height %v invoked with current app version %v\n", request.Height, m.currentAppVersion)
 	// Note: the application can't create or delete stores in this method
 	// because it is operating on a branch of state.
 	app := m.getCurrentApp()
@@ -85,7 +86,7 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 			panic(fmt.Sprintf("multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
 		}
 		m.nextAppVersion = got.ConsensusParamUpdates.Version.AppVersion
-		fmt.Printf("end block with current app version %v returned new app version %v\n", m.currentAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
+		fmt.Printf("EndBlock height %v with current app version %v returned new app version %v\n", request.Height, m.currentAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
 	}
 	return got
 }
@@ -97,6 +98,7 @@ func (m *Multiplexer) Info(request abci.RequestInfo) abci.ResponseInfo {
 
 func (m *Multiplexer) InitChain(request abci.RequestInitChain) abci.ResponseInitChain {
 	// TODO consider getting app version from request.ConsensusParams.Version.AppVersion
+	fmt.Printf("InitChain invoked with current app version %v\n", m.currentAppVersion)
 	app := m.getCurrentApp()
 	return app.InitChain(request)
 }
