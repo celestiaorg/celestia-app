@@ -18,9 +18,7 @@ const rootDir = "rootDir"
 var rootCmd = &cobra.Command{
 	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		currentAppVersion := uint64(1)
-		apps := utils.GetApps()
-		multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
+		multiplexer := utils.NewMultiplexer()
 
 		config := utils.GetConfig()
 		ctx, cancel := context.WithCancel(context.Background())

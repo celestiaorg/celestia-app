@@ -11,9 +11,7 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	currentAppVersion := uint64(1)
-	apps := utils.GetApps()
-	multiplexer := utils.NewMultiplexer(currentAppVersion, apps)
+	multiplexer := utils.NewMultiplexer()
 	config := utils.GetConfig()
 
 	tempDir := t.TempDir()

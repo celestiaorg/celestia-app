@@ -7,6 +7,6 @@ import (
 )
 
 func TestGetApps(t *testing.T) {
-	got := GetApps()
+	got := GetApplications()
 	assert.Len(t, got, 2)
 }

@@ -26,9 +26,11 @@ type Multiplexer struct {
 	nextAppVersion uint64
 }
 
-func NewMultiplexer(apps map[uint64]abci.Application, currentAppVersion uint64) *Multiplexer {
+func NewMultiplexer() *Multiplexer {
+	applications := GetApplications()
+
 	return &Multiplexer{
-		applications:      apps,
+		applications:      applications,
 		currentAppVersion: InitialAppVersion,
 		nextAppVersion:    InitialAppVersion,
 	}
