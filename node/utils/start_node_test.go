@@ -28,5 +28,5 @@ func TestStartNode(t *testing.T) {
 		latestHeight, err := cctx.LatestHeight()
 		require.NoError(t, err)
 		return latestHeight > 5
-	}, time.Second*60, time.Second)
+	}, time.Second*10, time.Second)
 }
