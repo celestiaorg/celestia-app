@@ -209,7 +209,7 @@ replace (
 	// replace errors to avoid a panic when registering duplicate errors
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
 	// replace celestia-app v1 with fork that has a hard-coded upgrade height of 3
-	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.31.0
+	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.32.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
 	github.com/celestiaorg/celestia-app/v2 => ../
 

@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 
-	appv2 "github.com/celestiaorg/celestia-app/v2/app"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -21,7 +20,7 @@ var _ abci.Application = (*Multiplexer)(nil)
 // Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
 	// applications is a map from appVersion to application
-	applications map[uint64]abci.Application
+	applications map[uint64]AppWithMigrations
 	// currentAppVersion is the version of the application that is currently running
 	currentAppVersion uint64
 	// nextAppVersion is the version of the application that should be upgraded to. Usually this value is the same as currentAppVersion except if the current height is an upgrade height.
@@ -36,7 +35,7 @@ func NewMultiplexer() *Multiplexer {
 	}
 }
 
-func (m *Multiplexer) getCurrentApp() abci.Application {
+func (m *Multiplexer) getCurrentApp() AppWithMigrations {
 	return m.applications[m.currentAppVersion]
 }
 
@@ -68,8 +67,8 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
-		result := m.RunMigrations(appv2.RequestRunMigrations{})
-		got.Data = result.AppHash
+		appHash := m.RunMigrations()
+		got.Data = appHash
 		return got
 	}
 	return got
@@ -152,11 +151,8 @@ func (m *Multiplexer) isUpgradePending() bool {
 	return m.currentAppVersion != m.nextAppVersion
 }
 
-func (m *Multiplexer) RunMigrations(request appv2.RequestRunMigrations) appv2.ResponseRunMigrations {
+func (m *Multiplexer) RunMigrations() []byte {
 	fmt.Printf("Multiplexer RunMigrations invoked with current app version %v\n", m.currentAppVersion)
 	app := m.getCurrentApp()
-	if app, ok := app.(appv2.App); ok {
-		return app.RunMigrations(request)
-	}
-	return app.RunMigrations(request)
+	return app.RunMigrations()
 }
