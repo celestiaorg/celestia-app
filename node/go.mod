@@ -1,6 +1,8 @@
 module github.com/celestiaorg/celestia-app/node
 
-go 1.22.4
+go 1.22.5
+
+toolchain go1.22.6
 
 require (
 	github.com/celestiaorg/celestia-app v1.13.0
@@ -216,5 +218,6 @@ replace (
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.38.0-tm-v0.34.29
+	// replace tendermint with fork that has RunMigrations on abci.Application
+	github.com/tendermint/tendermint => github.com/rootulp/celestia-core v1.0.0
 )

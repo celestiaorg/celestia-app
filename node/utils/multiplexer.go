@@ -67,11 +67,8 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
-
-		// TODO need to add RunMigrations to the abci.Application interface then uncomment:
-		// app := m.getCurrentApp()
-		// appHash := app.RunMigrations()
-		// got.Data = appHash
+		result := m.RunMigrations(abci.RequestRunMigrations{})
+		got.Data = result.AppHash
 		return got
 	}
 	return got
@@ -89,7 +86,7 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
 	if got.ConsensusParamUpdates != nil && got.ConsensusParamUpdates.Version != nil {
-		fmt.Printf("Multplexer EndBlock height %v with current app version %v next app version %v returned app version %v\n", request.Height, m.currentAppVersion, m.nextAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
+		fmt.Printf("Multiplexer EndBlock height %v with current app version %v next app version %v returned app version %v\n", request.Height, m.currentAppVersion, m.nextAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
 		if m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
 			if _, ok := m.applications[got.ConsensusParamUpdates.Version.AppVersion]; !ok {
 				panic(fmt.Sprintf("Multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
@@ -152,4 +149,10 @@ func (m *Multiplexer) SetOption(request abci.RequestSetOption) abci.ResponseSetO
 
 func (m *Multiplexer) isUpgradePending() bool {
 	return m.currentAppVersion != m.nextAppVersion
+}
+
+func (m *Multiplexer) RunMigrations(request abci.RequestRunMigrations) abci.ResponseRunMigrations {
+	fmt.Printf("Multiplexer RunMigrations invoked with current app version %v\n", m.currentAppVersion)
+	app := m.getCurrentApp()
+	return app.RunMigrations(request)
 }
