@@ -67,6 +67,7 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
+
 		// TODO need to add RunMigrations to the abci.Application interface then uncomment:
 		// app := m.getCurrentApp()
 		// appHash := app.RunMigrations()

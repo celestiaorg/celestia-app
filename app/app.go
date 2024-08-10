@@ -534,6 +534,10 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	return resp
 }
 
+func (app *App) RunMigrations() {
+	app.mountKeysAndInit(v2)
+}
+
 // InitChain implements the ABCI interface. This method is a wrapper around
 // baseapp's InitChain so we can take the app version and setup the multicommit
 // store.

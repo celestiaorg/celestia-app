@@ -12,6 +12,10 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
+const (
+	upgradeHeightV1ToV2 = int64(3)
+)
+
 func GetApplications() map[uint64]types.Application {
 	return map[uint64]types.Application{
 		v1.Version: NewAppV1(),
@@ -38,7 +42,6 @@ func NewAppV2() *appV2.App {
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV2.MakeConfig(appV2.ModuleEncodingRegisters...)
-	upgradeHeight := int64(0)
 	appOptions := NoopAppOptions{}
-	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV1ToV2, appOptions)
 }
