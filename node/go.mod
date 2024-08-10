@@ -209,15 +209,18 @@ replace (
 	// replace errors to avoid a panic when registering duplicate errors
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
 	// replace celestia-app v1 with fork that has a hard-coded upgrade height of 3
-	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.30.0
+	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.31.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
 	github.com/celestiaorg/celestia-app/v2 => ../
-	github.com/cosmos/cosmos-sdk => github.com/rootulp/cosmos-sdk v1.1.0
+
+	// --------------------------------------
+	// --- Unmodified replace statements ---
+	// --------------------------------------
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	// replace tendermint with fork that has RunMigrations on abci.Application
-	github.com/tendermint/tendermint => github.com/rootulp/celestia-core v1.0.0
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.39.0-tm-v0.34.29
 )

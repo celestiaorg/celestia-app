@@ -534,11 +534,9 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	return resp
 }
 
-func (app *App) RunMigrations(abci.RequestRunMigrations) abci.ResponseRunMigrations {
+func (app *App) RunMigrations() []byte {
 	app.mountKeysAndInit(v2)
-	return abci.ResponseRunMigrations{
-		AppHash: []byte{},
-	}
+	return []byte{}
 }
 
 // InitChain implements the ABCI interface. This method is a wrapper around

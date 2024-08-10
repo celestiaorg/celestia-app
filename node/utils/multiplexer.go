@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 
+	appv2 "github.com/celestiaorg/celestia-app/v2/app"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -67,7 +68,7 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
-		result := m.RunMigrations(abci.RequestRunMigrations{})
+		result := m.RunMigrations(appv2.RequestRunMigrations{})
 		got.Data = result.AppHash
 		return got
 	}
@@ -151,8 +152,11 @@ func (m *Multiplexer) isUpgradePending() bool {
 	return m.currentAppVersion != m.nextAppVersion
 }
 
-func (m *Multiplexer) RunMigrations(request abci.RequestRunMigrations) abci.ResponseRunMigrations {
+func (m *Multiplexer) RunMigrations(request appv2.RequestRunMigrations) appv2.ResponseRunMigrations {
 	fmt.Printf("Multiplexer RunMigrations invoked with current app version %v\n", m.currentAppVersion)
 	app := m.getCurrentApp()
+	if app, ok := app.(appv2.App); ok {
+		return app.RunMigrations(request)
+	}
 	return app.RunMigrations(request)
 }

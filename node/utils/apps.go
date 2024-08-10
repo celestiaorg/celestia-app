@@ -7,7 +7,6 @@ import (
 	encodingV2 "github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
-	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmdb "github.com/tendermint/tm-db"
 )
@@ -16,8 +15,8 @@ const (
 	upgradeHeightV1ToV2 = int64(3)
 )
 
-func GetApplications() map[uint64]types.Application {
-	return map[uint64]types.Application{
+func GetApplications() map[uint64]AppWithMigrations {
+	return map[uint64]AppWithMigrations{
 		v1.Version: NewAppV1(),
 		v2.Version: NewAppV2(),
 	}
