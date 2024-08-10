@@ -84,7 +84,7 @@ system's kernel. The result should contain `bbr`:
 sysctl net.ipv4.tcp_congestion_control
 ```
 
-If not, enable it in linux by call the `make use-bbr` or by running:
+If not, enable it in Linux by calling the `make use-bbr` or by running:
 
 ```sh
 sudo modprobe tcp_bbr
