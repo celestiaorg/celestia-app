@@ -212,7 +212,7 @@ replace (
 	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.30.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
 	github.com/celestiaorg/celestia-app/v2 => ../
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.23.0-sdk-v0.46.16
+	github.com/cosmos/cosmos-sdk => github.com/rootulp/cosmos-sdk v1.1.0
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
