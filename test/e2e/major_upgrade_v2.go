@@ -35,11 +35,14 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
-	preloader, err := knuu.NewPreloader()
+	k, err := knuu.New(ctx)
+	testnet.NoError("failed to create knuu", err)
+
+	preloader, err := k.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	defer func() { _ = preloader.EmptyImages() }()
-	testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(latestVersion)))
+	defer func() { _ = preloader.EmptyImages(ctx) }()
+	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(latestVersion)))
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {

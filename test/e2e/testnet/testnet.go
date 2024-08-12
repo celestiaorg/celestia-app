@@ -417,7 +417,7 @@ func (t *Testnet) Cleanup() {
 	}
 	// cleanup nodes
 	for _, node := range t.nodes {
-		err := node.Instance.Destroy()
+		err := node.Instance.Destroy(context.Background())
 		if err != nil {
 			log.Err(err).
 				Str("name", node.Name).

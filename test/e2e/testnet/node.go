@@ -2,11 +2,13 @@
 package testnet
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/rs/zerolog/log"
@@ -41,7 +43,7 @@ type Node struct {
 	SignerKey      crypto.PrivKey
 	NetworkKey     crypto.PrivKey
 	SelfDelegation int64
-	Instance       *knuu.Instance
+	Instance       *instance.Instance
 
 	rpcProxyHost string
 	// FIXME: This does not work currently with the reverse proxy
@@ -98,11 +100,16 @@ func NewNode(
 	resources Resources,
 	grafana *GrafanaInfo,
 ) (*Node, error) {
-	instance, err := knuu.NewInstance(name)
+	ctx := context.Background()
+	k, err := knuu.New(ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetImage(DockerImageName(version))
+	instance, err := k.NewInstance(name)
+	if err != nil {
+		return nil, err
+	}
+	err = instance.SetImage(ctx, DockerImageName(version))
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +257,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 // populating the address book. This will look something like:
 // 3314051954fc072a0678ec0cbac690ad8676ab98@61.108.66.220:26656
 func (n Node) AddressP2P(withID bool) string {
-	ip, err := n.Instance.GetIP()
+	ip, err := n.Instance.GetIP(context.Background())
 	if err != nil {
 		panic(err)
 	}
@@ -276,7 +283,7 @@ func (n Node) AddressRPC() string {
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressGRPC() (string, error) {
-	ip, err := n.Instance.GetIP()
+	ip, err := n.Instance.GetIP(context.Background())
 	if err != nil {
 		return "", err
 	}
@@ -285,7 +292,7 @@ func (n Node) RemoteAddressGRPC() (string, error) {
 
 // RemoteAddressRPC retrieves the RPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressRPC() (string, error) {
-	ip, err := n.Instance.GetIP()
+	ip, err := n.Instance.GetIP(context.Background())
 	if err != nil {
 		return "", err
 	}
@@ -297,7 +304,7 @@ func (n Node) AddressTracing() string {
 }
 
 func (n Node) RemoteAddressTracing() (string, error) {
-	ip, err := n.Instance.GetIP()
+	ip, err := n.Instance.GetIP(context.Background())
 	if err != nil {
 		return "", err
 	}
@@ -322,15 +329,16 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) StartAsync() error {
-	return n.Instance.StartAsync()
+	return n.Instance.StartAsync(context.Background())
 }
 
 func (n *Node) WaitUntilStartedAndForwardPorts() error {
-	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
+	ctx := context.Background()
+	if err := n.Instance.WaitInstanceIsRunning(ctx); err != nil {
 		return err
 	}
 
-	err, rpcProxyHost := n.Instance.AddHost(rpcPort)
+	rpcProxyHost, err := n.Instance.AddHost(ctx, rpcPort)
 	if err != nil {
 		return err
 	}
@@ -343,7 +351,7 @@ func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	// }
 	// n.grpcProxyHost = grpcProxyHost
 
-	err, traceProxyHost := n.Instance.AddHost(tracingPort)
+	traceProxyHost, err := n.Instance.AddHost(ctx, tracingPort)
 	if err != nil {
 		return err
 	}
@@ -365,11 +373,12 @@ func (n *Node) GenesisValidator() genesis.Validator {
 }
 
 func (n *Node) Upgrade(version string) error {
-	if err := n.Instance.SetImageInstant(DockerImageName(version)); err != nil {
+	ctx := context.Background()
+	if err := n.Instance.SetImageInstant(ctx, DockerImageName(version)); err != nil {
 		return err
 	}
 
-	return n.Instance.WaitInstanceIsRunning()
+	return n.Instance.WaitInstanceIsRunning(ctx)
 }
 
 func DockerImageName(version string) string {
