@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -90,7 +91,10 @@ func TwoNodeSimple(logger *log.Logger) error {
 		TxClients:          2,
 	}
 
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	benchTest, err := NewBenchmarkTest(ctx, testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -98,7 +102,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		benchTest.Cleanup()
 	}()
 
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes(ctx))
 
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 
@@ -107,11 +111,11 @@ func TwoNodeSimple(logger *log.Logger) error {
 	return nil
 }
 
-func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
+func runBenchmarkTest(ctx context.Context, logger *log.Logger, testName string, manifest Manifest) error {
 	logger.Println("Running", testName)
 	manifest.ChainID = manifest.summary()
 	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
+	benchTest, err := NewBenchmarkTest(ctx, testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	defer func() {
@@ -119,7 +123,7 @@ func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) er
 		benchTest.Cleanup()
 	}()
 
-	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
+	testnet.NoError("failed to setup nodes", benchTest.SetupNodes(ctx))
 	testnet.NoError("failed to run the benchmark test", benchTest.Run())
 	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
 	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
@@ -130,7 +134,9 @@ func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) er
 func TwoNodeBigBlock8MB(logger *log.Logger) error {
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * testnet.MB
-	return runBenchmarkTest(logger, "TwoNodeBigBlock8MB", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "TwoNodeBigBlock8MB", manifest)
 }
 
 func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
@@ -138,19 +144,25 @@ func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
 	manifest.MaxBlockBytes = 8 * testnet.MB
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0}
-	return runBenchmarkTest(logger, "TwoNodeBigBlock8MBLatency", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "TwoNodeBigBlock8MBLatency", manifest)
 }
 
 func TwoNodeBigBlock32MB(logger *log.Logger) error {
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 32 * testnet.MB
-	return runBenchmarkTest(logger, "TwoNodeBigBlock32MB", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "TwoNodeBigBlock32MB", manifest)
 }
 
 func TwoNodeBigBlock64MB(logger *log.Logger) error {
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 64 * testnet.MB
-	return runBenchmarkTest(logger, "TwoNodeBigBlock64MB", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "TwoNodeBigBlock64MB", manifest)
 }
 
 func LargeNetworkBigBlock8MB(logger *log.Logger) error {
@@ -159,7 +171,9 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "LargeNetworkBigBlock8MB", manifest)
 }
 
 func LargeNetworkBigBlock32MB(logger *log.Logger) error {
@@ -168,7 +182,9 @@ func LargeNetworkBigBlock32MB(logger *log.Logger) error {
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-	return runBenchmarkTest(logger, "LargeNetworkBigBlock32MB", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "LargeNetworkBigBlock32MB", manifest)
 }
 
 func LargeNetworkBigBlock64MB(logger *log.Logger) error {
@@ -177,5 +193,7 @@ func LargeNetworkBigBlock64MB(logger *log.Logger) error {
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
-	return runBenchmarkTest(logger, "LargeNetworkBigBlock64MB", manifest)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return runBenchmarkTest(ctx, logger, "LargeNetworkBigBlock64MB", manifest)
 }

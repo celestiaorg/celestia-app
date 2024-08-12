@@ -1,4 +1,3 @@
-//nolint:staticcheck
 package testnet
 
 import (
@@ -92,6 +91,7 @@ type Resources struct {
 }
 
 func NewNode(
+	ctx context.Context,
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
@@ -100,7 +100,6 @@ func NewNode(
 	resources Resources,
 	grafana *GrafanaInfo,
 ) (*Node, error) {
-	ctx := context.Background()
 	k, err := knuu.New(ctx)
 	if err != nil {
 		return nil, err
@@ -129,7 +128,7 @@ func NewNode(
 
 	if grafana != nil {
 		// add support for metrics
-		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Scope()), "1m"); err != nil {
+		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", k.Scope()), "1m"); err != nil {
 			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
 		}
 		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {

@@ -1,4 +1,3 @@
-//nolint:staticcheck
 package main
 
 import (
@@ -18,9 +17,9 @@ type BenchmarkTest struct {
 	manifest *Manifest
 }
 
-func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
+func NewBenchmarkTest(ctx context.Context, name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// create a new testnet
-	testNet, err := testnet.New(name, seed,
+	testNet, err := testnet.New(ctx, name, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
 	if err != nil {
@@ -34,9 +33,9 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 // SetupNodes creates genesis nodes and tx clients based on the manifest.
 // There will be manifest.Validators validators and manifest.TxClients tx clients.
 // Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
-func (b *BenchmarkTest) SetupNodes() error {
+func (b *BenchmarkTest) SetupNodes(ctx context.Context) error {
 	testnet.NoError("failed to create genesis nodes",
-		b.CreateGenesisNodes(b.manifest.Validators,
+		b.CreateGenesisNodes(ctx, b.manifest.Validators,
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
 			b.manifest.UpgradeHeight, b.manifest.ValidatorResource))
 

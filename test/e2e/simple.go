@@ -20,13 +20,16 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Running simple e2e test", "version", latestVersion)
 
-	testNet, err := testnet.New("E2ESimple", seed, nil, "test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()
 
 	logger.Println("Creating testnet validators")
-	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(4, latestVersion, 10000000, 0, testnet.DefaultResources))
+	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()

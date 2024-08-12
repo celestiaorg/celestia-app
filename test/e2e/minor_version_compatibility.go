@@ -1,4 +1,3 @@
-//nolint:staticcheck
 package main
 
 import (
@@ -32,30 +31,33 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil, "test")
-	testnet.NoError("failed to create testnet", err)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	testNet, err := testnet.New(ctx, "runMinorVersionCompatibility", seed, nil, "test")
+	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
+	k, err := knuu.New(ctx)
+	testnet.NoError("failed to create knuu", err)
+
 	// preload all docker images
-	preloader, err := knuu.NewPreloader()
+	preloader, err := k.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	defer func() { _ = preloader.EmptyImages() }()
+	defer func() { _ = preloader.EmptyImages(ctx) }()
 	for _, v := range versions {
-		testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(v.String())))
+		testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(v.String())))
 	}
 
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
+		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(ctx, v, 10000000, 0, testnet.DefaultResources))
 	}
 
 	logger.Println("Creating txsim")

@@ -1,4 +1,3 @@
-//nolint:staticcheck
 package main
 
 import (
@@ -28,7 +27,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New("runMajorUpgradeToV2", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "runMajorUpgradeToV2", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()
@@ -46,7 +45,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnet.DefaultResources)
+		err := testNet.CreateGenesisNode(ctx, latestVersion, 10000000, upgradeHeight, testnet.DefaultResources)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
