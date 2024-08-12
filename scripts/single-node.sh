@@ -103,7 +103,7 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc-web.enable \
     --v2-upgrade-height 3 \
-    --force-no-bbr // no need to require bbr usage on a local node
+    --force-no-bbr // no need to require BBR usage on a local node
 }
 
 if [ -f $GENESIS_FILE ]; then
