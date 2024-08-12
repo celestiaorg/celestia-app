@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "27bf8ce"
+	compactBlocksVersion = "pr-3713"
 )
 
 func main() {
@@ -26,16 +26,11 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 5
+		nodes          = 8
 		timeoutCommit  = time.Second
-		timeoutPropose = 4 * time.Second
+		timeoutPropose = 5 * time.Second
 		version        = compactBlocksVersion
 	)
-
-	// blobParams := blobtypes.DefaultParams()
-	// // set the square size to 128
-	// blobParams.GovMaxSquareSize = 128
-	// ecfg := encoding.MakeConfig(app.ModuleBasics)
 
 	network, err := testnet.New("compact-blocks", 864, nil, "test")
 	if err != nil {
@@ -48,9 +43,11 @@ func Run() error {
 		return err
 	}
 
-	// cparams := app.DefaultConsensusParams()
-	// cparams.Block.MaxBytes = 8 * 1024 * 1024
-	// network.SetConsensusParams(cparams)
+	for _, node := range network.Nodes() {
+		if err := node.Instance.EnableBitTwister(); err != nil {
+			return fmt.Errorf("failed to enable bit twister: %v", err)
+		}
+	}
 
 	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
 	if err != nil {
@@ -59,11 +56,11 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		100,
-		"8000-32000",
+		120,
+		"32000-64000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:5],
+		gRPCEndpoints[:4],
 	)
 	if err != nil {
 		return err
@@ -87,8 +84,22 @@ func Run() error {
 	}
 
 	log.Printf("Starting network\n")
-	err = network.Start()
+	err = network.StartNodes()
 	if err != nil {
+		return err
+	}
+
+	for _, node := range network.Nodes() {
+		if err = node.Instance.SetLatencyAndJitter(100, 10); err != nil {
+			return fmt.Errorf("failed to set latency and jitter: %v", err)
+		}
+	}
+
+	if err := network.WaitToSync(); err != nil {
+		return err
+	}
+
+	if err := network.StartTxClients(); err != nil {
 		return err
 	}
 
