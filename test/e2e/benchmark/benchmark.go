@@ -55,11 +55,15 @@ func (b *BenchmarkTest) SetupNodes(ctx context.Context) error {
 	// create tx clients and point them to the validators
 	log.Println("Creating tx clients")
 
-	err = b.CreateTxClients(b.manifest.TxClientVersion,
+	err = b.CreateTxClients(
+		ctx,
+		b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,
 		b.manifest.BlobsPerSeq,
-		b.manifest.TxClientsResource, gRPCEndpoints)
+		b.manifest.TxClientsResource,
+		gRPCEndpoints,
+	)
 	testnet.NoError("failed to create tx clients", err)
 
 	log.Println("Setting up testnet")
@@ -100,7 +104,7 @@ func (b *BenchmarkTest) SetupNodes(ctx context.Context) error {
 }
 
 // Run runs the benchmark test for the specified duration in the manifest.
-func (b *BenchmarkTest) Run() error {
+func (b *BenchmarkTest) Run(ctx context.Context) error {
 	log.Println("Starting benchmark testnet")
 
 	log.Println("Starting nodes")
@@ -128,7 +132,7 @@ func (b *BenchmarkTest) Run() error {
 
 	// start tx clients
 	log.Println("Starting tx clients")
-	err = b.StartTxClients()
+	err = b.StartTxClients(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start tx clients: %v", err)
 	}

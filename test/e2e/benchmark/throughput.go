@@ -99,12 +99,12 @@ func TwoNodeSimple(logger *log.Logger) error {
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
+		benchTest.Cleanup(ctx)
 	}()
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes(ctx))
 
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run(ctx))
 
 	testnet.NoError("failed to check results", benchTest.CheckResults(1*testnet.MB))
 
@@ -120,11 +120,11 @@ func runBenchmarkTest(ctx context.Context, logger *log.Logger, testName string, 
 
 	defer func() {
 		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
+		benchTest.Cleanup(ctx)
 	}()
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes(ctx))
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run(ctx))
 	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
 	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
 

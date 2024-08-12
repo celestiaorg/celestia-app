@@ -76,7 +76,9 @@ func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version strin
 	return nil
 }
 
-func (t *Testnet) CreateTxClients(version string,
+func (t *Testnet) CreateTxClients(
+	ctx context.Context,
+	version string,
 	sequences int,
 	blobRange string,
 	blobPerSequence int,
@@ -85,8 +87,7 @@ func (t *Testnet) CreateTxClients(version string,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(name, version, sequences,
-			blobRange, blobPerSequence, resources, grpcEndpoint)
+		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -111,7 +112,9 @@ func (t *Testnet) CreateTxClients(version string,
 // pollTime: time in seconds between each sequence
 // resources: resources to be allocated to the txsim
 // grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
-func (t *Testnet) CreateTxClient(name,
+func (t *Testnet) CreateTxClient(
+	ctx context.Context,
+	name string,
 	version string,
 	sequences int,
 	blobRange string,
@@ -132,7 +135,7 @@ func (t *Testnet) CreateTxClient(name,
 	}
 
 	// Create a txsim node using the key stored in the txsimKeyringDir
-	txsim, err := CreateTxClient(name, version, grpcEndpoint, t.seed,
+	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
 		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir)
 	if err != nil {
 		log.Err(err).
@@ -162,9 +165,9 @@ func (t *Testnet) CreateTxClient(name,
 	return nil
 }
 
-func (t *Testnet) StartTxClients() error {
+func (t *Testnet) StartTxClients(ctx context.Context) error {
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.StartWithoutWait()
+		err := txsim.Instance.StartWithoutWait(ctx)
 		if err != nil {
 			log.Err(err).
 				Str("name", txsim.Name).
@@ -177,7 +180,7 @@ func (t *Testnet) StartTxClients() error {
 	}
 	// wait for txsims to start
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.WaitInstanceIsRunning()
+		err := txsim.Instance.WaitInstanceIsRunning(ctx)
 		if err != nil {
 			return fmt.Errorf("txsim %s failed to run: %w", txsim.Name, err)
 		}
@@ -386,7 +389,7 @@ func (t *Testnet) StartNodes() error {
 	return nil
 }
 
-func (t *Testnet) Start() error {
+func (t *Testnet) Start(ctx context.Context) error {
 	// start nodes and forward ports
 	err := t.StartNodes()
 	if err != nil {
@@ -399,13 +402,13 @@ func (t *Testnet) Start() error {
 		return err
 	}
 
-	return t.StartTxClients()
+	return t.StartTxClients(ctx)
 }
 
-func (t *Testnet) Cleanup() {
+func (t *Testnet) Cleanup(ctx context.Context) {
 	// cleanup txsim
 	for _, txsim := range t.txClients {
-		err := txsim.Instance.Destroy()
+		err := txsim.Instance.Destroy(ctx)
 		if err != nil {
 			log.Err(err).
 				Str("name", txsim.Name).

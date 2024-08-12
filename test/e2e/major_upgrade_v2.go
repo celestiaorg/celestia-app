@@ -30,7 +30,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	testNet, err := testnet.New(ctx, "runMajorUpgradeToV2", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
-	defer testNet.Cleanup()
+	defer testNet.Cleanup(ctx)
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
@@ -52,13 +52,13 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup())
 	logger.Println("Starting testnet")
-	testnet.NoError("Failed to start testnet", testNet.Start())
+	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {

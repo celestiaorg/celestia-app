@@ -1,8 +1,10 @@
 package testnet
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/rs/zerolog/log"
 )
@@ -17,10 +19,11 @@ func txsimDockerImageName(version string) string {
 
 type TxSim struct {
 	Name     string
-	Instance *knuu.Instance
+	Instance *instance.Instance
 }
 
 func CreateTxClient(
+	ctx context.Context,
 	name, version string,
 	endpoint string,
 	seed int64,
@@ -31,7 +34,11 @@ func CreateTxClient(
 	resources Resources,
 	volumePath string,
 ) (*TxSim, error) {
-	instance, err := knuu.NewInstance(name)
+	k, err := knuu.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+	instance, err := k.NewInstance(name)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +47,7 @@ func CreateTxClient(
 		Str("name", name).
 		Str("image", image).
 		Msg("setting image for tx client")
-	err = instance.SetImage(image)
+	err = instance.SetImage(ctx, image)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).

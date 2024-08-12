@@ -26,7 +26,7 @@ func E2ESimple(logger *log.Logger) error {
 	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
-	defer testNet.Cleanup()
+	defer testNet.Cleanup(ctx)
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes", testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources))
@@ -34,7 +34,7 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 10,
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10,
 		"100-2000", 100, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
@@ -42,7 +42,7 @@ func E2ESimple(logger *log.Logger) error {
 	testnet.NoError("failed to setup testnets", testNet.Setup())
 
 	logger.Println("Starting testnets")
-	testnet.NoError("failed to start testnets", testNet.Start())
+	testnet.NoError("failed to start testnets", testNet.Start(ctx))
 
 	logger.Println("Waiting for 30 seconds to produce blocks")
 	time.Sleep(30 * time.Second)
