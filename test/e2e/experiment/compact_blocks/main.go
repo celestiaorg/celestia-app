@@ -28,7 +28,7 @@ func Run() error {
 	const (
 		nodes          = 8
 		timeoutCommit  = time.Second
-		timeoutPropose = 5 * time.Second
+		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
 	)
 
