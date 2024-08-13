@@ -541,13 +541,9 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	return resp
 }
 
+// RunMigrations is a no-op because the v2 state machine already handles
+// migrating from v1 -> v2 at the v2 upgrade height.
 func (app *App) RunMigrations() []byte {
-	app.mountKeysAndInit(v2)
-	// HACKHACK uses true because app.deliverState is nil which causes a panic
-	// if this is set to false.
-	isCheckTx := true
-	ctx := app.NewContext(isCheckTx, tmproto.Header{})
-	app.manager.RunMigrations(ctx, app.configurator, v1, v2)
 	return []byte{}
 }
 
