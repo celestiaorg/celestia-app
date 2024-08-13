@@ -227,12 +227,14 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 	if err != nil {
 		panic(err)
 	}
+	upgradeHeightV3 := int64(0)
 
 	return app.New(
 		logger, db, traceStore,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
 		cast.ToInt64(appOpts.Get(UpgradeHeightFlag)),
+		upgradeHeightV3,
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
@@ -257,7 +259,7 @@ func createAppAndExport(
 	appOpts servertypes.AppOptions,
 ) (servertypes.ExportedApp, error) {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	celestiaApp := app.New(logger, db, traceStore, uint(1), config, 0, appOpts)
+	celestiaApp := app.New(logger, db, traceStore, uint(1), config, 0, 0, appOpts)
 	if height != -1 {
 		if err := celestiaApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err

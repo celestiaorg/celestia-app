@@ -90,6 +90,7 @@ func NewTestApp() *app.App {
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
+		0,
 		emptyOpts,
 	)
 }
@@ -423,13 +424,14 @@ func NewDefaultGenesisState(cdc codec.JSONCodec) app.GenesisState {
 	return app.ModuleBasics.DefaultGenesis(cdc)
 }
 
-func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
+func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeightV2 int64) (*app.App, keyring.Keyring) {
 	t.Helper()
 
 	db := dbm.NewMemDB()
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, EmptyAppOptions{})
+	upgradeHeightV3 := int64(0)
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeightV2, upgradeHeightV3, EmptyAppOptions{})
 	genesisState, _, kr := GenesisStateWithSingleValidator(testApp, "account")
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)

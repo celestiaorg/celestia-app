@@ -166,6 +166,9 @@ type App struct {
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
+	// upgradeHeightv3 is a hard-coded mechanism for the height-based
+	// upgrade from v2 to v3.
+	upgradeHeightV3 int64
 	// MsgGateKeeper is used to define which messages are accepted for a given
 	// app version.
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
@@ -184,6 +187,7 @@ func New(
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
 	upgradeHeightV2 int64,
+	upgradeHeightV3 int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -210,6 +214,7 @@ func New(
 		tkeys:             tkeys,
 		memKeys:           memKeys,
 		upgradeHeightV2:   upgradeHeightV2,
+		upgradeHeightV3:   upgradeHeightV3,
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, encodingConfig.Amino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
@@ -475,6 +480,8 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
+	} else if req.Height == app.upgradeHeightV3-1 {
+		app.SetAppVersion(ctx, 3)
 	}
 	return res
 }

@@ -181,6 +181,7 @@ func DefaultAppCreator() srvtypes.AppCreator {
 			0,   // invCheckPerid
 			encodingConfig,
 			0, // v2 upgrade height
+			0, // v3 upgrade height
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
@@ -197,6 +198,7 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 			0,   // invCheckPerid
 			encodingConfig,
 			0, // v2 upgrade height
+			0, // v3 upgrade height
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(minGasPrice),
 		)

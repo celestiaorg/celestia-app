@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	upgradeHeightV1ToV2 = int64(5)
-	upgradeHeightV2ToV3 = int64(10)
+	// upgradeHeightV2 is the height at which the app should be upgraded to v2.
+	upgradeHeightV2 = int64(5)
+	// upgradeHeightV2 is the height at which the app should be upgraded to v3.
+	upgradeHeightV3 = int64(10)
 )
 
 func GetApplications() map[uint64]AppWithMigrations {
@@ -33,5 +35,5 @@ func NewAppV2() *appV2.App {
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV2.MakeConfig(appV2.ModuleEncodingRegisters...)
 	appOptions := NoopAppOptions{}
-	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV1ToV2, appOptions)
+	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, upgradeHeightV3, appOptions)
 }
