@@ -11,9 +11,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
@@ -85,7 +87,8 @@ func Run() error {
 		testnet.WithMempool("v2"),
 		func(cfg *config.Config) {
 			// create a partially connected network by only dialing 5 peers
-			cfg.P2P.MaxNumOutboundPeers = 4
+			cfg.P2P.MaxNumOutboundPeers = 3
+			cfg.P2P.MaxNumInboundPeers = 4
 			cfg.Mempool.TTLNumBlocks = 100
 			cfg.Mempool.TTLDuration = 10 * time.Minute
 			cfg.Mempool.MaxTxsBytes *= 4
@@ -93,6 +96,29 @@ func Run() error {
 	)
 	if err != nil {
 		return err
+	}
+
+	pushConfig, err := trace.GetPushConfigFromEnv()
+	if err != nil {
+		return err
+	}
+	log.Print("Setting up trace push config")
+	for _, node := range network.Nodes() {
+		if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
+		}
 	}
 
 	log.Printf("Starting network\n")
@@ -142,6 +168,11 @@ func Run() error {
 				log.Printf("Error saving block times: %v", err)
 			}
 			log.Printf("Throughput: %v", throughput)
+			err = trace.S3Download("./traces/", "compact-blocks",
+				pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable)
+			if err != nil {
+				return fmt.Errorf("failed to download traces from S3: %w", err)
+			}
 			log.Println("--- FINISHED ✅: Compact Blocks")
 			return nil
 		}
