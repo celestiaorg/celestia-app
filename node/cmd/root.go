@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/spf13/cobra"
@@ -32,22 +33,14 @@ var rootCmd = &cobra.Command{
 		cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, rootDir)
 		defer cleanup()
 		if err != nil {
-			fmt.Printf("Failed to start node: %v\n", err)
+			fmt.Printf("failed to start node: %v\n", err)
 			return err
 		}
-		fmt.Printf("chainID %v\n", cctx.ChainID)
-
-		latestHeight, err := cctx.LatestHeight()
-		if err != nil {
-			fmt.Printf("Failed to get latest height: %v\n", err)
-			return err
-		}
-		fmt.Printf("latestHeight %v\n", latestHeight)
-
 		err = cctx.WaitForNextBlock()
 		if err != nil {
 			fmt.Printf("waiting for next block failed: %v\n", err)
 		}
+		time.Sleep(10 * time.Second)
 		return nil
 	},
 }
