@@ -8,8 +8,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	// "github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
@@ -32,11 +35,20 @@ func Run() error {
 		version        = compactBlocksVersion
 	)
 
-	network, err := testnet.New("compact-blocks", 864, nil, "test")
+	blobParams := blobtypes.DefaultParams()
+	// set the square size to 128
+	blobParams.GovMaxSquareSize = 128
+	ecfg := encoding.MakeConfig(app.ModuleBasics)
+
+	network, err := testnet.New("compact-blocks", 864, nil, "test", genesis.SetBlobParams(ecfg.Codec, blobParams))
 	if err != nil {
 		return err
 	}
 	defer network.Cleanup()
+
+	cparams := app.DefaultConsensusParams()
+	cparams.Block.MaxBytes = 8 * 1024 * 1024
+	network.SetConsensusParams(cparams)
 
 	err = network.CreateGenesisNodes(nodes, version, 10000000, 0, testnet.DefaultResources)
 	if err != nil {
@@ -57,10 +69,10 @@ func Run() error {
 	err = network.CreateTxClients(
 		compactBlocksVersion,
 		120,
-		"32000-64000",
+		"32000-32000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:4],
+		gRPCEndpoints[:5],
 	)
 	if err != nil {
 		return err
