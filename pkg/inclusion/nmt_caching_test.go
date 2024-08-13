@@ -190,7 +190,7 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 // namespace.
 func generateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
-		rawData := tmrand.Bytes(appconsts.ShareSize)
+		rawData := tmrand.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)

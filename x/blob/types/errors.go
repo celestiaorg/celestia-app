@@ -36,4 +36,5 @@ var (
 	// ErrTotalBlobSize is deprecated, use ErrBlobsTooLarge instead.
 	ErrTotalBlobSizeTooLarge = errors.Register(ModuleName, 11138, "total blob size too large")
 	ErrBlobsTooLarge         = errors.Register(ModuleName, 11139, "blob(s) too large")
+	ErrInvalidBlobSigner     = errors.Register(ModuleName, 11140, "invalid blob signer")
 )

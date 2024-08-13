@@ -242,7 +242,7 @@ func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, bl
 		return nil, err
 	}
 
-	b, err := types.NewBlob(ns, blobData, appconsts.ShareVersionZero)
+	b, err := types.NewV0Blob(ns, blobData)
 	if err != nil {
 		return nil, err
 	}

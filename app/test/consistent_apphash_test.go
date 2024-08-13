@@ -381,6 +381,9 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 		// Dynamically increase time so the validator can be unjailed (1m duration)
 		Time: genesisTime.Add(time.Duration(height) * time.Minute),
 	})
+	if len(resPrepareProposal.BlockData.Txs) != len(encodedSdkTxs) {
+		return nil, nil, fmt.Errorf("PrepareProposal removed transactions. Was %d, now %d", len(encodedSdkTxs), len(resPrepareProposal.BlockData.Txs))
+	}
 
 	dataHash := resPrepareProposal.BlockData.Hash
 
