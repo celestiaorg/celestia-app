@@ -16,8 +16,8 @@ var _ abci.Application = (*Multiplexer)(nil)
 
 // Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
-	// applications is a map from appVersion to application
-	applications map[uint64]AppWithMigrations
+	// application is the current application
+	application AppWithMigrations
 	// currentAppVersion is the version of the application that is currently
 	// running.
 	currentAppVersion uint64
@@ -28,8 +28,10 @@ type Multiplexer struct {
 }
 
 func NewMultiplexer() *Multiplexer {
+	application := NewAppV2()
+
 	return &Multiplexer{
-		applications:      GetApplications(),
+		application:       application,
 		currentAppVersion: initialAppVersion,
 		nextAppVersion:    initialAppVersion,
 	}
@@ -79,12 +81,10 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
 	if got.ConsensusParamUpdates != nil && got.ConsensusParamUpdates.Version != nil {
-		fmt.Printf("Multiplexer EndBlock height %v with current app version %v next app version %v returned app version %v\n", request.Height, m.currentAppVersion, m.nextAppVersion, got.ConsensusParamUpdates.Version.AppVersion)
-		if m.nextAppVersion != got.ConsensusParamUpdates.Version.AppVersion {
-			if _, ok := m.applications[got.ConsensusParamUpdates.Version.AppVersion]; !ok {
-				panic(fmt.Sprintf("Multiplexer does not support app version %v\n", got.ConsensusParamUpdates.Version.AppVersion))
-			}
-			m.nextAppVersion = got.ConsensusParamUpdates.Version.AppVersion
+		nextAppVersion := got.ConsensusParamUpdates.Version.AppVersion
+		if m.nextAppVersion != nextAppVersion {
+			fmt.Printf("Setting multiplexer next app version to %v\n", nextAppVersion)
+			m.nextAppVersion = nextAppVersion
 		}
 	}
 	return got
@@ -99,7 +99,9 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 
 	if m.isUpgradePending() {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
-
+		if m.nextAppVersion == 3 {
+			m.application = NewAppV3()
+		}
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
 
@@ -178,5 +180,5 @@ func (m *Multiplexer) isUpgradePending() bool {
 }
 
 func (m *Multiplexer) getCurrentApp() AppWithMigrations {
-	return m.applications[m.currentAppVersion]
+	return m.application
 }
