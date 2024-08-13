@@ -1,11 +1,10 @@
 module github.com/celestiaorg/celestia-app/node
 
-go 1.22.5
-
-toolchain go1.22.6
+go 1.22.6
 
 require (
 	github.com/celestiaorg/celestia-app/v2 v2.0.0
+	github.com/celestiaorg/celestia-app/v3 v3.0.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
@@ -38,8 +37,9 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
 	github.com/celestiaorg/go-square v1.1.0 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
+	github.com/celestiaorg/go-square/v2 v2.0.0-rc2 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.22.0 // indirect
+	github.com/celestiaorg/nmt v0.22.1 // indirect
 	github.com/celestiaorg/rsmt2d v0.14.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -209,6 +209,7 @@ replace (
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
 	github.com/celestiaorg/celestia-app/v2 => ../
+	github.com/celestiaorg/celestia-app/v3 => ../../celestia-app-v3
 
 	// --------------------------------------
 	// --- Unmodified replace statements ---
