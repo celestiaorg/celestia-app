@@ -164,7 +164,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		defer cancel()
 
 		msg := bank.NewMsgSend(suite.txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+		resp, err := suite.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 		require.NoError(t, err)
 
 		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
@@ -175,8 +175,8 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	t.Run("should error when tx is not found", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 5*time.Second)
 		defer cancel()
-		_, err := suite.txClient.ConfirmTx(ctx, "not found tx")
-		require.Error(t, err)
+		_, err := suite.txClient.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
+		require.Contains(t, err.Error(), "unknown tx: E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {

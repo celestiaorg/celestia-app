@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -83,13 +82,9 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 			defer cancel()
 			res, err := txClient.SubmitPayForBlob(subCtx, []*share.Blob{tc.blob}, user.SetGasLimitAndGasPrice(1e9, appconsts.DefaultMinGasPrice))
 			require.Error(t, err)
-			// FIXME: Temporary way of querying the raw log.
-			// TxStatus will natively support this in the future.
-			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
-			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
-			require.NoError(t, err)
 			require.NotNil(t, res)
-			require.Equal(t, tc.want, res.Code, getTxResp.TxResponse.RawLog)
+			// FIXME: assert RawLog once TxStatus supports it.
+			require.Equal(t, tc.want, res.Code)
 		})
 	}
 }

@@ -439,7 +439,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 	for {
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
-		if err == nil && resp != nil {
+		if err != nil {
+			return &TxResponse{}, err
+		}
+
+		if err == nil {
 			switch resp.Status {
 			// FIXME: replace hardcoded status with constants
 			case "PENDING":
