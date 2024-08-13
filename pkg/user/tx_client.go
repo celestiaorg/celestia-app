@@ -443,7 +443,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return &TxResponse{}, err
 		}
 
-		if err == nil {
+		if err == nil && resp != nil {
 			switch resp.Status {
 			// FIXME: replace hardcoded status with constants
 			case "PENDING":
