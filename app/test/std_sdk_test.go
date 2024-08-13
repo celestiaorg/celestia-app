@@ -21,6 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -325,8 +326,13 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			} else {
 				require.NoError(t, err)
 			}
+			// FIXME: Temporary way of querying the raw log.
+			// TxStatus will natively support this in the future.
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+			require.NoError(t, err)
 			require.NotNil(t, res)
-			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
+			assert.Equal(t, tt.expectedCode, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
 }

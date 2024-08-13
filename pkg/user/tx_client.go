@@ -39,6 +39,14 @@ const (
 
 type Option func(client *TxClient)
 
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	Height int64
+	TxHash string
+	Code   uint32
+}
+
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
 	return func(c *TxClient) {
@@ -200,23 +208,25 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, *tx.TxStatusResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
-	if err != nil {
-		return resp, nil, err
+	if err != nil && resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
+	} else if err != nil {
+		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
 	}
 
-	statusResponse, err := client.ConfirmTx(ctx, resp.TxHash)
-	if err != nil {
-		return resp, nil, err
-	}
-	return resp, statusResponse, nil
+	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+// SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
-	if err != nil {
-		return resp, err
+	if err != nil && resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
+	} else if err != nil {
+		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -257,10 +267,12 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
-	if err != nil {
-		return resp, err
+	if err != nil && resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast tx: %v", err)
+	} else if err != nil {
+		return &TxResponse{}, fmt.Errorf("failed to broadcast tx: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -414,7 +426,7 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*tx.TxStatusResponse, error) {
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
 	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
@@ -422,25 +434,31 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*tx.TxSta
 
 	for {
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
-		if err == nil {
+		if err == nil && resp != nil {
 			switch resp.Status {
+			// FIXME: replace hardcoded status with constants
 			case "PENDING":
 				// Continue polling if the transaction is still pending
 				select {
 				case <-ctx.Done():
-					return &tx.TxStatusResponse{}, ctx.Err()
+					return &TxResponse{}, ctx.Err()
 				case <-pollTicker.C:
 					continue
 				}
 			case "COMMITTED":
-				if resp.ExecutionCode != 0 {
-					return resp, fmt.Errorf("tx was included but failed with code %d: %s", resp.ExecutionCode, resp.Status)
+				txResponse := &TxResponse{
+					Height: resp.Height,
+					TxHash: txHash,
+					Code:   resp.ExecutionCode,
 				}
-				return resp, nil
+				if resp.ExecutionCode != 0 {
+					return txResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.ExecutionCode, resp.Status)
+				}
+				return txResponse, nil
 			case "EVICTED":
-				return resp, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+				return &TxResponse{}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
 			default:
-				return resp, fmt.Errorf("unknown tx: %s", txHash)
+				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
 			}
 		}
 	}

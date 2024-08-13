@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -54,6 +55,7 @@ type LegacyUpgradeTestSuite struct {
 
 	mut            sync.Mutex
 	accountCounter int
+	serviceClient  sdktx.ServiceClient
 }
 
 // SetupSuite inits a standard chain, with the only exception being a
@@ -91,6 +93,9 @@ func (s *LegacyUpgradeTestSuite) SetupSuite() {
 
 	// Set the gov module address
 	s.govModuleAddress = acc.GetAddress().String()
+	// FIXME: Temporary way of querying the raw log.
+	// TxStatus will natively support this in the future.
+	s.serviceClient = sdktx.NewServiceClient(s.cctx.GRPCClient)
 }
 
 func (s *LegacyUpgradeTestSuite) unusedAccount() string {
@@ -126,8 +131,10 @@ func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
+	getTxResp, err := s.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: res.TxHash})
+	require.NoError(t, err)
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	require.EqualValues(t, 2, res.Code, res.RawLog)
+	require.EqualValues(t, 2, res.Code, getTxResp.TxResponse.RawLog)
 }
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
@@ -155,8 +162,10 @@ func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	defer cancel()
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
+	getTxResp, err := s.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: res.TxHash})
+	require.NoError(t, err)
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	require.EqualValues(t, 2, res.Code, res.RawLog)
+	require.EqualValues(t, 2, res.Code, getTxResp.TxResponse.RawLog)
 }
 
 func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
@@ -178,14 +187,16 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewTxClientFromContext(s.cctx)
+	txClient, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
-	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	res, err := txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
-	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
-	assert.Contains(t, res.RawLog, "ibc upgrade proposal not supported")
+	getTxResp, err := s.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: res.TxHash})
+	require.NoError(t, err)
+	require.EqualValues(t, 9, res.Code, getTxResp.TxResponse.RawLog) // we're only submitting the tx, so we expect everything to work
+	assert.Contains(t, getTxResp.TxResponse.RawLog, "ibc upgrade proposal not supported")
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
