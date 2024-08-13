@@ -5,7 +5,6 @@ go 1.22.5
 toolchain go1.22.6
 
 require (
-	github.com/celestiaorg/celestia-app v1.13.0
 	github.com/celestiaorg/celestia-app/v2 v2.0.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/spf13/cobra v1.8.1
@@ -41,7 +40,6 @@ require (
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/celestiaorg/nmt v0.22.0 // indirect
-	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 // indirect
 	github.com/celestiaorg/rsmt2d v0.14.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -140,6 +138,7 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/onsi/gomega v1.27.4 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -208,8 +207,6 @@ require (
 replace (
 	// replace errors to avoid a panic when registering duplicate errors
 	cosmossdk.io/errors => github.com/rootulp/cosmos-sdk/errors v1.4.0
-	// replace celestia-app v1 with fork that has a hard-coded upgrade height of 3
-	github.com/celestiaorg/celestia-app => github.com/rootulp/celestia-app v1.34.0
 	// replace celestia-app v2 to avoid a panic when Cosmos SDK is modified in init()
 	github.com/celestiaorg/celestia-app/v2 => ../
 
