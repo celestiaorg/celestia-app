@@ -9,7 +9,7 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -104,21 +104,21 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name: "PFB with 1 blob that is 1 share",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1))},
 			},
 			appVersion: v2.Version,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square - 1",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
 			},
 			appVersion: v2.Version,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square",
 			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize))},
+				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(squareSize * squareSize))},
 			},
 			appVersion: v2.Version,
 			// This test case should return an error because if the blob
@@ -130,8 +130,8 @@ func TestBlobShareDecorator(t *testing.T) {
 			name: "PFB with 2 blobs that are 1 share each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{
-					uint32(shares.AvailableBytesFromSparseShares(1)),
-					uint32(shares.AvailableBytesFromSparseShares(1)),
+					uint32(share.AvailableBytesFromSparseShares(1)),
+					uint32(share.AvailableBytesFromSparseShares(1)),
 				},
 			},
 			appVersion: v2.Version,
@@ -140,8 +140,8 @@ func TestBlobShareDecorator(t *testing.T) {
 			name: "PFB with 2 blobs that occupy half the square each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{
-					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
-					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
+					uint32(share.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
+					uint32(share.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
 				},
 			},
 			appVersion: v2.Version,

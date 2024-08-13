@@ -11,7 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -208,7 +209,7 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil && resp != nil {
 		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
@@ -221,7 +222,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob
 
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil && resp != nil {
 		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
@@ -236,11 +237,11 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 // It does not confirm that the transaction has been committed on chain.
 // If no gas or gas price is set, it will estimate the gas and use
 // the max effective gas price: max(localMinGasPrice, networkMinGasPrice).
-func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	if err := client.checkAccountLoaded(ctx, account); err != nil {
@@ -249,7 +250,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 	blobSizes := make([]uint32, len(blobs))
 	for i, blob := range blobs {
-		blobSizes[i] = uint32(len(blob.Data))
+		blobSizes[i] = uint32(len(blob.Data()))
 	}
 
 	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)) * client.gasMultiplier)
@@ -372,8 +373,12 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
 func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
-	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
+	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
+		// only check the error if the bytes are supposed to be of type blob tx
+		if err != nil {
+			return nil, err
+		}
 		txBytes = blobTx.Tx
 	}
 	tx, err := client.signer.DecodeTx(txBytes)
@@ -414,7 +419,7 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 
 	// rewrap the blob tx if it was originally a blob tx
 	if isBlobTx {
-		newTxBytes, err = blob.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
 		if err != nil {
 			return nil, err
 		}

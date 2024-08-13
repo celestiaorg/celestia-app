@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	appns "github.com/celestiaorg/go-square/namespace"
+	appns "github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
