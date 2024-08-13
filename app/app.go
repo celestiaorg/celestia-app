@@ -791,3 +791,11 @@ func (app *App) InitializeAppVersion(ctx sdk.Context) {
 		app.SetAppVersion(ctx, appVersion)
 	}
 }
+
+func (app *App) SetCommitMultiStore(cms storetypes.CommitMultiStore) {
+	app.SetCMS(cms)
+}
+
+func (app *App) GetCommitMultiStore() storetypes.CommitMultiStore {
+	return app.CommitMultiStore()
+}

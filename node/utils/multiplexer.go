@@ -103,6 +103,10 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
+
+		cms := m.applications[1].GetCommitMultiStore()
+		m.applications[2].SetCommitMultiStore(cms)
+
 		appHash := m.RunMigrations()
 		got.Data = appHash
 		return got
