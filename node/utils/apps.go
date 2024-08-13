@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"os"
+
 	appV1 "github.com/celestiaorg/celestia-app/app"
 	encodingV1 "github.com/celestiaorg/celestia-app/app/encoding"
 	appV2 "github.com/celestiaorg/celestia-app/v2/app"
@@ -23,7 +25,7 @@ func GetApplications() map[uint64]AppWithMigrations {
 }
 
 func NewAppV1() *appV1.App {
-	logger := log.NewNopLogger()
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
 	loadLatest := true
@@ -36,7 +38,7 @@ func NewAppV1() *appV1.App {
 }
 
 func NewAppV2() *appV2.App {
-	logger := log.NewNopLogger()
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
