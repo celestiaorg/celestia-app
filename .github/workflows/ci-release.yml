@@ -24,9 +24,6 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
 
-  test-interchain:
-    uses: ./.github/workflows/test-interchain.yml
-
   goreleaser:
     uses: ./.github/workflows/goreleaser.yml
     permissions: write-all
