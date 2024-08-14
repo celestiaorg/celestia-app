@@ -3,6 +3,7 @@ package utils_test
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,11 +14,17 @@ import (
 )
 
 func TestStartNode(t *testing.T) {
-	config := utils.GetConfig()
-	fmt.Printf("config.TMConfig.DBDir(): %v\n", config.TmConfig.DBDir())
-	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
-	require.NoError(t, err)
+	// fmt.Printf("config.TMConfig.DBDir(): %v\n", config.TmConfig.DBDir())
+	// db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
+	// require.NoError(t, err)
 
+	config := utils.GetConfig()
+	fmt.Printf("config.TmConfig.RootDir: %v\n", config.TmConfig.RootDir)
+	fmt.Printf("config.TmConfig.DBDir(): %v\n", config.TmConfig.DBDir())
+	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
+	fmt.Printf("dbPath: %v\n", dbPath)
+	db, err := tmdb.NewGoLevelDB("application", dbPath)
+	require.NoError(t, err)
 	multiplexer := utils.NewMultiplexer(db)
 
 	ctx, cancel := context.WithCancel(context.Background())
