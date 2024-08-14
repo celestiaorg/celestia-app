@@ -20,8 +20,9 @@ var rootCmd = &cobra.Command{
 	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		config := utils.GetConfig()
-		fmt.Printf("config.TmConfig.RootDir: %v\n", config.TmConfig.RootDir)
-		fmt.Printf("config.TmConfig.DBDir(): %v\n", config.TmConfig.DBDir())
+		fmt.Printf("Deleting root dir: %v\n", config.TmConfig.RootDir)
+		os.RemoveAll(config.TmConfig.RootDir)
+
 		dbPath := filepath.Join(config.TmConfig.RootDir, "data")
 		fmt.Printf("dbPath: %v\n", dbPath)
 		db, err := tmdb.NewGoLevelDB("application", dbPath)
