@@ -57,11 +57,11 @@ func Run() error {
 		return err
 	}
 
-	for _, node := range network.Nodes() {
-		if err := node.Instance.EnableBitTwister(); err != nil {
-			return fmt.Errorf("failed to enable bit twister: %v", err)
-		}
-	}
+	// for _, node := range network.Nodes() {
+	// 	if err := node.Instance.EnableBitTwister(); err != nil {
+	// 		return fmt.Errorf("failed to enable bit twister: %v", err)
+	// 	}
+	// }
 
 	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
 	if err != nil {
@@ -127,11 +127,11 @@ func Run() error {
 		return err
 	}
 
-	for _, node := range network.Nodes() {
-		if err = node.Instance.SetLatencyAndJitter(100, 10); err != nil {
-			return fmt.Errorf("failed to set latency and jitter: %v", err)
-		}
-	}
+	// for _, node := range network.Nodes() {
+	// 	if err = node.Instance.SetLatencyAndJitter(100, 10); err != nil {
+	// 		return fmt.Errorf("failed to set latency and jitter: %v", err)
+	// 	}
+	// }
 
 	if err := network.WaitToSync(); err != nil {
 		return err
