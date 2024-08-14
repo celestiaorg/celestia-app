@@ -2,6 +2,7 @@ package utils_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 func TestStartNode(t *testing.T) {
 	config := utils.GetConfig()
+	fmt.Printf("config.TMConfig.DBDir(): %v\n", config.TmConfig.DBDir())
 	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	require.NoError(t, err)
 

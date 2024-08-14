@@ -19,6 +19,7 @@ var rootCmd = &cobra.Command{
 	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		config := utils.GetConfig()
+		fmt.Printf("config.TMConfig.DBDir(): %v\n", config.TmConfig.DBDir())
 		db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 		if err != nil {
 			return err

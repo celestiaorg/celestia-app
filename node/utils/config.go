@@ -11,6 +11,7 @@ func GetConfig() *testnode.Config {
 	tmConfig.P2P.ListenAddress = "tcp://127.0.0.1:26656"
 	tmConfig.RPC.ListenAddress = "tcp://127.0.0.1:26657"
 	tmConfig.RPC.GRPCListenAddress = "tcp://127.0.0.1:26658"
+	tmConfig.RootDir = "/Users/rootulp/.celestia-app"
 
 	consensusParams := testnode.DefaultConsensusParams()
 	consensusParams.Version.AppVersion = v1.Version
