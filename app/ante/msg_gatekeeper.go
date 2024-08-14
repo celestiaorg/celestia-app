@@ -31,7 +31,7 @@ func NewMsgVersioningGateKeeper(acceptedList map[uint64]map[string]struct{}) *Ms
 func (mgk MsgVersioningGateKeeper) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	acceptedMsgs, exists := mgk.acceptedMsgs[ctx.BlockHeader().Version.App]
 	if !exists {
-		return ctx, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", ctx.ConsensusParams().Version.AppVersion)
+		return ctx, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", ctx.BlockHeader().Version.App)
 	}
 
 	if err := mgk.hasInvalidMsg(ctx, acceptedMsgs, tx.GetMsgs()); err != nil {

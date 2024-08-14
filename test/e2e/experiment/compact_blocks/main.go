@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "pr-3713"
+	compactBlocksVersion = "3f358b3"
 )
 
 func main() {
