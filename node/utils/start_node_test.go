@@ -2,7 +2,6 @@ package utils_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -13,25 +12,21 @@ import (
 )
 
 func TestStartNode(t *testing.T) {
-	dbPath := t.TempDir()
-	db, err := tmdb.NewGoLevelDB("application", dbPath)
+	config := utils.GetConfig()
+	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	require.NoError(t, err)
 
 	multiplexer := utils.NewMultiplexer(db)
-	config := utils.GetConfig()
-
-	tempDir := t.TempDir()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, tempDir)
+	cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer)
 	defer cleanup()
 	require.NoError(t, err)
-	fmt.Printf("chainID %v\n", cctx.ChainID)
 
 	assert.Eventually(t, func() bool {
 		latestHeight, err := cctx.LatestHeight()
 		require.NoError(t, err)
-		return latestHeight > 5
+		return latestHeight > 10
 	}, time.Second*10, time.Second)
 }

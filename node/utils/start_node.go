@@ -13,7 +13,7 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer, rootDir string) (cctx testnode.Context, cleanup func() error, err error) {
+func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, cleanup func() error, err error) {
 	basePath, err := genesis.InitFiles(config.TmConfig.RootDir, config.TmConfig, config.Genesis, 0)
 	if err != nil {
 		return testnode.Context{}, nil, err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
@@ -15,24 +14,21 @@ import (
 
 var cfgFile string
 
-const rootDir = "rootDir"
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dbPath := filepath.Join(rootDir, "data")
-		db, err := tmdb.NewGoLevelDB("application", dbPath)
+		config := utils.GetConfig()
+		db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 		if err != nil {
 			return err
 		}
 		multiplexer := utils.NewMultiplexer(db)
 
-		config := utils.GetConfig()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, rootDir)
+		cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer)
 		defer cleanup()
 		if err != nil {
 			fmt.Printf("failed to start node: %v\n", err)
