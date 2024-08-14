@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 type BenchmarkTest struct {
@@ -76,26 +75,26 @@ func (b *BenchmarkTest) SetupNodes() error {
 	))
 	if b.manifest.PushTrace {
 		log.Println("reading trace push config")
-		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
-			log.Print("Setting up trace push config")
-			for _, node := range b.Nodes() {
-				if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
-				}
-			}
-		}
+		// if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+		// 	log.Print("Setting up trace push config")
+		// 	for _, node := range b.Nodes() {
+		// 		if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
+		// 			return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
+		// 		}
+		// 		if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
+		// 			return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
+		// 		}
+		// 		if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
+		// 			return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
+		// 		}
+		// 		if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
+		// 			return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
+		// 		}
+		// 		if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
+		// 			return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
+		// 		}
+		// 	}
+		// }
 	}
 	return nil
 }
@@ -155,15 +154,15 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 	// download traces from S3, if enabled
 	if b.manifest.PushTrace && b.manifest.DownloadTraces {
 		// download traces from S3
-		pushConfig, err := trace.GetPushConfigFromEnv()
-		if err != nil {
-			return fmt.Errorf("failed to get push config: %w", err)
-		}
-		err = trace.S3Download("./traces/", b.manifest.ChainID,
-			pushConfig)
-		if err != nil {
-			return fmt.Errorf("failed to download traces from S3: %w", err)
-		}
+		// pushConfig, err := trace.GetPushConfigFromEnv()
+		// if err != nil {
+		// 	return fmt.Errorf("failed to get push config: %w", err)
+		// }
+		// err = trace.S3Download("./traces/", b.manifest.ChainID,
+		// 	pushConfig)
+		// if err != nil {
+		// 	return fmt.Errorf("failed to download traces from S3: %w", err)
+		// }
 	}
 
 	log.Println("Reading blockchain headers")

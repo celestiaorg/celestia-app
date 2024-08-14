@@ -56,10 +56,10 @@ func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundStat
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
-	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
-	if err != nil {
-		return nil, fmt.Errorf("getting table: %w", err)
-	}
+	// err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("getting table: %w", err)
+	// }
 	return nil, nil
 }
 
@@ -70,10 +70,10 @@ func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSu
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling block summary traces")
 
-	err := trace.GetTable(addr, schema.BlockSummary{}.Table(), path)
-	if err != nil {
-		return nil, fmt.Errorf("getting table: %w", err)
-	}
+	// err := trace.GetTable(addr, schema.BlockSummary{}.Table(), path)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("getting table: %w", err)
+	// }
 	return nil, nil
 }
 
