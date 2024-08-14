@@ -11,7 +11,7 @@ then
     exit 1
 fi
 
-CHAIN_ID="private"
+CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 COINS="1000000000000000utia"

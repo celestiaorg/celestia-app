@@ -171,7 +171,7 @@ func validMsgPayForBlobs(t *testing.T) *types.MsgPayForBlobs {
 	ns1 := share.NamespaceVersionZeroPrefix
 	ns1 = append(ns1, bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize)...)
 	ns := share.MustNewNamespace(share.NamespaceVersionZero, ns1)
-	data := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
+	data := bytes.Repeat([]byte{2}, totalBlobSize(share.ContinuationSparseShareContentSize*12))
 
 	blob, err := share.NewV0Blob(ns, data)
 	require.NoError(t, err)
@@ -192,24 +192,33 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 	}
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	ns2 := share.MustNewV0Namespace(bytes.Repeat([]byte{2}, share.NamespaceVersionZeroIDSize))
+	address := sdk.MustAccAddressFromBech32(testfactory.TestAccAddr)
 
 	testCases := []testCase{
 		{
 			name:   "valid msg PFB with small blob",
 			signer: testfactory.TestAccAddr,
-			blobs:  []*share.Blob{mustNewBlob(t, ns1, []byte{1}, appconsts.ShareVersionZero, nil)},
+			blobs:  []*share.Blob{mustNewBlob(t, ns1, []byte{1}, share.ShareVersionZero, nil)},
 		},
 		{
 			name:   "valid msg PFB with large blob",
 			signer: testfactory.TestAccAddr,
-			blobs:  []*share.Blob{mustNewBlob(t, ns1, tmrand.Bytes(1000000), appconsts.ShareVersionZero, nil)},
+			blobs:  []*share.Blob{mustNewBlob(t, ns1, tmrand.Bytes(1000000), share.ShareVersionZero, nil)},
 		},
 		{
 			name:   "valid msg PFB with two blobs",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
-				mustNewBlob(t, ns1, []byte{1}, appconsts.ShareVersionZero, nil),
-				mustNewBlob(t, ns2, []byte{2}, appconsts.ShareVersionZero, nil),
+				mustNewBlob(t, ns1, []byte{1}, share.ShareVersionZero, nil),
+				mustNewBlob(t, ns2, []byte{2}, share.ShareVersionZero, nil),
+			},
+			expectedErr: false,
+		},
+		{
+			name:   "valid msg PFB with share version 1",
+			signer: testfactory.TestAccAddr,
+			blobs: []*share.Blob{
+				mustNewBlob(t, ns1, tmrand.Bytes(10000), share.ShareVersionOne, address),
 			},
 			expectedErr: false,
 		},
@@ -217,7 +226,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			name:   "msg PFB with tx namespace returns an error",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
-				mustNewBlob(t, share.TxNamespace, tmrand.Bytes(1000000), appconsts.ShareVersionZero, nil),
+				mustNewBlob(t, share.TxNamespace, tmrand.Bytes(1000000), share.ShareVersionZero, nil),
 			},
 			expectedErr: true,
 		},
@@ -225,7 +234,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			name:   "msg PFB with invalid signer returns an error",
 			signer: testfactory.TestAccAddr[:10],
 			blobs: []*share.Blob{
-				mustNewBlob(t, ns1, []byte{1}, appconsts.ShareVersionZero, nil),
+				mustNewBlob(t, ns1, []byte{1}, share.ShareVersionZero, nil),
 			},
 			expectedErr: true,
 		},
