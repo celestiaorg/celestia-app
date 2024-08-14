@@ -5,7 +5,7 @@ import (
 
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmdb "github.com/tendermint/tm-db"
 )
@@ -70,8 +70,8 @@ func (m *Multiplexer) ProcessProposal(request abci.RequestProcessProposal) abci.
 func (m *Multiplexer) BeginBlock(request abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	fmt.Printf("Multiplexer BeginBlock invoked with current app version %v\n", m.currentAppVersion)
 	app := m.getCurrentApp()
-	capabilityKey := storetypes.NewKVStoreKey(capabilitytypes.StoreKey)
-	kvStore := app.GetCommitMultiStore().GetKVStore(capabilityKey)
+	authKey := storetypes.NewKVStoreKey(authtypes.StoreKey)
+	kvStore := app.GetCommitMultiStore().GetKVStore(authKey)
 	fmt.Printf("kvStore %v\n", kvStore)
 
 	return app.BeginBlock(request)
