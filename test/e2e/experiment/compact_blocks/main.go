@@ -15,12 +15,12 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/pkg/trace"
-	"github.com/tendermint/tendermint/pkg/trace/schema"
+	// "github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 const (
-	compactBlocksVersion = "3f358b3"
+	compactBlocksVersion = "ff4e8a3"
 )
 
 func main() {
@@ -168,11 +168,11 @@ func Run() error {
 				log.Printf("Error saving block times: %v", err)
 			}
 			log.Printf("Throughput: %v", throughput)
-			err = trace.S3Download("./traces/", "compact-blocks",
-				pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable)
-			if err != nil {
-				return fmt.Errorf("failed to download traces from S3: %w", err)
-			}
+			// err = trace.S3Download("./traces/", "compact-blocks",
+			// 	pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable)
+			// if err != nil {
+			// 	return fmt.Errorf("failed to download traces from S3: %w", err)
+			// }
 			log.Println("--- FINISHED ✅: Compact Blocks")
 			return nil
 		}
