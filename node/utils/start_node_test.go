@@ -9,10 +9,15 @@ import (
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestStartNode(t *testing.T) {
-	multiplexer := utils.NewMultiplexer()
+	dbPath := t.TempDir()
+	db, err := tmdb.NewGoLevelDB("application", dbPath)
+	require.NoError(t, err)
+
+	multiplexer := utils.NewMultiplexer(db)
 	config := utils.GetConfig()
 
 	tempDir := t.TempDir()

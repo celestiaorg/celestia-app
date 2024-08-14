@@ -21,9 +21,9 @@ const (
 	upgradeHeightV3 = int64(10)
 )
 
-func GetApplications() map[uint64]AppWithMigrations {
-	appV2 := NewAppV2()
-	appV3 := NewAppV3()
+func GetApplications(db tmdb.DB) map[uint64]AppWithMigrations {
+	appV2 := NewAppV2(db)
+	appV3 := NewAppV3(db)
 
 	return map[uint64]AppWithMigrations{
 		v1.Version: appV2,
@@ -32,9 +32,8 @@ func GetApplications() map[uint64]AppWithMigrations {
 	}
 }
 
-func NewAppV2() *appV2.App {
+func NewAppV2(db tmdb.DB) *appV2.App {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV2.MakeConfig(appV2.ModuleEncodingRegisters...)
@@ -42,9 +41,8 @@ func NewAppV2() *appV2.App {
 	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, upgradeHeightV3, appOptions)
 }
 
-func NewAppV3() *appV3.App {
+func NewAppV3(db tmdb.DB) *appV3.App {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV3.MakeConfig(appV3.ModuleEncodingRegisters...)

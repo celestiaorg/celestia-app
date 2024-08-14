@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 var cfgFile string
@@ -19,17 +21,17 @@ const rootDir = "rootDir"
 var rootCmd = &cobra.Command{
 	Use: "node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		multiplexer := utils.NewMultiplexer()
+		dbPath := filepath.Join(rootDir, "data")
+		db, err := tmdb.NewGoLevelDB("application", dbPath)
+		if err != nil {
+			return err
+		}
+		multiplexer := utils.NewMultiplexer(db)
 
 		config := utils.GetConfig()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		err := os.Mkdir(rootDir, 0755)
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(rootDir)
 		cctx, cleanup, err := utils.StartNode(ctx, config, multiplexer, rootDir)
 		defer cleanup()
 		if err != nil {

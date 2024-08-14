@@ -5,6 +5,7 @@ import (
 
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 const (
@@ -25,15 +26,18 @@ type Multiplexer struct {
 	// to. This value only differs from currentAppVersion if the current height
 	// is an upgrade height.
 	nextAppVersion uint64
+
+	// db is the database used by the application
+	db tmdb.DB
 }
 
-func NewMultiplexer() *Multiplexer {
-	application := NewAppV2()
-
+func NewMultiplexer(db tmdb.DB) *Multiplexer {
+	application := NewAppV2(db)
 	return &Multiplexer{
 		application:       application,
 		currentAppVersion: initialAppVersion,
 		nextAppVersion:    initialAppVersion,
+		db:                db,
 	}
 }
 
@@ -100,7 +104,7 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 	if m.isUpgradePending() {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		if m.nextAppVersion == 3 {
-			m.application = NewAppV3()
+			m.application = NewAppV3(m.db)
 		}
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
