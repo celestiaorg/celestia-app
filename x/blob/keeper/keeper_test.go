@@ -65,7 +65,7 @@ func convertToEventPayForBlobs(message proto.Message) (*types.EventPayForBlobs, 
 }
 
 func createMsgPayForBlob(t *testing.T, signer string, namespace share.Namespace, blobData []byte) *types.MsgPayForBlobs {
-	blob, err := share.NewBlob(namespace, blobData, appconsts.ShareVersionZero, nil)
+	blob, err := share.NewBlob(namespace, blobData, share.ShareVersionZero, nil)
 	require.NoError(t, err)
 	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
 	require.NoError(t, err)
