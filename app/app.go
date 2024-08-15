@@ -172,8 +172,7 @@ type App struct {
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
-// New returns a reference to an uninitialized app. Callers must subsequently
-// call app.Info or app.InitChain to initialize the baseapp.
+// New returns a reference to an initialized app.
 //
 // NOTE: upgradeHeightV2 refers specifically to the height that a node will
 // upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
@@ -184,7 +183,7 @@ func New(
 	traceStore io.Writer,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeHeightV2 int64,
+	upgradeHeightV2 int64, // TODO: remove this param
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -437,6 +436,14 @@ func New(
 		tmos.Exit(err.Error())
 	}
 
+	height := app.LastBlockHeight()
+	ctx, err := app.CreateQueryContext(height, false)
+	if err != nil {
+		panic(err)
+	}
+	app.SetAppVersion(ctx, v3)
+	app.mountKeysAndInit(3)
+
 	return app
 }
 
@@ -456,34 +463,13 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
 
-	// upgradeHeightV3 is a hard-coded height to upgrade from v2 to v3. We use
-	// this to test the upgrade in the prototype. On mainnet we'll use the
-	// signalling mechanism so remove this pre-merge.
-	upgradeHeightV3 := int64(10)
-
-	// For v1 only we upgrade using a agreed upon height known ahead of time
-	if currentVersion == v1 {
-		// check that we are at the height before the upgrade
-		if req.Height == app.upgradeHeightV2-1 {
-			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
-			app.SetInitialAppVersionInConsensusParams(ctx, v2)
-			app.SetAppVersion(ctx, v2)
-
-			// The blobstream module was disabled in v2 so the following line
-			// removes the params subspace for blobstream.
-			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {
-				panic(err)
-			}
-		}
-		// from v2 to v3 and onwards we use a signalling mechanism
-	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
+	// from v3 onwards we use a signalling mechanism
+	if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
-	} else if req.Height == upgradeHeightV3-1 {
-		app.SetAppVersion(ctx, 3)
 	}
 	return res
 }
@@ -519,34 +505,8 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // Info implements the ABCI interface. This method is a wrapper around baseapp's
 // Info command so that it can take the app version and setup the multicommit
 // store.
-//
-// Side-effect: calls baseapp.Init()
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
-	if height := app.LastBlockHeight(); height > 0 {
-		ctx, err := app.CreateQueryContext(height, false)
-		if err != nil {
-			panic(err)
-		}
-		appVersion := app.GetAppVersionFromParamStore(ctx)
-		if appVersion > 0 {
-			app.SetAppVersion(ctx, appVersion)
-		} else {
-			app.SetAppVersion(ctx, v1)
-		}
-	}
-
-	resp := app.BaseApp.Info(req)
-	// mount the stores for the provided app version
-	if resp.AppVersion > 0 && !app.IsSealed() {
-		app.mountKeysAndInit(resp.AppVersion)
-	}
-	return resp
-}
-
-// RunMigrations is a no-op because the v2 state machine already handles
-// migrating from v1 -> v2 at the v2 upgrade height.
-func (app *App) RunMigrations() []byte {
-	return []byte{}
+	return app.BaseApp.Info(req)
 }
 
 // InitChain implements the ABCI interface. This method is a wrapper around
@@ -554,6 +514,7 @@ func (app *App) RunMigrations() []byte {
 // store.
 //
 // Side-effect: calls baseapp.Init()
+// TODO: refactor this method because it no longer needs to support initializing a chain with an app version that isn't 3.
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	// genesis must always contain the consensus params. The validator set however is derived from the
 	// initial genesis state. The genesis must always contain a non zero app version which is the initial
@@ -797,4 +758,8 @@ func (app *App) InitializeAppVersion(ctx sdk.Context) {
 	} else {
 		app.SetAppVersion(ctx, appVersion)
 	}
+}
+
+func (app *App) RunMigrations() []byte {
+	return []byte{}
 }
