@@ -20,7 +20,6 @@ func TestStartNode(t *testing.T) {
 	os.RemoveAll(config.TmConfig.RootDir)
 
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	fmt.Printf("dbPath: %v\n", dbPath)
 	db, err := tmdb.NewGoLevelDB("application", dbPath)
 	require.NoError(t, err)
 
