@@ -166,9 +166,6 @@ type App struct {
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
-	// upgradeHeightv3 is a hard-coded mechanism for the height-based
-	// upgrade from v2 to v3.
-	upgradeHeightV3 int64
 	// MsgGateKeeper is used to define which messages are accepted for a given
 	// app version.
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
@@ -187,7 +184,6 @@ func New(
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
 	upgradeHeightV2 int64,
-	upgradeHeightV3 int64,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -214,7 +210,6 @@ func New(
 		tkeys:             tkeys,
 		memKeys:           memKeys,
 		upgradeHeightV2:   upgradeHeightV2,
-		upgradeHeightV3:   upgradeHeightV3,
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, encodingConfig.Amino, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
@@ -459,6 +454,12 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
+
+	// upgradeHeightV3 is a hard-coded height to upgrade from v2 to v3. We use
+	// this to test the upgrade in the prototype. On mainnet we'll use the
+	// signalling mechanism so remove this pre-merge.
+	upgradeHeightV3 := int64(10)
+
 	// For v1 only we upgrade using a agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
@@ -480,7 +481,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
-	} else if req.Height == app.upgradeHeightV3-1 {
+	} else if req.Height == upgradeHeightV3-1 {
 		app.SetAppVersion(ctx, 3)
 	}
 	return res

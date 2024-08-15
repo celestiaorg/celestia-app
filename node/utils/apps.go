@@ -17,8 +17,6 @@ import (
 const (
 	// upgradeHeightV2 is the height at which the app should be upgraded to v2.
 	upgradeHeightV2 = int64(5)
-	// upgradeHeightV2 is the height at which the app should be upgraded to v3.
-	upgradeHeightV3 = int64(10)
 )
 
 func GetApplications(db tmdb.DB) map[uint64]AppWithMigrations {
@@ -38,7 +36,7 @@ func NewAppV2(db tmdb.DB) *appV2.App {
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV2.MakeConfig(appV2.ModuleEncodingRegisters...)
 	appOptions := NoopAppOptions{}
-	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, upgradeHeightV3, appOptions)
+	return appV2.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, appOptions)
 }
 
 func NewAppV3(db tmdb.DB) *appV3.App {
@@ -47,5 +45,5 @@ func NewAppV3(db tmdb.DB) *appV3.App {
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV3.MakeConfig(appV3.ModuleEncodingRegisters...)
 	appOptions := NoopAppOptions{}
-	return appV3.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, upgradeHeightV3, appOptions)
+	return appV3.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, appOptions)
 }

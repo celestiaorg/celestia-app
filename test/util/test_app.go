@@ -90,7 +90,6 @@ func NewTestApp() *app.App {
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
-		0,
 		emptyOpts,
 	)
 }
@@ -430,8 +429,7 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeightV2 int64) (*app.Ap
 	db := dbm.NewMemDB()
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeHeightV3 := int64(0)
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeightV2, upgradeHeightV3, EmptyAppOptions{})
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeightV2, EmptyAppOptions{})
 	genesisState, _, kr := GenesisStateWithSingleValidator(testApp, "account")
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
