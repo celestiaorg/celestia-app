@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-square/merkle"
+	"github.com/tendermint/tendermint/crypto/merkle"
 )
 
 // Validate performs checks on the fields of this RowProof. Returns an error if

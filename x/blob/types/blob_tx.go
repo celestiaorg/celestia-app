@@ -3,38 +3,39 @@ package types
 import (
 	"bytes"
 
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/inclusion"
-	appns "github.com/celestiaorg/go-square/namespace"
-	shares "github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-// NewBlob creates a new coretypes.Blob from the provided data after performing
-// basic stateless checks over it.
-func NewBlob(ns appns.Namespace, data []byte, shareVersion uint8) (*blob.Blob, error) {
+// NewV0Blob creates a new V0 Blob from a provided namespace and data.
+func NewV0Blob(ns share.Namespace, data []byte) (*share.Blob, error) {
+	// checks that it is a non reserved, valid namespace
 	err := ValidateBlobNamespace(ns)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(data) == 0 {
-		return nil, ErrZeroBlobSize
-	}
+	return share.NewV0Blob(ns, data)
+}
 
-	return &blob.Blob{
-		NamespaceId:      ns.ID,
-		Data:             data,
-		ShareVersion:     uint32(shareVersion),
-		NamespaceVersion: uint32(ns.Version),
-	}, nil
+// NewV1Blob creates a new V1 Blob from the provided namespace, data and the signer
+// that will pay for the blob.
+func NewV1Blob(ns share.Namespace, data []byte, signer sdk.AccAddress) (*share.Blob, error) {
+	err := ValidateBlobNamespace(ns)
+	if err != nil {
+		return nil, err
+	}
+	return share.NewV1Blob(ns, data, signer)
 }
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRootThreshold int) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int) error {
 	if bTx == nil {
 		return ErrNoBlobs
 	}
@@ -63,11 +64,25 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRoot
 	// perform basic checks on the blobs
 	sizes := make([]uint32, len(bTx.Blobs))
 	for i, pblob := range bTx.Blobs {
-		sizes[i] = uint32(len(pblob.Data))
+		sizes[i] = uint32(len(pblob.Data()))
 	}
 	err = ValidateBlobs(bTx.Blobs...)
 	if err != nil {
 		return err
+	}
+
+	signer, err := sdk.AccAddressFromBech32(msgPFB.Signer)
+	if err != nil {
+		return err
+	}
+	for _, blob := range bTx.Blobs {
+		// If share version is 1, assert that the signer in the blob
+		// matches the signer in the msgPFB.
+		if blob.ShareVersion() == share.ShareVersionOne {
+			if !bytes.Equal(blob.Signer(), signer) {
+				return ErrInvalidBlobSigner.Wrapf("blob signer %s does not match msgPFB signer %s", sdk.AccAddress(blob.Signer()).String(), msgPFB.Signer)
+			}
+		}
 	}
 
 	// check that the sizes in the blobTx match the sizes in the msgPFB
@@ -76,20 +91,13 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRoot
 	}
 
 	for i, ns := range msgPFB.Namespaces {
-		msgPFBNamespace, err := appns.From(ns)
+		msgPFBNamespace, err := share.NewNamespaceFromBytes(ns)
 		if err != nil {
 			return err
 		}
 
-		// this not only checks that the pfb namespaces match the ones in the blobs
-		// but that the namespace version and namespace id are valid
-		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
-		if err != nil {
-			return err
-		}
-
-		if !bytes.Equal(blobNamespace.Bytes(), msgPFBNamespace.Bytes()) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", blobNamespace.Bytes(), msgPFB.Namespaces[i])
+		if !bytes.Equal(bTx.Blobs[i].Namespace().Bytes(), msgPFBNamespace.Bytes()) {
+			return ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
 		}
 	}
 
@@ -110,7 +118,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *blob.BlobTx, subtreeRoot
 func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 	sharesUsed := 0
 	for _, blob := range btx.Blobs {
-		sharesUsed += shares.SparseSharesNeeded(uint32(len(blob.Data)))
+		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 	return sharesUsed
 }

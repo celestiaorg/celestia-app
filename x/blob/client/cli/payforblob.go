@@ -11,10 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/input"
@@ -115,9 +115,16 @@ The blob must be a hex encoded string of non-zero length.
 				return err
 			}
 
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			signer := clientCtx.FromAddress
+
 			// In case of no file input, get the namespaceID and blob from the arguments
 			if path == "" {
-				blob, err := getBlobFromArguments(args[0], args[1], namespaceVersion, shareVersion)
+				blob, err := getBlobFromArguments(args[0], args[1], namespaceVersion, shareVersion, signer)
 				if err != nil {
 					return err
 				}
@@ -130,9 +137,9 @@ The blob must be a hex encoded string of non-zero length.
 				return err
 			}
 
-			var blobs []*blob.Blob
+			var blobs []*share.Blob
 			for _, paresdBlob := range paresdBlobs {
-				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion)
+				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion, signer)
 				if err != nil {
 					return err
 				}
@@ -151,7 +158,7 @@ The blob must be a hex encoded string of non-zero length.
 	return cmd
 }
 
-func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shareVersion uint8) (*blob.Blob, error) {
+func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shareVersion uint8, signer sdk.AccAddress) (*share.Blob, error) {
 	namespaceID, err := hex.DecodeString(strings.TrimPrefix(namespaceIDArg, "0x"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode hex namespace ID: %w", err)
@@ -166,39 +173,39 @@ func getBlobFromArguments(namespaceIDArg, blobArg string, namespaceVersion, shar
 		return nil, fmt.Errorf("failure to decode hex blob value %s: %s", hexStr, err.Error())
 	}
 
-	blob, err := types.NewBlob(namespace, rawblob, shareVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failure to create blob with hex blob value %s: %s", hexStr, err.Error())
+	switch shareVersion {
+	case share.ShareVersionZero:
+		return types.NewV0Blob(namespace, rawblob)
+	case share.ShareVersionOne:
+		return types.NewV1Blob(namespace, rawblob, signer)
+	default:
+		return nil, fmt.Errorf("share version %d is not supported", shareVersion)
 	}
-
-	return blob, nil
 }
 
-func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
+func getNamespace(namespaceID []byte, namespaceVersion uint8) (share.Namespace, error) {
 	switch namespaceVersion {
-	case appns.NamespaceVersionZero:
-		if len(namespaceID) != appns.NamespaceVersionZeroIDSize {
-			return appns.Namespace{}, fmt.Errorf("the user specifiable portion of the namespace ID must be %d bytes for namespace version 0", appns.NamespaceVersionZeroIDSize)
+	case share.NamespaceVersionZero:
+		if len(namespaceID) != share.NamespaceVersionZeroIDSize {
+			return share.Namespace{}, fmt.Errorf("the user specifiable portion of the namespace ID must be %d bytes for namespace version 0", share.NamespaceVersionZeroIDSize)
 		}
-		id := make([]byte, 0, appns.NamespaceIDSize)
-		id = append(id, appns.NamespaceVersionZeroPrefix...)
+		id := make([]byte, 0, share.NamespaceIDSize)
+		id = append(id, share.NamespaceVersionZeroPrefix...)
 		id = append(id, namespaceID...)
-		return appns.New(namespaceVersion, id)
+		return share.NewNamespace(namespaceVersion, id)
 	default:
-		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
+		return share.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
 	}
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
 // this private func is used in CmdPayForBlob
-func broadcastPFB(cmd *cobra.Command, b ...*blob.Blob) error {
+func broadcastPFB(cmd *cobra.Command, b ...*share.Blob) error {
 	clientCtx, err := client.GetClientTxContext(cmd)
 	if err != nil {
 		return err
 	}
 
-	// TODO: allow the user to override the share version via a new flag
-	// See https://github.com/celestiaorg/celestia-app/issues/1041
 	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), appconsts.LatestVersion, b...)
 	if err != nil {
 		return err
@@ -214,7 +221,7 @@ func broadcastPFB(cmd *cobra.Command, b ...*blob.Blob) error {
 		return err
 	}
 
-	blobTx, err := blob.MarshalBlobTx(txBytes, b...)
+	blobTx, err := tx.MarshalBlobTx(txBytes, b...)
 	if err != nil {
 		return err
 	}

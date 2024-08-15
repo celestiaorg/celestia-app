@@ -5,15 +5,13 @@ import (
 
 	"cosmossdk.io/errors"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/go-square/blob"
-	"github.com/celestiaorg/go-square/inclusion"
-	"github.com/celestiaorg/go-square/merkle"
-	appns "github.com/celestiaorg/go-square/namespace"
-	appshares "github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"golang.org/x/exp/slices"
 )
 
@@ -45,7 +43,7 @@ const (
 // See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, version uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
@@ -55,15 +53,7 @@ func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*Msg
 		return nil, fmt.Errorf("creating commitments: %w", err)
 	}
 
-	namespaceVersions, namespaceIDs, sizes, shareVersions := ExtractBlobComponents(blobs)
-	namespaces := []appns.Namespace{}
-	for i := range namespaceVersions {
-		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIDs[i])
-		if err != nil {
-			return nil, err
-		}
-		namespaces = append(namespaces, namespace)
-	}
+	namespaces, sizes, shareVersions := ExtractBlobComponents(blobs)
 
 	msg := &MsgPayForBlobs{
 		Signer:           signer,
@@ -76,7 +66,7 @@ func NewMsgPayForBlobs(signer string, version uint64, blobs ...*blob.Blob) (*Msg
 	return msg, msg.ValidateBasic()
 }
 
-func namespacesToBytes(namespaces []appns.Namespace) (result [][]byte) {
+func namespacesToBytes(namespaces []share.Namespace) (result [][]byte) {
 	for _, namespace := range namespaces {
 		result = append(result, namespace.Bytes())
 	}
@@ -118,7 +108,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, namespace := range msg.Namespaces {
-		ns, err := appns.From(namespace)
+		ns, err := share.NewNamespaceFromBytes(namespace)
 		if err != nil {
 			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
@@ -129,7 +119,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, v := range msg.ShareVersions {
-		if v != uint32(appconsts.ShareVersionZero) {
+		if v != uint32(share.ShareVersionZero) && v != uint32(share.ShareVersionOne) {
 			return ErrUnsupportedShareVersion
 		}
 	}
@@ -158,10 +148,10 @@ func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
 func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 	var totalSharesUsed uint64
 	for _, size := range blobSizes {
-		totalSharesUsed += uint64(appshares.SparseSharesNeeded(size))
+		totalSharesUsed += uint64(share.SparseSharesNeeded(size))
 	}
 
-	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
+	return totalSharesUsed * share.ShareSize * uint64(gasPerByte)
 }
 
 // EstimateGas estimates the total gas required to pay for a set of blobs in a PFB.
@@ -181,12 +171,12 @@ func DefaultEstimateGas(blobSizes []uint32) uint64 {
 // ValidateBlobNamespace returns an error if the provided namespace is an
 // invalid user-specifiable blob namespace (e.g. reserved, parity shares, or
 // tail padding).
-func ValidateBlobNamespace(ns appns.Namespace) error {
+func ValidateBlobNamespace(ns share.Namespace) error {
 	if ns.IsReserved() {
 		return ErrReservedNamespace
 	}
 
-	if !slices.Contains(appns.SupportedBlobNamespaceVersions, ns.Version) {
+	if !slices.Contains(share.SupportedBlobNamespaceVersions, ns.Version()) {
 		return ErrInvalidNamespaceVersion
 	}
 
@@ -208,31 +198,21 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// ValidateBlobs performs basic checks over the components of one or more PFBs.
-func ValidateBlobs(blobs ...*blob.Blob) error {
+// ValidateBlobs performs checks that each blob is non-empty and has a valid namespace.
+// Other checks are done in the construction of the Blob.
+func ValidateBlobs(blobs ...*share.Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
 
 	for _, blob := range blobs {
-		if blob.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
-			return fmt.Errorf("namespace version %d is too large", blob.NamespaceVersion)
-		}
-		ns, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
-		if err != nil {
-			return err
-		}
-		err = ValidateBlobNamespace(ns)
-		if err != nil {
-			return err
-		}
-
-		if len(blob.Data) == 0 {
+		if blob.IsEmpty() {
 			return ErrZeroBlobSize
 		}
 
-		if !slices.Contains(appconsts.SupportedShareVersions, uint8(blob.ShareVersion)) {
-			return ErrUnsupportedShareVersion
+		err := ValidateBlobNamespace(blob.Namespace())
+		if err != nil {
+			return err
 		}
 	}
 
@@ -241,18 +221,16 @@ func ValidateBlobs(blobs ...*blob.Blob) error {
 
 // ExtractBlobComponents separates and returns the components of a slice of
 // blobs.
-func ExtractBlobComponents(pblobs []*blob.Blob) (namespaceVersions []uint32, namespaceIDs [][]byte, sizes []uint32, shareVersions []uint32) {
-	namespaceVersions = make([]uint32, len(pblobs))
-	namespaceIDs = make([][]byte, len(pblobs))
+func ExtractBlobComponents(pblobs []*share.Blob) (namespaces []share.Namespace, sizes []uint32, shareVersions []uint32) {
+	namespaces = make([]share.Namespace, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
 	shareVersions = make([]uint32, len(pblobs))
 
 	for i, pblob := range pblobs {
-		namespaceVersions[i] = pblob.NamespaceVersion
-		namespaceIDs[i] = pblob.NamespaceId
-		sizes[i] = uint32(len(pblob.Data))
-		shareVersions[i] = pblob.ShareVersion
+		namespaces[i] = pblob.Namespace()
+		sizes[i] = uint32(len(pblob.Data()))
+		shareVersions[i] = uint32(pblob.ShareVersion())
 	}
 
-	return namespaceVersions, namespaceIDs, sizes, shareVersions
+	return namespaces, sizes, shareVersions
 }

@@ -5,17 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	"github.com/celestiaorg/celestia-app/v2/test/txsim"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v2/test/util/sdkutil"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/txsim"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/sdkutil"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -86,7 +86,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 		{
 			name:                  "gov square size == hardcoded max",
 			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
-			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
+			maxBytes:              appconsts.DefaultUpperBoundMaxBytes,
 			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
 		},
 	}

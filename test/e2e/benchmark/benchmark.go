@@ -7,9 +7,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/tendermint/tendermint/pkg/trace"
 )
 
@@ -70,8 +70,10 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
 		testnet.WithPrometheus(b.manifest.Prometheus),
 		testnet.WithLocalTracing(b.manifest.LocalTracingType),
+		testnet.WithTxIndexer("kv"),
+		testnet.WithMempoolMaxTxsBytes(1*testnet.GiB),
+		testnet.WithMempoolMaxTxBytes(8*testnet.MiB),
 	))
-
 	if b.manifest.PushTrace {
 		log.Println("reading trace push config")
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
@@ -100,8 +102,10 @@ func (b *BenchmarkTest) SetupNodes() error {
 
 // Run runs the benchmark test for the specified duration in the manifest.
 func (b *BenchmarkTest) Run() error {
-	log.Println("Starting testnet")
-	err := b.Start()
+	log.Println("Starting benchmark testnet")
+
+	log.Println("Starting nodes")
+	err := b.StartNodes()
 	if err != nil {
 		return fmt.Errorf("failed to start testnet: %v", err)
 	}
@@ -114,6 +118,20 @@ func (b *BenchmarkTest) Run() error {
 				return fmt.Errorf("failed to set latency and jitter: %v", err)
 			}
 		}
+	}
+
+	// wait for the nodes to sync
+	log.Println("Waiting for nodes to sync")
+	err = b.WaitToSync()
+	if err != nil {
+		return err
+	}
+
+	// start tx clients
+	log.Println("Starting tx clients")
+	err = b.StartTxClients()
+	if err != nil {
+		return fmt.Errorf("failed to start tx clients: %v", err)
 	}
 
 	// wait some time for the tx clients to submit transactions
@@ -148,18 +166,18 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 		}
 	}
 
-	log.Println("Reading blockchain")
-	blockchain, err := testnode.ReadBlockchain(context.Background(),
+	log.Println("Reading blockchain headers")
+	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(),
 		b.Node(0).AddressRPC())
-	testnet.NoError("failed to read blockchain", err)
+	testnet.NoError("failed to read blockchain headers", err)
 
 	targetSizeReached := false
 	maxBlockSize := int64(0)
-	for _, block := range blockchain {
-		if appconsts.LatestVersion != block.Version.App {
-			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, block.Version.App)
+	for _, blockMeta := range blockchain {
+		if appconsts.LatestVersion != blockMeta.Header.Version.App {
+			return fmt.Errorf("expected app version %d, got %d", appconsts.LatestVersion, blockMeta.Header.Version.App)
 		}
-		size := int64(block.Size())
+		size := int64(blockMeta.BlockSize)
 		if size > maxBlockSize {
 			maxBlockSize = size
 		}

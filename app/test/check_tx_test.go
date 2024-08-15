@@ -6,17 +6,19 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -27,9 +29,10 @@ import (
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	ns1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
 
-	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}
 
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 	testApp.Commit()
@@ -51,7 +54,7 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[0], encCfg.TxConfig, 1)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]share.Namespace{ns1},
 					[]int{100},
 				)[0]
 				return btx
@@ -65,7 +68,7 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[1], encCfg.TxConfig, 2)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]share.Namespace{ns1},
 					[]int{100},
 				)[0]
 				return btx
@@ -79,13 +82,16 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[2], encCfg.TxConfig, 3)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]share.Namespace{ns1},
 					[]int{100},
 				)[0]
 
-				dtx, _ := blob.UnmarshalBlobTx(btx)
-				dtx.Blobs[0].NamespaceId = appns.RandomBlobNamespace().ID
-				bbtx, err := blob.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
+				dtx, _, err := tx.UnmarshalBlobTx(btx)
+				require.NoError(t, err)
+				newBlob, err := share.NewBlob(share.RandomBlobNamespace(), dtx.Blobs[0].Data(), appconsts.DefaultShareVersion, nil)
+				require.NoError(t, err)
+				dtx.Blobs[0] = newBlob
+				bbtx, err := tx.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
 			},
@@ -98,7 +104,7 @@ func TestCheckTx(t *testing.T) {
 				signer := createSigner(t, kr, accs[3], encCfg.TxConfig, 4)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
-					[]appns.Namespace{ns1},
+					[]share.Namespace{ns1},
 					[]int{100},
 				)[0]
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)
@@ -177,6 +183,32 @@ func TestCheckTx(t *testing.T) {
 				return tx
 			},
 			expectedABCICode: blobtypes.ErrBlobsTooLarge.ABCICode(),
+		},
+		{
+			name:      "v1 blob with invalid signer",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), testnode.RandomAddress().(sdk.AccAddress))
+				require.NoError(t, err)
+				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
+				require.NoError(t, err)
+				return blobTx
+			},
+			expectedABCICode: blobtypes.ErrInvalidBlobSigner.ABCICode(),
+		},
+		{
+			name:      "v1 blob with valid signer",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
+				require.NoError(t, err)
+				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
+				require.NoError(t, err)
+				return blobTx
+			},
+			expectedABCICode: abci.CodeTypeOK,
 		},
 	}
 

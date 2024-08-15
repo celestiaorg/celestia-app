@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v2/app/errors"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	blob "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
@@ -35,7 +35,7 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()+1))
 	require.NoError(t, err)
 
-	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
+	b, err := blob.NewV0Blob(share.RandomNamespace(), []byte("hello world"))
 	require.NoError(t, err)
 
 	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.LatestVersion, b)

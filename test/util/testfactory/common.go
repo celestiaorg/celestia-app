@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -35,8 +34,8 @@ func Repeat[T any](s T, count int) []T {
 // namespace.
 func GenerateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
-		rawData := tmrand.Bytes(appconsts.ShareSize)
-		namespace := namespace.RandomBlobNamespace().Bytes()
+		rawData := tmrand.Bytes(share.ShareSize)
+		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)
 	}
@@ -71,13 +70,26 @@ func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {
 		panic(err)
 	}
 	addresses := make([]sdk.AccAddress, 0, len(recs))
-	for idx, rec := range recs {
-		addresses[idx], err = rec.GetAddress()
+	for _, rec := range recs {
+		address, err := rec.GetAddress()
 		if err != nil {
 			panic(err)
 		}
+		addresses = append(addresses, address)
 	}
 	return addresses
+}
+
+func GetAccountNames(keys keyring.Keyring) []string {
+	recs, err := keys.List()
+	if err != nil {
+		panic(err)
+	}
+	names := make([]string, 0, len(recs))
+	for _, rec := range recs {
+		names = append(names, rec.Name)
+	}
+	return names
 }
 
 func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {

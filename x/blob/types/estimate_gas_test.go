@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/stretchr/testify/require"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
@@ -44,7 +44,8 @@ func TestPFBGasEstimation(t *testing.T) {
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
 			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 			require.NoError(t, err)
-			blobTx, ok := blob.UnmarshalBlobTx(tx)
+			blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
+			require.NoError(t, err)
 			require.True(t, ok)
 			resp := testApp.DeliverTx(abci.RequestDeliverTx{
 				Tx: blobTx.Tx,
@@ -87,7 +88,8 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
 		tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 		require.NoError(t, err)
-		blobTx, ok := blob.UnmarshalBlobTx(tx)
+		blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
+		require.NoError(t, err)
 		require.True(t, ok)
 		resp := testApp.DeliverTx(abci.RequestDeliverTx{
 			Tx: blobTx.Tx,

@@ -13,14 +13,13 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
-	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
@@ -30,6 +29,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
+	protoBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+	require.NoError(t, err)
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
 		encCfg.TxConfig,
@@ -37,9 +38,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		testutil.ChainID,
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
-		testfactory.Repeat([]*blob.Blob{
-			blob.New(appns.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion),
-		}, numBlobTxs),
+		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -197,7 +196,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			})
 			// check that we have the expected number of transactions
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
-			// check the the expected txs were removed
+			// check that the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
 				require.NotContains(t, resp.BlockData.Txs, ptx)
 			}

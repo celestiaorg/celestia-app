@@ -6,8 +6,8 @@ IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
-GOLANG_CROSS_VERSION  ?= v1.22.4
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
+GOLANG_CROSS_VERSION  ?= v1.22.6
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \

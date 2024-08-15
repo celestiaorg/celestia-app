@@ -1,10 +1,10 @@
 package malicious
 
 import (
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/ante"
-	"github.com/celestiaorg/celestia-app/v2/pkg/da"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -54,7 +54,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 	// erasure the data square which we use to create the data root. Note: this
 	// is using a modified version of nmt where the order of the namepspaces is
 	// not enforced.
-	eds, err := ExtendShares(shares.ToBytes(dataSquare))
+	eds, err := ExtendShares(share.ToBytes(dataSquare))
 	if err != nil {
 		a.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",

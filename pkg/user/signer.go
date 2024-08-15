@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/go-square/blob"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -12,7 +11,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 )
 
 // Signer is struct for building and signing Celestia transactions
@@ -85,10 +86,14 @@ func (s *Signer) SignTx(msgs []sdktypes.Msg, opts ...TxOption) (authsigning.Tx, 
 	return txBuilder.GetTx(), signer, sequence, nil
 }
 
-func (s *Signer) CreatePayForBlobs(accountName string, blobs []*blob.Blob, opts ...TxOption) ([]byte, uint64, error) {
+func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts ...TxOption) ([]byte, uint64, error) {
 	acc, exists := s.accounts[accountName]
 	if !exists {
 		return nil, 0, fmt.Errorf("account %s not found", accountName)
+	}
+
+	if err := blobtypes.ValidateBlobs(blobs...); err != nil {
+		return nil, 0, err
 	}
 
 	msg, err := blobtypes.NewMsgPayForBlobs(acc.address.String(), s.appVersion, blobs...)
@@ -106,7 +111,7 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*blob.Blob, opts 
 		return nil, 0, err
 	}
 
-	blobTx, err := blob.MarshalBlobTx(txBytes, blobs...)
+	blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
 	return blobTx, sequence, err
 }
 

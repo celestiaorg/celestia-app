@@ -3,31 +3,31 @@ package testfactory
 import (
 	"slices"
 
-	ns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).
 func RandomBlobNamespaceIDWithPRG(prg *tmrand.Rand) []byte {
-	return prg.Bytes(ns.NamespaceVersionZeroIDSize)
+	return prg.Bytes(share.NamespaceVersionZeroIDSize)
 }
 
-func RandomBlobNamespace() ns.Namespace {
+func RandomBlobNamespace() share.Namespace {
 	return RandomBlobNamespaceWithPRG(tmrand.NewRand())
 }
 
 // RandomBlobNamespaceWithPRG generates and returns a random blob namespace using the supplied Pseudo-Random number Generator (PRG).
-func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) ns.Namespace {
+func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) share.Namespace {
 	for {
 		id := RandomBlobNamespaceIDWithPRG(prg)
-		namespace := ns.MustNewV0(id)
+		namespace := share.MustNewV0Namespace(id)
 		if isBlobNamespace(namespace) {
 			return namespace
 		}
 	}
 }
 
-func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []ns.Namespace) {
+func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []share.Namespace) {
 	for i := 0; i < count; i++ {
 		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}
@@ -36,12 +36,12 @@ func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []ns.Namespa
 
 // isBlobNamespace returns an true if this namespace is a valid user-specifiable
 // blob namespace.
-func isBlobNamespace(namespace ns.Namespace) bool {
+func isBlobNamespace(namespace share.Namespace) bool {
 	if namespace.IsReserved() {
 		return false
 	}
 
-	if !slices.Contains(ns.SupportedBlobNamespaceVersions, namespace.Version) {
+	if !slices.Contains(share.SupportedBlobNamespaceVersions, namespace.Version()) {
 		return false
 	}
 
