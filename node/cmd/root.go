@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/spf13/cobra"
@@ -44,7 +43,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("waiting for next block failed: %v\n", err)
 		}
-		time.Sleep(10 * time.Second)
+		cctx.WaitForHeight(15)
 		return nil
 	},
 }
