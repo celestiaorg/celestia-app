@@ -47,5 +47,5 @@ func NewAppV3(db tmdb.DB) *appV3.App {
 	invCheckPeriod := uint(1)
 	encodingConfig := encodingV3.MakeConfig(appV3.ModuleEncodingRegisters...)
 	appOptions := NoopAppOptions{}
-	return appV3.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, appOptions)
+	return appV3.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, upgradeHeightV3, appOptions)
 }
