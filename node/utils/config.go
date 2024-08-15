@@ -14,7 +14,7 @@ func GetConfig() *testnode.Config {
 	tmConfig.RootDir = "/Users/rootulp/.celestia-app"
 
 	consensusParams := testnode.DefaultConsensusParams()
-	consensusParams.Version.AppVersion = v1.Version
+	consensusParams.Version.AppVersion = v1.Version // start the prototype on v1
 
 	return testnode.DefaultConfig().
 		WithTendermintConfig(tmConfig).
