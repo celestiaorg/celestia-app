@@ -115,12 +115,13 @@ func (m *Multiplexer) Commit() abci.ResponseCommit {
 		fmt.Printf("Multiplexer upgrade is pending from %v to %v\n", m.currentAppVersion, m.nextAppVersion)
 		if m.nextAppVersion == 3 {
 			m.application = NewAppV3(m.db)
+
+			// Info is called so that the v3 state machine initializes the stores for v3
 			m.application.Info(abci.RequestInfo{})
 		}
 		m.currentAppVersion = m.nextAppVersion
 		fmt.Printf("Multiplexer upgrade completed to %v\n", m.currentAppVersion)
 
-		// Info is called so that the v3 state machine initializes the stores for v3
 		// appHash := m.RunMigrations()
 		// got.Data = appHash
 		return got
