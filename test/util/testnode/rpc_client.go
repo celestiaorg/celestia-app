@@ -1,10 +1,13 @@
 package testnode
 
 import (
+	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -21,33 +24,35 @@ import (
 // performs no operation.
 var noOpCleanup = func() error { return nil }
 
-// StartNode starts the Comet node along with a local core RPC client. The
-// RPC is returned via the client.Context. The function returned should be
+// StartNode starts the tendermint node along with a local core rpc client. The
+// rpc is returned via the client.Context. The function returned should be
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
-func StartNode(cometNode *node.Node, cctx Context) (Context, func() error, error) {
-	if err := cometNode.Start(); err != nil {
+func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
+	if err := tmNode.Start(); err != nil {
 		return cctx, noOpCleanup, err
 	}
-	client := local.New(cometNode)
-	cctx.Context = cctx.WithClient(client)
+
+	coreClient := local.New(tmNode)
+
+	cctx.Context = cctx.WithClient(coreClient)
 	cleanup := func() error {
-		err := cometNode.Stop()
+		err := tmNode.Stop()
 		if err != nil {
 			return err
 		}
-		cometNode.Wait()
+		tmNode.Wait()
 		if err = removeDir(path.Join([]string{cctx.HomeDir, "config"}...)); err != nil {
 			return err
 		}
-		return removeDir(path.Join([]string{cctx.HomeDir, cometNode.Config().DBPath}...))
+		return removeDir(path.Join([]string{cctx.HomeDir, tmNode.Config().DBPath}...))
 	}
 
 	return cctx, cleanup, nil
 }
 
-// StartGRPCServer starts the GRPC server using the provided application and
-// config. A GRPC client connection to that server is also added to the client
+// StartGRPCServer starts the grpc server using the provided application and
+// config. A grpc client connection to that server is also added to the client
 // context. The returned function should be used to shutdown the server.
 func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Context) (Context, func() error, error) {
 	emptycleanup := func() error { return nil }
@@ -84,6 +89,35 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 		grpcSrv.Stop()
 		return nil
 	}, nil
+}
+
+// DefaultAppConfig wraps the default config described in the server
+func DefaultAppConfig() *srvconfig.Config {
+	appCfg := srvconfig.DefaultConfig()
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
+	return appCfg
+}
+
+// removeDir removes the directory `rootDir`.
+// The main use of this is to reduce the flakiness of the CI when it's unable to delete
+// the config folder of the tendermint node.
+// This will manually go over the files contained inside the provided `rootDir`
+// and delete them one by one.
+func removeDir(rootDir string) error {
+	dir, err := os.ReadDir(rootDir)
+	if err != nil {
+		return err
+	}
+	for _, d := range dir {
+		path := path.Join([]string{rootDir, d.Name()}...)
+		err := os.RemoveAll(path)
+		if err != nil {
+			return err
+		}
+	}
+	return os.RemoveAll(rootDir)
 }
 
 func StartAPIServer(app srvtypes.Application, appCfg srvconfig.Config, cctx Context) (*api.Server, error) {

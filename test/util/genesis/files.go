@@ -11,50 +11,50 @@ import (
 	"github.com/tendermint/tendermint/privval"
 )
 
-// InitFiles initializes the files for a new Comet node with the provided
+// InitFiles initializes the files for a new tendermint node with the provided
 // genesis. It will use the validatorIndex to save the validator's consensus
 // key.
 func InitFiles(
-	rootDir string,
-	tmConfig *config.Config,
-	genesis *Genesis,
+	dir string,
+	tmCfg *config.Config,
+	g *Genesis,
 	validatorIndex int,
-) (basePath string, err error) {
-	val, has := genesis.Validator(validatorIndex)
+) (string, error) {
+	val, has := g.Validator(validatorIndex)
 	if !has {
 		return "", fmt.Errorf("validator %d not found", validatorIndex)
 	}
 
-	basePath = filepath.Join(rootDir, ".celestia-app")
-	tmConfig.SetRoot(basePath)
+	basePath := filepath.Join(dir, ".celestia-app")
+	tmCfg.SetRoot(basePath)
 
 	// save the genesis file
 	configPath := filepath.Join(basePath, "config")
-	err = os.MkdirAll(configPath, os.ModePerm)
+	err := os.MkdirAll(configPath, os.ModePerm)
 	if err != nil {
 		return "", err
 	}
-	genesisDoc, err := genesis.Export()
+	gDoc, err := g.Export()
 	if err != nil {
 		return "", fmt.Errorf("exporting genesis: %w", err)
 	}
-	err = genesisDoc.SaveAs(tmConfig.GenesisFile())
+	err = gDoc.SaveAs(tmCfg.GenesisFile())
 	if err != nil {
 		return "", err
 	}
 
-	pvStateFile := tmConfig.PrivValidatorStateFile()
+	pvStateFile := tmCfg.PrivValidatorStateFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
 		return "", err
 	}
-	pvKeyFile := tmConfig.PrivValidatorKeyFile()
+	pvKeyFile := tmCfg.PrivValidatorKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
 		return "", err
 	}
 	filePV := privval.NewFilePV(val.ConsensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 
-	nodeKeyFile := tmConfig.NodeKeyFile()
+	nodeKeyFile := tmCfg.NodeKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
 		return "", err
 	}
