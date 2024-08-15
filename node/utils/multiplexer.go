@@ -80,8 +80,6 @@ func (m *Multiplexer) DeliverTx(request abci.RequestDeliverTx) abci.ResponseDeli
 func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlock {
 	fmt.Printf("Multiplexer EndBlock invoked with current app version %v height %v\n", m.currentAppVersion, request.Height)
 
-	// Note: the application can't create or delete stores in this method
-	// because it is operating on a branch of state.
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
 	if got.ConsensusParamUpdates != nil && got.ConsensusParamUpdates.Version != nil {
@@ -97,7 +95,6 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 func (m *Multiplexer) Commit() abci.ResponseCommit {
 	fmt.Printf("Multiplexer Commit invoked with current app version %v\n", m.currentAppVersion)
 
-	// Note: the application can create or delete stores in this method
 	app := m.getCurrentApp()
 	got := app.Commit()
 
