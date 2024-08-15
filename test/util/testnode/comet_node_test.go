@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v2/app"
-	"github.com/celestiaorg/celestia-app/v2/app/encoding"
-	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -72,7 +72,7 @@ func (s *IntegrationTestSuite) Test_verifyTimeIotaMs() {
 
 func (s *IntegrationTestSuite) TestPostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, appns.RandomBlobNamespace(), tmrand.Bytes(kibibyte))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, share.RandomBlobNamespace(), tmrand.Bytes(kibibyte))
 	require.NoError(err)
 }
 
