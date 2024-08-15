@@ -91,6 +91,7 @@ var (
 	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
 )
 
+// TODO: remove this constant. The v2 state machin shouldn't need to support app version 3.
 const v3 = uint64(3)
 
 func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
