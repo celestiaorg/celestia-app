@@ -31,7 +31,6 @@ const (
 
 type Context struct {
 	goContext context.Context
-	// sdkContext
 	client.Context
 	apiAddress string
 }
