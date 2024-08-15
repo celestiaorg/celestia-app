@@ -56,7 +56,7 @@ func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode 
 		config.TmConfig,
 		privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile()),
 		nodeKey,
-		newProxyClientCreator(multiplexer),
+		proxy.NewLocalClientCreator(multiplexer),
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
@@ -69,8 +69,4 @@ func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode 
 		return db.Close()
 	}
 	return cometNode, cleanup, err
-}
-
-func newProxyClientCreator(multiplexer *Multiplexer) proxy.ClientCreator {
-	return proxy.NewLocalClientCreator(multiplexer)
 }
