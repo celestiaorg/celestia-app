@@ -3,8 +3,8 @@ package utils
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v2/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -42,7 +42,7 @@ func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multip
 }
 
 func newCometNode(config *testnode.Config, multiplexer *Multiplexer) (cometNode *node.Node, cleanupComet func() error, err error) {
-	logger := testnode.NewLogger(&config.UniversalTestingConfig)
+	logger := NewLogger(&config.UniversalTestingConfig)
 	db, err := tmdb.NewGoLevelDB("application", config.TmConfig.DBDir())
 	if err != nil {
 		return nil, nil, err
