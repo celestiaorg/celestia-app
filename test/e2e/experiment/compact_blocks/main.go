@@ -14,13 +14,13 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/pkg/trace"
+	// "github.com/tendermint/tendermint/pkg/trace"
 	// "github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 const (
-	compactBlocksVersion = "ff4e8a3"
+	compactBlocksVersion = "9e64be9"
 )
 
 func main() {
@@ -98,28 +98,28 @@ func Run() error {
 		return err
 	}
 
-	pushConfig, err := trace.GetPushConfigFromEnv()
-	if err != nil {
-		return err
-	}
-	log.Print("Setting up trace push config")
-	for _, node := range network.Nodes() {
-		if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
-			return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
-		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
-			return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
-		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
-			return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
-		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
-			return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
-		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
-			return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
-		}
-	}
+	// pushConfig, err := trace.GetPushConfigFromEnv()
+	// if err != nil {
+	// 	return err
+	// }
+	// log.Print("Setting up trace push config")
+	// for _, node := range network.Nodes() {
+	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
+	// 		return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
+	// 	}
+	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
+	// 		return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
+	// 	}
+	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
+	// 		return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
+	// 	}
+	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
+	// 		return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
+	// 	}
+	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
+	// 		return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
+	// 	}
+	// }
 
 	log.Printf("Starting network\n")
 	err = network.StartNodes()
