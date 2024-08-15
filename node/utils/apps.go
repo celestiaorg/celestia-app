@@ -5,11 +5,8 @@ import (
 
 	appV2 "github.com/celestiaorg/celestia-app/v2/app"
 	encodingV2 "github.com/celestiaorg/celestia-app/v2/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	appV3 "github.com/celestiaorg/celestia-app/v3/app"
 	encodingV3 "github.com/celestiaorg/celestia-app/v3/app/encoding"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/tendermint/tendermint/libs/log"
 	tmdb "github.com/tendermint/tm-db"
 )
@@ -18,17 +15,6 @@ const (
 	// upgradeHeightV2 is the height at which the app should be upgraded to v2.
 	upgradeHeightV2 = int64(5)
 )
-
-func GetApplications(db tmdb.DB) map[uint64]AppWithMigrations {
-	appV2 := NewAppV2(db)
-	appV3 := NewAppV3(db)
-
-	return map[uint64]AppWithMigrations{
-		v1.Version: appV2,
-		v2.Version: appV2,
-		v3.Version: appV3,
-	}
-}
 
 func NewAppV2(db tmdb.DB) *appV2.App {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
