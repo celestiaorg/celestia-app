@@ -122,12 +122,12 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 	require.Error(t, err)
 }
 
-func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeightV2 int64) (*app.App, keyring.Keyring) {
+func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
 	t.Helper()
 	db := dbm.NewMemDB()
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeightV2, util.EmptyAppOptions{})
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, util.EmptyAppOptions{})
 	genesisState, _, kr := util.GenesisStateWithSingleValidator(testApp, "account")
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
