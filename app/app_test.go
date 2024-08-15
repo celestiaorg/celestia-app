@@ -17,10 +17,10 @@ func TestNew(t *testing.T) {
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeHeightV2 := int64(0)
+	upgradeHeight := int64(0)
 	appOptions := NoopAppOptions{}
 
-	got := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeightV2, appOptions)
+	got := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
 
 	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ICAHostKeeper)
