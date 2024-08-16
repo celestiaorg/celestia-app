@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "9e64be9"
+	compactBlocksVersion = "1d1ed35"
 )
 
 func main() {
@@ -49,7 +49,7 @@ func Run() error {
 	defer network.Cleanup()
 
 	cparams := app.DefaultConsensusParams()
-	cparams.Block.MaxBytes = 4 * 1024 * 1024 // 4MB
+	cparams.Block.MaxBytes = 8 * 1024 * 1024
 	network.SetConsensusParams(cparams)
 
 	err = network.CreateGenesisNodes(nodes, version, 10000000, 0, testnet.DefaultResources)
@@ -70,7 +70,7 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		80,
+		40,
 		"64000-64000",
 		1,
 		testnet.DefaultResources,
