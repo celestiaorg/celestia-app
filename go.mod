@@ -6,6 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
+	github.com/celestiaorg/celestia-app/x/paramfilter v1.0.0
 	github.com/celestiaorg/celestia-app/x/signal v1.0.0
 	github.com/celestiaorg/celestia-app/x/tokenfilter v1.0.0
 	github.com/celestiaorg/go-square/v2 v2.0.0-rc2
@@ -247,6 +248,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/celestia-app/x/paramfilter => ./x/paramfilter // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/signal => ./x/signal // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/tokenfilter => ./x/tokenfilter // TODO: remove this after we create a release.
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16

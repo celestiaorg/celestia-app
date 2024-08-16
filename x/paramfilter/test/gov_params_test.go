@@ -9,7 +9,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	bsmoduletypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v3/x/minfee"
-	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"

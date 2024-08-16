@@ -20,7 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	mintkeeper "github.com/celestiaorg/celestia-app/v3/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/x/signal/types"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
