@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/celestiaorg/celestia-app/v3/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v3/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/celestia-app/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/x/signal/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -91,80 +91,83 @@ var (
 	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
 )
 
+// TODO: remove this constant. The v2 state machin shouldn't need to support app version 3.
+const v3 = uint64(3)
+
 func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	var err error
 	app.manager, err = module.NewManager([]module.VersionedModule{
 		{
 			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, app.txConfig),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      auth.NewAppModule(app.appCodec, app.AccountKeeper, nil),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      bank.NewAppModule(app.appCodec, app.BankKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      capability.NewAppModule(app.appCodec, *app.CapabilityKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      feegrantmodule.NewAppModule(app.appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      gov.NewAppModule(app.appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      mint.NewAppModule(app.appCodec, app.MintKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      slashing.NewAppModule(app.appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      distr.NewAppModule(app.appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      staking.NewAppModule(app.appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      evidence.NewAppModule(app.EvidenceKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      authzmodule.NewAppModule(app.appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      ibc.NewAppModule(app.IBCKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      params.NewAppModule(app.ParamsKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      transfer.NewAppModule(app.TransferKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      blob.NewAppModule(app.appCodec, app.BlobKeeper),
-			FromVersion: v1, ToVersion: v2,
+			FromVersion: v1, ToVersion: v3,
 		},
 		{
 			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
@@ -172,19 +175,19 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: v3,
 		},
 		{
 			Module:      minfee.NewAppModule(app.ParamsKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: v3,
 		},
 		{
 			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: v3,
 		},
 		{
 			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
-			FromVersion: v2, ToVersion: v2,
+			FromVersion: v2, ToVersion: v3,
 		},
 	})
 	if err != nil {
@@ -337,6 +340,26 @@ func versionedStoreKeys() map[uint64][]string {
 			minttypes.StoreKey,
 			packetforwardtypes.StoreKey, // added in v2
 			signaltypes.StoreKey,        // added in v2
+			slashingtypes.StoreKey,
+			stakingtypes.StoreKey,
+			upgradetypes.StoreKey,
+		},
+		3: {
+			authtypes.StoreKey,
+			authzkeeper.StoreKey,
+			banktypes.StoreKey,
+			blobtypes.StoreKey,
+			capabilitytypes.StoreKey,
+			distrtypes.StoreKey,
+			evidencetypes.StoreKey,
+			feegrant.StoreKey,
+			govtypes.StoreKey,
+			ibchost.StoreKey,
+			ibctransfertypes.StoreKey,
+			icahosttypes.StoreKey,
+			minttypes.StoreKey,
+			packetforwardtypes.StoreKey,
+			signaltypes.StoreKey,
 			slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,

@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	signal "github.com/celestiaorg/celestia-app/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"

@@ -124,7 +124,6 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 
 func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
 	t.Helper()
-
 	db := dbm.NewMemDB()
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)

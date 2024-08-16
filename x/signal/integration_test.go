@@ -5,8 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/signal"
-	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/celestia-app/x/signal"
+	"github.com/celestiaorg/celestia-app/x/signal/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"

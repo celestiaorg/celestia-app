@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	signaltypes "github.com/celestiaorg/celestia-app/x/signal/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
