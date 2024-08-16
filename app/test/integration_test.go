@@ -23,7 +23,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 

@@ -29,7 +29,7 @@ import (
 	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/minfee"
 )
 

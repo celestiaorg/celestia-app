@@ -5,8 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
-	"github.com/celestiaorg/celestia-app/v3/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/blobstream"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/x/minfee"

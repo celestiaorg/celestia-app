@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"

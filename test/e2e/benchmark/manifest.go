@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 

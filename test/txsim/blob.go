@@ -7,7 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/gogo/protobuf/grpc"

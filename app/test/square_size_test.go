@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/sdkutil"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"

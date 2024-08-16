@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	bstypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"

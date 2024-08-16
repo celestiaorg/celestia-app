@@ -42,6 +42,8 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
+	@echo "--> Updating go.mod in ./x/blob"
+	@(cd ./x/blob && go mod tidy)
 	@echo "--> Updating go.mod in ./x/blobstream"
 	@(cd ./x/blobstream && go mod tidy)
 	@echo "--> Updating go.mod in ./x/minfee"

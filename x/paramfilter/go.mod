@@ -5,6 +5,7 @@ go 1.22.6
 require (
 	cosmossdk.io/errors v1.0.1
 	github.com/celestiaorg/celestia-app/v3 v3.0.0-20240816121537-a28b9e7160cc
+	github.com/celestiaorg/celestia-app/x/blob v0.0.0
 	github.com/celestiaorg/celestia-app/x/blobstream v0.0.0-00010101000000-000000000000
 	github.com/celestiaorg/celestia-app/x/minfee v0.0.0-00010101000000-000000000000
 	github.com/cosmos/cosmos-sdk v0.46.16
@@ -176,10 +177,10 @@ require (
 	go.opentelemetry.io/otel/sdk v1.26.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
-	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a // indirect
+	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/term v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
@@ -199,6 +200,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/celestia-app/x/blob => ../blob // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/blobstream => ../blobstream // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/minfee => ../minfee // TODO: remove this after we create a release.
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16

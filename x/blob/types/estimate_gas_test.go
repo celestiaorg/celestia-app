@@ -14,7 +14,7 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/stretchr/testify/require"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )

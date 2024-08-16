@@ -7,8 +7,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store"
