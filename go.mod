@@ -246,7 +246,8 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
+	// replace cosmos-sdk with a local copy that exposes config.IsSealed().
+	github.com/cosmos/cosmos-sdk => ../cosmos-sdk
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
