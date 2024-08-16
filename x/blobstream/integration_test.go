@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -89,8 +90,13 @@ func (s *BlobstreamIntegrationSuite) TestBlobstream() {
 			} else {
 				require.Error(t, err)
 			}
+			// FIXME: Temporary way of querying the raw log.
+			// TxStatus will natively support this in the future.
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+			require.NoError(t, err)
 			require.NotNil(t, res)
-			require.Equal(t, tt.expectedTxCode, res.Code, res.RawLog)
+			require.Equal(t, tt.expectedTxCode, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
 }
