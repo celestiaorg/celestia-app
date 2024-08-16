@@ -6,6 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
+	github.com/celestiaorg/celestia-app/x/minfee v1.0.0
 	github.com/celestiaorg/celestia-app/x/mint v1.0.0
 	github.com/celestiaorg/celestia-app/x/paramfilter v1.0.0
 	github.com/celestiaorg/celestia-app/x/signal v1.0.0
@@ -249,6 +250,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/celestia-app/x/minfee => ./x/minfee // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/mint => ./x/mint // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/paramfilter => ./x/paramfilter // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/signal => ./x/signal // TODO: remove this after we create a release.

@@ -9,7 +9,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/celestiaorg/celestia-app/x/signal"
