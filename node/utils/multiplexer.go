@@ -5,6 +5,7 @@ import (
 
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -17,6 +18,10 @@ var _ abci.Application = (*Multiplexer)(nil)
 
 // Multiplexer is used to switch between different versions of the application.
 type Multiplexer struct {
+	// logger is the logger used by the multiplexer
+	logger log.Logger
+	// db is the database used by the application
+	db tmdb.DB
 	// application is the current application
 	application AppWithMigrations
 	// currentAppVersion is the version of the application that is currently
@@ -26,18 +31,16 @@ type Multiplexer struct {
 	// to. This value only differs from currentAppVersion if the current height
 	// is an upgrade height.
 	nextAppVersion uint64
-
-	// db is the database used by the application
-	db tmdb.DB
 }
 
-func NewMultiplexer(db tmdb.DB) *Multiplexer {
+func NewMultiplexer(logger log.Logger, db tmdb.DB) *Multiplexer {
 	application := NewAppV2(db)
 	return &Multiplexer{
+		logger:            logger,
+		db:                db,
 		application:       application,
 		currentAppVersion: initialAppVersion,
 		nextAppVersion:    initialAppVersion,
-		db:                db,
 	}
 }
 
@@ -46,7 +49,7 @@ func NewMultiplexer(db tmdb.DB) *Multiplexer {
 //
 
 func (m *Multiplexer) InitChain(request abci.RequestInitChain) abci.ResponseInitChain {
-	fmt.Printf("Multiplexer InitChain invoked with current app version %v request app version %v\n", m.currentAppVersion, request.ConsensusParams.Version.AppVersion)
+	m.logger.Debug(fmt.Sprintf("Multiplexer InitChain invoked with current app version %v request app version %v\n", m.currentAppVersion, request.ConsensusParams.Version.AppVersion))
 	m.currentAppVersion = request.ConsensusParams.Version.AppVersion
 	m.nextAppVersion = request.ConsensusParams.Version.AppVersion
 	app := m.getCurrentApp()
@@ -54,32 +57,31 @@ func (m *Multiplexer) InitChain(request abci.RequestInitChain) abci.ResponseInit
 }
 
 func (m *Multiplexer) PrepareProposal(request abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	fmt.Printf("Multiplexer PrepareProposal invoked with current app version %v\n", m.currentAppVersion)
+	m.logger.Debug(fmt.Sprintf("Multiplexer PrepareProposal invoked with current app version %v\n", m.currentAppVersion))
 	app := m.getCurrentApp()
 	return app.PrepareProposal(request)
 }
 
 func (m *Multiplexer) ProcessProposal(request abci.RequestProcessProposal) abci.ResponseProcessProposal {
-	fmt.Printf("Multiplexer ProcessProposal invoked with current app version %v\n", m.currentAppVersion)
+	m.logger.Debug(fmt.Sprintf("Multiplexer ProcessProposal invoked with current app version %v\n", m.currentAppVersion))
 	app := m.getCurrentApp()
 	return app.ProcessProposal(request)
 }
 
 func (m *Multiplexer) BeginBlock(request abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	fmt.Printf("Multiplexer BeginBlock invoked with current app version %v\n", m.currentAppVersion)
+	m.logger.Debug(fmt.Sprintf("Multiplexer BeginBlock invoked with current app version %v\n", m.currentAppVersion))
 	app := m.getCurrentApp()
 	return app.BeginBlock(request)
 }
 
 func (m *Multiplexer) DeliverTx(request abci.RequestDeliverTx) abci.ResponseDeliverTx {
-	fmt.Printf("Multiplexer DeliverTx invoked with current app version %v\n", m.currentAppVersion)
+	m.logger.Debug(fmt.Sprintf("Multiplexer DeliverTx invoked with current app version %v\n", m.currentAppVersion))
 	app := m.getCurrentApp()
 	return app.DeliverTx(request)
 }
 
 func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlock {
-	fmt.Printf("Multiplexer EndBlock invoked with current app version %v height %v\n", m.currentAppVersion, request.Height)
-
+	m.logger.Debug(fmt.Sprintf("Multiplexer EndBlock invoked with current app version %v height %v\n", m.currentAppVersion, request.Height))
 	app := m.getCurrentApp()
 	got := app.EndBlock(request)
 	if got.ConsensusParamUpdates != nil && got.ConsensusParamUpdates.Version != nil {
@@ -93,7 +95,7 @@ func (m *Multiplexer) EndBlock(request abci.RequestEndBlock) abci.ResponseEndBlo
 }
 
 func (m *Multiplexer) Commit() abci.ResponseCommit {
-	fmt.Printf("Multiplexer Commit invoked with current app version %v\n", m.currentAppVersion)
+	m.logger.Debug(fmt.Sprintf("Multiplexer Commit invoked with current app version %v\n", m.currentAppVersion))
 
 	app := m.getCurrentApp()
 	got := app.Commit()
@@ -144,14 +146,17 @@ func (m *Multiplexer) ApplySnapshotChunk(request abci.RequestApplySnapshotChunk)
 	app := m.getCurrentApp()
 	return app.ApplySnapshotChunk(request)
 }
+
 func (m *Multiplexer) ListSnapshots(request abci.RequestListSnapshots) abci.ResponseListSnapshots {
 	app := m.getCurrentApp()
 	return app.ListSnapshots(request)
 }
+
 func (m *Multiplexer) LoadSnapshotChunk(request abci.RequestLoadSnapshotChunk) abci.ResponseLoadSnapshotChunk {
 	app := m.getCurrentApp()
 	return app.LoadSnapshotChunk(request)
 }
+
 func (m *Multiplexer) OfferSnapshot(request abci.RequestOfferSnapshot) abci.ResponseOfferSnapshot {
 	app := m.getCurrentApp()
 	return app.OfferSnapshot(request)
@@ -167,7 +172,6 @@ func (m *Multiplexer) SetOption(request abci.RequestSetOption) abci.ResponseSetO
 }
 
 func (m *Multiplexer) RunMigrations() []byte {
-	fmt.Printf("Multiplexer RunMigrations invoked with current app version %v\n", m.currentAppVersion)
 	app := m.getCurrentApp()
 	return app.RunMigrations()
 }

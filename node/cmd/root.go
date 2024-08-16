@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tendermint/tendermint/libs/log"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -22,13 +23,14 @@ var rootCmd = &cobra.Command{
 		fmt.Printf("Deleting root dir: %v\n", config.TmConfig.RootDir)
 		os.RemoveAll(config.TmConfig.RootDir)
 
+		logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 		dbPath := filepath.Join(config.TmConfig.RootDir, "data")
 		fmt.Printf("dbPath: %v\n", dbPath)
 		db, err := tmdb.NewGoLevelDB("application", dbPath)
 		if err != nil {
 			return err
 		}
-		multiplexer := utils.NewMultiplexer(db)
+		multiplexer := utils.NewMultiplexer(logger, db)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

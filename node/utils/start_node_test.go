@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/node/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/log"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -19,11 +20,11 @@ func TestStartNode(t *testing.T) {
 	fmt.Printf("Deleting root dir: %v\n", config.TmConfig.RootDir)
 	os.RemoveAll(config.TmConfig.RootDir)
 
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
 	db, err := tmdb.NewGoLevelDB("application", dbPath)
 	require.NoError(t, err)
-
-	multiplexer := utils.NewMultiplexer(db)
+	multiplexer := utils.NewMultiplexer(logger, db)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
