@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	blobstreamclient "github.com/celestiaorg/celestia-app/v3/x/blobstream/client"
+	blobstreamclient "github.com/celestiaorg/celestia-app/x/blobstream/client"
 	"github.com/cosmos/cosmos-sdk/client"
 	clientconfig "github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/debug"

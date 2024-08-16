@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 
 	"github.com/stretchr/testify/require"
 )

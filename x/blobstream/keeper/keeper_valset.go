@@ -7,7 +7,7 @@ import (
 
 	"cosmossdk.io/errors"
 	cosmosmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	gethcommon "github.com/ethereum/go-ethereum/common"

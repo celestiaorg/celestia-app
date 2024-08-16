@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

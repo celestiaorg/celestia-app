@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
+	"github.com/celestiaorg/celestia-app/x/blobstream"
 
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/x/blobstream/keeper"
+	"github.com/celestiaorg/celestia-app/x/blobstream/types"
 
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"

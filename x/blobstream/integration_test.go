@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"

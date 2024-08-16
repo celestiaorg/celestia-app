@@ -12,7 +12,7 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/util"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/x/minfee"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"

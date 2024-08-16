@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
+	"github.com/celestiaorg/celestia-app/x/blobstream"
 	"github.com/stretchr/testify/assert"
 )
 

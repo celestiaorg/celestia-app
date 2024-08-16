@@ -5,6 +5,7 @@ go 1.22.6
 require (
 	cosmossdk.io/errors v1.0.1
 	github.com/celestiaorg/celestia-app/v3 v3.0.0-20240816121537-a28b9e7160cc
+	github.com/celestiaorg/celestia-app/x/blobstream v0.0.0-00010101000000-000000000000
 	github.com/celestiaorg/celestia-app/x/minfee v0.0.0-00010101000000-000000000000
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/ibc-go/v6 v6.3.1
@@ -198,6 +199,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/celestia-app/x/blobstream => ../blobstream // TODO: remove this after we create a release.
 	github.com/celestiaorg/celestia-app/x/minfee => ../minfee // TODO: remove this after we create a release.
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
