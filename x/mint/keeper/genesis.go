@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"github.com/celestiaorg/celestia-app/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

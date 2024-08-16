@@ -8,7 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"

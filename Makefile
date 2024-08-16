@@ -42,12 +42,14 @@ mod:
 	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
+	@echo "--> Updating go.mod in ./x/mint"
+	@(cd ./x/mint && go mod tidy)
+	@echo "--> Updating go.mod in ./x/paramfilter"
+	@(cd ./x/paramfilter && go mod tidy)
 	@echo "--> Updating go.mod in ./x/signal"
 	@(cd ./x/signal && go mod tidy)
 	@echo "--> Updating go.mod in ./x/tokenfilter"
 	@(cd ./x/tokenfilter && go mod tidy)
-	@echo "--> Updating go.mod in ./x/paramfilter"
-	@(cd ./x/paramfilter && go mod tidy)
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
