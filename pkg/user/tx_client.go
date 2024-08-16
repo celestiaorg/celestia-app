@@ -23,12 +23,22 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
+=======
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+>>>>>>> a28b9e71 (refactor: signer to use txstatus (#3767))
 )
 
 const (
@@ -37,6 +47,14 @@ const (
 )
 
 type Option func(client *TxClient)
+
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	Height int64
+	TxHash string
+	Code   uint32
+}
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
@@ -199,19 +217,33 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
+<<<<<<< HEAD
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+=======
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+>>>>>>> a28b9e71 (refactor: signer to use txstatus (#3767))
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
-	if err != nil {
-		return resp, err
+	if err != nil && resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
+	} else if err != nil {
+		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
+<<<<<<< HEAD
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+=======
+// SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
+>>>>>>> a28b9e71 (refactor: signer to use txstatus (#3767))
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
-	if err != nil {
-		return resp, err
+	if err != nil && resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
+	} else if err != nil {
+		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -252,10 +284,12 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
-	if err != nil {
-		return resp, err
+	if err != nil && resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast tx: %v", err)
+	} else if err != nil {
+		return &TxResponse{}, fmt.Errorf("failed to broadcast tx: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -409,32 +443,44 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
-		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
-		if err == nil {
-			if resp.TxResponse.Code != 0 {
-				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-			}
-			return resp.TxResponse, nil
-		}
-		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
-		// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
-		// signer more information on the status of their transaction and then update the logic here
-		if !strings.Contains(err.Error(), "not found") {
-			return &sdktypes.TxResponse{}, err
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		if err != nil {
+			return &TxResponse{}, err
 		}
 
-		// Wait for the next round.
-		select {
-		case <-ctx.Done():
-			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-pollTicker.C:
+		if err == nil && resp != nil {
+			switch resp.Status {
+			// FIXME: replace hardcoded status with constants
+			case "PENDING":
+				// Continue polling if the transaction is still pending
+				select {
+				case <-ctx.Done():
+					return &TxResponse{}, ctx.Err()
+				case <-pollTicker.C:
+					continue
+				}
+			case "COMMITTED":
+				txResponse := &TxResponse{
+					Height: resp.Height,
+					TxHash: txHash,
+					Code:   resp.ExecutionCode,
+				}
+				if resp.ExecutionCode != 0 {
+					return txResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.ExecutionCode, resp.Status)
+				}
+				return txResponse, nil
+			case "EVICTED":
+				return &TxResponse{}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+			default:
+				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
+			}
 		}
 	}
 }
