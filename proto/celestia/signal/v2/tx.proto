@@ -1,5 +1,5 @@
 syntax = "proto3";
-package celestia.signal.v1;
+package celestia.signal.v2;
 
 import "google/api/annotations.proto";
 
