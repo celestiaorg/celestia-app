@@ -14,13 +14,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/tendermint/tendermint/config"
+
 	// "github.com/tendermint/tendermint/pkg/trace"
 	// "github.com/tendermint/tendermint/pkg/trace/schema"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 const (
-	compactBlocksVersion = "1d1ed35"
+	compactBlocksVersion = "8e18957" //"a28b9e7"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 8
+		nodes          = 20
 		timeoutCommit  = time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
@@ -57,11 +58,11 @@ func Run() error {
 		return err
 	}
 
-	// for _, node := range network.Nodes() {
-	// 	if err := node.Instance.EnableBitTwister(); err != nil {
-	// 		return fmt.Errorf("failed to enable bit twister: %v", err)
-	// 	}
-	// }
+	for _, node := range network.Nodes() {
+		if err := node.Instance.EnableBitTwister(); err != nil {
+			return fmt.Errorf("failed to enable bit twister: %v", err)
+		}
+	}
 
 	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
 	if err != nil {
@@ -70,11 +71,11 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		40,
+		60,
 		"64000-64000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:4],
+		gRPCEndpoints[:5],
 	)
 	if err != nil {
 		return err
@@ -87,11 +88,11 @@ func Run() error {
 		testnet.WithMempool("v2"),
 		func(cfg *config.Config) {
 			// create a partially connected network by only dialing 5 peers
-			cfg.P2P.MaxNumOutboundPeers = 3
-			cfg.P2P.MaxNumInboundPeers = 4
+			cfg.P2P.MaxNumOutboundPeers = 5
+			cfg.P2P.MaxNumInboundPeers = 8
 			cfg.Mempool.TTLNumBlocks = 100
 			cfg.Mempool.TTLDuration = 10 * time.Minute
-			cfg.Mempool.MaxTxsBytes *= 4
+			cfg.Mempool.MaxTxsBytes *= 5
 		},
 	)
 	if err != nil {
@@ -127,11 +128,11 @@ func Run() error {
 		return err
 	}
 
-	// for _, node := range network.Nodes() {
-	// 	if err = node.Instance.SetLatencyAndJitter(100, 10); err != nil {
-	// 		return fmt.Errorf("failed to set latency and jitter: %v", err)
-	// 	}
-	// }
+	for _, node := range network.Nodes() {
+		if err = node.Instance.SetLatencyAndJitter(70, 10); err != nil {
+			return fmt.Errorf("failed to set latency and jitter: %v", err)
+		}
+	}
 
 	if err := network.WaitToSync(); err != nil {
 		return err
@@ -205,6 +206,7 @@ func saveBlockTimes(testnet *testnet.Testnet) (float64, error) {
 
 	totalBlockSize := 0
 	startTime := int64(0)
+	endTime := int64(0)
 	status, err := clients[0].Status(context.Background())
 	if err != nil {
 		return 0, err
@@ -231,6 +233,7 @@ func saveBlockTimes(testnet *testnet.Testnet) (float64, error) {
 			if startTime == 0 {
 				startTime = resp.Block.Time.UnixNano()
 			}
+			endTime = resp.Block.Time.UnixNano()
 		}
 		if resp.Block.LastCommit.Round > 0 {
 			log.Printf("Block %d has a last commit round of %d", resp.Block.LastCommit.Height, resp.Block.LastCommit.Round)
@@ -241,6 +244,6 @@ func saveBlockTimes(testnet *testnet.Testnet) (float64, error) {
 		}
 	}
 
-	duration := time.Since(time.Unix(0, startTime))
-	return float64(totalBlockSize) / duration.Seconds(), nil
+	duration := (endTime - startTime) / 1e9
+	return float64(totalBlockSize) / float64(duration), nil
 }
