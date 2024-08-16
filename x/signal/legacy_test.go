@@ -127,7 +127,7 @@ func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	require.EqualValues(t, 2, res.Code, res.RawLog)
+	require.EqualValues(t, 2, res.Code)
 }
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
@@ -156,7 +156,7 @@ func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	require.EqualValues(t, 2, res.Code, res.RawLog)
+	require.EqualValues(t, 2, res.Code)
 }
 
 func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
@@ -178,19 +178,14 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewTxClientFromContext(s.cctx)
+	txClient, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
-	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	res, err := txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
-<<<<<<< HEAD
-	require.EqualValues(t, 9, res.Code, res.RawLog) // we're only submitting the tx, so we expect everything to work
-	assert.Contains(t, res.RawLog, "ibc upgrade proposal not supported")
-=======
 	require.EqualValues(t, 9, res.Code) // we're only submitting the tx, so we expect everything to work
 	assert.Contains(t, err.Error(), "ibc upgrade proposal not supported")
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {

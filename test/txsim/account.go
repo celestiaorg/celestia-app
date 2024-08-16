@@ -240,7 +240,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	var (
-		res *types.TxResponse
+		res *user.TxResponse
 		err error
 	)
 	if len(op.Blobs) > 0 {

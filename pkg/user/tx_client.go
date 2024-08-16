@@ -23,23 +23,14 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	"github.com/celestiaorg/celestia-app/v2/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
-=======
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/tendermint/tendermint/rpc/core"
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 )
 
 const (
@@ -48,6 +39,14 @@ const (
 )
 
 type Option func(client *TxClient)
+
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	Height int64
+	TxHash string
+	Code   uint32
+}
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
@@ -210,27 +209,21 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-<<<<<<< HEAD
-		return resp, err
-=======
 		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob: %v", err))
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+// SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
-<<<<<<< HEAD
-		return resp, err
-=======
 		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob with account: %v", err))
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -271,14 +264,10 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
-<<<<<<< HEAD
-		return resp, err
-=======
 		return parseTxResponse(resp, fmt.Errorf("failed to broadcast tx: %v", err))
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -432,35 +421,19 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
-		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
-		if err == nil {
-			if resp.TxResponse.Code != 0 {
-				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-			}
-			return resp.TxResponse, nil
-		}
-		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
-		// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
-		// signer more information on the status of their transaction and then update the logic here
-		if !strings.Contains(err.Error(), "not found") {
-			return &sdktypes.TxResponse{}, err
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		if err != nil {
+			return &TxResponse{}, err
 		}
 
-<<<<<<< HEAD
-		// Wait for the next round.
-		select {
-		case <-ctx.Done():
-			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-pollTicker.C:
-=======
-		if err == nil && resp != nil {
+		if resp != nil {
 			switch resp.Status {
 			case core.TxStatusPending:
 				// Continue polling if the transaction is still pending
@@ -476,7 +449,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 					TxHash: txHash,
 					Code:   resp.ExecutionCode,
 				}
-				if resp.ExecutionCode != 0 {
+				if resp.ExecutionCode != abci.CodeTypeOK {
 					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
 				}
 				return txResponse, nil
@@ -485,7 +458,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 			default:
 				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
 			}
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 		}
 	}
 }

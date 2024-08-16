@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ import (
 )
 
 // TestTimeInPrepareProposalContext checks for an edge case where the block time
-// needs to be included in the sdk.Context that is being used in the
+// needs to be included in theMA sdk.Context that is being used in the
 // antehandlers. If a time is not included in the context, then the second
 // transaction in this test will always be filtered out, result in vesting
 // accounts never being able to spend funds.
@@ -80,14 +81,11 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			msgs, _ := tt.msgFunc()
 			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
 			require.NoError(t, err)
-<<<<<<< HEAD
-=======
 			serviceClient := sdktx.NewServiceClient(cctx.GRPCClient)
 			getTxResp, err := serviceClient.GetTx(cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
 			require.NoError(t, err)
->>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 			require.NotNil(t, res)
-			assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
+			assert.Equal(t, abci.CodeTypeOK, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
 }
