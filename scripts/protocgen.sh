@@ -2,14 +2,14 @@
 
 set -eo pipefail
 
-protoc_gen_gocosmos() {
-  if ! grep "github.com/gogo/protobuf => github.com/regen-network/protobuf" go.mod &>/dev/null ; then
-    echo -e "\tPlease run this command from somewhere inside the cosmos-sdk folder."
-    return 1
-  fi
-}
+# protoc_gen_gocosmos() {
+#   if ! grep "github.com/gogo/protobuf => github.com/regen-network/protobuf" go.mod &>/dev/null ; then
+#     echo -e "\tPlease run this command from somewhere inside the cosmos-sdk folder."
+#     return 1
+#   fi
+# }
 
-protoc_gen_gocosmos
+# protoc_gen_gocosmos
 
 cd proto
 proto_dirs=$(find . -path ./cosmos -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq)

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package celestia.core.v1.da;
 
-option go_package = "github.com/celestiaorg/celestia-app/proto/celestia/core/v1/da";
+option go_package = "github.com/celestiaorg/celestia-app/v3/pkg/da/proto";
 
 // DataAvailabilityHeader contains the row and column roots of the erasure
 // coded version of the data in Block.Data.
