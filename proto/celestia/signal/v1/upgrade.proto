@@ -1,5 +1,5 @@
 syntax = "proto3";
-package celestia.signal.v2;
+package celestia.signal.v1;
 
 option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
