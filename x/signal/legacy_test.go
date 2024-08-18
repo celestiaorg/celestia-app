@@ -184,8 +184,6 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	defer cancel()
 	res, err := txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
-	// getTxResp, err := s.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: res.TxHash})
-	// require.NoError(t, err)
 	require.EqualValues(t, 9, res.Code, res.Error) // we're only submitting the tx, so we expect everything to work
 	assert.Contains(t, res.Error, "ibc upgrade proposal not supported")
 }
