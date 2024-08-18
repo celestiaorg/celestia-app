@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 func TestTxClientTestSuite(t *testing.T) {
@@ -47,8 +48,6 @@ func (suite *TxClientTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
 	suite.Require().NoError(err)
-	// FIXME: Temporary way of querying the raw log.
-	// TxStatus will natively support this in the future.
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -177,6 +176,16 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		defer cancel()
 		_, err := suite.txClient.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
 		require.Contains(t, err.Error(), "unknown tx: E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
+	})
+
+	t.Run("should return error log when execution fails", func(t *testing.T) {
+		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
+		require.NoError(t, err)
+		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, confirmTxResp.Error, "authorization not found")
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {

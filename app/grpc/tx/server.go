@@ -76,6 +76,7 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 		Height:        resTx.Height,
 		Index:         resTx.Index,
 		ExecutionCode: resTx.ExecutionCode,
+		Error:         resTx.Error,
 		Status:        resTx.Status,
 	}, nil
 }
