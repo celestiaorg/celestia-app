@@ -23,22 +23,13 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
+	"github.com/celestiaorg/celestia-app/v2/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
-=======
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
->>>>>>> a28b9e71 (refactor: signer to use txstatus (#3767))
 )
 
 const (
@@ -217,11 +208,7 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-<<<<<<< HEAD
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-=======
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
->>>>>>> a28b9e71 (refactor: signer to use txstatus (#3767))
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil && resp != nil {
 		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
@@ -232,13 +219,9 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-<<<<<<< HEAD
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
-=======
 // SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
->>>>>>> a28b9e71 (refactor: signer to use txstatus (#3767))
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil && resp != nil {
 		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
