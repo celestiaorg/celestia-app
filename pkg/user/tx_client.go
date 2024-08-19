@@ -31,6 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/tendermint/tendermint/rpc/core"
 )
 
 const (
@@ -211,10 +212,8 @@ func SetupTxClient(
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
-	if err != nil && resp != nil {
-		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
-	} else if err != nil {
-		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
+	if err != nil {
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob: %v", err))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -224,10 +223,8 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 // TxOptions may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
-	if err != nil && resp != nil {
-		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
-	} else if err != nil {
-		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
+	if err != nil {
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob with account: %v", err))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -270,10 +267,8 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 // may be provided to set the fee and gas limit.
 func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
-	if err != nil && resp != nil {
-		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, fmt.Errorf("failed to broadcast tx: %v", err)
-	} else if err != nil {
-		return &TxResponse{}, fmt.Errorf("failed to broadcast tx: %v", err)
+	if err != nil {
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast tx: %v", err))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -445,8 +440,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		if err == nil && resp != nil {
 			switch resp.Status {
-			// FIXME: replace hardcoded status with constants
-			case "PENDING":
+			case core.TxStatusPending:
 				// Continue polling if the transaction is still pending
 				select {
 				case <-ctx.Done():
@@ -454,18 +448,18 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				case <-pollTicker.C:
 					continue
 				}
-			case "COMMITTED":
+			case core.TxStatusCommitted:
 				txResponse := &TxResponse{
 					Height: resp.Height,
 					TxHash: txHash,
 					Code:   resp.ExecutionCode,
 				}
 				if resp.ExecutionCode != 0 {
-					return txResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.ExecutionCode, resp.Status)
+					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
 				}
 				return txResponse, nil
-			case "EVICTED":
-				return &TxResponse{}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+			case core.TxStatusEvicted:
+				return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
 			default:
 				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
 			}
@@ -573,6 +567,13 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
+}
+
+func parseTxResponse(resp *sdktypes.TxResponse, err error) (*TxResponse, error) {
+	if resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, err
+	}
+	return &TxResponse{}, err
 }
 
 // Signer exposes the tx clients underlying signer
