@@ -459,7 +459,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				}
 				return txResponse, nil
 			case core.TxStatusEvicted:
-				return &TxResponse{}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+				return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
 			default:
 				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
 			}
