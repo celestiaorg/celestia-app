@@ -457,7 +457,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Error:  resp.Error,
 				}
 				if resp.ExecutionCode != 0 {
-					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Status)
+					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
 				}
 				return txResponse, nil
 			case core.TxStatusEvicted:
