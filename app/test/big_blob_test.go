@@ -83,8 +83,7 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 			res, err := txClient.SubmitPayForBlob(subCtx, []*share.Blob{tc.blob}, user.SetGasLimitAndGasPrice(1e9, appconsts.DefaultMinGasPrice))
 			require.Error(t, err)
 			require.NotNil(t, res)
-			// FIXME: assert RawLog once TxStatus supports it.
-			require.Equal(t, tc.want, res.Code)
+			require.Equal(t, tc.want, res.Code, err.Error())
 		})
 	}
 }

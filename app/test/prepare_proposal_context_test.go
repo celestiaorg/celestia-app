@@ -81,8 +81,6 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			msgs, _ := tt.msgFunc()
 			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
 			require.NoError(t, err)
-			// FIXME: Temporary way of querying the raw log.
-			// TxStatus will natively support this in the future.
 			serviceClient := sdktx.NewServiceClient(cctx.GRPCClient)
 			getTxResp, err := serviceClient.GetTx(cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
 			require.NoError(t, err)

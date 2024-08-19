@@ -90,8 +90,6 @@ func (s *BlobstreamIntegrationSuite) TestBlobstream() {
 			} else {
 				require.Error(t, err)
 			}
-			// FIXME: Temporary way of querying the raw log.
-			// TxStatus will natively support this in the future.
 			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
 			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
 			require.NoError(t, err)

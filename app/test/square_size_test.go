@@ -174,8 +174,6 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
-	// FIXME: Temporary way of querying the raw log.
-	// TxStatus will natively support this in the future.
 	serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
 	getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
 	require.NoError(t, err)
