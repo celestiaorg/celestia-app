@@ -173,7 +173,14 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
+<<<<<<< HEAD
 	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
+=======
+	serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+	getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+	require.NoError(t, err)
+	require.Equal(t, res.Code, abci.CodeTypeOK, getTxResp.TxResponse.RawLog)
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 

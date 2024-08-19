@@ -325,6 +325,12 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			} else {
 				require.NoError(t, err)
 			}
+<<<<<<< HEAD
+=======
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+			require.NoError(t, err)
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 			require.NotNil(t, res)
 			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
 		})

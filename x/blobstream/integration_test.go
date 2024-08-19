@@ -89,6 +89,12 @@ func (s *BlobstreamIntegrationSuite) TestBlobstream() {
 			} else {
 				require.Error(t, err)
 			}
+<<<<<<< HEAD
+=======
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+			require.NoError(t, err)
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 			require.NotNil(t, res)
 			require.Equal(t, tt.expectedTxCode, res.Code, res.RawLog)
 		})

@@ -23,12 +23,23 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"google.golang.org/grpc"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v2/app/errors"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v2/x/minfee"
+=======
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/tendermint/tendermint/rpc/core"
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 )
 
 const (
@@ -202,7 +213,11 @@ func SetupTxClient(
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
+<<<<<<< HEAD
 		return resp, err
+=======
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob: %v", err))
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -211,7 +226,11 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
+<<<<<<< HEAD
 		return resp, err
+=======
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob with account: %v", err))
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -255,7 +274,11 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
+<<<<<<< HEAD
 		return resp, err
+=======
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast tx: %v", err))
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -430,11 +453,39 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes
 			return &sdktypes.TxResponse{}, err
 		}
 
+<<<<<<< HEAD
 		// Wait for the next round.
 		select {
 		case <-ctx.Done():
 			return &sdktypes.TxResponse{}, ctx.Err()
 		case <-pollTicker.C:
+=======
+		if err == nil && resp != nil {
+			switch resp.Status {
+			case core.TxStatusPending:
+				// Continue polling if the transaction is still pending
+				select {
+				case <-ctx.Done():
+					return &TxResponse{}, ctx.Err()
+				case <-pollTicker.C:
+					continue
+				}
+			case core.TxStatusCommitted:
+				txResponse := &TxResponse{
+					Height: resp.Height,
+					TxHash: txHash,
+					Code:   resp.ExecutionCode,
+				}
+				if resp.ExecutionCode != 0 {
+					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
+				}
+				return txResponse, nil
+			case core.TxStatusEvicted:
+				return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+			default:
+				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
+			}
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 		}
 	}
 }
@@ -539,6 +590,13 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
+}
+
+func parseTxResponse(resp *sdktypes.TxResponse, err error) (*TxResponse, error) {
+	if resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, err
+	}
+	return &TxResponse{}, err
 }
 
 // Signer exposes the tx clients underlying signer

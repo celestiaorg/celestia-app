@@ -12,12 +12,22 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/rand"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
+=======
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/cosmos/cosmos-sdk/x/authz"
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 )
 
 func TestTxClientTestSuite(t *testing.T) {
@@ -45,6 +55,10 @@ func (suite *TxClientTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
 	suite.Require().NoError(err)
+<<<<<<< HEAD
+=======
+	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
+>>>>>>> 02b604de (feat: add error log to txstatus (#3788))
 }
 
 func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
@@ -155,6 +169,16 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		defer cancel()
 		_, err := suite.txClient.ConfirmTx(ctx, "not found tx")
 		require.Error(t, err)
+	})
+
+	t.Run("should return error log when execution fails", func(t *testing.T) {
+		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
+		require.NoError(t, err)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "authorization not found")
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
