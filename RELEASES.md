@@ -16,7 +16,7 @@ If you are a library consumer, a number of the Go APIs have changed since celest
 
 - Code pertaining to the original data square was extracted to [celestiaorg/go-square](https://github.com/celestiaorg/go-square).
   - celestia-app v1.x had a shares package. celestia-app v2.x uses [go-square/shares](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/shares)
-  - celestia-app v1.x had a blob.types package with `CreateCommitment`. celestia-app v2.x uses `CreateCommitment` from the [go-square/inclusion](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/inclusion).
+  - celestia-app v1.x had a blob.types package with `CreateCommitment` function. celestia-app v2.x uses `CreateCommitment` function from the [go-square/inclusion](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/inclusion).
 - celestia-app v1.x had a lot of functionality included in the signer. celestia-app v2.x splits a txClient from the signer.
 
 ## v3.0.0
