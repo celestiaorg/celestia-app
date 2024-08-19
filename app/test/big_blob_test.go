@@ -83,7 +83,7 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 			res, err := txClient.SubmitPayForBlob(subCtx, []*share.Blob{tc.blob}, user.SetGasLimitAndGasPrice(1e9, appconsts.DefaultMinGasPrice))
 			require.Error(t, err)
 			require.NotNil(t, res)
-			require.Equal(t, tc.want, res.Code, res.Error)
+			require.Equal(t, tc.want, res.Code, err.Error())
 		})
 	}
 }

@@ -47,7 +47,6 @@ type TxResponse struct {
 	Height int64
 	TxHash string
 	Code   uint32
-	Error  string
 }
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
@@ -454,7 +453,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Height: resp.Height,
 					TxHash: txHash,
 					Code:   resp.ExecutionCode,
-					Error:  resp.Error,
 				}
 				if resp.ExecutionCode != 0 {
 					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
