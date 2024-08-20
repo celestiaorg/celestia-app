@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "8e18957" //"a28b9e7"
+	compactBlocksVersion = "bc218e8" //"a28b9e7"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 20
+		nodes          = 12
 		timeoutCommit  = time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
@@ -71,7 +71,7 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		60,
+		40,
 		"64000-64000",
 		1,
 		testnet.DefaultResources,
@@ -88,8 +88,8 @@ func Run() error {
 		testnet.WithMempool("v2"),
 		func(cfg *config.Config) {
 			// create a partially connected network by only dialing 5 peers
-			cfg.P2P.MaxNumOutboundPeers = 5
-			cfg.P2P.MaxNumInboundPeers = 8
+			cfg.P2P.MaxNumOutboundPeers = 4
+			cfg.P2P.MaxNumInboundPeers = 7
 			cfg.Mempool.TTLNumBlocks = 100
 			cfg.Mempool.TTLDuration = 10 * time.Minute
 			cfg.Mempool.MaxTxsBytes *= 5
