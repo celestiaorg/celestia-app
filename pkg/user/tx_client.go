@@ -51,32 +51,26 @@ type TxResponse struct {
 
 // BroadcastTxError is an error that occurs when broadcasting a transaction.
 type BroadcastTxError struct {
-	TxHash   string
-	Code     uint32
+	TxHash string
+	Code   uint32
+	// ErrorLog is the error output of the app's logger
 	ErrorLog string
-	Err      error
+	// Err is the error that occurred during broadcasting
+	Err error
 }
 
 func (e *BroadcastTxError) Error() string {
 	return fmt.Sprintf("%v", e.Err)
 }
 
-// EvictionError is an error that occurs when a transaction is evicted from the mempool.
-type EvictionError struct {
-	TxHash string
-	Err    error
-}
-
-func (e *EvictionError) Error() string {
-	return fmt.Sprintf("%v", e.Err)
-}
-
 // ExecutionError is an error that occurs when a transaction gets executed.
 type ExecutionError struct {
-	TxHash   string
-	Code     uint32
+	TxHash string
+	Code   uint32
+	// ErrorLog is the error output of the app's logger
 	ErrorLog string
-	Err      error
+	// Err is the error that occurred during execution
+	Err error
 }
 
 func (e *ExecutionError) Error() string {
@@ -501,7 +495,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				}
 				return txResponse, nil
 			case core.TxStatusEvicted:
-				return nil, &EvictionError{TxHash: txHash, Err: fmt.Errorf("tx was evicted from the mempool")}
+				return nil, fmt.Errorf("tx was evicted from the mempool")
 			default:
 				return nil, fmt.Errorf("unknown tx: %s", txHash)
 			}

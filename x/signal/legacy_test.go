@@ -126,10 +126,11 @@ func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
 	_, err = signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.Error(t, err)
 	// As the type is not registered, the message will fail with unable to resolve type URL
+	require.Error(t, err)
 	code := err.(*user.BroadcastTxError).Code
-	require.EqualValues(t, 2, code)
+	errLog := err.(*user.BroadcastTxError).ErrorLog
+	require.EqualValues(t, 2, code, errLog)
 }
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
@@ -156,11 +157,11 @@ func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
 	_, err = signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.Error(t, err)
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	// unpakc err
+	require.Error(t, err)
 	code := err.(*user.BroadcastTxError).Code
-	require.EqualValues(t, 2, code)
+	errLog := err.(*user.BroadcastTxError).ErrorLog
+	require.EqualValues(t, 2, code, errLog)
 }
 
 func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
