@@ -43,6 +43,7 @@ type Option func(client *TxClient)
 // TxResponse is a response from the chain after
 // a transaction has been submitted.
 type TxResponse struct {
+	// Height is the block height at which the transaction was included on-chain.
 	Height int64
 	TxHash string
 	Code   uint32
@@ -212,7 +213,7 @@ func SetupTxClient(
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob: %v", err))
+		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -223,7 +224,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
-		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob with account: %v", err))
+		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -267,7 +268,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
-		return parseTxResponse(resp, fmt.Errorf("failed to broadcast tx: %v", err))
+		return &TxResponse{}, fmt.Errorf("failed to broadcast tx: %v", err)
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -450,11 +451,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:   resp.ExecutionCode,
 				}
 				if resp.ExecutionCode != abci.CodeTypeOK {
-					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
+					return &TxResponse{}, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
 				}
 				return txResponse, nil
 			case core.TxStatusEvicted:
-				return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+				return &TxResponse{}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
 			default:
 				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
 			}
@@ -562,13 +563,6 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
-}
-
-func parseTxResponse(resp *sdktypes.TxResponse, err error) (*TxResponse, error) {
-	if resp != nil {
-		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, err
-	}
-	return &TxResponse{}, err
 }
 
 // Signer exposes the tx clients underlying signer

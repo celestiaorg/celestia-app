@@ -21,7 +21,7 @@ import (
 )
 
 // TestTimeInPrepareProposalContext checks for an edge case where the block time
-// needs to be included in theMA sdk.Context that is being used in the
+// needs to be included in the sdk.Context that is being used in the
 // antehandlers. If a time is not included in the context, then the second
 // transaction in this test will always be filtered out, result in vesting
 // accounts never being able to spend funds.
