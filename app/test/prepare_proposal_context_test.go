@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -80,8 +81,11 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 			msgs, _ := tt.msgFunc()
 			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))
 			require.NoError(t, err)
+			serviceClient := sdktx.NewServiceClient(cctx.GRPCClient)
+			getTxResp, err := serviceClient.GetTx(cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+			require.NoError(t, err)
 			require.NotNil(t, res)
-			assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
+			assert.Equal(t, abci.CodeTypeOK, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
 }

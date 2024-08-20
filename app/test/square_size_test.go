@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
@@ -173,7 +174,10 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
-	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
+	serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+	getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+	require.NoError(t, err)
+	require.Equal(t, res.Code, abci.CodeTypeOK, getTxResp.TxResponse.RawLog)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
