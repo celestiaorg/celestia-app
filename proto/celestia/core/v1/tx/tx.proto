@@ -33,6 +33,8 @@ message TxStatusResponse {
     // and returns whether it was successful or errored. A non zero
     // execution code indicated an error.
     uint32 execution_code = 3;
+    // error log for failed transactions.
+    string error = 4;
     // status is the status of the transaction.
-    string status = 4;
+    string status = 5;
 }

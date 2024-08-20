@@ -7,6 +7,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -47,8 +48,6 @@ func (suite *TxClientTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
 	suite.Require().NoError(err)
-	// FIXME: Temporary way of querying the raw log.
-	// TxStatus will natively support this in the future.
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -179,6 +178,17 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Contains(t, err.Error(), "unknown tx: E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
 	})
 
+	t.Run("should return error log when execution fails", func(t *testing.T) {
+		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
+		require.NoError(t, err)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		require.Error(t, err)
+		errorLog := err.(*user.ExecutionError).ErrorLog
+		require.Contains(t, errorLog, "authorization not found")
+	})
+
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
 		addr := suite.txClient.DefaultAddress()
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
@@ -200,9 +210,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
-		require.NotEqual(t, abci.CodeTypeOK, confirmTxResp.Code)
+		code := err.(*user.ExecutionError).Code
+		require.NotEqual(t, abci.CodeTypeOK, code)
 	})
 }
 
