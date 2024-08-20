@@ -23,12 +23,16 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+<<<<<<< HEAD
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
+=======
+	simdcmd "github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
+>>>>>>> 9c9e77a2 (refactor: remove unnecessary `config.Seal()` (#3786))
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
@@ -109,7 +113,39 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
 	initRootCmd(rootCmd, encodingConfig)
 
+<<<<<<< HEAD
 	return rootCmd
+=======
+	return rootCommand
+}
+
+// initRootCommand performs a bunch of side-effects on the root command.
+func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config) {
+	rootCommand.AddCommand(
+		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
+		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
+		genutilcli.MigrateGenesisCmd(),
+		simdcmd.AddGenesisAccountCmd(app.DefaultNodeHome),
+		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
+		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
+		tmcli.NewCompletionCmd(rootCommand, true),
+		debug.Cmd(),
+		clientconfig.Cmd(),
+		commands.CompactGoLevelDBCmd,
+		addrbookCommand(),
+		downloadGenesisCommand(),
+		addrConversionCmd(),
+		rpc.StatusCommand(),
+		queryCommand(),
+		txCommand(),
+		keys.Commands(app.DefaultNodeHome),
+		blobstreamclient.VerifyCmd(),
+		snapshot.Cmd(NewAppServer),
+	)
+
+	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback.
+	server.AddCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addModuleInitFlags)
+>>>>>>> 9c9e77a2 (refactor: remove unnecessary `config.Seal()` (#3786))
 }
 
 // setDefaultConsensusParams sets the default consensus parameters for the
