@@ -94,12 +94,8 @@ Among the potential consequences is the _Woods Attack_, as elaborated in this fo
 
 ## Implementation
 
-<<<<<<< HEAD
-See [go-square/namespace](https://github.com/celestiaorg/go-square/blob/main/shares/namespace.go).
-=======
 See the [namespace implementation in go-square](https://github.com/celestiaorg/go-square/blob/4209e67d30fef7de29af2f2712104871c173543a/share/namespace.go).
 For the most recent version, which may not reflect the current specifications, refer to [the latest namespace code](https://github.com/celestiaorg/go-square/blob/main/share/namespace.go).
->>>>>>> a049c57b (fix: markdown links (#3778))
 
 ## Go Definition
 
