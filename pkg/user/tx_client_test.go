@@ -185,7 +185,8 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "authorization not found")
+		errorLog := err.(*user.ExecutionError).ErrorLog
+		require.Contains(t, errorLog, "authorization not found")
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
@@ -209,9 +210,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
-		require.NotEqual(t, abci.CodeTypeOK, confirmTxResp.Code)
+		code := err.(*user.ExecutionError).Code
+		require.NotEqual(t, abci.CodeTypeOK, code)
 	})
 }
 

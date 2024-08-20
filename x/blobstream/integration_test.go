@@ -81,20 +81,26 @@ func (s *BlobstreamIntegrationSuite) TestBlobstream() {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
 			msgs, _ := tt.msgFunc()
 			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
 			require.NoError(t, err)
 			res, err := txClient.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			if tt.expectedTxCode == abci.CodeTypeOK {
 				require.NoError(t, err)
+				require.NotNil(t, res)
+				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedTxCode, res.Code, getTxResp.TxResponse.RawLog)
 			} else {
 				require.Error(t, err)
+				require.Nil(t, res)
+				txHash := err.(*user.ExecutionError).TxHash
+				code := err.(*user.ExecutionError).Code
+				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: txHash})
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedTxCode, code, getTxResp.TxResponse.RawLog)
 			}
-			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
-			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.Equal(t, tt.expectedTxCode, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
 }

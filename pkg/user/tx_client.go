@@ -49,6 +49,40 @@ type TxResponse struct {
 	Code   uint32
 }
 
+// BroadcastTxError is an error that occurs when broadcasting a transaction.
+type BroadcastTxError struct {
+	TxHash   string
+	Code     uint32
+	ErrorLog string
+	Err      error
+}
+
+func (e *BroadcastTxError) Error() string {
+	return fmt.Sprintf("%v", e.Err)
+}
+
+// EvictionError is an error that occurs when a transaction is evicted from the mempool.
+type EvictionError struct {
+	TxHash string
+	Err    error
+}
+
+func (e *EvictionError) Error() string {
+	return fmt.Sprintf("%v", e.Err)
+}
+
+// ExecutionError is an error that occurs when a transaction gets executed.
+type ExecutionError struct {
+	TxHash   string
+	Code     uint32
+	ErrorLog string
+	Err      error
+}
+
+func (e *ExecutionError) Error() string {
+	return fmt.Sprintf("%v", e.Err)
+}
+
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
 	return func(c *TxClient) {
@@ -213,7 +247,7 @@ func SetupTxClient(
 func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob: %v", err)
+		return nil, err
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -224,7 +258,7 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob
 func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
-		return &TxResponse{}, fmt.Errorf("failed to broadcast pay for blob with account: %v", err)
+		return nil, err
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -268,7 +302,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
-		return &TxResponse{}, fmt.Errorf("failed to broadcast tx: %v", err)
+		return nil, err
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -354,7 +388,13 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 			}
 			return client.retryBroadcastingTx(ctx, txBytes)
 		}
-		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+		broadcastTxErr := &BroadcastTxError{
+			TxHash:   resp.TxResponse.TxHash,
+			Code:     resp.TxResponse.Code,
+			Err:      fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog),
+			ErrorLog: resp.TxResponse.RawLog,
+		}
+		return resp.TxResponse, broadcastTxErr
 	}
 
 	// after the transaction has been submitted, we can increment the
@@ -431,7 +471,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 	for {
 		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
-			return &TxResponse{}, err
+			return nil, err
 		}
 
 		if resp != nil {
@@ -440,7 +480,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				// Continue polling if the transaction is still pending
 				select {
 				case <-ctx.Done():
-					return &TxResponse{}, ctx.Err()
+					return nil, ctx.Err()
 				case <-pollTicker.C:
 					continue
 				}
@@ -451,13 +491,19 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:   resp.ExecutionCode,
 				}
 				if resp.ExecutionCode != abci.CodeTypeOK {
-					return &TxResponse{}, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
+					executionErr := &ExecutionError{
+						TxHash:   txHash,
+						Code:     resp.ExecutionCode,
+						ErrorLog: resp.Error,
+						Err:      fmt.Errorf("execution failed with code %d", resp.ExecutionCode),
+					}
+					return nil, executionErr
 				}
 				return txResponse, nil
 			case core.TxStatusEvicted:
-				return &TxResponse{}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+				return nil, &EvictionError{TxHash: txHash, Err: fmt.Errorf("tx was evicted from the mempool")}
 			default:
-				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
+				return nil, fmt.Errorf("unknown tx: %s", txHash)
 			}
 		}
 	}
