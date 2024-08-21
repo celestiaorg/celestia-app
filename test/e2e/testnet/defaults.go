@@ -4,7 +4,7 @@ var DefaultResources = Resources{
 	MemoryRequest: "400Mi",
 	MemoryLimit:   "400Mi",
 	CPU:           "300m",
-	Volume:        "0Gi",
+	Volume:        "1Gi",
 }
 
 const (
