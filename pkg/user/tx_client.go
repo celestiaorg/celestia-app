@@ -11,7 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -26,9 +27,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/tendermint/tendermint/rpc/core"
 )
 
 const (
@@ -37,6 +40,14 @@ const (
 )
 
 type Option func(client *TxClient)
+
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	Height int64
+	TxHash string
+	Code   uint32
+}
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
@@ -199,19 +210,21 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		return resp, err
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob: %v", err))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+// SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
-		return resp, err
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast pay for blob with account: %v", err))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -221,11 +234,11 @@ func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account
 // It does not confirm that the transaction has been committed on chain.
 // If no gas or gas price is set, it will estimate the gas and use
 // the max effective gas price: max(localMinGasPrice, networkMinGasPrice).
-func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	return client.BroadcastPayForBlobWithAccount(ctx, client.defaultAccount, blobs, opts...)
 }
 
-func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*blob.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	if err := client.checkAccountLoaded(ctx, account); err != nil {
@@ -234,7 +247,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 	blobSizes := make([]uint32, len(blobs))
 	for i, blob := range blobs {
-		blobSizes[i] = uint32(len(blob.Data))
+		blobSizes[i] = uint32(len(blob.Data()))
 	}
 
 	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)) * client.gasMultiplier)
@@ -252,10 +265,10 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
-		return resp, err
+		return parseTxResponse(resp, fmt.Errorf("failed to broadcast tx: %v", err))
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -355,8 +368,12 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
 // new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
 func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
-	blobTx, isBlobTx := blob.UnmarshalBlobTx(txBytes)
+	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx {
+		// only check the error if the bytes are supposed to be of type blob tx
+		if err != nil {
+			return nil, err
+		}
 		txBytes = blobTx.Tx
 	}
 	tx, err := client.signer.DecodeTx(txBytes)
@@ -397,7 +414,7 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 
 	// rewrap the blob tx if it was originally a blob tx
 	if isBlobTx {
-		newTxBytes, err = blob.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
 		if err != nil {
 			return nil, err
 		}
@@ -409,32 +426,43 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
-		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
-		if err == nil {
-			if resp.TxResponse.Code != 0 {
-				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-			}
-			return resp.TxResponse, nil
-		}
-		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
-		// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
-		// signer more information on the status of their transaction and then update the logic here
-		if !strings.Contains(err.Error(), "not found") {
-			return &sdktypes.TxResponse{}, err
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		if err != nil {
+			return &TxResponse{}, err
 		}
 
-		// Wait for the next round.
-		select {
-		case <-ctx.Done():
-			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-pollTicker.C:
+		if err == nil && resp != nil {
+			switch resp.Status {
+			case core.TxStatusPending:
+				// Continue polling if the transaction is still pending
+				select {
+				case <-ctx.Done():
+					return &TxResponse{}, ctx.Err()
+				case <-pollTicker.C:
+					continue
+				}
+			case core.TxStatusCommitted:
+				txResponse := &TxResponse{
+					Height: resp.Height,
+					TxHash: txHash,
+					Code:   resp.ExecutionCode,
+				}
+				if resp.ExecutionCode != 0 {
+					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
+				}
+				return txResponse, nil
+			case core.TxStatusEvicted:
+				return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+			default:
+				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
+			}
 		}
 	}
 }
@@ -539,6 +567,13 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
+}
+
+func parseTxResponse(resp *sdktypes.TxResponse, err error) (*TxResponse, error) {
+	if resp != nil {
+		return &TxResponse{Code: resp.Code, TxHash: resp.TxHash}, err
+	}
+	return &TxResponse{}, err
 }
 
 // Signer exposes the tx clients underlying signer

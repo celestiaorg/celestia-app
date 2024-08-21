@@ -62,7 +62,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 
 	// set the consensus params to allow for the max square size
 	cparams := testnode.DefaultConsensusParams()
-	cparams.Block.MaxBytes = int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize
+	cparams.Block.MaxBytes = int64(appconsts.DefaultMaxBytes)
 
 	cfg := testnode.DefaultConfig().
 		WithConsensusParams(cparams).

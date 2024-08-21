@@ -1,0 +1,40 @@
+syntax = "proto3";
+package celestia.core.v1.tx;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/app/grpc/tx";
+
+// Service defines a gRPC service for interacting with transactions.
+service Tx {
+  // TxStatus returns the status of a transaction. There are four possible states:
+  // - Committed
+  // - Pending
+  // - Evicted
+  // - Unknown
+  rpc TxStatus(TxStatusRequest) returns (TxStatusResponse) {
+    option (google.api.http) = {
+      get: "/celestia/core/v1/tx/{tx_id}"
+    };
+  }
+}
+
+// TxStatusRequest is the request type for the TxStatus gRPC method.
+message TxStatusRequest {
+    // this is the hex encoded transaction hash (should be 64 bytes long)
+    string tx_id = 1;
+}
+
+// TxStatusResponse is the response type for the TxStatus gRPC method.
+message TxStatusResponse {
+    int64 height = 1;
+    uint32 index = 2;
+    // execution_code is returned when the transaction has been committed
+    // and returns whether it was successful or errored. A non zero
+    // execution code indicated an error.
+    uint32 execution_code = 3;
+    // error log for failed transactions.
+    string error = 4;
+    // status is the status of the transaction.
+    string status = 5;
+}

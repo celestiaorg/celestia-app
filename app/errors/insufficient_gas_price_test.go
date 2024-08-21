@@ -13,7 +13,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -40,7 +40,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(t, err)
 
-	b, err := blob.NewBlob(namespace.RandomNamespace(), []byte("hello world"), 0)
+	b, err := blob.NewV0Blob(share.RandomNamespace(), []byte("hello world"))
 	require.NoError(t, err)
 
 	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.LatestVersion, b)

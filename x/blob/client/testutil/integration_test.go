@@ -20,7 +20,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/v3/x/blob/client/cli"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -89,7 +89,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			}
     	]
 	}
-	`, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(appns.RandomBlobNamespaceID()), hexBlob)
+	`, hex.EncodeToString(share.RandomBlobNamespaceID()), hexBlob, hex.EncodeToString(share.RandomBlobNamespaceID()), hexBlob)
 	validPropFile := createTestFile(s.T(), validBlob, true)
 	invalidPropFile := createTestFile(s.T(), validBlob, false)
 
@@ -103,7 +103,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "single blob valid transaction",
 			args: []string{
-				hex.EncodeToString(appns.RandomBlobNamespaceID()),
+				hex.EncodeToString(share.RandomBlobNamespaceID()),
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),

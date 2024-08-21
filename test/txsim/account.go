@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/go-square/blob"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -240,7 +240,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	var (
-		res *types.TxResponse
+		res *user.TxResponse
 		err error
 	)
 	if len(op.Blobs) > 0 {
@@ -292,10 +292,10 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	return nil
 }
 
-func getSize(blobs []*blob.Blob) int64 {
+func getSize(blobs []*share.Blob) int64 {
 	size := int64(0)
 	for _, blob := range blobs {
-		size += int64(len(blob.GetData()))
+		size += int64(len(blob.Data()))
 	}
 	return size
 }

@@ -13,9 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
-	"github.com/celestiaorg/go-square/shares"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -32,28 +30,28 @@ const (
 )
 
 type Context struct {
-	rootCtx context.Context
+	goContext context.Context
 	client.Context
 	apiAddress string
 }
 
-func NewContext(goCtx context.Context, kr keyring.Keyring, tmCfg *tmconfig.Config, chainID, apiAddress string) Context {
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	cctx := client.Context{}.
-		WithKeyring(kr).
-		WithHomeDir(tmCfg.RootDir).
+func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tmconfig.Config, chainID, apiAddress string) Context {
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	clientContext := client.Context{}.
+		WithKeyring(keyring).
+		WithHomeDir(tmConfig.RootDir).
 		WithChainID(chainID).
-		WithInterfaceRegistry(ecfg.InterfaceRegistry).
-		WithCodec(ecfg.Codec).
-		WithLegacyAmino(ecfg.Amino).
-		WithTxConfig(ecfg.TxConfig).
+		WithInterfaceRegistry(config.InterfaceRegistry).
+		WithCodec(config.Codec).
+		WithLegacyAmino(config.Amino).
+		WithTxConfig(config.TxConfig).
 		WithAccountRetriever(authtypes.AccountRetriever{})
 
-	return Context{rootCtx: goCtx, Context: cctx, apiAddress: apiAddress}
+	return Context{goContext: goContext, Context: clientContext, apiAddress: apiAddress}
 }
 
 func (c *Context) GoContext() context.Context {
-	return c.rootCtx
+	return c.goContext
 }
 
 // GenesisTime returns the genesis block time.
@@ -94,7 +92,7 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	ctx, cancel := context.WithTimeout(c.rootCtx, t)
+	ctx, cancel := context.WithTimeout(c.goContext, t)
 	defer cancel()
 
 	var (
@@ -104,8 +102,8 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	for {
 		select {
 		case <-ctx.Done():
-			if c.rootCtx.Err() != nil {
-				return latestHeight, c.rootCtx.Err()
+			if c.goContext.Err() != nil {
+				return latestHeight, c.goContext.Err()
 			}
 			return latestHeight, fmt.Errorf("timeout (%v) exceeded waiting for network to reach height %d. Got to height %d", t, h, latestHeight)
 		case <-ticker.C:
@@ -125,7 +123,7 @@ func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (tim
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	ctx, cancel := context.WithTimeout(c.rootCtx, d)
+	ctx, cancel := context.WithTimeout(c.goContext, d)
 	defer cancel()
 
 	var latestTimestamp time.Time
@@ -195,7 +193,7 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(c.rootCtx, DefaultTimeout)
+	ctx, cancel := context.WithTimeout(c.goContext, DefaultTimeout)
 	defer cancel()
 
 	for {
@@ -222,7 +220,7 @@ func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, 
 // PostData will create and submit PFB transaction containing the namespace and
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
-func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
+func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, blobData []byte) (*sdk.TxResponse, error) {
 	rec, err := c.Keyring.Key(account)
 	if err != nil {
 		return nil, err
@@ -244,7 +242,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 		return nil, err
 	}
 
-	b, err := types.NewBlob(ns, blobData, appconsts.ShareVersionZero)
+	b, err := types.NewV0Blob(ns, blobData)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +250,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	gas := types.DefaultEstimateGas([]uint32{uint32(len(blobData))})
 	opts := blobfactory.FeeTxOpts(gas)
 
-	blobTx, _, err := signer.CreatePayForBlobs(account, []*blob.Blob{b}, opts...)
+	blobTx, _, err := signer.CreatePayForBlobs(account, []*share.Blob{b}, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +295,8 @@ func (c *Context) FillBlock(squareSize int, account string, broadcastMode string
 	shareCount := (squareSize - 1) * squareSize
 
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
-	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
-	return c.PostData(account, broadcastMode, appns.RandomBlobNamespace(), tmrand.Bytes(blobSize))
+	blobSize := share.AvailableBytesFromSparseShares(shareCount)
+	return c.PostData(account, broadcastMode, share.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }
 
 // HeightForTimestamp returns the block height for the first block after a

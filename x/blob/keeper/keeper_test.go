@@ -9,8 +9,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/blob"
-	appns "github.com/celestiaorg/go-square/namespace"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -30,7 +29,7 @@ import (
 func TestPayForBlobs(t *testing.T) {
 	k, _, ctx := CreateKeeper(t)
 	signer := "celestia15drmhzw5kwgenvemy30rqqqgq52axf5wwrruf7"
-	namespace := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	namespace := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	namespaces := [][]byte{namespace.Bytes()}
 	blobData := []byte("blob")
 	blobSizes := []uint32{uint32(len(blobData))}
@@ -65,8 +64,9 @@ func convertToEventPayForBlobs(message proto.Message) (*types.EventPayForBlobs, 
 	return nil, fmt.Errorf("message is not of type EventPayForBlobs")
 }
 
-func createMsgPayForBlob(t *testing.T, signer string, namespace appns.Namespace, blobData []byte) *types.MsgPayForBlobs {
-	blob := blob.New(namespace, blobData, appconsts.ShareVersionZero)
+func createMsgPayForBlob(t *testing.T, signer string, namespace share.Namespace, blobData []byte) *types.MsgPayForBlobs {
+	blob, err := share.NewBlob(namespace, blobData, share.ShareVersionZero, nil)
+	require.NoError(t, err)
 	msg, err := types.NewMsgPayForBlobs(signer, appconsts.LatestVersion, blob)
 	require.NoError(t, err)
 	return msg
