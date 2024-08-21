@@ -19,7 +19,7 @@ If you are a library consumer, a number of the Go APIs have changed since celest
   - celestia-app v1.x had a blob.types package with `CreateCommitment` function. celestia-app v2.x uses `CreateCommitment` function from the [go-square/inclusion](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/inclusion).
 - celestia-app v1.x had a lot of functionality included in the signer. celestia-app v2.x splits a txClient from the signer. See [#3433](https://github.com/celestiaorg/celestia-app/pull/3433).
 
-## v3.0.0 [draft]
+## v3.0.0 [Unreleased]
 
 ### Node operators
 
