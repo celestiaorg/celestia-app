@@ -112,7 +112,7 @@ Share splitting is the process of converting a blob into a share sequence. The p
 
 ## Implementation
 
-See [go-square/shares](https://github.com/celestiaorg/go-square/tree/main/shares).
+See [go-square/shares](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/shares).
 
 ## References
 

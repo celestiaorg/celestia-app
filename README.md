@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
-celestia-app is the software used by [validators](https://docs.celestia.org/nodes/validator-node) and [full consensus nodes](https://docs.celestia.org/nodes/full-consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
+celestia-app is the software used by [validators](https://docs.celestia.org/nodes/validator-node) and [consensus nodes](https://docs.celestia.org/nodes/consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
 
 - [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
 - [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
