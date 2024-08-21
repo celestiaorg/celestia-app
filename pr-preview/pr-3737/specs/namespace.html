@@ -1,0 +1,267 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Namespace - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/namespace.html" class="active"><strong aria-hidden="true">1.2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="../specs/shares.html"><strong aria-hidden="true">1.3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">1.4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/cat_pool.html"><strong aria-hidden="true">1.4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">1.5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/block_validity_rules.html"><strong aria-hidden="true">1.6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler.html"><strong aria-hidden="true">1.7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/ante_handler_v1.html"><strong aria-hidden="true">1.7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler_v2.html"><strong aria-hidden="true">1.7.2.</strong> AnteHandler v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/fraud_proofs.html"><strong aria-hidden="true">1.8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">1.9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">1.10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../specs/data_square_layout.html"><strong aria-hidden="true">1.11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="../specs/resource_pricing.html"><strong aria-hidden="true">1.12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="../specs/multisig.html"><strong aria-hidden="true">1.13.</strong> Multisig</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v1.html"><strong aria-hidden="true">2.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v2.html"><strong aria-hidden="true">2.2.</strong> State Machine Modules v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/parameters.html"><strong aria-hidden="true">3.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/parameters_v1.html"><strong aria-hidden="true">3.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="../specs/parameters_v2.html"><strong aria-hidden="true">3.2.</strong> Parameters v2</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="namespace"><a class="header" href="#namespace">Namespace</a></h1>
+<!-- toc -->
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>One of Celestia's core data structures is the namespace.
+When a user submits a transaction encapsulating a <code>MsgPayForBlobs</code> message to Celestia, they MUST associate each blob with exactly one namespace.
+After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.</p>
+<p>In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a <a href="https://github.com/celestiaorg/nmt">Namespaced Merkle Tree</a>.
+See section 5.2 of the <a href="https://arxiv.org/pdf/1905.09274.pdf">LazyLedger whitepaper</a> for more details.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>A namespace is composed of two fields: <a href="#version">version</a> and <a href="#id">id</a>.
+A namespace is encoded as a byte slice with the version and id concatenated.</p>
+<p><img src="./figures/namespace.svg" alt="namespace" /></p>
+<h3 id="version"><a class="header" href="#version">Version</a></h3>
+<p>The namespace version is an 8-bit unsigned integer that indicates the version of the namespace.
+The version is used to determine the format of the namespace and
+is encoded as a single byte.
+A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.</p>
+<p>Below we explain supported user-specifiable namespace versions,
+however, we note that Celestia MAY utilize other namespace versions for internal use.
+For more details, see the <a href="#reserved-namespaces">Reserved Namespaces</a> section.</p>
+<h4 id="version-0"><a class="header" href="#version-0">Version 0</a></h4>
+<p>The only supported user-specifiable namespace version is <code>0</code>.
+A namespace with version <code>0</code> MUST contain an id with a prefix of 18 leading <code>0</code> bytes.
+The remaining 10 bytes of the id are user-specified.
+Below, we provide examples of valid and invalid encoded user-supplied namespaces with version <code>0</code>.</p>
+<pre><code class="language-go">// Valid encoded namespaces
+0x0000000000000000000000000000000000000001010101010101010101 // valid blob namespace
+0x0000000000000000000000000000000000000011111111111111111111 // valid blob namespace
+
+// Invalid encoded namespaces
+0x0000000000000000000000000111111111111111111111111111111111 // invalid because it does not have 18 leading 0 bytes
+0x1000000000000000000000000000000000000000000000000000000000 // invalid because it does not have version 0
+0x1111111111111111111111111111111111111111111111111111111111 // invalid because it does not have version 0
+</code></pre>
+<p>Any change in the number of leading <code>0</code> bytes in the id of a namespace with version <code>0</code> is considered a backwards incompatible change and MUST be introduced as a new namespace version.</p>
+<h3 id="id"><a class="header" href="#id">ID</a></h3>
+<p>The namespace ID is a 28 byte identifier that uniquely identifies a namespace.
+The ID is encoded as a byte slice of length 28.</p>
+<!-- It may be useful to indicate the endianness of the encoding) -->
+<h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
+<p>Celestia reserves some namespaces for protocol use.
+These namespaces are called &quot;reserved namespaces&quot;.
+Reserved namespaces are used to arrange the contents of the <a href="./data_square_layout.html">data square</a>.
+Applications MUST NOT use reserved namespaces for their blob data.
+Reserved namespaces fall into two categories: <em>Primary</em> and <em>Secondary</em>.</p>
+<ul>
+<li>Primary: Namespaces with values less than or equal to <code>0x00000000000000000000000000000000000000000000000000000000FF</code>. Primary namespaces always have a version of <code>0</code>.</li>
+<li>Secondary: Namespaces with values greater than or equal to <code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00</code>.
+Secondary namespaces always have a version of <code>255</code> (<code>0xFF</code>) so that they are placed after all user specifiable namespaces in a sorted data square.
+The <code>PARITY_SHARE_NAMESPACE</code> uses version <code>255</code> (<code>0xFF</code>) to enable more efficient proof generation within the context of <a href="https://github.com/celestiaorg/nmt">nmt</a>, where it is used in conjunction with the <code>IgnoreMaxNamespace</code> feature.
+The <code>TAIL_PADDING_NAMESPACE</code> uses the version <code>255</code> to ensure that padding shares are always placed at the end of the Celestia data square even if a new user-specifiable version is introduced.</li>
+</ul>
+<p>Below is a list of the current reserved namespaces.
+For additional information on the significance and application of the reserved namespaces, please refer to the <a href="./data_square_layout.html">Data Square Layout</a> specifications.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>category</th><th>value</th><th>description</th></tr></thead><tbody>
+<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Namespace for ordinary Cosmos SDK transactions.</td></tr>
+<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Namespace for intermediate state roots (not currently utilized).</td></tr>
+<tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace for transactions that contain a PayForBlob.</td></tr>
+<tr><td><code>PRIMARY_RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Namespace for padding after all primary reserved namespaces.</td></tr>
+<tr><td><code>MAX_PRIMARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td>Primary</td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Namespace for the highest primary reserved namespace.</td></tr>
+<tr><td><code>MIN_SECONDARY_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00</code></td><td>Namespace for the lowest secondary reserved namespace.</td></tr>
+<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Namespace for padding after all blobs to fill up the original data square.</td></tr>
+<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td>Secondary</td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Namespace for parity shares.</td></tr>
+</tbody></table>
+</div>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<p>Applications MUST refrain from using the <a href="#reserved-namespaces">reserved namespaces</a> for their blob data.</p>
+<p>Celestia does not ensure the prevention of non-reserved namespace collisions.
+Consequently, two distinct applications might use the same namespace.
+It is the responsibility of these applications to be cautious and manage the implications and consequences arising from such namespace collisions.
+Among the potential consequences is the <em>Woods Attack</em>, as elaborated in this forum post: <a href="https://forum.celestia.org/t/woods-attack-on-celestia/59">Woods Attack on Celestia</a>.</p>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See the <a href="https://github.com/celestiaorg/go-square/v2/share/be3c2801e902a0f90f694c062b9c4e6a7e01154e/namespace/namespace.go">namespace implementation in go-square</a>.
+For the most recent version, which may not reflect the current specifications, refer to <a href="https://github.com/celestiaorg/go-square/blob/main/share/namespace.go">the latest namespace code</a>.</p>
+<h2 id="go-definition"><a class="header" href="#go-definition">Go Definition</a></h2>
+<pre><code class="language-go">type Namespace struct {
+	Version uint8
+	ID      []byte
+}
+</code></pre>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<ol>
+<li><a href="../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
+<li><a href="../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
+<li><a href="https://github.com/celestiaorg/nmt">Namespaced Merkle Tree</a></li>
+<li><a href="https://arxiv.org/pdf/1905.09274.pdf">LazyLedger whitepaper</a></li>
+<li><a href="./data_square_layout.html">Data Square Layout</a></li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/data_structures.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/shares.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/data_structures.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/shares.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
