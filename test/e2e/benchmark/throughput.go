@@ -137,6 +137,8 @@ func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
 	manifest.MaxBlockBytes = 8 * testnet.MB
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0}
+	manifest.CelestiaAppVersion = "pr-3737"
+	manifest.TxClientVersion = "pr-3737"
 	return runBenchmarkTest(logger, "TwoNodeBigBlock8MBLatency", manifest)
 }
 
@@ -200,13 +202,13 @@ func LargeNetworkBigBlock8MBLatency(logger *log.Logger) error {
 	manifest.Validators = 50
 	manifest.TxClients = 25
 	manifest.BlobSequences = 1
-	manifest.TimeoutCommit = 11 * time.Second
-	manifest.TimeoutPropose = 80 * time.Second
+	manifest.TimeoutCommit = 1 * time.Second
+	manifest.TimeoutPropose = 11 * time.Second
 	manifest.CelestiaAppVersion = "pr-3737"
 	manifest.TxClientVersion = "pr-3737"
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0}
 	manifest.TestDuration = 10 * time.Minute
-	manifest.ChainID = "36-" + manifest.summary()
+	manifest.ChainID = "37-" + manifest.summary()
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MBLatency", manifest)
 }
