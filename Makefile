@@ -7,7 +7,7 @@ DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspa
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
-GOLANG_CROSS_VERSION  ?= v1.22.5
+GOLANG_CROSS_VERSION  ?= v1.22.6
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -162,13 +162,6 @@ test-coverage:
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
-
-## test-interchain: Run interchain tests in verbose mode. Requires Docker.
-test-interchain:
-	@echo "Reminder: this test uses the latest celestia-app Docker image. If you would like to test recent code changes, re-build the Docker image by running: make build-docker"
-	@echo "--> Running interchain tests"
-	@cd ./test/interchain && go test . -v
-.PHONY: test-interchain
 
 ## txsim-install: Install the tx simulator.
 txsim-install:

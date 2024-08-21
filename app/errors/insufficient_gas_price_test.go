@@ -40,7 +40,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(t, err)
 
-	b, err := blob.NewBlob(share.RandomNamespace(), []byte("hello world"), 0)
+	b, err := blob.NewV0Blob(share.RandomNamespace(), []byte("hello world"))
 	require.NoError(t, err)
 
 	msg, err := blob.NewMsgPayForBlobs(signer.Account(account).Address().String(), appconsts.LatestVersion, b)

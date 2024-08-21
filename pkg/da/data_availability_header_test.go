@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2/share"
+	sh "github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -245,7 +245,7 @@ func TestSquareSize(t *testing.T) {
 // generateShares generates count number of shares with a constant namespace and
 // share contents.
 func generateShares(count int) (shares [][]byte) {
-	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	ns1 := sh.MustNewV0Namespace(bytes.Repeat([]byte{1}, sh.NamespaceVersionZeroIDSize))
 
 	for i := 0; i < count; i++ {
 		share := generateShare(ns1.Bytes())
@@ -256,7 +256,7 @@ func generateShares(count int) (shares [][]byte) {
 }
 
 func generateShare(namespace []byte) (share []byte) {
-	remainder := bytes.Repeat([]byte{0xFF}, appconsts.ShareSize-len(namespace))
+	remainder := bytes.Repeat([]byte{0xFF}, sh.ShareSize-len(namespace))
 	share = append(share, namespace...)
 	share = append(share, remainder...)
 	return share
