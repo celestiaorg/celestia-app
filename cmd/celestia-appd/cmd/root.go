@@ -121,9 +121,6 @@ func setDefaultConsensusParams(command *cobra.Command) error {
 }
 
 func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
-	cfg := sdk.GetConfig()
-	cfg.Seal()
-
 	rootCmd.AddCommand(
 		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
 		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
