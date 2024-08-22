@@ -206,7 +206,6 @@ goreleaser-check:
 		check
 .PHONY: goreleaser-check
 
-
 ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
