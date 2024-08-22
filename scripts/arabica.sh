@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# This script starts a consensus node on Arabica and state syncs to the tip of
+# the chain.
+
 # Stop script execution if an error is encountered
 set -o errexit
 # Stop script execution if an undefined variable is used
