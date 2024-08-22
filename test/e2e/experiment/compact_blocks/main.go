@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "bc218e8" //"a28b9e7"
+	compactBlocksVersion = "db3d1a9" //"a28b9e7"
 )
 
 func main() {
@@ -58,11 +58,11 @@ func Run() error {
 		return err
 	}
 
-	for _, node := range network.Nodes() {
-		if err := node.Instance.EnableBitTwister(); err != nil {
-			return fmt.Errorf("failed to enable bit twister: %v", err)
-		}
-	}
+	// for _, node := range network.Nodes() {
+	// 	if err := node.Instance.EnableBitTwister(); err != nil {
+	// 		return fmt.Errorf("failed to enable bit twister: %v", err)
+	// 	}
+	// }
 
 	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
 	if err != nil {
@@ -128,11 +128,11 @@ func Run() error {
 		return err
 	}
 
-	for _, node := range network.Nodes() {
-		if err = node.Instance.SetLatencyAndJitter(70, 10); err != nil {
-			return fmt.Errorf("failed to set latency and jitter: %v", err)
-		}
-	}
+	// for _, node := range network.Nodes() {
+	// 	if err = node.Instance.SetLatencyAndJitter(70, 10); err != nil {
+	// 		return fmt.Errorf("failed to set latency and jitter: %v", err)
+	// 	}
+	// }
 
 	if err := network.WaitToSync(); err != nil {
 		return err
