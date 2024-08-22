@@ -798,13 +798,16 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 	if app.upgradeHeightV2 == 0 {
 		app.Logger().Debug("v2 upgrade height not set, assuming app version 2")
 		app.mountKeysAndInit(v2)
-	} else if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
-		app.Logger().Debug("snapshot height is greater than or equal to upgrade height, assuming app version 2")
-		app.mountKeysAndInit(v2)
-	} else {
-		app.Logger().Debug("snapshot height is less than upgrade height, assuming app version 1")
-		app.mountKeysAndInit(v1)
+		return app.BaseApp.OfferSnapshot(req)
 	}
 
+	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
+		app.Logger().Debug("snapshot height is greater than or equal to upgrade height, assuming app version 2")
+		app.mountKeysAndInit(v2)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	app.Logger().Debug("snapshot height is less than upgrade height, assuming app version 1")
+	app.mountKeysAndInit(v1)
 	return app.BaseApp.OfferSnapshot(req)
 }
