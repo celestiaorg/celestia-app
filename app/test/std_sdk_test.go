@@ -7,15 +7,21 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -320,8 +326,57 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			} else {
 				require.NoError(t, err)
 			}
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
+			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+			require.NoError(t, err)
 			require.NotNil(t, res)
-			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
+			assert.Equal(t, tt.expectedCode, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
+}
+
+func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
+	t := s.T()
+	t.Run("testnode can query network min gas price", func(t *testing.T) {
+		queryClient := minfee.NewQueryClient(s.cctx.GRPCClient)
+		resp, err := queryClient.NetworkMinGasPrice(s.cctx.GoContext(), &minfee.QueryNetworkMinGasPrice{})
+		require.NoError(t, err)
+		got, err := resp.NetworkMinGasPrice.Float64()
+		require.NoError(t, err)
+		assert.Equal(t, v2.NetworkMinGasPrice, got)
+	})
+	t.Run("testnode can query local min gas price", func(t *testing.T) {
+		serviceClient := nodeservice.NewServiceClient(s.cctx.GRPCClient)
+		resp, err := serviceClient.Config(s.cctx.GoContext(), &nodeservice.ConfigRequest{})
+		require.NoError(t, err)
+		want := "0.002000000000000000utia"
+		assert.Equal(t, want, resp.MinimumGasPrice)
+	})
+
+	t.Run("testnode can query tx status", func(t *testing.T) {
+		// Create a dummy tx hash
+		dummyTxHash := "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+
+		// Create a new tx client
+		txClient := tx.NewTxClient(s.cctx.GRPCClient)
+
+		// Query for the tx status
+		resp, err := txClient.TxStatus(s.cctx.GoContext(), &tx.TxStatusRequest{
+			TxId: dummyTxHash,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, resp.Status, "UNKNOWN")
+
+		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
+		require.NoError(t, err)
+		blobs := blobfactory.RandV0BlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
+		res, err := txSubmitter.SubmitPayForBlob(s.cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
+		require.NoError(t, err)
+
+		resp, err = txClient.TxStatus(s.cctx.GoContext(), &tx.TxStatusRequest{
+			TxId: res.TxHash,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, resp.Status, "COMMITTED")
+	})
 }

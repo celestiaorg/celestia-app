@@ -3,8 +3,8 @@ package app
 import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/go-square/shares"
-	"github.com/celestiaorg/go-square/square"
+	square "github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -22,7 +22,7 @@ func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSq
 		return nil, err
 	}
 
-	return da.ExtendShares(shares.ToBytes(dataSquare))
+	return da.ExtendShares(share.ToBytes(dataSquare))
 }
 
 // EmptyBlock returns true if the given block data is considered empty by the
