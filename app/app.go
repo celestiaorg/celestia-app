@@ -167,6 +167,9 @@ type App struct {
 	// upgradeHeightV2 is used as a coordination mechanism for the height-based
 	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
+	// HACK: remove this once we have a better way to handle versioning while
+	// state syncing
+	stateSyncVersion uint64
 	// MsgGateKeeper is used to define which messages are accepted for a given
 	// app version.
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
@@ -519,11 +522,17 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 		if err != nil {
 			panic(err)
 		}
-		appVersion := app.GetAppVersionFromParamStore(ctx)
-		if appVersion > 0 {
-			app.SetAppVersion(ctx, appVersion)
+		// Info get's called after state sync is complete. Here
+		// we check for this case and set the app version accordingly.
+		if app.stateSyncVersion > 0 {
+			app.SetAppVersion(ctx, app.stateSyncVersion)
 		} else {
-			app.SetAppVersion(ctx, v1)
+			appVersion := app.GetAppVersionFromParamStore(ctx)
+			if appVersion > 0 {
+				app.SetAppVersion(ctx, appVersion)
+			} else {
+				app.SetAppVersion(ctx, v1)
+			}
 		}
 	}
 
@@ -798,12 +807,14 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 	if app.upgradeHeightV2 == 0 {
 		app.Logger().Debug("v2 upgrade height not set, assuming app version 2")
 		app.mountKeysAndInit(v2)
+		app.stateSyncVersion = v2
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
 	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
 		app.Logger().Debug("snapshot height is greater than or equal to upgrade height, assuming app version 2")
 		app.mountKeysAndInit(v2)
+		app.stateSyncVersion = v2
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
