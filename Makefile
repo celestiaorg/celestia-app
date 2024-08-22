@@ -207,3 +207,18 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
+
+## enable-bbr: Enable BBR congestion control algorithm. Only works on Linux.
+enable-bbr:
+	@echo "Configuring system to use BBR..."
+	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	    echo "BBR is not enabled. Configuring BBR..."; \
+	    sudo modprobe tcp_bbr; \
+	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf; \
+	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf; \
+	    sudo sysctl -p; \
+	    echo "BBR has been enabled."; \
+	else \
+	    echo "BBR is already enabled."; \
+	fi
+.PHONY: enable-bbr
