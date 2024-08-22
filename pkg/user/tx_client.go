@@ -56,12 +56,10 @@ type BroadcastTxError struct {
 	Code   uint32
 	// ErrorLog is the error output of the app's logger
 	ErrorLog string
-	// Err is the error that occurred during broadcasting
-	Err error
 }
 
 func (e *BroadcastTxError) Error() string {
-	return fmt.Sprintf("%v", e.Err)
+	return fmt.Sprintf("broadcast tx error: %s", e.ErrorLog)
 }
 
 // ExecutionError is an error that occurs when a transaction gets executed.
@@ -70,12 +68,10 @@ type ExecutionError struct {
 	Code   uint32
 	// ErrorLog is the error output of the app's logger
 	ErrorLog string
-	// Err is the error that occurred during execution
-	Err error
 }
 
 func (e *ExecutionError) Error() string {
-	return fmt.Sprintf("%v", e.Err)
+	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
 }
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
@@ -386,7 +382,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
 			Code:     resp.TxResponse.Code,
-			Err:      fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog),
 			ErrorLog: resp.TxResponse.RawLog,
 		}
 		return resp.TxResponse, broadcastTxErr
@@ -494,7 +489,6 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 						TxHash:   txHash,
 						Code:     resp.ExecutionCode,
 						ErrorLog: resp.Error,
-						Err:      fmt.Errorf("execution failed with code %d", resp.ExecutionCode),
 					}
 					return nil, executionErr
 				}
