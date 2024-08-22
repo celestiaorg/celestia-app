@@ -9,12 +9,18 @@ jobs:
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: actions/checkout@v4
         with:
-          version: latest
-          args: check
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Create .release-env file
+        run: |-
+          echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
+      - name: Check the .goreleaser.yaml config file
+        run: make goreleaser-check
 
   goreleaser:
     needs: goreleaser-check
