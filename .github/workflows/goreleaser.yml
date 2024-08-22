@@ -9,12 +9,11 @@ jobs:
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: actions/checkout@v4
         with:
-          version: '~> v2'
-          args: check
+          fetch-depth: 0
+      - name: Check the .goreleaser.yaml config file
+        run: make goreleaser-check
 
   goreleaser:
     needs: goreleaser-check
