@@ -31,6 +31,8 @@ const (
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"
 	txsimRootDir   = "/home/celestia"
+	// the version from which the bbr flag was introduced
+	appVersiopnWithBBRFlag = "v2.1.2"
 )
 
 type Node struct {
@@ -149,7 +151,7 @@ func NewNode(
 		return nil, err
 	}
 	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
-	if !enableBBR {
+	if !enableBBR && equalOrHigher(version, appVersiopnWithBBRFlag) {
 		args = append(args, "--force-no-bbr")
 	}
 	if upgradeHeight != 0 {

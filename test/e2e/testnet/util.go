@@ -61,3 +61,14 @@ func GetGrafanaInfoFromEnvVar() *GrafanaInfo {
 		Token:    os.Getenv("GRAFANA_TOKEN"),
 	}
 }
+
+func equalOrHigher(v1, v2 string) bool {
+
+	if v1 >= v2 {
+		print(v1, v2, "equalOrHigher", true)
+		return true
+	}
+	print(v1, v2, "equalOrHigher", false)
+	return false
+
+}
