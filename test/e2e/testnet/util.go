@@ -63,7 +63,10 @@ func GetGrafanaInfoFromEnvVar() *GrafanaInfo {
 }
 
 func equalOrHigher(v1, v2 string) bool {
-
+	latest, err := GetLatestVersion()
+	if err != nil && v1 == latest {
+		return true
+	}
 	if v1 >= v2 {
 		print(v1, v2, "equalOrHigher", true)
 		return true
