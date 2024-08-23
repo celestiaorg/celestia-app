@@ -26,9 +26,11 @@ type Testnet struct {
 	keygen    *keyGenerator
 	grafana   *GrafanaInfo
 	txClients []*TxSim
+	enableBBR bool
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
+	enableBBR bool,
 	genesisModifiers ...genesis.Modifier) (
 	*Testnet, error,
 ) {
@@ -38,11 +40,12 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 	}
 
 	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
+		seed:      seed,
+		nodes:     make([]*Node, 0),
+		genesis:   genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		keygen:    newKeyGenerator(seed),
+		grafana:   grafana,
+		enableBBR: enableBBR,
 	}, nil
 }
 
@@ -59,7 +62,7 @@ func (t *Testnet) CreateGenesisNode(version string, selfDelegation, upgradeHeigh
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version, 0,
 		selfDelegation, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana)
+		t.grafana, t.enableBBR)
 	if err != nil {
 		return err
 	}
@@ -237,7 +240,7 @@ func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, r
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
 		startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana)
+		t.grafana, t.enableBBR)
 	if err != nil {
 		return err
 	}

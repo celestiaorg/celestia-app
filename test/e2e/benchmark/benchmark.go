@@ -21,7 +21,7 @@ type BenchmarkTest struct {
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// create a new testnet
 	testNet, err := testnet.New(name, seed,
-		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
+		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID, false,
 		manifest.GetGenesisModifiers()...)
 	if err != nil {
 		return nil, err
@@ -46,6 +46,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 			if err := node.Instance.EnableBitTwister(); err != nil {
 				return fmt.Errorf("failed to enable bit twister: %v", err)
 			}
+
 		}
 	}
 	// obtain the GRPC endpoints of the validators
