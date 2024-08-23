@@ -154,7 +154,6 @@ func NewNode(
 	}
 	if upgradeHeight != 0 {
 		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
-
 	}
 
 	err = instance.SetArgs(args...)

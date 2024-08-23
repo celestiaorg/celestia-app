@@ -46,7 +46,6 @@ func (b *BenchmarkTest) SetupNodes() error {
 			if err := node.Instance.EnableBitTwister(); err != nil {
 				return fmt.Errorf("failed to enable bit twister: %v", err)
 			}
-
 		}
 	}
 	// obtain the GRPC endpoints of the validators
