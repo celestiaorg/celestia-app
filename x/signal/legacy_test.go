@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -56,7 +55,6 @@ type LegacyUpgradeTestSuite struct {
 
 	mut            sync.Mutex
 	accountCounter int
-	serviceClient  sdktx.ServiceClient
 }
 
 // SetupSuite inits a standard chain, with the only exception being a
@@ -94,9 +92,6 @@ func (s *LegacyUpgradeTestSuite) SetupSuite() {
 
 	// Set the gov module address
 	s.govModuleAddress = acc.GetAddress().String()
-	// FIXME: Temporary way of querying the raw log.
-	// TxStatus will natively support this in the future.
-	s.serviceClient = sdktx.NewServiceClient(s.cctx.GRPCClient)
 }
 
 func (s *LegacyUpgradeTestSuite) unusedAccount() string {
