@@ -20,7 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 func TestTxClientTestSuite(t *testing.T) {
