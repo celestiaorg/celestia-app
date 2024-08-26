@@ -77,6 +77,22 @@ See <https://docs.celestia.org/nodes/celestia-app> for more information.
 
 ## Usage
 
+First, make sure that the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm is enabled in the
+system's kernel. The result should contain `bbr`:
+
+```sh
+sysctl net.ipv4.tcp_congestion_control
+```
+
+If not, enable it on Linux by calling the `make use-bbr` or by running:
+
+```sh
+sudo modprobe tcp_bbr
+net.core.default_qdisc=fq
+net.ipv4.tcp_congestion_control=bbr
+sudo sysctl -p
+```
+
 ```sh
 # Print help
 celestia-appd --help
