@@ -1,0 +1,391 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Resource Pricing - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../specs/data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="../specs/shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../specs/data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="../specs/resource_pricing.html" class="active"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="../specs/multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="../specs/parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="resource-pricing"><a class="header" href="#resource-pricing">Resource Pricing</a></h1>
+<p>For all standard cosmos-sdk transactions (staking, IBC, etc), Celestia utilizes
+the <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basics/gas-fees.md">default cosmos-sdk mechanisms</a> for pricing resources. This involves
+incrementing a gas counter during transaction execution each time the state is
+read from/written to, or when specific costly operations occur such as signature
+verification or inclusion of data.</p>
+<pre><code class="language-go">// GasMeter interface to track gas consumption
+type GasMeter interface {
+	GasConsumed() Gas
+	GasConsumedToLimit() Gas
+	GasRemaining() Gas
+	Limit() Gas
+	ConsumeGas(amount Gas, descriptor string)
+	RefundGas(amount Gas, descriptor string)
+	IsPastLimit() bool
+	IsOutOfGas() bool
+	String() string
+}
+</code></pre>
+<p>We can see how this gas meter is used in practice by looking at the store.
+Notice where gas is consumed each time we write or read, specifically a flat
+cost for initiating the action followed by a prorated cost for the amount of
+data read or written.</p>
+<pre><code class="language-go">// Implements KVStore.
+func (gs *Store) Get(key []byte) (value []byte) {
+	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
+	value = gs.parent.Get(key)
+
+	// TODO overflow-safe math?
+	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostPerByte*types.Gas(len(key)), types.GasReadPerByteDesc)
+	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasReadPerByteDesc)
+
+	return value
+}
+
+// Implements KVStore.
+func (gs *Store) Set(key []byte, value []byte) {
+	types.AssertValidKey(key)
+	types.AssertValidValue(value)
+	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
+	// TODO overflow-safe math?
+	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostPerByte*types.Gas(len(key)), types.GasWritePerByteDesc)
+	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostPerByte*types.Gas(len(value)), types.GasWritePerByteDesc)
+	gs.parent.Set(key, value)
+}
+</code></pre>
+<p>The configuration for the gas meter used by Celestia is as follows.</p>
+<pre><code class="language-go">// KVGasConfig returns a default gas config for KVStores.
+func KVGasConfig() GasConfig {
+	return GasConfig{
+		HasCost:          1000,
+		DeleteCost:       1000,
+		ReadCostFlat:     1000,
+		ReadCostPerByte:  3,
+		WriteCostFlat:    2000,
+		WriteCostPerByte: 30,
+		IterNextCostFlat: 30,
+	}
+}
+
+// TransientGasConfig returns a default gas config for TransientStores.
+func TransientGasConfig() GasConfig {
+	return GasConfig{
+		HasCost:          100,
+		DeleteCost:       100,
+		ReadCostFlat:     100,
+		ReadCostPerByte:  0,
+		WriteCostFlat:    200,
+		WriteCostPerByte: 3,
+		IterNextCostFlat: 3,
+	}
+}
+</code></pre>
+<p>Two notable gas consumption events that are not Celestia specific are the total
+bytes used for a transaction and the verification of the signature</p>
+<pre><code class="language-go">func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	sigTx, ok := tx.(authsigning.SigVerifiableTx)
+	if !ok {
+		return ctx, sdkerrors.Wrap(sdkerrors.ErrTxDecode, &quot;invalid tx type&quot;)
+	}
+	params := cgts.ak.GetParams(ctx)
+
+	ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*sdk.Gas(len(ctx.TxBytes())), &quot;txSize&quot;)
+    ...
+}
+
+// DefaultSigVerificationGasConsumer is the default implementation of SignatureVerificationGasConsumer. It consumes gas
+// for signature verification based upon the public key type. The cost is fetched from the given params and is matched
+// by the concrete type.
+func DefaultSigVerificationGasConsumer(
+	meter sdk.GasMeter, sig signing.SignatureV2, params types.Params,
+) error {
+	pubkey := sig.PubKey
+	switch pubkey := pubkey.(type) {
+	case *ed25519.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostED25519, &quot;ante verify: ed25519&quot;)
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidPubKey, &quot;ED25519 public keys are unsupported&quot;)
+
+	case *secp256k1.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostSecp256k1, &quot;ante verify: secp256k1&quot;)
+		return nil
+
+	case *secp256r1.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostSecp256r1(), &quot;ante verify: secp256r1&quot;)
+		return nil
+
+	case multisig.PubKey:
+		multisignature, ok := sig.Data.(*signing.MultiSignatureData)
+		if !ok {
+			return fmt.Errorf(&quot;expected %T, got, %T&quot;, &amp;signing.MultiSignatureData{}, sig.Data)
+		}
+		err := ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params, sig.Sequence)
+		if err != nil {
+			return err
+		}
+		return nil
+
+	default:
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidPubKey, &quot;unrecognized public key type: %T&quot;, pubkey)
+	}
+}
+</code></pre>
+<p>Since gas is consumed in this fashion and many of the cosmos-sdk transactions
+are composable, any given transaction can have a large window of possible gas
+consumption. For example, vesting accounts use more bytes of state than a normal
+account, so more gas is consumed each time a vesting account is read from or
+updated.</p>
+<h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
+<p>There are four parameters that can be modified via governance to modify gas
+usage.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default Value</th><th>Description</th><th>Changeable via Governance</th></tr></thead><tbody>
+<tr><td>consensus/max_gas</td><td>-1</td><td>The maximum gas allowed in a block. Default of -1 means this value is not capped.</td><td>True</td></tr>
+<tr><td>auth/tx_size_cost_per_byte</td><td>10</td><td>Gas used per each byte used by the transaction.</td><td>True</td></tr>
+<tr><td>auth/sig_verify_cost_secp256k1</td><td>1000</td><td>Gas used per verifying a secp256k1 signature</td><td>True</td></tr>
+<tr><td>blob/gas_per_blob_byte</td><td>8</td><td>Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details.</td><td>True</td></tr>
+</tbody></table>
+</div>
+<h2 id="gas-limit"><a class="header" href="#gas-limit">Gas Limit</a></h2>
+<p>The gas limit must be included in each transaction. If the transaction exceeds
+this gas limit during the execution of the transaction, then the transaction
+will fail.</p>
+<blockquote>
+<p>Note: When a transaction is submitted to the mempool, the transaction is not
+fully executed. This can lead to a transaction getting accepted by the mempool
+and eventually included in a block, yet failing because the transaction ends
+up exceeding the gas limit.</p>
+</blockquote>
+<p>Fees are not currently refunded. While users can specify a gas price, the total
+fee is then calculated by simply multiplying the gas limit by the gas price. The
+entire fee is then deducted from the transaction no matter what.</p>
+<h2 id="fee-market"><a class="header" href="#fee-market">Fee market</a></h2>
+<p>By default, Celestia's consensus nodes prioritize transactions in their mempools
+based on gas price. In version 1, there was no enforced minimum gas price, which
+allowed each consensus node to independently set its own minimum gas price in
+<code>app.toml</code>. This even permitted a gas price of 0, thereby creating the
+possibility of secondary markets. In version 2, Celestia introduces a network
+minimum gas price, a consensus constant, unaffected by individual node
+configurations. Although nodes retain the freedom to increase gas prices
+locally, all transactions in a block must be greater than or equal to the network
+minimum threshold. If a block is proposed that contains a tx with a gas price
+below the network min gas price, the block will be rejected as invalid.</p>
+<h2 id="estimating-pfb-cost"><a class="header" href="#estimating-pfb-cost">Estimating PFB cost</a></h2>
+<p>Generally, the gas used by a PFB transaction involves a static &quot;fixed cost&quot; and
+a dynamic cost based on the size of each blob involved in the transaction.</p>
+<blockquote>
+<p>Note: For a general use case of a normal account submitting a PFB, the static
+costs can be treated as such. However, due to the description above of how gas
+works in the cosmos-sdk this is not always the case. Notably, if we use a
+vesting account or the <code>feegrant</code> modules, then these static costs change.</p>
+</blockquote>
+<p>The &quot;fixed cost&quot; is an approximation of the gas consumed by operations outside
+the function <code>GasToConsume</code> (for example, signature verification, tx size, read
+access to accounts), which has a default value of 65,000.</p>
+<blockquote>
+<p>Note: the first transaction sent by an account (sequence number == 0) has an
+additional one time gas cost of 10,000. If this is the case, this should be
+accounted for.</p>
+</blockquote>
+<p>Each blob in the PFB contributes to the total gas cost based on its size. The
+function <code>GasToConsume</code> calculates the total gas consumed by all the blobs
+involved in a PFB, where each blob's gas cost is computed by first determining
+how many shares are needed to store the blob size. Then, it computes the product
+of the number of shares, the number of bytes per share, and the <code>gasPerByte</code>
+parameter. Finally, it adds a static amount per blob.</p>
+<p>The gas cost per blob byte and gas cost per transaction byte are parameters that
+could potentially be adjusted through the system's governance mechanisms. Hence,
+actual costs may vary depending on the current settings of these parameters.</p>
+<h2 id="tracing-gas-consumption"><a class="header" href="#tracing-gas-consumption">Tracing Gas Consumption</a></h2>
+<p>This figure plots each instance of the gas meter being incremented as a colored
+dot over the execution lifecycle of a given transaction. The y-axis is units of
+gas and the x-axis is cumulative gas consumption. The legend shows which color
+indicates what the cause of the gas consumption was.</p>
+<p>This code used to trace gas consumption can be found in the <code>tools/gasmonitor</code> of the branch for <a href="https://github.com/celestiaorg/celestia-app/pull/2131">#2131</a>, and the script to generate the plots below can be found <a href="https://gist.github.com/evan-forbes/948c8cf574f2f50b101c89a95ee1d43c">here</a> (warning: this script will not be maintained).</p>
+<h3 id="msgsend"><a class="header" href="#msgsend">MsgSend</a></h3>
+<p>Here we can see the gas consumption trace of a common send transaction for
+1<code>utia</code></p>
+<p><img src="./figures/gas_consumption/msg_send_trace.png" alt="MsgSend" /></p>
+<h3 id="msgcreatevalidator"><a class="header" href="#msgcreatevalidator">MsgCreateValidator</a></h3>
+<p>Here we examine a more complex transaction.</p>
+<p><img src="./figures/gas_consumption/msg_create_validator_trace.png" alt="MsgCreateValidator" /></p>
+<h3 id="pfb-with-one-single-share-blob"><a class="header" href="#pfb-with-one-single-share-blob">PFB with One Single Share Blob</a></h3>
+<p><img src="./figures/gas_consumption/single_share_pfb_trace.png" alt="MsgPayForBlobs Single Share" /></p>
+<h3 id="pfb-with-two-single-share-blobs"><a class="header" href="#pfb-with-two-single-share-blobs">PFB with Two Single Share Blobs</a></h3>
+<p>This PFB transaction contains two single share blobs. Notice the gas cost for
+<code>pay for blob</code> is double what it is above due to two shares being used, and
+there is also additional cost from <code>txSize</code> since the transaction itself is
+larger to accommodate the second set of metadata in the PFB.</p>
+<p><img src="./figures/gas_consumption/pfb_with_two_single_share_blobs_trace.png" alt="MsgPayForBlobs with Two Blobs" /></p>
+<h3 id="100kib-single-blob-pfb"><a class="header" href="#100kib-single-blob-pfb">100KiB Single Blob PFB</a></h3>
+<p>Here we can see how the cost of a PFB with a large blob (100KiB) is quickly dominated by
+the cost of the blob.</p>
+<p><img src="./figures/gas_consumption/100kib_pfb_trace.png" alt="MsgPayForBlobs with One Large Blob" /></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../specs/data_square_layout.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../specs/multisig.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../specs/data_square_layout.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../specs/multisig.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

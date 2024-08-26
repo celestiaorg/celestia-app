@@ -1,0 +1,480 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Data Structures - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../specs/data_structures.html" class="active"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="../specs/shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../specs/data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="../specs/resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="../specs/multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="../specs/parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="data-structures"><a class="header" href="#data-structures">Data Structures</a></h1>
+<!-- toc -->
+<h2 id="data-structures-overview"><a class="header" href="#data-structures-overview">Data Structures Overview</a></h2>
+<p><img src="./figures/block_data_structures.svg" alt="fig: Block data structures." /></p>
+<h2 id="type-aliases"><a class="header" href="#type-aliases">Type Aliases</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th></tr></thead><tbody>
+<tr><td><code>Amount</code></td><td><code>uint64</code></td></tr>
+<tr><td><code>Graffiti</code></td><td><code>byte[MAX_GRAFFITI_BYTES]</code></td></tr>
+<tr><td><a href="#hashdigest"><code>HashDigest</code></a></td><td><code>byte[32]</code></td></tr>
+<tr><td><code>Height</code></td><td><code>int64</code></td></tr>
+<tr><td><code>Nonce</code></td><td><code>uint64</code></td></tr>
+<tr><td><code>Round</code></td><td><code>int32</code></td></tr>
+<tr><td><code>StateSubtreeID</code></td><td><code>byte</code></td></tr>
+<tr><td><a href="#timestamp"><code>Timestamp</code></a></td><td><code>google.protobuf.Timestamp</code></td></tr>
+<tr><td><code>VotingPower</code></td><td><code>uint64</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="blockchain-data-structures"><a class="header" href="#blockchain-data-structures">Blockchain Data Structures</a></h2>
+<h3 id="block"><a class="header" href="#block">Block</a></h3>
+<p>Blocks are the top-level data structure of the Celestia blockchain.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>header</code></td><td><a href="#header">Header</a></td><td>Block header. Contains primarily identification info and commitments.</td></tr>
+<tr><td><code>availableDataHeader</code></td><td><a href="#availabledataheader">AvailableDataHeader</a></td><td>Header of available data. Contains commitments to erasure-coded data.</td></tr>
+<tr><td><code>availableData</code></td><td><a href="#availabledata">AvailableData</a></td><td>Data that is erasure-coded for availability.</td></tr>
+<tr><td><code>lastCommit</code></td><td><a href="#commit">Commit</a></td><td>Previous block's Tendermint commit.</td></tr>
+</tbody></table>
+</div>
+<h3 id="header"><a class="header" href="#header">Header</a></h3>
+<p>Block header, which is fully downloaded by both full clients and light clients.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>version</code></td><td><a href="#consensusversion">ConsensusVersion</a></td><td>The consensus version struct.</td></tr>
+<tr><td><code>chainID</code></td><td><code>string</code></td><td>The <code>CHAIN_ID</code>.</td></tr>
+<tr><td><code>height</code></td><td><a href="#type-aliases">Height</a></td><td>Block height. The genesis block is at height <code>1</code>.</td></tr>
+<tr><td><code>timestamp</code></td><td><a href="#timestamp">Timestamp</a></td><td>Timestamp of this block.</td></tr>
+<tr><td><code>lastHeaderHash</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Previous block's header hash.</td></tr>
+<tr><td><code>lastCommitHash</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Previous block's Tendermint commit hash.</td></tr>
+<tr><td><code>consensusHash</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Hash of <a href="#consensus-parameters">consensus parameters</a> for this block.</td></tr>
+<tr><td><code>AppHash</code></td><td><a href="#hashdigest">HashDigest</a></td><td>The <a href="#state">state root</a> after the previous block's transactions are applied.</td></tr>
+<tr><td><code>availableDataOriginalSharesUsed</code></td><td><code>uint64</code></td><td>The number of shares used in the <a href="#arranging-available-data-into-shares">original data square</a> that are not <a href="./consensus.html#reserved-namespace-ids">tail padding</a>.</td></tr>
+<tr><td><code>availableDataRoot</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Root of <a href="#availabledataheader">commitments to erasure-coded data</a>.</td></tr>
+<tr><td><code>proposerAddress</code></td><td><a href="#address">Address</a></td><td>Address of this block's proposer.</td></tr>
+</tbody></table>
+</div>
+<p>The size of the <a href="#arranging-available-data-into-shares">original data square</a>, <code>availableDataOriginalSquareSize</code>, isn't explicitly declared in the block header. Instead, it is implicitly computed as the smallest power of 2 whose square is at least <code>availableDataOriginalSharesUsed</code> (in other words, the smallest power of 4 that is at least <code>availableDataOriginalSharesUsed</code>).</p>
+<p>The header hash is the <a href="#hashing">hash</a> of the <a href="#serialization">serialized</a> header.</p>
+<h3 id="availabledataheader"><a class="header" href="#availabledataheader">AvailableDataHeader</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>rowRoots</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Commitments to all erasure-coded data.</td></tr>
+<tr><td><code>colRoots</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Commitments to all erasure-coded data.</td></tr>
+</tbody></table>
+</div>
+<p>The number of row/column roots of the original data <a href="data_structures.html#share">shares</a> in <a href="#arranging-available-data-into-shares">square layout</a> for this block. The <code>availableDataRoot</code> of the <a href="#header">header</a> is computed using the compact row and column roots as described <a href="#2d-reed-solomon-encoding-scheme">here</a>.</p>
+<p>The number of row and column roots is each <code>availableDataOriginalSquareSize * 2</code>, and must be a power of 2. Note that the minimum <code>availableDataOriginalSquareSize</code> is 1 (not 0), therefore the number of row and column roots are each at least 2.</p>
+<p>Implementations can prune rows containing only <a href="./consensus.html#reserved-namespace-ids">tail padding</a> as they are implicitly available.</p>
+<h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
+<p>Data that is <a href="#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>transactions</code></td><td><a href="#transaction">Transaction</a></td><td>Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances.</td></tr>
+<tr><td><code>payForBlobData</code></td><td><a href="#payforblobdata">PayForBlobData</a></td><td>PayForBlob data. Transactions that pay for blobs to be included.</td></tr>
+<tr><td><code>blobData</code></td><td><a href="#blobdata">BlobData</a></td><td>Blob data is arbitrary user submitted data that will be published to the Celestia blockchain.</td></tr>
+</tbody></table>
+</div>
+<h3 id="commit"><a class="header" href="#commit">Commit</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>height</code></td><td><a href="#type-aliases">Height</a></td><td>Block height.</td></tr>
+<tr><td><code>round</code></td><td><a href="#type-aliases">Round</a></td><td>Round. Incremented on view change.</td></tr>
+<tr><td><code>headerHash</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Header hash of the previous block.</td></tr>
+<tr><td><code>signatures</code></td><td><a href="#commitsig">CommitSig</a><code>[]</code></td><td>List of signatures.</td></tr>
+</tbody></table>
+</div>
+<h3 id="timestamp"><a class="header" href="#timestamp">Timestamp</a></h3>
+<p>Timestamp is a <a href="#type-aliases">type alias</a>.</p>
+<p>Celestia uses <a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#google.protobuf.Timestamp"><code>google.protobuf.Timestamp</code></a> to represent time.</p>
+<h3 id="hashdigest"><a class="header" href="#hashdigest">HashDigest</a></h3>
+<p>HashDigest is a <a href="#type-aliases">type alias</a>.</p>
+<p>Output of the <a href="#hashing">hashing</a> function. Exactly 256 bits (32 bytes) long.</p>
+<h3 id="transactionfee"><a class="header" href="#transactionfee">TransactionFee</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>tipRate</code></td><td><code>uint64</code></td><td>The tip rate for this transaction.</td></tr>
+</tbody></table>
+</div>
+<p>Abstraction over transaction fees.</p>
+<h3 id="address"><a class="header" href="#address">Address</a></h3>
+<p>Celestia supports <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a> keys where <a href="https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-028-public-key-addresses.md">addresses</a> are 20 bytes in length.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>AccAddress</code></td><td><code>[20]byte</code></td><td>AccAddress a wrapper around bytes meant to represent an account address</td></tr>
+</tbody></table>
+</div>
+<h3 id="commitsig"><a class="header" href="#commitsig">CommitSig</a></h3>
+<pre><code class="language-C++">enum CommitFlag : uint8_t {
+    CommitFlagAbsent = 1,
+    CommitFlagCommit = 2,
+    CommitFlagNil = 3,
+};
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>commitFlag</code></td><td><code>CommitFlag</code></td><td></td></tr>
+<tr><td><code>validatorAddress</code></td><td><a href="#address">Address</a></td><td></td></tr>
+<tr><td><code>timestamp</code></td><td><a href="#timestamp">Timestamp</a></td><td></td></tr>
+<tr><td><code>signature</code></td><td><a href="#signature">Signature</a></td><td></td></tr>
+</tbody></table>
+</div>
+<h3 id="signature"><a class="header" href="#signature">Signature</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>r</code></td><td><code>byte[32]</code></td><td><code>r</code> value of the signature.</td></tr>
+<tr><td><code>s</code></td><td><code>byte[32]</code></td><td><code>s</code> value of signature.</td></tr>
+</tbody></table>
+</div>
+<h2 id="consensusversion"><a class="header" href="#consensusversion">ConsensusVersion</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>block</code></td><td><code>uint64</code></td><td>The <code>VERSION_BLOCK</code>.</td></tr>
+<tr><td><code>app</code></td><td><code>uint64</code></td><td>The app version.</td></tr>
+</tbody></table>
+</div>
+<h2 id="serialization"><a class="header" href="#serialization">Serialization</a></h2>
+<p>Objects that are committed to or signed over require a canonical serialization. This is done using a deterministic (and thus, bijective) variant of protobuf defined <a href="https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-027-deterministic-protobuf-serialization.md">here</a>.</p>
+<p>Note: there are two requirements for a serialization scheme, should this need to be changed:</p>
+<ol>
+<li>Must be bijective.</li>
+<li>Serialization must include the length of dynamic structures (e.g. arrays with variable length).</li>
+</ol>
+<h2 id="hashing"><a class="header" href="#hashing">Hashing</a></h2>
+<!-- disable markdown link check for doi.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
+<p>All protocol-level hashing is done using SHA-2-256 as defined in <a href="https://doi.org/10.6028/NIST.FIPS.180-4">FIPS 180-4</a>. SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.</p>
+<!-- markdown-link-check-enable -->
+<p>Libraries implementing SHA-2-256 are available in Go (<a href="https://pkg.go.dev/crypto/sha256">https://pkg.go.dev/crypto/sha256</a>) and Rust (<a href="https://docs.rs/sha2">https://docs.rs/sha2</a>).</p>
+<p>Unless otherwise indicated explicitly, objects are first <a href="#serialization">serialized</a> before being hashed.</p>
+<h2 id="merkle-trees"><a class="header" href="#merkle-trees">Merkle Trees</a></h2>
+<p>Merkle trees are used to authenticate various pieces of data across the Celestia stack, including transactions, blobs, the validator set, etc. This section provides an overview of the different tree types used, and specifies how to construct them.</p>
+<h3 id="binary-merkle-tree"><a class="header" href="#binary-merkle-tree">Binary Merkle Tree</a></h3>
+<p>Binary Merkle trees are constructed in the same fashion as described in <a href="https://tools.ietf.org/html/rfc6962">Certificate Transparency (RFC-6962)</a>, except for using <a href="#hashing">a different hashing function</a>. Leaves are hashed once to get leaf node values and internal node values are the hash of the concatenation of their children (either leaf nodes or other internal nodes).</p>
+<p>Nodes contain a single field:</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>v</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Node value.</td></tr>
+</tbody></table>
+</div>
+<p>The base case (an empty tree) is defined as the <a href="#hashing">hash</a> of the empty string:</p>
+<pre><code class="language-C++">node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+</code></pre>
+<p>For leaf node <code>node</code> of leaf data <code>d</code>:</p>
+<pre><code class="language-C++">node.v = h(0x00, serialize(d))
+</code></pre>
+<p>For internal node <code>node</code> with children <code>l</code> and <code>r</code>:</p>
+<pre><code class="language-C++">node.v = h(0x01, l.v, r.v)
+</code></pre>
+<p>Note that rather than duplicating the last node if there are an odd number of nodes (the <a href="https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/consensus/merkle.cpp#L9-L43">Bitcoin design</a>), trees are allowed to be imbalanced. In other words, the height of each leaf may be different. For an example, see Section 2.1.3 of <a href="https://tools.ietf.org/html/rfc6962#section-2.1.3">Certificate Transparency (RFC-6962)</a>.</p>
+<p>Leaves and internal nodes are hashed differently: the one-byte <code>0x00</code> is prepended for leaf nodes while <code>0x01</code> is prepended for internal nodes. This avoids a second-preimage attack <a href="https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack">where internal nodes are presented as leaves</a> trees with leaves at different heights.</p>
+<h4 id="binarymerkletreeinclusionproof"><a class="header" href="#binarymerkletreeinclusionproof">BinaryMerkleTreeInclusionProof</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>siblings</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Sibling hash values, ordered starting from the leaf's neighbor.</td></tr>
+</tbody></table>
+</div>
+<p>A proof for a leaf in a <a href="#binary-merkle-tree">binary Merkle tree</a>, as per Section 2.1.1 of <a href="https://tools.ietf.org/html/rfc6962#section-2.1.1">Certificate Transparency (RFC-6962)</a>.</p>
+<h3 id="namespace-merkle-tree"><a class="header" href="#namespace-merkle-tree">Namespace Merkle Tree</a></h3>
+<!-- disable markdown link check for bitcointalk.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
+<p><a href="./shares.html">Shares</a> in Celestia are associated with a provided <em>namespace</em>. The Namespace Merkle Tree (NMT) is a variation of the <a href="https://eprint.iacr.org/2018/642">Merkle Interval Tree</a>, which is itself an extension of the <a href="https://bitcointalk.org/index.php?topic=845978.0">Merkle Sum Tree</a>. It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.</p>
+<!-- markdown-link-check-enable -->
+<p>Nodes contain three fields:</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>n_min</code></td><td><a href="./namespace.html">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
+<tr><td><code>n_max</code></td><td><a href="./namespace.html">Namespace</a></td><td>Max namespace in subtree rooted at this node.</td></tr>
+<tr><td><code>v</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Node value.</td></tr>
+</tbody></table>
+</div>
+<p>The base case (an empty tree) is defined as:</p>
+<pre><code class="language-C++">node.n_min = 0x0000000000000000
+node.n_max = 0x0000000000000000
+node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+</code></pre>
+<p>For leaf node <code>node</code> of <a href="./shares.html">share</a> data <code>d</code>:</p>
+<pre><code class="language-C++">node.n_min = d.namespace
+node.n_max = d.namespace
+node.v = h(0x00, d.namespace, d.rawData)
+</code></pre>
+<p>The <code>namespace</code> blob field here is the namespace of the leaf, which is a <a href="consensus.html#system-parameters"><code>NAMESPACE_SIZE</code></a>-long byte array.</p>
+<p>Leaves in an NMT <strong>must</strong> be lexicographically sorted by namespace in ascending order.</p>
+<p>For internal node <code>node</code> with children <code>l</code> and <code>r</code>:</p>
+<pre><code class="language-C++">node.n_min = min(l.n_min, r.n_min)
+if l.n_min == PARITY_SHARE_NAMESPACE
+  node.n_max = PARITY_SHARE_NAMESPACE
+else if r.n_min == PARITY_SHARE_NAMESPACE
+  node.n_max = l.n_max
+else
+  node.n_max = max(l.n_max, r.n_max)
+node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
+</code></pre>
+<p>Note that the above snippet leverages the property that leaves are sorted by namespace: if <code>l.n_min</code> is <a href="consensus.html#reserved-state-subtree-ids"><code>PARITY_SHARE_NAMESPACE</code></a>, so must <code>{l,r}.n_max</code>. By construction, either both the min and max namespace of a node will be <a href="consensus.html#reserved-state-subtree-ids"><code>PARITY_SHARE_NAMESPACE</code></a>, or neither will: if <code>r.n_min</code> is <a href="consensus.html#reserved-state-subtree-ids"><code>PARITY_SHARE_NAMESPACE</code></a>, so must <code>r.n_max</code>.</p>
+<p>For some intuition: the min and max namespace for subtree roots with at least one non-parity leaf (which includes the root of an NMT, as <a href="#2d-reed-solomon-encoding-scheme">the right half of an NMT as used in Celestia will be parity shares</a>) <em>ignore</em> the namespace ID for the parity leaves. Subtree roots with <em>only parity leaves</em> have their min and max namespace ID set to <a href="consensus.html#reserved-state-subtree-ids"><code>PARITY_SHARE_NAMESPACE</code></a>. This allows for shorter proofs into the tree than if the namespace ID of parity shares was not ignored (which would cause the max namespace ID of the root to always be <a href="consensus.html#reserved-state-subtree-ids"><code>PARITY_SHARE_NAMESPACE</code></a>).</p>
+<p>A compact commitment can be computed by taking the <a href="#hashing">hash</a> of the <a href="#serialization">serialized</a> root node.</p>
+<h4 id="namespacemerkletreeinclusionproof"><a class="header" href="#namespacemerkletreeinclusionproof">NamespaceMerkleTreeInclusionProof</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>siblingValues</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Sibling hash values, ordered starting from the leaf's neighbor.</td></tr>
+<tr><td><code>siblingMins</code></td><td><a href="./namespace.html">Namespace</a><code>[]</code></td><td>Sibling min namespace IDs.</td></tr>
+<tr><td><code>siblingMaxes</code></td><td><a href="./namespace.html">Namespace</a><code>[]</code></td><td>Sibling max namespace IDs.</td></tr>
+</tbody></table>
+</div>
+<p>When verifying an NMT proof, the root hash is checked by reconstructing the root node <code>root_node</code> with the computed <code>root_node.v</code> (computed as with a <a href="#binarymerkletreeinclusionproof">plain Merkle proof</a>) and the provided <code>rootNamespaceMin</code> and <code>rootNamespaceMax</code> as the <code>root_node.n_min</code> and <code>root_node.n_max</code>, respectively.</p>
+<h2 id="erasure-coding"><a class="header" href="#erasure-coding">Erasure Coding</a></h2>
+<p>In order to enable trust-minimized light clients (i.e. light clients that do not rely on an honest majority of validating state assumption), it is critical that light clients can determine whether the data in each block is <em>available</em> or not, without downloading the whole block itself. The technique used here was formally described in the paper <a href="https://arxiv.org/abs/1809.09044">Fraud and Data Availability Proofs: Maximising Light Client Security and Scaling Blockchains with Dishonest Majorities</a>.</p>
+<p>The remainder of the subsections below specify the <a href="#2d-reed-solomon-encoding-scheme">2D Reed-Solomon erasure coding scheme</a> used, along with the format of <a href="./shares.html">shares</a> and how <a href="#available-data">available data</a> is arranged into shares.</p>
+<h3 id="reed-solomon-erasure-coding"><a class="header" href="#reed-solomon-erasure-coding">Reed-Solomon Erasure Coding</a></h3>
+<p>Note that while data is laid out in a two-dimensional square, rows and columns are erasure coded using a standard one-dimensional encoding.</p>
+<p>Reed-Solomon erasure coding is used as the underlying coding scheme. The parameters are:</p>
+<ul>
+<li>16-bit Galois field</li>
+<li><a href="#header"><code>availableDataOriginalSquareSize</code></a> original pieces (maximum of <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>)</li>
+<li><a href="#header"><code>availableDataOriginalSquareSize</code></a> parity pieces (maximum of <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>) (i.e <code>availableDataOriginalSquareSize * 2</code> total pieces), for an erasure efficiency of 50%. In other words, any 50% of the pieces from the <code>availableDataOriginalSquareSize * 2</code> total pieces are enough to recover the original data.</li>
+<li><a href="./consensus.html#constants"><code>SHARE_SIZE</code></a> bytes per piece</li>
+</ul>
+<p>Note that <a href="#header"><code>availableDataOriginalSquareSize</code></a> may vary each block, and <a href="./block_proposer.html#deciding-on-a-block-size">is decided by the block proposer of that block</a>. <a href="https://github.com/catid/leopard">Leopard-RS</a> is a C library that implements the above scheme with quasilinear runtime.</p>
+<h3 id="2d-reed-solomon-encoding-scheme"><a class="header" href="#2d-reed-solomon-encoding-scheme">2D Reed-Solomon Encoding Scheme</a></h3>
+<p>The 2-dimensional data layout is described in this section. The roots of <a href="#namespace-merkle-tree">NMTs</a> for each row and column across four quadrants of data in a <code>2k * 2k</code> matrix of shares, <code>Q0</code> to <code>Q3</code> (shown below), must be computed. In other words, <code>2k</code> row roots and <code>2k</code> column roots must be computed. The row and column roots are stored in the <code>availableDataCommitments</code> of the <a href="#availabledataheader">AvailableDataHeader</a>.</p>
+<p><img src="./figures/rs2d_quadrants.svg" alt="fig: RS2D encoding: data quadrants." /></p>
+<p>The data of <code>Q0</code> is the original data, and the remaining quadrants are parity data. Setting <code>k = availableDataOriginalSquareSize</code>, the original data first must be split into <a href="./shares.html">shares</a> and <a href="#arranging-available-data-into-shares">arranged into a <code>k * k</code> matrix</a>. Then the parity data can be computed.</p>
+<p>Where <code>A -&gt; B</code> indicates that <code>B</code> is computed using <a href="#reed-solomon-erasure-coding">erasure coding</a> from <code>A</code>:</p>
+<ul>
+<li><code>Q0 -&gt; Q1</code> for each row in <code>Q0</code> and <code>Q1</code></li>
+<li><code>Q0 -&gt; Q2</code> for each column in <code>Q0</code> and <code>Q2</code></li>
+<li><code>Q2 -&gt; Q3</code> for each row in <code>Q2</code> and <code>Q3</code></li>
+</ul>
+<p>Note that the parity data in <code>Q3</code> will be identical if it is vertically extended from <code>Q1</code> or horizontally extended from <code>Q2</code>.</p>
+<p><img src="./figures/rs2d_extending.svg" alt="fig: RS2D encoding: extending data." /></p>
+<p>As an example, the parity data in the second column of <code>Q2</code> (in striped purple) is computed by <a href="#reed-solomon-erasure-coding">extending</a> the original data in the second column of <code>Q0</code> (in solid blue).</p>
+<p><img src="./figures/rs2d_extend.svg" alt="fig: RS2D encoding: extending a column." /></p>
+<p>Now that all four quadrants of the <code>2k * 2k</code> matrix are filled, the row and column roots can be computed. To do so, each row/column is used as the leaves of a <a href="#namespace-merkle-tree">NMT</a>, for which the compact root is computed (i.e. an extra hash operation over the NMT root is used to produce a single <a href="#hashdigest">HashDigest</a>). In this example, the fourth row root value is computed as the NMT root of the fourth row of <code>Q0</code> and the fourth row of <code>Q1</code> as leaves.</p>
+<p><img src="./figures/rs2d_row.svg" alt="fig: RS2D encoding: a row root." /></p>
+<p>Finally, the <code>availableDataRoot</code> of the block <a href="#header">Header</a> is computed as the Merkle root of the <a href="#binary-merkle-tree">binary Merkle tree</a> with the row and column roots as leaves, in that order.</p>
+<p><img src="./figures/data_root.svg" alt="fig: Available data root." /></p>
+<h3 id="arranging-available-data-into-shares"><a class="header" href="#arranging-available-data-into-shares">Arranging Available Data Into Shares</a></h3>
+<p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="#available-data">available data</a> (which includes <a href="#transaction">transactions</a>, PayForBlob transactions, and <a href="#blobdata">blobs</a>) is arranged into the matrix in the first place.</p>
+<p>Note that each <a href="./shares.html">share</a> only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.</p>
+<p>Then,</p>
+<ol>
+<li>For each of <code>transactionData</code>, <code>intermediateStateRootData</code>, PayForBlob transactions, <a href="#serialization">serialize</a>:
+<ol>
+<li>For each request in the list:
+<ol>
+<li><a href="#serialization">Serialize</a> the request (individually).</li>
+<li>Compute the length of each serialized request, <a href="#serialization">serialize the length</a>, and prepend the serialized request with its serialized length.</li>
+</ol>
+</li>
+<li>Split up the length/request pairs into <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_ID_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a>-byte chunks.</li>
+<li>Create a <a href="./shares.html">share</a> out of each chunk. This data has a <em>reserved</em> namespace ID, so the first <a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>+</code><a href="./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes for these shares must be set specially.</li>
+</ol>
+</li>
+<li>Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.</li>
+</ol>
+<p>These shares are arranged in the <a href="#2d-reed-solomon-encoding-scheme">first quadrant</a> (<code>Q0</code>) of the <code>availableDataOriginalSquareSize*2 * availableDataOriginalSquareSize*2</code> available data matrix in <em>row-major</em> order. In the example below, each reserved data element takes up exactly one share.</p>
+<p><img src="./figures/rs2d_originaldata_reserved.svg" alt="fig: Original data: reserved." /></p>
+<p>Each blob in the list <code>blobData</code>:</p>
+<ol>
+<li><a href="#serialization">Serialize</a> the blob (individually).</li>
+<li>Compute the length of each serialized blob, <a href="#serialization">serialize the length</a>, and prepend the serialized blob with its serialized length.</li>
+<li>Split up the length/blob pairs into <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a>-byte chunks.</li>
+<li>Create a <a href="./shares.html">share</a> out of each chunk. The first <a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> bytes for these shares is set to the namespace.</li>
+</ol>
+<p>For each blob, it is placed in the available data matrix, with row-major order, as follows:</p>
+<ol>
+<li>Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.</li>
+</ol>
+<p>Transactions <a href="#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="../specs/data_square_layout.html">the rationale document</a> for this section.</p>
+<p>However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:</p>
+<ol>
+<li>Place the first share of the blob at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the blob length or <a href="#header"><code>availableDataOriginalSquareSize</code></a>, then place the remaining shares in the following locations <strong>unless</strong> there are insufficient unused locations in the row.</li>
+<li>If there are insufficient unused locations in the row, place the first share of the blob at the first column of the next row. Then place the remaining shares in the following locations. By construction, any blob whose length is greater than <a href="#header"><code>availableDataOriginalSquareSize</code></a> will be placed in this way.</li>
+</ol>
+<p>In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
+<p><img src="./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
+<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="../specs/data_square_layout.html">rationale doc</a> for more info.</p>
+<h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
+<h3 id="transaction"><a class="header" href="#transaction">Transaction</a></h3>
+<p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>
+<h3 id="payforblobdata"><a class="header" href="#payforblobdata">PayForBlobData</a></h3>
+<h3 id="indexwrapper"><a class="header" href="#indexwrapper">IndexWrapper</a></h3>
+<p>IndexWrapper are wrappers around PayForBlob transactions. They include additional metadata by the block proposer that is committed to in the <a href="#arranging-available-data-into-shares">available data matrix</a>.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>tx</code></td><td><code>bytes</code></td><td>Actual transaction.</td></tr>
+<tr><td><code>share_indexes</code></td><td><code>[]uint32</code></td><td>Share indexes (in row-major order) of the first share for each blob this transaction pays for. Needed for light verification of proper blob inclusion.</td></tr>
+<tr><td><code>type_id</code></td><td><code>string</code></td><td>Type ID of the IndexWrapper transaction type. This is used for encoding and decoding IndexWrapper transactions. It is always set to <code>&quot;INDX&quot;</code>.</td></tr>
+</tbody></table>
+</div>
+<h3 id="blobdata"><a class="header" href="#blobdata">BlobData</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>blobs</code></td><td><a href="#blob">Blob</a><code>[]</code></td><td>List of blobs.</td></tr>
+</tbody></table>
+</div>
+<h4 id="blob"><a class="header" href="#blob">Blob</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>namespaceID</code></td><td><a href="#type-aliases">NamespaceID</a></td><td>Namespace ID of this blob.</td></tr>
+<tr><td><code>rawData</code></td><td><code>byte[]</code></td><td>Raw blob bytes.</td></tr>
+</tbody></table>
+</div>
+<h2 id="state"><a class="header" href="#state">State</a></h2>
+<p>The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. Similar to other Cosmos SDK based chains, the state of the Celestia chain is maintained in a <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/store.md#multistore">multistore</a>. The root of the application state is committed to in the <a href="#header">block header</a> via the <code>AppHash</code>.</p>
+<h2 id="consensus-parameters"><a class="header" href="#consensus-parameters">Consensus Parameters</a></h2>
+<p>Various <a href="consensus.html#system-parameters">consensus parameters</a> are committed to in the block header, such as limits and constants.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>version</code></td><td><a href="#consensusversion">ConsensusVersion</a></td><td>The consensus version struct.</td></tr>
+<tr><td><code>chainID</code></td><td><code>string</code></td><td>The <code>CHAIN_ID</code>.</td></tr>
+<tr><td><code>shareSize</code></td><td><code>uint64</code></td><td>The <code>SHARE_SIZE</code>.</td></tr>
+<tr><td><code>shareReservedBytes</code></td><td><code>uint64</code></td><td>The <code>SHARE_RESERVED_BYTES</code>.</td></tr>
+<tr><td><code>availableDataOriginalSquareMax</code></td><td><code>uint64</code></td><td>The <code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code>.</td></tr>
+</tbody></table>
+</div>
+<p>In order to compute the <code>consensusHash</code> field in the <a href="#header">block header</a>, the above list of parameters is <a href="#hashing">hashed</a>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="next" href="../specs/namespace.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="next" href="../specs/namespace.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
