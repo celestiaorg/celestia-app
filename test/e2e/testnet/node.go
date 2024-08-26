@@ -151,7 +151,7 @@ func NewNode(
 		return nil, err
 	}
 	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
-	if !enableBBR && equalOrHigher(version, appVersiopnWithBBRFlag) {
+	if !enableBBR { //&& equalOrHigher(version, appVersiopnWithBBRFlag)
 		args = append(args, "--force-no-bbr")
 	}
 	if upgradeHeight != 0 {
