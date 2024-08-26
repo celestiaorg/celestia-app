@@ -4,7 +4,7 @@
 
 ## Data Structures Overview
 
-![block data structures](figures/block_data_structures.svg)
+![fig: Block data structures.](./figures/block_data_structures.svg)
 
 ## Type Aliases
 
@@ -47,7 +47,7 @@ Block header, which is fully downloaded by both full clients and light clients.
 | `lastCommitHash`                  | [HashDigest](#hashdigest)             | Previous block's Tendermint commit hash.                                                                                                                           |
 | `consensusHash`                   | [HashDigest](#hashdigest)             | Hash of [consensus parameters](#consensus-parameters) for this block.                                                                                              |
 | `AppHash`                         | [HashDigest](#hashdigest)             | The [state root](#state) after the previous block's transactions are applied.                                                                                      |
-| `availableDataOriginalSharesUsed` | `uint64`                              | The number of shares used in the [original data square](#arranging-available-data-into-shares) that are not [tail padding](consensus.md#reserved-namespace-ids). |
+| `availableDataOriginalSharesUsed` | `uint64`                              | The number of shares used in the [original data square](#arranging-available-data-into-shares) that are not [tail padding](./consensus.md#reserved-namespace-ids). |
 | `availableDataRoot`               | [HashDigest](#hashdigest)             | Root of [commitments to erasure-coded data](#availabledataheader).                                                                                                 |
 | `proposerAddress`                 | [Address](#address)                   | Address of this block's proposer.                                                                                                                                  |
 
@@ -66,7 +66,7 @@ The number of row/column roots of the original data [shares](data_structures.md#
 
 The number of row and column roots is each `availableDataOriginalSquareSize * 2`, and must be a power of 2. Note that the minimum `availableDataOriginalSquareSize` is 1 (not 0), therefore the number of row and column roots are each at least 2.
 
-Implementations can prune rows containing only [tail padding](consensus.md#reserved-namespace-ids) as they are implicitly available.
+Implementations can prune rows containing only [tail padding](./consensus.md#reserved-namespace-ids) as they are implicitly available.
 
 ### AvailableData
 
@@ -214,15 +214,15 @@ A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Sectio
 
 <!-- disable markdown link check for bitcointalk.org because it frequently fails -->
 <!-- markdown-link-check-disable -->
-[Shares](shares.md) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
+[Shares](./shares.md) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
 <!-- markdown-link-check-enable -->
 
 Nodes contain three fields:
 
 | name    | type                        | description                                   |
 |---------|-----------------------------|-----------------------------------------------|
-| `n_min` | [Namespace](namespace.md) | Min namespace in subtree rooted at this node. |
-| `n_max` | [Namespace](namespace.md) | Max namespace in subtree rooted at this node. |
+| `n_min` | [Namespace](./namespace.md) | Min namespace in subtree rooted at this node. |
+| `n_max` | [Namespace](./namespace.md) | Max namespace in subtree rooted at this node. |
 | `v`     | [HashDigest](#hashdigest)   | Node value.                                   |
 
 The base case (an empty tree) is defined as:
@@ -233,7 +233,7 @@ node.n_max = 0x0000000000000000
 node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 ```
 
-For leaf node `node` of [share](shares.md) data `d`:
+For leaf node `node` of [share](./shares.md) data `d`:
 
 ```C++
 node.n_min = d.namespace
@@ -269,8 +269,8 @@ A compact commitment can be computed by taking the [hash](#hashing) of the [seri
 | name            | type                            | description                                                     |
 |-----------------|---------------------------------|-----------------------------------------------------------------|
 | `siblingValues` | [HashDigest](#hashdigest)`[]`   | Sibling hash values, ordered starting from the leaf's neighbor. |
-| `siblingMins`   | [Namespace](namespace.md)`[]` | Sibling min namespace IDs.                                      |
-| `siblingMaxes`  | [Namespace](namespace.md)`[]` | Sibling max namespace IDs.                                      |
+| `siblingMins`   | [Namespace](./namespace.md)`[]` | Sibling min namespace IDs.                                      |
+| `siblingMaxes`  | [Namespace](./namespace.md)`[]` | Sibling max namespace IDs.                                      |
 
 When verifying an NMT proof, the root hash is checked by reconstructing the root node `root_node` with the computed `root_node.v` (computed as with a [plain Merkle proof](#binarymerkletreeinclusionproof)) and the provided `rootNamespaceMin` and `rootNamespaceMax` as the `root_node.n_min` and `root_node.n_max`, respectively.
 
@@ -278,7 +278,7 @@ When verifying an NMT proof, the root hash is checked by reconstructing the root
 
 In order to enable trust-minimized light clients (i.e. light clients that do not rely on an honest majority of validating state assumption), it is critical that light clients can determine whether the data in each block is _available_ or not, without downloading the whole block itself. The technique used here was formally described in the paper [Fraud and Data Availability Proofs: Maximising Light Client Security and Scaling Blockchains with Dishonest Majorities](https://arxiv.org/abs/1809.09044).
 
-The remainder of the subsections below specify the [2D Reed-Solomon erasure coding scheme](#2d-reed-solomon-encoding-scheme) used, along with the format of [shares](shares.md) and how [available data](#available-data) is arranged into shares.
+The remainder of the subsections below specify the [2D Reed-Solomon erasure coding scheme](#2d-reed-solomon-encoding-scheme) used, along with the format of [shares](./shares.md) and how [available data](#available-data) is arranged into shares.
 
 ### Reed-Solomon Erasure Coding
 
@@ -287,19 +287,19 @@ Note that while data is laid out in a two-dimensional square, rows and columns a
 Reed-Solomon erasure coding is used as the underlying coding scheme. The parameters are:
 
 - 16-bit Galois field
-- [`availableDataOriginalSquareSize`](#header) original pieces (maximum of [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](consensus.md#constants))
-- [`availableDataOriginalSquareSize`](#header) parity pieces (maximum of [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](consensus.md#constants)) (i.e `availableDataOriginalSquareSize * 2` total pieces), for an erasure efficiency of 50%. In other words, any 50% of the pieces from the `availableDataOriginalSquareSize * 2` total pieces are enough to recover the original data.
-- [`SHARE_SIZE`](consensus.md#constants) bytes per piece
+- [`availableDataOriginalSquareSize`](#header) original pieces (maximum of [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants))
+- [`availableDataOriginalSquareSize`](#header) parity pieces (maximum of [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants)) (i.e `availableDataOriginalSquareSize * 2` total pieces), for an erasure efficiency of 50%. In other words, any 50% of the pieces from the `availableDataOriginalSquareSize * 2` total pieces are enough to recover the original data.
+- [`SHARE_SIZE`](./consensus.md#constants) bytes per piece
 
-Note that [`availableDataOriginalSquareSize`](#header) may vary each block, and [is decided by the block proposer of that block](block_proposer.md#deciding-on-a-block-size). [Leopard-RS](https://github.com/catid/leopard) is a C library that implements the above scheme with quasilinear runtime.
+Note that [`availableDataOriginalSquareSize`](#header) may vary each block, and [is decided by the block proposer of that block](./block_proposer.md#deciding-on-a-block-size). [Leopard-RS](https://github.com/catid/leopard) is a C library that implements the above scheme with quasilinear runtime.
 
 ### 2D Reed-Solomon Encoding Scheme
 
 The 2-dimensional data layout is described in this section. The roots of [NMTs](#namespace-merkle-tree) for each row and column across four quadrants of data in a `2k * 2k` matrix of shares, `Q0` to `Q3` (shown below), must be computed. In other words, `2k` row roots and `2k` column roots must be computed. The row and column roots are stored in the `availableDataCommitments` of the [AvailableDataHeader](#availabledataheader).
 
-![fig: RS2D encoding: data quadrants.](figures/rs2d_quadrants.svg)
+![fig: RS2D encoding: data quadrants.](./figures/rs2d_quadrants.svg)
 
-The data of `Q0` is the original data, and the remaining quadrants are parity data. Setting `k = availableDataOriginalSquareSize`, the original data first must be split into [shares](shares.md) and [arranged into a `k * k` matrix](#arranging-available-data-into-shares). Then the parity data can be computed.
+The data of `Q0` is the original data, and the remaining quadrants are parity data. Setting `k = availableDataOriginalSquareSize`, the original data first must be split into [shares](./shares.md) and [arranged into a `k * k` matrix](#arranging-available-data-into-shares). Then the parity data can be computed.
 
 Where `A -> B` indicates that `B` is computed using [erasure coding](#reed-solomon-erasure-coding) from `A`:
 
@@ -309,25 +309,25 @@ Where `A -> B` indicates that `B` is computed using [erasure coding](#reed-solom
 
 Note that the parity data in `Q3` will be identical if it is vertically extended from `Q1` or horizontally extended from `Q2`.
 
-![fig: RS2D encoding: extending data.](figures/rs2d_extending.svg)
+![fig: RS2D encoding: extending data.](./figures/rs2d_extending.svg)
 
 As an example, the parity data in the second column of `Q2` (in striped purple) is computed by [extending](#reed-solomon-erasure-coding) the original data in the second column of `Q0` (in solid blue).
 
-![fig: RS2D encoding: extending a column.](figures/rs2d_extend.svg)
+![fig: RS2D encoding: extending a column.](./figures/rs2d_extend.svg)
 
 Now that all four quadrants of the `2k * 2k` matrix are filled, the row and column roots can be computed. To do so, each row/column is used as the leaves of a [NMT](#namespace-merkle-tree), for which the compact root is computed (i.e. an extra hash operation over the NMT root is used to produce a single [HashDigest](#hashdigest)). In this example, the fourth row root value is computed as the NMT root of the fourth row of `Q0` and the fourth row of `Q1` as leaves.
 
-![fig: RS2D encoding: a row root.](figures/rs2d_row.svg)
+![fig: RS2D encoding: a row root.](./figures/rs2d_row.svg)
 
 Finally, the `availableDataRoot` of the block [Header](#header) is computed as the Merkle root of the [binary Merkle tree](#binary-merkle-tree) with the row and column roots as leaves, in that order.
 
-![fig: Available data root.](figures/data_root.svg)
+![fig: Available data root.](./figures/data_root.svg)
 
 ### Arranging Available Data Into Shares
 
 The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transaction), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
 
-Note that each [share](shares.md) only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.
+Note that each [share](./shares.md) only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.
 
 Then,
 
@@ -335,26 +335,26 @@ Then,
     1. For each request in the list:
         1. [Serialize](#serialization) the request (individually).
         1. Compute the length of each serialized request, [serialize the length](#serialization), and prepend the serialized request with its serialized length.
-    1. Split up the length/request pairs into [`SHARE_SIZE`](consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](consensus.md#constants)-byte chunks.
-    1. Create a [share](shares.md) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](consensus.md#constants) bytes for these shares must be set specially.
+    1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
+    1. Create a [share](./shares.md) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be set specially.
 1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
 
 These shares are arranged in the [first quadrant](#2d-reed-solomon-encoding-scheme) (`Q0`) of the `availableDataOriginalSquareSize*2 * availableDataOriginalSquareSize*2` available data matrix in _row-major_ order. In the example below, each reserved data element takes up exactly one share.
 
-![fig: Original data: reserved.](figures/rs2d_originaldata_reserved.svg)
+![fig: Original data: reserved.](./figures/rs2d_originaldata_reserved.svg)
 
 Each blob in the list `blobData`:
 
 1. [Serialize](#serialization) the blob (individually).
 1. Compute the length of each serialized blob, [serialize the length](#serialization), and prepend the serialized blob with its serialized length.
-1. Split up the length/blob pairs into [`SHARE_SIZE`](consensus.md#constants)`-`[`NAMESPACE_SIZE`](consensus.md#constants)-byte chunks.
-1. Create a [share](shares.md) out of each chunk. The first [`NAMESPACE_SIZE`](consensus.md#constants) bytes for these shares is set to the namespace.
+1. Split up the length/blob pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)-byte chunks.
+1. Create a [share](./shares.md) out of each chunk. The first [`NAMESPACE_SIZE`](./consensus.md#constants) bytes for these shares is set to the namespace.
 
 For each blob, it is placed in the available data matrix, with row-major order, as follows:
 
 1. Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.
 
-Transactions [must commit to a Merkle root of a list of hashes](#transaction) that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see the [data square layout](data_square_layout.md).
+Transactions [must commit to a Merkle root of a list of hashes](#transaction) that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see [the rationale document](../specs/data_square_layout.md) for this section.
 
 However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:
 
@@ -363,9 +363,9 @@ However, with only the rule above, interaction between the block producer and tr
 
 In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.
 
-![fig: original data blob](figures/rs2d_originaldata_blob.svg)
+![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
 
-The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [data square layout](data_square_layout.md).
+The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [rationale doc](../specs/data_square_layout.md) for more info.
 
 ## Available Data
 
