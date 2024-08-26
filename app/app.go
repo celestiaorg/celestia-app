@@ -570,6 +570,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
+	app.BaseApp.Logger().Debug(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for its side-effect of invoking baseapp.Init()
@@ -783,4 +784,30 @@ func (app *App) InitializeAppVersion(ctx sdk.Context) {
 	} else {
 		app.SetAppVersion(ctx, appVersion)
 	}
+}
+
+// OfferSnapshot is a wrapper around the baseapp's OfferSnapshot method. It is
+// needed to mount stores for the appropriate app version.
+func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferSnapshot {
+	if app.IsSealed() {
+		// If the app is sealed, keys have already been mounted so this can
+		// delegate to the baseapp's OfferSnapshot.
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	if app.upgradeHeightV2 == 0 {
+		app.Logger().Debug("v2 upgrade height not set, assuming app version 2")
+		app.mountKeysAndInit(v2)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
+		app.Logger().Debug("snapshot height is greater than or equal to upgrade height, assuming app version 2")
+		app.mountKeysAndInit(v2)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	app.Logger().Debug("snapshot height is less than upgrade height, assuming app version 1")
+	app.mountKeysAndInit(v1)
+	return app.BaseApp.OfferSnapshot(req)
 }
