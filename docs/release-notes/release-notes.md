@@ -1,6 +1,6 @@
-# Releases
+# Release Notes
 
-This guide provides instructions for upgrading celestia-app to breaking releases.
+This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
 ## [v2.0.0](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0)
 
