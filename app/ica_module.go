@@ -15,10 +15,8 @@ const (
 	mochaChainID   = "mocha-4"
 )
 
-var (
-	// IcaModule implements the AppModule interface.
-	_ module.AppModule = IcaModule{}
-)
+// IcaModule implements the AppModule interface.
+var _ module.AppModule = IcaModule{}
 
 // IcaModule is a wrapper around the ICA module that allows for a custom DefaultGenesis function.
 type IcaModule struct {
