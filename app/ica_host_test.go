@@ -7,7 +7,7 @@ import (
 )
 
 func Test_icaAllowMessages(t *testing.T) {
-	got := IcaAllowMessages()
+	got := icaAllowMessages()
 	want := []string{
 		"/ibc.applications.transfer.v1.MsgTransfer",
 		"/cosmos.bank.v1beta1.MsgSend",

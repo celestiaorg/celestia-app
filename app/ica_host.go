@@ -1,6 +1,6 @@
 package app
 
-func IcaAllowMessages() []string {
+func icaAllowMessages() []string {
 	return []string{
 		"/ibc.applications.transfer.v1.MsgTransfer",
 		"/cosmos.bank.v1beta1.MsgSend",
