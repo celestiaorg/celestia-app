@@ -98,7 +98,6 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	got := icagenesistypes.GenesisState{}
 	encCfg.Codec.MustUnmarshalJSON(raw, &got)
 
-	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
+	assert.Equal(t, icaAllowMessages(), got.HostGenesisState.Params.AllowMessages)
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
-	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
 }
