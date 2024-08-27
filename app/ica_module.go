@@ -14,8 +14,8 @@ type IcaModule struct {
 	ica.AppModule
 }
 
-// NewICAModule creates a new ICA module with a custom DefaultGenesis function.
-func NewICAModule(icaHostKeeper icahostkeeper.Keeper) IcaModule {
+// NewIcaModule creates a new ICA module with a custom DefaultGenesis function.
+func NewIcaModule(icaHostKeeper icahostkeeper.Keeper) IcaModule {
 	return IcaModule{
 		ica.NewAppModule(nil, &icaHostKeeper),
 	}
@@ -23,10 +23,10 @@ func NewICAModule(icaHostKeeper icahostkeeper.Keeper) IcaModule {
 
 // DefaultGenesis returns custom ICA module genesis state.
 func (IcaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	return customGenesis(cdc)
+	return icaCustomGenesis(cdc)
 }
 
-func customGenesis(cdc codec.JSONCodec) json.RawMessage {
+func icaCustomGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs := icagenesistypes.DefaultGenesis()
 	gs.HostGenesisState.Params.AllowMessages = icaAllowMessages()
 	gs.HostGenesisState.Params.HostEnabled = true

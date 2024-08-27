@@ -28,7 +28,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
-	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
 	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
@@ -160,11 +159,7 @@ type icaModuleBasic struct {
 
 // DefaultGenesis returns custom ICA module genesis state.
 func (icaModuleBasic) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	gs := icagenesistypes.DefaultGenesis()
-	gs.HostGenesisState.Params.AllowMessages = icaAllowMessages()
-	gs.HostGenesisState.Params.HostEnabled = true
-	gs.ControllerGenesisState.Params.ControllerEnabled = false
-	return cdc.MustMarshalJSON(gs)
+	return icaCustomGenesis(cdc)
 }
 
 type mintModule struct {
