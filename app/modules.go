@@ -182,7 +182,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 			FromVersion: v2, ToVersion: v2,
 		},
 		{
-			Module:      NewIcaModule(app.ICAHostKeeper),
+			Module:      NewIcaModule(app.GetChainID(), app.ICAHostKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
 	})
