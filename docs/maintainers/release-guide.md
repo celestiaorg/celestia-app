@@ -18,7 +18,7 @@ The target audience for this guide is maintainers of this repo. In general, the 
 1. Toggle on the **Set as a pre-relase** checkbox.
 1. **Publish release**.
 
-After creating the release candidate:
+### After creating the release candidate
 
 1. Wait until CI passes on the release and verify that prebuilt binaries were attached to the release.
 1. Create a PR to bump the celestia-app dependency in [celestia-node](https://github.com/celestiaorg/celestia-node).
