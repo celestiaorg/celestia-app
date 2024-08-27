@@ -27,7 +27,7 @@ The target audience for this guide is maintainers of this repo. In general, the 
 
 ## Official Release
 
-Follow the steps above for creating a release candidate:
+Follow the [creating a release candidate](#creating-a-release-candidate) section with the following considerations: 
 
 - The version tag should not include the `-rc` suffix.
 - The release notes should contain an **Upgrade Notice** section with notable changes for node operators or library consumers.
