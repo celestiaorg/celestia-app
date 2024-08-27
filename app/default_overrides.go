@@ -26,8 +26,6 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
-	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
 	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
@@ -148,21 +146,6 @@ func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs := ibctypes.DefaultGenesisState()
 	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
 	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
-	return cdc.MustMarshalJSON(gs)
-}
-
-// icaModule defines a custom wrapper around the ica module to provide custom
-// default genesis state.
-type icaModule struct {
-	ica.AppModuleBasic
-}
-
-// DefaultGenesis returns custom ica module genesis state.
-func (icaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	gs := icagenesistypes.DefaultGenesis()
-	gs.HostGenesisState.Params.AllowMessages = icaAllowMessages()
-	gs.HostGenesisState.Params.HostEnabled = true
-	gs.ControllerGenesisState.Params.ControllerEnabled = false
 	return cdc.MustMarshalJSON(gs)
 }
 

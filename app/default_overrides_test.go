@@ -93,12 +93,12 @@ func TestDefaultConsensusConfig(t *testing.T) {
 
 func Test_icaDefaultGenesis(t *testing.T) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	ica := icaModule{}
+	ica := IcaModuleBasic{}
 	raw := ica.DefaultGenesis(encCfg.Codec)
 	got := icagenesistypes.GenesisState{}
 	encCfg.Codec.MustUnmarshalJSON(raw, &got)
 
-	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
+	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, IcaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
 }

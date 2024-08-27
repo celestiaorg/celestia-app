@@ -47,7 +47,6 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
-	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
@@ -83,7 +82,7 @@ var (
 		signal.AppModuleBasic{},
 		minfee.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
-		icaModule{},
+		IcaModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -183,7 +182,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 			FromVersion: v2, ToVersion: v2,
 		},
 		{
-			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
+			Module:      NewICAModule(app.ICAHostKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
 	})
