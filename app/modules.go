@@ -82,7 +82,7 @@ var (
 		signal.AppModuleBasic{},
 		minfee.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
-		IcaModuleBasic{},
+		icaModuleBasic{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to

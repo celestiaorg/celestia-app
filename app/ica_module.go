@@ -28,7 +28,7 @@ func (IcaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 
 func customGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs := icagenesistypes.DefaultGenesis()
-	gs.HostGenesisState.Params.AllowMessages = IcaAllowMessages()
+	gs.HostGenesisState.Params.AllowMessages = icaAllowMessages()
 	gs.HostGenesisState.Params.HostEnabled = true
 	gs.ControllerGenesisState.Params.ControllerEnabled = false
 	return cdc.MustMarshalJSON(gs)
