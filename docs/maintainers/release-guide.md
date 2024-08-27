@@ -9,7 +9,7 @@ The target audience for this guide is maintainers of this repo. In general, the 
 
 ## Release Candidate
 
-To create a release candidate:
+### Creating a release candidate
 
 1. Navigate to <https://github.com/celestiaorg/celestia-app/releases/new>.
 1. Choose a version tag based on [Semantic Versioning](https://semver.org/). Include the `-rc` suffix followed by the next integer. RCs start at 0.
