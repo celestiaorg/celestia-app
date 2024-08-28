@@ -232,12 +232,12 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	return kr, nil
 }
 
-func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources, enableBBR bool) error {
+func (t *Testnet) CreateNode(version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(fmt.Sprintf("val%d", len(t.nodes)), version,
 		startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources,
-		t.grafana, enableBBR)
+		t.grafana, disableBBR)
 	if err != nil {
 		return err
 	}
