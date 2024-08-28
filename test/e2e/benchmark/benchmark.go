@@ -21,7 +21,7 @@ type BenchmarkTest struct {
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// create a new testnet
 	testNet, err := testnet.New(name, seed,
-		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID, false,
+		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
 	if err != nil {
 		return nil, err
