@@ -31,7 +31,6 @@ const (
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"
 	txsimRootDir   = "/home/celestia"
-	// the version from which the bbr flag was introduced
 )
 
 type Node struct {
