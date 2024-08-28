@@ -29,7 +29,6 @@ type Testnet struct {
 }
 
 func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
-	enableBBR bool,
 	genesisModifiers ...genesis.Modifier) (
 	*Testnet, error,
 ) {
@@ -44,7 +43,6 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
-		//enableBBR: enableBBR,
 	}, nil
 }
 
