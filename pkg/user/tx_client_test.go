@@ -7,6 +7,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,7 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 func TestTxClientTestSuite(t *testing.T) {
@@ -209,9 +209,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
-		require.NotEqual(t, abci.CodeTypeOK, confirmTxResp.Code)
+		code := err.(*user.ExecutionError).Code
+		require.NotEqual(t, abci.CodeTypeOK, code)
 	})
 }
 

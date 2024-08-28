@@ -317,20 +317,26 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
 			msgs, signer := tt.msgFunc()
 			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(signer))
 			require.NoError(t, err)
 			res, err := txClient.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			if tt.expectedCode != abci.CodeTypeOK {
 				require.Error(t, err)
+				require.Nil(t, res)
+				txHash := err.(*user.ExecutionError).TxHash
+				code := err.(*user.ExecutionError).Code
+				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: txHash})
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedCode, code, getTxResp.TxResponse.RawLog)
 			} else {
 				require.NoError(t, err)
+				require.NotNil(t, res)
+				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedCode, res.Code, getTxResp.TxResponse.RawLog)
 			}
-			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
-			getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			assert.Equal(t, tt.expectedCode, res.Code, getTxResp.TxResponse.RawLog)
 		})
 	}
 }
