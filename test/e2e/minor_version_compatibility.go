@@ -32,7 +32,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil, "test", false)
+	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	ctx, cancel := context.WithCancel(context.Background())

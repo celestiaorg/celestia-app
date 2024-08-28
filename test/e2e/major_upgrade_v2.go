@@ -28,7 +28,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New("runMajorUpgradeToV2", seed, nil, "test", false)
+	testNet, err := testnet.New("runMajorUpgradeToV2", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup()
