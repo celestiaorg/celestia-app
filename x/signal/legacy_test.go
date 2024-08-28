@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
@@ -120,14 +121,14 @@ func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewTxClientFromContext(s.cctx)
+	txClient, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
-	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.Error(t, err)
+	_, err = txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	code := err.(*user.BroadcastTxError).Code
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	require.EqualValues(t, 2, res.Code)
+	require.EqualValues(t, 2, code, err.Error())
 }
 
 // TestNewGovUpgradeFailure verifies that a transaction with a
@@ -149,14 +150,15 @@ func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	require.NoError(t, err)
 
 	// submit the transaction and wait a block for it to be included
-	signer, err := testnode.NewTxClientFromContext(s.cctx)
+	txClient, err := testnode.NewTxClientFromContext(s.cctx)
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
-	res, err := signer.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
-	require.Error(t, err)
+	_, err = txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	// As the type is not registered, the message will fail with unable to resolve type URL
-	require.EqualValues(t, 2, res.Code)
+	require.Error(t, err)
+	code := err.(*user.BroadcastTxError).Code
+	require.EqualValues(t, 2, code, err.Error())
 }
 
 func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
@@ -182,9 +184,10 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	require.NoError(t, err)
 	subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), time.Minute)
 	defer cancel()
-	res, err := txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+	_, err = txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
-	require.EqualValues(t, 9, res.Code) // we're only submitting the tx, so we expect everything to work
+	code := err.(*user.ExecutionError).Code
+	require.EqualValues(t, 9, code) // we're only submitting the tx, so we expect everything to work
 	assert.Contains(t, err.Error(), "ibc upgrade proposal not supported")
 }
 
