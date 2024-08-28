@@ -40,10 +40,11 @@ celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} > /dev/null 2>&1 # Hide o
 echo "Settings seeds in config.toml..."
 sed -i.bak -e "s/^seeds *=.*/seeds = \"$SEEDS\"/" $CELESTIA_APP_HOME/config/config.toml
 
-# LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height);
-BLOCK_HEIGHT=1751700
+LATEST_HEIGHT=$(curl -s $RPC/block | jq -r .result.block.header.height);
+BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000)); \
 TRUST_HASH=$(curl -s "$RPC/block?height=$BLOCK_HEIGHT" | jq -r .result.block_id.hash)
 
+echo "Latest height: $LATEST_HEIGHT"
 echo "Block height: $BLOCK_HEIGHT"
 echo "Trust hash: $TRUST_HASH"
 echo "Enabling state sync in config.toml..."
