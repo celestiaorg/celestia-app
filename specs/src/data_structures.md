@@ -354,7 +354,7 @@ For each blob, it is placed in the available data matrix, with row-major order, 
 
 1. Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.
 
-Transactions [must commit to a Merkle root of a list of hashes](#transaction) that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see [the rationale document](../specs/data_square_layout.md) for this section.
+Transactions [must commit to a Merkle root of a list of hashes](#transaction) that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see [the rationale document](./data_square_layout.md) for this section.
 
 However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:
 
@@ -365,7 +365,7 @@ In the example below, two blobs (of lengths 2 and 1, respectively) are placed us
 
 ![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
 
-The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [rationale doc](../specs/data_square_layout.md) for more info.
+The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [data square layout](./data_square_layout.md) for more info.
 
 ## Available Data
 

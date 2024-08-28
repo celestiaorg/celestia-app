@@ -108,8 +108,8 @@ type Namespace struct {
 
 ## References
 
-1. [ADR-014](../../../docs/architecture/adr-014-versioned-namespaces.md)
-1. [ADR-015](../../../docs/architecture/adr-015-namespace-id-size.md)
+1. [ADR-014](../../docs/architecture/adr-014-versioned-namespaces.md)
+1. [ADR-015](../../docs/architecture/adr-015-namespace-id-size.md)
 1. [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt)
 1. [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf)
 1. [Data Square Layout](./data_square_layout.md)
