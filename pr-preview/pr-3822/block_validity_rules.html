@@ -181,17 +181,17 @@ with Dishonest Majorities&quot;</a> and in the
 <ol>
 <li>Decodable transactions must pass all <a href="./ante_handler.html">AnteHandler</a> checks.</li>
 <li>Decodable non-<code>BlobTx</code> transactions must not contain a <code>MsgPayForBlobs</code> message.</li>
-<li>Decodable <code>BlobTx</code> transactions must be valid according to the <a href="../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
+<li>Decodable <code>BlobTx</code> transactions must be valid according to the <a href="../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
 </ol>
 <h4 id="app-version-2"><a class="header" href="#app-version-2">App Version 2</a></h4>
 <ol>
 <li>All transactions must be decodable.</li>
 <li>All transactions must pass all <a href="./ante_handler.html">AnteHandler</a> checks.</li>
 <li>Non-<code>BlobTx</code> transactions must not contain a <code>MsgPayForBlobs</code> message.</li>
-<li><code>BlobTx</code> transactions must be valid according to the <a href="../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
+<li><code>BlobTx</code> transactions must be valid according to the <a href="../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
 </ol>
 <h3 id="data-root-construction"><a class="header" href="#data-root-construction">Data Root Construction</a></h3>
-<p>The data root must be calculated from a correctly constructed data square per the <a href="./data_square_layout.html">data square layout rules</a></p>
+<p>The data root must be calculated from a correctly constructed data square per the <a href="./data_square_layout.html">data square layout</a> rules.</p>
 <p><img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/></p>
 

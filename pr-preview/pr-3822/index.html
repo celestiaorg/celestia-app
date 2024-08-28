@@ -399,7 +399,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <ol>
 <li>Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.</li>
 </ol>
-<p>Transactions <a href="#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="../specs/data_square_layout.html">the rationale document</a> for this section.</p>
+<p>Transactions <a href="#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="./data_square_layout.html">the rationale document</a> for this section.</p>
 <p>However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:</p>
 <ol>
 <li>Place the first share of the blob at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the blob length or <a href="#header"><code>availableDataOriginalSquareSize</code></a>, then place the remaining shares in the following locations <strong>unless</strong> there are insufficient unused locations in the row.</li>
@@ -407,7 +407,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </ol>
 <p>In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
 <p><img src="./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
-<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="../specs/data_square_layout.html">rationale doc</a> for more info.</p>
+<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="./data_square_layout.html">data square layout</a> for more info.</p>
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
 <h3 id="transaction"><a class="header" href="#transaction">Transaction</a></h3>
 <p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>

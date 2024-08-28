@@ -153,8 +153,8 @@
 <li>Compute the smallest square size that is a power of 2 that can fit the number of shares.</li>
 <li>Attempt to lay out the collected transactions and blobs in the current square.
 <ol>
-<li>If the square is too small to fit all transactions and blobs (which may happen <a href="../specs/data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is smaller than <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
-<li>If the square is too small to fit all transactions and blobs (which may happen <a href="../specs/data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is at <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, drop the transactions and blobs until the data fits within the square.</li>
+<li>If the square is too small to fit all transactions and blobs (which may happen <a href="./data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is smaller than <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
+<li>If the square is too small to fit all transactions and blobs (which may happen <a href="./data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is at <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, drop the transactions and blobs until the data fits within the square.</li>
 </ol>
 </li>
 </ol>

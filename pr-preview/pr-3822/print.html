@@ -400,7 +400,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <ol>
 <li>Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.</li>
 </ol>
-<p>Transactions <a href="data_structures.html#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="../specs/data_square_layout.html">the rationale document</a> for this section.</p>
+<p>Transactions <a href="data_structures.html#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="./data_square_layout.html">the rationale document</a> for this section.</p>
 <p>However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:</p>
 <ol>
 <li>Place the first share of the blob at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the blob length or <a href="data_structures.html#header"><code>availableDataOriginalSquareSize</code></a>, then place the remaining shares in the following locations <strong>unless</strong> there are insufficient unused locations in the row.</li>
@@ -408,7 +408,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </ol>
 <p>In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
 <p><img src="./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
-<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="../specs/data_square_layout.html">rationale doc</a> for more info.</p>
+<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="./data_square_layout.html">data square layout</a> for more info.</p>
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
 <h3 id="transaction"><a class="header" href="#transaction">Transaction</a></h3>
 <p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>
@@ -527,8 +527,8 @@ For the most recent version, which may not reflect the current specifications, r
 </code></pre>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <ol>
-<li><a href="../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
-<li><a href="../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
+<li><a href="../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
+<li><a href="../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
 <li><a href="https://github.com/celestiaorg/nmt">Namespaced Merkle Tree</a></li>
 <li><a href="https://arxiv.org/pdf/1905.09274.pdf">LazyLedger whitepaper</a></li>
 <li><a href="./data_square_layout.html">Data Square Layout</a></li>
@@ -541,7 +541,7 @@ For the most recent version, which may not reflect the current specifications, r
 <ul>
 <li><strong>Blob</strong>: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.</li>
 <li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
-<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="../../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
+<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
 </ul>
 <h2 id="overview-1"><a class="header" href="#overview-1">Overview</a></h2>
 <p>User submitted transactions are split into shares (see <a href="shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="shares.html#share-format">share format</a>.</p>
@@ -562,7 +562,7 @@ For the most recent version, which may not reflect the current specifications, r
 </ul>
 </li>
 <li>If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next <a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> represent a big-endian uint32 value (denoted by &quot;sequence length&quot; in the figure below). This length is placed immediately after the <code>SHARE_INFO_BYTES</code> field. It's important to note that shares that are not the first share in a sequence do not contain this field.</li>
-<li>The remaining <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (if first share) or <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes (if continuation share) are raw data (denoted by &quot;blob1&quot; in the figure below). Typically raw data is the blob payload that user's submit in a <a href="../../../x/blob/README.html">BlobTx</a>. However, raw data can also be transaction data (see <a href="shares.html#transaction-shares">transaction shares</a> below).</li>
+<li>The remaining <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (if first share) or <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes (if continuation share) are raw data (denoted by &quot;blob1&quot; in the figure below). Typically raw data is the blob payload that user's submit in a <a href="../../x/blob/README.html">BlobTx</a>. However, raw data can also be transaction data (see <a href="shares.html#transaction-shares">transaction shares</a> below).</li>
 <li>If there is insufficient raw data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
@@ -624,9 +624,9 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <p>See <a href="https://github.com/celestiaorg/go-square/tree/be3c2801e902a0f90f694c062b9c4e6a7e01154e/shares">go-square/shares</a>.</p>
 <h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <ol>
-<li><a href="../../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
-<li><a href="../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
-<li><a href="../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
+<li><a href="../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
+<li><a href="../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
+<li><a href="../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="consensus-rules"><a class="header" href="#consensus-rules">Consensus Rules</a></h1>
 <!-- toc -->
@@ -1330,8 +1330,8 @@ Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> 
 <li>Compute the smallest square size that is a power of 2 that can fit the number of shares.</li>
 <li>Attempt to lay out the collected transactions and blobs in the current square.
 <ol>
-<li>If the square is too small to fit all transactions and blobs (which may happen <a href="../specs/data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is smaller than <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
-<li>If the square is too small to fit all transactions and blobs (which may happen <a href="../specs/data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is at <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, drop the transactions and blobs until the data fits within the square.</li>
+<li>If the square is too small to fit all transactions and blobs (which may happen <a href="./data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is smaller than <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
+<li>If the square is too small to fit all transactions and blobs (which may happen <a href="./data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is at <a href="./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, drop the transactions and blobs until the data fits within the square.</li>
 </ol>
 </li>
 </ol>
@@ -1380,17 +1380,17 @@ with Dishonest Majorities&quot;</a> and in the
 <ol>
 <li>Decodable transactions must pass all <a href="./ante_handler.html">AnteHandler</a> checks.</li>
 <li>Decodable non-<code>BlobTx</code> transactions must not contain a <code>MsgPayForBlobs</code> message.</li>
-<li>Decodable <code>BlobTx</code> transactions must be valid according to the <a href="../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
+<li>Decodable <code>BlobTx</code> transactions must be valid according to the <a href="../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
 </ol>
 <h4 id="app-version-2"><a class="header" href="#app-version-2">App Version 2</a></h4>
 <ol>
 <li>All transactions must be decodable.</li>
 <li>All transactions must pass all <a href="./ante_handler.html">AnteHandler</a> checks.</li>
 <li>Non-<code>BlobTx</code> transactions must not contain a <code>MsgPayForBlobs</code> message.</li>
-<li><code>BlobTx</code> transactions must be valid according to the <a href="../../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
+<li><code>BlobTx</code> transactions must be valid according to the <a href="../../x/blob/README.html#validity-rules">BlobTx validity rules</a>.</li>
 </ol>
 <h3 id="data-root-construction"><a class="header" href="#data-root-construction">Data Root Construction</a></h3>
-<p>The data root must be calculated from a correctly constructed data square per the <a href="./data_square_layout.html">data square layout rules</a></p>
+<p>The data root must be calculated from a correctly constructed data square per the <a href="./data_square_layout.html">data square layout</a> rules.</p>
 <p><img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="antehandler"><a class="header" href="#antehandler">AnteHandler</a></h1>
@@ -1538,8 +1538,8 @@ there are example implementations that can be found in
 }
 </code></pre>
 <p>Accepting a <code>MsgWirePayForData</code> into the mempool requires different logic than other transactions in Celestia, since it leverages the paradigm of block proposers being able to malleate transaction data. Unlike <a href="./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> (the canonical data type that is included in blocks and committed to with a data root in the block header), each <code>MsgWirePayForData</code> (the over-the-wire representation of the same) has potentially multiple signatures.</p>
-<p>Transaction senders who want to pay for a blob will create a <a href="./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> object, <code>stx</code>, filling in the <code>stx.blobShareCommitment</code> field <a href="../specs/data_square_layout.html#blob-share-commitment-rules">based on the blob share commitmentrules</a>, then signing it to get a <a href="./data_structures.html#transaction">transaction</a> <code>tx</code>.</p>
-<p>Receiving a <code>MsgWirePayForData</code> object from the network follows the reverse process: verify using the <a href="../specs/data_square_layout.html#blob-share-commitment-rules">blob share commitmentrules</a> that the signature is valid.</p>
+<p>Transaction senders who want to pay for a blob will create a <a href="./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> object, <code>stx</code>, filling in the <code>stx.blobShareCommitment</code> field based on the <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a>, then signing it to get a <a href="./data_structures.html#transaction">transaction</a> <code>tx</code>.</p>
+<p>Receiving a <code>MsgWirePayForData</code> object from the network follows the reverse process: verify using the <a href="./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> that the signature is valid.</p>
 <h2 id="invalid-erasure-coding"><a class="header" href="#invalid-erasure-coding">Invalid Erasure Coding</a></h2>
 <p>If a malicious block producer incorrectly computes the 2D Reed-Solomon code for a block's data, a fraud proof for this can be presented. We assume that the light clients have the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> for each block. Hence, given a <a href="networking.html#shareproof">ShareProof</a>, they can verify if the <code>rowRoot</code> or <code>colRoot</code> specified by <code>isCol</code> and <code>position</code> commits to the corresponding <a href="./data_structures.html#share">Share</a>. Similarly, given the <code>height</code> of a block, they can access all elements within the <a href="./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="./data_structures.html#header">Header</a> of the block.</p>
 <h3 id="shareproof"><a class="header" href="#shareproof">ShareProof</a></h3>
@@ -1655,12 +1655,12 @@ message StateFraudProof {
 <ol>
 <li>Standard cosmos-SDK transactions: (which are often represented internally as the <a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/types/tx_msg.go#L42-L50"><code>sdk.Tx</code> interface</a>) as described in <a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/docs/architecture/adr-020-protobuf-transaction-encoding.md">cosmos-sdk ADR020</a>
 <ol>
-<li>These transactions contain protobuf encoded <a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/types/tx_msg.go#L14-L26"><code>sdk.Msg</code></a>s, which get executed atomically (if one fails they all fail) to update the Celestia state. The complete list of modules, which define the <code>sdk.Msg</code>s that the state machine is capable of handling, can be found in the <a href="../specs/state_machine_modules.html">state machine modules spec</a>. Examples include standard cosmos-sdk module messages such as <a href="https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32">MsgSend</a>), and celestia specific module messages such as <a href="https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31"><code>MsgPayForBlobs</code></a></li>
+<li>These transactions contain protobuf encoded <a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/types/tx_msg.go#L14-L26"><code>sdk.Msg</code></a>s, which get executed atomically (if one fails they all fail) to update the Celestia state. The complete list of modules, which define the <code>sdk.Msg</code>s that the state machine is capable of handling, can be found in the <a href="./state_machine_modules.html">state machine modules spec</a>. Examples include standard cosmos-sdk module messages such as <a href="https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32">MsgSend</a>), and celestia specific module messages such as <a href="https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31"><code>MsgPayForBlobs</code></a></li>
 </ol>
 </li>
 <li>Blobs: binary large objects which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace.</li>
 </ol>
-<p>We want to arrange this data into a <code>k * k</code> matrix of fixed-sized <a href="../specs/shares.html">shares</a>, which will later be committed to in <a href="https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md">Namespace Merkle Trees (NMTs)</a> so that individual shares in this matrix can be proven to belong to a single data root. <code>k</code> must always be a power of 2 (e.g. 1, 2, 4, 8, 16, 32, etc.) as this is optimal for the erasure coding algorithm.</p>
+<p>We want to arrange this data into a <code>k * k</code> matrix of fixed-sized <a href="./shares.html">shares</a>, which will later be committed to in <a href="https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md">Namespace Merkle Trees (NMTs)</a> so that individual shares in this matrix can be proven to belong to a single data root. <code>k</code> must always be a power of 2 (e.g. 1, 2, 4, 8, 16, 32, etc.) as this is optimal for the erasure coding algorithm.</p>
 <p>The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the <code>k * k</code> matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.</p>
 <p>First, we impose some ground rules:</p>
 <ol>
@@ -1686,7 +1686,7 @@ message StateFraudProof {
 <p>Understanding 1) and 2) would usually require interaction with the block proposer. To make the possible starting locations of blobs sufficiently predictable and to make <code>ShareCommitment</code> independent of <code>k</code>, we impose an additional rule. The blob must start at a multiple of the <code>SubtreeWidth</code>.</p>
 <p>The <code>SubtreeWidth</code> is calculated as the length of the blob in shares, divided by the <a href="https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6"><code>SubtreeRootThreshold</code></a> and rounded up to the nearest power of 2 (<a href="https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116">implementation here</a>). If the output is greater than the minimum square size that the blob can fit in (i.e. a blob of 15 shares has a minimum square size of 4) then we take that minimum value. This <code>SubtreeWidth</code> is used as the width of the first mountain in the <a href="https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/">Merkle Mountain Range</a> that would all together represent the <code>ShareCommitment</code> over the blob.</p>
 <p><img src="./figures/subtree_width.svg" alt="subtree root width" /></p>
-<p>The <code>SubtreeRootThreshold</code> is an arbitrary versioned protocol constant that aims to put a soft limit on the number of subtree roots included in a blob inclusion proof, as described in <a href="../../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.html">ADR013</a>. A higher <code>SubtreeRootThreshold</code> means less padding and more tightly packed squares but also means greater blob inclusion proof sizes.
+<p>The <code>SubtreeRootThreshold</code> is an arbitrary versioned protocol constant that aims to put a soft limit on the number of subtree roots included in a blob inclusion proof, as described in <a href="../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.html">ADR013</a>. A higher <code>SubtreeRootThreshold</code> means less padding and more tightly packed squares but also means greater blob inclusion proof sizes.
 With the above constraint, we can compute subtree roots deterministically. For example, a blob of 172 shares and <code>SubtreeRootThreshold</code> (SRT) = 64, must start on a share index that is a multiple of 4 because 172/64 = 3. 3 rounded up to the nearest power of 2 is 4. In this case, there will be a maximum of 3 shares of padding between blobs (more on padding below). The maximum subtree width in shares for the first mountain in the Merkle range will be 4 (The actual mountain range would be 43 subtree roots of 4 shares each). The <code>ShareCommitment</code> is then the Merkle tree over the peaks of the mountain range.</p>
 <h2 id="padding-1"><a class="header" href="#padding-1">Padding</a></h2>
 <p>Given these rules whereby blobs in their share format can't be directly appended one after the other, we use padding shares to fill the gaps. These are shares with a particular format (see <a href="./shares.html#padding">padding</a>). Padding always comes after all the blobs in the namespace. The padding at the end of the reserved namespace and at the end of the square are special in that they belong to unique namespaces. All other padding shares use the namespace of the blob before it in the data square.</p>

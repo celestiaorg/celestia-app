@@ -145,7 +145,7 @@
 <ul>
 <li><strong>Blob</strong>: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.</li>
 <li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
-<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="../../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
+<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
 </ul>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <p>User submitted transactions are split into shares (see <a href="#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="#share-format">share format</a>.</p>
@@ -166,7 +166,7 @@
 </ul>
 </li>
 <li>If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next <a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> represent a big-endian uint32 value (denoted by &quot;sequence length&quot; in the figure below). This length is placed immediately after the <code>SHARE_INFO_BYTES</code> field. It's important to note that shares that are not the first share in a sequence do not contain this field.</li>
-<li>The remaining <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (if first share) or <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes (if continuation share) are raw data (denoted by &quot;blob1&quot; in the figure below). Typically raw data is the blob payload that user's submit in a <a href="../../../x/blob/README.html">BlobTx</a>. However, raw data can also be transaction data (see <a href="#transaction-shares">transaction shares</a> below).</li>
+<li>The remaining <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (if first share) or <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes (if continuation share) are raw data (denoted by &quot;blob1&quot; in the figure below). Typically raw data is the blob payload that user's submit in a <a href="../../x/blob/README.html">BlobTx</a>. However, raw data can also be transaction data (see <a href="#transaction-shares">transaction shares</a> below).</li>
 <li>If there is insufficient raw data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
@@ -228,9 +228,9 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <p>See <a href="https://github.com/celestiaorg/go-square/tree/be3c2801e902a0f90f694c062b9c4e6a7e01154e/shares">go-square/shares</a>.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <ol>
-<li><a href="../../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
-<li><a href="../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
-<li><a href="../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
+<li><a href="../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
+<li><a href="../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
+<li><a href="../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
 </ol>
 
                     </main>
