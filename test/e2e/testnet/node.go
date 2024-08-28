@@ -48,6 +48,7 @@ type Node struct {
 	// FIXME: This does not work currently with the reverse proxy
 	// grpcProxyHost  string
 	traceProxyHost string
+	args           []string
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
@@ -171,6 +172,7 @@ func NewNode(
 		SignerKey:      signerKey,
 		NetworkKey:     networkKey,
 		SelfDelegation: selfDelegation,
+		args:           args,
 	}, nil
 }
 
@@ -369,9 +371,16 @@ func (n *Node) GenesisValidator() genesis.Validator {
 	}
 }
 
-func (n *Node) Upgrade(version string) error {
+func (n *Node) Upgrade(version string, disableBBR bool) error {
 	if err := n.Instance.SetImageInstant(DockerImageName(version)); err != nil {
 		return err
+	}
+
+	if disableBBR {
+		//if !contains(n.args, "--force-no-bbr") {
+		n.args = append(n.args, "--force-no-bbr")
+		n.Instance.SetArgs(n.args...)
+		//}
 	}
 
 	return n.Instance.WaitInstanceIsRunning()
@@ -379,4 +388,17 @@ func (n *Node) Upgrade(version string) error {
 
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
+}
+
+func (n *Node) GetArgs() []string {
+	return n.args
+}
+
+func contains(slice []string, str string) bool {
+	for _, v := range slice {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }

@@ -43,7 +43,8 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnet.DefaultResources, false)
+		err := testNet.CreateGenesisNode(latestVersion, 10000000,
+			upgradeHeight, testnet.DefaultResources, true)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
@@ -90,7 +91,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 			return fmt.Errorf("failed to get height: %w", err)
 		}
 
-		if err := node.Upgrade(latestVersion); err != nil {
+		if err := node.Upgrade(latestVersion, true); err != nil {
 			return fmt.Errorf("failed to restart node: %w", err)
 		}
 

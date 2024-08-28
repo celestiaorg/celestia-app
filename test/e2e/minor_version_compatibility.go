@@ -28,7 +28,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
 	}
-	numNodes := 4
+	numNodes := 3
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
@@ -59,6 +59,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		// bbr is only available after a certain version,
 		// the flag needs to be passed only for versions that support it
 		if isBBRCompatible(v) {
+			fmt.Println("Disabling BBR for version ", v)
 			disableBBR = true
 		}
 		testnet.NoError("failed to create genesis node",
@@ -92,7 +93,15 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
+		var disableBBR = false
+		// bbr is only available after a certain version,
+		// the flag needs to be passed only for versions that support it
+		if isBBRCompatible(newVersion) {
+			fmt.Println("Disabling BBR for version ", newVersion)
+			disableBBR = true
+		}
+		testnet.NoError("failed to upgrade node",
+			testNet.Node(i%numNodes).Upgrade(newVersion, disableBBR))
 		time.Sleep(10 * time.Second)
 		// wait for the node to reach two more heights
 		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
