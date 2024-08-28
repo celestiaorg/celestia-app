@@ -78,6 +78,8 @@ type Manifest struct {
 
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
+
+	DisableBBR bool
 }
 
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
@@ -104,11 +106,11 @@ func (m *Manifest) summary() string {
 		latency = 1
 	}
 	maxBlockMB := m.MaxBlockBytes / testnet.MB
-	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-%dmb",
+	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-br%d-%dmb",
 		m.Validators, m.TxClients,
 		m.BlobSequences, m.PerPeerBandwidth/testnet.MB,
 		m.TimeoutCommit/time.Second, m.TimeoutPropose/time.Second,
-		latency, m.Mempool, maxBlockMB)
+		latency, m.Mempool, m.DisableBBR, maxBlockMB)
 	if len(summary) > 50 {
 		return summary[:50]
 	}
