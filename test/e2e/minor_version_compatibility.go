@@ -55,7 +55,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		var disableBBR = false
+		disableBBR := false
 		// bbr is only available after a certain version,
 		// the flag needs to be passed only for versions that support it
 		if isBBRCompatible(v) {
@@ -93,7 +93,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		var disableBBR = false
+		disableBBR := false
 		// bbr is only available after a certain version,
 		// the flag needs to be passed only for versions that support it
 		if isBBRCompatible(newVersion) {
@@ -142,8 +142,5 @@ func getAllVersions() (string, error) {
 // isBBRCompatible returns true if version is bbr compatible
 // MUST be called only for versions that follow semver
 func isBBRCompatible(v string) bool {
-	if v >= "v2.1.2" {
-		return true
-	}
-	return false
+	return v >= "v2.1.2"
 }

@@ -375,7 +375,7 @@ func (n *Node) Upgrade(version string, disableBBR bool) error {
 		return err
 	}
 
-	//if disableBBR {
+	// if disableBBR {
 	//	// FIXME: This does not work currently since the node is not in state 'Preparing' or 'Committed'
 	//	//n.args = append(n.args, "--force-no-bbr")
 	//	//err := n.Instance.SetArgs(n.args...)
@@ -393,13 +393,4 @@ func DockerImageName(version string) string {
 
 func (n *Node) GetArgs() []string {
 	return n.args
-}
-
-func contains(slice []string, str string) bool {
-	for _, v := range slice {
-		if v == str {
-			return true
-		}
-	}
-	return false
 }
