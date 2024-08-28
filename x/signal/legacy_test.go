@@ -187,9 +187,8 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	_, err = txClient.SubmitTx(subCtx, []sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.Error(t, err)
 	code := err.(*user.ExecutionError).Code
-	errLog := err.(*user.ExecutionError).ErrorLog
 	require.EqualValues(t, 9, code) // we're only submitting the tx, so we expect everything to work
-	assert.Contains(t, errLog, "ibc upgrade proposal not supported")
+	assert.Contains(t, err.Error(), "ibc upgrade proposal not supported")
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
