@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "079ea56" //"a28b9e7"
+	compactBlocksVersion = "3807062" //"a28b9e7"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 12
+		nodes          = 8
 		timeoutCommit  = time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
@@ -75,7 +75,7 @@ func Run() error {
 		"64000-64000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:5],
+		gRPCEndpoints[:4],
 	)
 	if err != nil {
 		return err
@@ -88,8 +88,8 @@ func Run() error {
 		testnet.WithMempool("v2"),
 		func(cfg *config.Config) {
 			// create a partially connected network by only dialing 5 peers
-			cfg.P2P.MaxNumOutboundPeers = 4
-			cfg.P2P.MaxNumInboundPeers = 7
+			cfg.P2P.MaxNumOutboundPeers = 3
+			cfg.P2P.MaxNumInboundPeers = 4
 			cfg.Mempool.TTLNumBlocks = 100
 			cfg.Mempool.TTLDuration = 10 * time.Minute
 			cfg.Mempool.MaxTxsBytes *= 5
@@ -213,6 +213,7 @@ func saveBlockTimes(testnet *testnet.Testnet) (float64, error) {
 	}
 	index := 0
 	for height := status.SyncInfo.EarliestBlockHeight; height <= status.SyncInfo.LatestBlockHeight; height++ {
+		log.Printf("Getting block %d", height)
 		resp, err := clients[index].Block(context.Background(), &height)
 		if err != nil {
 			log.Printf("Error getting header for height %d: %v", height, err)
