@@ -385,8 +385,12 @@ func (t *Testnet) StartNodes() error {
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndForwardPorts()
 		if err != nil {
+			log.Err(err).Str("name", node.Name).Str("version",
+				node.Version).Msg("failed to start and forward ports")
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
+		log.Info().Str("name", node.Name).Str("version",
+			node.Version).Msg("started and ports forwarded")
 	}
 	return nil
 }
