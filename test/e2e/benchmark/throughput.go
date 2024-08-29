@@ -51,6 +51,7 @@ var bigBlockManifest = Manifest{
 	TestDuration:       5 * time.Minute,
 	LocalTracingType:   "local",
 	PushTrace:          true,
+	DisableBBR:         true,
 }
 
 func TwoNodeSimple(logger *log.Logger) error {
@@ -88,6 +89,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		DownloadTraces:     false,
 		TestDuration:       3 * time.Minute,
 		TxClients:          2,
+		DisableBBR: true
 	}
 
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
