@@ -55,16 +55,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		disableBBR := false
-		// bbr is only available after a certain version,
-		// the flag needs to be passed only for versions that support it
-		if isBBRCompatible(v) {
-			fmt.Println("Disabling BBR for version ", v)
-			disableBBR = true
-		}
 		testnet.NoError("failed to create genesis node",
 			testNet.CreateGenesisNode(v, 10000000, 0,
-				testnet.DefaultResources, disableBBR))
+				testnet.DefaultResources, false))
 	}
 
 	logger.Println("Creating txsim")
@@ -130,17 +123,4 @@ func getAllVersions() (string, error) {
 	}
 	allVersions := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return strings.Join(allVersions, " "), nil
-}
-
-// isBBRCompatible returns true if version is bbr compatible
-// MUST be called only for versions that follow semver
-func isBBRCompatible(v string) bool {
-	// bbr is only available after v2.1.2
-	bbrVersion, _ := testnet.ParseVersion("v2.1.2")
-	parsedVersion, ok := testnet.ParseVersion(v)
-	if !ok {
-		panic("isBBRCompatible called with invalid version")
-	}
-	// versions less than bbr version are not compatible with bbr
-	return !bbrVersion.IsGreater(parsedVersion)
 }
