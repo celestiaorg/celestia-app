@@ -118,5 +118,5 @@ changelog:
 release:
   prerelease: auto
 git:
-  prerelease_suffix: "-"
+  prerelease_suffix: "-rc"
   tag_sort: semver
