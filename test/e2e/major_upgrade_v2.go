@@ -91,7 +91,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 			return fmt.Errorf("failed to get height: %w", err)
 		}
 
-		if err := node.Upgrade(latestVersion, true); err != nil {
+		if err := node.Upgrade(latestVersion); err != nil {
 			return fmt.Errorf("failed to restart node: %w", err)
 		}
 

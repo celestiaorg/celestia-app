@@ -370,19 +370,10 @@ func (n *Node) GenesisValidator() genesis.Validator {
 	}
 }
 
-func (n *Node) Upgrade(version string, disableBBR bool) error {
+func (n *Node) Upgrade(version string) error {
 	if err := n.Instance.SetImageInstant(DockerImageName(version)); err != nil {
 		return err
 	}
-
-	// if disableBBR {
-	//	// FIXME: This does not work currently since the node is not in state 'Preparing' or 'Committed'
-	//	//n.args = append(n.args, "--force-no-bbr")
-	//	//err := n.Instance.SetArgs(n.args...)
-	//	//if err != nil {
-	//	//	return fmt.Errorf("cannot pass --force-no-bbr flag: %w", err)
-	//	//}
-	//}
 
 	return n.Instance.WaitInstanceIsRunning()
 }
