@@ -3,7 +3,7 @@ package celestia.core.v1.tx;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/v3/app/grpc/tx";
+option go_package = "github.com/celestiaorg/celestia-app/app/grpc/tx";
 
 // Service defines a gRPC service for interacting with transactions.
 service Tx {

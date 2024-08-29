@@ -14,8 +14,8 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	daproto "github.com/celestiaorg/celestia-app/v3/pkg/da/proto"
 	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v3/proto/celestia/core/v1/da"
 )
 
 var (

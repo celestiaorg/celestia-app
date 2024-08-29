@@ -1,7 +1,7 @@
 syntax = "proto3";
 package celestia.core.v1.proof;
 
-option go_package = "github.com/celestiaorg/celestia-app/v3/pkg/proof";
+option go_package = "github.com/celestiaorg/celestia-app/pkg/proof";
 
 // ShareProof is an NMT proof that a set of shares exist in a set of rows and a
 // Merkle proof that those rows exist in a Merkle tree with a given data root.

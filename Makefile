@@ -25,21 +25,21 @@ help: Makefile
 
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
-	@echo "--> Building celestia-appd binary to ./build directory"
+	@cd ./cmd/celestia-appd
 	@mkdir -p build/
-	@cd v3 && go build $(BUILD_FLAGS) -o ../build/ ./cmd/celestia-appd
+	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
-install: mod
+install: go.sum
 	@echo "--> Installing celestia-appd"
-	@cd v3 && go install $(BUILD_FLAGS) ./cmd/celestia-appd
+	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
 
 ## mod: Update all go.mod files.
 mod:
-	@echo "--> Updating go.mod in ./v3"
-	@(cd ./v3 && go mod tidy)
+	@echo "--> Updating go.mod"
+	@go mod tidy
 	@echo "--> Updating go.mod in ./test/interchain"
 	@(cd ./test/interchain && go mod tidy)
 	@echo "--> Updating go.mod in ./x/blob"
@@ -110,14 +110,7 @@ publish-ghcr-docker:
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
-	@cd v3 && golangci-lint run ./...
-	@cd x/blob && golangci-lint run ./...
-	@cd x/blobstream && golangci-lint run ./...
-	@cd x/minfee && golangci-lint run ./...
-	@cd x/mint && golangci-lint run ./...
-	@cd x/paramfilter && golangci-lint run ./...
-	@cd x/signal && golangci-lint run ./...
-	@cd x/tokenfilter && golangci-lint run ./...
+	@golangci-lint run
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"

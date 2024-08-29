@@ -252,13 +252,13 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/celestia-app/x/blob => ../x/blob // TODO: remove this after we create a release.
-	github.com/celestiaorg/celestia-app/x/blobstream => ../x/blobstream // TODO: remove this after we create a release.
-	github.com/celestiaorg/celestia-app/x/minfee => ../x/minfee // TODO: remove this after we create a release.
-	github.com/celestiaorg/celestia-app/x/mint => ../x/mint // TODO: remove this after we create a release.
-	github.com/celestiaorg/celestia-app/x/paramfilter => ../x/paramfilter // TODO: remove this after we create a release.
-	github.com/celestiaorg/celestia-app/x/signal => ../x/signal // TODO: remove this after we create a release.
-	github.com/celestiaorg/celestia-app/x/tokenfilter => ../x/tokenfilter // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/blob => ./x/blob // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/blobstream => ./x/blobstream // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/minfee => ./x/minfee // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/mint => ./x/mint // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/paramfilter => ./x/paramfilter // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/signal => ./x/signal // TODO: remove this after we create a release.
+	github.com/celestiaorg/celestia-app/x/tokenfilter => ./x/tokenfilter // TODO: remove this after we create a release.
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
