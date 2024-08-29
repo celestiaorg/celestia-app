@@ -142,5 +142,12 @@ func getAllVersions() (string, error) {
 // isBBRCompatible returns true if version is bbr compatible
 // MUST be called only for versions that follow semver
 func isBBRCompatible(v string) bool {
-	return v >= "v2.1.2"
+	// bbr is only available after v2.1.2
+	bbrVersion, _ := testnet.ParseVersion("v2.1.2")
+	parsedVersion, ok := testnet.ParseVersion(v)
+	if !ok {
+		panic("isBBRCompatible called with invalid version")
+	}
+	// versions less than bbr version are not compatible with bbr
+	return !bbrVersion.IsGreater(parsedVersion)
 }
