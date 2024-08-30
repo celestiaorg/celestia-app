@@ -330,6 +330,20 @@ func TestProcessProposal(t *testing.T) {
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:           "should accept a block with an ICA message that is on allowlist",
+			input:          dataIcaAllowed(),
+			mutator:        func(_ *tmproto.Data) {},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		// {
+		// 	name:           "should reject a block with an ICA message that is not on allowlist",
+		// 	input:          dataIcaDenied(),
+		// 	mutator:        func(_ *tmproto.Data) {},
+		// 	appVersion:     appconsts.LatestVersion,
+		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
+		// },
 	}
 
 	for _, tt := range tests {
@@ -369,4 +383,26 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 	return dah.Hash()
+}
+
+func dataIcaAllowed() *tmproto.Data {
+	txs := [][]byte{}
+	txs = append(txs, icaTx("my-message-type"))
+	return &tmproto.Data{
+		Txs:        txs,
+		SquareSize: 2,
+		Hash:       tmrand.Bytes(32),
+	}
+}
+
+func icaTx(messageType string) []byte {
+	// Create your ICA transaction with the desired message type
+	// For example:
+	icaMsg := &myMessageType{
+		...
+	}
+	txBytes, _ := encoding.Marshal(icaMsg)
+	return txBytes
+
+	return []byte{}
 }
