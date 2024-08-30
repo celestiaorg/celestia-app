@@ -119,4 +119,3 @@ release:
   prerelease: auto
 git:
   prerelease_suffix: "-rc"
-  tag_sort: -version:refname
