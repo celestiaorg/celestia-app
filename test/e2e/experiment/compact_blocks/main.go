@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -15,13 +13,12 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/tendermint/tendermint/config"
 
-	// "github.com/tendermint/tendermint/pkg/trace"
-	// "github.com/tendermint/tendermint/pkg/trace/schema"
-	"github.com/tendermint/tendermint/rpc/client/http"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 )
 
 const (
-	compactBlocksVersion = "3807062" //"a28b9e7"
+	compactBlocksVersion = "4021c9f" //"a28b9e7"
 )
 
 func main() {
@@ -32,8 +29,8 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 8
-		timeoutCommit  = time.Second
+		nodes          = 10
+		timeoutCommit  = 2 * time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
 	)
@@ -43,7 +40,7 @@ func Run() error {
 	blobParams.GovMaxSquareSize = 128
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 
-	network, err := testnet.New("compact-blocks", 864, nil, "test", genesis.SetBlobParams(ecfg.Codec, blobParams))
+	network, err := testnet.New("compact-blocks", 864, nil, "", genesis.SetBlobParams(ecfg.Codec, blobParams))
 	if err != nil {
 		return err
 	}
@@ -71,11 +68,11 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		40,
-		"64000-64000",
+		30,
+		"128000-128000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:4],
+		gRPCEndpoints[2:6],
 	)
 	if err != nil {
 		return err
@@ -90,37 +87,35 @@ func Run() error {
 			// create a partially connected network by only dialing 5 peers
 			cfg.P2P.MaxNumOutboundPeers = 3
 			cfg.P2P.MaxNumInboundPeers = 4
-			cfg.Mempool.TTLNumBlocks = 100
-			cfg.Mempool.TTLDuration = 10 * time.Minute
-			cfg.Mempool.MaxTxsBytes *= 5
+			cfg.Instrumentation.TraceType = "local"
 		},
 	)
 	if err != nil {
 		return err
 	}
 
-	// pushConfig, err := trace.GetPushConfigFromEnv()
-	// if err != nil {
-	// 	return err
-	// }
-	// log.Print("Setting up trace push config")
-	// for _, node := range network.Nodes() {
-	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
-	// 		return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
-	// 	}
-	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
-	// 		return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
-	// 	}
-	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
-	// 		return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
-	// 	}
-	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
-	// 		return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
-	// 	}
-	// 	if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
-	// 		return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
-	// 	}
-	// }
+	pushConfig, err := trace.GetPushConfigFromEnv()
+	if err != nil {
+		return err
+	}
+	log.Print("Setting up trace push config")
+	for _, node := range network.Nodes() {
+		if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
+		}
+		if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
+			return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
+		}
+	}
 
 	log.Printf("Starting network\n")
 	err = network.StartNodes()
@@ -129,7 +124,7 @@ func Run() error {
 	}
 
 	for _, node := range network.Nodes() {
-		if err = node.Instance.SetLatencyAndJitter(30, 10); err != nil {
+		if err = node.Instance.SetLatencyAndJitter(40, 10); err != nil {
 			return fmt.Errorf("failed to set latency and jitter: %v", err)
 		}
 	}
@@ -160,91 +155,15 @@ func Run() error {
 			log.Printf("Height: %v", status.SyncInfo.LatestBlockHeight)
 
 		case <-timeout.C:
-			if err := network.StopTxClients(); err != nil {
-				log.Printf("Error stopping tx clients: %v", err)
-			}
+			network.StopTxClients()
 			log.Println("--- COLLECTING DATA")
-			throughput, err := saveBlockTimes(network)
-			if err != nil {
-				log.Printf("Error saving block times: %v", err)
+			file := "/Users/callum/Developer/go/src/github.com/celestiaorg/big-blocks-research/traces"
+			if err := trace.S3Download(file, network.ChainID(), pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable, schema.MempoolRecoveryTable); err != nil {
+				return fmt.Errorf("failed to download traces from S3: %w", err)
 			}
-			log.Printf("Throughput: %v", throughput)
-			// err = trace.S3Download("./traces/", "compact-blocks",
-			// 	pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable)
-			// if err != nil {
-			// 	return fmt.Errorf("failed to download traces from S3: %w", err)
-			// }
+
 			log.Println("--- FINISHED ✅: Compact Blocks")
 			return nil
 		}
 	}
-}
-
-func saveBlockTimes(testnet *testnet.Testnet) (float64, error) {
-	file, err := os.Create(fmt.Sprintf("%s-%s-block-times.csv", time.Now().Format("2006-01-02-15-04-05"), testnet.Node(0).Version))
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	err = writer.Write([]string{"height", "block time", "block size", "last commit round"})
-	if err != nil {
-		return 0, err
-	}
-
-	nodes := testnet.Nodes()
-	clients := make([]*http.HTTP, len(nodes))
-	for i, node := range nodes {
-		clients[i], err = node.Client()
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	totalBlockSize := 0
-	startTime := int64(0)
-	endTime := int64(0)
-	status, err := clients[0].Status(context.Background())
-	if err != nil {
-		return 0, err
-	}
-	index := 0
-	for height := status.SyncInfo.EarliestBlockHeight; height <= status.SyncInfo.LatestBlockHeight; height++ {
-		log.Printf("Getting block %d", height)
-		resp, err := clients[index].Block(context.Background(), &height)
-		if err != nil {
-			log.Printf("Error getting header for height %d: %v", height, err)
-			index++
-			if index == len(nodes) {
-				return 0, fmt.Errorf("all nodes failed to get header for height %d", height)
-			}
-			// retry the height
-			height--
-			continue
-		}
-		blockSize := 0
-		for _, tx := range resp.Block.Txs {
-			blockSize += len(tx)
-		}
-		if blockSize > 0 {
-			totalBlockSize += blockSize
-			if startTime == 0 {
-				startTime = resp.Block.Time.UnixNano()
-			}
-			endTime = resp.Block.Time.UnixNano()
-		}
-		if resp.Block.LastCommit.Round > 0 {
-			log.Printf("Block %d has a last commit round of %d", resp.Block.LastCommit.Height, resp.Block.LastCommit.Round)
-		}
-		err = writer.Write([]string{fmt.Sprintf("%d", height), fmt.Sprintf("%d", resp.Block.Time.UnixNano()), fmt.Sprintf("%d", blockSize), fmt.Sprintf("%d", resp.Block.LastCommit.Round)})
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	duration := (endTime - startTime) / 1e9
-	return float64(totalBlockSize) / float64(duration), nil
 }

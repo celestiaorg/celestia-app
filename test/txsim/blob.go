@@ -28,6 +28,7 @@ type BlobSequence struct {
 
 	account     types.AccAddress
 	useFeegrant bool
+	gasPrice    float64
 }
 
 func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
@@ -35,6 +36,7 @@ func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
 		sizes:         sizes,
 		blobsPerPFB:   blobsPerPFB,
 		shareVersions: []uint8{share.ShareVersionZero, share.ShareVersionOne},
+		gasPrice:      appconsts.DefaultMinGasPrice,
 	}
 }
 
@@ -111,10 +113,13 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	if err != nil {
 		return Operation{}, err
 	}
+	// increment the gas price by 0.0001
+	defer func() { s.gasPrice += 0.0001 }()
 	return Operation{
 		Msgs:     []types.Msg{msg},
 		Blobs:    blobs,
 		GasLimit: estimateGas(sizes, s.useFeegrant),
+		GasPrice: s.gasPrice,
 	}, nil
 }
 

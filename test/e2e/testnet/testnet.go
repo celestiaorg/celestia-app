@@ -39,10 +39,14 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		genesis: genesis.NewDefaultGenesis().WithChainID(identifier).WithModifiers(genesisModifiers...),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil
+}
+
+func (t *Testnet) ChainID() string {
+	return t.genesis.ChainID
 }
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
