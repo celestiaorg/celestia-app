@@ -47,7 +47,6 @@ type Node struct {
 	// FIXME: This does not work currently with the reverse proxy
 	// grpcProxyHost  string
 	traceProxyHost string
-	args           []string
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
@@ -171,7 +170,6 @@ func NewNode(
 		SignerKey:      signerKey,
 		NetworkKey:     networkKey,
 		SelfDelegation: selfDelegation,
-		args:           args,
 	}, nil
 }
 
@@ -380,8 +378,4 @@ func (n *Node) Upgrade(version string) error {
 
 func DockerImageName(version string) string {
 	return fmt.Sprintf("%s:%s", dockerSrcURL, version)
-}
-
-func (n *Node) GetArgs() []string {
-	return n.args
 }
