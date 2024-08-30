@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "4021c9f" //"a28b9e7"
+	compactBlocksVersion = "986c330" //"a28b9e7"
 )
 
 func main() {
@@ -72,7 +72,7 @@ func Run() error {
 		"128000-128000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[2:6],
+		gRPCEndpoints[2:7],
 	)
 	if err != nil {
 		return err
