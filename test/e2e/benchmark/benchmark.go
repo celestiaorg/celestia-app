@@ -38,7 +38,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 	testnet.NoError("failed to create genesis nodes",
 		b.CreateGenesisNodes(b.manifest.Validators,
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
-			b.manifest.UpgradeHeight, b.manifest.ValidatorResource))
+			b.manifest.UpgradeHeight, b.manifest.ValidatorResource, b.manifest.DisableBBR))
 
 	// enable latency if specified in the manifest
 	if b.manifest.EnableLatency {
