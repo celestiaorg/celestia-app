@@ -86,8 +86,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnet.NoError("failed to upgrade node",
-			testNet.Node(i%numNodes).Upgrade(newVersion))
+		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
 		time.Sleep(10 * time.Second)
 		// wait for the node to reach two more heights
 		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
