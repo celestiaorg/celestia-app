@@ -68,7 +68,7 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		30,
+		40,
 		"128000-128000",
 		1,
 		testnet.DefaultResources,
