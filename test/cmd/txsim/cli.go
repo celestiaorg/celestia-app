@@ -39,7 +39,7 @@ var (
 	pollTime                                          time.Duration
 	send, sendIterations, sendAmount                  int
 	stake, stakeValue, blob                           int
-	useFeegrant, suppressLogs                         bool
+	useFeegrant, suppressLogs, ignoreFailures         bool
 )
 
 func main() {
@@ -161,6 +161,10 @@ well funded account that can act as the master account. The command runs until a
 				opts.SuppressLogs()
 			}
 
+			if ignoreFailures {
+				opts.IgnoreFailures()
+			}
+
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
@@ -199,6 +203,7 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs per PFB specified as a single value or a min-max range (e.g., 10 or 5-10). A single value indicates the exact number of blobs to be created.")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
+	flags.BoolVar(&ignoreFailures, "ignoreFailures", false, "ignore failures")
 	return flags
 }
 

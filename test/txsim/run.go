@@ -58,7 +58,16 @@ func Run(
 	}
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
+	manager, err := NewAccountManager(
+		ctx,
+		keys,
+		encCfg,
+		opts.masterAcc,
+		conn,
+		opts.pollTime,
+		opts.useFeeGrant,
+		opts.ignoreFailures,
+	)
 	if err != nil {
 		return err
 	}
@@ -129,6 +138,9 @@ type Options struct {
 	pollTime       time.Duration
 	useFeeGrant    bool
 	suppressLogger bool
+	// If set to true, if a sequence fails to submit a transction
+	// it will not halt.
+	ignoreFailures bool
 }
 
 func (o *Options) Fill() {
@@ -153,6 +165,11 @@ func (o *Options) SuppressLogs() *Options {
 
 func (o *Options) UseFeeGrant() *Options {
 	o.useFeeGrant = true
+	return o
+}
+
+func (o *Options) IgnoreFailures() *Options {
+	o.ignoreFailures = true
 	return o
 }
 
