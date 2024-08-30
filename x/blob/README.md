@@ -13,9 +13,9 @@ To use the blob module, users create and submit a `BlobTx` that is composed of:
 
 After the `BlobTx` is submitted to the network, a block producer separates
 the `sdk.Tx` from the blob(s). Both components get included in the
-[data square](../../specs/src/specs/data_square_layout.md) in different namespaces:
+[data square](../../specs/src/data_square_layout.md) in different namespaces:
 
-1. The `sdk.Tx` and some metadata about the separated blobs gets included in the `PayForBlobNamespace` (one of the [reserved namespaces](../../specs/src/specs/namespace.md#reserved-namespaces)).
+1. The `sdk.Tx` and some metadata about the separated blobs gets included in the `PayForBlobNamespace` (one of the [reserved namespaces](../../specs/src/namespace.md#reserved-namespaces)).
 1. The blob(s) get included in the namespace specified by each blob.
 
 After a block has been created, the user can verify that their data was included
@@ -89,10 +89,9 @@ message MsgPayForBlobs {
 
 The share commitment is the commitment to share encoded blobs. It can be used
 for cheap inclusion checks for some data by light clients. More information and
-rational can be found in the [data square layout
-specs](../../specs/src/specs/data_square_layout.md).
+rational can be found in the [data square layout](../../specs/src/data_square_layout.md) specification.
 
-1. Split the blob into shares of size [`shareSize`](../../specs/src/specs/data_structures.md#consensus-parameters)
+1. Split the blob into shares of size [`shareSize`](../../specs/src/data_structures.md#consensus-parameters)
 1. Determine the
    [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
    by dividing the length in shares by the `SubtreeRootThreshold`.
@@ -106,8 +105,7 @@ specs](../../specs/src/specs/data_square_layout.md).
 
 See
 [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/types/payforblob.go#L169-L236)
-for an implementation. See [data square
-layout](../../specs/src/specs/data_square_layout.md) and
+for an implementation. See [data square layout](../../specs/src/data_square_layout.md) and
 [ADR013](../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md)
 for details on the rational of the square layout.
 
@@ -145,9 +143,7 @@ each PFB, to be included in a block must follow a set of validity rules.
 When a block producer is preparing a block, they must perform an extra step for
 `BlobTx`s so that end-users can find the blob shares relevant to their submitted
 `BlobTx`. In particular, block proposers wrap the `BlobTx` in the PFB namespace
-with the index of the first share of the blob in the data square. See [Blob
-share commitment
-rules](../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules)
+with the index of the first share of the blob in the data square. See [Blob share commitment rules](../../specs/src/data_square_layout.md#blob-share-commitment-rules)
 for more details.
 
 Since `BlobTx`s can contain multiple blobs, the `sdk.Tx` portion of the `BlobTx`
