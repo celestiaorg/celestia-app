@@ -1,5 +1,5 @@
 #!/bin/sh
-
+export PRECOMMIT_DELAY="19"
 # Stop script execution if an error is encountered
 set -o errexit
 # Stop script execution if an undefined variable is used
