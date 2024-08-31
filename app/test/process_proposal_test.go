@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
@@ -394,19 +395,24 @@ func dataIcaAllowed(t *testing.T, signer *user.Signer) *tmproto.Data {
 }
 
 func icaTx(t *testing.T, signer *user.Signer, messageType string) []byte {
+	base64Data := "eyJkYXRhIjoiZXlKdFpYTnpZV2RsY3lJNlczc2lRSFI1Y0dVaU9pSXZZMjl6Ylc5ekxtSmhibXN1ZGpGaVpYUmhNUzVOYzJkVFpXNWtJaXdpWm5KdmJWOWhaR1J5WlhOeklqb2lZMjl6Ylc5ek1UVmpZM05vYUcxd01HZHplREk1Y1hCeGNUWm5OSHB0YkhSdWJuWm5iWGwxT1hWbGRXRmthRGw1TW01ak5YcHFNSE42YkhNMVozUmtaSG9pTENKMGIxOWhaR1J5WlhOeklqb2lZMjl6Ylc5ek1UQm9PWE4wWXpWMk5tNTBaMlY1WjJZMWVHWTVORFZ1YW5GeE5XZ3pNbkkxTTNWeGRYWjNJaXdpWVcxdmRXNTBJanBiZXlKa1pXNXZiU0k2SW5OMFlXdGxJaXdpWVcxdmRXNTBJam9pTVRBd01DSjlYWDFkZlE9PSIsIm1lbW8iOiJtZW1vIiwidHlwZSI6IlRZUEVfRVhFQ1VURV9UWCJ9"
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	require.NoError(t, err)
+
 	msg := &ibctypes.MsgRecvPacket{
+		// Packet is inspired by https://arabica.celenium.io/tx/b567c2e11b1c63706efef1f7448c199b7184e4923587000fe57daf4a07ff3f12?tab=messages
 		Packet: ibctypes.Packet{
+			Data:               data,
+			DestinationChannel: "channel-1",
+			DestinationPort:    "icahost",
 			Sequence:           1,
-			SourcePort:         "source-port",
-			SourceChannel:      "source-channel",
-			DestinationPort:    "destination-port",
-			DestinationChannel: "destination-channel",
-			Data:               []byte("data"),
+			SourceChannel:      "channel-4310",
+			SourcePort:         "icacontroller-cosmos1epqzuh6myrwrp4zr8zjamcye4nvkkg9xd8ywak",
 			TimeoutHeight: ibcclienttypes.Height{
-				RevisionNumber: 2,
-				RevisionHeight: 2,
+				RevisionHeight: 0,
+				RevisionNumber: 0,
 			},
-			TimeoutTimestamp: 1000,
+			TimeoutTimestamp: 1725050827576431600,
 		},
 		ProofCommitment: []byte("proof-commitment"),
 		ProofHeight: ibcclienttypes.Height{
