@@ -105,7 +105,6 @@ func (m *Manifest) summary() string {
 	if m.EnableLatency {
 		latency = 1
 	}
-	fmt.Println("latency is", latency)
 	bbr := 1
 	if m.DisableBBR {
 		bbr = 0
