@@ -336,13 +336,13 @@ func TestProcessProposal(t *testing.T) {
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
-		// {
-		// 	name:           "should reject a block with an ICA message that is not on allowlist",
-		// 	input:          dataIcaDenied(),
-		// 	mutator:        func(_ *tmproto.Data) {},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
+		{
+			name:           "should reject a block with an ICA message that is not on allowlist",
+			input:          dataIcaDenied(t, signer),
+			mutator:        func(_ *tmproto.Data) {},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
@@ -385,18 +385,29 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 }
 
 func dataIcaAllowed(t *testing.T, signer *user.Signer) *tmproto.Data {
-	txs := [][]byte{}
-	txs = append(txs, icaTx(t, signer, "my-message-type"))
 	return &tmproto.Data{
-		Txs:        txs,
+		Txs:        [][]byte{icaTxAllowed(t, signer)},
 		SquareSize: 2,
 		Hash:       tmrand.Bytes(32),
 	}
 }
 
-func icaTx(t *testing.T, signer *user.Signer, messageType string) []byte {
+func dataIcaDenied(t *testing.T, signer *user.Signer) *tmproto.Data {
+	return &tmproto.Data{
+		Txs:        [][]byte{icaTxDenied(t, signer)},
+		SquareSize: 2,
+		Hash:       tmrand.Bytes(32),
+	}
+}
+
+func icaTxAllowed(t *testing.T, signer *user.Signer) []byte {
+	// base64 data contains a MsgSend
 	base64Data := "eyJkYXRhIjoiZXlKdFpYTnpZV2RsY3lJNlczc2lRSFI1Y0dVaU9pSXZZMjl6Ylc5ekxtSmhibXN1ZGpGaVpYUmhNUzVOYzJkVFpXNWtJaXdpWm5KdmJWOWhaR1J5WlhOeklqb2lZMjl6Ylc5ek1UVmpZM05vYUcxd01HZHplREk1Y1hCeGNUWm5OSHB0YkhSdWJuWm5iWGwxT1hWbGRXRmthRGw1TW01ak5YcHFNSE42YkhNMVozUmtaSG9pTENKMGIxOWhaR1J5WlhOeklqb2lZMjl6Ylc5ek1UQm9PWE4wWXpWMk5tNTBaMlY1WjJZMWVHWTVORFZ1YW5GeE5XZ3pNbkkxTTNWeGRYWjNJaXdpWVcxdmRXNTBJanBiZXlKa1pXNXZiU0k2SW5OMFlXdGxJaXdpWVcxdmRXNTBJam9pTVRBd01DSjlYWDFkZlE9PSIsIm1lbW8iOiJtZW1vIiwidHlwZSI6IlRZUEVfRVhFQ1VURV9UWCJ9"
 	data, err := base64.StdEncoding.DecodeString(base64Data)
+	require.NoError(t, err)
+
+	base64ProofCommitment := "Cr8JCrwJCm9jb21taXRtZW50cy9wb3J0cy9pY2Fjb250cm9sbGVyLWNvc21vczFlcHF6dWg2bXlyd3JwNHpyOHpqYW1jeWU0bnZra2c5eGQ4eXdhay9jaGFubmVscy9jaGFubmVsLTQzMTAvc2VxdWVuY2VzLzESIOOEJjaDjCHNeUb5Nscs0jS1mz+M4pSEHnWqdBtWCT6VGg4IARgBIAEqBgAC2uGgFiIsCAESKAIE2uGgFiC2yEQJEJWHquHWhg/shpu6fOhyTtt2Jrf90zLAwr0UCyAiLAgBEigEBtrhoBYglv6DW7Udd8HWnGac8Tqmn2XL7BK/ab9FC8SERVGMq9AgIiwIARIoBg7a4aAWIK1Vn+IslEiRV+rjuwsUEytK3cQLJyOMaic6y/OeLjP1ICIsCAESKAgW2uGgFiAkf3L0kNPOb3iWG94x1Oo3F7tBbhTIyAFrzQi+pt6rTiAiLAgBEigKKNrhoBYgTaZg3a6jUz0ZxoCGVMv5Ms5Gi6NPmJMb9dAa2fn+Q6UgIi4IARIHDGja4aAWIBohIJaGaKlZh0VVe2ssuilbDdCi3a0SiB30NGGpltGQmeA4Ii0IARIpDrYB2uGgFiBgbasOp9FmZSOJD++feygAcJYqoaRUFfkzq7ajJQ3LuCAiLQgBEikQpgLa4aAWIAl0SSkvpQjTDxRVrn1CfBfh87LLuW8xmBWLXpOQjt7NICItCAESKRL2BNrhoBYg4MgElmhPULuGOedxNZoAQp1FFnsbG/3yrTPYl4WZa0QgIi8IARIIFPYI2uGgFiAaISAuXh/nYY9vlfQKv/CgyUrPFzhycY1gk3Jw7bqTwF/rMiItCAESKRb4D9rhoBYg2+Rbd6aRYQmx64VbkpBNZ5tTm6ZFoJxSbXhNG1cv8dAgIi0IARIpGNYX2uGgFiCHjG3nSixO/bAilis8FCYwd/EWN9KK7ord/qD8o4JcqCAiLQgBEikatCva4aAWIP1U5ibnw5lnxJXnEgEF+Sezp3ZOfOd5I46hwrtR2qPWICIvCAESCBy0QdrhoBYgGiEgtdteKHmRA4vpiLYbFG0TsL/+/n6O7gdQNmoAiKlzuDMiLggBEioeppYB2uGgFiDyiezkU1qbVkDwyurADIjsoWY/eeML9hW52bHbOWAi+yAiMAgBEgkgopcC2uGgFiAaISAXPLWiPXl93rKeoXd2AVpYx3w5OHcWe/A0Ge/Q1PmPYiIuCAESKiLg3QPa4aAWIOoqmcYC8BjIhzdpVhEecmVjSEJMhkgBxPHPOYd12zckICIwCAESCSSAoQ/a4aAWIBohIGw9qtHlLwOJan8Z8e28eIjH+m3fjYcsqzm8DfJRuvfjIi4IARIqJvD2GtrhoBYghG3zHblcVrp+v9Axn2sLv42ZvZ45A7yqeAMLQGEl4F0gIi4IARIqKu7kP9rhoBYg/hIwv2icPfvG8P4HYhzsob2W7ycD3ocS5Fhyz+EQkmYgIjAIARIJLITCadrhoBYgGiEgWk1O6HRwUZBZpY7Ejowgw+iT5Ol4mDXfhJ9ApsUuAFQiLwgBEiswqrb0AdrhoBYgkvWkqRpMmiFCA2LgEVw1kn4S+t5RBxM4hFg4roSHYRUgCv4BCvsBCgNpYmMSICQrZ6XLY7zMc/Y/5GtZmyJ2QAMyqHA3HbfvmXO5bzLgGgkIARgBIAEqAQAiJwgBEgEBGiCT0INIVWQHpgAwbQ3xCwA723Ie8pK7ZYZBH2hwo7JHnSInCAESAQEaIDqcSz89iIyuzLTmdLt4A/bxEw1B0KMyqIb9r7G5MZ12IiUIARIhAU+RAwuH9y8+5W5OTRgGq0ef/nGD/9Hrspp1uMHidhq8IiUIARIhAeblY7qeOFbxmgbhdyrefFskF77waQ8cVIv8mtFQm2h/IicIARIBARogmn76WwLMVT8S/TTLe3jQH+cXtPNIv3/7dEILgMgj9Hk="
+	proofCommitment, err := base64.StdEncoding.DecodeString(base64ProofCommitment)
 	require.NoError(t, err)
 
 	msg := &ibctypes.MsgRecvPacket{
@@ -414,10 +425,48 @@ func icaTx(t *testing.T, signer *user.Signer, messageType string) []byte {
 			},
 			TimeoutTimestamp: 1725050827576431600,
 		},
-		ProofCommitment: []byte("proof-commitment"),
+		ProofCommitment: proofCommitment,
 		ProofHeight: ibcclienttypes.Height{
-			RevisionNumber: 1,
-			RevisionHeight: 1,
+			RevisionHeight: 23337070,
+			RevisionNumber: 0,
+		},
+		Signer: signer.Accounts()[0].Address().String(),
+	}
+	options := blobfactory.DefaultTxOpts()
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, options...)
+	require.NoError(t, err)
+	return tx
+}
+
+func icaTxDenied(t *testing.T, signer *user.Signer) []byte {
+	// base64 data contains a MsgMultiSend
+	base64Data := "eyJkYXRhIjoiZXlKdFpYTnpZV2RsY3lJNlczc2lRSFI1Y0dVaU9pSXZZMjl6Ylc5ekxtSmhibXN1ZGpGaVpYUmhNUzVOYzJkTmRXeDBhVk5sYm1RaUxDSnBibkIxZEhNaU9sdGRMQ0p2ZFhSd2RYUnpJanBiWFgxZGZRPT0iLCJtZW1vIjoiIiwidHlwZSI6IlRZUEVfRVhFQ1VURV9UWCJ9"
+	data, err := base64.StdEncoding.DecodeString(base64Data)
+	require.NoError(t, err)
+
+	base64ProofCommitment := "Cr8JCrwJCm9jb21taXRtZW50cy9wb3J0cy9pY2Fjb250cm9sbGVyLWNvc21vczFlcHF6dWg2bXlyd3JwNHpyOHpqYW1jeWU0bnZra2c5eGQ4eXdhay9jaGFubmVscy9jaGFubmVsLTQzMTAvc2VxdWVuY2VzLzISIDquiSZLIm8Ju/ixet4lX7EBGeKGy9U/sq/Us0QOUpB2Gg4IARgBIAEqBgACktKiFiIsCAESKAIEktKiFiC2yEQJEJWHquHWhg/shpu6fOhyTtt2Jrf90zLAwr0UCyAiLAgBEigEBpLSohYglv6DW7Udd8HWnGac8Tqmn2XL7BK/ab9FC8SERVGMq9AgIiwIARIoBg6S0qIWIK1Vn+IslEiRV+rjuwsUEytK3cQLJyOMaic6y/OeLjP1ICIsCAESKAgWktKiFiAkf3L0kNPOb3iWG94x1Oo3F7tBbhTIyAFrzQi+pt6rTiAiLAgBEigKKJLSohYgTaZg3a6jUz0ZxoCGVMv5Ms5Gi6NPmJMb9dAa2fn+Q6UgIi4IARIHDGiS0qIWIBohIJaGaKlZh0VVe2ssuilbDdCi3a0SiB30NGGpltGQmeA4Ii0IARIpDrYBktKiFiBgbasOp9FmZSOJD++feygAcJYqoaRUFfkzq7ajJQ3LuCAiLQgBEikQpgKS0qIWIAl0SSkvpQjTDxRVrn1CfBfh87LLuW8xmBWLXpOQjt7NICItCAESKRL2BJLSohYg4MgElmhPULuGOedxNZoAQp1FFnsbG/3yrTPYl4WZa0QgIi8IARIIFPYIktKiFiAaISAuXh/nYY9vlfQKv/CgyUrPFzhycY1gk3Jw7bqTwF/rMiItCAESKRb4D5LSohYg2+Rbd6aRYQmx64VbkpBNZ5tTm6ZFoJxSbXhNG1cv8dAgIi0IARIpGNYXktKiFiCHjG3nSixO/bAilis8FCYwd/EWN9KK7ord/qD8o4JcqCAiLQgBEikatCuS0qIWIP1U5ibnw5lnxJXnEgEF+Sezp3ZOfOd5I46hwrtR2qPWICIvCAESCBy0QZbSohYgGiEgFp3aNcVFf63rT01Z8rxXjLJ/TgZj5nsVvlEnb307yuAiLggBEioeppYBltKiFiDyiezkU1qbVkDwyurADIjsoWY/eeML9hW52bHbOWAi+yAiMAgBEgkgopcCltKiFiAaISAXPLWiPXl93rKeoXd2AVpYx3w5OHcWe/A0Ge/Q1PmPYiIuCAESKiLg3QOW0qIWIOoqmcYC8BjIhzdpVhEecmVjSEJMhkgBxPHPOYd12zckICIwCAESCSSAoQ+W0qIWIBohIDavm40RbyC4Jdf6qhzmmxloDqy2vzmXAh17peUQSkvKIi4IARIqJvD2GpbSohYghG3zHblcVrp+v9Axn2sLv42ZvZ45A7yqeAMLQGEl4F0gIi4IARIqKu7kP5bSohYggW/ik03msR9I1j/rGaIl5XI0GbZEMUPKlo9FpEJf7vsgIjAIARIJLNTCaZbSohYgGiEgPS1m/2g8xhPd7xM6POkKxkgW/Eenqw4Ov4hpuiBp03oiLwgBEisw/Lr0AZbSohYgbltN/Lx5PI5oFF0w4duU8Y9MsAa+G/rizXqPr8MTHsIgCv4BCvsBCgNpYmMSIEGHuHOV3KWUJrjJN8dLFI58lKO2aNuJqqnAIIPH4y96GgkIARgBIAEqAQAiJwgBEgEBGiCT0INIVWQHpgAwbQ3xCwA723Ie8pK7ZYZBH2hwo7JHnSInCAESAQEaILnxdvI8Mc7gpMT4TbmIcR/5Mfn9PVOuztEalE+mVrcRIiUIARIhAQcoXIMT+Uq4vBHeA38ZrKdwc+l2Z8YYdDy/7CaERL4jIiUIARIhAY2VB4BJMHuNRQEyUOsTFHc4O5eQCnssKY9+yeQuriuOIicIARIBARog0sT/RdPuxnUrctvKfMj6vNy1nJ1ZbqXU80ch9ndNmi8="
+	proofCommitment, err := base64.StdEncoding.DecodeString(base64ProofCommitment)
+	require.NoError(t, err)
+
+	msg := &ibctypes.MsgRecvPacket{
+		// Packet is inspired by https://arabica.celenium.io/tx/73a0b90498936483ab1ede4786ce432f3a1ad1163558d6bf5dc1058b8756f489?tab=messages
+		Packet: ibctypes.Packet{
+			Data:               data,
+			DestinationChannel: "channel-1",
+			DestinationPort:    "icahost",
+			Sequence:           1,
+			SourceChannel:      "channel-4310",
+			SourcePort:         "icacontroller-cosmos1epqzuh6myrwrp4zr8zjamcye4nvkkg9xd8ywak",
+			TimeoutHeight: ibcclienttypes.Height{
+				RevisionHeight: 0,
+				RevisionNumber: 0,
+			},
+			TimeoutTimestamp: 1725136345563512000,
+		},
+		ProofCommitment: proofCommitment,
+		ProofHeight: ibcclienttypes.Height{
+			RevisionHeight: 23352464,
+			RevisionNumber: 0,
 		},
 		Signer: signer.Accounts()[0].Address().String(),
 	}
