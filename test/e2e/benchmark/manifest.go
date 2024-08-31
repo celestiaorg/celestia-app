@@ -105,9 +105,10 @@ func (m *Manifest) summary() string {
 	if m.EnableLatency {
 		latency = 1
 	}
+	fmt.Println("latency is", latency)
 	bbr := 1
 	if m.DisableBBR {
-		latency = 0
+		bbr = 0
 	}
 	maxBlockMB := m.MaxBlockBytes / testnet.MB
 	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-br%d-%dmb",
