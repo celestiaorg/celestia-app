@@ -409,40 +409,7 @@ func icaTxAllowed(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 		signer.Accounts()[0].Address(),
 		sdk.NewCoins(sdk.NewCoin("utia", math.NewInt(1))),
 	)
-	data, err := icatypes.SerializeCosmosTx(testApp.AppCodec(), []proto.Message{bankSendMsg})
-	require.NoError(t, err)
-
-	icaPacketData := icatypes.InterchainAccountPacketData{
-		Type: icatypes.EXECUTE_TX,
-		Data: data,
-	}
-	packetData := icaPacketData.GetBytes()
-	msg := &ibctypes.MsgRecvPacket{
-		// Packet is inspired by https://arabica.celenium.io/tx/b567c2e11b1c63706efef1f7448c199b7184e4923587000fe57daf4a07ff3f12?tab=messages
-		Packet: ibctypes.Packet{
-			Data:               packetData,
-			DestinationChannel: "channel-1",
-			DestinationPort:    "icahost",
-			Sequence:           1,
-			SourceChannel:      "channel-4310",
-			SourcePort:         "icacontroller-cosmos1epqzuh6myrwrp4zr8zjamcye4nvkkg9xd8ywak",
-			TimeoutHeight: ibcclienttypes.Height{
-				RevisionHeight: 0,
-				RevisionNumber: 0,
-			},
-			TimeoutTimestamp: 1725050827576431600,
-		},
-		ProofCommitment: []byte{},
-		ProofHeight: ibcclienttypes.Height{
-			RevisionHeight: 23337070,
-			RevisionNumber: 0,
-		},
-		Signer: signer.Accounts()[0].Address().String(),
-	}
-	options := blobfactory.DefaultTxOpts()
-	tx, err := signer.CreateTx([]sdk.Msg{msg}, options...)
-	require.NoError(t, err)
-	return tx
+	return icaTx(t, signer, testApp, bankSendMsg)
 }
 
 func icaTxDenied(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
@@ -450,18 +417,16 @@ func icaTxDenied(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 		[]banktypes.Input{},
 		[]banktypes.Output{},
 	)
-	data, err := icatypes.SerializeCosmosTx(testApp.AppCodec(), []proto.Message{bankSendMsg})
-	require.NoError(t, err)
+	return icaTx(t, signer, testApp, bankSendMsg)
+}
 
-	icaPacketData := icatypes.InterchainAccountPacketData{
-		Type: icatypes.EXECUTE_TX,
-		Data: data,
-	}
-	packetData := icaPacketData.GetBytes()
+func icaTx(t *testing.T, signer *user.Signer, testApp *app.App, sdkMsg sdk.Msg) []byte {
+	data, err := icatypes.SerializeCosmosTx(testApp.AppCodec(), []proto.Message{sdkMsg})
+	require.NoError(t, err)
 	msg := &ibctypes.MsgRecvPacket{
 		// Packet is inspired by https://arabica.celenium.io/tx/73a0b90498936483ab1ede4786ce432f3a1ad1163558d6bf5dc1058b8756f489?tab=messages
 		Packet: ibctypes.Packet{
-			Data:               packetData,
+			Data:               icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: data}.GetBytes(),
 			DestinationChannel: "channel-1",
 			DestinationPort:    "icahost",
 			Sequence:           1,
@@ -480,8 +445,7 @@ func icaTxDenied(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 		},
 		Signer: signer.Accounts()[0].Address().String(),
 	}
-	options := blobfactory.DefaultTxOpts()
-	tx, err := signer.CreateTx([]sdk.Msg{msg}, options...)
+	tx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	return tx
 }
