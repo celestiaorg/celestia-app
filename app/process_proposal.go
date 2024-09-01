@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
@@ -15,7 +14,6 @@ import (
 	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
@@ -130,33 +128,32 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	for _, tx := range req.BlockData.Txs {
 		_, isBlobTx := blob.UnmarshalBlobTx(tx)
 		if isBlobTx {
-			continue
+			continue // No action needed if this is a blobTx.
 		}
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
-			// an error here should have been caught above
-			continue
+			continue // An error here should have been caught above.
 		}
 		msgs := sdkTx.GetMsgs()
 		for _, msg := range msgs {
 			if recvPacketMsg, ok := msg.(*ibctypes.MsgRecvPacket); ok {
 				var data icatypes.InterchainAccountPacketData
 				if err := icatypes.ModuleCdc.UnmarshalJSON(recvPacketMsg.Packet.GetData(), &data); err != nil {
-					continue // let ICA host module return an error for this
+					// An error is happening here because invalid character '\\u008d'
+					continue // Let ICA host module return an error for this.
 				}
-				if data.Type == icatypes.EXECUTE_TX {
-					icaMsgs, err := icatypes.DeserializeCosmosTx(app.AppCodec(), data.Data)
-					if err != nil {
-						// an error is happening here because proto: illegal wireType 6
-
-						continue // let ICA host module return an error code for this
-					}
-					for _, icaMsg := range icaMsgs {
-						err := isIcaMsgAllowed(icaMsg)
-						if err != nil {
-							logInvalidPropBlockError(app.Logger(), req.Header, "ICA message is not allowed", err)
-							return reject()
-						}
+				if data.Type != icatypes.EXECUTE_TX {
+					continue // No action needed if this is not an EXECUTE_TX.
+				}
+				icaMsgs, err := icatypes.DeserializeCosmosTx(app.AppCodec(), data.Data)
+				if err != nil {
+					// an error is happening here because proto: illegal wireType 6
+					continue // let ICA host module return an error code for this
+				}
+				for _, icaMsg := range icaMsgs {
+					if ok := isIcaMsgAllowed(icaMsg); !ok {
+						logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("ICA message %v is not allowed", icaMsg))
+						return reject()
 					}
 				}
 			}
@@ -245,11 +242,7 @@ func accept() abci.ResponseProcessProposal {
 	}
 }
 
-// isIcaMsgAllowed returns nil if msg is allowed. It returns an error if the
-// message is not allowed.
-func isIcaMsgAllowed(msg sdk.Msg) error {
-	if !icahosttypes.ContainsMsgType(icaAllowMessages(), msg) {
-		return errors.Wrapf(sdkerrors.ErrUnauthorized, "message type not allowed: %s", sdk.MsgTypeURL(msg))
-	}
-	return nil
+// isIcaMsgAllowed returns true if msg is allowed.
+func isIcaMsgAllowed(msg sdk.Msg) bool {
+	return icahosttypes.ContainsMsgType(icaAllowMessages(), msg)
 }
