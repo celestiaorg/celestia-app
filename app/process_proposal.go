@@ -148,7 +148,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 					continue // let ICA host module return an error code for this
 				}
 				for _, icaMsg := range icaMsgs {
-					if ok := isIcaMsgAllowed(icaMsg); !ok {
+					if isAllowed := icahosttypes.ContainsMsgType(icaAllowMessages(), icaMsg); !isAllowed {
 						logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("ICA message %v is not allowed", icaMsg))
 						return reject()
 					}
@@ -237,9 +237,4 @@ func accept() abci.ResponseProcessProposal {
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
-}
-
-// isIcaMsgAllowed returns true if msg is allowed.
-func isIcaMsgAllowed(msg sdk.Msg) bool {
-	return icahosttypes.ContainsMsgType(icaAllowMessages(), msg)
 }
