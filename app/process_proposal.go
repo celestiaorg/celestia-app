@@ -121,10 +121,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 	}
 
-	// Reject the block if it contains an ICA transaction that uses a message type that is not on the allowlist.
-	// TODO: This block can be removed after either:
-	// 1. the ICA host param AllowMessages is updated via governance to an explicit allowlist.
-	// 2. the ICA host param AllowMessages is hard-coded to an allowlist and made governance unmodifiable.
+	// Reject the block if it contains an ICA transaction that uses a message type that is not in icaAllowMessages().
+	// This is needed because the ICA host module AllowMessages param != icaAllowMessages().
+	// TODO: This block can be removed after the ICA host param AllowMessages == icaAllowMessages().
 	for _, tx := range req.BlockData.Txs {
 		_, isBlobTx := blob.UnmarshalBlobTx(tx)
 		if isBlobTx {
