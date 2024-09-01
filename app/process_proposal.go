@@ -139,7 +139,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			if recvPacketMsg, ok := msg.(*ibctypes.MsgRecvPacket); ok {
 				var data icatypes.InterchainAccountPacketData
 				if err := icatypes.ModuleCdc.UnmarshalJSON(recvPacketMsg.Packet.GetData(), &data); err != nil {
-					// An error is happening here because invalid character '\\u008d'
 					continue // Let ICA host module return an error for this.
 				}
 				if data.Type != icatypes.EXECUTE_TX {
@@ -147,7 +146,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 				}
 				icaMsgs, err := icatypes.DeserializeCosmosTx(app.AppCodec(), data.Data)
 				if err != nil {
-					// an error is happening here because proto: illegal wireType 6
 					continue // let ICA host module return an error code for this
 				}
 				for _, icaMsg := range icaMsgs {
