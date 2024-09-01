@@ -405,10 +405,6 @@ func dataIcaDenied(t *testing.T, signer *user.Signer) *tmproto.Data {
 }
 
 func icaTxAllowed(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
-	// base64 data contains a MsgSend
-	// base64Data := "eyJkYXRhIjoiZXlKdFpYTnpZV2RsY3lJNlczc2lRSFI1Y0dVaU9pSXZZMjl6Ylc5ekxtSmhibXN1ZGpGaVpYUmhNUzVOYzJkVFpXNWtJaXdpWm5KdmJWOWhaR1J5WlhOeklqb2lZMjl6Ylc5ek1UVmpZM05vYUcxd01HZHplREk1Y1hCeGNUWm5OSHB0YkhSdWJuWm5iWGwxT1hWbGRXRmthRGw1TW01ak5YcHFNSE42YkhNMVozUmtaSG9pTENKMGIxOWhaR1J5WlhOeklqb2lZMjl6Ylc5ek1UQm9PWE4wWXpWMk5tNTBaMlY1WjJZMWVHWTVORFZ1YW5GeE5XZ3pNbkkxTTNWeGRYWjNJaXdpWVcxdmRXNTBJanBiZXlKa1pXNXZiU0k2SW5OMFlXdGxJaXdpWVcxdmRXNTBJam9pTVRBd01DSjlYWDFkZlE9PSIsIm1lbW8iOiJtZW1vIiwidHlwZSI6IlRZUEVfRVhFQ1VURV9UWCJ9"
-	// data, err := base64.StdEncoding.DecodeString(base64Data)
-	// require.NoError(t, err)
 	bankSendMsg := banktypes.NewMsgSend(
 		signer.Accounts()[0].Address(),
 		signer.Accounts()[0].Address(),
@@ -417,6 +413,12 @@ func icaTxAllowed(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 	data, err := icatypes.SerializeCosmosTx(testApp.AppCodec(), []proto.Message{bankSendMsg})
 	require.NoError(t, err)
 
+	icaPacketData := icatypes.InterchainAccountPacketData{
+		Type: icatypes.EXECUTE_TX,
+		Data: data,
+	}
+	packetData := icaPacketData.GetBytes()
+
 	base64ProofCommitment := "Cr8JCrwJCm9jb21taXRtZW50cy9wb3J0cy9pY2Fjb250cm9sbGVyLWNvc21vczFlcHF6dWg2bXlyd3JwNHpyOHpqYW1jeWU0bnZra2c5eGQ4eXdhay9jaGFubmVscy9jaGFubmVsLTQzMTAvc2VxdWVuY2VzLzESIOOEJjaDjCHNeUb5Nscs0jS1mz+M4pSEHnWqdBtWCT6VGg4IARgBIAEqBgAC2uGgFiIsCAESKAIE2uGgFiC2yEQJEJWHquHWhg/shpu6fOhyTtt2Jrf90zLAwr0UCyAiLAgBEigEBtrhoBYglv6DW7Udd8HWnGac8Tqmn2XL7BK/ab9FC8SERVGMq9AgIiwIARIoBg7a4aAWIK1Vn+IslEiRV+rjuwsUEytK3cQLJyOMaic6y/OeLjP1ICIsCAESKAgW2uGgFiAkf3L0kNPOb3iWG94x1Oo3F7tBbhTIyAFrzQi+pt6rTiAiLAgBEigKKNrhoBYgTaZg3a6jUz0ZxoCGVMv5Ms5Gi6NPmJMb9dAa2fn+Q6UgIi4IARIHDGja4aAWIBohIJaGaKlZh0VVe2ssuilbDdCi3a0SiB30NGGpltGQmeA4Ii0IARIpDrYB2uGgFiBgbasOp9FmZSOJD++feygAcJYqoaRUFfkzq7ajJQ3LuCAiLQgBEikQpgLa4aAWIAl0SSkvpQjTDxRVrn1CfBfh87LLuW8xmBWLXpOQjt7NICItCAESKRL2BNrhoBYg4MgElmhPULuGOedxNZoAQp1FFnsbG/3yrTPYl4WZa0QgIi8IARIIFPYI2uGgFiAaISAuXh/nYY9vlfQKv/CgyUrPFzhycY1gk3Jw7bqTwF/rMiItCAESKRb4D9rhoBYg2+Rbd6aRYQmx64VbkpBNZ5tTm6ZFoJxSbXhNG1cv8dAgIi0IARIpGNYX2uGgFiCHjG3nSixO/bAilis8FCYwd/EWN9KK7ord/qD8o4JcqCAiLQgBEikatCva4aAWIP1U5ibnw5lnxJXnEgEF+Sezp3ZOfOd5I46hwrtR2qPWICIvCAESCBy0QdrhoBYgGiEgtdteKHmRA4vpiLYbFG0TsL/+/n6O7gdQNmoAiKlzuDMiLggBEioeppYB2uGgFiDyiezkU1qbVkDwyurADIjsoWY/eeML9hW52bHbOWAi+yAiMAgBEgkgopcC2uGgFiAaISAXPLWiPXl93rKeoXd2AVpYx3w5OHcWe/A0Ge/Q1PmPYiIuCAESKiLg3QPa4aAWIOoqmcYC8BjIhzdpVhEecmVjSEJMhkgBxPHPOYd12zckICIwCAESCSSAoQ/a4aAWIBohIGw9qtHlLwOJan8Z8e28eIjH+m3fjYcsqzm8DfJRuvfjIi4IARIqJvD2GtrhoBYghG3zHblcVrp+v9Axn2sLv42ZvZ45A7yqeAMLQGEl4F0gIi4IARIqKu7kP9rhoBYg/hIwv2icPfvG8P4HYhzsob2W7ycD3ocS5Fhyz+EQkmYgIjAIARIJLITCadrhoBYgGiEgWk1O6HRwUZBZpY7Ejowgw+iT5Ol4mDXfhJ9ApsUuAFQiLwgBEiswqrb0AdrhoBYgkvWkqRpMmiFCA2LgEVw1kn4S+t5RBxM4hFg4roSHYRUgCv4BCvsBCgNpYmMSICQrZ6XLY7zMc/Y/5GtZmyJ2QAMyqHA3HbfvmXO5bzLgGgkIARgBIAEqAQAiJwgBEgEBGiCT0INIVWQHpgAwbQ3xCwA723Ie8pK7ZYZBH2hwo7JHnSInCAESAQEaIDqcSz89iIyuzLTmdLt4A/bxEw1B0KMyqIb9r7G5MZ12IiUIARIhAU+RAwuH9y8+5W5OTRgGq0ef/nGD/9Hrspp1uMHidhq8IiUIARIhAeblY7qeOFbxmgbhdyrefFskF77waQ8cVIv8mtFQm2h/IicIARIBARogmn76WwLMVT8S/TTLe3jQH+cXtPNIv3/7dEILgMgj9Hk="
 	proofCommitment, err := base64.StdEncoding.DecodeString(base64ProofCommitment)
 	require.NoError(t, err)
@@ -424,7 +426,7 @@ func icaTxAllowed(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 	msg := &ibctypes.MsgRecvPacket{
 		// Packet is inspired by https://arabica.celenium.io/tx/b567c2e11b1c63706efef1f7448c199b7184e4923587000fe57daf4a07ff3f12?tab=messages
 		Packet: ibctypes.Packet{
-			Data:               data,
+			Data:               packetData,
 			DestinationChannel: "channel-1",
 			DestinationPort:    "icahost",
 			Sequence:           1,
