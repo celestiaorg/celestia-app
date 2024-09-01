@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -18,11 +19,15 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/go-square/blob"
+	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -67,21 +72,21 @@ func TestProcessProposal(t *testing.T) {
 	mixedData := validData()
 	mixedData.Txs = append(coretypes.Txs(sendTxs).ToSliceOfBytes(), mixedData.Txs...)
 
-	// // create an invalid block by adding an otherwise valid PFB, but an invalid
-	// // signature since there's no account
-	// badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
-	// 	t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 1, true,
-	// )[0]
+	// create an invalid block by adding an otherwise valid PFB, but an invalid
+	// signature since there's no account
+	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
+		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 1, true,
+	)[0]
 
-	// blobTxWithInvalidNonce := testutil.RandBlobTxsWithManualSequence(
-	// 	t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
-	// )[0]
+	blobTxWithInvalidNonce := testutil.RandBlobTxsWithManualSequence(
+		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
+	)[0]
 
-	// ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	// invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	// // expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
-	// assert.Error(t, err)
-	// data := bytes.Repeat([]byte{1}, 13)
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	// expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
+	assert.Error(t, err)
+	data := bytes.Repeat([]byte{1}, 13)
 
 	type test struct {
 		name           string
@@ -92,246 +97,246 @@ func TestProcessProposal(t *testing.T) {
 	}
 
 	tests := []test{
-		// {
-		// 	name:           "valid untouched data",
-		// 	input:          validData(),
-		// 	mutator:        func(_ *tmproto.Data) {},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_ACCEPT,
-		// },
-		// {
-		// 	name:  "removed first blob tx",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		d.Txs = d.Txs[1:]
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "added an extra blob tx",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		d.Txs = append(d.Txs, blobTxs[3])
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "modified a blobTx",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-		// 		blobTx.Blobs[0] = &blob.Blob{
-		// 			NamespaceId:      ns1.ID,
-		// 			Data:             data,
-		// 			NamespaceVersion: uint32(ns1.Version),
-		// 			ShareVersion:     uint32(appconsts.ShareVersionZero),
-		// 		}
-		// 		blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		// 		d.Txs[0] = blobTxBytes
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "invalid namespace TailPadding",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-		// 		blobTx.Blobs[0] = &blob.Blob{
-		// 			NamespaceId:      appns.TailPaddingNamespace.ID,
-		// 			Data:             data,
-		// 			NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
-		// 			ShareVersion:     uint32(appconsts.ShareVersionZero),
-		// 		}
-		// 		blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		// 		d.Txs[0] = blobTxBytes
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "invalid namespace TxNamespace",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-		// 		blobTx.Blobs[0] = &blob.Blob{
-		// 			NamespaceId:      appns.TxNamespace.ID,
-		// 			Data:             data,
-		// 			NamespaceVersion: uint32(appns.TxNamespace.Version),
-		// 			ShareVersion:     uint32(appconsts.ShareVersionZero),
-		// 		}
-		// 		blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		// 		d.Txs[0] = blobTxBytes
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "invalid namespace ParityShares",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-		// 		blobTx.Blobs[0] = &blob.Blob{
-		// 			NamespaceId:      appns.ParitySharesNamespace.ID,
-		// 			Data:             data,
-		// 			NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
-		// 			ShareVersion:     uint32(appconsts.ShareVersionZero),
-		// 		}
-		// 		blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		// 		d.Txs[0] = blobTxBytes
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "invalid blob namespace",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-		// 		blobTx.Blobs[0] = &blob.Blob{
-		// 			NamespaceId:      invalidNamespace.ID,
-		// 			Data:             data,
-		// 			ShareVersion:     uint32(appconsts.ShareVersionZero),
-		// 			NamespaceVersion: uint32(invalidNamespace.Version),
-		// 		}
-		// 		blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		// 		d.Txs[0] = blobTxBytes
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "pfb namespace version does not match blob",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
-		// 		blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
-		// 		blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		// 		d.Txs[0] = blobTxBytes
-		// 		d.Hash = calculateNewDataHash(t, d.Txs)
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "invalid namespace in index wrapper tx",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		index := 4
-		// 		tx, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
-		// 		blobTx, err := blob.MarshalBlobTx(tx, b)
-		// 		require.NoError(t, err)
+		{
+			name:           "valid untouched data",
+			input:          validData(),
+			mutator:        func(_ *tmproto.Data) {},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:  "removed first blob tx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = d.Txs[1:]
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "added an extra blob tx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append(d.Txs, blobTxs[3])
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "modified a blobTx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &blob.Blob{
+					NamespaceId:      ns1.ID,
+					Data:             data,
+					NamespaceVersion: uint32(ns1.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+				}
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
+				d.Txs[0] = blobTxBytes
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace TailPadding",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &blob.Blob{
+					NamespaceId:      appns.TailPaddingNamespace.ID,
+					Data:             data,
+					NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+				}
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
+				d.Txs[0] = blobTxBytes
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace TxNamespace",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &blob.Blob{
+					NamespaceId:      appns.TxNamespace.ID,
+					Data:             data,
+					NamespaceVersion: uint32(appns.TxNamespace.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+				}
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
+				d.Txs[0] = blobTxBytes
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace ParityShares",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &blob.Blob{
+					NamespaceId:      appns.ParitySharesNamespace.ID,
+					Data:             data,
+					NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+				}
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
+				d.Txs[0] = blobTxBytes
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid blob namespace",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &blob.Blob{
+					NamespaceId:      invalidNamespace.ID,
+					Data:             data,
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+					NamespaceVersion: uint32(invalidNamespace.Version),
+				}
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
+				d.Txs[0] = blobTxBytes
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "pfb namespace version does not match blob",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				blobTx, _ := blob.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
+				blobTxBytes, _ := blob.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
+				d.Txs[0] = blobTxBytes
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace in index wrapper tx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				index := 4
+				tx, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
+				blobTx, err := blob.MarshalBlobTx(tx, b)
+				require.NoError(t, err)
 
-		// 		// Replace the data with new contents
-		// 		d.Txs = [][]byte{blobTx}
+				// Replace the data with new contents
+				d.Txs = [][]byte{blobTx}
 
-		// 		// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
-		// 		d.Hash = calculateNewDataHash(t, d.Txs)
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "swap blobTxs",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		// swapping the order will cause the data root to be different
-		// 		d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "PFB without blobTx",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
-		// 		d.Txs = append(d.Txs, btx.Tx)
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "undecodable tx with app version 1",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
-		// 		// Update the data hash so that the test doesn't fail due to an incorrect data root.
-		// 		d.Hash = calculateNewDataHash(t, d.Txs)
-		// 	},
-		// 	appVersion:     v1.Version,
-		// 	expectedResult: abci.ResponseProcessProposal_ACCEPT,
-		// },
-		// {
-		// 	name:  "undecodable tx with app version 2",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
-		// 		// Update the data hash so that the test doesn't fail due to an incorrect data root.
-		// 		d.Hash = calculateNewDataHash(t, d.Txs)
-		// 	},
-		// 	appVersion:     v2.Version,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "incorrectly sorted; send tx after pfb",
-		// 	input: mixedData,
-		// 	mutator: func(d *tmproto.Data) {
-		// 		// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
-		// 		d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "included pfb with bad signature",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		d.Txs = append(d.Txs, badSigBlobTx)
-		// 		d.Hash = calculateNewDataHash(t, d.Txs)
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name:  "included pfb with incorrect nonce",
-		// 	input: validData(),
-		// 	mutator: func(d *tmproto.Data) {
-		// 		d.Txs = append(d.Txs, blobTxWithInvalidNonce)
-		// 		d.Hash = calculateNewDataHash(t, d.Txs)
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
-		// {
-		// 	name: "tampered sequence start",
-		// 	input: &tmproto.Data{
-		// 		Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
-		// 	},
-		// 	mutator: func(d *tmproto.Data) {
-		// 		dataSquare, err := square.Construct(d.Txs, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold)
-		// 		require.NoError(t, err)
+				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "swap blobTxs",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				// swapping the order will cause the data root to be different
+				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "PFB without blobTx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
+				d.Txs = append(d.Txs, btx.Tx)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "undecodable tx with app version 1",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				// Update the data hash so that the test doesn't fail due to an incorrect data root.
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     v1.Version,
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:  "undecodable tx with app version 2",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				// Update the data hash so that the test doesn't fail due to an incorrect data root.
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     v2.Version,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "incorrectly sorted; send tx after pfb",
+			input: mixedData,
+			mutator: func(d *tmproto.Data) {
+				// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
+				d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "included pfb with bad signature",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append(d.Txs, badSigBlobTx)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "included pfb with incorrect nonce",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "tampered sequence start",
+			input: &tmproto.Data{
+				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
+			},
+			mutator: func(d *tmproto.Data) {
+				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold)
+				require.NoError(t, err)
 
-		// 		b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
-		// 		b.FlipSequenceStart()
-		// 		updatedShare, err := b.Build()
-		// 		require.NoError(t, err)
-		// 		dataSquare[1] = *updatedShare
+				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
+				b.FlipSequenceStart()
+				updatedShare, err := b.Build()
+				require.NoError(t, err)
+				dataSquare[1] = *updatedShare
 
-		// 		eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
-		// 		require.NoError(t, err)
+				eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+				require.NoError(t, err)
 
-		// 		dah, err := da.NewDataAvailabilityHeader(eds)
-		// 		require.NoError(t, err)
-		// 		// replace the hash of the prepare proposal response with the hash of a data
-		// 		// square with a tampered sequence start indicator
-		// 		d.Hash = dah.Hash()
-		// 	},
-		// 	appVersion:     appconsts.LatestVersion,
-		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
-		// },
+				dah, err := da.NewDataAvailabilityHeader(eds)
+				require.NoError(t, err)
+				// replace the hash of the prepare proposal response with the hash of a data
+				// square with a tampered sequence start indicator
+				d.Hash = dah.Hash()
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 		{
 			name:           "should accept a block with an ICA message that is on allowlist",
 			input:          dataIcaAllowed(t, signer, testApp),
