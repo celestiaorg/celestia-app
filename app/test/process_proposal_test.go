@@ -345,9 +345,11 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name:           "should reject a block with an ICA message that is not on allowlist",
-			input:          dataIcaDenied(t, signer, testApp),
-			mutator:        func(_ *tmproto.Data) {},
+			name:  "should reject a block with an ICA message that is not on allowlist",
+			input: &tmproto.Data{}, // prepareProposal would filter out the tx if we passed dataIcaDenied() here.
+			mutator: func(data *tmproto.Data) {
+				data.Txs = dataIcaDenied(t, signer, testApp).Txs
+			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
