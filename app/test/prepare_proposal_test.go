@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -16,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v2/test/util"
 	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
@@ -203,6 +205,46 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPrepareProposal(t *testing.T) {
+	t.Run("should retain ICA tx with MsgSend", func(t *testing.T) {
+		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		accounts := testfactory.GenerateAccounts(6)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+		infos := queryAccountInfo(testApp, accounts, kr)
+		signer, err := user.NewSigner(kr, encodingConfig.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+		require.NoError(t, err)
+
+		got := testApp.PrepareProposal(
+			abci.RequestPrepareProposal{
+				BlockData: dataIcaAllowed(t, signer, testApp),
+				ChainId:   testutil.ChainID,
+				Height:    testApp.LastBlockHeight() + 1,
+				Time:      time.Now(),
+			},
+		)
+		assert.Len(t, got.BlockData.Txs, 1)
+	})
+	t.Run("should filter out ICA tx with MsgMultiSend", func(t *testing.T) {
+		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		accounts := testfactory.GenerateAccounts(6)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+		infos := queryAccountInfo(testApp, accounts, kr)
+		signer, err := user.NewSigner(kr, encodingConfig.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+		require.NoError(t, err)
+
+		got := testApp.PrepareProposal(
+			abci.RequestPrepareProposal{
+				BlockData: dataIcaDenied(t, signer, testApp),
+				ChainId:   testutil.ChainID,
+				Height:    testApp.LastBlockHeight() + 1,
+				Time:      time.Now(),
+			},
+		)
+		assert.Len(t, got.BlockData.Txs, 0)
+
+	})
 }
 
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {

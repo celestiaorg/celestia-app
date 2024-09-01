@@ -125,13 +125,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// This is needed because the ICA host module AllowMessages param != icaAllowMessages().
 	// TODO: This block can be removed after the ICA host param AllowMessages == icaAllowMessages().
 	for _, tx := range req.BlockData.Txs {
-		_, isBlobTx := blob.UnmarshalBlobTx(tx)
-		if isBlobTx {
-			continue // No action needed if this is a blobTx.
-		}
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
-			continue // An error here should have been caught above.
+			continue // An error here should have been caught above if this tx is non-decodable.
 		}
 		msgs := sdkTx.GetMsgs()
 		for _, msg := range msgs {

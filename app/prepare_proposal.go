@@ -8,7 +8,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
+	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -44,6 +48,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// Filter out invalid transactions.
 	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	txs = filterICATxs(app, app.txConfig, req.BlockData.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
@@ -88,4 +93,47 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			Hash:       dah.Hash(), // also known as the data root
 		},
 	}
+}
+
+// filterICATxs filters out ICA txs that include a message that is not on icaAllowedMessages.
+// This is needed because the ICA host module AllowMessages param != icaAllowMessages().
+// TODO: This block can be removed after the ICA host param AllowMessages == icaAllowMessages().
+func filterICATxs(app *App, txConfig client.TxConfig, txs [][]byte) (result [][]byte) {
+	for _, tx := range txs {
+		sdkTx, err := txConfig.TxDecoder()(tx)
+		if err != nil {
+			result = append(result, tx)
+		}
+		msgs := sdkTx.GetMsgs()
+		for _, msg := range msgs {
+			if recvPacketMsg, ok := msg.(*ibctypes.MsgRecvPacket); ok {
+				var data icatypes.InterchainAccountPacketData
+				if err := icatypes.ModuleCdc.UnmarshalJSON(recvPacketMsg.Packet.GetData(), &data); err != nil {
+					// Let ICA host module return an error for this.
+					result = append(result, tx)
+					continue
+				}
+				if data.Type != icatypes.EXECUTE_TX {
+					// No action needed if this is not an EXECUTE_TX.
+					result = append(result, tx)
+					continue
+				}
+				icaMsgs, err := icatypes.DeserializeCosmosTx(app.AppCodec(), data.Data)
+				if err != nil {
+					// Let ICA host module return an error code for this.
+					result = append(result, tx)
+					continue
+				}
+				for _, icaMsg := range icaMsgs {
+					if isAllowed := icahosttypes.ContainsMsgType(icaAllowMessages(), icaMsg); isAllowed {
+						result = append(result, tx)
+						continue
+					} else {
+						app.Logger().Debug("ICA message is not allowed", "msg", icaMsg)
+					}
+				}
+			}
+		}
+	}
+	return result
 }
