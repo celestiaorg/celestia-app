@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
@@ -418,11 +417,6 @@ func icaTxAllowed(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 		Data: data,
 	}
 	packetData := icaPacketData.GetBytes()
-
-	base64ProofCommitment := "Cr8JCrwJCm9jb21taXRtZW50cy9wb3J0cy9pY2Fjb250cm9sbGVyLWNvc21vczFlcHF6dWg2bXlyd3JwNHpyOHpqYW1jeWU0bnZra2c5eGQ4eXdhay9jaGFubmVscy9jaGFubmVsLTQzMTAvc2VxdWVuY2VzLzESIOOEJjaDjCHNeUb5Nscs0jS1mz+M4pSEHnWqdBtWCT6VGg4IARgBIAEqBgAC2uGgFiIsCAESKAIE2uGgFiC2yEQJEJWHquHWhg/shpu6fOhyTtt2Jrf90zLAwr0UCyAiLAgBEigEBtrhoBYglv6DW7Udd8HWnGac8Tqmn2XL7BK/ab9FC8SERVGMq9AgIiwIARIoBg7a4aAWIK1Vn+IslEiRV+rjuwsUEytK3cQLJyOMaic6y/OeLjP1ICIsCAESKAgW2uGgFiAkf3L0kNPOb3iWG94x1Oo3F7tBbhTIyAFrzQi+pt6rTiAiLAgBEigKKNrhoBYgTaZg3a6jUz0ZxoCGVMv5Ms5Gi6NPmJMb9dAa2fn+Q6UgIi4IARIHDGja4aAWIBohIJaGaKlZh0VVe2ssuilbDdCi3a0SiB30NGGpltGQmeA4Ii0IARIpDrYB2uGgFiBgbasOp9FmZSOJD++feygAcJYqoaRUFfkzq7ajJQ3LuCAiLQgBEikQpgLa4aAWIAl0SSkvpQjTDxRVrn1CfBfh87LLuW8xmBWLXpOQjt7NICItCAESKRL2BNrhoBYg4MgElmhPULuGOedxNZoAQp1FFnsbG/3yrTPYl4WZa0QgIi8IARIIFPYI2uGgFiAaISAuXh/nYY9vlfQKv/CgyUrPFzhycY1gk3Jw7bqTwF/rMiItCAESKRb4D9rhoBYg2+Rbd6aRYQmx64VbkpBNZ5tTm6ZFoJxSbXhNG1cv8dAgIi0IARIpGNYX2uGgFiCHjG3nSixO/bAilis8FCYwd/EWN9KK7ord/qD8o4JcqCAiLQgBEikatCva4aAWIP1U5ibnw5lnxJXnEgEF+Sezp3ZOfOd5I46hwrtR2qPWICIvCAESCBy0QdrhoBYgGiEgtdteKHmRA4vpiLYbFG0TsL/+/n6O7gdQNmoAiKlzuDMiLggBEioeppYB2uGgFiDyiezkU1qbVkDwyurADIjsoWY/eeML9hW52bHbOWAi+yAiMAgBEgkgopcC2uGgFiAaISAXPLWiPXl93rKeoXd2AVpYx3w5OHcWe/A0Ge/Q1PmPYiIuCAESKiLg3QPa4aAWIOoqmcYC8BjIhzdpVhEecmVjSEJMhkgBxPHPOYd12zckICIwCAESCSSAoQ/a4aAWIBohIGw9qtHlLwOJan8Z8e28eIjH+m3fjYcsqzm8DfJRuvfjIi4IARIqJvD2GtrhoBYghG3zHblcVrp+v9Axn2sLv42ZvZ45A7yqeAMLQGEl4F0gIi4IARIqKu7kP9rhoBYg/hIwv2icPfvG8P4HYhzsob2W7ycD3ocS5Fhyz+EQkmYgIjAIARIJLITCadrhoBYgGiEgWk1O6HRwUZBZpY7Ejowgw+iT5Ol4mDXfhJ9ApsUuAFQiLwgBEiswqrb0AdrhoBYgkvWkqRpMmiFCA2LgEVw1kn4S+t5RBxM4hFg4roSHYRUgCv4BCvsBCgNpYmMSICQrZ6XLY7zMc/Y/5GtZmyJ2QAMyqHA3HbfvmXO5bzLgGgkIARgBIAEqAQAiJwgBEgEBGiCT0INIVWQHpgAwbQ3xCwA723Ie8pK7ZYZBH2hwo7JHnSInCAESAQEaIDqcSz89iIyuzLTmdLt4A/bxEw1B0KMyqIb9r7G5MZ12IiUIARIhAU+RAwuH9y8+5W5OTRgGq0ef/nGD/9Hrspp1uMHidhq8IiUIARIhAeblY7qeOFbxmgbhdyrefFskF77waQ8cVIv8mtFQm2h/IicIARIBARogmn76WwLMVT8S/TTLe3jQH+cXtPNIv3/7dEILgMgj9Hk="
-	proofCommitment, err := base64.StdEncoding.DecodeString(base64ProofCommitment)
-	require.NoError(t, err)
-
 	msg := &ibctypes.MsgRecvPacket{
 		// Packet is inspired by https://arabica.celenium.io/tx/b567c2e11b1c63706efef1f7448c199b7184e4923587000fe57daf4a07ff3f12?tab=messages
 		Packet: ibctypes.Packet{
@@ -438,7 +432,7 @@ func icaTxAllowed(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 			},
 			TimeoutTimestamp: 1725050827576431600,
 		},
-		ProofCommitment: proofCommitment,
+		ProofCommitment: []byte{},
 		ProofHeight: ibcclienttypes.Height{
 			RevisionHeight: 23337070,
 			RevisionNumber: 0,
@@ -464,10 +458,6 @@ func icaTxDenied(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 		Data: data,
 	}
 	packetData := icaPacketData.GetBytes()
-
-	base64ProofCommitment := "Cr8JCrwJCm9jb21taXRtZW50cy9wb3J0cy9pY2Fjb250cm9sbGVyLWNvc21vczFlcHF6dWg2bXlyd3JwNHpyOHpqYW1jeWU0bnZra2c5eGQ4eXdhay9jaGFubmVscy9jaGFubmVsLTQzMTAvc2VxdWVuY2VzLzISIDquiSZLIm8Ju/ixet4lX7EBGeKGy9U/sq/Us0QOUpB2Gg4IARgBIAEqBgACktKiFiIsCAESKAIEktKiFiC2yEQJEJWHquHWhg/shpu6fOhyTtt2Jrf90zLAwr0UCyAiLAgBEigEBpLSohYglv6DW7Udd8HWnGac8Tqmn2XL7BK/ab9FC8SERVGMq9AgIiwIARIoBg6S0qIWIK1Vn+IslEiRV+rjuwsUEytK3cQLJyOMaic6y/OeLjP1ICIsCAESKAgWktKiFiAkf3L0kNPOb3iWG94x1Oo3F7tBbhTIyAFrzQi+pt6rTiAiLAgBEigKKJLSohYgTaZg3a6jUz0ZxoCGVMv5Ms5Gi6NPmJMb9dAa2fn+Q6UgIi4IARIHDGiS0qIWIBohIJaGaKlZh0VVe2ssuilbDdCi3a0SiB30NGGpltGQmeA4Ii0IARIpDrYBktKiFiBgbasOp9FmZSOJD++feygAcJYqoaRUFfkzq7ajJQ3LuCAiLQgBEikQpgKS0qIWIAl0SSkvpQjTDxRVrn1CfBfh87LLuW8xmBWLXpOQjt7NICItCAESKRL2BJLSohYg4MgElmhPULuGOedxNZoAQp1FFnsbG/3yrTPYl4WZa0QgIi8IARIIFPYIktKiFiAaISAuXh/nYY9vlfQKv/CgyUrPFzhycY1gk3Jw7bqTwF/rMiItCAESKRb4D5LSohYg2+Rbd6aRYQmx64VbkpBNZ5tTm6ZFoJxSbXhNG1cv8dAgIi0IARIpGNYXktKiFiCHjG3nSixO/bAilis8FCYwd/EWN9KK7ord/qD8o4JcqCAiLQgBEikatCuS0qIWIP1U5ibnw5lnxJXnEgEF+Sezp3ZOfOd5I46hwrtR2qPWICIvCAESCBy0QZbSohYgGiEgFp3aNcVFf63rT01Z8rxXjLJ/TgZj5nsVvlEnb307yuAiLggBEioeppYBltKiFiDyiezkU1qbVkDwyurADIjsoWY/eeML9hW52bHbOWAi+yAiMAgBEgkgopcCltKiFiAaISAXPLWiPXl93rKeoXd2AVpYx3w5OHcWe/A0Ge/Q1PmPYiIuCAESKiLg3QOW0qIWIOoqmcYC8BjIhzdpVhEecmVjSEJMhkgBxPHPOYd12zckICIwCAESCSSAoQ+W0qIWIBohIDavm40RbyC4Jdf6qhzmmxloDqy2vzmXAh17peUQSkvKIi4IARIqJvD2GpbSohYghG3zHblcVrp+v9Axn2sLv42ZvZ45A7yqeAMLQGEl4F0gIi4IARIqKu7kP5bSohYggW/ik03msR9I1j/rGaIl5XI0GbZEMUPKlo9FpEJf7vsgIjAIARIJLNTCaZbSohYgGiEgPS1m/2g8xhPd7xM6POkKxkgW/Eenqw4Ov4hpuiBp03oiLwgBEisw/Lr0AZbSohYgbltN/Lx5PI5oFF0w4duU8Y9MsAa+G/rizXqPr8MTHsIgCv4BCvsBCgNpYmMSIEGHuHOV3KWUJrjJN8dLFI58lKO2aNuJqqnAIIPH4y96GgkIARgBIAEqAQAiJwgBEgEBGiCT0INIVWQHpgAwbQ3xCwA723Ie8pK7ZYZBH2hwo7JHnSInCAESAQEaILnxdvI8Mc7gpMT4TbmIcR/5Mfn9PVOuztEalE+mVrcRIiUIARIhAQcoXIMT+Uq4vBHeA38ZrKdwc+l2Z8YYdDy/7CaERL4jIiUIARIhAY2VB4BJMHuNRQEyUOsTFHc4O5eQCnssKY9+yeQuriuOIicIARIBARog0sT/RdPuxnUrctvKfMj6vNy1nJ1ZbqXU80ch9ndNmi8="
-	proofCommitment, err := base64.StdEncoding.DecodeString(base64ProofCommitment)
-	require.NoError(t, err)
 	msg := &ibctypes.MsgRecvPacket{
 		// Packet is inspired by https://arabica.celenium.io/tx/73a0b90498936483ab1ede4786ce432f3a1ad1163558d6bf5dc1058b8756f489?tab=messages
 		Packet: ibctypes.Packet{
@@ -483,7 +473,7 @@ func icaTxDenied(t *testing.T, signer *user.Signer, testApp *app.App) []byte {
 			},
 			TimeoutTimestamp: 1725136345563512000,
 		},
-		ProofCommitment: proofCommitment,
+		ProofCommitment: []byte{},
 		ProofHeight: ibcclienttypes.Height{
 			RevisionHeight: 23352464,
 			RevisionNumber: 0,
