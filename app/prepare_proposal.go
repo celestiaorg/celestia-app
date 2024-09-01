@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v2/app/ante"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v2/pkg/da"
+	"github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -48,7 +49,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// Filter out invalid transactions.
 	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
-	txs = filterICATxs(app, app.txConfig, req.BlockData.Txs)
+	txs = filterICATxs(app, app.txConfig, txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
@@ -100,9 +101,15 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 // TODO: This block can be removed after the ICA host param AllowMessages == icaAllowMessages().
 func filterICATxs(app *App, txConfig client.TxConfig, txs [][]byte) (result [][]byte) {
 	for _, tx := range txs {
+		_, isBlob := blob.UnmarshalBlobTx(tx)
+		if isBlob {
+			result = append(result, tx)
+			continue
+		}
 		sdkTx, err := txConfig.TxDecoder()(tx)
 		if err != nil {
 			result = append(result, tx)
+			continue
 		}
 		msgs := sdkTx.GetMsgs()
 		for _, msg := range msgs {
@@ -128,10 +135,11 @@ func filterICATxs(app *App, txConfig client.TxConfig, txs [][]byte) (result [][]
 					if isAllowed := icahosttypes.ContainsMsgType(icaAllowMessages(), icaMsg); isAllowed {
 						result = append(result, tx)
 						continue
-					} else {
-						app.Logger().Debug("ICA message is not allowed", "msg", icaMsg)
 					}
+					app.Logger().Debug("ICA message is not allowed", "msg", icaMsg)
 				}
+			} else {
+				result = append(result, tx)
 			}
 		}
 	}

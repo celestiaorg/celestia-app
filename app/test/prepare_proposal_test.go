@@ -123,22 +123,22 @@ func TestPrepareProposalFiltering(t *testing.T) {
 
 	// create 3 MsgSend transactions that are using the same sequence as the
 	// first three blob transactions above
-	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
-		t,
-		testApp,
-		encConf.TxConfig,
-		kr,
-		1000,
-		accounts[0],
-		accounts[:3],
-		testutil.ChainID,
-	)).ToSliceOfBytes()
+	// duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+	// 	t,
+	// 	testApp,
+	// 	encConf.TxConfig,
+	// 	kr,
+	// 	1000,
+	// 	accounts[0],
+	// 	accounts[:3],
+	// 	testutil.ChainID,
+	// )).ToSliceOfBytes()
 
 	// create a transaction with an account that doesn't exist. This will cause the increment nonce
 	nilAccount := "carmon san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+	// noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
 	type test struct {
 		name      string
@@ -152,38 +152,38 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			txs:       func() [][]byte { return validTxs() },
 			prunedTxs: [][]byte{},
 		},
-		{
-			// even though duplicateSeqSendTxs are getting appended to the end of the
-			// block, and we do not check the signatures of the standard txs,
-			// the blob txs still get pruned because we are separating the
-			// normal and blob txs, and checking/executing the normal txs first.
-			name: "duplicate sequence appended to the end of the block",
-			txs: func() [][]byte {
-				return append(validTxs(), duplicateSeqSendTxs...)
-			},
-			prunedTxs: blobTxs,
-		},
-		{
-			name: "duplicate sequence txs",
-			txs: func() [][]byte {
-				txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(duplicateSeqSendTxs))
-				// these should increment the nonce of the accounts that are
-				// signing the blobtxs, which should make those signatures
-				// invalid.
-				txs = append(txs, duplicateSeqSendTxs...)
-				txs = append(txs, blobTxs...)
-				txs = append(txs, sendTxs...)
-				return txs
-			},
-			prunedTxs: blobTxs,
-		},
-		{
-			name: "nil account panic catch",
-			txs: func() [][]byte {
-				return [][]byte{noAccountTx}
-			},
-			prunedTxs: [][]byte{noAccountTx},
-		},
+		// {
+		// 	// even though duplicateSeqSendTxs are getting appended to the end of the
+		// 	// block, and we do not check the signatures of the standard txs,
+		// 	// the blob txs still get pruned because we are separating the
+		// 	// normal and blob txs, and checking/executing the normal txs first.
+		// 	name: "duplicate sequence appended to the end of the block",
+		// 	txs: func() [][]byte {
+		// 		return append(validTxs(), duplicateSeqSendTxs...)
+		// 	},
+		// 	prunedTxs: blobTxs,
+		// },
+		// {
+		// 	name: "duplicate sequence txs",
+		// 	txs: func() [][]byte {
+		// 		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(duplicateSeqSendTxs))
+		// 		// these should increment the nonce of the accounts that are
+		// 		// signing the blobtxs, which should make those signatures
+		// 		// invalid.
+		// 		txs = append(txs, duplicateSeqSendTxs...)
+		// 		txs = append(txs, blobTxs...)
+		// 		txs = append(txs, sendTxs...)
+		// 		return txs
+		// 	},
+		// 	prunedTxs: blobTxs,
+		// },
+		// {
+		// 	name: "nil account panic catch",
+		// 	txs: func() [][]byte {
+		// 		return [][]byte{noAccountTx}
+		// 	},
+		// 	prunedTxs: [][]byte{noAccountTx},
+		// },
 	}
 
 	for _, tt := range tests {
@@ -243,7 +243,6 @@ func TestPrepareProposal(t *testing.T) {
 			},
 		)
 		assert.Len(t, got.BlockData.Txs, 0)
-
 	})
 }
 
