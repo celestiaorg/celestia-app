@@ -6,7 +6,6 @@ package mock_tx
 
 import (
 	context "context"
-	"fmt"
 	reflect "reflect"
 
 	tx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
