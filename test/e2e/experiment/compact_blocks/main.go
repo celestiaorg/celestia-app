@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "986c330" //"a28b9e7"
+	compactBlocksVersion = "6635b1d" //"a28b9e7"
 )
 
 func main() {

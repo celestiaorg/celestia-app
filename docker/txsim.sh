@@ -15,7 +15,7 @@ SEND_ITERATIONS=1000
 STAKE=0
 STAKE_VALUE=1000
 
-while getopts "k:p:r:g:t:b:a:s:m:d:e:i:v:u:w:" opt; do
+while getopts "k:p:f:g:t:b:a:s:m:d:e:i:v:u:w:" opt; do
   case ${opt} in
     k )
       CREATE_KEY=$OPTARG
@@ -90,4 +90,5 @@ txsim --key-path $KEY_PATH \
  --send-amount $SEND_AMOUNT \
  --send-iterations $SEND_ITERATIONS \
  --stake $STAKE \
- --stake-value $STAKE_VALUE
+ --stake-value $STAKE_VALUE \
+ --ignore-failures
