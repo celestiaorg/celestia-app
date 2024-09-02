@@ -174,7 +174,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcasted transaction increases the nonce
+		// Successfully broadcast transaction increases the nonce
 		require.Equal(t, seq, txInfo.Nonce)
 
 		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
@@ -204,7 +204,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcasted transaction increases the nonce
+		// Successfully broadcast transaction increases the nonce
 		require.Equal(t, seq, txInfo.Nonce)
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
@@ -227,7 +227,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcasted transaction increases the nonce
+		// Successfully broadcast transaction increases the nonce
 		require.Equal(t, seq, txInfo.Nonce)
 
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 30*time.Second)
@@ -253,7 +253,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcasted transaction increases the nonce
+		// Successfully broadcast transaction increases the nonce
 		require.Equal(t, seq, txInfo.Nonce)
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
@@ -271,7 +271,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		t.Cleanup(mockCtrl.Finish)
 
 		// Create a mock client that always returns EVICTED status
-		mockTxClient := mock.NewMockTxClient(mockCtrl)
+		mockTxService := mock.NewMockTxClient(mockCtrl)
 		txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2), user.WithTxService(mockTxClient))
 		require.NoError(t, err)
 
@@ -287,7 +287,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 
-		mockTxClient.EXPECT().TxStatus(gomock.Any(), gomock.Any()).Return(&tx.TxStatusResponse{
+		mockTxService.EXPECT().TxStatus(gomock.Any(), gomock.Any()).Return(&tx.TxStatusResponse{
 			Status: "EVICTED",
 		}, nil)
 		// Tx should be evicted
@@ -307,7 +307,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err = txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
-		mockTxClient.EXPECT().TxStatus(gomock.Any(), gomock.Any()).Return(&tx.TxStatusResponse{
+		mockTxService.EXPECT().TxStatus(gomock.Any(), gomock.Any()).Return(&tx.TxStatusResponse{
 			Status: "COMMITTED",
 		}, nil)
 		confirmTxResp, err := txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
