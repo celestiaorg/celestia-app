@@ -123,9 +123,9 @@ func WithDefaultAccount(name string) Option {
 	}
 }
 
-func WithConsensusNode(node tx.TxClient) Option {
+func WithTxService(node tx.TxClient) Option {
 	return func(c *TxClient) {
-		c.txClient = node
+		c.txService = node
 	}
 }
 
@@ -147,8 +147,8 @@ type TxClient struct {
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
 	txPool          map[string]PoolTxInfo
-	// txClient is the client API for Tx service.
-	txClient tx.TxClient
+	// txService is the client API for Tx service.
+	txService tx.TxClient
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -182,7 +182,7 @@ func NewTxClient(
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
 		txPool:          make(map[string]PoolTxInfo),
-		txClient:        tx.NewTxClient(conn),
+		txService:       tx.NewTxClient(conn),
 	}
 
 	for _, opt := range options {
@@ -371,10 +371,6 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 
 func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
 	// save this in local mempool
-	txHash := string(txBytes)
-	client.txPool[txHash] = PoolTxInfo{
-		Nonce: client.signer.accounts[signer].sequence,
-	}
 	txClient := sdktx.NewServiceClient(client.grpc)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -395,19 +391,15 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return nil, broadcastTxErr
 	}
 
-	// add the broadcasted transaction to the local pool
-	fmt.Println(resp.TxResponse.TxHash, "TX HASH we are saving")
-	client.txPool[resp.TxResponse.TxHash] = PoolTxInfo{
-		Nonce:  client.signer.accounts[signer].Sequence(),
-		Signer: signer,
-	}
-
-	fmt.Println("queried tx hash", client.txPool[resp.TxResponse.TxHash])
-
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
 	if err := client.signer.IncrementSequence(signer); err != nil {
 		return nil, fmt.Errorf("increment sequencing: %w", err)
+	}
+
+	client.txPool[resp.TxResponse.TxHash] = PoolTxInfo{
+		Nonce:  client.signer.accounts[signer].Sequence(),
+		Signer: signer,
 	}
 	return resp.TxResponse, nil
 }
@@ -416,11 +408,14 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
-		resp, err := client.txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		resp, err := client.txService.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
 			return nil, err
 		}
@@ -451,18 +446,15 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					delete(client.txPool, txHash)
 					return nil, executionErr
 				}
-				// remove it form the local pool
 				delete(client.txPool, txHash)
 				return txResponse, nil
 			case core.TxStatusEvicted:
-				fmt.Println("tx was evicted from the mempool")
-				// get transaction from the local pool
+				// Get transaction from the local pool
 				txPoolTx, exists := client.txPool[txHash]
-				fmt.Println("txPoolTx", txPoolTx)
 				if !exists {
 					return nil, fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 				}
-				// set the signers sequence to the nonce of the tx
+				// Set the signers sequence to the nonce of the tx that was evicted
 				if err := client.signer.SetSequence(txPoolTx.Signer, txPoolTx.Nonce); err != nil {
 					return nil, fmt.Errorf("setting sequence: %w", err)
 				}

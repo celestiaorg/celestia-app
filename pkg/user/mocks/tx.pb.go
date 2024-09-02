@@ -52,7 +52,6 @@ func (m *MockTxClient) TxStatus(ctx context.Context, in *tx.TxStatusRequest, opt
 
 // TxStatus indicates an expected call of TxStatus.
 func (mr *MockTxClientMockRecorder) TxStatus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
-	fmt.Println("CALLING MOCK RECORDER")
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxStatus", reflect.TypeOf((*MockTxClient)(nil).TxStatus), varargs...)
