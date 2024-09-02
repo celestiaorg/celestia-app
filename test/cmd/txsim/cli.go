@@ -202,8 +202,8 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs per PFB specified as a single value or a min-max range (e.g., 10 or 5-10). A single value indicates the exact number of blobs to be created.")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
-	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
-	flags.BoolVar(&ignoreFailures, "ignoreFailures", false, "ignore failures")
+	flags.BoolVar(&suppressLogs, "suppress-logs", false, "disable logging")
+	flags.BoolVar(&ignoreFailures, "ignore-failures", false, "ignore failures")
 	return flags
 }
 

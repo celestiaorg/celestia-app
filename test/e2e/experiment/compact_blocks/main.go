@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "6635b1d" //"a28b9e7"
+	compactBlocksVersion = "c928a18" //"a28b9e7"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 
 func Run() error {
 	const (
-		nodes          = 10
+		nodes          = 8
 		timeoutCommit  = 2 * time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
@@ -72,7 +72,7 @@ func Run() error {
 		"128000-128000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[2:7],
+		gRPCEndpoints[2:5],
 	)
 	if err != nil {
 		return err
