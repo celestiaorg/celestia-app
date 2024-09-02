@@ -39,6 +39,8 @@ const (
 
 type Option func(client *TxClient)
 
+// PoolTxInfo is a struct that holds the nonce and the signer of a transaction
+// in the local mempool.
 type PoolTxInfo struct {
 	Nonce  uint64
 	Signer string
@@ -370,7 +372,6 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 }
 
 func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
-	// save this in local mempool
 	txClient := sdktx.NewServiceClient(client.grpc)
 	resp, err := txClient.BroadcastTx(
 		ctx,
@@ -397,6 +398,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
 
+	// save the nonce and signer of the transaction in the local pool
 	client.txPool[resp.TxResponse.TxHash] = PoolTxInfo{
 		Nonce:  client.signer.accounts[signer].Sequence(),
 		Signer: signer,
@@ -450,12 +452,12 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				return txResponse, nil
 			case core.TxStatusEvicted:
 				// Get transaction from the local pool
-				txPoolTx, exists := client.txPool[txHash]
+				poolTx, exists := client.txPool[txHash]
 				if !exists {
 					return nil, fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 				}
 				// Set the signers sequence to the nonce of the tx that was evicted
-				if err := client.signer.SetSequence(txPoolTx.Signer, txPoolTx.Nonce); err != nil {
+				if err := client.signer.SetSequence(poolTx.Signer, poolTx.Nonce); err != nil {
 					return nil, fmt.Errorf("setting sequence: %w", err)
 				}
 				delete(client.txPool, txHash)
@@ -571,7 +573,7 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// Method to get transaction info by hash
+// Method to get transaction info from the local pool by hash
 func (client *TxClient) GetTxInfo(hash string) (PoolTxInfo, bool) {
 	txInfo, exists := client.txPool[hash]
 	return txInfo, exists
