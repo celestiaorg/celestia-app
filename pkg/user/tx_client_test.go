@@ -272,7 +272,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 		// Create a mock client that always returns EVICTED status
 		mockTxService := mock.NewMockTxClient(mockCtrl)
-		txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2), user.WithTxService(mockTxClient))
+		txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2), user.WithTxService(mockTxService))
 		require.NoError(t, err)
 
 		accounts := suite.txClient.Signer().Accounts()
