@@ -458,12 +458,12 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local pool
-	nonce, signer, exists := client.GetTxFromLocalMempool(txHash)
+	txInfo, exists := client.localMempool[txHash]
 	if !exists {
 		return fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 	}
 	// The sequence should not be incremented if the transaction was evicted
-	if err := client.signer.SetSequence(signer, nonce); err != nil {
+	if err := client.signer.SetSequence(txInfo.Signer, txInfo.Nonce); err != nil {
 		return fmt.Errorf("setting sequence: %w", err)
 	}
 	delete(client.localMempool, txHash)
