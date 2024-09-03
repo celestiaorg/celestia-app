@@ -39,9 +39,9 @@ const (
 
 type Option func(client *TxClient)
 
-// poolTxInfo is a struct that holds the nonce and the signer of a transaction
+// txInfo is a struct that holds the nonce and the signer of a transaction
 // in the local mempool.
-type poolTxInfo struct {
+type txInfo struct {
 	Nonce  uint64
 	Signer string
 }
@@ -142,7 +142,8 @@ type TxClient struct {
 	defaultGasPrice float64
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
-	txPool          map[string]poolTxInfo
+	// localMempool keeps track of the nonce and signer of the broadcast transactions
+	localMempool map[string]txInfo
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -175,7 +176,7 @@ func NewTxClient(
 		defaultGasPrice: appconsts.DefaultMinGasPrice,
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
-		txPool:          make(map[string]poolTxInfo),
+		localMempool:    make(map[string]txInfo),
 	}
 
 	for _, opt := range options {
@@ -384,7 +385,8 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	}
 
 	// save the nonce and signer of the transaction in the local pool
-	client.txPool[resp.TxResponse.TxHash] = poolTxInfo{
+	// before the nonce is incremented
+	client.localMempool[resp.TxResponse.TxHash] = txInfo{
 		Nonce:  client.signer.accounts[signer].Sequence(),
 		Signer: signer,
 	}
@@ -441,11 +443,11 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return txResponse, nil
 		case core.TxStatusEvicted:
 			// Get transaction from the local pool
-			nonce, signer, exists := client.GetTxInfoFromLocalPool(txHash)
+			nonce, signer, exists := client.GetTxFromLocalPool(txHash)
 			if !exists {
 				return nil, fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 			}
-			// Set the signers sequence to the nonce of the tx that was evicted
+			// The sequence should not be incremented if the transaction was evicted
 			if err := client.signer.SetSequence(signer, nonce); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
@@ -462,7 +464,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 func (client *TxClient) deleteFromTxPool(txHash string) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	delete(client.txPool, txHash)
+	delete(client.localMempool, txHash)
 }
 
 // EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
@@ -569,10 +571,10 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 }
 
 // GetTxInfoFromLocalPool gets transaction info from the local pool by its hash (testing purposes only)
-func (client *TxClient) GetTxInfoFromLocalPool(hash string) (nonce uint64, signer string, exists bool) {
+func (client *TxClient) GetTxFromLocalPool(hash string) (nonce uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	txInfo, exists := client.txPool[hash]
+	txInfo, exists := client.localMempool[hash]
 	return txInfo.Nonce, txInfo.Signer, exists
 }
 

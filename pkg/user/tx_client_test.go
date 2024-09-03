@@ -166,8 +166,8 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 		require.NoError(t, err)
 
-		// check that transaction was indexed
-		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		// Make sure transaction was indexed
+		nonce, signer, exists := suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
@@ -194,7 +194,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
 		require.NoError(t, err)
 
-		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
@@ -206,7 +206,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authorization not found")
 		require.Nil(t, confirmTxResp)
-		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.False(t, exists)
 		require.Zero(t, nonce)
 		require.Zero(t, signer)
@@ -219,7 +219,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 
-		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
@@ -232,7 +232,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
-		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.False(t, exists)
 		require.Zero(t, nonce)
 		require.Zero(t, signer)
@@ -247,7 +247,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 
-		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.True(t, exists)
 		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
@@ -260,7 +260,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Nil(t, confirmTxResp)
 		code := err.(*user.ExecutionError).Code
 		require.NotEqual(t, abci.CodeTypeOK, code)
-		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxFromLocalPool(resp.TxHash)
 		require.False(t, exists)
 		require.Zero(t, nonce)
 		require.Zero(t, signer)
