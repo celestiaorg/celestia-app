@@ -39,9 +39,9 @@ const (
 
 type Option func(client *TxClient)
 
-// PoolTxInfo is a struct that holds the nonce and the signer of a transaction
+// poolTxInfo is a struct that holds the nonce and the signer of a transaction
 // in the local mempool.
-type PoolTxInfo struct {
+type poolTxInfo struct {
 	Nonce  uint64
 	Signer string
 }
@@ -148,7 +148,7 @@ type TxClient struct {
 	defaultGasPrice float64
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
-	txPool          map[string]PoolTxInfo
+	txPool          map[string]poolTxInfo
 	// txService is the client API for Tx service.
 	txService tx.TxClient
 }
@@ -183,7 +183,7 @@ func NewTxClient(
 		defaultGasPrice: appconsts.DefaultMinGasPrice,
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
-		txPool:          make(map[string]PoolTxInfo),
+		txPool:          make(map[string]poolTxInfo),
 		txService:       tx.NewTxClient(conn),
 	}
 
@@ -392,17 +392,18 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return nil, broadcastTxErr
 	}
 
+	// save the nonce and signer of the transaction in the local pool
+	client.txPool[resp.TxResponse.TxHash] = poolTxInfo{
+		Nonce:  client.signer.accounts[signer].Sequence(),
+		Signer: signer,
+	}
+
 	// after the transaction has been submitted, we can increment the
 	// sequence of the signer
 	if err := client.signer.IncrementSequence(signer); err != nil {
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
 
-	// save the nonce and signer of the transaction in the local pool
-	client.txPool[resp.TxResponse.TxHash] = PoolTxInfo{
-		Nonce:  client.signer.accounts[signer].Sequence(),
-		Signer: signer,
-	}
 	return resp.TxResponse, nil
 }
 
@@ -573,10 +574,10 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// Method to get transaction info from the local pool by hash
-func (client *TxClient) GetTxInfo(hash string) (PoolTxInfo, bool) {
+// GetTxInfoFromLocalPool gets transaction info from the local pool by its hash (testing purposes only)
+func (client *TxClient) GetTxInfoFromLocalPool(hash string) (nonce uint64, signer string, exists bool) {
 	txInfo, exists := client.txPool[hash]
-	return txInfo, exists
+	return txInfo.Nonce, txInfo.Signer, exists
 }
 
 // Signer exposes the tx clients underlying signer

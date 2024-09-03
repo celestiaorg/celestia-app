@@ -4,23 +4,18 @@ import (
 	"context"
 	"testing"
 	"time"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/rand"
-
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	mock "github.com/celestiaorg/celestia-app/v3/pkg/user/mocks"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 )
@@ -35,18 +30,19 @@ func TestTxClientTestSuite(t *testing.T) {
 type TxClientTestSuite struct {
 	suite.Suite
 
-	ctx           testnode.Context
-	encCfg        encoding.Config
-	txClient      *user.TxClient
-	serviceClient sdktx.ServiceClient
+	ctx             testnode.Context
+	encCfg          encoding.Config
+	txClient        *user.TxClient
+	serviceClient   sdktx.ServiceClient
+	testnodeCoonfig *testnode.Config
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	config := testnode.DefaultConfig().
-		WithFundedAccounts("a", "b", "c", "d").
+	suite.testnodeCoonfig = testnode.DefaultConfig().
+		WithFundedAccounts("a", "b", "c").
 		WithAppCreator(testnode.CustomAppCreator("0utia"))
-	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), config)
+	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), suite.testnodeCoonfig)
 	_, err := suite.ctx.WaitForHeight(1)
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
@@ -82,7 +78,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	})
 
 	t.Run("submit blob with different account", func(t *testing.T) {
-		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "d", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
+		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "c", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
 		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
 		require.NoError(t, err)
@@ -170,20 +166,22 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 
 		// check that transaction was indexed
-		txInfo, exists := suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
+		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		// Successfully broadcast transaction increases the nonce
-		require.Equal(t, seq, txInfo.Nonce)
+		// txInfo is indexed before the nonce is increased
+		require.Equal(t, seq, nonce+1)
 
 		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 
-		txInfo, exists = suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.False(t, exists)
-		require.Zero(t, txInfo)
+		require.Zero(t, nonce)
+		require.Zero(t, signer)
 	})
 
 	t.Run("should error when tx is not found", func(t *testing.T) {
@@ -200,20 +198,22 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
 		require.NoError(t, err)
 
-		txInfo, exists := suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
+		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		// Successfully broadcast transaction increases the nonce
-		require.Equal(t, seq, txInfo.Nonce)
+		// txInfo is indexed before the nonce is increased
+		require.Equal(t, seq, nonce+1)
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authorization not found")
 		require.Nil(t, confirmTxResp)
-		txInfo, exists = suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.False(t, exists)
-		require.Zero(t, txInfo)
+		require.Zero(t, nonce)
+		require.Zero(t, signer)
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
@@ -223,21 +223,23 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 
-		txInfo, exists := suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
+		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		// Successfully broadcast transaction increases the nonce
-		require.Equal(t, seq, txInfo.Nonce)
+		// txInfo is indexed before the nonce is increased
+		require.Equal(t, seq, nonce+1)
 
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 30*time.Second)
 		defer cancel()
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
-		txInfo, exists = suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.False(t, exists)
-		require.Zero(t, txInfo)
+		require.Zero(t, nonce)
+		require.Zero(t, signer)
 	})
 
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
@@ -249,70 +251,60 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
 
-		txInfo, exists := suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists := suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), txInfo.Signer)
+		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
 		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		// Successfully broadcast transaction increases the nonce
-		require.Equal(t, seq, txInfo.Nonce)
+		// txInfo is indexed before the nonce is increased
+		require.Equal(t, seq, nonce+1)
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
 		require.Nil(t, confirmTxResp)
 		code := err.(*user.ExecutionError).Code
 		require.NotEqual(t, abci.CodeTypeOK, code)
-		txInfo, exists = suite.txClient.GetTxInfo(resp.TxHash)
+		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
 		require.False(t, exists)
-		require.Zero(t, txInfo)
+		require.Zero(t, nonce)
+		require.Zero(t, signer)
 	})
 
 	t.Run("should adjust nonce when evicted", func(t *testing.T) {
-		mockCtrl := gomock.NewController(t)
-		t.Cleanup(mockCtrl.Finish)
+		// Set ttl to 1ns to evict tx immediately
+		suite.testnodeCoonfig.TmConfig.Mempool.TTLDuration = 1 * time.Nanosecond
 
-		// Create a mock client that always returns EVICTED status
-		mockTxService := mock.NewMockTxClient(mockCtrl)
-		txClient, err := user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2), user.WithTxService(mockTxService))
-		require.NoError(t, err)
-
-		accounts := suite.txClient.Signer().Accounts()
-		sender := accounts[2]
-
-		// Signer sequence before
-		sequenceBeforeTx := txClient.Account(sender.Name()).Sequence()
-
-		// Broadcast a tx
+		// Keep submitting the transaction until we get the eviction error
+		sender := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName())
 		msg := bank.NewMsgSend(sender.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-		resp, err := txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
-		require.NoError(t, err)
-		require.Equal(t, resp.Code, abci.CodeTypeOK)
+		var seqBeforeEviction uint64
+		for {
+			// There is a chance one of the txs will get into a block so we have to keep updating the sequence
+			seqBeforeEviction = sender.Sequence()
+			resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+			require.NoError(t, err)
+			_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+			if err != nil {
+				if err.Error() == "tx was evicted from the mempool" {
+					break
+				}
+			}
+		}
 
-		mockTxService.EXPECT().TxStatus(gomock.Any(), gomock.Any()).Return(&tx.TxStatusResponse{
-			Status: "EVICTED",
-		}, nil)
-		// Tx should be evicted
-		_, err = txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "tx was evicted from the mempool")
+		seqAfterEviction := sender.Sequence()
+		require.Equal(t, seqBeforeEviction, seqAfterEviction)
 
-		// Should be removed from the txInfo map
-		txInfo, exists := txClient.GetTxInfo(resp.TxHash)
-		require.False(t, exists)
-		require.Zero(t, txInfo)
-		// Signer sequence should remain increased
-		seq := txClient.Account(sender.Name()).Sequence()
-		require.Greater(t, seq, sequenceBeforeTx)
+		// Increase ttl again
+		suite.testnodeCoonfig.TmConfig.Mempool.TTLDuration = 120 * time.Second
 
-		// Broadcast another tx
-		resp, err = txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+		// Resubmit with the same sender
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
-		require.Equal(t, resp.Code, abci.CodeTypeOK)
-		mockTxService.EXPECT().TxStatus(gomock.Any(), gomock.Any()).Return(&tx.TxStatusResponse{
-			Status: "COMMITTED",
-		}, nil)
-		confirmTxResp, err := txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.NoError(t, err)
-		require.Equal(t, confirmTxResp.Code, abci.CodeTypeOK)
+		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
+		seqAfterSuccessfulTx := sender.Sequence()
+		require.Equal(t, seqAfterSuccessfulTx, seqAfterEviction+1)
 	})
 }
 
