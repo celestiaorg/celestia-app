@@ -142,7 +142,8 @@ type TxClient struct {
 	defaultGasPrice float64
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
-	// localMempool keeps track of the nonce and signer of the broadcast transactions
+	// localMempool maps the tx hash to the nonce and signer of the transaction
+	// that was submitted to the chain
 	localMempool map[string]txInfo
 }
 
@@ -442,22 +443,31 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			client.deleteFromTxPool(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
-			// Get transaction from the local pool
-			nonce, signer, exists := client.GetTxFromLocalPool(txHash)
-			if !exists {
-				return nil, fmt.Errorf("tx not found in tx client local pool: %s", txHash)
-			}
-			// The sequence should not be incremented if the transaction was evicted
-			if err := client.signer.SetSequence(signer, nonce); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
-			}
-			client.deleteFromTxPool(txHash)
-			return nil, fmt.Errorf("tx was evicted from the mempool")
+			return nil, client.handleEvictions(txHash)
 		default:
 			client.deleteFromTxPool(txHash)
 			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
+}
+
+// handleEvictions handles the scenario where a transaction is evicted from the mempool.
+// It removes the evicted transaction from the local pool without incrementing
+// the signer's sequence.
+func (client *TxClient) handleEvictions(txHash string) error {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	// Get transaction from the local pool
+	nonce, signer, exists := client.GetTxFromLocalPool(txHash)
+	if !exists {
+		return fmt.Errorf("tx not found in tx client local pool: %s", txHash)
+	}
+	// The sequence should not be incremented if the transaction was evicted
+	if err := client.signer.SetSequence(signer, nonce); err != nil {
+		return fmt.Errorf("setting sequence: %w", err)
+	}
+	delete(client.localMempool, txHash)
+	return fmt.Errorf("tx was evicted from the mempool")
 }
 
 // deleteFromTxPool safely deletes a transaction from the txPool.
@@ -570,7 +580,7 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// GetTxInfoFromLocalPool gets transaction info from the local pool by its hash (testing purposes only)
+// GetTxInfoFromLocalPool gets transaction info from the local mempool by its hash
 func (client *TxClient) GetTxFromLocalPool(hash string) (nonce uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
