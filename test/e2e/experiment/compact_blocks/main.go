@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "c928a18" //"a28b9e7"
+	compactBlocksVersion = "7d9ad6f" //"a28b9e7"
 )
 
 func main() {
@@ -68,11 +68,11 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		40,
-		"128000-128000",
+		60,
+		"128000-256000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[2:5],
+		gRPCEndpoints[1:6],
 	)
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func Run() error {
 				return fmt.Errorf("failed to download traces from S3: %w", err)
 			}
 
-			log.Println("--- FINISHED ✅: Compact Blocks")
+			log.Println("--- FINISHED ✅: ChainID: ", network.ChainID())
 			return nil
 		}
 	}
