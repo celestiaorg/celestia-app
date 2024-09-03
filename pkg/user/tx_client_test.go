@@ -34,15 +34,15 @@ type TxClientTestSuite struct {
 	encCfg          encoding.Config
 	txClient        *user.TxClient
 	serviceClient   sdktx.ServiceClient
-	testnodeCoonfig *testnode.Config
+	testnodeConfig *testnode.Config
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	suite.testnodeCoonfig = testnode.DefaultConfig().
+	suite.testnodeConfig = testnode.DefaultConfig().
 		WithFundedAccounts("a", "b", "c").
 		WithAppCreator(testnode.CustomAppCreator("0utia"))
-	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), suite.testnodeCoonfig)
+	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), suite.testnodeConfig)
 	_, err := suite.ctx.WaitForHeight(1)
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
@@ -272,7 +272,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 	t.Run("should adjust nonce when evicted", func(t *testing.T) {
 		// Set ttl to 1ns to evict tx immediately
-		suite.testnodeCoonfig.TmConfig.Mempool.TTLDuration = 1 * time.Nanosecond
+		suite.testnodeConfig.TmConfig.Mempool.TTLDuration = 1 * time.Nanosecond
 
 		// Keep submitting the transaction until we get the eviction error
 		sender := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName())
@@ -295,7 +295,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Equal(t, seqBeforeEviction, seqAfterEviction)
 
 		// Increase ttl again
-		suite.testnodeCoonfig.TmConfig.Mempool.TTLDuration = 120 * time.Second
+		suite.testnodeConfig.TmConfig.Mempool.TTLDuration = 120 * time.Second
 
 		// Resubmit with the same sender
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
