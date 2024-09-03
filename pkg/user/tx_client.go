@@ -411,11 +411,18 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-
+	var evictFromTxPool bool
 	pollTicker := time.NewTicker(client.pollTime)
-	defer pollTicker.Stop()
+
+	defer func() {
+		pollTicker.Stop()
+
+		if evictFromTxPool {
+			client.mtx.Lock()
+			delete(client.txPool, txHash)
+			client.mtx.Unlock()
+		}
+	}()
 
 	for {
 		resp, err := client.txService.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
@@ -423,50 +430,47 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, err
 		}
 
-		if resp != nil {
-			switch resp.Status {
-			case core.TxStatusPending:
-				// Continue polling if the transaction is still pending
-				select {
-				case <-ctx.Done():
-					delete(client.txPool, txHash)
-					return nil, ctx.Err()
-				case <-pollTicker.C:
-					continue
-				}
-			case core.TxStatusCommitted:
-				txResponse := &TxResponse{
-					Height: resp.Height,
-					TxHash: txHash,
-					Code:   resp.ExecutionCode,
-				}
-				if resp.ExecutionCode != abci.CodeTypeOK {
-					executionErr := &ExecutionError{
-						TxHash:   txHash,
-						Code:     resp.ExecutionCode,
-						ErrorLog: resp.Error,
-					}
-					delete(client.txPool, txHash)
-					return nil, executionErr
-				}
-				delete(client.txPool, txHash)
-				return txResponse, nil
-			case core.TxStatusEvicted:
-				// Get transaction from the local pool
-				poolTx, exists := client.txPool[txHash]
-				if !exists {
-					return nil, fmt.Errorf("tx not found in tx client local pool: %s", txHash)
-				}
-				// Set the signers sequence to the nonce of the tx that was evicted
-				if err := client.signer.SetSequence(poolTx.Signer, poolTx.Nonce); err != nil {
-					return nil, fmt.Errorf("setting sequence: %w", err)
-				}
-				delete(client.txPool, txHash)
-				return nil, fmt.Errorf("tx was evicted from the mempool")
-			default:
-				delete(client.txPool, txHash)
-				return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
+		switch resp.Status {
+		case core.TxStatusPending:
+			// Continue polling if the transaction is still pending
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-pollTicker.C:
+				continue
 			}
+		case core.TxStatusCommitted:
+			txResponse := &TxResponse{
+				Height: resp.Height,
+				TxHash: txHash,
+				Code:   resp.ExecutionCode,
+			}
+			if resp.ExecutionCode != abci.CodeTypeOK {
+				executionErr := &ExecutionError{
+					TxHash:   txHash,
+					Code:     resp.ExecutionCode,
+					ErrorLog: resp.Error,
+				}
+				evictFromTxPool = true
+				return nil, executionErr
+			}
+			evictFromTxPool = true
+			return txResponse, nil
+		case core.TxStatusEvicted:
+			// Get transaction from the local pool
+			nonce, signer, exists := client.GetTxInfoFromLocalPool(txHash)
+			if !exists {
+				return nil, fmt.Errorf("tx not found in tx client local pool: %s", txHash)
+			}
+			// Set the signers sequence to the nonce of the tx that was evicted
+			if err := client.signer.SetSequence(signer, nonce); err != nil {
+				return nil, fmt.Errorf("setting sequence: %w", err)
+			}
+			evictFromTxPool = true
+			return nil, fmt.Errorf("tx was evicted from the mempool")
+		default:
+			evictFromTxPool = true
+			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
 }
@@ -576,6 +580,8 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 
 // GetTxInfoFromLocalPool gets transaction info from the local pool by its hash (testing purposes only)
 func (client *TxClient) GetTxInfoFromLocalPool(hash string) (nonce uint64, signer string, exists bool) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
 	txInfo, exists := client.txPool[hash]
 	return txInfo.Nonce, txInfo.Signer, exists
 }

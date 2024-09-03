@@ -178,11 +178,6 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
-
-		nonce, signer, exists = suite.txClient.GetTxInfoFromLocalPool(resp.TxHash)
-		require.False(t, exists)
-		require.Zero(t, nonce)
-		require.Zero(t, signer)
 	})
 
 	t.Run("should error when tx is not found", func(t *testing.T) {
