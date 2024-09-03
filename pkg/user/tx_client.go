@@ -437,15 +437,15 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
-				client.deleteFromTxPool(txHash)
+				client.deleteFromLocalMempool(txHash)
 				return nil, executionErr
 			}
-			client.deleteFromTxPool(txHash)
+			client.deleteFromLocalMempool(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
 			return nil, client.handleEvictions(txHash)
 		default:
-			client.deleteFromTxPool(txHash)
+			client.deleteFromLocalMempool(txHash)
 			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
@@ -458,7 +458,7 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local pool
-	nonce, signer, exists := client.GetTxFromLocalPool(txHash)
+	nonce, signer, exists := client.GetTxFromLocalMempool(txHash)
 	if !exists {
 		return fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 	}
@@ -470,8 +470,8 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	return fmt.Errorf("tx was evicted from the mempool")
 }
 
-// deleteFromTxPool safely deletes a transaction from the txPool.
-func (client *TxClient) deleteFromTxPool(txHash string) {
+// deleteFromLocalMempool safely deletes a transaction from the local mempool.
+func (client *TxClient) deleteFromLocalMempool(txHash string) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	delete(client.localMempool, txHash)
@@ -580,8 +580,8 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// GetTxInfoFromLocalPool gets transaction info from the local mempool by its hash
-func (client *TxClient) GetTxFromLocalPool(hash string) (nonce uint64, signer string, exists bool) {
+// GetTxFromLocalMempool gets transaction info from the tx client's local mempool by its hash
+func (client *TxClient) GetTxFromLocalMempool(hash string) (nonce uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	txInfo, exists := client.localMempool[hash]
