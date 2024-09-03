@@ -125,12 +125,6 @@ func WithDefaultAccount(name string) Option {
 	}
 }
 
-func WithTxService(node tx.TxClient) Option {
-	return func(c *TxClient) {
-		c.txService = node
-	}
-}
-
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try use the default account.
@@ -149,8 +143,6 @@ type TxClient struct {
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
 	txPool          map[string]poolTxInfo
-	// txService is the client API for Tx service.
-	txService tx.TxClient
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -184,7 +176,6 @@ func NewTxClient(
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
 		txPool:          make(map[string]poolTxInfo),
-		txService:       tx.NewTxClient(conn),
 	}
 
 	for _, opt := range options {
@@ -411,21 +402,13 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
 func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
-	var evictFromTxPool bool
+	txClient := tx.NewTxClient(client.grpc)
+
 	pollTicker := time.NewTicker(client.pollTime)
-
-	defer func() {
-		pollTicker.Stop()
-
-		if evictFromTxPool {
-			client.mtx.Lock()
-			delete(client.txPool, txHash)
-			client.mtx.Unlock()
-		}
-	}()
+	defer pollTicker.Stop()
 
 	for {
-		resp, err := client.txService.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
 		if err != nil {
 			return nil, err
 		}
@@ -451,10 +434,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
-				evictFromTxPool = true
+				client.deleteFromTxPool(txHash)
 				return nil, executionErr
 			}
-			evictFromTxPool = true
+			client.deleteFromTxPool(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
 			// Get transaction from the local pool
@@ -466,13 +449,20 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			if err := client.signer.SetSequence(signer, nonce); err != nil {
 				return nil, fmt.Errorf("setting sequence: %w", err)
 			}
-			evictFromTxPool = true
+			client.deleteFromTxPool(txHash)
 			return nil, fmt.Errorf("tx was evicted from the mempool")
 		default:
-			evictFromTxPool = true
+			client.deleteFromTxPool(txHash)
 			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
+}
+
+// deleteFromTxPool safely deletes a transaction from the txPool.
+func (client *TxClient) deleteFromTxPool(txHash string) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	delete(client.txPool, txHash)
 }
 
 // EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
