@@ -1,7 +1,12 @@
 package app_test
 
 import (
+	"encoding/json"
+	"io"
+	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
@@ -50,6 +55,92 @@ func TestNew(t *testing.T) {
 		hasKeyTable := subspace.HasKeyTable()
 		assert.True(t, hasKeyTable)
 	})
+}
+
+// Define a struct to match the structure of mocha-genesis.json if you want to unmarshal the JSON data
+type GenesisFile struct {
+	GenesisTime     string                 `json:"genesis_time"`
+	ChainID         string                 `json:"chain_id"`
+	InitialHeight   string                 `json:"initial_height"`
+	ConsensusParams abci.ConsensusParams   `json:"consensus_params"` // Adjust type based on structure
+	Validators      []abci.ValidatorUpdate `json:"validators"`
+	AppState        json.RawMessage        `json:"app_state"` // Adjust type based on structure
+}
+
+func TestInitChainAgain(t *testing.T) {
+}
+
+func TestInitChain(t *testing.T) {
+	logger := log.NewNopLogger()
+	db := tmdb.NewMemDB()
+	traceStore := &NoopWriter{}
+	invCheckPeriod := uint(1)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	upgradeHeight := int64(0)
+	appOptions := NoopAppOptions{}
+
+	type testCase struct {
+		name         string
+		request      abci.RequestInitChain
+		wantResponse abci.ResponseInitChain
+		wantPanic    bool
+	}
+	testCases := []testCase{
+		{
+			name:         "should panic if consensus params not set",
+			request:      abci.RequestInitChain{},
+			wantResponse: abci.ResponseInitChain{},
+			wantPanic:    true,
+		},
+		// {
+		// 	name:         "should not panic on Arabica genesis.json",
+		// 	request:      getGenesis(t, "arabica-genesis.json"),
+		// 	wantResponse: abci.ResponseInitChain{},
+		// 	wantPanic:    false,
+		// },
+		{
+			name:         "should not panic on Mocha genesis.json",
+			request:      getGenesis(t, "mocha-genesis.json"),
+			wantResponse: abci.ResponseInitChain{},
+			wantPanic:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			application := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+			if tc.wantPanic {
+				assert.Panics(t, func() { application.InitChain(tc.request) })
+				return
+			}
+			got := application.InitChain(tc.request)
+			assert.Equal(t, tc.wantResponse, got)
+		})
+	}
+
+}
+
+func getGenesis(t *testing.T, filename string) abci.RequestInitChain {
+	file, err := os.Open(filename)
+	require.NoError(t, err)
+	defer file.Close()
+
+	bytes, err := io.ReadAll(file)
+	require.NoError(t, err)
+
+	var genesis GenesisFile
+	if err := json.Unmarshal(bytes, &genesis); err != nil {
+		require.NoError(t, err)
+	}
+
+	return abci.RequestInitChain{
+		Time:            parseTime(genesis.GenesisTime),
+		ChainId:         genesis.ChainID,
+		InitialHeight:   parseHeight(genesis.InitialHeight),
+		Validators:      genesis.Validators,
+		ConsensusParams: &abci.ConsensusParams{}, // TODO
+		AppStateBytes:   genesis.AppState,
+	}
 }
 
 func TestOfferSnapshot(t *testing.T) {
@@ -103,4 +194,22 @@ type NoopAppOptions struct{}
 
 func (nao NoopAppOptions) Get(string) interface{} {
 	return nil
+}
+
+// Optional helper function to parse time from a string to time.Time (required by RequestInitChain)
+func parseTime(timeStr string) time.Time {
+	parsedTime, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		panic(err) // In production code, handle this error appropriately
+	}
+	return parsedTime
+}
+
+// Optional helper function to parse height from a string to int64 (required by RequestInitChain)
+func parseHeight(heightStr string) int64 {
+	height, err := strconv.ParseInt(heightStr, 10, 64)
+	if err != nil {
+		panic(err) // In production code, handle this error appropriately
+	}
+	return height
 }
