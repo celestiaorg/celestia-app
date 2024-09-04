@@ -14,13 +14,25 @@ const (
 	// blockTime is the observed average time between blocks. You can update this
 	// value based on the block time on https://www.mintscan.io/celestia/block/ or
 	// the output from the blocktime tool.
-	blockTime = 11.30 // seconds between blocks for Arabica
+	blockTime = 11.75 // seconds between blocks on Mainnet Beta.
 
-	// exampleNodeRPC is an example node RPC endpoint for the Arabica testnet.
-	exampleNodeRPC = "https://rpc.celestia-arabica-11.com:443"
+	// exampleArabicaRPC is an example node RPC endpoint for the Arabica testnet.
+	exampleArabicaRPC = "https://rpc.celestia-arabica-11.com:443"
 
-	// targetTime is an example target time for the block height prediction.
-	targetTime = "2024-08-14T14:00:00"
+	// exampleMochaRPC is an example node RPC endpoint for the Mocha testnet.
+	exampleMochaRPC = "https://celestia-mocha-rpc.publicnode.com:443"
+
+	// exampleMainnetHeight is an example node RPC endpoint for Mainnet Beta.
+	exampleMainnetRPC = "https://celestia-rpc.publicnode.com:443"
+
+	// exampleArabicaTime is an example target time for the block height prediction.
+	exampleArabicaTime = "2024-08-19T14:00:00"
+
+	// exampleMochaTime is an example target time for the block height prediction.
+	exampleMochaTime = "2024-08-28T14:00:00"
+
+	// exampleMainnetTime is an example target time for the block height prediction.
+	exampleMainnetTime = "2024-09-18T14:00:00"
 
 	// layout is the expected time format for targetTime.
 	layout = "2006-01-02T15:04:05"
@@ -35,7 +47,9 @@ func main() {
 func Run() error {
 	if len(os.Args) < 3 {
 		fmt.Printf("Usage: %s <node_rpc> <target_time>\n", os.Args[0])
-		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleNodeRPC, targetTime)
+		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleArabicaRPC, exampleArabicaTime)
+		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleMochaRPC, exampleMochaTime)
+		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleMainnetRPC, exampleMainnetTime)
 		return nil
 	}
 
