@@ -528,12 +528,10 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	}
 
 	resp := app.BaseApp.Info(req)
-	fmt.Printf("Info resp %#v\n", resp)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
-	fmt.Printf("Info responding with %#v\n", resp)
 	return resp
 }
 
@@ -545,9 +543,6 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	req = setMochaAppVersion(req)
 	appVersion := extractAppVersion(req)
-	fmt.Printf("InitChain app version %v\n", appVersion)
-	fmt.Printf("app.AppVersion() == %v\n", app.AppVersion())
-	fmt.Printf("app.IsSealed() == %v\n", app.IsSealed())
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
