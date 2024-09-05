@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	tmprototypes "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -50,6 +52,75 @@ func TestNew(t *testing.T) {
 		hasKeyTable := subspace.HasKeyTable()
 		assert.True(t, hasKeyTable)
 	})
+}
+
+func TestInitChain(t *testing.T) {
+	logger := log.NewNopLogger()
+	db := tmdb.NewMemDB()
+	traceStore := &NoopWriter{}
+	invCheckPeriod := uint(1)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	upgradeHeight := int64(0)
+	appOptions := NoopAppOptions{}
+
+	type testCase struct {
+		name      string
+		request   abci.RequestInitChain
+		wantPanic bool
+	}
+	testCases := []testCase{
+		{
+			name:      "should panic if consensus params not set",
+			request:   abci.RequestInitChain{},
+			wantPanic: true,
+		},
+		{
+			name:      "should not panic on mocha-genesis.json",
+			request:   getGenesis(t, "testdata/mocha-genesis.json"),
+			wantPanic: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			application := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+			if tc.wantPanic {
+				assert.Panics(t, func() { application.InitChain(tc.request) })
+			} else {
+				assert.NotPanics(t, func() { application.InitChain(tc.request) })
+			}
+		})
+	}
+}
+
+func getGenesis(t *testing.T, filename string) abci.RequestInitChain {
+	doc, err := coretypes.GenesisDocFromFile(filename)
+	require.NoError(t, err)
+
+	return abci.RequestInitChain{
+		Time:          doc.GenesisTime,
+		ChainId:       doc.ChainID,
+		InitialHeight: doc.InitialHeight,
+		Validators:    []abci.ValidatorUpdate{},
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxBytes: doc.ConsensusParams.Block.MaxBytes,
+				MaxGas:   doc.ConsensusParams.Block.MaxGas,
+			},
+			Evidence: &tmprototypes.EvidenceParams{
+				MaxAgeNumBlocks: doc.ConsensusParams.Evidence.MaxAgeNumBlocks,
+				MaxAgeDuration:  doc.ConsensusParams.Evidence.MaxAgeDuration,
+				MaxBytes:        doc.ConsensusParams.Evidence.MaxBytes,
+			},
+			Validator: &tmprototypes.ValidatorParams{
+				PubKeyTypes: doc.ConsensusParams.Validator.PubKeyTypes,
+			},
+			Version: &tmprototypes.VersionParams{
+				AppVersion: doc.ConsensusParams.Version.AppVersion,
+			},
+		},
+		AppStateBytes: doc.AppState,
+	}
 }
 
 func TestOfferSnapshot(t *testing.T) {
