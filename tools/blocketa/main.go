@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -25,17 +25,14 @@ const (
 	// exampleMainnetHeight is an example node RPC endpoint for Mainnet Beta.
 	exampleMainnetRPC = "https://celestia-rpc.publicnode.com:443"
 
-	// exampleArabicaTime is an example target time for the block height prediction.
-	exampleArabicaTime = "2024-08-19T14:00:00"
+	// exampleArabicaHeight is an example block height for the Arabica testnet.
+	exampleArabicaHeight = 1751707
 
-	// exampleMochaTime is an example target time for the block height prediction.
-	exampleMochaTime = "2024-08-28T14:00:00"
+	// exampleMochaHeight is an example block height for the Mocha testnet.
+	exampleMochaHeight = 2585031
 
-	// exampleMainnetTime is an example target time for the block height prediction.
-	exampleMainnetTime = "2024-09-18T14:00:00"
-
-	// layout is the expected time format for targetTime.
-	layout = "2006-01-02T15:04:05"
+	// exampleMainnetHeight is an example block height for Mainnet Beta.
+	exampleMainnetHeight = 2371495
 )
 
 func main() {
@@ -46,14 +43,18 @@ func main() {
 
 func Run() error {
 	if len(os.Args) < 3 {
-		fmt.Printf("Usage: %s <node_rpc> <target_time>\n", os.Args[0])
-		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleArabicaRPC, exampleArabicaTime)
-		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleMochaRPC, exampleMochaTime)
-		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleMainnetRPC, exampleMainnetTime)
+		fmt.Printf("Usage: %s <node_rpc> <target_block_height>\n", os.Args[0])
+		fmt.Printf("Example: %s %s %v\n", os.Args[0], exampleArabicaRPC, exampleArabicaHeight)
+		fmt.Printf("Example: %s %s %v\n", os.Args[0], exampleMochaRPC, exampleMochaHeight)
+		fmt.Printf("Example: %s %s %v\n", os.Args[0], exampleMainnetRPC, exampleMainnetHeight)
 		return nil
 	}
 
-	_, nodeRPC, targetTimeArg := os.Args[0], os.Args[1], os.Args[2]
+	_, nodeRPC, targetBlockHeightArg := os.Args[0], os.Args[1], os.Args[2]
+	targetBlockHeight, err := strconv.ParseInt(targetBlockHeightArg, 10, 64)
+	if err != nil {
+		return err
+	}
 	c, err := http.New(nodeRPC, "/websocket")
 	if err != nil {
 		return err
@@ -66,25 +67,22 @@ func Run() error {
 	currentHeight := resp.SyncInfo.LatestBlockHeight
 	currentTime := resp.SyncInfo.LatestBlockTime
 
-	targetTime, err := time.Parse(layout, targetTimeArg)
+	if currentHeight >= targetBlockHeight {
+		return fmt.Errorf("current height %v is already after target height %v", currentHeight, targetBlockHeight)
+	}
+	diffInBlockHeight := targetBlockHeight - currentHeight
+	diffInSeconds := blockTime * float64(diffInBlockHeight)
+	diffInTime, err := time.ParseDuration(fmt.Sprintf("%.0fs", diffInSeconds))
 	if err != nil {
-		return fmt.Errorf("error parsing target time: %v", err)
+		return err
 	}
-
-	if currentTime.After(targetTime) {
-		return fmt.Errorf("current time %v is already after target time %v", currentTime, targetTime)
-	}
-
-	diffInSeconds := targetTime.Sub(currentTime).Seconds()
-	diffInBlockHeight := math.Floor(diffInSeconds / blockTime)
-	targetHeight := currentHeight + int64(diffInBlockHeight)
+	arrivalTime := currentTime.Add(diffInTime)
 
 	fmt.Printf("chainID: %v\n", chainID)
 	fmt.Printf("currentHeight: %v\n", currentHeight)
 	fmt.Printf("currentTime: %v\n", currentTime.String())
-	fmt.Printf("targetHeight: %v\n", targetHeight)
-	fmt.Printf("targetTime: %v\n", targetTime.String())
-	fmt.Printf("diffInSeconds: %v\n", math.Floor(diffInSeconds))
 	fmt.Printf("diffInBlockHeight: %v\n", diffInBlockHeight)
+	fmt.Printf("diffInTime: %v\n", diffInTime)
+	fmt.Printf("arrivalTime: %v\n", arrivalTime)
 	return nil
 }
