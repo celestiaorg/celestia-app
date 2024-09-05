@@ -91,7 +91,6 @@ func TestInitChain(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func getGenesis(t *testing.T, filename string) abci.RequestInitChain {
