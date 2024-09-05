@@ -528,10 +528,12 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	}
 
 	resp := app.BaseApp.Info(req)
+	fmt.Printf("Info resp %#v\n", resp)
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
+	fmt.Printf("Info responding with %#v\n", resp)
 	return resp
 }
 
@@ -541,17 +543,11 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 //
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
-	// genesis must always contain the consensus params. The validator set however is derived from the
-	// initial genesis state. The genesis must always contain a non zero app version which is the initial
-	// version that the chain starts on
-	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
-		panic("no consensus params set")
-	}
-	if req.ConsensusParams.Version.AppVersion == 0 {
-		panic("app version 0 is not accepted. Please set an app version in the genesis")
-	}
-	appVersion := req.ConsensusParams.Version.AppVersion
-
+	req = setMochaAppVersion(req)
+	appVersion := extractAppVersion(req)
+	fmt.Printf("InitChain app version %v\n", appVersion)
+	fmt.Printf("app.AppVersion() == %v\n", app.AppVersion())
+	fmt.Printf("app.IsSealed() == %v\n", app.IsSealed())
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
@@ -567,10 +563,45 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	return res
 }
 
+// setMochaAppVersion sets the app version to v1 if the chain ID is mocha-4.
+// This is necessary because the mocha-4 genesis file doesn't populate an app
+// version.
+func setMochaAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
+	if req.ChainId != "mocha-4" {
+		// if the chain id is not mocha-4, return the request as is
+		return req
+	}
+	if req.ConsensusParams == nil {
+		panic("no consensus params set")
+	}
+	if req.ConsensusParams.Version == nil {
+		panic("no version set in consensus params")
+	}
+	req.ConsensusParams.Version.AppVersion = v1
+	return req
+}
+
+// extractAppVersion extracts the app version from the provided init chain
+// request. It panics if the app version is not present.
+func extractAppVersion(req abci.RequestInitChain) uint64 {
+	if req.ConsensusParams == nil {
+		panic("no consensus params set")
+	}
+	if req.ConsensusParams.Version == nil {
+		panic("no version set in consensus params")
+	}
+	// The genesis must always contain a non zero app version which is the initial
+	// version that the chain starts on.
+	if req.ConsensusParams.Version.AppVersion == 0 {
+		panic("app version 0 is not accepted. Please set an app version in the genesis")
+	}
+	return req.ConsensusParams.Version.AppVersion
+}
+
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
-	app.BaseApp.Logger().Debug(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
+	app.BaseApp.Logger().Info(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for it's side-effect of invoking baseapp.Init()
@@ -585,9 +616,9 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(req.ConsensusParams.Version.AppVersion))
-	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
+	appVersion := extractAppVersion(req)
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(appVersion))
+	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, appVersion)
 }
 
 // LoadHeight loads a particular height
