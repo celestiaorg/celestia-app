@@ -541,8 +541,8 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 //
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
-	req = setMochaAppVersion(req)
-	appVersion := extractAppVersion(req)
+	req = setDefaultAppVersion(req)
+	appVersion := req.ConsensusParams.Version.AppVersion
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
@@ -558,39 +558,20 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	return res
 }
 
-// setMochaAppVersion sets the app version to v1 if the chain ID is mocha-4.
-// This is necessary because the mocha-4 genesis file doesn't populate an app
-// version.
-func setMochaAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
-	if req.ChainId != "mocha-4" {
-		// if the chain id is not mocha-4, return the request as is
-		return req
-	}
+// setDefaultAppVersion sets the default app version in the consensus params if
+// it was 0. This is needed because chains (e.x. mocha-4) did not explicitly set
+// an app version in genesis.json.
+func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
 	if req.ConsensusParams == nil {
 		panic("no consensus params set")
 	}
 	if req.ConsensusParams.Version == nil {
 		panic("no version set in consensus params")
 	}
-	req.ConsensusParams.Version.AppVersion = v1
-	return req
-}
-
-// extractAppVersion extracts the app version from the provided init chain
-// request. It panics if the app version is not present.
-func extractAppVersion(req abci.RequestInitChain) uint64 {
-	if req.ConsensusParams == nil {
-		panic("no consensus params set")
-	}
-	if req.ConsensusParams.Version == nil {
-		panic("no version set in consensus params")
-	}
-	// The genesis must always contain a non zero app version which is the initial
-	// version that the chain starts on.
 	if req.ConsensusParams.Version.AppVersion == 0 {
-		panic("app version 0 is not accepted. Please set an app version in the genesis")
+		req.ConsensusParams.Version.AppVersion = v1
 	}
-	return req.ConsensusParams.Version.AppVersion
+	return req
 }
 
 // mountKeysAndInit mounts the keys for the provided app version and then
@@ -611,7 +592,7 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	appVersion := extractAppVersion(req)
+	appVersion := req.ConsensusParams.Version.AppVersion
 	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(appVersion))
 	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, appVersion)
 }

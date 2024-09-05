@@ -75,7 +75,7 @@ func TestInitChain(t *testing.T) {
 			wantPanic: true,
 		},
 		{
-			name:      "should not panic on Mocha genesis.json",
+			name:      "should not panic on mocha-genesis.json",
 			request:   getGenesis(t, "testdata/mocha-genesis.json"),
 			wantPanic: false,
 		},
