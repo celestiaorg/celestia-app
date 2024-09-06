@@ -26,12 +26,13 @@ import (
 const defaultFee = DefaultGasLimit * appconsts.DefaultMinGasPrice
 
 type AccountManager struct {
-	keys        keyring.Keyring
-	conn        *grpc.ClientConn
-	pending     []*account
-	encCfg      encoding.Config
-	pollTime    time.Duration
-	useFeegrant bool
+	keys           keyring.Keyring
+	conn           *grpc.ClientConn
+	pending        []*account
+	encCfg         encoding.Config
+	pollTime       time.Duration
+	useFeegrant    bool
+	ignoreFailures bool
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
@@ -51,6 +52,7 @@ func NewAccountManager(
 	conn *grpc.ClientConn,
 	pollTime time.Duration,
 	useFeegrant bool,
+	ignoreFailures bool,
 ) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
@@ -62,14 +64,15 @@ func NewAccountManager(
 	}
 
 	am := &AccountManager{
-		keys:         keys,
-		encCfg:       encCfg,
-		pending:      make([]*account, 0),
-		conn:         conn,
-		pollTime:     pollTime,
-		useFeegrant:  useFeegrant,
-		addressMap:   make(map[string]string),
-		accountIndex: len(records),
+		keys:           keys,
+		encCfg:         encCfg,
+		pending:        make([]*account, 0),
+		conn:           conn,
+		pollTime:       pollTime,
+		useFeegrant:    useFeegrant,
+		ignoreFailures: ignoreFailures,
+		addressMap:     make(map[string]string),
+		accountIndex:   len(records),
 	}
 
 	if masterAccName == "" {
@@ -268,6 +271,9 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		}
 	}
 	if err != nil {
+		if am.ignoreFailures {
+			return nil
+		}
 		return err
 	}
 

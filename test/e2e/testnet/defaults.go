@@ -1,10 +1,10 @@
 package testnet
 
 var DefaultResources = Resources{
-	MemoryRequest: "400Mi",
-	MemoryLimit:   "400Mi",
-	CPU:           "300m",
-	Volume:        "1Gi",
+	MemoryRequest: "3Gi",
+	MemoryLimit:   "3Gi",
+	CPU:           "1000m",
+	Volume:        "2Gi",
 }
 
 const (

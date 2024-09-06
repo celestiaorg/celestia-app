@@ -133,7 +133,7 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithAppCreator(DefaultAppCreator()).
-		WithSuppressLogs(true)
+		WithSuppressLogs(false)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {

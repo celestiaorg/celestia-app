@@ -3,7 +3,6 @@ package testnet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,10 +39,14 @@ func New(name string, seed int64, grafana *GrafanaInfo, chainID string,
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		genesis: genesis.NewDefaultGenesis().WithChainID(identifier).WithModifiers(genesisModifiers...),
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 	}, nil
+}
+
+func (t *Testnet) ChainID() string {
+	return t.genesis.ChainID
 }
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
@@ -185,6 +188,16 @@ func (t *Testnet) StartTxClients() error {
 			return fmt.Errorf("txsim %s failed to run: %w", txsim.Name, err)
 		}
 
+	}
+	return nil
+}
+
+func (t *Testnet) StopTxClients() error {
+	for _, txsim := range t.txClients {
+		err := txsim.Instance.Stop()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -348,10 +361,11 @@ func (t *Testnet) WaitToSync() error {
 					break
 				}
 			} else {
-				err = errors.New("error getting status")
+				log.Info().Err(err).Str("name", node.Name).Msg(
+					"getting status")
 			}
 			if i == 9 {
-				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
+				return fmt.Errorf("failed to start node %s", node.Name)
 			}
 			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
 				"node is not synced yet, waiting...")

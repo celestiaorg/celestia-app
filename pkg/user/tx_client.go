@@ -22,7 +22,6 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/rpc/core"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -470,7 +469,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		if resp != nil {
 			switch resp.Status {
-			case core.TxStatusPending:
+			case "PENDING":
 				// Continue polling if the transaction is still pending
 				select {
 				case <-ctx.Done():
@@ -478,7 +477,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				case <-pollTicker.C:
 					continue
 				}
-			case core.TxStatusCommitted:
+			case "COMMITTED":
 				txResponse := &TxResponse{
 					Height: resp.Height,
 					TxHash: txHash,
@@ -493,7 +492,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					return nil, executionErr
 				}
 				return txResponse, nil
-			case core.TxStatusEvicted:
+			case "EVICTED":
 				return nil, fmt.Errorf("tx was evicted from the mempool")
 			default:
 				return nil, fmt.Errorf("unknown tx: %s", txHash)

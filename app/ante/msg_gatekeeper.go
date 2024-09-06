@@ -65,10 +65,11 @@ func (mgk MsgVersioningGateKeeper) hasInvalidMsg(ctx sdk.Context, acceptedMsgs m
 }
 
 func (mgk MsgVersioningGateKeeper) IsAllowed(ctx context.Context, msgName string) (bool, error) {
-	appVersion := sdk.UnwrapSDKContext(ctx).BlockHeader().Version.App
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	appVersion := sdkCtx.BlockHeader().Version.App
 	acceptedMsgs, exists := mgk.acceptedMsgs[appVersion]
 	if !exists {
-		return false, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", appVersion)
+		return false, sdkerrors.ErrNotSupported.Wrapf("circuit breaker: app version %d is not supported", appVersion)
 	}
 	_, exists = acceptedMsgs[msgName]
 	if !exists {
