@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "c1a4ccf" //"a28b9e7"
+	compactBlocksVersion = "5da3d52" //"a28b9e7"
 )
 
 func main() {
@@ -69,7 +69,7 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		1,
+		40,
 		"128000-256000",
 		1,
 		testnet.DefaultResources,
@@ -96,7 +96,6 @@ func Run() error {
 				schema.CompactBlockTable,
 				schema.MempoolRecoveryTable,
 			}, ",")
-			cfg.LogLevel = "debug"
 		},
 	)
 	if err != nil {
@@ -132,14 +131,14 @@ func Run() error {
 		return err
 	}
 
+	if err := network.WaitToSync(); err != nil {
+		return err
+	}
+
 	for _, node := range network.Nodes() {
 		if err = node.Instance.SetLatencyAndJitter(40, 10); err != nil {
 			return fmt.Errorf("failed to set latency and jitter: %v", err)
 		}
-	}
-
-	if err := network.WaitToSync(); err != nil {
-		return err
 	}
 
 	if err := network.StartTxClients(); err != nil {
