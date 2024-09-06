@@ -36,7 +36,7 @@ func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
 		sizes:         sizes,
 		blobsPerPFB:   blobsPerPFB,
 		shareVersions: []uint8{share.ShareVersionZero, share.ShareVersionOne},
-		gasPrice:      appconsts.DefaultMinGasPrice,
+		gasPrice:      appconsts.DefaultMinGasPrice * 10,
 	}
 }
 
