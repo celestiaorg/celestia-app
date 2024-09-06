@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "8f557bb" //"a28b9e7"
+	compactBlocksVersion = "c1a4ccf" //"a28b9e7"
 )
 
 func main() {
@@ -68,11 +69,11 @@ func Run() error {
 
 	err = network.CreateTxClients(
 		compactBlocksVersion,
-		60,
+		1,
 		"128000-256000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:4],
+		gRPCEndpoints[:3],
 	)
 	if err != nil {
 		return err
@@ -88,6 +89,14 @@ func Run() error {
 			cfg.P2P.MaxNumOutboundPeers = 3
 			cfg.P2P.MaxNumInboundPeers = 4
 			cfg.Instrumentation.TraceType = "local"
+			cfg.Instrumentation.TracingTables = strings.Join([]string{
+				schema.RoundStateTable,
+				schema.BlockTable,
+				schema.ProposalTable,
+				schema.CompactBlockTable,
+				schema.MempoolRecoveryTable,
+			}, ",")
+			cfg.LogLevel = "debug"
 		},
 	)
 	if err != nil {
