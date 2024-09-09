@@ -570,7 +570,7 @@ func addCommands(
 func checkBBR(command *cobra.Command) error {
 	const (
 		errorMsg = `
-// The BBR congestion control algorithm does not appear to be enabled in this 
+// The BBR congestion control algorithm does not appear to be enabled in this
 // system's kernel. This is important for the p2p stack to be performant.
 //
 // to enable bbr call:
@@ -579,17 +579,17 @@ sudo modprobe tcp_bbr
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 sudo sysctl -p
-// 
+//
 // and can be verified to be running using
 //
 sysctl net.ipv4.tcp_congestion_control
 
-// This might not work for all systems, you might have to search online to 
+// This might not work for all systems, you might have to search online to
 // figure out how to enable bbr for your system.
 //
 // While this node will get worse performance using something other than bbr,
 // If you need to bypass this block use the "--force-no-bbr true" flag.
-		`
+`
 	)
 
 	noBBRErr := errors.New(errorMsg)
@@ -605,7 +605,7 @@ sysctl net.ipv4.tcp_congestion_control
 	cmd := exec.Command("sysctl", "net.ipv4.tcp_congestion_control")
 	output, err := cmd.Output()
 	if err != nil {
-		return err
+		return fmt.Errorf("%v\nFailed to execute 'sysctl net.ipv4.tcp_congestion_control' %w", errorMsg, err)
 	}
 
 	if !strings.Contains(string(output), "bbr") {
