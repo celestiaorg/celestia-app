@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "5da3d52" //"a28b9e7"
+	compactBlocksVersion = "70e7354" //"a28b9e7"
 )
 
 func main() {
@@ -73,7 +73,7 @@ func Run() error {
 		"128000-256000",
 		1,
 		testnet.DefaultResources,
-		gRPCEndpoints[:3],
+		gRPCEndpoints[:2],
 	)
 	if err != nil {
 		return err
@@ -88,6 +88,7 @@ func Run() error {
 			// create a partially connected network by only dialing 5 peers
 			cfg.P2P.MaxNumOutboundPeers = 3
 			cfg.P2P.MaxNumInboundPeers = 4
+			cfg.Mempool.MaxTxsBytes = 100 * 1024 * 1024
 			cfg.Instrumentation.TraceType = "local"
 			cfg.Instrumentation.TracingTables = strings.Join([]string{
 				schema.RoundStateTable,
