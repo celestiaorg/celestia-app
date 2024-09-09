@@ -31,7 +31,7 @@ build: mod
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
-install: go.sum check-bbr
+install: go.sum
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
@@ -222,28 +222,3 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
-
-## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
-check-bbr:
-	@echo "Checking if BBR is enabled..."
-	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
-	    echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
-	else \
-	    echo "BBR is enabled."; \
-	fi
-.PHONY: check-bbr
-
-## enable-bbr: Enable BBR congestion control algorithm. Only works on Linux.
-enable-bbr:
-	@echo "Configuring system to use BBR..."
-	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
-	    echo "BBR is not enabled. Configuring BBR..."; \
-	    sudo modprobe tcp_bbr; \
-	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf; \
-	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf; \
-	    sudo sysctl -p; \
-	    echo "BBR has been enabled."; \
-	else \
-	    echo "BBR is already enabled."; \
-	fi
-.PHONY: enable-bbr

@@ -122,7 +122,7 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 	)
 
 	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback.
-	addCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addModuleInitFlags)
+	server.AddCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addModuleInitFlags)
 }
 
 // setDefaultConsensusParams sets the default consensus parameters for the
