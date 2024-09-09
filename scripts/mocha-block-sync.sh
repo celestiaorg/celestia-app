@@ -43,4 +43,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
 
 echo "Starting celestia-appd..."
-celestia-appd start --v2-upgrade-height 2585031
+celestia-appd start --v2-upgrade-height 2585031 --force-no-bbr
