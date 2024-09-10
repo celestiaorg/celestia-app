@@ -33,17 +33,19 @@ import (
 )
 
 const (
-	DefaultPollTime              = 3 * time.Second
-	DefaultGasMultiplier float64 = 1.1
+	DefaultPollTime                  = 3 * time.Second
+	DefaultGasMultiplier     float64 = 1.1
+	txTrackerPruningInterval         = 10 * time.Minute
 )
 
 type Option func(client *TxClient)
 
-// txInfo is a struct that holds the nonce and the signer of a transaction
-// in the local mempool.
+// txInfo is a struct that holds the sequence and the signer of a transaction
+// in the local tx pool.
 type txInfo struct {
-	Nonce  uint64
-	Signer string
+	sequence  uint64
+	signer    string
+	timeStamp time.Time
 }
 
 // TxResponse is a response from the chain after
@@ -142,9 +144,9 @@ type TxClient struct {
 	defaultGasPrice float64
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
-	// localMempool maps the tx hash to the nonce and signer of the transaction
+	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	localMempool map[string]txInfo
+	txTracker map[string]txInfo
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -177,7 +179,7 @@ func NewTxClient(
 		defaultGasPrice: appconsts.DefaultMinGasPrice,
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
-		localMempool:    make(map[string]txInfo),
+		txTracker:       make(map[string]txInfo),
 	}
 
 	for _, opt := range options {
@@ -311,6 +313,10 @@ func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts 
 func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
+
+	// Prune transactions that are older than 10 minutes
+	client.pruneTxTracker()
+
 	account, err := client.getAccountNameFromMsgs(msgs)
 	if err != nil {
 		return nil, err
@@ -385,11 +391,12 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return nil, broadcastTxErr
 	}
 
-	// save the nonce and signer of the transaction in the local pool
-	// before the nonce is incremented
-	client.localMempool[resp.TxResponse.TxHash] = txInfo{
-		Nonce:  client.signer.accounts[signer].Sequence(),
-		Signer: signer,
+	// save the sequence and signer of the transaction in the local pool
+	// before the sequence is incremented
+	client.txTracker[resp.TxResponse.TxHash] = txInfo{
+		sequence:  client.signer.accounts[signer].Sequence(),
+		signer:    signer,
+		timeStamp: time.Now(),
 	}
 
 	// after the transaction has been submitted, we can increment the
@@ -399,6 +406,15 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	}
 
 	return resp.TxResponse, nil
+}
+
+// pruneTxTracker removes transactions from the local tx pool that are older than 10 minutes
+func (client *TxClient) pruneTxTracker() {
+	for hash, txInfo := range client.txTracker {
+		if time.Since(txInfo.timeStamp) >= txTrackerPruningInterval {
+			delete(client.txTracker, hash)
+		}
+	}
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
@@ -437,45 +453,45 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					Code:     resp.ExecutionCode,
 					ErrorLog: resp.Error,
 				}
-				client.deleteFromLocalMempool(txHash)
+				client.deleteFromTxTracker(txHash)
 				return nil, executionErr
 			}
-			client.deleteFromLocalMempool(txHash)
+			client.deleteFromTxTracker(txHash)
 			return txResponse, nil
 		case core.TxStatusEvicted:
 			return nil, client.handleEvictions(txHash)
 		default:
-			client.deleteFromLocalMempool(txHash)
+			client.deleteFromTxTracker(txHash)
 			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
 }
 
 // handleEvictions handles the scenario where a transaction is evicted from the mempool.
-// It removes the evicted transaction from the local pool without incrementing
+// It removes the evicted transaction from the local tx pool without incrementing
 // the signer's sequence.
 func (client *TxClient) handleEvictions(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	// Get transaction from the local pool
-	txInfo, exists := client.localMempool[txHash]
+	txInfo, exists := client.txTracker[txHash]
 	if !exists {
 		return fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 	}
 	// The sequence should not be rolled back to the sequence of the transaction that was evicted to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
-	if err := client.signer.SetSequence(txInfo.Signer, txInfo.Nonce); err != nil {
+	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
 		return fmt.Errorf("setting sequence: %w", err)
 	}
-	delete(client.localMempool, txHash)
+	delete(client.txTracker, txHash)
 	return fmt.Errorf("tx was evicted from the mempool")
 }
 
-// deleteFromLocalMempool safely deletes a transaction from the local mempool.
-func (client *TxClient) deleteFromLocalMempool(txHash string) {
+// deleteFromTxTracker safely deletes a transaction from the local tx pool.
+func (client *TxClient) deleteFromTxTracker(txHash string) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	delete(client.localMempool, txHash)
+	delete(client.txTracker, txHash)
 }
 
 // EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
@@ -581,12 +597,12 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// GetTxFromLocalMempool gets transaction info from the tx client's local mempool by its hash
-func (client *TxClient) GetTxFromLocalMempool(hash string) (nonce uint64, signer string, exists bool) {
+// GetTxFromTxTracker gets transaction info from the tx client's local tx pool by its hash
+func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	txInfo, exists := client.localMempool[hash]
-	return txInfo.Nonce, txInfo.Signer, exists
+	txInfo, exists := client.txTracker[hash]
+	return txInfo.sequence, txInfo.signer, exists
 }
 
 // Signer exposes the tx clients underlying signer

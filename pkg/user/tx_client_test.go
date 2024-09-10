@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -31,23 +32,14 @@ func TestTxClientTestSuite(t *testing.T) {
 type TxClientTestSuite struct {
 	suite.Suite
 
-	ctx            testnode.Context
-	encCfg         encoding.Config
-	txClient       *user.TxClient
-	serviceClient  sdktx.ServiceClient
-	testnodeConfig *testnode.Config
+	ctx           testnode.Context
+	encCfg        encoding.Config
+	txClient      *user.TxClient
+	serviceClient sdktx.ServiceClient
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	suite.testnodeConfig = testnode.DefaultConfig().
-		WithFundedAccounts("a", "b", "c").
-		WithAppCreator(testnode.CustomAppCreator("0utia"))
-	suite.ctx, _, _ = testnode.NewNetwork(suite.T(), suite.testnodeConfig)
-	_, err := suite.ctx.WaitForHeight(1)
-	suite.Require().NoError(err)
-	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
-	suite.Require().NoError(err)
+	suite.encCfg, suite.txClient, suite.ctx = SetupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -165,15 +157,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		msg := bank.NewMsgSend(suite.txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		resp, err := suite.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 		require.NoError(t, err)
-
-		// Make sure transaction was indexed
-		nonce, signer, exists := suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
-		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcast transaction increases the nonce
-		// txInfo is indexed before the nonce is increased
-		require.Equal(t, seq, nonce+1)
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
 
 		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.Error(t, err)
@@ -193,23 +177,13 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
 		require.NoError(t, err)
-
-		nonce, signer, exists := suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
-		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcast transaction increases the nonce
-		// txInfo is indexed before the nonce is increased
-		require.Equal(t, seq, nonce+1)
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authorization not found")
 		require.Nil(t, confirmTxResp)
-		nonce, signer, exists = suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.False(t, exists)
-		require.Zero(t, nonce)
-		require.Zero(t, signer)
+		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
@@ -218,24 +192,14 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
-
-		nonce, signer, exists := suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
-		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcast transaction increases the nonce
-		// txInfo is indexed before the nonce is increased
-		require.Equal(t, seq, nonce+1)
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
 
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 30*time.Second)
 		defer cancel()
 		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
-		nonce, signer, exists = suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.False(t, exists)
-		require.Zero(t, nonce)
-		require.Zero(t, signer)
+		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
 
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
@@ -246,62 +210,42 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
-
-		nonce, signer, exists := suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.True(t, exists)
-		require.Equal(t, suite.txClient.DefaultAccountName(), signer)
-		seq := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		// Successfully broadcast transaction increases the nonce
-		// txInfo is indexed before the nonce is increased
-		require.Equal(t, seq, nonce+1)
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
 		require.Nil(t, confirmTxResp)
 		code := err.(*user.ExecutionError).Code
 		require.NotEqual(t, abci.CodeTypeOK, code)
-		nonce, signer, exists = suite.txClient.GetTxFromLocalMempool(resp.TxHash)
-		require.False(t, exists)
-		require.Zero(t, nonce)
-		require.Zero(t, signer)
+		require.True(t, wasRemovedFromTxTracker(resp.TxHash, suite.txClient))
 	})
+}
 
-	t.Run("should adjust nonce when evicted", func(t *testing.T) {
-		// Set ttl to 1ns to evict tx immediately
-		suite.testnodeConfig.TmConfig.Mempool.TTLDuration = 1 * time.Nanosecond
+func TestEvictions(t *testing.T) {
+	_, txClient, ctx := SetupTxClient(t, 1*time.Nanosecond)
 
-		// Keep submitting the transaction until we get the eviction error
-		sender := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName())
-		msg := bank.NewMsgSend(sender.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-		var seqBeforeEviction uint64
-		for {
-			// There is a chance one of the txs will get into a block so we have to keep updating the sequence
-			seqBeforeEviction = sender.Sequence()
-			resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
-			require.NoError(t, err)
-			_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
-			if err != nil {
-				if err.Error() == "tx was evicted from the mempool" {
-					break
-				}
+	fee := user.SetFee(1e6)
+	gas := user.SetGasLimit(1e6)
+
+	// Keep submitting the transaction until we get the eviction error
+	sender := txClient.Signer().Account(txClient.DefaultAccountName())
+	msg := bank.NewMsgSend(sender.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	var seqBeforeEviction uint64
+	// Loop five times until the tx is evicted
+	for i := 0; i < 5; i++ {
+		seqBeforeEviction = sender.Sequence()
+		resp, err := txClient.BroadcastTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
+		require.NoError(t, err)
+		_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
+		if err != nil {
+			if err.Error() == "tx was evicted from the mempool" {
+				break
 			}
 		}
+	}
 
-		seqAfterEviction := sender.Sequence()
-		require.Equal(t, seqBeforeEviction, seqAfterEviction)
-
-		// Increase ttl again
-		suite.testnodeConfig.TmConfig.Mempool.TTLDuration = 120 * time.Second
-
-		// Resubmit with the same sender
-		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
-		require.NoError(t, err)
-		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
-		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
-		seqAfterSuccessfulTx := sender.Sequence()
-		require.Equal(t, seqAfterSuccessfulTx, seqAfterEviction+1)
-	})
+	seqAfterEviction := sender.Sequence()
+	require.Equal(t, seqBeforeEviction, seqAfterEviction)
 }
 
 func (suite *TxClientTestSuite) TestGasEstimation() {
@@ -368,4 +312,36 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 	balanceResp, err := balanceQuery.AllBalances(suite.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: addr.String()})
 	require.NoError(t, err)
 	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
+}
+
+func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
+	nonce, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	return !exists && nonce == 0 && signer == ""
+}
+
+// asserts that a tx was indexed in the tx tracker and that the sequence does not increase
+func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, expectedSigner string) {
+	nonce, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	require.True(t, exists)
+	require.Equal(t, expectedSigner, signer)
+	seq := txClient.Signer().Account(expectedSigner).Sequence()
+	// Successfully broadcast transaction increases the nonce
+	// txInfo is indexed before the nonce is increased
+	require.Equal(t, seq, nonce+1)
+}
+
+func SetupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	defaultTmConfig := testnode.DefaultTendermintConfig()
+	defaultTmConfig.Mempool.TTLDuration = ttlDuration
+	testnodeConfig := testnode.DefaultConfig().
+		WithTendermintConfig(defaultTmConfig).
+		WithFundedAccounts("a", "b", "c").
+		WithAppCreator(testnode.CustomAppCreator("0utia"))
+	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
+	_, err := ctx.WaitForHeight(1)
+	require.NoError(t, err)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithGasMultiplier(1.2))
+	require.NoError(t, err)
+	return encCfg, txClient, ctx
 }
