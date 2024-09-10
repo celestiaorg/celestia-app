@@ -314,7 +314,9 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
-	// Prune transactions that are older than 10 minutes
+	// prune transactions that are older than 10 minutes
+	// pruning has to be done in broadcast, since users
+	// might not always call ConfirmTx().
 	client.pruneTxTracker()
 
 	account, err := client.getAccountNameFromMsgs(msgs)
@@ -404,7 +406,6 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	if err := client.signer.IncrementSequence(signer); err != nil {
 		return nil, fmt.Errorf("increment sequencing: %w", err)
 	}
-
 	return resp.TxResponse, nil
 }
 

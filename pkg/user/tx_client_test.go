@@ -39,7 +39,7 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = SetupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -222,7 +222,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 }
 
 func TestEvictions(t *testing.T) {
-	_, txClient, ctx := SetupTxClient(t, 1*time.Nanosecond)
+	_, txClient, ctx := setupTxClient(t, 1*time.Nanosecond)
 
 	fee := user.SetFee(1e6)
 	gas := user.SetGasLimit(1e6)
@@ -330,7 +330,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, e
 	require.Equal(t, seq, nonce+1)
 }
 
-func SetupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
+func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	defaultTmConfig.Mempool.TTLDuration = ttlDuration
