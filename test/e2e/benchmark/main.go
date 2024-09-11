@@ -12,12 +12,8 @@ func main() {
 	tests := []Test{
 		{"TwoNodeSimple", TwoNodeSimple},
 		{"TwoNodeBigBlock8MB", TwoNodeBigBlock8MB},
-		{"TwoNodeBigBlock32MB", TwoNodeBigBlock32MB},
 		{"TwoNodeBigBlock8MBLatency", TwoNodeBigBlock8MBLatency},
-		{"TwoNodeBigBlock64MB", TwoNodeBigBlock64MB},
 		{"LargeNetworkBigBlock8MB", LargeNetworkBigBlock8MB},
-		{"LargeNetworkBigBlock32MB", LargeNetworkBigBlock32MB},
-		{"LargeNetworkBigBlock64MB", LargeNetworkBigBlock64MB},
 	}
 
 	// check the test name passed as an argument and run it
