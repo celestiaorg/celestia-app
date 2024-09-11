@@ -136,10 +136,14 @@ func TwoNodeBigBlock8MB(logger *log.Logger) error {
 }
 
 func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * testnet.MB
 	manifest.EnableLatency = true
 	manifest.LatencyParams = LatencyParams{70, 0}
+	manifest.CelestiaAppVersion = latestVersion
+	manifest.TxClientVersion = testnet.TxsimVersion
 	return runBenchmarkTest(logger, "TwoNodeBigBlock8MBLatency", manifest)
 }
 
