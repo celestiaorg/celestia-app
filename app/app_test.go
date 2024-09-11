@@ -1,10 +1,13 @@
 package app_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/snapshots"
@@ -13,8 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	tmprototypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -62,6 +64,11 @@ func TestInitChain(t *testing.T) {
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(0)
 	appOptions := NoopAppOptions{}
+	testApp := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
+	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	require.NoError(t, err)
+	genesis := testnode.DefaultConfig().Genesis
 
 	type testCase struct {
 		name      string
@@ -75,8 +82,19 @@ func TestInitChain(t *testing.T) {
 			wantPanic: true,
 		},
 		{
-			name:      "should not panic on mocha-genesis.json",
-			request:   getGenesis(t, "testdata/mocha-genesis.json"),
+			name: "should not panic on a genesis that does not contain an app version",
+			request: abci.RequestInitChain{
+				Time:    genesis.GenesisTime,
+				ChainId: genesis.ChainID,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     &abci.BlockParams{},
+					Evidence:  &genesis.ConsensusParams.Evidence,
+					Validator: &genesis.ConsensusParams.Validator,
+					Version:   &tmproto.VersionParams{}, // explicitly set to empty to remove app version.,
+				},
+				AppStateBytes: appStateBytes,
+				InitialHeight: 0,
+			},
 			wantPanic: false,
 		},
 	}
@@ -90,36 +108,6 @@ func TestInitChain(t *testing.T) {
 				assert.NotPanics(t, func() { application.InitChain(tc.request) })
 			}
 		})
-	}
-}
-
-func getGenesis(t *testing.T, filename string) abci.RequestInitChain {
-	doc, err := coretypes.GenesisDocFromFile(filename)
-	require.NoError(t, err)
-
-	return abci.RequestInitChain{
-		Time:          doc.GenesisTime,
-		ChainId:       doc.ChainID,
-		InitialHeight: doc.InitialHeight,
-		Validators:    []abci.ValidatorUpdate{},
-		ConsensusParams: &abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxBytes: doc.ConsensusParams.Block.MaxBytes,
-				MaxGas:   doc.ConsensusParams.Block.MaxGas,
-			},
-			Evidence: &tmprototypes.EvidenceParams{
-				MaxAgeNumBlocks: doc.ConsensusParams.Evidence.MaxAgeNumBlocks,
-				MaxAgeDuration:  doc.ConsensusParams.Evidence.MaxAgeDuration,
-				MaxBytes:        doc.ConsensusParams.Evidence.MaxBytes,
-			},
-			Validator: &tmprototypes.ValidatorParams{
-				PubKeyTypes: doc.ConsensusParams.Validator.PubKeyTypes,
-			},
-			Version: &tmprototypes.VersionParams{
-				AppVersion: doc.ConsensusParams.Version.AppVersion,
-			},
-		},
-		AppStateBytes: doc.AppState,
 	}
 }
 
