@@ -12,7 +12,3 @@ options:
   ignored_keywords:
     - DO NOT REVIEW
   enable_group_assignment: false
-
-  # Randomly pick reviewers up to this number.
-  # Do not set this option if you'd like to assign all matching reviewers.
-  number_of_reviewers: 2
