@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
@@ -35,7 +36,7 @@ func NewV1Blob(ns share.Namespace, data []byte, signer sdk.AccAddress) (*share.B
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int, appVersion uint64) error {
 	if bTx == nil {
 		return ErrNoBlobs
 	}
@@ -79,6 +80,9 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 		// If share version is 1, assert that the signer in the blob
 		// matches the signer in the msgPFB.
 		if blob.ShareVersion() == share.ShareVersionOne {
+			if appVersion <= v3.Version {
+				return ErrUnsupportedShareVersion.Wrapf("share version %d is not supported in %d. Supported from v3 onwards", blob.ShareVersion(), appVersion)
+			}
 			if !bytes.Equal(blob.Signer(), signer) {
 				return ErrInvalidBlobSigner.Wrapf("blob signer %s does not match msgPFB signer %s", sdk.AccAddress(blob.Signer()).String(), msgPFB.Signer)
 			}
