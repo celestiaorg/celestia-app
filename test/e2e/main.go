@@ -4,13 +4,15 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 )
 
 const (
 	seed = 42
 )
 
-type TestFunc func(*log.Logger) error
+type TestFunc func(logger *log.Logger, version string) error
 
 type Test struct {
 	Name string
@@ -19,6 +21,14 @@ type Test struct {
 
 func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
+
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
+
+	// TODO: remove me when the issue with bbr is fixed on k8s
+	latestVersion = "v2.1.2"
+
+	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	tests := []Test{
 		{"MinorVersionCompatibility", MinorVersionCompatibility},
@@ -31,7 +41,7 @@ func main() {
 	for _, arg := range os.Args[1:] {
 		for _, test := range tests {
 			if test.Name == arg {
-				runTest(logger, test)
+				runTest(logger, test, latestVersion)
 				specificTestFound = true
 				break
 			}
@@ -44,14 +54,14 @@ func main() {
 		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
 		// if no specific test is passed, run all tests
 		for _, test := range tests {
-			runTest(logger, test)
+			runTest(logger, test, latestVersion)
 		}
 	}
 }
 
-func runTest(logger *log.Logger, test Test) {
+func runTest(logger *log.Logger, test Test, appVersion string) {
 	logger.Printf("=== RUN %s", test.Name)
-	err := test.Func(logger)
+	err := test.Func(logger, appVersion)
 	if err != nil {
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}

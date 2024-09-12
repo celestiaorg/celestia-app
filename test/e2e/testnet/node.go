@@ -2,12 +2,11 @@
 package testnet
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/knuu/pkg/knuu"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/rs/zerolog/log"
 	"github.com/tendermint/tendermint/config"
@@ -18,6 +17,13 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/tendermint/tendermint/types"
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/knuu/pkg/instance"
+	"github.com/celestiaorg/knuu/pkg/knuu"
+	"github.com/celestiaorg/knuu/pkg/sidecars/netshaper"
+	"github.com/celestiaorg/knuu/pkg/sidecars/observability"
 )
 
 const (
@@ -41,7 +47,9 @@ type Node struct {
 	SignerKey      crypto.PrivKey
 	NetworkKey     crypto.PrivKey
 	SelfDelegation int64
-	Instance       *knuu.Instance
+	Instance       *instance.Instance
+	sidecars       []instance.SidecarManager
+	netShaper      *netshaper.NetShaper // a referecen to the netshaper sidecar
 
 	rpcProxyHost string
 	// FIXME: This does not work currently with the reverse proxy
@@ -80,16 +88,17 @@ func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSu
 // Resources defines the resource requirements for a Node.
 type Resources struct {
 	// MemoryRequest specifies the initial memory allocation for the Node.
-	MemoryRequest string
+	MemoryRequest resource.Quantity
 	// MemoryLimit specifies the maximum memory allocation for the Node.
-	MemoryLimit string
+	MemoryLimit resource.Quantity
 	// CPU specifies the CPU allocation for the Node.
-	CPU string
+	CPU resource.Quantity
 	// Volume specifies the storage volume allocation for the Node.
-	Volume string
+	Volume resource.Quantity
 }
 
 func NewNode(
+	ctx context.Context,
 	name, version string,
 	startHeight, selfDelegation int64,
 	peers []string,
@@ -97,53 +106,51 @@ func NewNode(
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,
+	kn *knuu.Knuu,
 ) (*Node, error) {
-	instance, err := knuu.NewInstance(name)
+	knInstance, err := kn.NewInstance(name)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetImage(DockerImageName(version))
+	err = knInstance.Build().SetImage(ctx, DockerImageName(version))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := instance.AddPortTCP(rpcPort); err != nil {
-		return nil, err
-	}
-	if err := instance.AddPortTCP(p2pPort); err != nil {
-		return nil, err
-	}
-	if err := instance.AddPortTCP(grpcPort); err != nil {
-		return nil, err
-	}
-	if err := instance.AddPortTCP(tracingPort); err != nil {
-		return nil, err
+	for _, port := range []int{rpcPort, p2pPort, grpcPort, tracingPort} {
+		if err := knInstance.Network().AddPortTCP(port); err != nil {
+			return nil, err
+		}
 	}
 
+	var sidecars []instance.SidecarManager
 	if grafana != nil {
+		obsySc := observability.New()
+
 		// add support for metrics
-		if err := instance.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", knuu.Scope()), "1m"); err != nil {
+		if err := obsySc.SetPrometheusEndpoint(prometheusPort, fmt.Sprintf("knuu-%s", kn.Scope), "1m"); err != nil {
 			return nil, fmt.Errorf("setting prometheus endpoint: %w", err)
 		}
-		if err := instance.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
+		if err := obsySc.SetJaegerEndpoint(14250, 6831, 14268); err != nil {
 			return nil, fmt.Errorf("error setting jaeger endpoint: %v", err)
 		}
-		if err := instance.SetOtlpExporter(grafana.Endpoint, grafana.Username, grafana.Token); err != nil {
+		if err := obsySc.SetOtlpExporter(grafana.Endpoint, grafana.Username, grafana.Token); err != nil {
 			return nil, fmt.Errorf("error setting otlp exporter: %v", err)
 		}
-		if err := instance.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
+		if err := obsySc.SetJaegerExporter("jaeger-collector.jaeger-cluster.svc.cluster.local:14250"); err != nil {
 			return nil, fmt.Errorf("error setting jaeger exporter: %v", err)
 		}
+		sidecars = append(sidecars, obsySc)
 	}
-	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
+	err = knInstance.Resources().SetMemory(resources.MemoryRequest, resources.MemoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU(resources.CPU)
+	err = knInstance.Resources().SetCPU(resources.CPU)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolumeWithOwner(remoteRootDir, resources.Volume, 10001)
+	err = knInstance.Storage().AddVolumeWithOwner(remoteRootDir, resources.Volume, 10001)
 	if err != nil {
 		return nil, err
 	}
@@ -152,24 +159,36 @@ func NewNode(
 		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
 	}
 
-	err = instance.SetArgs(args...)
-	if err != nil {
+	if err := knInstance.Build().SetArgs(args...); err != nil {
 		return nil, err
 	}
 
 	return &Node{
 		Name:           name,
-		Instance:       instance,
+		Instance:       knInstance,
 		Version:        version,
 		StartHeight:    startHeight,
 		InitialPeers:   peers,
 		SignerKey:      signerKey,
 		NetworkKey:     networkKey,
 		SelfDelegation: selfDelegation,
+		sidecars:       sidecars,
 	}, nil
 }
 
-func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
+func (n *Node) EnableNetShaper() {
+	n.netShaper = netshaper.New()
+	n.sidecars = append(n.sidecars, n.netShaper)
+}
+
+func (n *Node) SetLatencyAndJitter(latency, jitter int64) error {
+	if n.netShaper == nil {
+		return fmt.Errorf("netshaper is not enabled")
+	}
+	return n.netShaper.SetLatencyAndJitter(latency, jitter)
+}
+
+func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -190,7 +209,7 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 	}
 
 	// Create and write the config file
-	cfg, err := MakeConfig(n, configOptions...)
+	cfg, err := MakeConfig(ctx, n, configOptions...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
@@ -235,12 +254,17 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 		return fmt.Errorf("writing address book: %w", err)
 	}
 
-	err = n.Instance.Commit()
-	if err != nil {
+	if err := n.Instance.Build().Commit(ctx); err != nil {
 		return fmt.Errorf("committing instance: %w", err)
 	}
 
-	if err = n.Instance.AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
+	for _, sc := range n.sidecars {
+		if err := n.Instance.Sidecars().Add(ctx, sc); err != nil {
+			return fmt.Errorf("adding sidecar: %w", err)
+		}
+	}
+
+	if err = n.Instance.Storage().AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
 		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
 	return nil
@@ -249,8 +273,8 @@ func (n *Node) Init(genesis *types.GenesisDoc, peers []string, configOptions ...
 // AddressP2P returns a P2P endpoint address for the node. This is used for
 // populating the address book. This will look something like:
 // 3314051954fc072a0678ec0cbac690ad8676ab98@61.108.66.220:26656
-func (n Node) AddressP2P(withID bool) string {
-	ip, err := n.Instance.GetIP()
+func (n Node) AddressP2P(ctx context.Context, withID bool) string {
+	ip, err := n.Instance.Network().GetIP(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -275,8 +299,8 @@ func (n Node) AddressRPC() string {
 // }
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
-func (n Node) RemoteAddressGRPC() (string, error) {
-	ip, err := n.Instance.GetIP()
+func (n Node) RemoteAddressGRPC(ctx context.Context) (string, error) {
+	ip, err := n.Instance.Network().GetIP(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -284,8 +308,8 @@ func (n Node) RemoteAddressGRPC() (string, error) {
 }
 
 // RemoteAddressRPC retrieves the RPC endpoint address of a node within the cluster.
-func (n Node) RemoteAddressRPC() (string, error) {
-	ip, err := n.Instance.GetIP()
+func (n Node) RemoteAddressRPC(ctx context.Context) (string, error) {
+	ip, err := n.Instance.Network().GetIP(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -296,8 +320,8 @@ func (n Node) AddressTracing() string {
 	return n.traceProxyHost
 }
 
-func (n Node) RemoteAddressTracing() (string, error) {
-	ip, err := n.Instance.GetIP()
+func (n Node) RemoteAddressTracing(ctx context.Context) (string, error) {
+	ip, err := n.Instance.Network().GetIP(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -313,24 +337,25 @@ func (n Node) Client() (*http.HTTP, error) {
 	return http.New(n.AddressRPC(), "/websocket")
 }
 
-func (n *Node) Start() error {
-	if err := n.StartAsync(); err != nil {
+func (n *Node) Start(ctx context.Context) error {
+	if err := n.StartAsync(ctx); err != nil {
 		return err
 	}
 
-	return n.WaitUntilStartedAndForwardPorts()
+	return n.WaitUntilStartedAndCreateProxy(ctx)
 }
 
-func (n *Node) StartAsync() error {
-	return n.Instance.StartAsync()
+func (n *Node) StartAsync(ctx context.Context) error {
+	return n.Instance.Execution().StartAsync(ctx)
 }
 
-func (n *Node) WaitUntilStartedAndForwardPorts() error {
-	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
+func (n *Node) WaitUntilStartedAndCreateProxy(ctx context.Context) error {
+	if err := n.Instance.Execution().WaitInstanceIsRunning(ctx); err != nil {
 		return err
 	}
 
-	err, rpcProxyHost := n.Instance.AddHost(rpcPort)
+	//TODO: It is recomended to use AddHostWithReadyCheck for the proxy
+	rpcProxyHost, err := n.Instance.Network().AddHost(ctx, rpcPort)
 	if err != nil {
 		return err
 	}
@@ -343,7 +368,8 @@ func (n *Node) WaitUntilStartedAndForwardPorts() error {
 	// }
 	// n.grpcProxyHost = grpcProxyHost
 
-	err, traceProxyHost := n.Instance.AddHost(tracingPort)
+	//TODO: It is recomended to use AddHostWithReadyCheck for the proxy
+	traceProxyHost, err := n.Instance.Network().AddHost(ctx, tracingPort)
 	if err != nil {
 		return err
 	}
@@ -364,12 +390,12 @@ func (n *Node) GenesisValidator() genesis.Validator {
 	}
 }
 
-func (n *Node) Upgrade(version string) error {
-	if err := n.Instance.SetImageInstant(DockerImageName(version)); err != nil {
+func (n *Node) Upgrade(ctx context.Context, version string) error {
+	if err := n.Instance.Execution().UpgradeImage(ctx, DockerImageName(version)); err != nil {
 		return err
 	}
 
-	return n.Instance.WaitInstanceIsRunning()
+	return n.Instance.Execution().WaitInstanceIsRunning(ctx)
 }
 
 func DockerImageName(version string) string {
