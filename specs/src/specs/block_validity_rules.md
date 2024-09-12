@@ -1,1 +1,0 @@
-# Block Validity Rules
