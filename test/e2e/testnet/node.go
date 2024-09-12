@@ -358,7 +358,7 @@ func (n *Node) WaitUntilStartedAndCreateProxy(ctx context.Context) error {
 		return err
 	}
 
-	//TODO: It is recomended to use AddHostWithReadyCheck for the proxy
+	// TODO: It is recommended to use AddHostWithReadyCheck for the proxy
 	rpcProxyHost, err := n.Instance.Network().AddHost(ctx, rpcPort)
 	if err != nil {
 		return err
@@ -372,7 +372,7 @@ func (n *Node) WaitUntilStartedAndCreateProxy(ctx context.Context) error {
 	// }
 	// n.grpcProxyHost = grpcProxyHost
 
-	//TODO: It is recomended to use AddHostWithReadyCheck for the proxy
+	// TODO: It is recommended to use AddHostWithReadyCheck for the proxy
 	traceProxyHost, err := n.Instance.Network().AddHost(ctx, tracingPort)
 	if err != nil {
 		return err

@@ -55,8 +55,8 @@ func MinorVersionCompatibility(logger *log.Logger, _ string) error {
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
 
-		testnet.NoError("failed to create genesis node", 
-                    testNet.CreateGenesisNode(ctx, v, 10000000, 0, testnet.DefaultResources, false))
+		testnet.NoError("failed to create genesis node",
+			testNet.CreateGenesisNode(ctx, v, 10000000, 0, testnet.DefaultResources, false))
 	}
 
 	logger.Println("Creating txsim")

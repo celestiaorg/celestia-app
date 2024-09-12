@@ -4,8 +4,6 @@ import (
 	"log"
 	"os"
 	"strings"
-
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 )
 
 const (
@@ -22,11 +20,11 @@ type Test struct {
 func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
 
-	latestVersion, err := testnet.GetLatestVersion()
-	testnet.NoError("failed to get latest version", err)
+	// latestVersion, err := testnet.GetLatestVersion()
+	// testnet.NoError("failed to get latest version", err)
 
 	// TODO: remove me when the issue with bbr is fixed on k8s
-	latestVersion = "v2.1.2"
+	latestVersion := "v2.1.2"
 
 	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
