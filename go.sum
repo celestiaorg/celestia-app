@@ -320,8 +320,6 @@ github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7 h1:nxplQi8w
 github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7/go.mod h1:1EF5MfOxVf0WC51Gb7pJ6bcZxnXKNAf9pqWtjgPBAYc=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 h1:h1Y4V3EMQ2mFmNtWt2sIhZIuyASInj1a9ExI8xOsTOw=
 github.com/celestiaorg/blobstream-contracts/v3 v3.1.0/go.mod h1:x4DKyfKOSv1ZJM9NwV+Pw01kH2CD7N5zTFclXIVJ6GQ=
-github.com/celestiaorg/celestia-core v1.40.0-tm-v0.34.29 h1:J79TAjizxwIvm7/k+WI3PPH1aFj4AjOSjajoq5UzAwI=
-github.com/celestiaorg/celestia-core v1.40.0-tm-v0.34.29/go.mod h1:5jJ5magtH7gQOwSYfS/m5fliIS7irKunLV7kLNaD8o0=
 github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16 h1:SeQ7Y/CyOcUMKo7mQiexaj/pZ/xIgyuZFIwYZwpSkWE=
 github.com/celestiaorg/cosmos-sdk v1.24.1-sdk-v0.46.16/go.mod h1:Bpl1LSWiDpQumgOhhMTZBMopqa0j7fRasIhvTZB44P0=
 github.com/celestiaorg/go-square v1.1.0 h1:K4tBL5PCJwDtpBfyDxxZ3N962aC9VYb5/bw3LjagEtY=
@@ -332,8 +330,8 @@ github.com/celestiaorg/knuu v0.14.0 h1:96uaDHTzlTfhDLrAiygq9Ewow7UzOzGAbUvMwws1S
 github.com/celestiaorg/knuu v0.14.0/go.mod h1:5x/+tlLebBSfLmmSBm2ps6aLjnKLn5bOaZpUfI5FpsA=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
-github.com/celestiaorg/nmt v0.22.0 h1:AGtfmBiVgreR1KkIV5R7XFNeMp/H4IUDLlBbLjZZ3zk=
-github.com/celestiaorg/nmt v0.22.0/go.mod h1:ia/EpCk0enD5yO5frcxoNoFToz2Ghtk2i+blmCRjIY8=
+github.com/celestiaorg/nmt v0.22.1 h1:t7fqoP5MJ8mBns5DB2XjfcPxQpS3CKMkY+v+BEkDxYc=
+github.com/celestiaorg/nmt v0.22.1/go.mod h1:ia/EpCk0enD5yO5frcxoNoFToz2Ghtk2i+blmCRjIY8=
 github.com/celestiaorg/rsmt2d v0.13.1 h1:eRhp79DKTkDojwInKVs1lRK6f6zJc1BVlmZfUfI19yQ=
 github.com/celestiaorg/rsmt2d v0.13.1/go.mod h1:P7t92OATXbBmc/P5uR+GCOBv+PV8wLb0vU32ucrb148=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=

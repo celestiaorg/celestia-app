@@ -61,23 +61,51 @@ func TestOfferSnapshot(t *testing.T) {
 	upgradeHeight := int64(0)
 	appOptions := NoopAppOptions{}
 	snapshotOption := getSnapshotOption(t)
-	app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
 
-	t.Run("should return ACCEPT", func(t *testing.T) {
-		request := abci.RequestOfferSnapshot{
-			Snapshot: &abci.Snapshot{
-				Height:   0x1b07ec,
-				Format:   0x2,
-				Chunks:   0x1,
-				Hash:     []uint8{0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
-				Metadata: []uint8{0xa, 0x20, 0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
-			},
-			AppHash: []byte("apphash"),
-		}
+	t.Run("should ACCEPT a valid snapshot", func(t *testing.T) {
+		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
+		request := validSnapshot()
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got := app.OfferSnapshot(request)
 		assert.Equal(t, want, got)
 	})
+	t.Run("should ACCEPT a snapshot with app version 1", func(t *testing.T) {
+		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
+		request := validSnapshot()
+		request.Snapshot.AppVersion = 1
+		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		got := app.OfferSnapshot(request)
+		assert.Equal(t, want, got)
+	})
+	t.Run("should ACCEPT a snapshot with app version 2", func(t *testing.T) {
+		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
+		request := validSnapshot()
+		request.Snapshot.AppVersion = 2
+		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		got := app.OfferSnapshot(request)
+		assert.Equal(t, want, got)
+	})
+	t.Run("should REJECT a snapshot with unsupported app version", func(t *testing.T) {
+		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
+		request := validSnapshot()
+		request.Snapshot.AppVersion = 3 // unsupported app version
+		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}
+		got := app.OfferSnapshot(request)
+		assert.Equal(t, want, got)
+	})
+}
+
+func validSnapshot() abci.RequestOfferSnapshot {
+	return abci.RequestOfferSnapshot{
+		Snapshot: &abci.Snapshot{
+			Height:   0x1b07ec,
+			Format:   0x2,
+			Chunks:   0x1,
+			Hash:     []uint8{0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
+			Metadata: []uint8{0xa, 0x20, 0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
+		},
+		AppHash: []byte("apphash"),
+	}
 }
 
 func getSnapshotOption(t *testing.T) func(*baseapp.BaseApp) {

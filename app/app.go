@@ -795,6 +795,20 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
+	app.Logger().Debug("offering snapshot", "height", req.Snapshot.Height, "app_version", req.Snapshot.AppVersion)
+	if req.Snapshot.AppVersion != 0 {
+		if !isSupportedAppVersion(req.Snapshot.AppVersion) {
+			app.Logger().Debug("rejecting snapshot because unsupported app version", "app_version", req.Snapshot.AppVersion)
+			return abci.ResponseOfferSnapshot{
+				Result: abci.ResponseOfferSnapshot_REJECT,
+			}
+		}
+		app.Logger().Debug("mounting keys for snapshot", "app_version", req.Snapshot.AppVersion)
+		app.mountKeysAndInit(req.Snapshot.AppVersion)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	// If the app version is not set in the snapshot, this falls back to inferring the app version based on the upgrade height.
 	if app.upgradeHeightV2 == 0 {
 		app.Logger().Debug("v2 upgrade height not set, assuming app version 2")
 		app.mountKeysAndInit(v2)
@@ -810,4 +824,8 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 	app.Logger().Debug("snapshot height is less than upgrade height, assuming app version 1")
 	app.mountKeysAndInit(v1)
 	return app.BaseApp.OfferSnapshot(req)
+}
+
+func isSupportedAppVersion(appVersion uint64) bool {
+	return appVersion == v1 || appVersion == v2
 }
