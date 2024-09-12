@@ -37,7 +37,7 @@ func MajorUpgradeToV2(logger *log.Logger, appVersion string) error {
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(ctx, appVersion, 10000000, upgradeHeight, testnet.DefaultResources)
+		err := testNet.CreateGenesisNode(ctx, appVersion, 10000000, upgradeHeight, testnet.DefaultResources, true)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
