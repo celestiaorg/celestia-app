@@ -70,7 +70,7 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeight int64, resources Resources) error {
+func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
 	node, err := NewNode(ctx,
@@ -87,7 +87,6 @@ func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDel
 	t.nodes = append(t.nodes, node)
 	return nil
 }
-
 
 func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	for i := 0; i < num; i++ {
@@ -252,7 +251,6 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 		Msg("txsim account created and added to genesis")
 	return kr, nil
 }
-
 
 func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
