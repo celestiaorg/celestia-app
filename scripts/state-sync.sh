@@ -39,7 +39,7 @@ echo "Enabling state sync in config.toml..."
 sed -i.bak -E "s|^(enable[[:space:]]+=[[:space:]]+).*$|\1true| ; \
 s|^(rpc_servers[[:space:]]+=[[:space:]]+).*$|\1\"$RPC,$RPC\"| ; \
 s|^(trust_height[[:space:]]+=[[:space:]]+).*$|\1$BLOCK_HEIGHT| ; \
-s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"$TRUST_HASH\"|" $HOME/.celestia-app/config/config.toml
+s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"$TRUST_HASH\"|" $CELESTIA_APP_HOME/config/config.toml
 
 PEER=$(curl -s http://${RPC}/status | jq -r '.result.node_info.id + "@127.0.0.1:26656"')
 echo "Setting persistent peer to ${PEER}"
@@ -69,9 +69,6 @@ createGenesis() {
     # Override the p2p address to not conflict with the node started via ./single-node.sh
     sed -i'.bak' 's#laddr = "tcp://0.0.0.0:26656"#laddr = "tcp://0.0.0.0:36656"#g' "${CELESTIA_APP_HOME}"/config/config.toml
 
-    # Set a persistent peer that is the node started via ./single-node.sh
-    # sed -i'.bak' "s#persistent_peers = \"\"#persistent_peers = \"${PEER}\"#g" "${CELESTIA_APP_HOME}/config/config.toml"
-
     # Enable transaction indexing
     sed -i'.bak' 's#"null"#"kv"#g' "${CELESTIA_APP_HOME}"/config/config.toml
 
@@ -94,6 +91,7 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc.address="0.0.0.0:9999" \
     --p2p.persistent_peers=${PEER} \
+    --fast_sync false \
     --v2-upgrade-height 3
 }
 
