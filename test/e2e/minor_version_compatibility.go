@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 )
 
-func MinorVersionCompatibility(logger *log.Logger, _ string) error {
+func MinorVersionCompatibility(logger *log.Logger) error {
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
 	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates()

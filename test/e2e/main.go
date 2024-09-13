@@ -4,15 +4,13 @@ import (
 	"log"
 	"os"
 	"strings"
-
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 )
 
 const (
 	seed = 42
 )
 
-type TestFunc func(logger *log.Logger, version string) error
+type TestFunc func(logger *log.Logger) error
 
 type Test struct {
 	Name string
@@ -21,11 +19,6 @@ type Test struct {
 
 func main() {
 	logger := log.New(os.Stdout, "test-e2e", log.LstdFlags)
-
-	latestVersion, err := testnet.GetLatestVersion()
-	testnet.NoError("failed to get latest version", err)
-
-	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	tests := []Test{
 		{"MinorVersionCompatibility", MinorVersionCompatibility},
@@ -38,7 +31,7 @@ func main() {
 	for _, arg := range os.Args[1:] {
 		for _, test := range tests {
 			if test.Name == arg {
-				runTest(logger, test, latestVersion)
+				runTest(logger, test)
 				specificTestFound = true
 				break
 			}
@@ -51,14 +44,14 @@ func main() {
 		logger.Printf("Valid tests are: %s\n\n", getTestNames(tests))
 		// if no specific test is passed, run all tests
 		for _, test := range tests {
-			runTest(logger, test, latestVersion)
+			runTest(logger, test)
 		}
 	}
 }
 
-func runTest(logger *log.Logger, test Test, appVersion string) {
+func runTest(logger *log.Logger, test Test) {
 	logger.Printf("=== RUN %s", test.Name)
-	err := test.Func(logger, appVersion)
+	err := test.Func(logger)
 	if err != nil {
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}

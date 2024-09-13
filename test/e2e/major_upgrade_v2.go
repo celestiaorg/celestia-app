@@ -15,7 +15,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-func MajorUpgradeToV2(logger *log.Logger, appVersion string) error {
+func MajorUpgradeToV2(logger *log.Logger) error {
 	numNodes := 4
 	upgradeHeight := int64(10)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -27,17 +27,22 @@ func MajorUpgradeToV2(logger *log.Logger, appVersion string) error {
 
 	defer testNet.Cleanup(ctx)
 
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
+
+	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
+
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages(ctx) }()
-	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(appVersion)))
+	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(latestVersion)))
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(ctx, appVersion, 10000000, upgradeHeight, testnet.DefaultResources, true)
+		err := testNet.CreateGenesisNode(ctx, latestVersion, 10000000, upgradeHeight, testnet.DefaultResources, true)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
@@ -84,7 +89,7 @@ func MajorUpgradeToV2(logger *log.Logger, appVersion string) error {
 			return fmt.Errorf("failed to get height: %w", err)
 		}
 
-		if err := node.Upgrade(ctx, appVersion); err != nil {
+		if err := node.Upgrade(ctx, latestVersion); err != nil {
 			return fmt.Errorf("failed to restart node: %w", err)
 		}
 

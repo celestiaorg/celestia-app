@@ -14,16 +14,21 @@ import (
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
-func E2ESimple(logger *log.Logger, appVersion string) error {
+func E2ESimple(logger *log.Logger) error {
 	ctx := context.Background()
 	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
 
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
+
+	logger.Println("Running E2ESimple test", "version", latestVersion)
+
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(ctx, 4, appVersion, 10000000, 0, testnet.DefaultResources, true))
+		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
