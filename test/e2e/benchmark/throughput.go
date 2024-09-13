@@ -166,6 +166,7 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	//manifest.TxClientVersion = "pr-3737"
 	manifest.TestDuration = 10 * time.Minute
 	manifest.ChainID = manifest.summary()
+	manifest.PrecommitDelay = "5"
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
 }
 
