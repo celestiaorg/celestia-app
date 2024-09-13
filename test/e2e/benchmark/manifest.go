@@ -80,6 +80,8 @@ type Manifest struct {
 	GovMaxSquareSize int64
 
 	DisableBBR bool
+
+	PrecommitDelay string //in seconds
 }
 
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {

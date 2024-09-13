@@ -97,6 +97,15 @@ func (b *BenchmarkTest) SetupNodes() error {
 			}
 		}
 	}
+	if b.manifest.PrecommitDelay != "" {
+		log.Println("Setting up precommit delay")
+		for _, node := range b.Nodes() {
+			if err = node.Instance.SetEnvironmentVariable("PRECOMMIT_DELAY", b.manifest.PrecommitDelay); err != nil {
+				return fmt.Errorf("failed to set precommit delay: %v", err)
+			}
+		}
+
+	}
 	return nil
 }
 
