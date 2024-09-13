@@ -59,6 +59,7 @@ func TestAppUpgradeV3(t *testing.T) {
 		genesis.Keyring(), encCfg.TxConfig, testApp.GetChainID(), v3.Version,
 		user.NewAccount(testnode.DefaultValidatorAccountName, account.GetAccountNumber(), account.GetSequence()),
 	)
+	require.NoError(t, err)
 
 	upgradeTx, err := signer.CreateTx(
 		[]sdk.Msg{
@@ -137,7 +138,6 @@ func TestAppUpgradeV3(t *testing.T) {
 	require.Equal(t, abci.CodeTypeOK, deliverTxResp.Code, deliverTxResp.Log)
 
 	_ = testApp.EndBlock(abci.RequestEndBlock{})
-
 }
 
 // TestAppUpgrades verifies that the all module's params are overridden during an

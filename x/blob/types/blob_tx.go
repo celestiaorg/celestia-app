@@ -80,7 +80,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 		// If share version is 1, assert that the signer in the blob
 		// matches the signer in the msgPFB.
 		if blob.ShareVersion() == share.ShareVersionOne {
-			if appVersion <= v3.Version {
+			if appVersion < v3.Version {
 				return ErrUnsupportedShareVersion.Wrapf("share version %d is not supported in %d. Supported from v3 onwards", blob.ShareVersion(), appVersion)
 			}
 			if !bytes.Equal(blob.Signer(), signer) {
