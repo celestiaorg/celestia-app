@@ -49,7 +49,7 @@ type Node struct {
 	SelfDelegation int64
 	Instance       *instance.Instance
 	sidecars       []instance.SidecarManager
-	netShaper      *netshaper.NetShaper // a referecen to the netshaper sidecar
+	netShaper      *netshaper.NetShaper // a reference to the netshaper sidecar
 
 	rpcProxyHost string
 	// FIXME: This does not work currently with the reverse proxy
