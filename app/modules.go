@@ -168,7 +168,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v3,
+			FromVersion: v1, ToVersion: v1,
 		},
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
@@ -303,7 +303,7 @@ func allStoreKeys() []string {
 // versionedStoreKeys returns the store keys for each app version.
 func versionedStoreKeys() map[uint64][]string {
 	return map[uint64][]string{
-		1: {
+		v1: {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
@@ -321,7 +321,7 @@ func versionedStoreKeys() map[uint64][]string {
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
-		2: {
+		v2: {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
@@ -337,6 +337,26 @@ func versionedStoreKeys() map[uint64][]string {
 			minttypes.StoreKey,
 			packetforwardtypes.StoreKey, // added in v2
 			signaltypes.StoreKey,        // added in v2
+			slashingtypes.StoreKey,
+			stakingtypes.StoreKey,
+			upgradetypes.StoreKey,
+		},
+		v3: {
+			authtypes.StoreKey,
+			authzkeeper.StoreKey,
+			banktypes.StoreKey,
+			blobtypes.StoreKey,
+			capabilitytypes.StoreKey,
+			distrtypes.StoreKey,
+			evidencetypes.StoreKey,
+			feegrant.StoreKey,
+			govtypes.StoreKey,
+			ibchost.StoreKey,
+			ibctransfertypes.StoreKey,
+			icahosttypes.StoreKey,
+			minttypes.StoreKey,
+			packetforwardtypes.StoreKey,
+			signaltypes.StoreKey,
 			slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
