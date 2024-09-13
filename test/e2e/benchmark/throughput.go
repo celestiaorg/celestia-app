@@ -158,8 +158,14 @@ func LargeNetworkBigBlock8MB(logger *log.Logger) error {
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * testnet.MB
 	manifest.Validators = 50
-	manifest.TxClients = 50
-	manifest.BlobSequences = 2
+	manifest.TxClients = 25
+	manifest.BlobSequences = 1
+	manifest.TimeoutCommit = 1 * time.Second
+	manifest.TimeoutPropose = 4 * time.Second
+	manifest.CelestiaAppVersion = "pr-3737"
+	manifest.TxClientVersion = "pr-3737"
+	manifest.TestDuration = 10 * time.Minute
+	manifest.ChainID = manifest.summary()
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
 }
 
