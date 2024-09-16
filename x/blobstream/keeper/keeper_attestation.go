@@ -59,6 +59,7 @@ func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 // CheckLatestAttestationNonce returns true if the latest attestation request
 // nonce is declared in the store and false if it has not been initialized.
 func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
+	fmt.Println(k.storeKey, "STORE KEY")
 	store := ctx.KVStore(k.storeKey)
 	has := store.Has([]byte(types.LatestAttestationNonce))
 	return has
@@ -71,6 +72,7 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 // method.
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
+	fmt.Println("store key", k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationNonce))
 	if bytes == nil {
 		panic("nil LatestAttestationNonce")

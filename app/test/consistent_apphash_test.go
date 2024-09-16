@@ -84,20 +84,34 @@ func TestConsistentAppHash(t *testing.T) {
 			// Expected app hash produced by v1.x -
 			expectedAppHash: []byte{84, 216, 210, 48, 113, 204, 234, 21, 150, 236, 97, 87, 242, 184, 45, 248, 116, 127, 49, 88, 134, 197, 202, 125, 44, 210, 67, 144, 107, 51, 145, 65},
 		},
-		// {
-		// 	name: "execute sdk messages and blob txs on v2 and assert consistent app hash",
-		// 	version: 2,
-		// 	encodedSdkMessages: func(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
-		// 		firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs := encodedSdkMessagesV1(t, accountAddresses, genValidators, testApp, signer, valSigner)
-		// 		encodedMessagesV2 := encodedSdkMessagesV2(t, genValidators, signer)
-		// 		thirdBlockEncodedTxs = append(thirdBlockEncodedTxs, encodedMessagesV2...)
+		{
+			name:    "execute sdk messages and blob txs on v2 and assert consistent app hash",
+			version: 2,
+			encodedSdkMessages: func(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
+				firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs := encodedSdkMessagesV1(t, accountAddresses, genValidators, testApp, signer, valSigner)
+				encodedMessagesV2 := encodedSdkMessagesV2(t, genValidators, valSigner)
+				thirdBlockEncodedTxs = append(thirdBlockEncodedTxs, encodedMessagesV2...)
 
-		// 		return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
-		// 	},
-		// 	expectedDataRoot: []byte{},
-		// 	// Expected app hash produced by v2.x -
-		// 	expectedAppHash: []byte{},
-		// },
+				return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
+			},
+			encodedBlobTxs: func(signer *user.Signer, accountNames []string) []byte {
+				blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+				require.NoError(t, err)
+
+				// Create a Blob Tx
+				blobTx := BlobTx{
+					author:    accountNames[1],
+					blobs:     []*share.Blob{blob},
+					txOptions: blobfactory.DefaultTxOpts(),
+				}
+				encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
+				require.NoError(t, err)
+				return encodedBlobTx
+			},
+			expectedDataRoot: []byte{},
+			// Expected app hash produced by v2.x -
+			expectedAppHash: []byte{},
+		},
 	}
 
 	// iterate over test cases
@@ -128,14 +142,15 @@ func TestConsistentAppHash(t *testing.T) {
 			encodedBlobTx := tt.encodedBlobTxs(signer, accountNames)
 
 			// Execute the first block
-			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash)
+			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash, tt.version)
 			require.NoError(t, err)
 			// Execute the second block
-			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockEncodedTxs, abciValidators, firstBlockAppHash)
+			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockEncodedTxs, abciValidators, firstBlockAppHash, tt.version)
 			require.NoError(t, err)
 			// Execute the final block and get the data root alongside the final app hash
-			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash)
+			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash, tt.version)
 			require.NoError(t, err)
+			fmt.Println(finalDataRoot, finalAppHash, tt.version)
 
 			// Require that the app hash is equal to the app hash produced on a different commit
 			require.Equal(t, tt.expectedAppHash, finalAppHash)
@@ -331,15 +346,15 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
 }
 
-func encodedSdkMessagesV2(t *testing.T, genValidators []stakingtypes.Validator, signer *user.Signer) [][]byte {
+func encodedSdkMessagesV2(t *testing.T, genValidators []stakingtypes.Validator, valSigner *user.Signer) [][]byte {
 	var v2Messages []sdk.Msg
-	msgTryUpgrade := signal.NewMsgTryUpgrade(sdk.AccAddress(genValidators[2].OperatorAddress))
+	msgTryUpgrade := signal.NewMsgTryUpgrade(sdk.AccAddress(genValidators[0].GetOperator()))
 	v2Messages = append(v2Messages, msgTryUpgrade)
 
-	msgSignalVersion := signal.NewMsgSignalVersion(genValidators[3].GetOperator(), 2)
+	msgSignalVersion := signal.NewMsgSignalVersion(genValidators[0].GetOperator(), 2)
 	v2Messages = append(v2Messages, msgSignalVersion)
 
-	encodedTxs, err := processSdkMessages(signer, v2Messages)
+	encodedTxs, err := processSdkMessages(valSigner, v2Messages)
 	require.NoError(t, err)
 
 	return encodedTxs
@@ -408,7 +423,7 @@ func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, e
 }
 
 // executeTxs executes a set of transactions and returns the data hash and app hash
-func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
+func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte, appVersion uint64) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
 	chainID := testApp.GetChainID()
 
@@ -431,7 +446,7 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 	dataHash := resPrepareProposal.BlockData.Hash
 
 	header := tmproto.Header{
-		Version:        version.Consensus{App: 1},
+		Version:        version.Consensus{App: appVersion},
 		DataHash:       resPrepareProposal.BlockData.Hash,
 		ChainID:        chainID,
 		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
