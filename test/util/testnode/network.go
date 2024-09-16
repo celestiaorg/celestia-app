@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
@@ -19,7 +20,8 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 	t.Helper()
 
 	// initialize the genesis file and validator files for the first validator.
-	baseDir, err := genesis.InitFiles(t.TempDir(), config.TmConfig, config.Genesis, 0)
+	baseDir := filepath.Join(t.TempDir(), "testnode")
+	err := genesis.InitFiles(baseDir, config.TmConfig, config.Genesis, 0)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(baseDir, &config.UniversalTestingConfig)
