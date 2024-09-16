@@ -143,7 +143,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	_ = testApp.EndBlock(abci.RequestEndBlock{})
 }
 
-// TestAppUpgrades verifies that the all module's params are overridden during an
+// TestAppUpgradeV2 verifies that the all module's params are overridden during an
 // upgrade from v1 -> v2 and the app version changes correctly.
 func TestAppUpgradeV2(t *testing.T) {
 	NetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.NetworkMinGasPrice))
