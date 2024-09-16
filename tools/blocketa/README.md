@@ -15,4 +15,4 @@ arrivalTime: 2024-08-28 17:24:23.483542677 +0000 UTC
 ```
 
 > [!NOTE]
-> The block time is currently hard-coded. If you're running this for a network with a different block time, you'll need to update the `blockTime` constant in the main.go file. You can use <https://www.mintscan.io/celestia/block/> or the blocktime tool.
+> The block time is currently hard-coded. If you're running this for a network with a different block time, you'll need to update the `blockTime` constant in the main.go file. You can use [https://www.mintscan.io/celestia/block](https://www.mintscan.io/celestia/block/) or the blocktime tool.

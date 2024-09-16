@@ -97,6 +97,7 @@ func NewNode(
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,
+	disableBBR bool,
 ) (*Node, error) {
 	instance, err := knuu.NewInstance(name)
 	if err != nil {
@@ -148,6 +149,9 @@ func NewNode(
 		return nil, err
 	}
 	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
+	if disableBBR {
+		args = append(args, "--force-no-bbr")
+	}
 	if upgradeHeight != 0 {
 		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
 	}
