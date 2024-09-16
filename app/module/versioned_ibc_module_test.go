@@ -23,7 +23,7 @@ func TestVersionedIBCModule(t *testing.T) {
 	mockWrappedModule := mocks.NewMockIBCModule(ctrl)
 	mockNextModule := mocks.NewMockIBCModule(ctrl)
 
-	versionedModule := module.NewVersionedIBCModule(mockWrappedModule, mockNextModule, 2, 2)
+	versionedModule := module.NewVersionedIBCModule(mockWrappedModule, mockNextModule, 2, 3)
 
 	testCases := []struct {
 		name          string
