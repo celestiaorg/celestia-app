@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
@@ -307,7 +308,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "signal a version change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccount := s.getValidatorAccount()
-				msg := signal.NewMsgSignalVersion(valAccount, 4)
+				msg := signal.NewMsgSignalVersion(valAccount, appconsts.LatestVersion+1)
 				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,

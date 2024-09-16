@@ -341,7 +341,7 @@ func versionedStoreKeys() map[uint64][]string {
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
-		v3: {
+		v3: { // same as v2
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
