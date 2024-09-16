@@ -541,17 +541,8 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 //
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
-	// genesis must always contain the consensus params. The validator set however is derived from the
-	// initial genesis state. The genesis must always contain a non zero app version which is the initial
-	// version that the chain starts on
-	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
-		panic("no consensus params set")
-	}
-	if req.ConsensusParams.Version.AppVersion == 0 {
-		panic("app version 0 is not accepted. Please set an app version in the genesis")
-	}
+	req = setDefaultAppVersion(req)
 	appVersion := req.ConsensusParams.Version.AppVersion
-
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
@@ -567,10 +558,26 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	return res
 }
 
+// setDefaultAppVersion sets the default app version in the consensus params if
+// it was 0. This is needed because chains (e.x. mocha-4) did not explicitly set
+// an app version in genesis.json.
+func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
+	if req.ConsensusParams == nil {
+		panic("no consensus params set")
+	}
+	if req.ConsensusParams.Version == nil {
+		panic("no version set in consensus params")
+	}
+	if req.ConsensusParams.Version.AppVersion == 0 {
+		req.ConsensusParams.Version.AppVersion = v1
+	}
+	return req
+}
+
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
-	app.BaseApp.Logger().Debug(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
+	app.BaseApp.Logger().Info(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for its side-effect of invoking baseapp.Init()
@@ -585,9 +592,9 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(req.ConsensusParams.Version.AppVersion))
-	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
+	appVersion := req.ConsensusParams.Version.AppVersion
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(appVersion))
+	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, appVersion)
 }
 
 // LoadHeight loads a particular height
