@@ -35,6 +35,9 @@ import (
 )
 
 func TestAppUpgradeV3(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestAppUpgradeV3 in short mode")
+	}
 	testApp, genesis := SetupTestAppWithUpgradeHeight(t, 3)
 	upgradeFromV1ToV2(t, testApp)
 
