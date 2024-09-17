@@ -274,8 +274,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Mempool.MaxTxsBytes = int64(upperBoundBytes) * cfg.Mempool.TTLNumBlocks
 	cfg.Mempool.Version = "v1" // prioritized mempool
 
-	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+	cfg.Consensus.TimeoutPropose = appconsts.GetTimeoutPropose()
+	cfg.Consensus.TimeoutCommit = appconsts.GetTimeoutCommit()
 	cfg.Consensus.SkipTimeoutCommit = false
 
 	cfg.TxIndex.Indexer = "null"

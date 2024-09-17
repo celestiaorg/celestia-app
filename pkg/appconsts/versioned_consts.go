@@ -1,6 +1,8 @@
 package appconsts
 
 import (
+	"time"
+
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 )
@@ -30,3 +32,21 @@ var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
 )
+
+func GetTimeoutPropose() time.Duration {
+	switch LatestVersion {
+	case v3.Version:
+		return v3.TimeoutPropose
+	default:
+		return TimeoutPropose
+	}
+}
+
+func GetTimeoutCommit() time.Duration {
+	switch LatestVersion {
+	case v3.Version:
+		return v3.TimeoutCommit
+	default:
+		return TimeoutCommit
+	}
+}
