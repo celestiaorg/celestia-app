@@ -38,12 +38,14 @@ func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, cha
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,
-		// if the tests timeout, pass the timeout option to the knuu instance
+		// if the tests timeout, pass the timeout option
 		// Timeout: 120 * time.Minute,
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	log.Info().Str("scope", kn.Scope).Msg("Knuu initialized")
 
 	return &Testnet{
 		seed:    seed,
