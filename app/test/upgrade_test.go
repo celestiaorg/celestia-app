@@ -1,22 +1,28 @@
 package app_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	app "github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/celestiaorg/celestia-app/v3/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
@@ -28,7 +34,116 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-// TestAppUpgrades verifies that the all module's params are overridden during an
+func TestAppUpgradeV3(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestAppUpgradeV3 in short mode")
+	}
+	testApp, genesis := SetupTestAppWithUpgradeHeight(t, 3)
+	upgradeFromV1ToV2(t, testApp)
+
+	ctx := testApp.NewContext(true, tmproto.Header{})
+	validators := testApp.StakingKeeper.GetAllValidators(ctx)
+	valAddr, err := sdk.ValAddressFromBech32(validators[0].OperatorAddress)
+	require.NoError(t, err)
+	record, err := genesis.Keyring().Key(testnode.DefaultValidatorAccountName)
+	require.NoError(t, err)
+	accAddr, err := record.GetAddress()
+	require.NoError(t, err)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	resp, err := testApp.AccountKeeper.Account(ctx, &authtypes.QueryAccountRequest{
+		Address: accAddr.String(),
+	})
+	require.NoError(t, err)
+	var account authtypes.AccountI
+	err = encCfg.InterfaceRegistry.UnpackAny(resp.Account, &account)
+	require.NoError(t, err)
+
+	signer, err := user.NewSigner(
+		genesis.Keyring(), encCfg.TxConfig, testApp.GetChainID(), v3.Version,
+		user.NewAccount(testnode.DefaultValidatorAccountName, account.GetAccountNumber(), account.GetSequence()),
+	)
+	require.NoError(t, err)
+
+	upgradeTx, err := signer.CreateTx(
+		[]sdk.Msg{
+			signaltypes.NewMsgSignalVersion(valAddr, 3),
+			signaltypes.NewMsgTryUpgrade(accAddr),
+		},
+		user.SetGasLimitAndGasPrice(100_000, appconsts.DefaultMinGasPrice),
+	)
+	require.NoError(t, err)
+	testApp.BeginBlock(abci.RequestBeginBlock{
+		Header: tmproto.Header{
+			ChainID: genesis.ChainID,
+			Height:  3,
+			Version: tmversion.Consensus{App: 2},
+		},
+	})
+
+	deliverTxResp := testApp.DeliverTx(abci.RequestDeliverTx{
+		Tx: upgradeTx,
+	})
+	require.Equal(t, abci.CodeTypeOK, deliverTxResp.Code, deliverTxResp.Log)
+
+	endBlockResp := testApp.EndBlock(abci.RequestEndBlock{
+		Height: 3,
+	})
+	require.Equal(t, v2.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
+	testApp.Commit()
+	require.NoError(t, signer.IncrementSequence(testnode.DefaultValidatorAccountName))
+
+	ctx = testApp.NewContext(true, tmproto.Header{})
+	getUpgradeResp, err := testApp.SignalKeeper.GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
+	require.NoError(t, err)
+	require.Equal(t, v3.Version, getUpgradeResp.Upgrade.AppVersion)
+
+	// brace yourselfs, this part may take a while
+	initialHeight := int64(4)
+	for height := initialHeight; height < initialHeight+signal.DefaultUpgradeHeightDelay; height++ {
+		_ = testApp.BeginBlock(abci.RequestBeginBlock{
+			Header: tmproto.Header{
+				Height:  height,
+				Version: tmversion.Consensus{App: 2},
+			},
+		})
+
+		endBlockResp = testApp.EndBlock(abci.RequestEndBlock{
+			Height: 3 + signal.DefaultUpgradeHeightDelay,
+		})
+
+		_ = testApp.Commit()
+	}
+	require.Equal(t, v3.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
+
+	// confirm that an authored blob tx works
+	blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("hello world"), accAddr.Bytes())
+	require.NoError(t, err)
+	blobTxBytes, _, err := signer.CreatePayForBlobs(
+		testnode.DefaultValidatorAccountName,
+		[]*share.Blob{blob},
+		user.SetGasLimitAndGasPrice(200_000, appconsts.DefaultMinGasPrice),
+	)
+	require.NoError(t, err)
+	blobTx, _, err := tx.UnmarshalBlobTx(blobTxBytes)
+	require.NoError(t, err)
+
+	_ = testApp.BeginBlock(abci.RequestBeginBlock{
+		Header: tmproto.Header{
+			ChainID: genesis.ChainID,
+			Height:  initialHeight + signal.DefaultUpgradeHeightDelay,
+			Version: tmversion.Consensus{App: 3},
+		},
+	})
+
+	deliverTxResp = testApp.DeliverTx(abci.RequestDeliverTx{
+		Tx: blobTx.Tx,
+	})
+	require.Equal(t, abci.CodeTypeOK, deliverTxResp.Code, deliverTxResp.Log)
+
+	_ = testApp.EndBlock(abci.RequestEndBlock{})
+}
+
+// TestAppUpgradeV2 verifies that the all module's params are overridden during an
 // upgrade from v1 -> v2 and the app version changes correctly.
 func TestAppUpgrades(t *testing.T) {
 	NetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
@@ -123,19 +238,18 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 	require.Error(t, err)
 }
 
-func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
+func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, *genesis.Genesis) {
 	t.Helper()
 
 	db := dbm.NewMemDB()
-	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, util.EmptyAppOptions{})
-	genesisState, _, kr := util.GenesisStateWithSingleValidator(testApp, "account")
-	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	genesis := genesis.NewDefaultGenesis().
+		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
+		WithConsensusParams(app.DefaultInitialConsensusParams())
+	genDoc, err := genesis.Export()
 	require.NoError(t, err)
-	infoResp := testApp.Info(abci.RequestInfo{})
-	require.EqualValues(t, 0, infoResp.AppVersion)
-	cp := app.DefaultInitialConsensusParams()
+	cp := genDoc.ConsensusParams
 	abciParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			MaxBytes: cp.Block.MaxBytes,
@@ -148,23 +262,23 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 
 	_ = testApp.InitChain(
 		abci.RequestInitChain{
-			Time:            time.Now(),
+			Time:            genDoc.GenesisTime,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: abciParams,
-			AppStateBytes:   stateBytes,
-			ChainId:         chainID,
+			AppStateBytes:   genDoc.AppState,
+			ChainId:         genDoc.ChainID,
 		},
 	)
 
 	// assert that the chain starts with version provided in genesis
-	infoResp = testApp.Info(abci.RequestInfo{})
+	infoResp := testApp.Info(abci.RequestInfo{})
 	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
 
-	supportedVersions := []uint64{v1.Version, v2.Version}
+	supportedVersions := []uint64{v1.Version, v2.Version, v3.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
 
 	_ = testApp.Commit()
-	return testApp, kr
+	return testApp, genesis
 }
 
 func upgradeFromV1ToV2(t *testing.T, testApp *app.App) {

@@ -18,7 +18,7 @@ With these restrictions in mind, the block proposer performs the following actio
 1. Collect as many transactions and blobs from the mempool as possible, such that the total number of shares is at most [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants).
 1. Compute the smallest square size that is a power of 2 that can fit the number of shares.
 1. Attempt to lay out the collected transactions and blobs in the current square.
-    1. If the square is too small to fit all transactions and blobs (which may happen [due to needing to insert padding between blobs](../specs/data_square_layout.md)) and the square size is smaller than [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants), double the size of the square and repeat the above step.
-    1. If the square is too small to fit all transactions and blobs (which may happen [due to needing to insert padding between blobs](../specs/data_square_layout.md)) and the square size is at [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants), drop the transactions and blobs until the data fits within the square.
+    1. If the square is too small to fit all transactions and blobs (which may happen [due to needing to insert padding between blobs](./data_square_layout.md)) and the square size is smaller than [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants), double the size of the square and repeat the above step.
+    1. If the square is too small to fit all transactions and blobs (which may happen [due to needing to insert padding between blobs](./data_square_layout.md)) and the square size is at [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](./consensus.md#constants), drop the transactions and blobs until the data fits within the square.
 
 Note: the maximum padding shares between blobs should be at most twice the number of blob shares. Doubling the square size (i.e. quadrupling the number of shares in the square) should thus only have to happen at most once.

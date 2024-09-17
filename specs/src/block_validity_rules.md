@@ -49,18 +49,18 @@ There is no validity rule that transactions must be decodable so the following r
 
 1. Decodable transactions must pass all [AnteHandler](./ante_handler.md) checks.
 1. Decodable non-`BlobTx` transactions must not contain a `MsgPayForBlobs` message.
-1. Decodable `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
+1. Decodable `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../x/blob/README.md#validity-rules).
 
 #### App Version 2
 
 1. All transactions must be decodable.
 1. All transactions must pass all [AnteHandler](./ante_handler.md) checks.
 1. Non-`BlobTx` transactions must not contain a `MsgPayForBlobs` message.
-1. `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules).
+1. `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../x/blob/README.md#validity-rules).
 
 ### Data Root Construction
 
-The data root must be calculated from a correctly constructed data square per the [data square layout rules](./data_square_layout.md)
+The data root must be calculated from a correctly constructed data square per the [data square layout](./data_square_layout.md) rules.
 
 <img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/>

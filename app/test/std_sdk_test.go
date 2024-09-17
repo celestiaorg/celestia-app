@@ -21,6 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -306,7 +307,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "signal a version change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccount := s.getValidatorAccount()
-				msg := signal.NewMsgSignalVersion(valAccount, 2)
+				msg := signal.NewMsgSignalVersion(valAccount, appconsts.LatestVersion+1)
 				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -316,17 +317,26 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			serviceClient := sdktx.NewServiceClient(s.cctx.GRPCClient)
 			msgs, signer := tt.msgFunc()
 			txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(signer))
 			require.NoError(t, err)
 			res, err := txClient.SubmitTx(s.cctx.GoContext(), msgs, blobfactory.DefaultTxOpts()...)
 			if tt.expectedCode != abci.CodeTypeOK {
 				require.Error(t, err)
+				require.Nil(t, res)
+				txHash := err.(*user.ExecutionError).TxHash
+				code := err.(*user.ExecutionError).Code
+				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: txHash})
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedCode, code, getTxResp.TxResponse.RawLog)
 			} else {
 				require.NoError(t, err)
+				require.NotNil(t, res)
+				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedCode, res.Code, getTxResp.TxResponse.RawLog)
 			}
-			require.NotNil(t, res)
-			assert.Equal(t, tt.expectedCode, res.Code, res.RawLog)
 		})
 	}
 }
@@ -365,7 +375,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 
 		txSubmitter, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg)
 		require.NoError(t, err)
-		blobs := blobfactory.RandBlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
+		blobs := blobfactory.RandV0BlobsWithNamespace([]share.Namespace{share.RandomNamespace()}, []int{1000})
 		res, err := txSubmitter.SubmitPayForBlob(s.cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 		require.NoError(t, err)
 

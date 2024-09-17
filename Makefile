@@ -7,7 +7,7 @@ DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspa
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
-GOLANG_CROSS_VERSION  ?= v1.22.5
+GOLANG_CROSS_VERSION  ?= v1.22.6
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -31,7 +31,7 @@ build: mod
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
-install: go.sum
+install: go.sum check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
@@ -163,13 +163,6 @@ test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
 
-## test-interchain: Run interchain tests in verbose mode. Requires Docker.
-test-interchain:
-	@echo "Reminder: this test uses the latest celestia-app Docker image. If you would like to test recent code changes, re-build the Docker image by running: make build-docker"
-	@echo "--> Running interchain tests"
-	@cd ./test/interchain && go test . -v
-.PHONY: test-interchain
-
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
@@ -196,6 +189,23 @@ adr-gen:
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
 
+## goreleaser-check: Check the .goreleaser.yaml config file.
+goreleaser-check:
+	@if [ ! -f ".release-env" ]; then \
+		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
+		exit 1;\
+	fi
+	docker run \
+		--rm \
+		-e CGO_ENABLED=1 \
+		--env-file .release-env \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v `pwd`:/go/src/$(PACKAGE_NAME) \
+		-w /go/src/$(PACKAGE_NAME) \
+		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		check
+.PHONY: goreleaser-check
+
 ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
@@ -212,3 +222,28 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
+
+## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
+check-bbr:
+	@echo "Checking if BBR is enabled..."
+	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	    echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
+	else \
+	    echo "BBR is enabled."; \
+	fi
+.PHONY: check-bbr
+
+## enable-bbr: Enable BBR congestion control algorithm. Only works on Linux.
+enable-bbr:
+	@echo "Configuring system to use BBR..."
+	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
+	    echo "BBR is not enabled. Configuring BBR..."; \
+	    sudo modprobe tcp_bbr; \
+	    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf; \
+	    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf; \
+	    sudo sysctl -p; \
+	    echo "BBR has been enabled."; \
+	else \
+	    echo "BBR is already enabled."; \
+	fi
+.PHONY: enable-bbr

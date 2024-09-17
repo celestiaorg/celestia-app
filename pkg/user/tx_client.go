@@ -22,11 +22,13 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/rpc/core"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
@@ -38,6 +40,39 @@ const (
 )
 
 type Option func(client *TxClient)
+
+// TxResponse is a response from the chain after
+// a transaction has been submitted.
+type TxResponse struct {
+	// Height is the block height at which the transaction was included on-chain.
+	Height int64
+	TxHash string
+	Code   uint32
+}
+
+// BroadcastTxError is an error that occurs when broadcasting a transaction.
+type BroadcastTxError struct {
+	TxHash string
+	Code   uint32
+	// ErrorLog is the error output of the app's logger
+	ErrorLog string
+}
+
+func (e *BroadcastTxError) Error() string {
+	return fmt.Sprintf("broadcast tx error: %s", e.ErrorLog)
+}
+
+// ExecutionError is an error that occurs when a transaction gets executed.
+type ExecutionError struct {
+	TxHash string
+	Code   uint32
+	// ErrorLog is the error output of the app's logger
+	ErrorLog string
+}
+
+func (e *ExecutionError) Error() string {
+	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
+}
 
 // WithGasMultiplier is a functional option allows to configure the gas multiplier.
 func WithGasMultiplier(multiplier float64) Option {
@@ -200,19 +235,21 @@ func SetupTxClient(
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
 // TxOptions may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlob(ctx, blobs, opts...)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
-func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*sdktypes.TxResponse, error) {
+// SubmitPayForBlobWithAccount forms a transaction from the provided blobs, signs it with the provided account, and submits it to the chain.
+// TxOptions may be provided to set the fee and gas limit.
+func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, account string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastPayForBlobWithAccount(ctx, account, blobs, opts...)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -253,10 +290,10 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 
 // SubmitTx forms a transaction from the provided messages, signs it, and submits it to the chain. TxOptions
 // may be provided to set the fee and gas limit.
-func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error) {
 	resp, err := client.BroadcastTx(ctx, msgs, opts...)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	return client.ConfirmTx(ctx, resp.TxHash)
@@ -342,7 +379,12 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 			}
 			return client.retryBroadcastingTx(ctx, txBytes)
 		}
-		return resp.TxResponse, fmt.Errorf("tx failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
+		broadcastTxErr := &BroadcastTxError{
+			TxHash:   resp.TxResponse.TxHash,
+			Code:     resp.TxResponse.Code,
+			ErrorLog: resp.TxResponse.RawLog,
+		}
+		return resp.TxResponse, broadcastTxErr
 	}
 
 	// after the transaction has been submitted, we can increment the
@@ -414,32 +456,48 @@ func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte)
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
 // hash. It will continually loop until the context is cancelled, the tx is found or an error
 // is encountered.
-func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*sdktypes.TxResponse, error) {
-	txClient := sdktx.NewServiceClient(client.grpc)
+func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxResponse, error) {
+	txClient := tx.NewTxClient(client.grpc)
 
 	pollTicker := time.NewTicker(client.pollTime)
 	defer pollTicker.Stop()
 
 	for {
-		resp, err := txClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
-		if err == nil {
-			if resp.TxResponse.Code != 0 {
-				return resp.TxResponse, fmt.Errorf("tx was included but failed with code %d: %s", resp.TxResponse.Code, resp.TxResponse.RawLog)
-			}
-			return resp.TxResponse, nil
-		}
-		// FIXME: this is a relatively brittle of working out whether to retry or not. The tx might be not found for other
-		// reasons. It may have been removed from the mempool at a later point. We should build an endpoint that gives the
-		// signer more information on the status of their transaction and then update the logic here
-		if !strings.Contains(err.Error(), "not found") {
-			return &sdktypes.TxResponse{}, err
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		if err != nil {
+			return nil, err
 		}
 
-		// Wait for the next round.
-		select {
-		case <-ctx.Done():
-			return &sdktypes.TxResponse{}, ctx.Err()
-		case <-pollTicker.C:
+		if resp != nil {
+			switch resp.Status {
+			case core.TxStatusPending:
+				// Continue polling if the transaction is still pending
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-pollTicker.C:
+					continue
+				}
+			case core.TxStatusCommitted:
+				txResponse := &TxResponse{
+					Height: resp.Height,
+					TxHash: txHash,
+					Code:   resp.ExecutionCode,
+				}
+				if resp.ExecutionCode != abci.CodeTypeOK {
+					executionErr := &ExecutionError{
+						TxHash:   txHash,
+						Code:     resp.ExecutionCode,
+						ErrorLog: resp.Error,
+					}
+					return nil, executionErr
+				}
+				return txResponse, nil
+			case core.TxStatusEvicted:
+				return nil, fmt.Errorf("tx was evicted from the mempool")
+			default:
+				return nil, fmt.Errorf("unknown tx: %s", txHash)
+			}
 		}
 	}
 }

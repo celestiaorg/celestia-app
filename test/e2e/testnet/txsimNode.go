@@ -2,8 +2,10 @@
 package testnet
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/rs/zerolog/log"
 )
@@ -18,10 +20,11 @@ func txsimDockerImageName(version string) string {
 
 type TxSim struct {
 	Name     string
-	Instance *knuu.Instance
+	Instance *instance.Instance
 }
 
 func CreateTxClient(
+	ctx context.Context,
 	name, version string,
 	endpoint string,
 	seed int64,
@@ -31,8 +34,9 @@ func CreateTxClient(
 	pollTime int,
 	resources Resources,
 	volumePath string,
+	knuu *knuu.Knuu,
 ) (*TxSim, error) {
-	instance, err := knuu.NewInstance(name)
+	txIns, err := knuu.NewInstance(name)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +45,7 @@ func CreateTxClient(
 		Str("name", name).
 		Str("image", image).
 		Msg("setting image for tx client")
-	err = instance.SetImage(image)
+	err = txIns.Build().SetImage(ctx, image)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
@@ -49,15 +53,15 @@ func CreateTxClient(
 			Msg("failed to set image for tx client")
 		return nil, err
 	}
-	err = instance.SetMemory(resources.MemoryRequest, resources.MemoryLimit)
+	err = txIns.Resources().SetMemory(resources.MemoryRequest, resources.MemoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetCPU(resources.CPU)
+	err = txIns.Resources().SetCPU(resources.CPU)
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolumeWithOwner(volumePath, resources.Volume, 10001)
+	err = txIns.Storage().AddVolumeWithOwner(volumePath, resources.Volume, 10001)
 	if err != nil {
 		return nil, err
 	}
@@ -71,13 +75,12 @@ func CreateTxClient(
 		fmt.Sprintf("-s %s ", blobRange),
 	}
 
-	err = instance.SetArgs(args...)
-	if err != nil {
+	if err := txIns.Build().SetArgs(args...); err != nil {
 		return nil, err
 	}
 
 	return &TxSim{
 		Name:     name,
-		Instance: instance,
+		Instance: txIns,
 	}, nil
 }

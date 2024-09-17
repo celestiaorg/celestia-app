@@ -59,9 +59,9 @@ Defined as `MsgWirePayForData`:
 
 Accepting a `MsgWirePayForData` into the mempool requires different logic than other transactions in Celestia, since it leverages the paradigm of block proposers being able to malleate transaction data. Unlike [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) (the canonical data type that is included in blocks and committed to with a data root in the block header), each `MsgWirePayForData` (the over-the-wire representation of the same) has potentially multiple signatures.
 
-Transaction senders who want to pay for a blob will create a [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) object, `stx`, filling in the `stx.blobShareCommitment` field [based on the blob share commitmentrules](../specs/data_square_layout.md#blob-share-commitment-rules), then signing it to get a [transaction](./data_structures.md#transaction) `tx`.
+Transaction senders who want to pay for a blob will create a [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) object, `stx`, filling in the `stx.blobShareCommitment` field based on the [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules), then signing it to get a [transaction](./data_structures.md#transaction) `tx`.
 
-Receiving a `MsgWirePayForData` object from the network follows the reverse process: verify using the [blob share commitmentrules](../specs/data_square_layout.md#blob-share-commitment-rules) that the signature is valid.
+Receiving a `MsgWirePayForData` object from the network follows the reverse process: verify using the [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules) that the signature is valid.
 
 ## Invalid Erasure Coding
 

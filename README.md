@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
-celestia-app is the software used by [validators](https://docs.celestia.org/nodes/validator-node) and [full consensus nodes](https://docs.celestia.org/nodes/full-consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
+celestia-app is the software used by [validators](https://docs.celestia.org/nodes/validator-node) and [consensus nodes](https://docs.celestia.org/nodes/consensus-node) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
 
 - [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
 - [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.22.5
+1. [Install Go](https://go.dev/doc/install) 1.22.6
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -76,6 +76,22 @@ If you'd rather not install from source, you can download a prebuilt binary from
 See <https://docs.celestia.org/nodes/celestia-app> for more information.
 
 ## Usage
+
+First, make sure that the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm is enabled in the
+system's kernel. The result should contain `bbr`:
+
+```sh
+sysctl net.ipv4.tcp_congestion_control
+```
+
+If not, enable it on Linux by calling the `make use-bbr` or by running:
+
+```sh
+sudo modprobe tcp_bbr
+net.core.default_qdisc=fq
+net.ipv4.tcp_congestion_control=bbr
+sudo sysctl -p
+```
 
 ```sh
 # Print help

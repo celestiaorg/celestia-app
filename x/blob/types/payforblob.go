@@ -118,7 +118,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, v := range msg.ShareVersions {
-		if v != uint32(appconsts.ShareVersionZero) {
+		if v != uint32(share.ShareVersionZero) && v != uint32(share.ShareVersionOne) {
 			return ErrUnsupportedShareVersion
 		}
 	}
@@ -150,7 +150,7 @@ func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 		totalSharesUsed += uint64(share.SparseSharesNeeded(size))
 	}
 
-	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
+	return totalSharesUsed * share.ShareSize * uint64(gasPerByte)
 }
 
 // EstimateGas estimates the total gas required to pay for a set of blobs in a PFB.
@@ -197,24 +197,21 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// ValidateBlobs performs basic checks over the components of one or more PFBs.
+// ValidateBlobs performs checks that each blob is non-empty and has a valid namespace.
+// Other checks are done in the construction of the Blob.
 func ValidateBlobs(blobs ...*share.Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
 
 	for _, blob := range blobs {
-		err := ValidateBlobNamespace(blob.Namespace())
-		if err != nil {
-			return err
-		}
-
 		if blob.IsEmpty() {
 			return ErrZeroBlobSize
 		}
 
-		if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion()) {
-			return ErrUnsupportedShareVersion
+		err := ValidateBlobNamespace(blob.Namespace())
+		if err != nil {
+			return err
 		}
 	}
 

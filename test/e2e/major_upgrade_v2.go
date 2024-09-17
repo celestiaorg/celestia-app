@@ -12,51 +12,50 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	latestVersion, err := testnet.GetLatestVersion()
-	testnet.NoError("failed to get latest version", err)
-
-	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
-
 	numNodes := 4
 	upgradeHeight := int64(10)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New("runMajorUpgradeToV2", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "runMajorUpgradeToV2", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
-	defer testNet.Cleanup()
+	defer testNet.Cleanup(ctx)
+
+	latestVersion, err := testnet.GetLatestVersion()
+	testnet.NoError("failed to get latest version", err)
+
+	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
-	preloader, err := knuu.NewPreloader()
+	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	defer func() { _ = preloader.EmptyImages() }()
-	testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(latestVersion)))
+	defer func() { _ = preloader.EmptyImages(ctx) }()
+	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(latestVersion)))
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(latestVersion, 10000000, upgradeHeight, testnet.DefaultResources)
+		err := testNet.CreateGenesisNode(ctx, latestVersion, 10000000, upgradeHeight, testnet.DefaultResources, true)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints()
+	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
-	testnet.NoError("Failed to setup testnet", testNet.Setup())
+	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
 	logger.Println("Starting testnet")
-	testnet.NoError("Failed to start testnet", testNet.Start())
+	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
 	heightBefore := upgradeHeight - 1
 	for i := 0; i < numNodes; i++ {
@@ -90,7 +89,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 			return fmt.Errorf("failed to get height: %w", err)
 		}
 
-		if err := node.Upgrade(latestVersion); err != nil {
+		if err := node.Upgrade(ctx, latestVersion); err != nil {
 			return fmt.Errorf("failed to restart node: %w", err)
 		}
 

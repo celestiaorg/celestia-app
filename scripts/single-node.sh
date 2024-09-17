@@ -11,7 +11,7 @@ then
     exit 1
 fi
 
-CHAIN_ID="private"
+CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 COINS="1000000000000000utia"
@@ -102,7 +102,8 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --v2-upgrade-height 3
+    --v2-upgrade-height 3 \
+    --force-no-bbr // no need to require BBR usage on a local node
 }
 
 if [ -f $GENESIS_FILE ]; then

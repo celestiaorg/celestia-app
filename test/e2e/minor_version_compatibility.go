@@ -15,7 +15,6 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
@@ -32,43 +31,45 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
 
-	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil, "test")
-	testnet.NoError("failed to create testnet", err)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	defer testNet.Cleanup()
+	testNet, err := testnet.New(ctx, "runMinorVersionCompatibility", seed, nil, "test")
+	testnet.NoError("failed to create testnet", err)
+
+	defer testNet.Cleanup(ctx)
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
-	preloader, err := knuu.NewPreloader()
+	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	defer func() { _ = preloader.EmptyImages() }()
+	defer func() { _ = preloader.EmptyImages(ctx) }()
 	for _, v := range versions {
-		testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(v.String())))
+		testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(v.String())))
 	}
 
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
+
+		testnet.NoError("failed to create genesis node",
+			testNet.CreateGenesisNode(ctx, v, 10000000, 0, testnet.DefaultResources, false))
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints()
+	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
 	// start the testnet
 	logger.Println("Setting up testnet")
-	testnet.NoError("Failed to setup testnet", testNet.Setup())
+	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
 	logger.Println("Starting testnet")
-	testnet.NoError("Failed to start testnet", testNet.Start())
+	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
 	for i := 0; i < len(versions)*2; i++ {
 		// FIXME: skip the first node because we need them available to
@@ -84,10 +85,10 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
+		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(ctx, newVersion))
 		time.Sleep(10 * time.Second)
 		// wait for the node to reach two more heights
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, time.Minute))
 	}
 
 	heights := make([]int64, 4)

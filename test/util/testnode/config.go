@@ -153,7 +153,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// Override the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	maxTxBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize
+	maxTxBytes := appconsts.DefaultUpperBoundMaxBytes
 	tmCfg.Mempool.MaxTxBytes = maxTxBytes
 
 	// Override the MaxBodyBytes to allow the testnode to accept very large
@@ -201,4 +201,13 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 			baseapp.SetMinGasPrices(minGasPrice),
 		)
 	}
+}
+
+// DefaultAppConfig wraps the default config described in the server
+func DefaultAppConfig() *srvconfig.Config {
+	appCfg := srvconfig.DefaultConfig()
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", mustGetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
+	appCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)
+	return appCfg
 }

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -30,9 +32,10 @@ func TestTxClientTestSuite(t *testing.T) {
 type TxClientTestSuite struct {
 	suite.Suite
 
-	ctx      testnode.Context
-	encCfg   encoding.Config
-	txClient *user.TxClient
+	ctx           testnode.Context
+	encCfg        encoding.Config
+	txClient      *user.TxClient
+	serviceClient sdktx.ServiceClient
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
@@ -45,6 +48,7 @@ func (suite *TxClientTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.txClient, err = user.SetupTxClient(suite.ctx.GoContext(), suite.ctx.Keyring, suite.ctx.GRPCClient, suite.encCfg, user.WithGasMultiplier(1.2))
 	suite.Require().NoError(err)
+	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
 func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
@@ -57,8 +61,10 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	t.Run("submit blob without provided fee and gas limit", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
 		require.NoError(t, err)
+		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
-		require.Greater(t, resp.GasWanted, int64(0))
+		require.Greater(t, getTxResp.TxResponse.GasWanted, int64(0))
 	})
 
 	t.Run("submit blob with provided fee and gas limit", func(t *testing.T) {
@@ -66,15 +72,19 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		gas := user.SetGasLimit(1e6)
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs, fee, gas)
 		require.NoError(t, err)
+		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
-		require.EqualValues(t, resp.GasWanted, 1e6)
+		require.EqualValues(t, getTxResp.TxResponse.GasWanted, 1e6)
 	})
 
 	t.Run("submit blob with different account", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, "c", blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
+		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
-		require.EqualValues(t, resp.GasWanted, 1e6)
+		require.EqualValues(t, getTxResp.TxResponse.GasWanted, 1e6)
 	})
 
 	t.Run("try submit a blob with an account that doesn't exist", func(t *testing.T) {
@@ -96,14 +106,18 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		require.Greater(t, resp.GasWanted, int64(0))
+		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, err)
+		require.Greater(t, getTxResp.TxResponse.GasWanted, int64(0))
 	})
 
 	t.Run("submit tx with provided gas limit", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		require.EqualValues(t, gasLimit, resp.GasWanted)
+		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, err)
+		require.EqualValues(t, int64(gasLimit), getTxResp.TxResponse.GasWanted)
 	})
 
 	t.Run("submit tx with provided fee", func(t *testing.T) {
@@ -116,7 +130,9 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		require.EqualValues(t, gasLimit, resp.GasWanted)
+		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		require.NoError(t, err)
+		require.EqualValues(t, int64(gasLimit), getTxResp.TxResponse.GasWanted)
 	})
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
@@ -145,7 +161,12 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	t.Run("deadline exceeded when the context times out", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), time.Second)
 		defer cancel()
-		_, err := suite.txClient.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
+
+		msg := bank.NewMsgSend(suite.txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		resp, err := suite.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+		require.NoError(t, err)
+
+		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 	})
@@ -153,8 +174,18 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	t.Run("should error when tx is not found", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 5*time.Second)
 		defer cancel()
-		_, err := suite.txClient.ConfirmTx(ctx, "not found tx")
+		_, err := suite.txClient.ConfirmTx(ctx, "E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
+		require.Contains(t, err.Error(), "unknown tx: E32BD15CAF57AF15D17B0D63CF4E63A9835DD1CEBB059C335C79586BC3013728")
+	})
+
+	t.Run("should return error log when execution fails", func(t *testing.T) {
+		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
+		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
+		require.NoError(t, err)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
+		require.Contains(t, err.Error(), "authorization not found")
 	})
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
@@ -165,9 +196,9 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NotNil(t, resp)
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 30*time.Second)
 		defer cancel()
-		resp, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
+		confirmTxResp, err := suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
+		require.Equal(t, abci.CodeTypeOK, confirmTxResp.Code)
 	})
 
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
@@ -178,9 +209,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		resp, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
+		_, err = suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
-		require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+		code := err.(*user.ExecutionError).Code
+		require.NotEqual(t, abci.CodeTypeOK, code)
 	})
 }
 
@@ -221,8 +253,11 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
 	require.Equal(t, int64(fee), amountDeducted)
 
+	res, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	require.NoError(t, err)
+
 	// verify that the amount deducted does not depend on the actual gas used.
-	gasUsedBasedDeduction := resp.GasUsed * gasPrice
+	gasUsedBasedDeduction := res.TxResponse.GasUsed * gasPrice
 	require.NotEqual(t, gasUsedBasedDeduction, amountDeducted)
 	// The gas used based deduction should be less than the fee because the fee is 1 TIA.
 	require.Less(t, gasUsedBasedDeduction, int64(fee))

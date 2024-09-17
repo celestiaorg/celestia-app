@@ -5,7 +5,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
@@ -35,7 +34,7 @@ func TestPFBAnteHandler(t *testing.T) {
 				// 1 share = 512 bytes = 5120 gas
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1))},
 			},
-			txGas:       appconsts.ShareSize * testGasPerBlobByte,
+			txGas:       share.ShareSize * testGasPerBlobByte,
 			gasConsumed: 0,
 			wantErr:     false,
 		},
@@ -44,7 +43,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1)), uint32(share.AvailableBytesFromSparseShares(2))},
 			},
-			txGas:       3 * appconsts.ShareSize * testGasPerBlobByte,
+			txGas:       3 * share.ShareSize * testGasPerBlobByte,
 			gasConsumed: 0,
 			wantErr:     false,
 		},
@@ -54,7 +53,7 @@ func TestPFBAnteHandler(t *testing.T) {
 				// 2 share = 1024 bytes = 10240 gas
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1) + 1)},
 			},
-			txGas:       2*appconsts.ShareSize*testGasPerBlobByte - 1,
+			txGas:       2*share.ShareSize*testGasPerBlobByte - 1,
 			gasConsumed: 0,
 			wantErr:     true,
 		},
@@ -63,7 +62,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1)), uint32(share.AvailableBytesFromSparseShares(2))},
 			},
-			txGas:       3*appconsts.ShareSize*testGasPerBlobByte - 1,
+			txGas:       3*share.ShareSize*testGasPerBlobByte - 1,
 			gasConsumed: 0,
 			wantErr:     true,
 		},
@@ -73,7 +72,7 @@ func TestPFBAnteHandler(t *testing.T) {
 				// 1 share = 512 bytes = 5120 gas
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1))},
 			},
-			txGas:       appconsts.ShareSize*testGasPerBlobByte + 10000 - 1,
+			txGas:       share.ShareSize*testGasPerBlobByte + 10000 - 1,
 			gasConsumed: 10000,
 			wantErr:     true,
 		},

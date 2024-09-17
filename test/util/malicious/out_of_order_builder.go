@@ -89,7 +89,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	}
 
 	// write all the regular transactions into compact shares
-	txWriter := share.NewCompactShareSplitter(share.TxNamespace, appconsts.ShareVersionZero)
+	txWriter := share.NewCompactShareSplitter(share.TxNamespace, share.ShareVersionZero)
 	for _, tx := range b.Txs {
 		if err := txWriter.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("writing tx into compact shares: %w", err)
@@ -135,7 +135,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 
 	// write all the pay for blob transactions into compact shares. We need to do this after allocating the blobs to their
 	// appropriate shares as the starting index of each blob needs to be included in the PFB transaction
-	pfbWriter := share.NewCompactShareSplitter(share.PayForBlobNamespace, appconsts.ShareVersionZero)
+	pfbWriter := share.NewCompactShareSplitter(share.PayForBlobNamespace, share.ShareVersionZero)
 	for _, iw := range b.Pfbs {
 		iwBytes, err := proto.Marshal(iw)
 		if err != nil {

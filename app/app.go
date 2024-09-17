@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	appv3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -108,6 +109,7 @@ var maccPerms = map[string][]string{
 const (
 	v1                    = appv1.Version
 	v2                    = appv2.Version
+	v3                    = appv3.Version
 	DefaultInitialVersion = v1
 )
 
@@ -340,11 +342,11 @@ func New(
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
-	// PacketForwardMiddleware is used only for version 2.
-	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
+	// PacketForwardMiddleware is used only for version >= 2.
+	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v3)
 	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
 	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
+	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v3)
 
 	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
 		appCodec,
@@ -541,17 +543,8 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 //
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
-	// genesis must always contain the consensus params. The validator set however is derived from the
-	// initial genesis state. The genesis must always contain a non zero app version which is the initial
-	// version that the chain starts on
-	if req.ConsensusParams == nil || req.ConsensusParams.Version == nil {
-		panic("no consensus params set")
-	}
-	if req.ConsensusParams.Version.AppVersion == 0 {
-		panic("app version 0 is not accepted. Please set an app version in the genesis")
-	}
+	req = setDefaultAppVersion(req)
 	appVersion := req.ConsensusParams.Version.AppVersion
-
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
@@ -567,9 +560,26 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 	return res
 }
 
+// setDefaultAppVersion sets the default app version in the consensus params if
+// it was 0. This is needed because chains (e.x. mocha-4) did not explicitly set
+// an app version in genesis.json.
+func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
+	if req.ConsensusParams == nil {
+		panic("no consensus params set")
+	}
+	if req.ConsensusParams.Version == nil {
+		panic("no version set in consensus params")
+	}
+	if req.ConsensusParams.Version.AppVersion == 0 {
+		req.ConsensusParams.Version.AppVersion = v1
+	}
+	return req
+}
+
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
+	app.BaseApp.Logger().Info(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for its side-effect of invoking baseapp.Init()
@@ -584,9 +594,9 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(req.ConsensusParams.Version.AppVersion))
-	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, req.ConsensusParams.Version.AppVersion)
+	appVersion := req.ConsensusParams.Version.AppVersion
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(appVersion))
+	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, appVersion)
 }
 
 // LoadHeight loads a particular height
@@ -783,4 +793,30 @@ func (app *App) InitializeAppVersion(ctx sdk.Context) {
 	} else {
 		app.SetAppVersion(ctx, appVersion)
 	}
+}
+
+// OfferSnapshot is a wrapper around the baseapp's OfferSnapshot method. It is
+// needed to mount stores for the appropriate app version.
+func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferSnapshot {
+	if app.IsSealed() {
+		// If the app is sealed, keys have already been mounted so this can
+		// delegate to the baseapp's OfferSnapshot.
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	if app.upgradeHeightV2 == 0 {
+		app.Logger().Debug("v2 upgrade height not set, assuming app version 2")
+		app.mountKeysAndInit(v2)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
+		app.Logger().Debug("snapshot height is greater than or equal to upgrade height, assuming app version 2")
+		app.mountKeysAndInit(v2)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	app.Logger().Debug("snapshot height is less than upgrade height, assuming app version 1")
+	app.mountKeysAndInit(v1)
+	return app.BaseApp.OfferSnapshot(req)
 }

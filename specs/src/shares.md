@@ -10,7 +10,7 @@ All available data in a Celestia [block](./data_structures.md#block) is split in
 
 - **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
 - **Share**: A fixed-size data chunk that is associated with exactly one namespace.
-- **Share sequence**: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a [blob](../../../x/blob/README.md) is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the [`TRANSACTION_NAMESPACE`](./namespace.md#reserved-namespaces) are contained in one share sequence. All transactions in the [`PAY_FOR_BLOB_NAMESPACE`](./namespace.md#reserved-namespaces) are contained in one share sequence.
+- **Share sequence**: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a [blob](../../x/blob/README.md) is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the [`TRANSACTION_NAMESPACE`](./namespace.md#reserved-namespaces) are contained in one share sequence. All transactions in the [`PAY_FOR_BLOB_NAMESPACE`](./namespace.md#reserved-namespaces) are contained in one share sequence.
 
 ## Overview
 
@@ -31,7 +31,7 @@ Every share has a fixed size [`SHARE_SIZE`](./consensus.md#constants). The share
   - The first 7 bits represent the [share version](#share-version) in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is `1` if this share is the first share in a sequence or `0` if this share is a continuation share in a sequence.
 - If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next [`SEQUENCE_BYTES`](./consensus.md#constants) represent a big-endian uint32 value (denoted by "sequence length" in the figure below). This length is placed immediately after the `SHARE_INFO_BYTES` field. It's important to note that shares that are not the first share in a sequence do not contain this field.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes (if continuation share) are raw data (denoted by "blob1" in the figure below). Typically raw data is the blob payload that user's submit in a [BlobTx](../../../x/blob/README.md). However, raw data can also be transaction data (see [transaction shares](#transaction-shares) below).
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes (if continuation share) are raw data (denoted by "blob1" in the figure below). Typically raw data is the blob payload that user's submit in a [BlobTx](../../x/blob/README.md). However, raw data can also be transaction data (see [transaction shares](#transaction-shares) below).
 - If there is insufficient raw data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
@@ -116,6 +116,6 @@ See [go-square/shares](https://github.com/celestiaorg/go-square/tree/be3c2801e90
 
 ## References
 
-1. [ADR-012](../../../docs/architecture/adr-012-sequence-length-encoding.md)
-1. [ADR-014](../../../docs/architecture/adr-014-versioned-namespaces.md)
-1. [ADR-015](../../../docs/architecture/adr-015-namespace-id-size.md)
+1. [ADR-012](../../docs/architecture/adr-012-sequence-length-encoding.md)
+1. [ADR-014](../../docs/architecture/adr-014-versioned-namespaces.md)
+1. [ADR-015](../../docs/architecture/adr-015-namespace-id-size.md)
