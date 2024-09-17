@@ -10,26 +10,26 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../highlight.css">
-        <link rel="stylesheet" href="../tomorrow-night.css">
-        <link rel="stylesheet" href="../ayu-highlight.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
     </head>
     <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
-            var path_to_root = "../";
+            var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/data_structures.html" class="active"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/namespace.html"><strong aria-hidden="true">1.2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="../specs/shares.html"><strong aria-hidden="true">1.3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">1.4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/cat_pool.html"><strong aria-hidden="true">1.4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">1.5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/block_validity_rules.html"><strong aria-hidden="true">1.6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler.html"><strong aria-hidden="true">1.7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/ante_handler_v1.html"><strong aria-hidden="true">1.7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="../specs/ante_handler_v2.html"><strong aria-hidden="true">1.7.2.</strong> AnteHandler v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/fraud_proofs.html"><strong aria-hidden="true">1.8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">1.9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">1.10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../specs/data_square_layout.html"><strong aria-hidden="true">1.11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="../specs/resource_pricing.html"><strong aria-hidden="true">1.12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="../specs/multisig.html"><strong aria-hidden="true">1.13.</strong> Multisig</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v1.html"><strong aria-hidden="true">2.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules_v2.html"><strong aria-hidden="true">2.2.</strong> State Machine Modules v2</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/parameters.html"><strong aria-hidden="true">3.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/parameters_v1.html"><strong aria-hidden="true">3.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="../specs/parameters_v2.html"><strong aria-hidden="true">3.2.</strong> Parameters v2</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html" class="active"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -107,7 +107,7 @@
                     <h1 class="menu-title">Celestia App Specifications</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
@@ -399,7 +399,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <ol>
 <li>Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.</li>
 </ol>
-<p>Transactions <a href="#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="../specs/data_square_layout.html">the rationale document</a> for this section.</p>
+<p>Transactions <a href="#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="./data_square_layout.html">the rationale document</a> for this section.</p>
 <p>However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:</p>
 <ol>
 <li>Place the first share of the blob at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the blob length or <a href="#header"><code>availableDataOriginalSquareSize</code></a>, then place the remaining shares in the following locations <strong>unless</strong> there are insufficient unused locations in the row.</li>
@@ -407,7 +407,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </ol>
 <p>In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
 <p><img src="./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
-<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="../specs/data_square_layout.html">rationale doc</a> for more info.</p>
+<p>The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="./data_square_layout.html">data square layout</a> for more info.</p>
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
 <h3 id="transaction"><a class="header" href="#transaction">Transaction</a></h3>
 <p>Celestia transactions are Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/core/transactions.md">transactions</a>.</p>
@@ -449,10 +449,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../specs/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
-                                <i class="fa fa-angle-left"></i>
-                            </a>
-                            <a rel="next" href="../specs/namespace.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="namespace.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -461,10 +458,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../specs/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
-                        <i class="fa fa-angle-left"></i>
-                    </a>
-                    <a rel="next" href="../specs/namespace.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="namespace.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -474,12 +468,12 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
         <script type="text/javascript">
             window.playground_copyable = true;
         </script>
-        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
     </body>
