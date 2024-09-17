@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
