@@ -94,7 +94,7 @@ func TestConsistentAppHash(t *testing.T) {
 			},
 			encodedBlobTxs: func(signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
 				senderAcc := signer.AccountByAddress(accountAddresses[1])
-				blob, err := share.NewV1Blob(fixedNamespace(), []byte{1}, senderAcc.Address().Bytes())
+				blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 				require.NoError(t, err)
 
 				// Create a Blob Tx
