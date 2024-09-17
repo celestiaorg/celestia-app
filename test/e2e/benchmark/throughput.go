@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -17,16 +19,16 @@ var bigBlockManifest = Manifest{
 	Validators: 2,
 	TxClients:  2,
 	ValidatorResource: testnet.Resources{
-		MemoryRequest: "12Gi",
-		MemoryLimit:   "12Gi",
-		CPU:           "8",
-		Volume:        "20Gi",
+		MemoryRequest: resource.MustParse("12Gi"),
+		MemoryLimit:   resource.MustParse("12Gi"),
+		CPU:           resource.MustParse("8"),
+		Volume:        resource.MustParse("20Gi"),
 	},
 	TxClientsResource: testnet.Resources{
-		MemoryRequest: "1Gi",
-		MemoryLimit:   "3Gi",
-		CPU:           "2",
-		Volume:        "1Gi",
+		MemoryRequest: resource.MustParse("1Gi"),
+		MemoryLimit:   resource.MustParse("3Gi"),
+		CPU:           resource.MustParse("2"),
+		Volume:        resource.MustParse("1Gi"),
 	},
 	SelfDelegation: 10000000,
 	// @TODO Update the CelestiaAppVersion and  TxClientVersion to the latest
@@ -95,14 +97,17 @@ func TwoNodeSimple(logger *log.Logger) error {
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer func() {
 		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
+		benchTest.Cleanup(ctx)
 	}()
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
 
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run(ctx))
 
 	testnet.NoError("failed to check results", benchTest.CheckResults(1*testnet.MB))
 
@@ -116,13 +121,16 @@ func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) er
 	benchTest, err := NewBenchmarkTest(testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	defer func() {
 		log.Print("Cleaning up testnet")
-		benchTest.Cleanup()
+		benchTest.Cleanup(ctx)
 	}()
 
 	testnet.NoError("failed to setup nodes", benchTest.SetupNodes())
-	testnet.NoError("failed to run the benchmark test", benchTest.Run())
+	testnet.NoError("failed to run the benchmark test", benchTest.Run(ctx))
 	expectedBlockSize := int64(0.90 * float64(manifest.MaxBlockBytes))
 	testnet.NoError("failed to check results", benchTest.CheckResults(expectedBlockSize))
 
