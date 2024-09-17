@@ -47,32 +47,30 @@ type appHashTest struct {
 	name               string
 	version            uint64
 	encodedSdkMessages func(*testing.T, []sdk.AccAddress, []stakingtypes.Validator, *app.App, *user.Signer, *user.Signer) ([][]byte, [][]byte, [][]byte)
-	encodedBlobTxs     func(*user.Signer, []string) []byte
+	encodedBlobTxs     func(*user.Signer, []sdk.AccAddress) []byte
 	expectedDataRoot   []byte
 	expectedAppHash    []byte
 }
 
-// TestConsistentAppHash executes all state machine messages, generates an app hash,
+// TestConsistentAppHash executes all state machine messages on all app versions, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
-
-	// refactor to table based tests
 	tc := []appHashTest{
 		{
 			name:    "execute sdk messages and blob txs on v1 and assert consistent app hash",
 			version: 1,
 			encodedSdkMessages: func(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
 				return encodedSdkMessagesV1(t, accountAddresses, genValidators, testApp, signer, valSigner)
-
 			},
-			encodedBlobTxs: func(signer *user.Signer, accountNames []string) []byte {
+			encodedBlobTxs: func(signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
+				senderAcc := signer.AccountByAddress(accountAddresses[1])
 				blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 				require.NoError(t, err)
 
 				// Create a Blob Tx
 				blobTx := BlobTx{
-					author:    accountNames[1],
+					author:    senderAcc.Name(),
 					blobs:     []*share.Blob{blob},
 					txOptions: blobfactory.DefaultTxOpts(),
 				}
@@ -94,13 +92,14 @@ func TestConsistentAppHash(t *testing.T) {
 
 				return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
 			},
-			encodedBlobTxs: func(signer *user.Signer, accountNames []string) []byte {
-				blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+			encodedBlobTxs: func(signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
+				senderAcc := signer.AccountByAddress(accountAddresses[1])
+				blob, err := share.NewV1Blob(fixedNamespace(), []byte{1}, senderAcc.Address().Bytes())
 				require.NoError(t, err)
 
 				// Create a Blob Tx
 				blobTx := BlobTx{
-					author:    accountNames[1],
+					author:    senderAcc.Name(),
 					blobs:     []*share.Blob{blob},
 					txOptions: blobfactory.DefaultTxOpts(),
 				}
@@ -127,19 +126,18 @@ func TestConsistentAppHash(t *testing.T) {
 			valKeyRing, _, err := testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, consensusParams)
 			require.NoError(t, err)
 
-			// Get account names and addresses from the keyring
-			signer, accountAddresses, accountNames := getAccountInfoAndCreateSigner(t, kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, testApp)
-
+			// Get account names and addresses from the keyring and create signer
+			signer, accountAddresses := getAccountsAndCreateSigner(t, kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, testApp)
 			// Validators from genesis state
 			genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
-			valSigner, _, _ := getAccountInfoAndCreateSigner(t, valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, testApp)
+			valSigner, _ := getAccountsAndCreateSigner(t, valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, testApp)
 
 			// Convert validators to ABCI validators
 			abciValidators, err := convertToABCIValidators(genValidators)
 			require.NoError(t, err)
 
 			firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs := tt.encodedSdkMessages(t, accountAddresses, genValidators, testApp, signer, valSigner)
-			encodedBlobTx := tt.encodedBlobTxs(signer, accountNames)
+			encodedBlobTx := tt.encodedBlobTxs(signer, accountAddresses)
 
 			// Execute the first block
 			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash, tt.version)
@@ -160,7 +158,8 @@ func TestConsistentAppHash(t *testing.T) {
 	}
 }
 
-func getAccountInfoAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxConfig, chainID string, initialVersion uint64, testApp *app.App) (*user.Signer, []sdk.AccAddress, []string) {
+// getAccountsAndCreateSigner returns a signer with accounts
+func getAccountsAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxConfig, chainID string, initialVersion uint64, testApp *app.App) (*user.Signer, []sdk.AccAddress) {
 	// Get account names and addresses from the keyring
 	accountNames := testfactory.GetAccountNames(kr)
 	accountAddresses := testfactory.GetAddresses(kr)
@@ -171,9 +170,10 @@ func getAccountInfoAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.
 	// Create a signer with accounts
 	signer, err := user.NewSigner(kr, enc, chainID, initialVersion, accounts...)
 	require.NoError(t, err)
-	return signer, accountAddresses, accountNames
+	return signer, accountAddresses
 }
 
+// encodedSdkMessagesV1 returns encoded SDK messages for v1
 func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
 	// ----------- Create v1 SDK Messages ------------
 
@@ -346,6 +346,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
 }
 
+// encodedSdkMessagesV2 returns encoded SDK messages introduced in v2
 func encodedSdkMessagesV2(t *testing.T, genValidators []stakingtypes.Validator, valSigner *user.Signer) [][]byte {
 	var v2Messages []sdk.Msg
 	msgTryUpgrade := signal.NewMsgTryUpgrade(sdk.AccAddress(genValidators[0].GetOperator()))
