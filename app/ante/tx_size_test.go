@@ -1,14 +1,13 @@
 package ante_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
-
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -64,10 +63,10 @@ func TestConsumeGasForTxSize(t *testing.T) {
 		name    string
 		sigV2   signing.SignatureV2
 	}{
-		{v2.Version, "SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
-		{v2.Version, "MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
-		{v3.Version, "SingleSignatureData", signing.SignatureV2{PubKey: priv1.PubKey()}},
-		{v3.Version, "MultiSignatureData", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
+		{v2.Version, "SingleSignatureData v2", signing.SignatureV2{PubKey: priv1.PubKey()}},
+		{v2.Version, "MultiSignatureData v2", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
+		{appconsts.LatestVersion, fmt.Sprintf("SingleSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey()}},
+		{appconsts.LatestVersion, fmt.Sprintf("MultiSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
 	}
 
 	for _, tc := range testCases {
