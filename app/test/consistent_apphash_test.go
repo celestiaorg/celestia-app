@@ -105,13 +105,12 @@ func TestConsistentAppHash(t *testing.T) {
 				require.NoError(t, err)
 				return encodedBlobTx
 			},
-			expectedDataRoot: []byte{},
-			// Expected app hash produced by v2.x -
-			expectedAppHash: []byte{},
+			expectedDataRoot: []byte{200, 61, 245, 166, 119, 211, 170, 2, 73, 239, 253, 97, 243, 112, 116, 196, 70, 41, 201, 172, 123, 28, 15, 182, 52, 222, 122, 243, 95, 97, 66, 233},
+			// Expected app hash produced by an older commit on v2.x
+			expectedAppHash: []byte{16, 144, 102, 79, 23, 207, 200, 139, 77, 245, 250, 101, 217, 227, 255, 245, 172, 1, 44, 70, 188, 140, 215, 103, 178, 4, 80, 179, 11, 150, 31, 134},
 		},
 	}
 
-	// iterate over test cases
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			testApp := testutil.NewTestApp()
@@ -147,6 +146,9 @@ func TestConsistentAppHash(t *testing.T) {
 			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash, tt.version)
 			require.NoError(t, err)
 			fmt.Println(finalDataRoot, finalAppHash, tt.version)
+
+			fmt.Println(finalDataRoot, "final data root")
+			fmt.Println(finalAppHash, "final app hash")
 
 			// Require that the app hash is equal to the app hash produced on a different commit
 			require.Equal(t, tt.expectedAppHash, finalAppHash)
