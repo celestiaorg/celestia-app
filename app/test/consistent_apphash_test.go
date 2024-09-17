@@ -8,6 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
@@ -37,17 +39,22 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-type BlobTx struct {
+type blobTx struct {
 	author    string
 	blobs     []*share.Blob
 	txOptions []user.TxOption
 }
 
+type (
+	encodedSdkMessages func(*testing.T, []sdk.AccAddress, []stakingtypes.Validator, *app.App, *user.Signer, *user.Signer) ([][]byte, [][]byte, [][]byte)
+	encodedBlobTxs     func(*testing.T, *user.Signer, []sdk.AccAddress) []byte
+)
+
 type appHashTest struct {
 	name               string
 	version            uint64
-	encodedSdkMessages func(*testing.T, []sdk.AccAddress, []stakingtypes.Validator, *app.App, *user.Signer, *user.Signer) ([][]byte, [][]byte, [][]byte)
-	encodedBlobTxs     func(*user.Signer, []sdk.AccAddress) []byte
+	encodedSdkMessages encodedSdkMessages
+	encodedBlobTxs     encodedBlobTxs
 	expectedDataRoot   []byte
 	expectedAppHash    []byte
 }
@@ -58,33 +65,17 @@ type appHashTest struct {
 func TestConsistentAppHash(t *testing.T) {
 	tc := []appHashTest{
 		{
-			name:    "execute sdk messages and blob txs on v1 and assert consistent app hash",
-			version: 1,
-			encodedSdkMessages: func(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
-				return encodedSdkMessagesV1(t, accountAddresses, genValidators, testApp, signer, valSigner)
-			},
-			encodedBlobTxs: func(signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
-				senderAcc := signer.AccountByAddress(accountAddresses[1])
-				blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
-				require.NoError(t, err)
-
-				// Create a Blob Tx
-				blobTx := BlobTx{
-					author:    senderAcc.Name(),
-					blobs:     []*share.Blob{blob},
-					txOptions: blobfactory.DefaultTxOpts(),
-				}
-				encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
-				require.NoError(t, err)
-				return encodedBlobTx
-			},
-			expectedDataRoot: []byte{100, 59, 112, 241, 238, 49, 50, 64, 105, 90, 209, 211, 49, 254, 211, 83, 133, 88, 5, 89, 221, 116, 141, 72, 33, 110, 16, 78, 5, 48, 118, 72},
-			// Expected app hash produced by v1.x -
+			name:               "execute sdk messages and blob tx on v1",
+			version:            v1.Version,
+			encodedSdkMessages: encodedSdkMessagesV1,
+			encodedBlobTxs:     createEncodedBlobTx,
+			expectedDataRoot:   []byte{100, 59, 112, 241, 238, 49, 50, 64, 105, 90, 209, 211, 49, 254, 211, 83, 133, 88, 5, 89, 221, 116, 141, 72, 33, 110, 16, 78, 5, 48, 118, 72},
+			// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
 			expectedAppHash: []byte{84, 216, 210, 48, 113, 204, 234, 21, 150, 236, 97, 87, 242, 184, 45, 248, 116, 127, 49, 88, 134, 197, 202, 125, 44, 210, 67, 144, 107, 51, 145, 65},
 		},
 		{
-			name:    "execute sdk messages and blob txs on v2 and assert consistent app hash",
-			version: 2,
+			name:    "execute sdk messages and blob tx on v2",
+			version: v2.Version,
 			encodedSdkMessages: func(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
 				firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs := encodedSdkMessagesV1(t, accountAddresses, genValidators, testApp, signer, valSigner)
 				encodedMessagesV2 := encodedSdkMessagesV2(t, genValidators, valSigner)
@@ -92,28 +83,13 @@ func TestConsistentAppHash(t *testing.T) {
 
 				return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
 			},
-			encodedBlobTxs: func(signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
-				senderAcc := signer.AccountByAddress(accountAddresses[1])
-				blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
-				require.NoError(t, err)
-
-				// Create a Blob Tx
-				blobTx := BlobTx{
-					author:    senderAcc.Name(),
-					blobs:     []*share.Blob{blob},
-					txOptions: blobfactory.DefaultTxOpts(),
-				}
-				encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
-				require.NoError(t, err)
-				return encodedBlobTx
-			},
-			expectedDataRoot: []byte{},
-			// Expected app hash produced by v2.x -
-			expectedAppHash: []byte{},
+			encodedBlobTxs:   createEncodedBlobTx,
+			expectedDataRoot: []byte{200, 61, 245, 166, 119, 211, 170, 2, 73, 239, 253, 97, 243, 112, 116, 196, 70, 41, 201, 172, 123, 28, 15, 182, 52, 222, 122, 243, 95, 97, 66, 233},
+			// Expected app hash produced on v2.x - https://github.com/celestiaorg/celestia-app/blob/v2.x/app/test/consistent_apphash_test.go
+			expectedAppHash: []byte{16, 144, 102, 79, 23, 207, 200, 139, 77, 245, 250, 101, 217, 227, 255, 245, 172, 1, 44, 70, 188, 140, 215, 103, 178, 4, 80, 179, 11, 150, 31, 134},
 		},
 	}
 
-	// iterate over test cases
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			testApp := testutil.NewTestApp()
@@ -136,17 +112,17 @@ func TestConsistentAppHash(t *testing.T) {
 			abciValidators, err := convertToABCIValidators(genValidators)
 			require.NoError(t, err)
 
-			firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs := tt.encodedSdkMessages(t, accountAddresses, genValidators, testApp, signer, valSigner)
-			encodedBlobTx := tt.encodedBlobTxs(signer, accountAddresses)
+			firstBlockTxs, secondBlockTxs, thirdBlockTxs := tt.encodedSdkMessages(t, accountAddresses, genValidators, testApp, signer, valSigner)
+			encodedBlobTx := tt.encodedBlobTxs(t, signer, accountAddresses)
 
 			// Execute the first block
-			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash, tt.version)
+			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockTxs, abciValidators, testApp.LastCommitID().Hash, tt.version)
 			require.NoError(t, err)
 			// Execute the second block
-			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockEncodedTxs, abciValidators, firstBlockAppHash, tt.version)
+			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockTxs, abciValidators, firstBlockAppHash, tt.version)
 			require.NoError(t, err)
 			// Execute the final block and get the data root alongside the final app hash
-			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash, tt.version)
+			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockTxs, abciValidators, secondBlockAppHash, tt.version)
 			require.NoError(t, err)
 			fmt.Println(finalDataRoot, finalAppHash, tt.version)
 
@@ -336,14 +312,14 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
 
-	firstBlockEncodedTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
+	firstBlockTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
 	require.NoError(t, err)
-	secondBlockEncodedTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
+	secondBlockTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
 	require.NoError(t, err)
-	thirdBlockEncodedTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
+	thirdBlockTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
 	require.NoError(t, err)
 
-	return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
+	return firstBlockTxs, secondBlockTxs, thirdBlockTxs
 }
 
 // encodedSdkMessagesV2 returns encoded SDK messages introduced in v2
@@ -359,6 +335,23 @@ func encodedSdkMessagesV2(t *testing.T, genValidators []stakingtypes.Validator, 
 	require.NoError(t, err)
 
 	return encodedTxs
+}
+
+// createEncodedBlobTx creates, signs and returns an encoded blob transaction
+func createEncodedBlobTx(t *testing.T, signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
+	senderAcc := signer.AccountByAddress(accountAddresses[1])
+	blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
+	require.NoError(t, err)
+
+	// Create a Blob Tx
+	blobTx := blobTx{
+		author:    senderAcc.Name(),
+		blobs:     []*share.Blob{blob},
+		txOptions: blobfactory.DefaultTxOpts(),
+	}
+	encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
+	require.NoError(t, err)
+	return encodedBlobTx
 }
 
 // fixedNamespace returns a hardcoded namespace
