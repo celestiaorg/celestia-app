@@ -1,10 +1,13 @@
 package app_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/snapshots"
@@ -13,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -50,6 +54,61 @@ func TestNew(t *testing.T) {
 		hasKeyTable := subspace.HasKeyTable()
 		assert.True(t, hasKeyTable)
 	})
+}
+
+func TestInitChain(t *testing.T) {
+	logger := log.NewNopLogger()
+	db := tmdb.NewMemDB()
+	traceStore := &NoopWriter{}
+	invCheckPeriod := uint(1)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	upgradeHeight := int64(0)
+	appOptions := NoopAppOptions{}
+	testApp := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
+	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
+	require.NoError(t, err)
+	genesis := testnode.DefaultConfig().Genesis
+
+	type testCase struct {
+		name      string
+		request   abci.RequestInitChain
+		wantPanic bool
+	}
+	testCases := []testCase{
+		{
+			name:      "should panic if consensus params not set",
+			request:   abci.RequestInitChain{},
+			wantPanic: true,
+		},
+		{
+			name: "should not panic on a genesis that does not contain an app version",
+			request: abci.RequestInitChain{
+				Time:    genesis.GenesisTime,
+				ChainId: genesis.ChainID,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     &abci.BlockParams{},
+					Evidence:  &genesis.ConsensusParams.Evidence,
+					Validator: &genesis.ConsensusParams.Validator,
+					Version:   &tmproto.VersionParams{}, // explicitly set to empty to remove app version.,
+				},
+				AppStateBytes: appStateBytes,
+				InitialHeight: 0,
+			},
+			wantPanic: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			application := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+			if tc.wantPanic {
+				assert.Panics(t, func() { application.InitChain(tc.request) })
+			} else {
+				assert.NotPanics(t, func() { application.InitChain(tc.request) })
+			}
+		})
+	}
 }
 
 func TestOfferSnapshot(t *testing.T) {
