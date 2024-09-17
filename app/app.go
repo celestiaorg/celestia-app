@@ -810,8 +810,14 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 				Result: abci.ResponseOfferSnapshot_REJECT,
 			}
 		}
+
 		app.Logger().Info("mounting keys for snapshot", "app_version", req.Snapshot.AppVersion)
 		app.mountKeysAndInit(req.Snapshot.AppVersion)
+
+		app.Logger().Info("setting app version", "app_version", req.Snapshot.AppVersion)
+		ctx := app.NewUncachedContext(false, tmproto.Header{})
+		app.SetAppVersion(ctx, req.Snapshot.AppVersion)
+
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
