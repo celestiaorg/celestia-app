@@ -474,7 +474,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 func (client *TxClient) handleEvictions(txHash string) error {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-	// Get transaction from the local pool
+	// Get transaction from the local tx tracker
 	txInfo, exists := client.txTracker[txHash]
 	if !exists {
 		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
