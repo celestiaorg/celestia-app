@@ -101,7 +101,6 @@ func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMul
 		cdc,
 		paramsSubspace,
 	)
-	// change the params to a non default value
 	k.SetParams(ctx, types.DefaultParams())
 
 	return k, stateStore, ctx
