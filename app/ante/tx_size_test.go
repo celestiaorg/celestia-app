@@ -25,10 +25,15 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
+const TxSizeCostPerByte = 8
+
 func setup() (*app.App, sdk.Context, client.Context, error) {
 	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	ctx := app.NewContext(false, tmproto.Header{})
-	app.AccountKeeper.SetParams(ctx, authtypes.DefaultParams())
+	params := authtypes.DefaultParams()
+	// Override default with a different TxSizeCostPerByte value for testing
+	params.TxSizeCostPerByte = TxSizeCostPerByte
+	app.AccountKeeper.SetParams(ctx, params)
 	ctx = ctx.WithBlockHeight(1)
 
 	// Set up TxConfig.
@@ -90,7 +95,15 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
 			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
-			expectedGas := sdk.Gas(len(txBytes)) * appconsts.TxSizeCostPerByte(appconsts.LatestVersion)
+			// expected TxSizeCostPerByte is different for each version
+			var txSizeCostPerByte uint64
+			if tc.version == v2.Version {
+				txSizeCostPerByte = TxSizeCostPerByte
+			} else {
+				txSizeCostPerByte = appconsts.TxSizeCostPerByte(tc.version)
+			}
+
+			expectedGas := sdk.Gas(len(txBytes)) * txSizeCostPerByte
 
 			// set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)

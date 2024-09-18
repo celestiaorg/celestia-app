@@ -161,7 +161,7 @@ func EstimateGas(blobSizes []uint32, gasPerByte uint32, txSizeCost uint64) uint6
 	return GasToConsume(blobSizes, gasPerByte) + (txSizeCost * BytesPerBlobInfo * uint64(len(blobSizes))) + PFBGasFixedCost
 }
 
-// DefaultEstimateGas runs EstimateGas with the system defaults. 
+// DefaultEstimateGas runs EstimateGas with the system defaults.
 func DefaultEstimateGas(blobSizes []uint32) uint64 {
 	return EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, appconsts.DefaultTxSizeCostPerByte)
 }

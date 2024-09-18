@@ -145,6 +145,7 @@ func consumeGasForTxSize(ctx sdk.Context, txBytes uint64, params auth.Params) {
 		ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*txBytes, "txSize")
 	} else {
 		// From v3 onwards, we should get txSizeCostPerByte from appconsts
-		ctx.GasMeter().ConsumeGas(appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)*txBytes, "txSize")
+		txSizeCostPerByte := appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)
+		ctx.GasMeter().ConsumeGas(txSizeCostPerByte*txBytes, "txSize")
 	}
 }
