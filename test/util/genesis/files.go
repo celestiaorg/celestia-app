@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/tendermint/tendermint/config"
 	tmos "github.com/tendermint/tendermint/libs/os"
 	"github.com/tendermint/tendermint/p2p"
@@ -17,6 +18,7 @@ import (
 func InitFiles(
 	rootDir string,
 	tmConfig *config.Config,
+	appCfg *srvconfig.Config,
 	genesis *Genesis,
 	validatorIndex int,
 ) error {
@@ -63,6 +65,11 @@ func InitFiles(
 	if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
 		return err
 	}
+
+	appConfigFilePath := filepath.Join(rootDir, "config", "app.toml")
+	srvconfig.WriteConfigFile(appConfigFilePath, appCfg)
+
+	config.WriteConfigFile(filepath.Join(rootDir, "config", "config.toml"), tmConfig)
 
 	return nil
 }
