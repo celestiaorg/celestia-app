@@ -77,8 +77,8 @@ One namespace ID is located in the first `NamespaceIDSize` bytes, while the othe
 
 - Namespaced Merkle tree specifications: <https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md>
 - Celestia original data square specification: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/data_structures.md#arranging-available-data-into-shares>
-- Celestia constants: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/consensus.md#constants>
-- Celestia reserved namespace IDs: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/consensus.md#reserved-namespace-ids>
+- Celestia constants: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/consensus.md#constants>
+- Celestia reserved namespace IDs: <https://github.com/celestiaorg/celestia-app/blob/main/specs/src/consensus.md#reserved-namespace-ids>
 
 [nmtlink]: https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md
 [nmtwrapper-link]: https://github.com/celestiaorg/celestia-app/blob/main/pkg/wrapper/nmt_wrapper.go
