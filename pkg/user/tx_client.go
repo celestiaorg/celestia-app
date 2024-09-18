@@ -393,7 +393,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return nil, broadcastTxErr
 	}
 
-	// save the sequence and signer of the transaction in the local pool
+	// save the sequence and signer of the transaction in the local txTracker
 	// before the sequence is incremented
 	client.txTracker[resp.TxResponse.TxHash] = txInfo{
 		sequence:  client.signer.accounts[signer].Sequence(),
