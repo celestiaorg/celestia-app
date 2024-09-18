@@ -87,7 +87,7 @@ func TestRun(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, cometNode.Start())
-	defer cometNode.Stop()
+	defer func() { _ = cometNode.Stop() }()
 
 	client := local.New(cometNode)
 	status, err := client.Status(context.Background())
@@ -99,4 +99,5 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks*2)
 	}, time.Second*10, time.Millisecond*100)
+	require.NoError(t, cometNode.Stop())
 }
