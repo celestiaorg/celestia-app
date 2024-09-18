@@ -598,7 +598,7 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 	return record.Name, nil
 }
 
-// GetTxFromTxTracker gets transaction info from the tx client's local tx pool by its hash
+// GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
 func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
