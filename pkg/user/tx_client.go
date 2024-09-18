@@ -488,7 +488,7 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	return fmt.Errorf("tx was evicted from the mempool")
 }
 
-// deleteFromTxTracker safely deletes a transaction from the local tx pool.
+// deleteFromTxTracker safely deletes a transaction from the local tx tracker.
 func (client *TxClient) deleteFromTxTracker(txHash string) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
