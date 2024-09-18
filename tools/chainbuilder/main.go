@@ -36,6 +36,14 @@ import (
 	tmdbm "github.com/tendermint/tm-db"
 )
 
+var defaultNamespace share.Namespace
+
+const defaultNamespaceStr = "test"
+
+func init() {
+	defaultNamespace = share.MustNewV0Namespace([]byte(defaultNamespaceStr))
+}
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "chainbuilder",
@@ -46,6 +54,17 @@ func main() {
 			squareSize, _ := cmd.Flags().GetInt("square-size")
 			blockInterval, _ := cmd.Flags().GetDuration("block-interval")
 			existingDir, _ := cmd.Flags().GetString("existing-dir")
+			namespaceStr, _ := cmd.Flags().GetString("namespace")
+			var namespace share.Namespace
+			if namespaceStr == "" {
+				namespace = defaultNamespace
+			} else {
+				var err error
+				namespace, err = share.NewV0Namespace([]byte(namespaceStr))
+				if err != nil {
+					return fmt.Errorf("invalid namespace: %w", err)
+				}
+			}
 
 			cfg := BuilderConfig{
 				NumBlocks:     numBlocks,
@@ -53,6 +72,8 @@ func main() {
 				SquareSize:    squareSize,
 				BlockInterval: blockInterval,
 				ExistingDir:   existingDir,
+				Namespace:     namespace,
+				ChainID:       tmrand.Str(6),
 			}
 
 			dir, err := os.Getwd()
@@ -69,6 +90,7 @@ func main() {
 	rootCmd.Flags().Int("square-size", appconsts.DefaultSquareSizeUpperBound, "Size of the square")
 	rootCmd.Flags().Duration("block-interval", time.Second, "Interval between blocks")
 	rootCmd.Flags().String("existing-dir", "", "Existing directory to load chain from")
+	rootCmd.Flags().String("namespace", "", "Custom namespace for the chain")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -81,6 +103,8 @@ type BuilderConfig struct {
 	SquareSize    int
 	BlockInterval time.Duration
 	ExistingDir   string
+	Namespace     share.Namespace
+	ChainID       string
 }
 
 func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
@@ -95,8 +119,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		err error
 	)
 	if cfg.ExistingDir == "" {
-		chainID := tmrand.Str(6)
-		dir = filepath.Join(dir, fmt.Sprintf("testnode-%s", chainID))
+		dir = filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
 		kr, err = keyring.New(app.Name, keyring.BackendTest, dir, nil, encCfg.Codec)
 		if err != nil {
 			return fmt.Errorf("failed to create keyring: %w", err)
@@ -107,7 +130,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg.Pruning = "everything" // we just want the last two states
 		gen = genesis.NewDefaultGenesis().
 			WithKeyring(kr).
-			WithChainID(chainID).
+			WithChainID(cfg.ChainID).
 			WithGenesisTime(startTime).
 			WithValidators(validator)
 
@@ -404,7 +427,7 @@ func generateSquareRoutine(
 
 		account := signer.Accounts()[0]
 
-		blob, err := share.NewV0Blob(share.RandomNamespace(), crypto.CRandBytes(cfg.BlockSize))
+		blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(cfg.BlockSize))
 		if err != nil {
 			return err
 		}

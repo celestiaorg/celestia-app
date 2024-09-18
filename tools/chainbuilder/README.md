@@ -22,6 +22,7 @@ The following are the set of options when generating a chain:
 - `block-size` the size of the blocks to be generated (default <2MB). This will be a single PFB transaction
 - `square-size` the size of the max square (default: 128)
 - `existing-dir` point this to a directory if you want to extend an existing chain rather than create a new one
+- `namespace` allows you to pick a custom v0 namespace. By default "test" will be chosen.
 
 This tool takes roughly 60-70ms per 2MB block.
 
