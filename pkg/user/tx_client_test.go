@@ -154,10 +154,11 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), time.Second)
 		defer cancel()
 
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		msg := bank.NewMsgSend(suite.txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		resp, err := suite.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 		require.NoError(t, err)
-		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
 		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
 		require.Error(t, err)
@@ -173,11 +174,12 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	})
 
 	t.Run("should return error log when execution fails", func(t *testing.T) {
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
 		require.NoError(t, err)
-		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
@@ -188,11 +190,12 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
 		addr := suite.txClient.DefaultAddress()
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
-		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
 		ctx, cancel := context.WithTimeout(suite.ctx.GoContext(), 30*time.Second)
 		defer cancel()
@@ -205,12 +208,13 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	t.Run("should error when tx is found with a non-zero error code", func(t *testing.T) {
 		balance := suite.queryCurrentBalance(t)
 		addr := suite.txClient.DefaultAddress()
+		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		// Create a msg send with out of balance, ensure this tx fails
 		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
-		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName())
+		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
 		confirmTxResp, err := suite.txClient.ConfirmTx(suite.ctx.GoContext(), resp.TxHash)
 		require.Error(t, err)
@@ -315,19 +319,20 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
-	nonce, signer, exists := txClient.GetTxFromTxTracker(txHash)
-	return !exists && nonce == 0 && signer == ""
+	seq, signer, exists := txClient.GetTxFromTxTracker(txHash)
+	return !exists && seq == 0 && signer == ""
 }
 
 // asserts that a tx was indexed in the tx tracker and that the sequence does not increase
-func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, expectedSigner string) {
-	nonce, signer, exists := txClient.GetTxFromTxTracker(txHash)
+func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, expectedSigner string, seqBeforeBroadcast uint64) {
+	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
-	seq := txClient.Signer().Account(expectedSigner).Sequence()
-	// Successfully broadcast transaction increases the nonce
-	// txInfo is indexed before the nonce is increased
-	require.Equal(t, seq, nonce+1)
+	seqAfterBroadcast := txClient.Signer().Account(expectedSigner).Sequence()
+	// TxInfo is indexed before the nonce is increased
+	require.Equal(t, seqBeforeBroadcast, seqFromTxTracker)
+	// Successfully broadcast transaction increases the sequence
+	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
 }
 
 func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
