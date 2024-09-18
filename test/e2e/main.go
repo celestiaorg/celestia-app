@@ -10,7 +10,7 @@ const (
 	seed = 42
 )
 
-type TestFunc func(*log.Logger) error
+type TestFunc func(logger *log.Logger) error
 
 type Test struct {
 	Name string

@@ -7,10 +7,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/tendermint/tendermint/pkg/trace"
+
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/tendermint/tendermint/pkg/trace"
 )
 
 type BenchmarkTest struct {
@@ -20,7 +21,7 @@ type BenchmarkTest struct {
 
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// create a new testnet
-	testNet, err := testnet.New(name, seed,
+	testNet, err := testnet.New(context.Background(), name, seed,
 		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
 		manifest.GetGenesisModifiers()...)
 	if err != nil {
@@ -35,28 +36,27 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 // There will be manifest.Validators validators and manifest.TxClients tx clients.
 // Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
 func (b *BenchmarkTest) SetupNodes() error {
+	ctx := context.Background()
 	testnet.NoError("failed to create genesis nodes",
-		b.CreateGenesisNodes(b.manifest.Validators,
+		b.CreateGenesisNodes(ctx, b.manifest.Validators,
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
 			b.manifest.UpgradeHeight, b.manifest.ValidatorResource, b.manifest.DisableBBR))
 
 	// enable latency if specified in the manifest
 	if b.manifest.EnableLatency {
 		for _, node := range b.Nodes() {
-			if err := node.Instance.EnableBitTwister(); err != nil {
-				return fmt.Errorf("failed to enable bit twister: %v", err)
-			}
+			node.EnableNetShaper()
 		}
 	}
 	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := b.RemoteGRPCEndpoints()
+	gRPCEndpoints, err := b.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 
 	// create tx clients and point them to the validators
 	log.Println("Creating tx clients")
 
-	err = b.CreateTxClients(b.manifest.TxClientVersion,
+	err = b.CreateTxClients(ctx, b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,
 		b.manifest.BlobsPerSeq,
@@ -64,7 +64,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 	testnet.NoError("failed to create tx clients", err)
 
 	log.Println("Setting up testnet")
-	testnet.NoError("failed to setup testnet", b.Setup(
+	testnet.NoError("failed to setup testnet", b.Setup(ctx,
 		testnet.WithPerPeerBandwidth(b.manifest.PerPeerBandwidth),
 		testnet.WithTimeoutPropose(b.manifest.TimeoutPropose),
 		testnet.WithTimeoutCommit(b.manifest.TimeoutCommit),
@@ -78,21 +78,18 @@ func (b *BenchmarkTest) SetupNodes() error {
 		log.Println("reading trace push config")
 		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
 			log.Print("Setting up trace push config")
+			envVars := map[string]string{
+				trace.PushBucketName: pushConfig.BucketName,
+				trace.PushRegion:     pushConfig.Region,
+				trace.PushAccessKey:  pushConfig.AccessKey,
+				trace.PushKey:        pushConfig.SecretKey,
+				trace.PushDelay:      fmt.Sprintf("%d", pushConfig.PushDelay),
+			}
 			for _, node := range b.Nodes() {
-				if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
-				}
-				if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
-					return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
+				for key, value := range envVars {
+					if err = node.Instance.Build().SetEnvironmentVariable(key, value); err != nil {
+						return fmt.Errorf("failed to set %s: %v", key, err)
+					}
 				}
 			}
 		}
@@ -101,20 +98,22 @@ func (b *BenchmarkTest) SetupNodes() error {
 }
 
 // Run runs the benchmark test for the specified duration in the manifest.
-func (b *BenchmarkTest) Run() error {
+func (b *BenchmarkTest) Run(ctx context.Context) error {
 	log.Println("Starting benchmark testnet")
 
 	log.Println("Starting nodes")
-	err := b.StartNodes()
-	if err != nil {
+	if err := b.StartNodes(ctx); err != nil {
 		return fmt.Errorf("failed to start testnet: %v", err)
 	}
 
 	// add latency if specified in the manifest
 	if b.manifest.EnableLatency {
 		for _, node := range b.Nodes() {
-			if err = node.Instance.SetLatencyAndJitter(b.manifest.LatencyParams.
-				Latency, b.manifest.LatencyParams.Jitter); err != nil {
+			err := node.SetLatencyAndJitter(
+				b.manifest.LatencyParams.Latency,
+				b.manifest.LatencyParams.Jitter,
+			)
+			if err != nil {
 				return fmt.Errorf("failed to set latency and jitter: %v", err)
 			}
 		}
@@ -122,15 +121,13 @@ func (b *BenchmarkTest) Run() error {
 
 	// wait for the nodes to sync
 	log.Println("Waiting for nodes to sync")
-	err = b.WaitToSync()
-	if err != nil {
+	if err := b.WaitToSync(ctx); err != nil {
 		return err
 	}
 
 	// start tx clients
 	log.Println("Starting tx clients")
-	err = b.StartTxClients()
-	if err != nil {
+	if err := b.StartTxClients(ctx); err != nil {
 		return fmt.Errorf("failed to start tx clients: %v", err)
 	}
 

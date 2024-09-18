@@ -41,9 +41,8 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		// FIXME: we have a hardcoded subtree root threshold here. This is because we can't access
-		// the app version because the context is not initialized
-		err := blobtypes.ValidateBlobTx(app.txConfig, btx, appconsts.DefaultSubtreeRootThreshold)
+		appVersion := app.AppVersion()
+		err := blobtypes.ValidateBlobTx(app.txConfig, btx, appconsts.SubtreeRootThreshold(appVersion), appVersion)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
