@@ -409,7 +409,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	return resp.TxResponse, nil
 }
 
-// pruneTxTracker removes transactions from the local tx pool that are older than 10 minutes
+// pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
 func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
 		if time.Since(txInfo.timeStamp) >= txTrackerPruningInterval {
