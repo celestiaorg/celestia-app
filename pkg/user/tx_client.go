@@ -479,7 +479,7 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	if !exists {
 		return fmt.Errorf("tx not found in tx client local pool: %s", txHash)
 	}
-	// The sequence should not be rolled back to the sequence of the transaction that was evicted to be
+	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
 	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
 		return fmt.Errorf("setting sequence: %w", err)
