@@ -477,7 +477,7 @@ func (client *TxClient) handleEvictions(txHash string) error {
 	// Get transaction from the local pool
 	txInfo, exists := client.txTracker[txHash]
 	if !exists {
-		return fmt.Errorf("tx: %s not found in tx client local pool; likely failed during broadcast", txHash)
+		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
 	}
 	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
 	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
