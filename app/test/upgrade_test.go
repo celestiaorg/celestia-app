@@ -145,7 +145,7 @@ func TestAppUpgradeV3(t *testing.T) {
 
 // TestAppUpgradeV2 verifies that the all module's params are overridden during an
 // upgrade from v1 -> v2 and the app version changes correctly.
-func TestAppUpgrades(t *testing.T) {
+func TestAppUpgradeV2(t *testing.T) {
 	NetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
 	require.NoError(t, err)
 
