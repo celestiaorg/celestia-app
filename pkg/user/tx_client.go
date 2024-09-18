@@ -469,7 +469,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 }
 
 // handleEvictions handles the scenario where a transaction is evicted from the mempool.
-// It removes the evicted transaction from the local tx pool without incrementing
+// It removes the evicted transaction from the local tx tracker without incrementing
 // the signer's sequence.
 func (client *TxClient) handleEvictions(txHash string) error {
 	client.mtx.Lock()
