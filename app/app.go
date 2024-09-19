@@ -480,8 +480,8 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
-	// Update timeouts based on the current version.
-	// TODO: We check app.AppVersion(), which may differ from currentVersion,
+	// TODO: We set tiemouts based on app.AppVersion(),
+	// which may differ from currentVersion,
 	// as we want to set the timeouts based on the app version
 	// that will be used in the next block.
 	v := app.AppVersion()
