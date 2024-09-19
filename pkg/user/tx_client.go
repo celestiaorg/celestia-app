@@ -31,7 +31,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	"github.com/tendermint/tendermint/rpc/core"
 )
 
 const (
@@ -440,28 +439,28 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		if err == nil && resp != nil {
 			switch resp.Status {
-			case core.TxStatusPending:
-				// Continue polling if the transaction is still pending
-				select {
-				case <-ctx.Done():
-					return &TxResponse{}, ctx.Err()
-				case <-pollTicker.C:
-					continue
-				}
-			case core.TxStatusCommitted:
-				txResponse := &TxResponse{
-					Height: resp.Height,
-					TxHash: txHash,
-					Code:   resp.ExecutionCode,
-				}
-				if resp.ExecutionCode != 0 {
-					return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
-				}
-				return txResponse, nil
-			case core.TxStatusEvicted:
-				return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
+			// case core.TxStatusPending:
+			// 	// Continue polling if the transaction is still pending
+			// 	select {
+			// 	case <-ctx.Done():
+			// 		return &TxResponse{}, ctx.Err()
+			// 	case <-pollTicker.C:
+			// 		continue
+			// 	}
+			// case core.TxStatusCommitted:
+			// 	txResponse := &TxResponse{
+			// 		Height: resp.Height,
+			// 		TxHash: txHash,
+			// 		Code:   resp.ExecutionCode,
+			// 	}
+			// 	if resp.ExecutionCode != 0 {
+			// 		return txResponse, fmt.Errorf("tx was committed but failed with code %d: %s", resp.ExecutionCode, resp.Error)
+			// 	}
+			// 	return txResponse, nil
+			// case core.TxStatusEvicted:
+			// 	return &TxResponse{TxHash: txHash}, fmt.Errorf("tx: %s was evicted from the mempool", txHash)
 			default:
-				return &TxResponse{}, fmt.Errorf("unknown tx: %s", txHash)
+				return &TxResponse{}, fmt.Errorf("unknown tx: %s %w", txHash, err)
 			}
 		}
 	}

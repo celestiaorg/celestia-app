@@ -29,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.29
 	github.com/tendermint/tm-db v0.6.7
-	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
@@ -103,6 +103,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-playground/validator/v10 v10.11.2 // indirect
+	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/gateway v1.1.0 // indirect
@@ -114,6 +115,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
+	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
@@ -172,6 +174,7 @@ require (
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
+	github.com/onsi/ginkgo/v2 v2.15.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
@@ -182,6 +185,7 @@ require (
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/quic-go/quic-go v0.46.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/regen-network/cosmos-proto v0.3.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
@@ -216,9 +220,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.26.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
+	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
@@ -226,6 +232,7 @@ require (
 	golang.org/x/term v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
+	golang.org/x/tools v0.21.0 // indirect
 	google.golang.org/api v0.169.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
@@ -252,5 +259,5 @@ replace (
 	github.com/cosmos/ledger-cosmos-go => github.com/cosmos/ledger-cosmos-go v0.12.4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.40.0-tm-v0.34.29
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.39.0-tm-v0.34.29.0.20240829173213-196919f56788
 )
