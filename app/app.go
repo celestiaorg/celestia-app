@@ -547,7 +547,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 }
 
 // InitChain implements the ABCI interface. This method is a wrapper around
-// baseapp's InitChain so we can take the app version and setup the multicommit
+// baseapp's InitChain so that we can take the app version and setup the multicommit
 // store.
 //
 // Side-effect: calls baseapp.Init()
@@ -566,6 +566,7 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
 		app.SetAppVersion(ctx, appVersion)
 	}
+	// TODO return timeouts as well
 	return res
 }
 
