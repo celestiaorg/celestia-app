@@ -10,6 +10,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	appv3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
@@ -457,7 +458,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
-	// For v1 only we upgrade using a agreed upon height known ahead of time
+	// For v1 only we upgrade using an agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeightV2-1 {
@@ -479,6 +480,13 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
+	// Update timeouts based on the current version.
+	// TODO: We check app.AppVersion(), which may differ from currentVersion,
+	// as we want to set the timeouts based on the app version
+	// that will be used in the next block.
+	v := app.AppVersion()
+	res.TimeoutCommit = appconsts.GetTimeoutCommit(v)
+	res.TimeoutPropose = appconsts.GetTimeoutPropose(v)
 	return res
 }
 
