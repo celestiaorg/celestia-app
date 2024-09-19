@@ -542,6 +542,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
+	// TODO add tiemouts to the response
 	return resp
 }
 
