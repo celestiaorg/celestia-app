@@ -33,8 +33,8 @@ var (
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
 )
 
-func GetTimeoutPropose() time.Duration {
-	switch LatestVersion {
+func GetTimeoutPropose(v uint64) time.Duration {
+	switch v {
 	case v3.Version:
 		return v3.TimeoutPropose
 	default:
@@ -42,8 +42,8 @@ func GetTimeoutPropose() time.Duration {
 	}
 }
 
-func GetTimeoutCommit() time.Duration {
-	switch LatestVersion {
+func GetTimeoutCommit(v uint64) time.Duration {
+	switch v {
 	case v3.Version:
 		return v3.TimeoutCommit
 	default:
