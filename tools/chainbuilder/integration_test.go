@@ -100,4 +100,5 @@ func TestRun(t *testing.T) {
 		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks*2)
 	}, time.Second*10, time.Millisecond*100)
 	require.NoError(t, cometNode.Stop())
+	cometNode.Wait()
 }

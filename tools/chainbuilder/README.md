@@ -25,5 +25,3 @@ The following are the set of options when generating a chain:
 - `namespace` allows you to pick a custom v0 namespace. By default "test" will be chosen.
 
 This tool takes roughly 60-70ms per 2MB block.
-
-
