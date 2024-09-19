@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	appv3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -108,6 +109,7 @@ var maccPerms = map[string][]string{
 const (
 	v1                    = appv1.Version
 	v2                    = appv2.Version
+	v3                    = appv3.Version
 	DefaultInitialVersion = v1
 )
 
@@ -340,11 +342,11 @@ func New(
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
-	// PacketForwardMiddleware is used only for version 2.
-	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
+	// PacketForwardMiddleware is used only for version >= 2.
+	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v3)
 	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
 	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
+	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v3)
 
 	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
 		appCodec,
