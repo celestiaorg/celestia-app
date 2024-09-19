@@ -9,8 +9,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	shares "github.com/celestiaorg/go-square/shares"
+	square "github.com/celestiaorg/go-square/square"
+	squarev2 "github.com/celestiaorg/go-square/v2"
+	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -108,7 +110,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold); err != nil {
+		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold, app.AppVersion()); err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject()
 		}
@@ -122,24 +124,40 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 	}
 
-	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(
-		req.BlockData.Txs,
-		app.MaxEffectiveSquareSize(sdkCtx),
-		subtreeRootThreshold,
+	var (
+		dataSquareBytes [][]byte
+		err             error
 	)
+
+	switch app.AppVersion() {
+	case v3:
+		var dataSquare squarev2.Square
+		dataSquare, err = squarev2.Construct(req.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
+		dataSquareBytes = sharev2.ToBytes(dataSquare)
+		// Assert that the square size stated by the proposer is correct
+		if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
+			logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
+			return reject()
+		}
+	case v2, v1:
+		var dataSquare square.Square
+		dataSquare, err = square.Construct(req.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
+		dataSquareBytes = shares.ToBytes(dataSquare)
+		// Assert that the square size stated by the proposer is correct
+		if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
+			logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
+			return reject()
+		}
+	default:
+		logInvalidPropBlock(app.Logger(), req.Header, "unsupported app version")
+		return reject()
+	}
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
 		return reject()
 	}
 
-	// Assert that the square size stated by the proposer is correct
-	if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-		return reject()
-	}
-
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(dataSquareBytes)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return reject()
