@@ -23,7 +23,7 @@ func TestPruningInTxTracker(t *testing.T) {
 			txClient.txTracker["tx"+fmt.Sprint(i)] = txInfo{
 				signer:   "signer" + fmt.Sprint(i),
 				sequence: uint64(i),
-				timeStamp: time.Now().
+				timestamp: time.Now().
 					Add(-10 * time.Minute),
 			}
 			txsToBePruned++
@@ -31,7 +31,7 @@ func TestPruningInTxTracker(t *testing.T) {
 			txClient.txTracker["tx"+fmt.Sprint(i)] = txInfo{
 				signer:   "signer" + fmt.Sprint(i),
 				sequence: uint64(i),
-				timeStamp: time.Now().
+				timestamp: time.Now().
 					Add(-5 * time.Minute),
 			}
 			txsNotReadyToBePruned++

@@ -398,7 +398,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	client.txTracker[resp.TxResponse.TxHash] = txInfo{
 		sequence:  client.signer.accounts[signer].Sequence(),
 		signer:    signer,
-		timeStamp: time.Now(),
+		timestamp: time.Now(),
 	}
 
 	// after the transaction has been submitted, we can increment the
@@ -412,7 +412,7 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 // pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
 func (client *TxClient) pruneTxTracker() {
 	for hash, txInfo := range client.txTracker {
-		if time.Since(txInfo.timeStamp) >= txTrackerPruningInterval {
+		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
 			delete(client.txTracker, hash)
 		}
 	}
