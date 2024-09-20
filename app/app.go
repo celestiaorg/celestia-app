@@ -543,6 +543,8 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
 	// TODO add tiemouts to the response
+	resp.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose()
+
 	return resp
 }
 
