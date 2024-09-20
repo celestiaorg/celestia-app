@@ -119,7 +119,7 @@ var (
 )
 
 func init() {
-	cat.InclusionDelay = time.Second * 20
+	cat.InclusionDelay = time.Second * 10
 }
 
 // App extends an ABCI application, but with most of its parameters exported.

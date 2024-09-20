@@ -3,15 +3,10 @@ package app
 import (
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app/ante"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -22,70 +17,70 @@ import (
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
-	sdkCtx := app.NewProposalContext(core.Header{
-		ChainID: req.ChainId,
-		Height:  req.Height,
-		Time:    req.Time,
-		Version: version.Consensus{
-			App: app.BaseApp.AppVersion(),
-		},
-	})
-	handler := ante.NewAnteHandler(
-		app.AccountKeeper,
-		app.BankKeeper,
-		app.BlobKeeper,
-		app.FeeGrantKeeper,
-		app.GetTxConfig().SignModeHandler(),
-		ante.DefaultSigVerificationGasConsumer,
-		app.IBCKeeper,
-		app.ParamsKeeper,
-		app.MsgGateKeeper,
-	)
+	// sdkCtx := app.NewProposalContext(core.Header{
+	// 	ChainID: req.ChainId,
+	// 	Height:  req.Height,
+	// 	Time:    req.Time,
+	// 	Version: version.Consensus{
+	// 		App: app.BaseApp.AppVersion(),
+	// 	},
+	// })
+	// handler := ante.NewAnteHandler(
+	// 	app.AccountKeeper,
+	// 	app.BankKeeper,
+	// 	app.BlobKeeper,
+	// 	app.FeeGrantKeeper,
+	// 	app.GetTxConfig().SignModeHandler(),
+	// 	ante.DefaultSigVerificationGasConsumer,
+	// 	app.IBCKeeper,
+	// 	app.ParamsKeeper,
+	// 	app.MsgGateKeeper,
+	// )
 
-	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	// // Filter out invalid transactions.
+	// txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 
-	// Build the square from the set of valid and prioritised transactions.
-	// The txs returned are the ones used in the square and block.
-	dataSquare, txs, err := square.Build(txs,
-		app.MaxEffectiveSquareSize(sdkCtx),
-		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
-	)
-	if err != nil {
-		panic(err)
-	}
+	// // Build the square from the set of valid and prioritised transactions.
+	// // The txs returned are the ones used in the square and block.
+	// dataSquare, txs, err := square.Build(txs,
+	// 	app.MaxEffectiveSquareSize(sdkCtx),
+	// 	appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
+	// )
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	// Erasure encode the data square to create the extended data square (eds).
-	// Note: uses the nmt wrapper to construct the tree. See
-	// pkg/wrapper/nmt_wrapper.go for more information.
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
-	if err != nil {
-		app.Logger().Error(
-			"failure to erasure the data square while creating a proposal block",
-			"error",
-			err.Error(),
-		)
-		panic(err)
-	}
+	// // Erasure encode the data square to create the extended data square (eds).
+	// // Note: uses the nmt wrapper to construct the tree. See
+	// // pkg/wrapper/nmt_wrapper.go for more information.
+	// eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	// if err != nil {
+	// 	app.Logger().Error(
+	// 		"failure to erasure the data square while creating a proposal block",
+	// 		"error",
+	// 		err.Error(),
+	// 	)
+	// 	panic(err)
+	// }
 
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		app.Logger().Error(
-			"failure to create new data availability header",
-			"error",
-			err.Error(),
-		)
-		panic(err)
-	}
+	// dah, err := da.NewDataAvailabilityHeader(eds)
+	// if err != nil {
+	// 	app.Logger().Error(
+	// 		"failure to create new data availability header",
+	// 		"error",
+	// 		err.Error(),
+	// 	)
+	// 	panic(err)
+	// }
 
 	// Tendermint doesn't need to use any of the erasure data because only the
 	// protobuf encoded version of the block data is gossiped. Therefore, the
 	// eds is not returned here.
 	return abci.ResponsePrepareProposal{
 		BlockData: &core.Data{
-			Txs:        txs,
-			SquareSize: uint64(dataSquare.Size()),
-			Hash:       dah.Hash(), // also known as the data root
+			Txs:        req.BlockData.Txs,
+			SquareSize: uint64(420),
+			Hash:       merkle.HashFromByteSlices(req.BlockData.Txs), // also known as the data root
 		},
 	}
 }
