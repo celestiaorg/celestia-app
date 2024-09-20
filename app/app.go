@@ -339,7 +339,7 @@ func New(
 	packetForwardMiddleware := packetforward.NewIBCMiddleware(
 		transferStack,
 		app.PacketForwardKeeper,
-		0,                                                                // retries on timeout
+		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
@@ -485,8 +485,8 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// as we want to set the timeouts based on the app version
 	// that will be used in the next block.
 	v := app.AppVersion()
-	res.TimeoutCommit = appconsts.GetTimeoutCommit(v)
-	res.TimeoutPropose = appconsts.GetTimeoutPropose(v)
+	res.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(v)
+	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(v)
 	return res
 }
 
@@ -542,7 +542,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
-	
+
 	resp.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(resp.AppVersion)
 	resp.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(resp.AppVersion)
 
