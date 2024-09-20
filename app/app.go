@@ -339,7 +339,7 @@ func New(
 	packetForwardMiddleware := packetforward.NewIBCMiddleware(
 		transferStack,
 		app.PacketForwardKeeper,
-		0, // retries on timeout
+		0,                                                                // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
@@ -542,8 +542,9 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
-	// TODO add tiemouts to the response
-	resp.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose()
+	
+	resp.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(resp.AppVersion)
+	resp.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(resp.AppVersion)
 
 	return resp
 }
