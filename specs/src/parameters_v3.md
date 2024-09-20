@@ -1,6 +1,6 @@
-# Parameters v2
+# Parameters v3
 
-The parameters below represent the parameters for app version 2.
+The parameters below represent the parameters for app version 3.
 
 Note that not all of these parameters are changeable via governance. This list
 also includes parameter that require a hardfork to change due to being manually
@@ -21,9 +21,9 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | auth.SigVerifyCostED25519                     | 590                                         | Gas used to verify Ed25519 signature.                                                                                               | True                      |
 | auth.SigVerifyCostSecp256k1                   | 1000                                        | Gas used to verify secp256k1 signature.                                                                                             | True                      |
 | auth.TxSigLimit                               | 7                                           | Max number of signatures allowed in a multisig transaction.                                                                         | True                      |
-| auth.TxSizeCostPerByte                        | 10                                          | Gas used per transaction byte.                                                                                                      | True                      |
+| auth.TxSizeCostPerByte                        | 10                                          | Gas used per transaction byte.                                                                                                      | False                      |
 | bank.SendEnabled                              | true                                        | Allow transfers.                                                                                                                    | False                     |
-| blob.GasPerBlobByte                           | 8                                           | Gas used per blob byte.                                                                                                             | True                      |
+| blob.GasPerBlobByte                           | 8                                           | Gas used per blob byte.                                                                                                             | False                      |
 | blob.GovMaxSquareSize                         | 64                                          | Governance parameter for the maximum square size of the original data square.                                                       | True                      |
 | consensus.block.MaxBytes                      | 1974272 bytes (~1.88 MiB)                   | Governance parameter for the maximum size of the protobuf encoded block.                                                            | True                      |
 | consensus.block.MaxGas                        | -1                                          | Maximum gas allowed per block (-1 is infinite).                                                                                     | True                      |

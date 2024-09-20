@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
@@ -19,17 +20,19 @@ import (
 // simulates an upgrade scenario with a single validator which signals for the version change, checks the quorum
 // has been reached and then calls TryUpgrade, asserting that the upgrade module returns the new app version
 func TestUpgradeIntegration(t *testing.T) {
-	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	cp := app.DefaultConsensusParams()
+	cp.Version.AppVersion = v2.Version
+	app, _ := testutil.SetupTestAppWithGenesisValSet(cp)
 	ctx := sdk.NewContext(app.CommitMultiStore(), tmtypes.Header{
 		Version: tmversion.Consensus{
-			App: 1,
+			App: v2.Version,
 		},
 	}, false, tmlog.NewNopLogger())
 	goCtx := sdk.WrapSDKContext(ctx)
 	ctx = sdk.UnwrapSDKContext(goCtx)
 
 	res, err := app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
-		Version: 2,
+		Version: 3,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 0, res.VotingPower)
@@ -40,12 +43,12 @@ func TestUpgradeIntegration(t *testing.T) {
 
 	_, err = app.SignalKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: valAddr.String(),
-		Version:          2,
+		Version:          3,
 	})
 	require.NoError(t, err)
 
 	res, err = app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
-		Version: 2,
+		Version: 3,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, res.VotingPower)
@@ -65,7 +68,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	// returns an error because an upgrade is pending.
 	_, err = app.SignalKeeper.SignalVersion(ctx, &types.MsgSignalVersion{
 		ValidatorAddress: valAddr.String(),
-		Version:          3,
+		Version:          4,
 	})
 	require.Error(t, err)
 	require.ErrorIs(t, err, types.ErrUpgradePending)
@@ -78,5 +81,5 @@ func TestUpgradeIntegration(t *testing.T) {
 
 	shouldUpgrade, version = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
-	require.EqualValues(t, 2, version)
+	require.EqualValues(t, 3, version)
 }

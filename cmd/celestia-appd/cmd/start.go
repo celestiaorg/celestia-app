@@ -4,7 +4,6 @@ package cmd
 // start command flag.
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -566,37 +565,30 @@ func addCommands(
 	)
 }
 
-// checkBBR checks is bbr is configured to be used as a congestion control algo.
+// checkBBR checks if BBR is enabled.
 func checkBBR(command *cobra.Command) error {
 	const (
-		errorMsg = `
-// The BBR congestion control algorithm does not appear to be enabled in this 
-// system's kernel. This is important for the p2p stack to be performant.
-//
-// to enable bbr call:
-//
+		warning = `
+The BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm is not enabled in this system's kernel.
+BBR is important for the performance of the p2p stack.
+
+To enable BBR:
 sudo modprobe tcp_bbr
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 sudo sysctl -p
-// 
-// and can be verified to be running using
-//
+
+Then verify BBR is enabled:
 sysctl net.ipv4.tcp_congestion_control
 
-// This might not work for all systems, you might have to search online to 
-// figure out how to enable bbr for your system.
-//
-// While this node will get worse performance using something other than bbr,
-// If you need to bypass this block use the "--force-no-bbr true" flag.
-		`
+This node will get worse p2p performance using a different congestion control algorithm.
+If you need to bypass this check use the --force-no-bbr flag.
+`
 	)
-
-	noBBRErr := errors.New(errorMsg)
 
 	forceNoBBR, err := command.Flags().GetBool(FlagForceNoBBR)
 	if err != nil {
-		return noBBRErr
+		return err
 	}
 	if forceNoBBR {
 		return nil
@@ -605,11 +597,13 @@ sysctl net.ipv4.tcp_congestion_control
 	cmd := exec.Command("sysctl", "net.ipv4.tcp_congestion_control")
 	output, err := cmd.Output()
 	if err != nil {
-		return err
+		fmt.Print(warning)
+		return fmt.Errorf("failed to execute 'sysctl net.ipv4.tcp_congestion_control' %w", err)
 	}
 
 	if !strings.Contains(string(output), "bbr") {
-		return noBBRErr
+		fmt.Print(warning)
+		return fmt.Errorf("BBR not enabled because output %v does not contain 'bbr'", string(output))
 	}
 
 	return nil

@@ -1,13 +1,16 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	square "github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
+	shares "github.com/celestiaorg/go-square/shares"
+	square "github.com/celestiaorg/go-square/square"
+	squarev2 "github.com/celestiaorg/go-square/v2"
+	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -27,7 +30,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		Height:  req.Height,
 		Time:    req.Time,
 		Version: version.Consensus{
-			App: app.BaseApp.AppVersion(),
+			App: app.AppVersion(),
 		},
 	})
 	handler := ante.NewAnteHandler(
@@ -47,10 +50,31 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
-	dataSquare, txs, err := square.Build(txs,
-		app.MaxEffectiveSquareSize(sdkCtx),
-		appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
+	var (
+		dataSquareBytes [][]byte
+		err             error
+		size            uint64
 	)
+	switch app.AppVersion() {
+	case v3:
+		var dataSquare squarev2.Square
+		dataSquare, txs, err = squarev2.Build(txs,
+			app.MaxEffectiveSquareSize(sdkCtx),
+			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
+		)
+		dataSquareBytes = sharev2.ToBytes(dataSquare)
+		size = uint64(dataSquare.Size())
+	case v2, v1:
+		var dataSquare square.Square
+		dataSquare, txs, err = square.Build(txs,
+			app.MaxEffectiveSquareSize(sdkCtx),
+			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
+		)
+		dataSquareBytes = shares.ToBytes(dataSquare)
+		size = uint64(dataSquare.Size())
+	default:
+		err = fmt.Errorf("unsupported app version: %d", app.AppVersion())
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +82,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// Erasure encode the data square to create the extended data square (eds).
 	// Note: uses the nmt wrapper to construct the tree. See
 	// pkg/wrapper/nmt_wrapper.go for more information.
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(dataSquareBytes)
 	if err != nil {
 		app.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",
@@ -84,7 +108,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	return abci.ResponsePrepareProposal{
 		BlockData: &core.Data{
 			Txs:        txs,
-			SquareSize: uint64(dataSquare.Size()),
+			SquareSize: size,
 			Hash:       dah.Hash(), // also known as the data root
 		},
 	}

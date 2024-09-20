@@ -14,7 +14,7 @@ const (
 	// blockTime is the observed average time between blocks. You can update this
 	// value based on the block time on https://www.mintscan.io/celestia/block/ or
 	// the output from the blocktime tool.
-	blockTime = 12.05 // seconds between blocks for Mocha
+	blockTime = 11.75 // seconds between blocks on Mainnet Beta.
 
 	// exampleArabicaRPC is an example node RPC endpoint for the Arabica testnet.
 	exampleArabicaRPC = "https://rpc.celestia-arabica-11.com:443"
@@ -22,11 +22,17 @@ const (
 	// exampleMochaRPC is an example node RPC endpoint for the Mocha testnet.
 	exampleMochaRPC = "https://celestia-mocha-rpc.publicnode.com:443"
 
+	// exampleMainnetHeight is an example node RPC endpoint for Mainnet Beta.
+	exampleMainnetRPC = "https://celestia-rpc.publicnode.com:443"
+
 	// exampleArabicaHeight is an example block height for the Arabica testnet.
 	exampleArabicaHeight = 1751707
 
 	// exampleMochaHeight is an example block height for the Mocha testnet.
 	exampleMochaHeight = 2585031
+
+	// exampleMainnetHeight is an example block height for Mainnet Beta.
+	exampleMainnetHeight = 2371495
 )
 
 func main() {
@@ -40,6 +46,7 @@ func Run() error {
 		fmt.Printf("Usage: %s <node_rpc> <target_block_height>\n", os.Args[0])
 		fmt.Printf("Example: %s %s %v\n", os.Args[0], exampleArabicaRPC, exampleArabicaHeight)
 		fmt.Printf("Example: %s %s %v\n", os.Args[0], exampleMochaRPC, exampleMochaHeight)
+		fmt.Printf("Example: %s %s %v\n", os.Args[0], exampleMainnetRPC, exampleMainnetHeight)
 		return nil
 	}
 
@@ -65,7 +72,7 @@ func Run() error {
 	}
 	diffInBlockHeight := targetBlockHeight - currentHeight
 	diffInSeconds := blockTime * float64(diffInBlockHeight)
-	diffInTime, err := time.ParseDuration(fmt.Sprintf("%vs", diffInSeconds))
+	diffInTime, err := time.ParseDuration(fmt.Sprintf("%.0fs", diffInSeconds))
 	if err != nil {
 		return err
 	}
