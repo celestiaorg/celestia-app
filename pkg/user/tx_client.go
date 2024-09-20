@@ -45,7 +45,7 @@ type Option func(client *TxClient)
 type txInfo struct {
 	sequence  uint64
 	signer    string
-	timeStamp time.Time
+	timestamp time.Time
 }
 
 // TxResponse is a response from the chain after
