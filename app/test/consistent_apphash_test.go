@@ -26,7 +26,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -303,23 +303,23 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 
 	// NewMsgCreatePeriodicVestingAccount - creates a periodic vesting account
 	newAddress := sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress")).PubKey().Address())
-	vestingPeriod := []vesting.Period{
+	vestingPeriod := []vestingtypes.Period{
 		{
 			Length: 3600,
 			Amount: amount,
 		},
 	}
-	msgCreatePeriodicVestingAccount := vesting.NewMsgCreatePeriodicVestingAccount(accountAddresses[3], newAddress, 2, vestingPeriod)
+	msgCreatePeriodicVestingAccount := vestingtypes.NewMsgCreatePeriodicVestingAccount(accountAddresses[3], newAddress, 2, vestingPeriod)
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePeriodicVestingAccount)
 
 	// NewMsgCreatePermanentLockedAccount - creates a permanent locked account
 	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress2")).PubKey().Address())
-	msgCreatePermamentLockedAccount := vesting.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
+	msgCreatePermamentLockedAccount := vestingtypes.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePermamentLockedAccount)
 
 	// NewMsgCreateVestingAccount - creates a vesting account
 	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress3")).PubKey().Address())
-	msgCreateVestingAccount := vesting.NewMsgCreateVestingAccount(accountAddresses[3], newAddress, amount, 1, 2, false)
+	msgCreateVestingAccount := vestingtypes.NewMsgCreateVestingAccount(accountAddresses[3], newAddress, amount, 1, 2, false)
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreateVestingAccount)
 
 	// ------------ Third Block ------------
@@ -336,7 +336,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
 
 	// NewMsgRegisterEVMAddress - registers an EVM address
-	// This message is only available on v1
+	// This message was removed in v2
 	if testApp.AppVersion() == v1.Version {
 		msgRegisterEVMAddress := blobstreamtypes.NewMsgRegisterEVMAddress(genValidators[1].GetOperator(), gethcommon.HexToAddress("hi"))
 		thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgRegisterEVMAddress)
