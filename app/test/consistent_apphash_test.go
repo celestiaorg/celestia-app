@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
@@ -25,7 +26,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -72,9 +72,9 @@ func TestConsistentAppHash(t *testing.T) {
 			version:            v1.Version,
 			encodedSdkMessages: encodedSdkMessagesV1,
 			encodedBlobTxs:     createEncodedBlobTx,
-			expectedDataRoot:   []byte{100, 59, 112, 241, 238, 49, 50, 64, 105, 90, 209, 211, 49, 254, 211, 83, 133, 88, 5, 89, 221, 116, 141, 72, 33, 110, 16, 78, 5, 48, 118, 72},
+			expectedDataRoot:   []byte{30, 142, 46, 120, 191, 30, 242, 150, 164, 242, 166, 245, 89, 183, 181, 41, 88, 197, 11, 19, 243, 46, 69, 97, 3, 51, 27, 133, 68, 95, 95, 121},
 			// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
-			expectedAppHash: []byte{84, 216, 210, 48, 113, 204, 234, 21, 150, 236, 97, 87, 242, 184, 45, 248, 116, 127, 49, 88, 134, 197, 202, 125, 44, 210, 67, 144, 107, 51, 145, 65},
+			expectedAppHash: []byte{57, 128, 107, 57, 6, 131, 221, 188, 181, 181, 135, 58, 37, 240, 135, 66, 199, 107, 80, 154, 240, 176, 57, 36, 238, 69, 25, 188, 86, 203, 145, 145},
 		},
 		{
 			name:    "execute sdk messages and blob tx on v2",
@@ -89,7 +89,7 @@ func TestConsistentAppHash(t *testing.T) {
 			encodedBlobTxs:   createEncodedBlobTx,
 			expectedDataRoot: []byte{200, 61, 245, 166, 119, 211, 170, 2, 73, 239, 253, 97, 243, 112, 116, 196, 70, 41, 201, 172, 123, 28, 15, 182, 52, 222, 122, 243, 95, 97, 66, 233},
 			// Expected app hash produced on v2.x - https://github.com/celestiaorg/celestia-app/blob/v2.x/app/test/consistent_apphash_test.go
-			expectedAppHash: []byte{16, 144, 102, 79, 23, 207, 200, 139, 77, 245, 250, 101, 217, 227, 255, 245, 172, 1, 44, 70, 188, 140, 215, 103, 178, 4, 80, 179, 11, 150, 31, 134},
+			expectedAppHash: []byte{14, 115, 34, 28, 33, 70, 118, 3, 111, 250, 161, 185, 187, 151, 54, 78, 86, 37, 44, 252, 8, 26, 164, 251, 36, 20, 151, 170, 181, 84, 32, 136},
 		},
 	}
 
