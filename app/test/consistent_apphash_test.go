@@ -25,6 +25,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -33,6 +35,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -103,10 +106,10 @@ func TestConsistentAppHash(t *testing.T) {
 			require.NoError(t, err)
 
 			// Get account names and addresses from the keyring and create signer
-			signer, accountAddresses := getAccountsAndCreateSigner(t, kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, testApp)
+			signer, accountAddresses := getAccountsAndCreateSigner(t, kr, enc.TxConfig, testutil.ChainID, tt.version, testApp)
 			// Validators from genesis state
 			genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
-			valSigner, _ := getAccountsAndCreateSigner(t, valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, testApp)
+			valSigner, _ := getAccountsAndCreateSigner(t, valKeyRing, enc.TxConfig, testutil.ChainID, tt.version, testApp)
 
 			// Convert validators to ABCI validators
 			abciValidators, err := convertToABCIValidators(genValidators)
@@ -116,15 +119,14 @@ func TestConsistentAppHash(t *testing.T) {
 			encodedBlobTx := tt.encodedBlobTxs(t, signer, accountAddresses)
 
 			// Execute the first block
-			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockTxs, abciValidators, testApp.LastCommitID().Hash, tt.version)
+			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockTxs, abciValidators, testApp.LastCommitID().Hash)
 			require.NoError(t, err)
 			// Execute the second block
-			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockTxs, abciValidators, firstBlockAppHash, tt.version)
+			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockTxs, abciValidators, firstBlockAppHash)
 			require.NoError(t, err)
 			// Execute the final block and get the data root alongside the final app hash
-			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockTxs, abciValidators, secondBlockAppHash, tt.version)
+			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockTxs, abciValidators, secondBlockAppHash)
 			require.NoError(t, err)
-			fmt.Println(finalDataRoot, finalAppHash, tt.version)
 
 			// Require that the app hash is equal to the app hash produced on a different commit
 			require.Equal(t, tt.expectedAppHash, finalAppHash)
@@ -135,7 +137,7 @@ func TestConsistentAppHash(t *testing.T) {
 }
 
 // getAccountsAndCreateSigner returns a signer with accounts
-func getAccountsAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxConfig, chainID string, initialVersion uint64, testApp *app.App) (*user.Signer, []sdk.AccAddress) {
+func getAccountsAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxConfig, chainID string, appVersion uint64, testApp *app.App) (*user.Signer, []sdk.AccAddress) {
 	// Get account names and addresses from the keyring
 	accountNames := testfactory.GetAccountNames(kr)
 	accountAddresses := testfactory.GetAddresses(kr)
@@ -144,7 +146,7 @@ func getAccountsAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxC
 	// Create accounts for the signer
 	accounts := createAccounts(accountInfos, accountNames)
 	// Create a signer with accounts
-	signer, err := user.NewSigner(kr, enc, chainID, initialVersion, accounts...)
+	signer, err := user.NewSigner(kr, enc, chainID, appVersion, accounts...)
 	require.NoError(t, err)
 	return signer, accountAddresses
 }
@@ -299,6 +301,27 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], genValidators[0].GetOperator())
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgWithdrawDelegatorReward)
 
+	// NewMsgCreatePeriodicVestingAccount - creates a periodic vesting account
+	newAddress := sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress")).PubKey().Address())
+	vestingPeriod := []vesting.Period{
+		{
+			Length: 3600,
+			Amount: amount,
+		},
+	}
+	msgCreatePeriodicVestingAccount := vesting.NewMsgCreatePeriodicVestingAccount(accountAddresses[3], newAddress, 2, vestingPeriod)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePeriodicVestingAccount)
+
+	// NewMsgCreatePermanentLockedAccount - creates a permanent locked account
+	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress2")).PubKey().Address())
+	msgCreatePermamentLockedAccount := vesting.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePermamentLockedAccount)
+
+	// NewMsgCreateVestingAccount - creates a vesting account
+	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress3")).PubKey().Address())
+	msgCreateVestingAccount := vesting.NewMsgCreateVestingAccount(accountAddresses[3], newAddress, amount, 1, 2, false)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreateVestingAccount)
+
 	// ------------ Third Block ------------
 
 	// Txs within the third block are signed by the validator's signer
@@ -311,6 +334,13 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	// NewMsgUnjail - unjails validator-3
 	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
+
+	// NewMsgRegisterEVMAddress - registers an EVM address
+	// This message is only available on v1
+	if testApp.AppVersion() == v1.Version {
+		msgRegisterEVMAddress := blobstreamtypes.NewMsgRegisterEVMAddress(genValidators[1].GetOperator(), gethcommon.HexToAddress("hi"))
+		thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgRegisterEVMAddress)
+	}
 
 	firstBlockTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
 	require.NoError(t, err)
@@ -417,7 +447,7 @@ func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, e
 }
 
 // executeTxs executes a set of transactions and returns the data hash and app hash
-func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte, appVersion uint64) ([]byte, []byte, error) {
+func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
 	chainID := testApp.GetChainID()
 
@@ -440,7 +470,7 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 	dataHash := resPrepareProposal.BlockData.Hash
 
 	header := tmproto.Header{
-		Version:        version.Consensus{App: appVersion},
+		Version:        version.Consensus{App: testApp.AppVersion()},
 		DataHash:       resPrepareProposal.BlockData.Hash,
 		ChainID:        chainID,
 		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
