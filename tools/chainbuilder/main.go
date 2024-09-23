@@ -7,15 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	dbm "github.com/cometbft/cometbft-db"
@@ -34,6 +25,16 @@ import (
 	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
 	tmdbm "github.com/tendermint/tm-db"
+
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 )
 
 var defaultNamespace share.Namespace
@@ -128,7 +129,10 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		validator := genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)
 		appCfg := app.DefaultAppConfig()
 		appCfg.Pruning = "everything" // we just want the last two states
+		cp := app.DefaultConsensusParams()
+		cp.Version.AppVersion = 2
 		gen = genesis.NewDefaultGenesis().
+			WithConsensusParams(cp).
 			WithKeyring(kr).
 			WithChainID(cfg.ChainID).
 			WithGenesisTime(startTime).
@@ -280,7 +284,15 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		errCh <- persistDataRoutine(ctx, stateStore, blockStore, persistCh)
 	}()
 
+	lastBlock := blockStore.LoadBlock(blockStore.Height())
+
 	for height := lastHeight + 1; height <= int64(cfg.NumBlocks)+lastHeight; height++ {
+		if lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
+			fmt.Println(fmt.Sprintf("blocks cannot be generated into the future, stopping at height %d",
+				lastBlock.Height))
+			break
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
