@@ -523,14 +523,14 @@ func persistDataRoutine(
 			if !ok {
 				return nil
 			}
-
-			if err := stateStore.Save(data.state); err != nil {
-				return err
-			}
 			blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
 			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
 			if blockStore.Height()%100 == 0 {
 				fmt.Println("Reached height", blockStore.Height())
+			}
+
+			if err := stateStore.Save(data.state); err != nil {
+				return err
 			}
 		}
 	}
