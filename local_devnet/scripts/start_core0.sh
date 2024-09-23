@@ -17,4 +17,5 @@ fi
 /bin/celestia-appd start \
   --moniker core0 \
   --rpc.laddr tcp://0.0.0.0:26657 \
-  --home /opt
+  --home /opt \
+  --force-no-bbr
