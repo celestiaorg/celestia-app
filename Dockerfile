@@ -8,6 +8,9 @@ ARG BUILDER_IMAGE=docker.io/golang:1.22.6-alpine3.19
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
 ARG TARGETOS
 ARG TARGETARCH
+# Use build args to override the maxuimum square size of the docker image i.e.
+# docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
+ARG MAX_SQUARE_SIZE
 
 # Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -28,6 +31,7 @@ COPY . /celestia-app
 WORKDIR /celestia-app
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
     make build
 
 # Stage 2: Create a minimal image to run the celestia-appd binary

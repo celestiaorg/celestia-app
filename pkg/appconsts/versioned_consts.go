@@ -23,6 +23,9 @@ func SubtreeRootThreshold(_ uint64) int {
 
 // SquareSizeUpperBound imposes an upper bound on the max effective square size.
 func SquareSizeUpperBound(_ uint64) int {
+	if OverrideSquareSizeUpperBound != 0 {
+		return int(OverrideSquareSizeUpperBound)
+	}
 	return v1.SquareSizeUpperBound
 }
 

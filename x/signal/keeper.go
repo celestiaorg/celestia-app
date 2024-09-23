@@ -12,11 +12,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-// DefaultUpgradeHeightDelay is the number of blocks after a quorum has been
-// reached that the chain should upgrade to the new version. Assuming a block
-// interval of 12 seconds, this is 7 days.
-const DefaultUpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 12) // 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 50,400 blocks.
-
 // Keeper implements the MsgServer and QueryServer interfaces
 var (
 	_ types.MsgServer   = &Keeper{}
@@ -46,6 +41,10 @@ type Keeper struct {
 	// stakingKeeper is used to fetch validators to calculate the total power
 	// signalled to a version.
 	stakingKeeper StakingKeeper
+
+	// upgradeHeightDelayBlocks is the number of blocks after a quorum has been
+	// reached that the chain should upgrade to the new version
+	upgradeHeightDelayBlocks int64
 }
 
 // NewKeeper returns a signal keeper.
@@ -53,11 +52,13 @@ func NewKeeper(
 	binaryCodec codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
 	stakingKeeper StakingKeeper,
+	upgradeHeightDelayBlocks int64,
 ) Keeper {
 	return Keeper{
-		binaryCodec:   binaryCodec,
-		storeKey:      storeKey,
-		stakingKeeper: stakingKeeper,
+		binaryCodec:              binaryCodec,
+		storeKey:                 storeKey,
+		stakingKeeper:            stakingKeeper,
+		upgradeHeightDelayBlocks: upgradeHeightDelayBlocks,
 	}
 }
 
@@ -108,7 +109,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		}
 		upgrade := types.Upgrade{
 			AppVersion:    version,
-			UpgradeHeight: sdkCtx.BlockHeader().Height + DefaultUpgradeHeightDelay,
+			UpgradeHeight: sdkCtx.BlockHeader().Height + k.upgradeHeightDelayBlocks,
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}
