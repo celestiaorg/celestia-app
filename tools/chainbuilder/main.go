@@ -144,7 +144,9 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		validator := genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)
 		appCfg := app.DefaultAppConfig()
 		appCfg.Pruning = "everything" // we just want the last two states
+		appCfg.StateSync.SnapshotInterval = 0
 		cp := app.DefaultConsensusParams()
+
 		cp.Version.AppVersion = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
