@@ -60,6 +60,7 @@ func main() {
 			namespaceStr, _ := cmd.Flags().GetString("namespace")
 			upToTime, _ := cmd.Flags().GetBool("up-to-now")
 			appVersion, _ := cmd.Flags().GetUint64("app-version")
+			chainID, _ := cmd.Flags().GetString("chain-id")
 			var namespace share.Namespace
 			if namespaceStr == "" {
 				namespace = defaultNamespace
@@ -82,6 +83,10 @@ func main() {
 				AppVersion:    appVersion,
 			}
 
+			if chainID == "" {
+				cfg.ChainID = tmrand.Str(6)
+			}
+
 			dir, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("failed to get current working directory: %w", err)
@@ -98,6 +103,9 @@ func main() {
 	rootCmd.Flags().String("namespace", "", "Custom namespace for the chain")
 	rootCmd.Flags().Bool("up-to-now", false, "Tool will terminate if the block time reaches the current time")
 	rootCmd.Flags().Uint64("app-version", appconsts.LatestVersion, "App version to use for the chain")
+	rootCmd.Flags().String("chain-id", "", "Chain ID to use for the chain. Defaults to a random 6 character string")
+	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
