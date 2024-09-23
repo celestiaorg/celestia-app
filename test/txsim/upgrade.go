@@ -28,16 +28,16 @@ func NewUpgradeSequence(version uint64, height int64) *UpgradeSequence {
 	return &UpgradeSequence{version: version, height: height, voted: make(map[string]bool)}
 }
 
-func (s *UpgradeSequence) Clone(n int) []Sequence {
+func (s *UpgradeSequence) Clone(_ int) []Sequence {
 	panic("cloning not supported for upgrade sequence. Only a single sequence is needed")
 }
 
 // this is a no-op for the upgrade sequence
-func (s *UpgradeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, useFeegrant bool) {
+func (s *UpgradeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand, _ bool) {
 	s.account = allocateAccounts(1, fundsForUpgrade)[0]
 }
 
-func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error) {
+func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *rand.Rand) (Operation, error) {
 	if s.hasUpgraded {
 		return Operation{}, ErrEndOfSequence
 	}

@@ -189,7 +189,7 @@ func TestTxSimUpgrade(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	conn, err := grpc.Dial(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
 
