@@ -197,9 +197,12 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
 	)
 
-	_ = simApp.Info(abci.RequestInfo{})
+	infoResp := simApp.Info(abci.RequestInfo{})
 
 	lastHeight := blockStore.Height()
+	if infoResp.LastBlockHeight != lastHeight {
+		return fmt.Errorf("last application height is %d, but the block store height is %d", infoResp.LastBlockHeight, lastHeight)
+	}
 
 	if lastHeight == 0 {
 		if gen == nil {
@@ -255,6 +258,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		// if this is extending an existing chain, we want to start
 		// the time to be where the existing chain left off
 		currentTime = state.LastBlockTime.Add(cfg.BlockInterval)
+	}
+
+	if state.ConsensusParams.Version.AppVersion != cfg.AppVersion {
+		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
+	}
+
+	if state.LastBlockHeight != lastHeight {
+		return fmt.Errorf("last block height mismatch: state has %d, but block store has %d", state.LastBlockHeight, lastHeight)
 	}
 
 	validatorPower := state.Validators.Validators[0].VotingPower
