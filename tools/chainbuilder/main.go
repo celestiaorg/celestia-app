@@ -83,8 +83,8 @@ func main() {
 				AppVersion:    appVersion,
 			}
 
-			if chainID == "" {
-				cfg.ChainID = tmrand.Str(6)
+			if chainID != "" {
+				cfg.ChainID = chainID
 			}
 
 			dir, err := os.Getwd()
