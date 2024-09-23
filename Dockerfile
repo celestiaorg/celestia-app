@@ -11,6 +11,9 @@ ARG TARGETARCH
 # Use build args to override the maxuimum square size of the docker image i.e.
 # docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
 ARG MAX_SQUARE_SIZE
+# Use build args to override the upgrade height delay of the docker image i.e.
+# docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
+ARG UPGRADE_HEIGHT_DELAY
 
 # Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -32,6 +35,7 @@ WORKDIR /celestia-app
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
+    OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
     make build
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
