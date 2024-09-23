@@ -5,6 +5,6 @@ package appconsts
 // must have the same values for these constants.
 // Look at the Makefile to see how these are set.
 var (
-	OverrideSquareSizeUpperBound uint64
-	OverrideUpgradeHeightDelay   int64
+	OverrideSquareSizeUpperBoundStr string
+	OverrideUpgradeHeightDelayStr   string
 )

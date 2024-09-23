@@ -18,8 +18,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideSquareSizeUpperBound=$(OVERRIDE_MAX_SQUARE_SIZE) \
-		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideUpgradeHeightDelay=$(OVERRIDE_UPGRADE_HEIGHT_DELAY)
+		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideSquareSizeUpperBoundStr=$(OVERRIDE_MAX_SQUARE_SIZE) \
+		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideUpgradeHeightDelayStr=$(OVERRIDE_UPGRADE_HEIGHT_DELAY)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 

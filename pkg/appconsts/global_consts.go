@@ -1,6 +1,8 @@
 package appconsts
 
 import (
+	"strconv"
+
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -51,8 +53,12 @@ var (
 
 // returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
 func UpgradeHeightDelay() int64 {
-	if OverrideUpgradeHeightDelay != 0 {
-		return OverrideUpgradeHeightDelay
+	if OverrideUpgradeHeightDelayStr != "" {
+		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
+		if err != nil {
+			panic("Invalid OverrideUpgradeHeightDelayStr value")
+		}
+		return parsedValue
 	}
 	return DefaultUpgradeHeightDelay
 }
