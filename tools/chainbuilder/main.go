@@ -39,7 +39,10 @@ import (
 
 var defaultNamespace share.Namespace
 
-const defaultNamespaceStr = "test"
+const (
+	defaultNamespaceStr = "test"
+	maxSquareSize       = 512
+)
 
 func init() {
 	defaultNamespace = share.MustNewV0Namespace([]byte(defaultNamespaceStr))
@@ -52,10 +55,11 @@ func main() {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			numBlocks, _ := cmd.Flags().GetInt("num-blocks")
 			blockSize, _ := cmd.Flags().GetInt("block-size")
-			squareSize, _ := cmd.Flags().GetInt("square-size")
 			blockInterval, _ := cmd.Flags().GetDuration("block-interval")
 			existingDir, _ := cmd.Flags().GetString("existing-dir")
 			namespaceStr, _ := cmd.Flags().GetString("namespace")
+			upToTime, _ := cmd.Flags().GetBool("up-to-now")
+			appVersion, _ := cmd.Flags().GetUint64("app-version")
 			var namespace share.Namespace
 			if namespaceStr == "" {
 				namespace = defaultNamespace
@@ -70,11 +74,12 @@ func main() {
 			cfg := BuilderConfig{
 				NumBlocks:     numBlocks,
 				BlockSize:     blockSize,
-				SquareSize:    squareSize,
 				BlockInterval: blockInterval,
 				ExistingDir:   existingDir,
 				Namespace:     namespace,
 				ChainID:       tmrand.Str(6),
+				UpToTime:      upToTime,
+				AppVersion:    appVersion,
 			}
 
 			dir, err := os.Getwd()
@@ -88,10 +93,11 @@ func main() {
 
 	rootCmd.Flags().Int("num-blocks", 100, "Number of blocks to generate")
 	rootCmd.Flags().Int("block-size", appconsts.DefaultMaxBytes, "Size of each block in bytes")
-	rootCmd.Flags().Int("square-size", appconsts.DefaultSquareSizeUpperBound, "Size of the square")
 	rootCmd.Flags().Duration("block-interval", time.Second, "Interval between blocks")
 	rootCmd.Flags().String("existing-dir", "", "Existing directory to load chain from")
 	rootCmd.Flags().String("namespace", "", "Custom namespace for the chain")
+	rootCmd.Flags().Bool("up-to-now", false, "Tool will terminate if the block time reaches the current time")
+	rootCmd.Flags().Uint64("app-version", appconsts.LatestVersion, "App version to use for the chain")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -101,11 +107,12 @@ func main() {
 type BuilderConfig struct {
 	NumBlocks     int
 	BlockSize     int
-	SquareSize    int
 	BlockInterval time.Duration
 	ExistingDir   string
 	Namespace     share.Namespace
 	ChainID       string
+	AppVersion    uint64
+	UpToTime      bool
 }
 
 func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
@@ -130,7 +137,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg := app.DefaultAppConfig()
 		appCfg.Pruning = "everything" // we just want the last two states
 		cp := app.DefaultConsensusParams()
-		cp.Version.AppVersion = 2
+		cp.Version.AppVersion = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
 			WithKeyring(kr).
@@ -287,9 +294,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	lastBlock := blockStore.LoadBlock(blockStore.Height())
 
 	for height := lastHeight + 1; height <= int64(cfg.NumBlocks)+lastHeight; height++ {
-		if lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
-			fmt.Println(fmt.Sprintf("blocks cannot be generated into the future, stopping at height %d",
-				lastBlock.Height))
+		if cfg.UpToTime && lastBlock != nil && lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
+			fmt.Printf("blocks cannot be generated into the future, stopping at height %d\n", lastBlock.Height)
 			break
 		}
 
@@ -456,7 +462,7 @@ func generateSquareRoutine(
 
 		dataSquare, txs, err := square.Build(
 			[][]byte{tx},
-			cfg.SquareSize,
+			maxSquareSize,
 			appconsts.SubtreeRootThreshold(1),
 		)
 		if err != nil {

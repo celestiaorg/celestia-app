@@ -35,7 +35,6 @@ func TestRun(t *testing.T) {
 	cfg := BuilderConfig{
 		NumBlocks:     numBlocks,
 		BlockSize:     appconsts.DefaultMaxBytes,
-		SquareSize:    appconsts.DefaultSquareSizeUpperBound,
 		BlockInterval: time.Second,
 		ChainID:       tmrand.Str(6),
 		Namespace:     defaultNamespace,

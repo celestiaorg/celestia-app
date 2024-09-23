@@ -12,7 +12,6 @@ func BenchmarkRun(b *testing.B) {
 	cfg := BuilderConfig{
 		NumBlocks:     100,
 		BlockSize:     appconsts.DefaultMaxBytes,
-		SquareSize:    appconsts.DefaultSquareSizeUpperBound,
 		BlockInterval: time.Second,
 	}
 
