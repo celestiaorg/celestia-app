@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
@@ -99,7 +98,7 @@ func TestAppUpgradeV3(t *testing.T) {
 
 	// brace yourselfs, this part may take a while
 	initialHeight := int64(4)
-	for height := initialHeight; height < initialHeight+signal.DefaultUpgradeHeightDelay; height++ {
+	for height := initialHeight; height < initialHeight+appconsts.DefaultUpgradeHeightDelay; height++ {
 		_ = testApp.BeginBlock(abci.RequestBeginBlock{
 			Header: tmproto.Header{
 				Height:  height,
@@ -108,7 +107,7 @@ func TestAppUpgradeV3(t *testing.T) {
 		})
 
 		endBlockResp = testApp.EndBlock(abci.RequestEndBlock{
-			Height: 3 + signal.DefaultUpgradeHeightDelay,
+			Height: 3 + appconsts.DefaultUpgradeHeightDelay,
 		})
 
 		_ = testApp.Commit()
@@ -130,7 +129,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	_ = testApp.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			ChainID: genesis.ChainID,
-			Height:  initialHeight + signal.DefaultUpgradeHeightDelay,
+			Height:  initialHeight + appconsts.DefaultUpgradeHeightDelay,
 			Version: tmversion.Consensus{App: 3},
 		},
 	})

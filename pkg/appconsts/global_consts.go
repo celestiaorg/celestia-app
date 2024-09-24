@@ -1,6 +1,8 @@
 package appconsts
 
 import (
+	"strconv"
+
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -24,6 +26,11 @@ const (
 
 	// BondDenom defines the native staking denomination
 	BondDenom = "utia"
+
+	// DefaultUpgradeHeightDelay is the number of blocks after a quorum has been
+	// reached that the chain should upgrade to the new version. Assuming a block
+	// interval of 12 seconds, this is 7 days.
+	DefaultUpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 12) // 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 50,400 blocks.
 )
 
 var (
@@ -43,6 +50,18 @@ var (
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = share.SupportedShareVersions
 )
+
+// returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
+func UpgradeHeightDelay() int64 {
+	if OverrideUpgradeHeightDelayStr != "" {
+		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
+		if err != nil {
+			panic("Invalid OverrideUpgradeHeightDelayStr value")
+		}
+		return parsedValue
+	}
+	return DefaultUpgradeHeightDelay
+}
 
 // HashLength returns the length of a hash in bytes.
 func HashLength() int {

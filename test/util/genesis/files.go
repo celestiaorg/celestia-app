@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/tendermint/tendermint/config"
 	tmos "github.com/tendermint/tendermint/libs/os"
 	"github.com/tendermint/tendermint/p2p"
@@ -17,53 +18,58 @@ import (
 func InitFiles(
 	rootDir string,
 	tmConfig *config.Config,
+	appCfg *srvconfig.Config,
 	genesis *Genesis,
 	validatorIndex int,
-) (basePath string, err error) {
+) error {
 	val, has := genesis.Validator(validatorIndex)
 	if !has {
-		return "", fmt.Errorf("validator %d not found", validatorIndex)
+		return fmt.Errorf("validator %d not found", validatorIndex)
 	}
 
-	basePath = filepath.Join(rootDir, ".celestia-app")
-	tmConfig.SetRoot(basePath)
+	tmConfig.SetRoot(rootDir)
 
 	// save the genesis file
-	configPath := filepath.Join(basePath, "config")
-	err = os.MkdirAll(configPath, os.ModePerm)
+	configPath := filepath.Join(rootDir, "config")
+	err := os.MkdirAll(configPath, os.ModePerm)
 	if err != nil {
-		return "", err
+		return err
 	}
 	genesisDoc, err := genesis.Export()
 	if err != nil {
-		return "", fmt.Errorf("exporting genesis: %w", err)
+		return fmt.Errorf("exporting genesis: %w", err)
 	}
 	err = genesisDoc.SaveAs(tmConfig.GenesisFile())
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	pvStateFile := tmConfig.PrivValidatorStateFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
-		return "", err
+		return err
 	}
 	pvKeyFile := tmConfig.PrivValidatorKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
-		return "", err
+		return err
 	}
 	filePV := privval.NewFilePV(val.ConsensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 
 	nodeKeyFile := tmConfig.NodeKeyFile()
 	if err := tmos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
-		return "", err
+		return err
 	}
 	nodeKey := &p2p.NodeKey{
 		PrivKey: val.NetworkKey,
 	}
 	if err := nodeKey.SaveAs(nodeKeyFile); err != nil {
-		return "", err
+		return err
 	}
 
-	return basePath, nil
+	appConfigFilePath := filepath.Join(rootDir, "config", "app.toml")
+	srvconfig.WriteConfigFile(appConfigFilePath, appCfg)
+
+	config.WriteConfigFile(filepath.Join(rootDir, "config", "config.toml"), tmConfig)
+
+	return nil
 }
