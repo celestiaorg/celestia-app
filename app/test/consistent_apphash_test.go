@@ -8,19 +8,25 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -29,72 +35,125 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-type BlobTx struct {
+type blobTx struct {
 	author    string
 	blobs     []*share.Blob
 	txOptions []user.TxOption
 }
 
-// TestConsistentAppHash executes all state machine messages, generates an app hash,
+type (
+	encodedSdkMessages func(*testing.T, []sdk.AccAddress, []stakingtypes.Validator, *app.App, *user.Signer, *user.Signer) ([][]byte, [][]byte, [][]byte)
+	encodedBlobTxs     func(*testing.T, *user.Signer, []sdk.AccAddress) []byte
+)
+
+type appHashTest struct {
+	name               string
+	version            uint64
+	encodedSdkMessages encodedSdkMessages
+	encodedBlobTxs     encodedBlobTxs
+	expectedDataRoot   []byte
+	expectedAppHash    []byte
+}
+
+// TestConsistentAppHash executes all state machine messages on all app versions, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
 func TestConsistentAppHash(t *testing.T) {
-	// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
-	expectedAppHash := []byte{84, 216, 210, 48, 113, 204, 234, 21, 150, 236, 97, 87, 242, 184, 45, 248, 116, 127, 49, 88, 134, 197, 202, 125, 44, 210, 67, 144, 107, 51, 145, 65}
-	expectedDataRoot := []byte{100, 59, 112, 241, 238, 49, 50, 64, 105, 90, 209, 211, 49, 254, 211, 83, 133, 88, 5, 89, 221, 116, 141, 72, 33, 110, 16, 78, 5, 48, 118, 72}
+	tc := []appHashTest{
+		{
+			name:               "execute sdk messages and blob tx on v1",
+			version:            v1.Version,
+			encodedSdkMessages: encodedSdkMessagesV1,
+			encodedBlobTxs:     createEncodedBlobTx,
+			expectedDataRoot:   []byte{30, 142, 46, 120, 191, 30, 242, 150, 164, 242, 166, 245, 89, 183, 181, 41, 88, 197, 11, 19, 243, 46, 69, 97, 3, 51, 27, 133, 68, 95, 95, 121},
+			// Expected app hash produced by v1.x - https://github.com/celestiaorg/celestia-app/blob/v1.x/app/consistent_apphash_test.go
+			expectedAppHash: []byte{57, 128, 107, 57, 6, 131, 221, 188, 181, 181, 135, 58, 37, 240, 135, 66, 199, 107, 80, 154, 240, 176, 57, 36, 238, 69, 25, 188, 86, 203, 145, 145},
+		},
+		{
+			name:    "execute sdk messages and blob tx on v2",
+			version: v2.Version,
+			encodedSdkMessages: func(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
+				firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs := encodedSdkMessagesV1(t, accountAddresses, genValidators, testApp, signer, valSigner)
+				encodedMessagesV2 := encodedSdkMessagesV2(t, genValidators, valSigner)
+				thirdBlockEncodedTxs = append(thirdBlockEncodedTxs, encodedMessagesV2...)
 
-	// Initialize testApp
-	testApp := testutil.NewTestApp()
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+				return firstBlockEncodedTxs, secondBlockEncodedTxs, thirdBlockEncodedTxs
+			},
+			encodedBlobTxs:   createEncodedBlobTx,
+			expectedDataRoot: []byte{200, 61, 245, 166, 119, 211, 170, 2, 73, 239, 253, 97, 243, 112, 116, 196, 70, 41, 201, 172, 123, 28, 15, 182, 52, 222, 122, 243, 95, 97, 66, 233},
+			// Expected app hash produced on v2.x - https://github.com/celestiaorg/celestia-app/blob/v2.x/app/test/consistent_apphash_test.go
+			expectedAppHash: []byte{14, 115, 34, 28, 33, 70, 118, 3, 111, 250, 161, 185, 187, 151, 54, 78, 86, 37, 44, 252, 8, 26, 164, 251, 36, 20, 151, 170, 181, 84, 32, 136},
+		},
+	}
 
-	// Create deterministic keys
-	kr, pubKeys := deterministicKeyRing(enc.Codec)
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			testApp := testutil.NewTestApp()
+			enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			// Create deterministic keys
+			kr, pubKeys := deterministicKeyRing(enc.Codec)
+			consensusParams := app.DefaultConsensusParams()
+			consensusParams.Version.AppVersion = tt.version
+			// Apply genesis state to the app.
+			valKeyRing, _, err := testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, consensusParams)
+			require.NoError(t, err)
 
-	// Apply genesis state to the app.
-	valKeyRing, _, err := testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, app.DefaultInitialConsensusParams())
-	require.NoError(t, err)
+			// Get account names and addresses from the keyring and create signer
+			signer, accountAddresses := getAccountsAndCreateSigner(t, kr, enc.TxConfig, testutil.ChainID, tt.version, testApp)
+			// Validators from genesis state
+			genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
+			valSigner, _ := getAccountsAndCreateSigner(t, valKeyRing, enc.TxConfig, testutil.ChainID, tt.version, testApp)
 
-	// ------------ Genesis User Accounts ------------
+			// Convert validators to ABCI validators
+			abciValidators, err := convertToABCIValidators(genValidators)
+			require.NoError(t, err)
 
+			firstBlockTxs, secondBlockTxs, thirdBlockTxs := tt.encodedSdkMessages(t, accountAddresses, genValidators, testApp, signer, valSigner)
+			encodedBlobTx := tt.encodedBlobTxs(t, signer, accountAddresses)
+
+			// Execute the first block
+			_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockTxs, abciValidators, testApp.LastCommitID().Hash)
+			require.NoError(t, err)
+			// Execute the second block
+			_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockTxs, abciValidators, firstBlockAppHash)
+			require.NoError(t, err)
+			// Execute the final block and get the data root alongside the final app hash
+			finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockTxs, abciValidators, secondBlockAppHash)
+			require.NoError(t, err)
+
+			// Require that the app hash is equal to the app hash produced on a different commit
+			require.Equal(t, tt.expectedAppHash, finalAppHash)
+			// Require that the data root is equal to the data root produced on a different commit
+			require.Equal(t, tt.expectedDataRoot, finalDataRoot)
+		})
+	}
+}
+
+// getAccountsAndCreateSigner returns a signer with accounts
+func getAccountsAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxConfig, chainID string, appVersion uint64, testApp *app.App) (*user.Signer, []sdk.AccAddress) {
 	// Get account names and addresses from the keyring
 	accountNames := testfactory.GetAccountNames(kr)
 	accountAddresses := testfactory.GetAddresses(kr)
-
 	// Query keyring account infos
 	accountInfos := queryAccountInfo(testApp, accountNames, kr)
-
 	// Create accounts for the signer
 	accounts := createAccounts(accountInfos, accountNames)
-
 	// Create a signer with accounts
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, accounts...)
+	signer, err := user.NewSigner(kr, enc, chainID, appVersion, accounts...)
 	require.NoError(t, err)
+	return signer, accountAddresses
+}
 
-	// ------------ Genesis Validator Accounts  ------------
-
-	// Validators from genesis state
-	genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
-
-	// Get validator account names from the validator keyring
-	valAccountNames := testfactory.GetAccountNames(valKeyRing)
-
-	// Query validator account infos
-	valAccountInfos := queryAccountInfo(testApp, valAccountNames, valKeyRing)
-
-	// Create accounts for the validators' signer
-	valAccounts := createAccounts(valAccountInfos, valAccountNames)
-
-	// Create a signer with validator accounts
-	valSigner, err := user.NewSigner(valKeyRing, enc.TxConfig, testutil.ChainID, app.DefaultInitialVersion, valAccounts...)
-	require.NoError(t, err)
-
-	// ----------- Create SDK Messages ------------
+// encodedSdkMessagesV1 returns encoded SDK messages for v1
+func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
+	// ----------- Create v1 SDK Messages ------------
 
 	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
 	// Minimum deposit required for a gov proposal to become active
@@ -242,6 +301,27 @@ func TestConsistentAppHash(t *testing.T) {
 	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], genValidators[0].GetOperator())
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgWithdrawDelegatorReward)
 
+	// NewMsgCreatePeriodicVestingAccount - creates a periodic vesting account
+	newAddress := sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress")).PubKey().Address())
+	vestingPeriod := []vestingtypes.Period{
+		{
+			Length: 3600,
+			Amount: amount,
+		},
+	}
+	msgCreatePeriodicVestingAccount := vestingtypes.NewMsgCreatePeriodicVestingAccount(accountAddresses[3], newAddress, 2, vestingPeriod)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePeriodicVestingAccount)
+
+	// NewMsgCreatePermanentLockedAccount - creates a permanent locked account
+	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress2")).PubKey().Address())
+	msgCreatePermamentLockedAccount := vestingtypes.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePermamentLockedAccount)
+
+	// NewMsgCreateVestingAccount - creates a vesting account
+	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress3")).PubKey().Address())
+	msgCreateVestingAccount := vestingtypes.NewMsgCreateVestingAccount(accountAddresses[3], newAddress, amount, 1, 2, false)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreateVestingAccount)
+
 	// ------------ Third Block ------------
 
 	// Txs within the third block are signed by the validator's signer
@@ -255,51 +335,53 @@ func TestConsistentAppHash(t *testing.T) {
 	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
 
-	// ------------ Construct Txs ------------
+	// NewMsgRegisterEVMAddress - registers an EVM address
+	// This message was removed in v2
+	if testApp.AppVersion() == v1.Version {
+		msgRegisterEVMAddress := blobstreamtypes.NewMsgRegisterEVMAddress(genValidators[1].GetOperator(), gethcommon.HexToAddress("hi"))
+		thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgRegisterEVMAddress)
+	}
 
-	// Create SDK transactions from the list of messages
-	// and separate them into 3 different blocks
-	firstBlockEncodedTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
+	firstBlockTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
+	require.NoError(t, err)
+	secondBlockTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
+	require.NoError(t, err)
+	thirdBlockTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
 	require.NoError(t, err)
 
-	secondBlockEncodedTxs, err := processSdkMessages(signer, secondBlockSdkMsgs)
+	return firstBlockTxs, secondBlockTxs, thirdBlockTxs
+}
+
+// encodedSdkMessagesV2 returns encoded SDK messages introduced in v2
+func encodedSdkMessagesV2(t *testing.T, genValidators []stakingtypes.Validator, valSigner *user.Signer) [][]byte {
+	var v2Messages []sdk.Msg
+	msgTryUpgrade := signal.NewMsgTryUpgrade(sdk.AccAddress(genValidators[0].GetOperator()))
+	v2Messages = append(v2Messages, msgTryUpgrade)
+
+	msgSignalVersion := signal.NewMsgSignalVersion(genValidators[0].GetOperator(), 2)
+	v2Messages = append(v2Messages, msgSignalVersion)
+
+	encodedTxs, err := processSdkMessages(valSigner, v2Messages)
 	require.NoError(t, err)
 
-	thirdBlockEncodedTxs, err := processSdkMessages(valSigner, thirdBlockSdkMsgs)
-	require.NoError(t, err)
+	return encodedTxs
+}
 
+// createEncodedBlobTx creates, signs and returns an encoded blob transaction
+func createEncodedBlobTx(t *testing.T, signer *user.Signer, accountAddresses []sdk.AccAddress) []byte {
+	senderAcc := signer.AccountByAddress(accountAddresses[1])
 	blob, err := share.NewBlob(fixedNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 	require.NoError(t, err)
 
 	// Create a Blob Tx
-	blobTx := BlobTx{
-		author:    accountNames[1],
+	blobTx := blobTx{
+		author:    senderAcc.Name(),
 		blobs:     []*share.Blob{blob},
 		txOptions: blobfactory.DefaultTxOpts(),
 	}
 	encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
-
-	// Convert validators to ABCI validators
-	abciValidators, err := convertToABCIValidators(genValidators)
-	require.NoError(t, err)
-
-	// Execute the first block
-	_, firstBlockAppHash, err := executeTxs(testApp, []byte{}, firstBlockEncodedTxs, abciValidators, testApp.LastCommitID().Hash)
-	require.NoError(t, err)
-
-	// Execute the second block
-	_, secondBlockAppHash, err := executeTxs(testApp, encodedBlobTx, secondBlockEncodedTxs, abciValidators, firstBlockAppHash)
-	require.NoError(t, err)
-
-	// Execute the final block and get the data root alongside the final app hash
-	finalDataRoot, finalAppHash, err := executeTxs(testApp, []byte{}, thirdBlockEncodedTxs, abciValidators, secondBlockAppHash)
-	require.NoError(t, err)
-
-	// Require that the app hash is equal to the app hash produced on a different commit
-	require.Equal(t, expectedAppHash, finalAppHash)
-	// Require that the data root is equal to the data root produced on a different commit
-	require.Equal(t, expectedDataRoot, finalDataRoot)
+	return encodedBlobTx
 }
 
 // fixedNamespace returns a hardcoded namespace
@@ -388,7 +470,7 @@ func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, 
 	dataHash := resPrepareProposal.BlockData.Hash
 
 	header := tmproto.Header{
-		Version:        version.Consensus{App: 1},
+		Version:        version.Consensus{App: testApp.AppVersion()},
 		DataHash:       resPrepareProposal.BlockData.Hash,
 		ChainID:        chainID,
 		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
