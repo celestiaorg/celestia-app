@@ -29,7 +29,7 @@ jobs:
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile
-  dockerfile-lint:
+  hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.3
     with:
       dockerfile: "docker/Dockerfile"
