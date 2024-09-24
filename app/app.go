@@ -280,7 +280,7 @@ func New(
 		),
 	)
 
-	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper)
+	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper, appconsts.UpgradeHeightDelay())
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec,
