@@ -66,13 +66,12 @@ func CreateTxClient(
 		return nil, err
 	}
 	args := []string{
-		fmt.Sprintf("-k %d", 0),
-		fmt.Sprintf("-g %s", endpoint),
-		fmt.Sprintf("-t %ds", pollTime),
-		fmt.Sprintf("-b %d ", sequences),
-		fmt.Sprintf("-d %d ", seed),
-		fmt.Sprintf("-a %d ", blobsPerSeq),
-		fmt.Sprintf("-s %s ", blobRange),
+		fmt.Sprintf("-grpc-endpoint %s", endpoint),
+		fmt.Sprintf("-poll-time %ds", pollTime),
+		fmt.Sprintf("-seed %d ", seed),
+		fmt.Sprintf("-blob %d ", sequences),
+		fmt.Sprintf("-blob-amounts %d ", blobsPerSeq),
+		fmt.Sprintf("-blob-sizes %s ", blobRange),
 	}
 
 	if err := txIns.Build().SetArgs(args...); err != nil {

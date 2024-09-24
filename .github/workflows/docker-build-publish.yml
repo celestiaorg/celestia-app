@@ -22,7 +22,7 @@ jobs:
       packages: write
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.3
     with:
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
     secrets: inherit
 
   docker-txsim-build:
@@ -31,6 +31,6 @@ jobs:
       packages: write
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.3
     with:
-      dockerfile: docker/Dockerfile_txsim
+      dockerfile: docker/txsim/Dockerfile
       packageName: txsim
     secrets: inherit
