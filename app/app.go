@@ -569,7 +569,8 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
 		app.SetAppVersion(ctx, appVersion)
 	}
-	// TODO return timeouts as well
+	res.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(appVersion)
+	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(appVersion)
 	return res
 }
 
