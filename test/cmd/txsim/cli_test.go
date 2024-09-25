@@ -29,6 +29,7 @@ func TestTxsimCommandFlags(t *testing.T) {
 		"--grpc-endpoint", grpcAddr,
 		"--blob", "5",
 		"--seed", "1234",
+		"--upgrade-schedule", "10:3",
 	})
 	err := cmd.ExecuteContext(ctx)
 	require.NoError(t, err)
