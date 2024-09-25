@@ -187,5 +187,5 @@ func calculateBlockSizeInMb(txs [][]byte) string {
 		numberOfBytes += len(tx)
 	}
 	mb := float64(numberOfBytes) / 1048576
-	return fmt.Sprintf("%.3f", mb)
+	return fmt.Sprintf("%.2f", mb)
 }
