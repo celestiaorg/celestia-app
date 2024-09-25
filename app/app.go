@@ -813,11 +813,6 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 
 		app.Logger().Info("mounting keys for snapshot", "app_version", req.AppVersion)
 		app.mountKeysAndInit(req.AppVersion)
-
-		app.Logger().Info("setting app version", "app_version", req.AppVersion)
-		ctx := app.NewUncachedContext(false, tmproto.Header{})
-		app.SetAppVersion(ctx, req.AppVersion)
-
 		return app.BaseApp.OfferSnapshot(req)
 	}
 

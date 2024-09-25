@@ -24,7 +24,6 @@ func TestOfferSnapshot(t *testing.T) {
 		request.AppVersion = 1
 		resp := testApp.OfferSnapshot(request)
 		assert.Equal(t, abcitypes.ResponseOfferSnapshot{Result: abcitypes.ResponseOfferSnapshot_ACCEPT}, resp)
-		assert.Equal(t, uint64(1), testApp.AppVersion())
 	})
 	t.Run("v2", func(t *testing.T) {
 		testApp := createTestApp(t)
@@ -32,7 +31,6 @@ func TestOfferSnapshot(t *testing.T) {
 		request.AppVersion = 2
 		resp := testApp.OfferSnapshot(request)
 		assert.Equal(t, abcitypes.ResponseOfferSnapshot{Result: abcitypes.ResponseOfferSnapshot_ACCEPT}, resp)
-		assert.Equal(t, uint64(2), testApp.AppVersion())
 	})
 }
 
