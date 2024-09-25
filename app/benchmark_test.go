@@ -27,7 +27,9 @@ func BenchmarkCheckTx_MsgSend(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	testApp.CheckTx(checkTxRequest)
+	for i := 0; i < b.N; i++ {
+		testApp.CheckTx(checkTxRequest)
+	}
 }
 
 func BenchmarkDeliverTx_MsgSend(b *testing.B) {
@@ -38,7 +40,9 @@ func BenchmarkDeliverTx_MsgSend(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	testApp.DeliverTx(deliverTxRequest)
+	for i := 0; i < b.N; i++ {
+		testApp.DeliverTx(deliverTxRequest)
+	}
 }
 
 func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
@@ -53,7 +57,9 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	testApp.PrepareProposal(prepareProposalRequest)
+	for i := 0; i < b.N; i++ {
+		testApp.PrepareProposal(prepareProposalRequest)
+	}
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
@@ -71,7 +77,10 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	var prepareProposalResponse types.ResponsePrepareProposal
+	for i := 0; i < b.N; i++ {
+		prepareProposalResponse = testApp.PrepareProposal(prepareProposalRequest)
+	}
 	b.StopTimer()
 	testApp.Logger().Info("block prepared", "number of transactions", len(prepareProposalResponse.BlockData.Txs), "block size (mb)~", calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs))
 }
@@ -102,7 +111,9 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	testApp.ProcessProposal(processProposalRequest)
+	for i := 0; i < b.N; i++ {
+		testApp.ProcessProposal(processProposalRequest)
+	}
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
@@ -135,7 +146,9 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	testApp.ProcessProposal(processProposalRequest)
+	for i := 0; i < b.N; i++ {
+		testApp.ProcessProposal(processProposalRequest)
+	}
 }
 
 // generateMsgSendTransactions creates a test app then generates a number
