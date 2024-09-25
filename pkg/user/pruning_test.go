@@ -14,7 +14,7 @@ func TestPruningInTxTracker(t *testing.T) {
 	}
 	numTransactions := 10
 
-	// Add 10 transactions to the tracker that are 10 minutes old
+	// Add 10 transactions to the tracker that are 10 and 5 minutes old
 	var txsToBePruned int
 	var txsNotReadyToBePruned int
 	for i := 0; i < numTransactions; i++ {
@@ -45,7 +45,6 @@ func TestPruningInTxTracker(t *testing.T) {
 	txClient.pruneTxTracker()
 	// Prunes the transactions that are 10 minutes old
 	// 5 transactions will be pruned
-	require.Equal(t, txTrackerBeforePruning-txsToBePruned, txsToBePruned)
-	// 5 transactions will not be pruned
+	require.Equal(t, txsToBePruned, txTrackerBeforePruning-txsToBePruned)
 	require.Equal(t, len(txClient.txTracker), txsNotReadyToBePruned)
 }
