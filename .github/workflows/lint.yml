@@ -31,6 +31,8 @@ jobs:
   # hadolint lints the Dockerfile
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.4
+    with:
+      dockerfile: "docker/Dockerfile"
 
   yamllint:
     runs-on: ubuntu-latest

@@ -23,7 +23,7 @@ jobs:
       packages: write
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.4
     with:
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
 
@@ -33,7 +33,7 @@ jobs:
       packages: write
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.4
     with:
-      dockerfile: docker/Dockerfile_txsim
+      dockerfile: docker/txsim/Dockerfile
       packageName: txsim
       checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
