@@ -5,16 +5,9 @@ on:
   push:
     branches:
       - "main"
-      - "v[0-9].[0-9].x"
-      - "v[0-9].[0-9][0-9].x"
-      - "v[0-9].x"
+      - "v*"
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-arabica"
-      - "v[0-9]+.[0-9]+.[0-9]+-mocha"
+      - "v*"
   pull_request:
   workflow_dispatch:
     inputs:
@@ -31,6 +24,7 @@ jobs:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.4
     with:
       dockerfile: docker/Dockerfile
+      checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
 
   docker-txsim-build:
@@ -41,4 +35,5 @@ jobs:
     with:
       dockerfile: docker/txsim/Dockerfile
       packageName: txsim
+      checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
