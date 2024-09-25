@@ -4,6 +4,7 @@ package testnet
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
@@ -35,6 +36,7 @@ func CreateTxClient(
 	resources Resources,
 	volumePath string,
 	knuu *knuu.Knuu,
+	upgradeSchedule map[int64]uint64,
 ) (*TxSim, error) {
 	txIns, err := knuu.NewInstance(name)
 	if err != nil {
@@ -72,6 +74,7 @@ func CreateTxClient(
 		fmt.Sprintf("-blob %d ", sequences),
 		fmt.Sprintf("-blob-amounts %d ", blobsPerSeq),
 		fmt.Sprintf("-blob-sizes %s ", blobRange),
+		fmt.Sprintf("-upgrade-schedule %s ", stringifyUpgradeSchedule(upgradeSchedule)),
 	}
 
 	if err := txIns.Build().SetArgs(args...); err != nil {
@@ -82,4 +85,15 @@ func CreateTxClient(
 		Name:     name,
 		Instance: txIns,
 	}, nil
+}
+
+func stringifyUpgradeSchedule(schedule map[int64]uint64) string {
+	if schedule == nil {
+		return ""
+	}
+	scheduleParts := make([]string, 0, len(schedule))
+	for height, version := range schedule {
+		scheduleParts = append(scheduleParts, fmt.Sprintf("%d:%d", height, version))
+	}
+	return strings.Join(scheduleParts, ",")
 }

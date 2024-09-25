@@ -114,7 +114,7 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(ctx, name, version, sequences,
-			blobRange, blobPerSequence, resources, grpcEndpoint)
+			blobRange, blobPerSequence, resources, grpcEndpoint, nil)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -147,6 +147,7 @@ func (t *Testnet) CreateTxClient(
 	blobPerSequence int,
 	resources Resources,
 	grpcEndpoint string,
+	upgradeSchedule map[int64]uint64,
 ) error {
 	// create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet
@@ -162,7 +163,7 @@ func (t *Testnet) CreateTxClient(
 
 	// Create a txsim node using the key stored in the txsimKeyringDir
 	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
-		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu)
+		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).

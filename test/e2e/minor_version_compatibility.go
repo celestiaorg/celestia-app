@@ -62,7 +62,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
 	testnet.NoError("failed to create tx client", err)
 
 	// start the testnet
