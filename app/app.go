@@ -802,21 +802,21 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
-	app.Logger().Info("offering snapshot", "height", req.Snapshot.Height, "app_version", req.Snapshot.AppVersion)
-	if req.Snapshot.AppVersion != 0 {
-		if !isSupportedAppVersion(req.Snapshot.AppVersion) {
-			app.Logger().Info("rejecting snapshot because unsupported app version", "app_version", req.Snapshot.AppVersion)
+	app.Logger().Info("offering snapshot", "height", req.Snapshot.Height, "app_version", req.AppVersion)
+	if req.AppVersion != 0 {
+		if !isSupportedAppVersion(req.AppVersion) {
+			app.Logger().Info("rejecting snapshot because unsupported app version", "app_version", req.AppVersion)
 			return abci.ResponseOfferSnapshot{
 				Result: abci.ResponseOfferSnapshot_REJECT,
 			}
 		}
 
-		app.Logger().Info("mounting keys for snapshot", "app_version", req.Snapshot.AppVersion)
-		app.mountKeysAndInit(req.Snapshot.AppVersion)
+		app.Logger().Info("mounting keys for snapshot", "app_version", req.AppVersion)
+		app.mountKeysAndInit(req.AppVersion)
 
-		app.Logger().Info("setting app version", "app_version", req.Snapshot.AppVersion)
+		app.Logger().Info("setting app version", "app_version", req.AppVersion)
 		ctx := app.NewUncachedContext(false, tmproto.Header{})
-		app.SetAppVersion(ctx, req.Snapshot.AppVersion)
+		app.SetAppVersion(ctx, req.AppVersion)
 
 		return app.BaseApp.OfferSnapshot(req)
 	}
