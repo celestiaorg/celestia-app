@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func BenchmarkCheckTx_MsgSend(b *testing.B) {
+func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
 	checkTxRequest := types.RequestCheckTx{
@@ -32,7 +32,23 @@ func BenchmarkCheckTx_MsgSend(b *testing.B) {
 	}
 }
 
-func BenchmarkDeliverTx_MsgSend(b *testing.B) {
+func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
+	testApp, rawTxs := generateMsgSendTransactions(b, 1)
+
+	checkTxRequest := types.RequestCheckTx{
+		Tx:   rawTxs[0],
+		Type: types.CheckTxType_New,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 39200; j++ {
+			testApp.CheckTx(checkTxRequest)
+		}
+	}
+}
+
+func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
 	deliverTxRequest := types.RequestDeliverTx{
@@ -42,6 +58,21 @@ func BenchmarkDeliverTx_MsgSend(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		testApp.DeliverTx(deliverTxRequest)
+	}
+}
+
+func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
+	testApp, rawTxs := generateMsgSendTransactions(b, 1)
+
+	deliverTxRequest := types.RequestDeliverTx{
+		Tx: rawTxs[0],
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 39200; j++ {
+			testApp.DeliverTx(deliverTxRequest)
+		}
 	}
 }
 
