@@ -66,11 +66,13 @@ func (t *Testnet) Knuu() *knuu.Knuu {
 	return t.knuu
 }
 
-func (t *Testnet) NewPreloader(name string) (*preloader.Preloader, error) {
+func (t *Testnet) NewPreloader() (*preloader.Preloader, error) {
 	if t.knuu == nil {
 		return nil, errors.New("knuu is not initialized")
 	}
-	return preloader.New(name, t.knuu.SystemDependencies)
+	// Since there is one dedicated knuu object for the testnet, each one has its own namespace, and
+	// there is one preloader per testnet, can use the same preloader name for all nodes
+	return preloader.New("preloader", t.knuu.SystemDependencies)
 }
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {

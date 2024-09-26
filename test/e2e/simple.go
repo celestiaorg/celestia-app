@@ -15,9 +15,7 @@ import (
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := context.Background()
 	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 

@@ -18,6 +18,11 @@ import (
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
+	var (
+		numNodes = 4
+		ctx      = context.Background()
+	)
+
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
 	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates()
@@ -27,12 +32,8 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
 	}
-	numNodes := 4
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	testNet, err := testnet.New(ctx, "MinorVersionCompatibility", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
@@ -42,7 +43,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
-	preloader, err := testNet.NewPreloader("preloader-minor-version-compatibility")
+	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages(ctx) }()

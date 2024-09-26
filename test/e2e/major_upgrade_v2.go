@@ -16,10 +16,11 @@ import (
 )
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	numNodes := 4
-	upgradeHeight := int64(10)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	var (
+		numNodes      = 4
+		upgradeHeight = int64(10)
+		ctx           = context.Background()
+	)
 
 	logger.Println("Creating testnet")
 	testNet, err := testnet.New(ctx, "MajorUpgradeToV2", seed, nil, "test")
@@ -34,7 +35,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
-	preloader, err := testNet.NewPreloader("preloader-major-upgrade-v2")
+	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages(ctx) }()
