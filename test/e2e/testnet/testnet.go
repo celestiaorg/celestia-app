@@ -45,7 +45,10 @@ func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, cha
 		return nil, err
 	}
 
-	log.Info().Str("scope", kn.Scope).Msg("Knuu initialized")
+	log.Info().
+		Str("scope", kn.Scope).
+		Str("TestName", name).
+		Msg("Knuu initialized")
 
 	return &Testnet{
 		seed:    seed,
