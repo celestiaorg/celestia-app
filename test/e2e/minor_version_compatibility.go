@@ -34,7 +34,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testNet, err := testnet.New(ctx, "runMinorVersionCompatibility", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "MinorVersionCompatibility", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)

@@ -50,6 +50,8 @@ func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, cha
 		Str("TestName", name).
 		Msg("Knuu initialized")
 
+	kn.HandleStopSignal(ctx)
+
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
