@@ -8,12 +8,18 @@ PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
 GOLANG_CROSS_VERSION  ?= v1.22.6
+# Set this to override the max square size of the binary
+OVERRIDE_MAX_SQUARE_SIZE ?= 
+# Set this to override the upgrade height delay of the binary
+OVERRIDE_UPGRADE_HEIGHT_DELAY ?= 
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideSquareSizeUpperBoundStr=$(OVERRIDE_MAX_SQUARE_SIZE) \
+		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideUpgradeHeightDelayStr=$(OVERRIDE_UPGRADE_HEIGHT_DELAY)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 
@@ -31,7 +37,7 @@ build: mod
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
-install: go.sum check-bbr
+install: check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
@@ -77,13 +83,13 @@ proto-format:
 ## build-docker: Build the celestia-appd docker image from the current branch. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
@@ -100,7 +106,8 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint Dockerfile
+	@hadolint docker/Dockerfile
+	@hadolint docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
@@ -143,7 +150,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -180,7 +187,7 @@ txsim-build:
 
 ## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
 txsim-build-docker:
-	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
+	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.

@@ -37,7 +37,7 @@ func TestConfigurator(t *testing.T) {
 		stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 		require.NoError(t, stateStore.LoadLatestVersion())
 
-		keeper := signal.NewKeeper(config.Codec, storeKey, nil)
+		keeper := signal.NewKeeper(config.Codec, storeKey, nil, 0)
 		require.NotNil(t, keeper)
 		upgradeModule := signal.NewAppModule(keeper)
 		manager, err := module.NewManager([]module.VersionedModule{

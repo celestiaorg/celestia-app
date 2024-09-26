@@ -10,6 +10,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	appv3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
@@ -279,7 +280,7 @@ func New(
 		),
 	)
 
-	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper)
+	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper, appconsts.UpgradeHeightDelay())
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec,

@@ -1,6 +1,8 @@
 package appconsts
 
 import (
+	"strconv"
+
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 )
 
@@ -22,6 +24,13 @@ func SubtreeRootThreshold(_ uint64) int {
 
 // SquareSizeUpperBound imposes an upper bound on the max effective square size.
 func SquareSizeUpperBound(_ uint64) int {
+	if OverrideSquareSizeUpperBoundStr != "" {
+		parsedValue, err := strconv.Atoi(OverrideSquareSizeUpperBoundStr)
+		if err != nil {
+			panic("Invalid OverrideSquareSizeUpperBoundStr value")
+		}
+		return parsedValue
+	}
 	return v3.SquareSizeUpperBound
 }
 

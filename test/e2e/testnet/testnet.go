@@ -57,6 +57,10 @@ func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, cha
 	}, nil
 }
 
+func (t *Testnet) Knuu() *knuu.Knuu {
+	return t.knuu
+}
+
 func (t *Testnet) NewPreloader(name string) (*preloader.Preloader, error) {
 	if t.knuu == nil {
 		return nil, errors.New("knuu is not initialized")
