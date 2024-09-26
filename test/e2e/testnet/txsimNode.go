@@ -43,10 +43,6 @@ func CreateTxClient(
 		return nil, err
 	}
 	image := txsimDockerImageName(version)
-	log.Info().
-		Str("name", name).
-		Str("image", image).
-		Msg("setting image for tx client")
 	err = txIns.Build().SetImage(ctx, image)
 	if err != nil {
 		log.Err(err).
@@ -68,18 +64,25 @@ func CreateTxClient(
 		return nil, err
 	}
 	args := []string{
-		fmt.Sprintf("-grpc-endpoint %s", endpoint),
-		fmt.Sprintf("-poll-time %ds", pollTime),
-		fmt.Sprintf("-seed %d ", seed),
-		fmt.Sprintf("-blob %d ", sequences),
-		fmt.Sprintf("-blob-amounts %d ", blobsPerSeq),
-		fmt.Sprintf("-blob-sizes %s ", blobRange),
-		fmt.Sprintf("-upgrade-schedule %s ", stringifyUpgradeSchedule(upgradeSchedule)),
+		fmt.Sprintf("--key-path %s", volumePath),
+		fmt.Sprintf("--grpc-endpoint %s", endpoint),
+		fmt.Sprintf("--poll-time %ds", pollTime),
+		fmt.Sprintf("--seed %d", seed),
+		fmt.Sprintf("--blob %d", sequences),
+		fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
+		fmt.Sprintf("--blob-sizes %s", blobRange),
+		fmt.Sprintf("--upgrade-schedule %s", stringifyUpgradeSchedule(upgradeSchedule)),
 	}
 
 	if err := txIns.Build().SetArgs(args...); err != nil {
 		return nil, err
 	}
+
+	log.Info().
+		Str("name", name).
+		Str("image", image).
+		Str("args", strings.Join(args, " ")).
+		Msg("created tx client")
 
 	return &TxSim{
 		Name:     name,
