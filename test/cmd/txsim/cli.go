@@ -103,8 +103,8 @@ well funded account that can act as the master account. The command runs until a
 				masterAccName = os.Getenv(TxsimMasterAccName)
 			}
 
-			if stake == 0 && send == 0 && blob == 0 {
-				return errors.New("no sequences specified. Use --stake, --send or --blob")
+			if stake == 0 && send == 0 && blob == 0 && upgradeSchedule == "" {
+				return errors.New("no sequences specified. Use --stake, --send, --upgrade-schedule or --blob")
 			}
 
 			// setup the sequences

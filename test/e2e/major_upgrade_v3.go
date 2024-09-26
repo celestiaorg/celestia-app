@@ -15,7 +15,7 @@ import (
 
 func MajorUpgradeToV3(logger *log.Logger) error {
 	numNodes := 4
-	upgradeHeight := int64(10)
+	upgradeHeight := int64(20)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -25,7 +25,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	defer testNet.Cleanup(ctx)
 
-	latestVersion := "8392821" //, err := testnet.GetLatestVersion()
+	latestVersion := "ef37dcd" //, err := testnet.GetLatestVersion()
 
 	logger.Println("Running major upgrade to v3 test", "version", latestVersion)
 

@@ -68,10 +68,11 @@ func CreateTxClient(
 		fmt.Sprintf("--grpc-endpoint %s", endpoint),
 		fmt.Sprintf("--poll-time %ds", pollTime),
 		fmt.Sprintf("--seed %d", seed),
-		fmt.Sprintf("--blob %d", sequences),
-		fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
-		fmt.Sprintf("--blob-sizes %s", blobRange),
+		// fmt.Sprintf("--blob %d", sequences),
+		// fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
+		// fmt.Sprintf("--blob-sizes %s", blobRange),
 		fmt.Sprintf("--upgrade-schedule %s", stringifyUpgradeSchedule(upgradeSchedule)),
+		// fmt.Sprintf("--blob-share-version %d", share.ShareVersionZero),
 	}
 
 	if err := txIns.Build().SetArgs(args...); err != nil {
