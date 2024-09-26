@@ -395,7 +395,17 @@ func (n *Node) GenesisValidator() genesis.Validator {
 }
 
 func (n *Node) Upgrade(ctx context.Context, version string) error {
-	if err := n.Instance.Execution().UpgradeImage(ctx, DockerImageName(version)); err != nil {
+	err := n.Instance.Execution().Stop(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := n.Instance.Execution().SetImage(ctx, DockerImageName(version)); err != nil {
+		return err
+	}
+
+	err = n.Instance.Execution().Start(ctx)
+	if err != nil {
 		return err
 	}
 

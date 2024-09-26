@@ -65,7 +65,7 @@ func (t *Testnet) NewPreloader() (*preloader.Preloader, error) {
 	if t.knuu == nil {
 		return nil, errors.New("knuu is not initialized")
 	}
-	return preloader.New(t.knuu.SystemDependencies)
+	return preloader.New("test", t.knuu.SystemDependencies)
 }
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
