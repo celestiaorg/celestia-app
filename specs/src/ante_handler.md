@@ -11,3 +11,4 @@ The AnteHandler is defined in `app/ante/ante.go`. The app version impacts AnteHa
 
 - [AnteHandler v1](./ante_handler_v1.md)
 - [AnteHandler v2](./ante_handler_v2.md)
+- [AnteHandler v3](./ante_handler_v3.md)
