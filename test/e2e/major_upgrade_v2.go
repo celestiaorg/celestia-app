@@ -34,7 +34,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
-	preloader, err := testNet.NewPreloader()
+	preloader, err := testNet.NewPreloader("preloader-major-upgrade-v2")
 	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages(ctx) }()

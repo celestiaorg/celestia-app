@@ -42,7 +42,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
-	preloader, err := testNet.NewPreloader()
+	preloader, err := testNet.NewPreloader("preloader-minor-version-compatibility")
 	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages(ctx) }()

@@ -57,11 +57,11 @@ func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, cha
 	}, nil
 }
 
-func (t *Testnet) NewPreloader() (*preloader.Preloader, error) {
+func (t *Testnet) NewPreloader(name string) (*preloader.Preloader, error) {
 	if t.knuu == nil {
 		return nil, errors.New("knuu is not initialized")
 	}
-	return preloader.New(t.knuu.SystemDependencies)
+	return preloader.New(name, t.knuu.SystemDependencies)
 }
 
 func (t *Testnet) SetConsensusParams(params *tmproto.ConsensusParams) {
