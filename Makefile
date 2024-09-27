@@ -83,13 +83,13 @@ proto-format:
 ## build-docker: Build the celestia-appd docker image from the current branch. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f Dockerfile .
+	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
 ## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
 build-ghcr-docker:
 	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f Dockerfile .
+	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
 .PHONY: build-ghcr-docker
 
 ## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
@@ -106,7 +106,8 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint Dockerfile
+	@hadolint docker/Dockerfile
+	@hadolint docker/txsim/Dockerfile
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
@@ -149,7 +150,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode"
+	@go test ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestBlobstreamRPCQueries|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestBlobstreamCLI|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestBlobstream|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -186,7 +187,7 @@ txsim-build:
 
 ## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
 txsim-build-docker:
-	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
+	docker build -t ghcr.io/celestiaorg/txsim -f docker/txsim/Dockerfile  .
 .PHONY: txsim-build-docker
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.

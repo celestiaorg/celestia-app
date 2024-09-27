@@ -13,9 +13,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: ["main", "v[0-9].[0-9].x", "v[0-9].[0-9][0-9].x", "v[0-9].x"]
+    branches: ["main", "v*"]
   schedule:
-    - cron: '24 20 * * 4'
+    - cron: "24 20 * * 4"
 
 jobs:
   analyze:
@@ -25,7 +25,7 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners
     # Consider using larger runners for possible analysis time improvements.
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     timeout-minutes: 360
     permissions:
       actions: read
@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['go']
+        language: ["go"]
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
     steps:
@@ -56,7 +56,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
 
       - name: Build binary
         run: |
