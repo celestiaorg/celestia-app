@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"fmt"
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -26,10 +25,13 @@ func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 		Type: types.CheckTxType_New,
 	}
 
+	var resp types.ResponseCheckTx
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		testApp.CheckTx(checkTxRequest)
+		resp = testApp.CheckTx(checkTxRequest)
 	}
+	b.StopTimer()
+	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 }
 
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
@@ -40,12 +42,18 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 		Type: types.CheckTxType_New,
 	}
 
+	var totalGas int64
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 39200; j++ {
-			testApp.CheckTx(checkTxRequest)
+			resp := testApp.CheckTx(checkTxRequest)
+			b.StopTimer()
+			totalGas += resp.GasUsed
+			b.StartTimer()
 		}
 	}
+	b.StopTimer()
+	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
 func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
@@ -55,10 +63,13 @@ func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
 		Tx: rawTxs[0],
 	}
 
+	var resp types.ResponseDeliverTx
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		testApp.DeliverTx(deliverTxRequest)
 	}
+	b.StopTimer()
+	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 }
 
 func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
@@ -68,12 +79,18 @@ func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
 		Tx: rawTxs[0],
 	}
 
+	var totalGas int64
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 39200; j++ {
-			testApp.DeliverTx(deliverTxRequest)
+			resp := testApp.DeliverTx(deliverTxRequest)
+			b.StopTimer()
+			totalGas += resp.GasUsed
+			b.StartTimer()
 		}
 	}
+	b.StopTimer()
+	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
@@ -91,6 +108,8 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		testApp.PrepareProposal(prepareProposalRequest)
 	}
+	b.StopTimer()
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
@@ -113,7 +132,9 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 		prepareProposalResponse = testApp.PrepareProposal(prepareProposalRequest)
 	}
 	b.StopTimer()
-	testApp.Logger().Info("block prepared", "number of transactions", len(prepareProposalResponse.BlockData.Txs), "block size (mb)~", calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs))
+	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
@@ -145,6 +166,8 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		testApp.ProcessProposal(processProposalRequest)
 	}
+	b.StopTimer()
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
@@ -162,12 +185,14 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	}
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
 
-	testApp.Logger().Info("block prepared", "number of transactions", len(prepareProposalResponse.BlockData.Txs), "block size (mb)~", calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs))
+	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number of transactions")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block size (mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 
 	processProposalRequest := types.RequestProcessProposal{
 		BlockData: prepareProposalResponse.BlockData,
 		Header: tmproto.Header{
-			Height:   1,
+			Height:   10,
 			DataHash: prepareProposalResponse.BlockData.Hash,
 			ChainID:  testutil.ChainID,
 			Version: version.Consensus{
@@ -212,11 +237,22 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 
 // calculateBlockSizeInMb returns the block size in mb given a set
 // of raw transactions.
-func calculateBlockSizeInMb(txs [][]byte) string {
+func calculateBlockSizeInMb(txs [][]byte) float64 {
 	numberOfBytes := 0
 	for _, tx := range txs {
 		numberOfBytes += len(tx)
 	}
 	mb := float64(numberOfBytes) / 1048576
-	return fmt.Sprintf("%.2f", mb)
+	return mb
+}
+
+// calculateTotalGasUsed simulates the provided transactions and returns the
+// total gas used by all of them
+func calculateTotalGasUsed(testApp *app.App, txs [][]byte) uint64 {
+	var totalGas uint64
+	for _, tx := range txs {
+		gasInfo, _, _ := testApp.Simulate(tx)
+		totalGas += gasInfo.GasUsed
+	}
+	return totalGas
 }
