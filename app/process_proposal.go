@@ -1,11 +1,16 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -45,7 +50,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		app.MsgGateKeeper,
 	)
 	sdkCtx := app.NewProposalContext(req.Header)
-	// subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion())
+	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion())
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
@@ -103,10 +108,10 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		// if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold); err != nil {
-		// 	logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
-		// 	return reject()
-		// }
+		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold); err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
+			return reject()
+		}
 
 		// validated the PFB signature
 		sdkCtx, err = handler(sdkCtx, sdkTx, false)
@@ -117,41 +122,41 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 
 	}
 
-	// // Construct the data square from the block's transactions
-	// dataSquare, err := square.Construct(
-	// 	req.BlockData.Txs,
-	// 	app.MaxEffectiveSquareSize(sdkCtx),
-	// 	subtreeRootThreshold,
-	// )
-	// if err != nil {
-	// 	logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
-	// 	return reject()
-	// }
+	// Construct the data square from the block's transactions
+	dataSquare, err := square.Construct(
+		req.BlockData.Txs,
+		app.MaxEffectiveSquareSize(sdkCtx),
+		subtreeRootThreshold,
+	)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
+		return reject()
+	}
 
-	// // Assert that the square size stated by the proposer is correct
-	// if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-	// 	logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-	// 	return reject()
-	// }
+	// Assert that the square size stated by the proposer is correct
+	if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
+		logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
+		return reject()
+	}
 
-	// eds, err := da.ExtendShares(share.ToBytes(dataSquare))
-	// if err != nil {
-	// 	logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
-	// 	return reject()
-	// }
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
+		return reject()
+	}
 
-	// dah, err := da.NewDataAvailabilityHeader(eds)
-	// if err != nil {
-	// 	logInvalidPropBlockError(app.Logger(), req.Header, "failure to create new data availability header", err)
-	// 	return reject()
-	// }
-	// // by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
-	// // are identical and that square layout is consistent. This also means that the share commitment rules
-	// // have been followed and thus each blobs share commitment should be valid
-	// if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-	// 	logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.Header.DataHash, dah.Hash()))
-	// 	return reject()
-	// }
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to create new data availability header", err)
+		return reject()
+	}
+	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
+	// are identical and that square layout is consistent. This also means that the share commitment rules
+	// have been followed and thus each blobs share commitment should be valid
+	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
+		logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.Header.DataHash, dah.Hash()))
+		return reject()
+	}
 
 	return accept()
 }
