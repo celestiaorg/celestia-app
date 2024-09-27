@@ -19,6 +19,5 @@ func QueryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes
 		return nil, err
 	}
 
-	//node.DumpConsensusState(context.Background())
 	return node.Tx(context.Background(), hash, prove)
 }
