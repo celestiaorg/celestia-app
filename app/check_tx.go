@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -43,10 +42,10 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	case abci.CheckTxType_New:
 		// FIXME: we have a hardcoded subtree root threshold here. This is because we can't access
 		// the app version because the context is not initialized
-		err := blobtypes.ValidateBlobTx(app.txConfig, btx, appconsts.DefaultSubtreeRootThreshold)
-		if err != nil {
-			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
-		}
+		// err := blobtypes.ValidateBlobTx(app.txConfig, btx, appconsts.DefaultSubtreeRootThreshold)
+		// if err != nil {
+		// 	return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
+		// }
 	case abci.CheckTxType_Recheck:
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
