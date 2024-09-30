@@ -31,33 +31,33 @@ func NewAnteHandler(
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
 		// Ensure the tx does not contain any extension options.
-		// ante.NewExtensionOptionsDecorator(nil),
+		ante.NewExtensionOptionsDecorator(nil),
 		// Ensure the tx passes ValidateBasic.
-		// ante.NewValidateBasicDecorator(),
+		ante.NewValidateBasicDecorator(),
 		// Ensure the tx has not reached a height timeout.
-		// ante.NewTxTimeoutHeightDecorator(),
+		ante.NewTxTimeoutHeightDecorator(),
 		// Ensure the tx memo <= max memo characters.
 		// ante.NewValidateMemoDecorator(accountKeeper),
 		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
 		// Side effect: consumes gas from the gas meter.
-		// ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
+		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		// ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
 		// Ensure that the tx's count of signatures is <= the tx signature limit.
-		// ante.NewValidateSigCountDecorator(accountKeeper),
+		ante.NewValidateSigCountDecorator(accountKeeper),
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
-		// ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
+		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
 		// Ensure that the tx's signatures are valid. For each signature, ensure
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
-		// ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
