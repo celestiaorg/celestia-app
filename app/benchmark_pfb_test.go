@@ -236,6 +236,7 @@ func benchmarkProcessProposal_PFB(b *testing.B, count, size int) {
 func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
+	testApp.Commit()
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)

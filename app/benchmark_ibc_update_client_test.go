@@ -34,21 +34,21 @@ func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfValidators int
 	}{
-		//{numberOfValidators: 2},
-		//{numberOfValidators: 10},
-		//{numberOfValidators: 25},
-		//{numberOfValidators: 50},
-		//{numberOfValidators: 75},
-		//{numberOfValidators: 100},
-		//{numberOfValidators: 125},
+		{numberOfValidators: 2},
+		{numberOfValidators: 10},
+		{numberOfValidators: 25},
+		{numberOfValidators: 50},
+		{numberOfValidators: 75},
+		{numberOfValidators: 100},
+		{numberOfValidators: 125},
 		{numberOfValidators: 150},
-		//{numberOfValidators: 175},
-		//{numberOfValidators: 200},
-		//{numberOfValidators: 225},
-		//{numberOfValidators: 250},
-		//{numberOfValidators: 300},
-		//{numberOfValidators: 400},
-		//{numberOfValidators: 500},
+		{numberOfValidators: 175},
+		{numberOfValidators: 200},
+		{numberOfValidators: 225},
+		{numberOfValidators: 250},
+		{numberOfValidators: 300},
+		{numberOfValidators: 400},
+		{numberOfValidators: 500},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
@@ -135,18 +135,6 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)
 
-	//ctx := testApp.NewContext(true, types5.Header{})
-	//acc4 := testApp.AccountKeeper.GetAccount(ctx, acc.GetAddress())
-	//fmt.Println(acc4)
-	//err = acc2.SetPubKey(signer.Accounts()[0].PubKey())
-	//require.NoError(b, err)
-	//testApp.AccountKeeper.SetAccount(ctx, acc2)
-	//pubKey := acc.GetPubKey()
-	//acc3 := testApp.AccountKeeper.GetAccount(ctx, acc2.GetAddress())
-	//fmt.Println(acc3)
-	//fmt.Println(pubKey)
-	//acc = testutil.DirectQueryAccount(testApp, addr)
-
 	msgs := generateUpdateClientTransaction(
 		b,
 		testApp,
@@ -156,12 +144,12 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 		numberOfMessages,
 	)
 
-	accountSequence := uint64(numberOfMessages)
-	//err = signer.SetSequence(account, accountSequence)
+	accountSequence := testutil.DirectQueryAccount(testApp, addr).GetSequence()
+	err = signer.SetSequence(account, accountSequence)
 	//accountSequence := uint64(0)
 	rawTxs := make([][]byte, 0, numberOfMessages)
 	for i := 0; i < numberOfMessages; i++ {
-		rawTx, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		rawTx, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(25497600000), user.SetFee(100000))
 		require.NoError(b, err)
 		rawTxs = append(rawTxs, rawTx)
 		accountSequence++
@@ -292,6 +280,7 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer *user.Si
 			}
 		}
 		require.NotEmpty(b, clientName)
+		app.Commit()
 
 		msg, err := types3.NewMsgUpdateClient(
 			clientName,
