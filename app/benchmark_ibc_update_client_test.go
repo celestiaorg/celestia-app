@@ -18,7 +18,9 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	crypto2 "github.com/tendermint/tendermint/proto/tendermint/crypto"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	types5 "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmprotoversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/version"
 	"math"
 	"testing"
@@ -81,7 +83,7 @@ func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
 		numberOfValidators int
 	}{
-		{numberOfValidators: 1},
+		{numberOfValidators: 2},
 		{numberOfValidators: 10},
 		{numberOfValidators: 25},
 		{numberOfValidators: 50},
@@ -111,14 +113,130 @@ func benchmarkIBC_DeliverTx_Update_Client(b *testing.B, numberOfValidators int) 
 		Tx: rawTxs[0],
 	}
 
-	var resp types.ResponseDeliverTx
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		resp = testApp.DeliverTx(deliverTxRequest)
-	}
+	resp := testApp.DeliverTx(deliverTxRequest)
 	b.StopTimer()
+
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
+	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
+	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
+}
+
+func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
+	testCases := []struct {
+		count, numberOfValidators int
+	}{
+		{count: 6_000, numberOfValidators: 2},
+		{count: 3_000, numberOfValidators: 10},
+		{count: 2_000, numberOfValidators: 25},
+		{count: 1_000, numberOfValidators: 50},
+		{count: 500, numberOfValidators: 75},
+		{count: 500, numberOfValidators: 100},
+		{count: 500, numberOfValidators: 125},
+		{count: 500, numberOfValidators: 150},
+		{count: 500, numberOfValidators: 175},
+		{count: 500, numberOfValidators: 200},
+		{count: 500, numberOfValidators: 225},
+		{count: 500, numberOfValidators: 250},
+		{count: 500, numberOfValidators: 300},
+		{count: 500, numberOfValidators: 400},
+		{count: 500, numberOfValidators: 500},
+	}
+	for _, testCase := range testCases {
+		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
+			benchmarkIBC_PrepareProposal_Update_Client(b, testCase.numberOfValidators, testCase.count)
+		})
+	}
+}
+
+func benchmarkIBC_PrepareProposal_Update_Client(b *testing.B, numberOfValidators, count int) {
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count)
+
+	blockData := &tmproto.Data{
+		Txs: rawTxs,
+	}
+	prepareProposalRequest := types.RequestPrepareProposal{
+		BlockData: blockData,
+		ChainId:   testApp.GetChainID(),
+		Height:    10,
+	}
+
+	b.ResetTimer()
+	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	b.StopTimer()
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "prepare_proposal_time(ns)")
+	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
+	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
+}
+
+func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
+	testCases := []struct {
+		count, numberOfValidators int
+	}{
+		{count: 6_000, numberOfValidators: 2},
+		{count: 3_000, numberOfValidators: 10},
+		{count: 2_000, numberOfValidators: 25},
+		{count: 1_000, numberOfValidators: 50},
+		{count: 500, numberOfValidators: 75},
+		{count: 500, numberOfValidators: 100},
+		{count: 500, numberOfValidators: 125},
+		{count: 500, numberOfValidators: 150},
+		{count: 500, numberOfValidators: 175},
+		{count: 500, numberOfValidators: 200},
+		{count: 500, numberOfValidators: 225},
+		{count: 500, numberOfValidators: 250},
+		{count: 500, numberOfValidators: 300},
+		{count: 500, numberOfValidators: 400},
+		{count: 500, numberOfValidators: 500},
+	}
+	for _, testCase := range testCases {
+		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
+			benchmarkIBC_ProcessProposal_Update_Client(b, testCase.numberOfValidators, testCase.count)
+		})
+	}
+}
+
+func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators, count int) {
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count)
+
+	blockData := &tmproto.Data{
+		Txs: rawTxs,
+	}
+	prepareProposalRequest := types.RequestPrepareProposal{
+		BlockData: blockData,
+		ChainId:   testApp.GetChainID(),
+		Height:    10,
+	}
+
+	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+
+	processProposalRequest := types.RequestProcessProposal{
+		BlockData: prepareProposalResponse.BlockData,
+		Header: tmproto.Header{
+			Height:   10,
+			DataHash: prepareProposalResponse.BlockData.Hash,
+			ChainID:  testutil.ChainID,
+			Version: tmprotoversion.Consensus{
+				App: testApp.AppVersion(),
+			},
+		},
+	}
+
+	b.ResetTimer()
+	resp := testApp.ProcessProposal(processProposalRequest)
+	b.StopTimer()
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "process_proposal_time(ns)")
+	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -138,8 +256,9 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	msgs := generateUpdateClientTransaction(
 		b,
 		testApp,
-		signer,
+		*signer,
 		acc.GetAddress().String(),
+		account,
 		numberOfValidators,
 		numberOfMessages,
 	)
@@ -160,7 +279,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	return testApp, rawTxs
 }
 
-func generateUpdateClientTransaction(b *testing.B, app *app.App, signer *user.Signer, signerAddr string, numberOfValidators int, numberOfMsgs int) []*types3.MsgUpdateClient {
+func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Signer, signerAddr string, signerName string, numberOfValidators int, numberOfMsgs int) []*types3.MsgUpdateClient {
 	state, _, privVals := makeState(numberOfValidators, 5)
 	wBefore := time.Now()
 	time.Sleep(time.Second)
@@ -280,7 +399,6 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer *user.Si
 			}
 		}
 		require.NotEmpty(b, clientName)
-		app.Commit()
 
 		msg, err := types3.NewMsgUpdateClient(
 			clientName,
@@ -315,6 +433,8 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer *user.Si
 		)
 		require.NoError(b, err)
 		msgs[index] = msg
+		err = signer.IncrementSequence(signerName)
+		require.NoError(b, err)
 	}
 
 	return msgs
