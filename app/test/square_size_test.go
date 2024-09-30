@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -131,7 +132,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
-
+				fmt.Println("txs in block", len(block.Block.Txs))
 				if block.Block.Data.SquareSize > uint64(actualMaxSize) {
 					actualMaxSize = int(block.Block.Data.SquareSize)
 				}
