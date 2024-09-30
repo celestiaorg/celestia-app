@@ -30,40 +30,85 @@ import (
 	types0 "github.com/tendermint/tendermint/types"
 )
 
-func BenchmarkIBC_Update_Client_Multi(b *testing.B) {
+func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
-		size int
+		numberOfValidators int
 	}{
-		{size: 300},
-		//{size: 500},
-		//{size: 1000},
-		//{size: 5000},
-		//{size: 10_000},
-		//{size: 50_000},
-		//{size: 100_000},
-		//{size: 200_000},
-		//{size: 300_000},
-		//{size: 400_000},
-		//{size: 500_000},
-		//{size: 1_000_000},
-		//{size: 2_000_000},
-		//{size: 3_000_000},
-		//{size: 4_000_000},
-		//{size: 5_000_000},
-		//{size: 6_000_000},
+		//{numberOfValidators: 2},
+		//{numberOfValidators: 10},
+		//{numberOfValidators: 25},
+		//{numberOfValidators: 50},
+		//{numberOfValidators: 75},
+		//{numberOfValidators: 100},
+		//{numberOfValidators: 125},
+		{numberOfValidators: 150},
+		//{numberOfValidators: 175},
+		//{numberOfValidators: 200},
+		//{numberOfValidators: 225},
+		//{numberOfValidators: 250},
+		//{numberOfValidators: 300},
+		//{numberOfValidators: 400},
+		//{numberOfValidators: 500},
 	}
 	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("%d bytes", testCase.size), func(b *testing.B) {
-			benchmarkIBC_Update_Client(b, testCase.size)
+		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
+			benchmarkIBC_CheckTx_Update_Client(b, testCase.numberOfValidators)
 		})
 	}
 }
 
-func benchmarkIBC_Update_Client(b *testing.B, size int) {
-	testApp, rawTx := generateIBCUpdateClientTransaction(b, 1)
+func benchmarkIBC_CheckTx_Update_Client(b *testing.B, numberOfValidators int) {
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1)
+
+	checkTxRequest := types.RequestCheckTx{
+		Type: types.CheckTxType_New,
+		Tx:   rawTxs[0],
+	}
+
+	var resp types.ResponseCheckTx
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		resp = testApp.CheckTx(checkTxRequest)
+	}
+	b.StopTimer()
+	b.ReportMetric(float64(resp.GasUsed), "gas_used")
+	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
+	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
+	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
+}
+
+func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
+	testCases := []struct {
+		numberOfValidators int
+	}{
+		{numberOfValidators: 1},
+		{numberOfValidators: 10},
+		{numberOfValidators: 25},
+		{numberOfValidators: 50},
+		{numberOfValidators: 75},
+		{numberOfValidators: 100},
+		{numberOfValidators: 125},
+		{numberOfValidators: 150},
+		{numberOfValidators: 175},
+		{numberOfValidators: 200},
+		{numberOfValidators: 225},
+		{numberOfValidators: 250},
+		{numberOfValidators: 300},
+		{numberOfValidators: 400},
+		{numberOfValidators: 500},
+	}
+	for _, testCase := range testCases {
+		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
+			benchmarkIBC_DeliverTx_Update_Client(b, testCase.numberOfValidators)
+		})
+	}
+}
+
+func benchmarkIBC_DeliverTx_Update_Client(b *testing.B, numberOfValidators int) {
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1)
 
 	deliverTxRequest := types.RequestDeliverTx{
-		Tx: rawTx,
+		Tx: rawTxs[0],
 	}
 
 	var resp types.ResponseDeliverTx
@@ -73,12 +118,15 @@ func benchmarkIBC_Update_Client(b *testing.B, size int) {
 	}
 	b.StopTimer()
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
-	b.ReportMetric(float64(len(rawTx)), "transaction_size(byte)")
+	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
+	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
+	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
 
 // generatePayForBlobTransactions creates a test app then generates an IBC
-// update client transaction with the specified number of signatures
-func generateIBCUpdateClientTransaction(b *testing.B, numberOfSignatures int) (*app.App, []byte) {
+// update client transaction with the specified number of validators.
+// Note: the number of the verified signatures is: 2 * numberOfValidators / 3
+func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, numberOfMessages int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
 	addr := testfactory.GetAddress(kr, account)
@@ -87,14 +135,44 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfSignatures int) (*
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)
 
-	msg, msg2 := generateUpdateClientTransaction(b, acc.GetAddress().String())
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg2, msg}, user.SetGasLimit(2549760000), user.SetFee(10000))
-	require.NoError(b, err)
-	return testApp, rawTx
+	//ctx := testApp.NewContext(true, types5.Header{})
+	//acc4 := testApp.AccountKeeper.GetAccount(ctx, acc.GetAddress())
+	//fmt.Println(acc4)
+	//err = acc2.SetPubKey(signer.Accounts()[0].PubKey())
+	//require.NoError(b, err)
+	//testApp.AccountKeeper.SetAccount(ctx, acc2)
+	//pubKey := acc.GetPubKey()
+	//acc3 := testApp.AccountKeeper.GetAccount(ctx, acc2.GetAddress())
+	//fmt.Println(acc3)
+	//fmt.Println(pubKey)
+	//acc = testutil.DirectQueryAccount(testApp, addr)
+
+	msgs := generateUpdateClientTransaction(
+		b,
+		testApp,
+		signer,
+		acc.GetAddress().String(),
+		numberOfValidators,
+		numberOfMessages,
+	)
+
+	accountSequence := uint64(numberOfMessages)
+	//err = signer.SetSequence(account, accountSequence)
+	//accountSequence := uint64(0)
+	rawTxs := make([][]byte, 0, numberOfMessages)
+	for i := 0; i < numberOfMessages; i++ {
+		rawTx, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		require.NoError(b, err)
+		rawTxs = append(rawTxs, rawTx)
+		accountSequence++
+		err = signer.SetSequence(account, accountSequence)
+		require.NoError(b, err)
+	}
+
+	return testApp, rawTxs
 }
 
-func generateUpdateClientTransaction(b *testing.B, signer string) (*types3.MsgUpdateClient, *types3.MsgCreateClient) {
-	numberOfValidators := 100
+func generateUpdateClientTransaction(b *testing.B, app *app.App, signer *user.Signer, signerAddr string, numberOfValidators int, numberOfMsgs int) []*types3.MsgUpdateClient {
 	state, _, privVals := makeState(numberOfValidators, 5)
 	wBefore := time.Now()
 	time.Sleep(time.Second)
@@ -173,8 +251,8 @@ func generateUpdateClientTransaction(b *testing.B, signer string) (*types3.MsgUp
 	}
 	clientState := types4.ClientState{
 		ChainId:         chainID,
-		TrustLevel:      types4.Fraction{Numerator: 1, Denominator: 1}, // we want all signatures to be verified
-		TrustingPeriod:  time.Hour * 24 * 21 * 100,                     // we want to always accept the upgrade
+		TrustLevel:      types4.Fraction{Numerator: 1, Denominator: 3},
+		TrustingPeriod:  time.Hour * 24 * 21 * 100, // we want to always accept the upgrade
 		UnbondingPeriod: time.Hour * 24 * 21 * 101,
 		MaxClockDrift:   math.MaxInt64 - 1,
 		FrozenHeight: types3.Height{
@@ -195,105 +273,65 @@ func generateUpdateClientTransaction(b *testing.B, signer string) (*types3.MsgUp
 		Root:               types2.MerkleRoot{Hash: lastBlockHash},
 		NextValidatorsHash: state.Validators.Hash(),
 	}
-	createClientMsg, err := types3.NewMsgCreateClient(&clientState, &consensusState, signer)
-	require.NoError(b, err)
-	msg, err := types3.NewMsgUpdateClient(
-		"test_client",
-		&types4.Header{
-			SignedHeader: &sh,
-			ValidatorSet: &types5.ValidatorSet{
-				Validators: validators,
-				Proposer: &types5.Validator{
-					Address:          state.Validators.Proposer.Address,
-					PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
-					VotingPower:      state.Validators.Proposer.VotingPower,
-					ProposerPriority: state.Validators.Proposer.ProposerPriority,
+
+	msgs := make([]*types3.MsgUpdateClient, numberOfMsgs)
+	for index := 0; index < numberOfMsgs; index++ {
+		createClientMsg, err := types3.NewMsgCreateClient(&clientState, &consensusState, signerAddr)
+		require.NoError(b, err)
+		rawTx, err := signer.CreateTx([]sdk.Msg{createClientMsg}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		require.NoError(b, err)
+		resp := app.DeliverTx(types.RequestDeliverTx{Tx: rawTx})
+		var clientName string
+		for _, event := range resp.Events {
+			if event.Type == types3.EventTypeCreateClient {
+				for _, attribute := range event.Attributes {
+					if string(attribute.Key) == types3.AttributeKeyClientID {
+						clientName = string(attribute.Value)
+					}
+				}
+			}
+		}
+		require.NotEmpty(b, clientName)
+
+		msg, err := types3.NewMsgUpdateClient(
+			clientName,
+			&types4.Header{
+				SignedHeader: &sh,
+				ValidatorSet: &types5.ValidatorSet{
+					Validators: validators,
+					Proposer: &types5.Validator{
+						Address:          state.Validators.Proposer.Address,
+						PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
+						VotingPower:      state.Validators.Proposer.VotingPower,
+						ProposerPriority: state.Validators.Proposer.ProposerPriority,
+					},
+					TotalVotingPower: state.Validators.TotalVotingPower(),
 				},
-				TotalVotingPower: state.Validators.TotalVotingPower(),
-			},
-			TrustedHeight: types3.Height{
-				RevisionNumber: 0,
-				RevisionHeight: 4,
-			},
-			TrustedValidators: &types5.ValidatorSet{
-				Validators: validators,
-				Proposer: &types5.Validator{
-					Address:          state.Validators.Proposer.Address,
-					PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
-					VotingPower:      state.Validators.Proposer.VotingPower,
-					ProposerPriority: state.Validators.Proposer.ProposerPriority,
+				TrustedHeight: types3.Height{
+					RevisionNumber: 0,
+					RevisionHeight: 4,
 				},
-				TotalVotingPower: state.Validators.TotalVotingPower(),
+				TrustedValidators: &types5.ValidatorSet{
+					Validators: validators,
+					Proposer: &types5.Validator{
+						Address:          state.Validators.Proposer.Address,
+						PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
+						VotingPower:      state.Validators.Proposer.VotingPower,
+						ProposerPriority: state.Validators.Proposer.ProposerPriority,
+					},
+					TotalVotingPower: state.Validators.TotalVotingPower(),
+				},
 			},
-		},
-		signer,
-	)
-	require.NoError(b, err)
-
-	return msg, createClientMsg
-}
-
-func dummy() {
-	//state, stateDB, privVals := makeState(100, 5)
-	//stateStore := sm.NewStore(stateDB, sm.StoreOptions{
-	//	DiscardABCIResponses: false,
-	//})
-	//
-	//defaultEvidenceTime := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-	//privVal := privVals[state.Validators.Validators[0].Address.String()]
-	//blockID := makeBlockID([]byte("headerhash"), 1000, []byte("partshash"))
-	//header := &types0.Header{
-	//	Version:            cmtversion.Consensus{Block: version.BlockProtocol, App: 1},
-	//	ChainID:            state.ChainID,
-	//	Height:             10,
-	//	Time:               defaultEvidenceTime,
-	//	LastBlockID:        blockID,
-	//	LastCommitHash:     crypto.CRandBytes(tmhash.Size),
-	//	DataHash:           crypto.CRandBytes(tmhash.Size),
-	//	ValidatorsHash:     state.Validators.Hash(),
-	//	NextValidatorsHash: state.Validators.Hash(),
-	//	ConsensusHash:      crypto.CRandBytes(tmhash.Size),
-	//	AppHash:            crypto.CRandBytes(tmhash.Size),
-	//	LastResultsHash:    crypto.CRandBytes(tmhash.Size),
-	//	EvidenceHash:       crypto.CRandBytes(tmhash.Size),
-	//	ProposerAddress:    crypto.CRandBytes(crypto.AddressSize),
-	//}
-
-	//// we don't need to worry about validating the evidence as long as they pass validate basic
-	//dve := types0.NewMockDuplicateVoteEvidenceWithValidator(3, defaultEvidenceTime, privVal, state.ChainID)
-	//dve.ValidatorPower = 1000
-	//lcae := &types0.LightClientAttackEvidence{
-	//	ConflictingBlock: &types0.LightBlock{
-	//		SignedHeader: &types0.SignedHeader{
-	//			Header: header,
-	//			Commit: types0.NewCommit(10, 0, makeBlockID(header.Hash(), 100, []byte("partshash")), []types0.CommitSig{{
-	//				BlockIDFlag:      types0.BlockIDFlagNil,
-	//				ValidatorAddress: crypto.AddressHash([]byte("validator_address")),
-	//				Timestamp:        defaultEvidenceTime,
-	//				Signature:        crypto.CRandBytes(types0.MaxSignatureSize),
-	//			}}),
-	//		},
-	//		ValidatorSet: state.Validators,
-	//	},
-	//	CommonHeight:        8,
-	//	ByzantineValidators: []*types0.Validator{state.Validators.Validators[0]},
-	//	TotalVotingPower:    12,
-	//	Timestamp:           defaultEvidenceTime,
-	//}
-}
-
-var chainID string = "test"
-
-func genValSet(size int) (*types0.ValidatorSet, []ed25519.PrivKey) {
-	vals := make([]*types0.Validator, size)
-	privateKeys := make([]ed25519.PrivKey, size)
-	for i := 0; i < size; i++ {
-		privateKey := ed25519.GenPrivKey()
-		vals[i] = types0.NewValidator(privateKey.PubKey(), 10)
-		privateKeys[i] = privateKey
+			signerAddr,
+		)
+		require.NoError(b, err)
+		msgs[index] = msg
 	}
-	return types0.NewValidatorSet(vals), privateKeys
+
+	return msgs
 }
+
+var chainID = "test"
 
 func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types0.PrivValidator) {
 	vals := make([]types0.GenesisValidator, nVals)
