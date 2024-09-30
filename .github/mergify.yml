@@ -15,7 +15,7 @@ pull_request_rules:
       backport:
         branches:
           - v2.x
-  - name: forward-port patches to main branch
+  - name: forward-port patches to main branch (v1.x)
     conditions:
       - base=v1.x
       - label=forwardport:main
@@ -23,7 +23,7 @@ pull_request_rules:
       backport:
         branches:
           - main
-  - name: forward-port patches to main branch
+  - name: forward-port patches to main branch (v2.x)
     conditions:
       - base=v2.x
       - label=forwardport:main
