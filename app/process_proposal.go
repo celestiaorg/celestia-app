@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -13,8 +11,6 @@ import (
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
-	fmt.Println("process txs", len(req.BlockData.Txs))
-
 	// defer telemetry.MeasureSince(time.Now(), "process_proposal")
 	// // In the case of a panic resulting from an unexpected condition, it is
 	// // better for the liveness of the network to catch it, log an error, and
