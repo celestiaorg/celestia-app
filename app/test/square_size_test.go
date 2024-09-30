@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ func TestSquareSizeIntegrationTest(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping square size integration test in short mode.")
 	}
+	os.Setenv("SEEN_LIMIT", "0")
 	suite.Run(t, new(SquareSizeIntegrationTest))
 }
 

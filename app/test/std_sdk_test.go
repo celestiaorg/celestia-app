@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -40,6 +41,7 @@ func TestStandardSDKIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping SDK integration test in short mode.")
 	}
+	os.Setenv("SEEN_LIMIT", "0")
 	suite.Run(t, new(StandardSDKIntegrationTestSuite))
 }
 

@@ -41,17 +41,17 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 
 // PayForBlobs consumes gas based on the blob sizes in the MsgPayForBlobs.
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
+	// ctx := sdk.UnwrapSDKContext(goCtx)
 
-	gasToConsume := types.GasToConsume(msg.BlobSizes, k.GasPerBlobByte(ctx))
-	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
+	// gasToConsume := types.GasToConsume(msg.BlobSizes, k.GasPerBlobByte(ctx))
+	// ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
-	err := ctx.EventManager().EmitTypedEvent(
-		types.NewPayForBlobsEvent(msg.Signer, msg.BlobSizes, msg.Namespaces),
-	)
-	if err != nil {
-		return &types.MsgPayForBlobsResponse{}, err
-	}
+	// err := ctx.EventManager().EmitTypedEvent(
+	// 	types.NewPayForBlobsEvent(msg.Signer, msg.BlobSizes, msg.Namespaces),
+	// )
+	// if err != nil {
+	// 	return &types.MsgPayForBlobsResponse{}, err
+	// }
 
 	return &types.MsgPayForBlobsResponse{}, nil
 }
