@@ -33,7 +33,6 @@ import (
 )
 
 func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
-	// not working
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -61,7 +60,8 @@ func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
 }
 
 func benchmarkIBC_CheckTx_Update_Client(b *testing.B, numberOfValidators int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1)
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
+	testApp.Commit()
 
 	checkTxRequest := types.RequestCheckTx{
 		Type: types.CheckTxType_New,
@@ -108,7 +108,7 @@ func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
 }
 
 func benchmarkIBC_DeliverTx_Update_Client(b *testing.B, numberOfValidators int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1)
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
 
 	deliverTxRequest := types.RequestDeliverTx{
 		Tx: rawTxs[0],
@@ -153,7 +153,7 @@ func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 }
 
 func benchmarkIBC_PrepareProposal_Update_Client(b *testing.B, numberOfValidators, count int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count)
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
 
 	blockData := &tmproto.Data{
 		Txs: rawTxs,
@@ -167,6 +167,7 @@ func benchmarkIBC_PrepareProposal_Update_Client(b *testing.B, numberOfValidators
 	b.ResetTimer()
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
 	b.StopTimer()
+	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "prepare_proposal_time(ns)")
 	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
@@ -204,7 +205,7 @@ func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 }
 
 func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators, count int) {
-	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count)
+	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
 
 	blockData := &tmproto.Data{
 		Txs: rawTxs,
@@ -216,6 +217,7 @@ func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators
 	}
 
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
 	processProposalRequest := types.RequestProcessProposal{
 		BlockData: prepareProposalResponse.BlockData,
@@ -246,7 +248,9 @@ func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators
 // generatePayForBlobTransactions creates a test app then generates an IBC
 // update client transaction with the specified number of validators.
 // Note: the number of the verified signatures is: 2 * numberOfValidators / 3
-func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, numberOfMessages int) (*app.App, [][]byte) {
+// the offset is just a hack for transactions to be processed by the needed
+// ABCI method.
+func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, numberOfMessages int, offsetAccountSequence int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
 	addr := testfactory.GetAddress(kr, account)
@@ -266,7 +270,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	)
 
 	accountSequence := testutil.DirectQueryAccount(testApp, addr).GetSequence()
-	err = signer.SetSequence(account, accountSequence)
+	err = signer.SetSequence(account, accountSequence+uint64(offsetAccountSequence))
 	//accountSequence := uint64(0)
 	rawTxs := make([][]byte, 0, numberOfMessages)
 	for i := 0; i < numberOfMessages; i++ {
