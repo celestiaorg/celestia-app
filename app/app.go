@@ -16,15 +16,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	blobstreamkeeper "github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	mintkeeper "github.com/celestiaorg/celestia-app/v3/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v3/x/tokenfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -48,11 +44,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	distr "github.com/cosmos/cosmos-sdk/x/distribution"
-	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
-	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	evidencekeeper "github.com/cosmos/cosmos-sdk/x/evidence/keeper"
-	evidencetypes "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
@@ -62,27 +53,10 @@ import (
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	paramproposal "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
-	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/keeper"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
-	icahost "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host"
-	icahostkeeper "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/keeper"
-	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
-	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
-	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
-	ibctransferkeeper "github.com/cosmos/ibc-go/v6/modules/apps/transfer/keeper"
-	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
-	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
-	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
-	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
-	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 	"github.com/spf13/cast"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -97,14 +71,14 @@ import (
 // maccPerms is short for module account permissions. It is a map from module
 // account name to a list of permissions for that module account.
 var maccPerms = map[string][]string{
-	authtypes.FeeCollectorName:     nil,
-	distrtypes.ModuleName:          nil,
-	govtypes.ModuleName:            {authtypes.Burner},
-	minttypes.ModuleName:           {authtypes.Minter},
+	authtypes.FeeCollectorName: nil,
+	// distrtypes.ModuleName:          nil,
+	govtypes.ModuleName: {authtypes.Burner},
+	// minttypes.ModuleName:           {authtypes.Minter},
 	stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-	icatypes.ModuleName:            nil,
+	// ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+	// icatypes.ModuleName:            nil,
 }
 
 const (
@@ -115,7 +89,7 @@ const (
 
 var (
 	_ servertypes.Application = (*App)(nil)
-	_ ibctesting.TestingApp   = (*App)(nil)
+	// _ ibctesting.TestingApp   = (*App)(nil)
 )
 
 func init() {
@@ -142,31 +116,31 @@ type App struct {
 	memKeys     map[string]*storetypes.MemoryStoreKey
 
 	// keepers
-	AccountKeeper       authkeeper.AccountKeeper
-	BankKeeper          bankkeeper.Keeper
-	AuthzKeeper         authzkeeper.Keeper
-	CapabilityKeeper    *capabilitykeeper.Keeper
-	StakingKeeper       stakingkeeper.Keeper
-	SlashingKeeper      slashingkeeper.Keeper
-	MintKeeper          mintkeeper.Keeper
-	DistrKeeper         distrkeeper.Keeper
-	GovKeeper           govkeeper.Keeper
-	CrisisKeeper        crisiskeeper.Keeper
-	UpgradeKeeper       upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
-	SignalKeeper        signal.Keeper
-	ParamsKeeper        paramskeeper.Keeper
-	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
-	EvidenceKeeper      evidencekeeper.Keeper
-	TransferKeeper      ibctransferkeeper.Keeper
-	FeeGrantKeeper      feegrantkeeper.Keeper
-	ICAHostKeeper       icahostkeeper.Keeper
-	PacketForwardKeeper *packetforwardkeeper.Keeper
-	BlobKeeper          blobkeeper.Keeper
-	BlobstreamKeeper    blobstreamkeeper.Keeper
+	AccountKeeper    authkeeper.AccountKeeper
+	BankKeeper       bankkeeper.Keeper
+	AuthzKeeper      authzkeeper.Keeper
+	CapabilityKeeper *capabilitykeeper.Keeper
+	StakingKeeper    stakingkeeper.Keeper
+	// SlashingKeeper      slashingkeeper.Keeper
+	// MintKeeper          mintkeeper.Keeper
+	// DistrKeeper         distrkeeper.Keeper
+	GovKeeper     govkeeper.Keeper
+	CrisisKeeper  crisiskeeper.Keeper
+	UpgradeKeeper upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
+	SignalKeeper  signal.Keeper
+	ParamsKeeper  paramskeeper.Keeper
+	// IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
+	// EvidenceKeeper evidencekeeper.Keeper
+	// TransferKeeper      ibctransferkeeper.Keeper
+	FeeGrantKeeper feegrantkeeper.Keeper
+	// ICAHostKeeper       icahostkeeper.Keeper
+	// PacketForwardKeeper *packetforwardkeeper.Keeper
+	BlobKeeper blobkeeper.Keeper
+	// BlobstreamKeeper    blobstreamkeeper.Keeper
 
-	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
-	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
-	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
+	// ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
+	// ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
+	// ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 
 	manager      *module.Manager
 	configurator module.Configurator
@@ -225,9 +199,9 @@ func New(
 
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
 
-	app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
-	app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
-	app.ScopedICAHostKeeper = app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
+	// app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
+	// app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
+	// app.ScopedICAHostKeeper = app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
 
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
 		appCodec, keys[authtypes.StoreKey], app.GetSubspace(authtypes.ModuleName), authtypes.ProtoBaseAccount, maccPerms, sdk.GetConfig().GetBech32AccountAddrPrefix(),
@@ -241,21 +215,21 @@ func New(
 	stakingKeeper := stakingkeeper.NewKeeper(
 		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName),
 	)
-	app.MintKeeper = mintkeeper.NewKeeper(
-		appCodec,
-		keys[minttypes.StoreKey],
-		&stakingKeeper,
-		app.AccountKeeper,
-		app.BankKeeper,
-		authtypes.FeeCollectorName,
-	)
-	app.DistrKeeper = distrkeeper.NewKeeper(
-		appCodec, keys[distrtypes.StoreKey], app.GetSubspace(distrtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
-		&stakingKeeper, authtypes.FeeCollectorName,
-	)
-	app.SlashingKeeper = slashingkeeper.NewKeeper(
-		appCodec, keys[slashingtypes.StoreKey], &stakingKeeper, app.GetSubspace(slashingtypes.ModuleName),
-	)
+	// app.MintKeeper = mintkeeper.NewKeeper(
+	// 	appCodec,
+	// 	keys[minttypes.StoreKey],
+	// 	&stakingKeeper,
+	// 	app.AccountKeeper,
+	// 	app.BankKeeper,
+	// 	authtypes.FeeCollectorName,
+	// )
+	// app.DistrKeeper = distrkeeper.NewKeeper(
+	// 	appCodec, keys[distrtypes.StoreKey], app.GetSubspace(distrtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
+	// 	&stakingKeeper, authtypes.FeeCollectorName,
+	// )
+	// app.SlashingKeeper = slashingkeeper.NewKeeper(
+	// 	appCodec, keys[slashingtypes.StoreKey], &stakingKeeper, app.GetSubspace(slashingtypes.ModuleName),
+	// )
 	app.CrisisKeeper = crisiskeeper.NewKeeper(
 		app.GetSubspace(crisistypes.ModuleName), invCheckPeriod, app.BankKeeper, authtypes.FeeCollectorName,
 	)
@@ -266,98 +240,98 @@ func New(
 	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
-	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
-		appCodec,
-		keys[blobstreamtypes.StoreKey],
-		app.GetSubspace(blobstreamtypes.ModuleName),
-		&stakingKeeper,
-	)
+	// app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
+	// 	appCodec,
+	// 	keys[blobstreamtypes.StoreKey],
+	// 	app.GetSubspace(blobstreamtypes.ModuleName),
+	// 	&stakingKeeper,
+	// )
 
 	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
 	// above so that it will contain these hooks.
 	app.StakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
-			app.DistrKeeper.Hooks(),
-			app.SlashingKeeper.Hooks(),
-			app.BlobstreamKeeper.Hooks(),
+		// app.DistrKeeper.Hooks(),
+		// app.SlashingKeeper.Hooks(),
+		// app.BlobstreamKeeper.Hooks(),
 		),
 	)
 
 	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper)
 
-	app.IBCKeeper = ibckeeper.NewKeeper(
-		appCodec,
-		keys[ibchost.StoreKey],
-		app.GetSubspace(ibchost.ModuleName),
-		app.StakingKeeper,
-		app.UpgradeKeeper,
-		app.ScopedIBCKeeper,
-	)
+	// app.IBCKeeper = ibckeeper.NewKeeper(
+	// 	appCodec,
+	// 	keys[ibchost.StoreKey],
+	// 	app.GetSubspace(ibchost.ModuleName),
+	// 	app.StakingKeeper,
+	// 	app.UpgradeKeeper,
+	// 	app.ScopedIBCKeeper,
+	// )
 
-	app.ICAHostKeeper = icahostkeeper.NewKeeper(
-		appCodec,
-		keys[icahosttypes.StoreKey],
-		app.GetSubspace(icahosttypes.SubModuleName),
-		app.IBCKeeper.ChannelKeeper, // ICS4Wrapper
-		app.IBCKeeper.ChannelKeeper,
-		&app.IBCKeeper.PortKeeper,
-		app.AccountKeeper,
-		app.ScopedICAHostKeeper,
-		app.MsgServiceRouter(),
-	)
+	// app.ICAHostKeeper = icahostkeeper.NewKeeper(
+	// 	appCodec,
+	// 	keys[icahosttypes.StoreKey],
+	// 	app.GetSubspace(icahosttypes.SubModuleName),
+	// 	app.IBCKeeper.ChannelKeeper, // ICS4Wrapper
+	// 	app.IBCKeeper.ChannelKeeper,
+	// 	&app.IBCKeeper.PortKeeper,
+	// 	app.AccountKeeper,
+	// 	app.ScopedICAHostKeeper,
+	// 	app.MsgServiceRouter(),
+	// )
 
 	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
 
 	// Register the proposal types.
 	govRouter := oldgovtypes.NewRouter()
-	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
-		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
-		AddRoute(ibcclienttypes.RouterKey, NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
+	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper))
+	// AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
+	// AddRoute(ibcclienttypes.RouterKey, NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
 	// Create Transfer Keepers.
-	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
+	// tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
 
-	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
-		appCodec,
-		keys[packetforwardtypes.StoreKey],
-		app.GetSubspace(packetforwardtypes.ModuleName),
-		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
-		app.IBCKeeper.ChannelKeeper,
-		app.DistrKeeper,
-		app.BankKeeper,
-		tokenFilterKeeper,
-	)
+	// app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+	// 	appCodec,
+	// 	keys[packetforwardtypes.StoreKey],
+	// 	app.GetSubspace(packetforwardtypes.ModuleName),
+	// 	app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
+	// 	app.IBCKeeper.ChannelKeeper,
+	// 	app.DistrKeeper,
+	// 	app.BankKeeper,
+	// 	tokenFilterKeeper,
+	// )
 
-	app.TransferKeeper = ibctransferkeeper.NewKeeper(
-		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
-		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
-		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
-	)
+	// app.TransferKeeper = ibctransferkeeper.NewKeeper(
+	// 	appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
+	// 	app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
+	// 	app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper,
+	// )
 	// Transfer stack contains (from top to bottom):
 	// - Token Filter
 	// - Packet Forwarding Middleware
 	// - Transfer
-	var transferStack ibcporttypes.IBCModule
-	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	packetForwardMiddleware := packetforward.NewIBCMiddleware(
-		transferStack,
-		app.PacketForwardKeeper,
-		0, // retries on timeout
-		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
-	)
-	// PacketForwardMiddleware is used only for version 2.
-	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
-	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
-	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
+	// var transferStack ibcporttypes.IBCModule
+	// transferStack = transfer.NewIBCModule(app.TransferKeeper)
+	// packetForwardMiddleware := packetforward.NewIBCMiddleware(
+	// 	transferStack,
+	// 	app.PacketForwardKeeper,
+	// 	0, // retries on timeout
+	// 	packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
+	// 	packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
+	// )
+	// // PacketForwardMiddleware is used only for version 2.
+	// transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v2)
+	// // Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
+	// tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
+	// transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v2)
 
-	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
-		appCodec,
-		keys[evidencetypes.StoreKey],
-		&app.StakingKeeper,
-		app.SlashingKeeper,
-	)
+	// app.EvidenceKeeper = *evidencekeeper.NewKeeper(
+	// 	appCodec,
+	// 	keys[evidencetypes.StoreKey],
+	// 	&app.StakingKeeper,
+	// 	app.SlashingKeeper,
+	// )
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec,
@@ -376,11 +350,11 @@ func New(
 		app.GetSubspace(blobtypes.ModuleName),
 	)
 
-	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
-	ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
-	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
-	app.IBCKeeper.SetRouter(ibcRouter)
+	// app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
+	// ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
+	// ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
+	// ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
+	// app.IBCKeeper.SetRouter(ibcRouter)
 
 	/****  Module Options ****/
 
@@ -425,7 +399,7 @@ func New(
 		app.FeeGrantKeeper,
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
-		app.IBCKeeper,
+		nil,
 		app.ParamsKeeper,
 		app.MsgGateKeeper,
 	))
@@ -650,15 +624,15 @@ func (app *App) GetStakingKeeper() ibctestingtypes.StakingKeeper {
 	return app.StakingKeeper
 }
 
-// GetIBCKeeper implements the TestingApp interface.
-func (app *App) GetIBCKeeper() *ibckeeper.Keeper {
-	return app.IBCKeeper
-}
+// // GetIBCKeeper implements the TestingApp interface.
+// func (app *App) GetIBCKeeper() *ibckeeper.Keeper {
+// 	return app.IBCKeeper
+// }
 
-// GetScopedIBCKeeper implements the TestingApp interface.
-func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
-	return app.ScopedIBCKeeper
-}
+// // GetScopedIBCKeeper implements the TestingApp interface.
+// func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
+// 	return app.ScopedIBCKeeper
+// }
 
 // GetTxConfig implements the TestingApp interface.
 func (app *App) GetTxConfig() client.TxConfig {
@@ -766,18 +740,10 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(authtypes.ModuleName)
 	paramsKeeper.Subspace(banktypes.ModuleName)
 	paramsKeeper.Subspace(stakingtypes.ModuleName)
-	paramsKeeper.Subspace(minttypes.ModuleName)
-	paramsKeeper.Subspace(distrtypes.ModuleName)
-	paramsKeeper.Subspace(slashingtypes.ModuleName)
 	paramsKeeper.Subspace(govtypes.ModuleName).WithKeyTable(govv1beta2.ParamKeyTable())
 	paramsKeeper.Subspace(crisistypes.ModuleName)
-	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
-	paramsKeeper.Subspace(ibchost.ModuleName)
-	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
-	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 	paramsKeeper.Subspace(minfee.ModuleName)
-	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
 }

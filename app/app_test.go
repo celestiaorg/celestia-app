@@ -27,12 +27,12 @@ func TestNew(t *testing.T) {
 
 	got := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
 
-	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
-		assert.NotNil(t, got.ICAHostKeeper)
-	})
-	t.Run("initializes ScopedICAHostKeeper", func(t *testing.T) {
-		assert.NotNil(t, got.ScopedICAHostKeeper)
-	})
+	// t.Run("initializes ICAHostKeeper", func(t *testing.T) {
+	// 	assert.NotNil(t, got.ICAHostKeeper)
+	// })
+	// t.Run("initializes ScopedICAHostKeeper", func(t *testing.T) {
+	// 	assert.NotNil(t, got.ScopedICAHostKeeper)
+	// })
 	t.Run("initializes StakingKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.StakingKeeper)
 	})

@@ -6,7 +6,6 @@ import (
 
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
@@ -89,64 +88,64 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 	/* Handle fee distribution state. */
 
-	// withdraw all validator commission
-	app.StakingKeeper.IterateValidators(ctx, func(_ int64, val stakingtypes.ValidatorI) (stop bool) {
-		_, _ = app.DistrKeeper.WithdrawValidatorCommission(ctx, val.GetOperator())
-		return false
-	})
+	// // withdraw all validator commission
+	// app.StakingKeeper.IterateValidators(ctx, func(_ int64, val stakingtypes.ValidatorI) (stop bool) {
+	// 	_, _ = app.DistrKeeper.WithdrawValidatorCommission(ctx, val.GetOperator())
+	// 	return false
+	// })
 
-	// withdraw all delegator rewards
-	dels := app.StakingKeeper.GetAllDelegations(ctx)
-	for _, delegation := range dels {
-		valAddr, err := sdk.ValAddressFromBech32(delegation.ValidatorAddress)
-		if err != nil {
-			panic(err)
-		}
+	// // withdraw all delegator rewards
+	// dels := app.StakingKeeper.GetAllDelegations(ctx)
+	// for _, delegation := range dels {
+	// 	valAddr, err := sdk.ValAddressFromBech32(delegation.ValidatorAddress)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
 
-		delAddr, err := sdk.AccAddressFromBech32(delegation.DelegatorAddress)
-		if err != nil {
-			panic(err)
-		}
-		_, _ = app.DistrKeeper.WithdrawDelegationRewards(ctx, delAddr, valAddr)
-	}
+	// 	delAddr, err := sdk.AccAddressFromBech32(delegation.DelegatorAddress)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	_, _ = app.DistrKeeper.WithdrawDelegationRewards(ctx, delAddr, valAddr)
+	// }
 
-	// clear validator slash events
-	app.DistrKeeper.DeleteAllValidatorSlashEvents(ctx)
+	// // clear validator slash events
+	// app.DistrKeeper.DeleteAllValidatorSlashEvents(ctx)
 
-	// clear validator historical rewards
-	app.DistrKeeper.DeleteAllValidatorHistoricalRewards(ctx)
+	// // clear validator historical rewards
+	// app.DistrKeeper.DeleteAllValidatorHistoricalRewards(ctx)
 
 	// set context height to zero
 	height := ctx.BlockHeight()
 	ctx = ctx.WithBlockHeight(0)
 
-	// reinitialize all validators
-	app.StakingKeeper.IterateValidators(ctx, func(_ int64, val stakingtypes.ValidatorI) (stop bool) {
-		// donate any unwithdrawn outstanding reward fraction tokens to the community pool
-		scraps := app.DistrKeeper.GetValidatorOutstandingRewardsCoins(ctx, val.GetOperator())
-		feePool := app.DistrKeeper.GetFeePool(ctx)
-		feePool.CommunityPool = feePool.CommunityPool.Add(scraps...)
-		app.DistrKeeper.SetFeePool(ctx, feePool)
+	// // reinitialize all validators
+	// app.StakingKeeper.IterateValidators(ctx, func(_ int64, val stakingtypes.ValidatorI) (stop bool) {
+	// 	// donate any unwithdrawn outstanding reward fraction tokens to the community pool
+	// 	scraps := app.DistrKeeper.GetValidatorOutstandingRewardsCoins(ctx, val.GetOperator())
+	// 	feePool := app.DistrKeeper.GetFeePool(ctx)
+	// 	feePool.CommunityPool = feePool.CommunityPool.Add(scraps...)
+	// 	app.DistrKeeper.SetFeePool(ctx, feePool)
 
-		if err := app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator()); err != nil {
-			panic(err)
-		}
-		return false
-	})
+	// 	if err := app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator()); err != nil {
+	// 		panic(err)
+	// 	}
+	// 	return false
+	// })
 
-	// reinitialize all delegations
-	for _, del := range dels {
-		valAddr, err := sdk.ValAddressFromBech32(del.ValidatorAddress)
-		if err != nil {
-			panic(err)
-		}
-		delAddr, err := sdk.AccAddressFromBech32(del.DelegatorAddress)
-		if err != nil {
-			panic(err)
-		}
-		_ = app.DistrKeeper.Hooks().BeforeDelegationCreated(ctx, delAddr, valAddr)
-		_ = app.DistrKeeper.Hooks().AfterDelegationModified(ctx, delAddr, valAddr)
-	}
+	// // reinitialize all delegations
+	// for _, del := range dels {
+	// 	valAddr, err := sdk.ValAddressFromBech32(del.ValidatorAddress)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	delAddr, err := sdk.AccAddressFromBech32(del.DelegatorAddress)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	_ = app.DistrKeeper.Hooks().BeforeDelegationCreated(ctx, delAddr, valAddr)
+	// 	_ = app.DistrKeeper.Hooks().AfterDelegationModified(ctx, delAddr, valAddr)
+	// }
 
 	// reset context height
 	ctx = ctx.WithBlockHeight(height)
@@ -202,13 +201,13 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 	/* Handle slashing state. */
 
-	// reset start height on signing infos
-	app.SlashingKeeper.IterateValidatorSigningInfos(
-		ctx,
-		func(addr sdk.ConsAddress, info slashingtypes.ValidatorSigningInfo) (stop bool) {
-			info.StartHeight = 0
-			app.SlashingKeeper.SetValidatorSigningInfo(ctx, addr, info)
-			return false
-		},
-	)
+	// // reset start height on signing infos
+	// app.SlashingKeeper.IterateValidatorSigningInfos(
+	// 	ctx,
+	// 	func(addr sdk.ConsAddress, info slashingtypes.ValidatorSigningInfo) (stop bool) {
+	// 		info.StartHeight = 0
+	// 		app.SlashingKeeper.SetValidatorSigningInfo(ctx, addr, info)
+	// 		return false
+	// 	},
+	// )
 }

@@ -7,11 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	"github.com/celestiaorg/celestia-app/v3/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
@@ -28,10 +24,6 @@ import (
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	distr "github.com/cosmos/cosmos-sdk/x/distribution"
-	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	"github.com/cosmos/cosmos-sdk/x/evidence"
-	evidencetypes "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	feegrantmodule "github.com/cosmos/cosmos-sdk/x/feegrant/module"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
@@ -40,19 +32,10 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	"github.com/cosmos/cosmos-sdk/x/slashing"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
-	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
-	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
-	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
-	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
 )
 
@@ -66,24 +49,24 @@ var (
 		bankModule{},
 		capability.AppModuleBasic{},
 		stakingModule{},
-		mintModule{},
-		distributionModule{},
+		// mintModule{},
+		// distributionModule{},
 		newGovModule(),
 		params.AppModuleBasic{},
 		crisisModule{},
-		slashingModule{},
+		// slashingModule{},
 		authzmodule.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
-		ibcModule{},
-		evidence.AppModuleBasic{},
-		transfer.AppModuleBasic{},
+		// ibcModule{},
+		// evidence.AppModuleBasic{},
+		// transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		blob.AppModuleBasic{},
-		blobstream.AppModuleBasic{},
+		// blobstream.AppModuleBasic{},
 		signal.AppModuleBasic{},
 		minfee.AppModuleBasic{},
-		packetforward.AppModuleBasic{},
-		icaModule{},
+		// packetforward.AppModuleBasic{},
+		// icaModule{},
 	)
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
@@ -126,50 +109,50 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 			Module:      gov.NewAppModule(app.appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
 			FromVersion: v1, ToVersion: v2,
 		},
-		{
-			Module:      mint.NewAppModule(app.appCodec, app.MintKeeper, app.AccountKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      slashing.NewAppModule(app.appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
-		{
-			Module:      distr.NewAppModule(app.appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
+		// {
+		// 	Module:      mint.NewAppModule(app.appCodec, app.MintKeeper, app.AccountKeeper),
+		// 	FromVersion: v1, ToVersion: v2,
+		// },
+		// {
+		// 	Module:      slashing.NewAppModule(app.appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+		// 	FromVersion: v1, ToVersion: v2,
+		// },
+		// {
+		// 	Module:      distr.NewAppModule(app.appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+		// 	FromVersion: v1, ToVersion: v2,
+		// },
 		{
 			Module:      staking.NewAppModule(app.appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
 			FromVersion: v1, ToVersion: v2,
 		},
-		{
-			Module:      evidence.NewAppModule(app.EvidenceKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
+		// {
+		// 	Module:      evidence.NewAppModule(app.EvidenceKeeper),
+		// 	FromVersion: v1, ToVersion: v2,
+		// },
 		{
 			Module:      authzmodule.NewAppModule(app.appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 			FromVersion: v1, ToVersion: v2,
 		},
-		{
-			Module:      ibc.NewAppModule(app.IBCKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
+		// {
+		// 	Module:      ibc.NewAppModule(app.IBCKeeper),
+		// 	FromVersion: v1, ToVersion: v2,
+		// },
 		{
 			Module:      params.NewAppModule(app.ParamsKeeper),
 			FromVersion: v1, ToVersion: v2,
 		},
-		{
-			Module:      transfer.NewAppModule(app.TransferKeeper),
-			FromVersion: v1, ToVersion: v2,
-		},
+		// {
+		// 	Module:      transfer.NewAppModule(app.TransferKeeper),
+		// 	FromVersion: v1, ToVersion: v2,
+		// },
 		{
 			Module:      blob.NewAppModule(app.appCodec, app.BlobKeeper),
 			FromVersion: v1, ToVersion: v2,
 		},
-		{
-			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v1,
-		},
+		// {
+		// 	Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
+		// 	FromVersion: v1, ToVersion: v1,
+		// },
 		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
 			FromVersion: v2, ToVersion: v2,
@@ -178,14 +161,14 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 			Module:      minfee.NewAppModule(app.ParamsKeeper),
 			FromVersion: v2, ToVersion: v2,
 		},
-		{
-			Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
-			FromVersion: v2, ToVersion: v2,
-		},
-		{
-			Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
-			FromVersion: v2, ToVersion: v2,
-		},
+		// {
+		// 	Module:      packetforward.NewAppModule(app.PacketForwardKeeper),
+		// 	FromVersion: v2, ToVersion: v2,
+		// },
+		// {
+		// 	Module:      ica.NewAppModule(nil, &app.ICAHostKeeper),
+		// 	FromVersion: v2, ToVersion: v2,
+		// },
 	})
 	if err != nil {
 		return err
@@ -200,10 +183,6 @@ func (app *App) setModuleOrder() {
 	// NOTE: staking module is required if HistoricalEntries param > 0
 	app.manager.SetOrderBeginBlockers(
 		capabilitytypes.ModuleName,
-		minttypes.ModuleName,
-		distrtypes.ModuleName,
-		slashingtypes.ModuleName,
-		evidencetypes.ModuleName,
 		stakingtypes.ModuleName,
 		ibchost.ModuleName,
 		ibctransfertypes.ModuleName,
@@ -214,14 +193,11 @@ func (app *App) setModuleOrder() {
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		signaltypes.ModuleName,
 		minfee.ModuleName,
-		icatypes.ModuleName,
-		packetforwardtypes.ModuleName,
 	)
 
 	app.manager.SetOrderEndBlockers(
@@ -229,25 +205,16 @@ func (app *App) setModuleOrder() {
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
 		capabilitytypes.ModuleName,
-		minttypes.ModuleName,
-		distrtypes.ModuleName,
-		slashingtypes.ModuleName,
-		evidencetypes.ModuleName,
-		ibchost.ModuleName,
-		ibctransfertypes.ModuleName,
 		feegrant.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
 		signaltypes.ModuleName,
 		minfee.ModuleName,
-		packetforwardtypes.ModuleName,
-		icatypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -261,40 +228,25 @@ func (app *App) setModuleOrder() {
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
-		distrtypes.ModuleName,
 		stakingtypes.ModuleName,
-		slashingtypes.ModuleName,
 		govtypes.ModuleName,
-		minttypes.ModuleName,
 		crisistypes.ModuleName,
-		ibchost.ModuleName,
 		minfee.ModuleName,
 		genutiltypes.ModuleName,
-		evidencetypes.ModuleName,
-		ibctransfertypes.ModuleName,
 		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		signaltypes.ModuleName,
-		packetforwardtypes.ModuleName,
-		icatypes.ModuleName,
 	)
 }
 
 func allStoreKeys() []string {
 	return []string{
 		authtypes.StoreKey, authzkeeper.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
-		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		blobstreamtypes.StoreKey,
-		ibctransfertypes.StoreKey,
-		ibchost.StoreKey,
-		packetforwardtypes.StoreKey,
-		icahosttypes.StoreKey,
+		capabilitytypes.StoreKey,
 		signaltypes.StoreKey,
 		blobtypes.StoreKey,
 	}
@@ -307,17 +259,17 @@ func versionedStoreKeys() map[uint64][]string {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
-			blobstreamtypes.StoreKey,
+			// blobstreamtypes.StoreKey,
 			blobtypes.StoreKey,
 			capabilitytypes.StoreKey,
-			distrtypes.StoreKey,
-			evidencetypes.StoreKey,
+			// distrtypes.StoreKey,
+			// evidencetypes.StoreKey,
 			feegrant.StoreKey,
 			govtypes.StoreKey,
-			ibchost.StoreKey,
-			ibctransfertypes.StoreKey,
-			minttypes.StoreKey,
-			slashingtypes.StoreKey,
+			// ibchost.StoreKey,
+			// ibctransfertypes.StoreKey,
+			// minttypes.StoreKey,
+			// slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
@@ -327,17 +279,17 @@ func versionedStoreKeys() map[uint64][]string {
 			banktypes.StoreKey,
 			blobtypes.StoreKey,
 			capabilitytypes.StoreKey,
-			distrtypes.StoreKey,
-			evidencetypes.StoreKey,
+			// distrtypes.StoreKey,
+			// evidencetypes.StoreKey,
 			feegrant.StoreKey,
 			govtypes.StoreKey,
-			ibchost.StoreKey,
-			ibctransfertypes.StoreKey,
-			icahosttypes.StoreKey, // added in v2
-			minttypes.StoreKey,
-			packetforwardtypes.StoreKey, // added in v2
-			signaltypes.StoreKey,        // added in v2
-			slashingtypes.StoreKey,
+			// ibchost.StoreKey,
+			// ibctransfertypes.StoreKey,
+			// icahosttypes.StoreKey, // added in v2
+			// minttypes.StoreKey,
+			// packetforwardtypes.StoreKey, // added in v2
+			signaltypes.StoreKey, // added in v2
+			// slashingtypes.StoreKey,
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
