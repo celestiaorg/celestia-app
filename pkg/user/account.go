@@ -40,6 +40,10 @@ func (a Account) PubKey() cryptotypes.PubKey {
 	return a.pubKey
 }
 
+func (a Account) AccountNumber() uint64 {
+	return a.accountNumber
+}
+
 // Sequence returns the sequence number of the account.
 // This is locally tracked
 func (a Account) Sequence() uint64 {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
@@ -68,7 +69,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
-			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
+			k := signal.NewKeeper(config.Codec, nil, stakingKeeper, appconsts.DefaultUpgradeHeightDelay)
 			got := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
@@ -182,7 +183,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), version)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + signal.DefaultUpgradeHeightDelay)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.DefaultUpgradeHeightDelay)
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
@@ -425,7 +426,7 @@ func TestGetUpgrade(t *testing.T) {
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
 		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
-		assert.Equal(t, signal.DefaultUpgradeHeightDelay, got.Upgrade.UpgradeHeight)
+		assert.Equal(t, appconsts.DefaultUpgradeHeightDelay, got.Upgrade.UpgradeHeight)
 	})
 }
 
@@ -451,7 +452,7 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
+	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper, appconsts.DefaultUpgradeHeightDelay)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }
 
