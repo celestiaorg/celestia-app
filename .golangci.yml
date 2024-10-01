@@ -4,7 +4,7 @@ run:
 
 linters:
   enable:
-    - exportloopref
+    - copyloopvar
     - gofumpt
     - misspell
     - nakedret
