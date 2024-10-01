@@ -18,10 +18,7 @@ import (
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
-	var (
-		numNodes = 4
-		ctx      = context.Background()
-	)
+	const numNodes = 4
 
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
@@ -34,6 +31,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	}
 	r := rand.New(rand.NewSource(seed))
 	logger.Println("Running minor version compatibility test", "versions", versions)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	testNet, err := testnet.New(ctx, "MinorVersionCompatibility", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)

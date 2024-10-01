@@ -19,8 +19,10 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	var (
 		numNodes      = 4
 		upgradeHeight = int64(10)
-		ctx           = context.Background()
 	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	logger.Println("Creating testnet")
 	testNet, err := testnet.New(ctx, "MajorUpgradeToV2", seed, nil, "test")
