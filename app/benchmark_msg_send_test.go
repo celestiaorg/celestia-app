@@ -35,18 +35,16 @@ func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
-	// not working
-	testApp, rawTxs := generateMsgSendTransactions(b, 1)
+	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 	testApp.Commit()
-
-	checkTxRequest := types.RequestCheckTx{
-		Tx:   rawTxs[0],
-		Type: types.CheckTxType_New,
-	}
 
 	var totalGas int64
 	b.ResetTimer()
-	for j := 0; j < 39200; j++ {
+	for _, tx := range rawTxs {
+		checkTxRequest := types.RequestCheckTx{
+			Tx:   tx,
+			Type: types.CheckTxType_New,
+		}
 		b.StartTimer()
 		resp := testApp.CheckTx(checkTxRequest)
 		b.StopTimer()
@@ -75,16 +73,14 @@ func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
-	// not working
-	testApp, rawTxs := generateMsgSendTransactions(b, 1)
-
-	deliverTxRequest := types.RequestDeliverTx{
-		Tx: rawTxs[0],
-	}
+	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
 	var totalGas int64
 	b.ResetTimer()
-	for j := 0; j < 39200; j++ {
+	for _, tx := range rawTxs {
+		deliverTxRequest := types.RequestDeliverTx{
+			Tx: tx,
+		}
 		b.StartTimer()
 		resp := testApp.DeliverTx(deliverTxRequest)
 		b.StopTimer()
@@ -110,13 +106,14 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 	b.ResetTimer()
 	resp := testApp.PrepareProposal(prepareProposalRequest)
 	b.StopTimer()
+	require.GreaterOrEqual(b, len(resp.BlockData.Txs), 1)
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.BlockData.Txs)), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
-	// a full 8mb block equals to around 39200 msg send transactions.
-	// using 39300 to let prepare proposal choose the maximum
-	testApp, rawTxs := generateMsgSendTransactions(b, 39300)
+	// a full 8mb block equals to around 31645 msg send transactions.
+	// using 31645 to let prepare proposal choose the maximum
+	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
 	blockData := &tmproto.Data{
 		Txs: rawTxs,
@@ -130,6 +127,7 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	b.ResetTimer()
 	resp := testApp.PrepareProposal(prepareProposalRequest)
 	b.StopTimer()
+	require.GreaterOrEqual(b, len(resp.BlockData.Txs), 1)
 	b.ReportMetric(float64(len(resp.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(calculateBlockSizeInMb(resp.BlockData.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalRequest.BlockData.Txs)), "total_gas_used")
@@ -147,6 +145,7 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 		Height:    10,
 	}
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
 	processProposalRequest := types.RequestProcessProposal{
 		BlockData: prepareProposalResponse.BlockData,
@@ -169,9 +168,9 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
-	// a full 8mb block equals to around 39200 msg send transactions.
-	// using 39300 to let prepare proposal choose the maximum
-	testApp, rawTxs := generateMsgSendTransactions(b, 39300)
+	// a full 8mb block equals to around 31645 msg send transactions.
+	// using 31645 to let prepare proposal choose the maximum
+	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
 	blockData := &tmproto.Data{
 		Txs: rawTxs,
@@ -182,6 +181,7 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 		Height:    10,
 	}
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
 	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size_(mb)")
@@ -215,7 +215,6 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
-	accountSequence := acc.GetSequence()
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)
 	rawTxs := make([][]byte, 0, count)
@@ -228,8 +227,7 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 		rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(b, err)
 		rawTxs = append(rawTxs, rawTx)
-		accountSequence++
-		err = signer.SetSequence(account, accountSequence)
+		err = signer.IncrementSequence(account)
 		require.NoError(b, err)
 	}
 	return testApp, rawTxs
