@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 )
 
-// This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
+// E2ESimple runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
