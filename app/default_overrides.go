@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -16,22 +14,14 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	distribution "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
-	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
-	"github.com/cosmos/cosmos-sdk/x/slashing"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
-	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
-	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
-	ibctypes "github.com/cosmos/ibc-go/v6/modules/core/types"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -91,26 +81,6 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	})
 }
 
-// stakingModule wraps the x/staking module in order to overwrite specific
-// ModuleManager APIs.
-type slashingModule struct {
-	slashing.AppModuleBasic
-}
-
-// DefaultGenesis returns custom x/staking module genesis state.
-func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	params := slashingtypes.DefaultParams()
-	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
-	params.SignedBlocksWindow = 5000
-	params.DowntimeJailDuration = time.Minute * 1
-	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(2, 2) // 2%
-	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
-
-	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
-		Params: params,
-	})
-}
-
 type crisisModule struct {
 	crisis.AppModuleBasic
 }
@@ -120,63 +90,6 @@ func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
 	})
-}
-
-type distributionModule struct {
-	distribution.AppModuleBasic
-}
-
-// DefaultGenesis returns custom x/distribution module genesis state.
-func (distributionModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	params := distributiontypes.DefaultParams()
-	params.BaseProposerReward = sdk.ZeroDec()  // 0%
-	params.BonusProposerReward = sdk.ZeroDec() // 0%
-	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{
-		Params: params,
-	})
-}
-
-type ibcModule struct {
-	ibc.AppModuleBasic
-}
-
-// DefaultGenesis returns custom x/ibc module genesis state.
-func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	// per ibc documentation, this value should be 3-5 times the expected block
-	// time. The expected block time is 15 seconds, therefore this value is 75
-	// seconds.
-	maxBlockTime := appconsts.GoalBlockTime * 5
-	gs := ibctypes.DefaultGenesisState()
-	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
-	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
-	return cdc.MustMarshalJSON(gs)
-}
-
-// icaModule defines a custom wrapper around the ica module to provide custom
-// default genesis state.
-type icaModule struct {
-	ica.AppModuleBasic
-}
-
-// DefaultGenesis returns custom ica module genesis state.
-func (icaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	gs := icagenesistypes.DefaultGenesis()
-	gs.HostGenesisState.Params.AllowMessages = icaAllowMessages()
-	gs.HostGenesisState.Params.HostEnabled = true
-	gs.ControllerGenesisState.Params.ControllerEnabled = false
-	return cdc.MustMarshalJSON(gs)
-}
-
-type mintModule struct {
-	mint.AppModuleBasic
-}
-
-// DefaultGenesis returns custom x/mint module genesis state.
-func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	genState := minttypes.DefaultGenesisState()
-	genState.BondDenom = BondDenom
-
-	return cdc.MustMarshalJSON(genState)
 }
 
 func newGovModule() govModule {
