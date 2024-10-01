@@ -57,7 +57,6 @@ func TestCurrentValsetNormalization(t *testing.T) {
 		},
 	}
 	for msg, spec := range specs {
-		spec := spec
 		t.Run(msg, func(t *testing.T) {
 			input, ctx := testutil.SetupTestChain(t, spec.srcPowers)
 			r, err := input.BlobstreamKeeper.GetCurrentValset(ctx)

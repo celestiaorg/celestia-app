@@ -68,8 +68,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryInflationRate()
 
@@ -103,8 +101,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 
 	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(sdk.NewInt(testnode.DefaultInitialBalance))
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryAnnualProvisions()
 			out, err := clitestutil.ExecTestCLICmd(s.cctx.Context, cmd, tc.args)
@@ -134,8 +130,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryGenesisTime()
 			out, err := clitestutil.ExecTestCLICmd(s.cctx.Context, cmd, tc.args)
