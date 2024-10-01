@@ -26,7 +26,7 @@ func NewAnteHandler(
 		NewHandlePanicDecorator(),
 		// Prevents messages that don't belong to the correct app version
 		// from being executed
-		msgVersioningGateKeeper,
+		// msgVersioningGateKeeper,
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
@@ -44,7 +44,7 @@ func NewAnteHandler(
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
+		// ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
