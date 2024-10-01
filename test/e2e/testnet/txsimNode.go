@@ -72,6 +72,7 @@ func CreateTxClient(
 		fmt.Sprintf("--blob %d ", sequences),
 		fmt.Sprintf("--blob-amounts %d ", blobsPerSeq),
 		fmt.Sprintf("--blob-sizes %s ", blobRange),
+		fmt.Sprintf("--key-path %s ", volumePath),
 	}
 
 	if err := txIns.Build().SetArgs(args...); err != nil {
