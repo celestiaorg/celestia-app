@@ -33,6 +33,7 @@ import (
 )
 
 func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
+	// not working
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -67,12 +68,11 @@ func benchmarkIBC_CheckTx_Update_Client(b *testing.B, numberOfValidators int) {
 		Tx:   rawTxs[0],
 	}
 
-	var resp types.ResponseCheckTx
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		resp = testApp.CheckTx(checkTxRequest)
-	}
+	resp := testApp.CheckTx(checkTxRequest)
 	b.StopTimer()
+	require.Equal(b, uint32(0), resp.Code)
+	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
@@ -80,6 +80,7 @@ func benchmarkIBC_CheckTx_Update_Client(b *testing.B, numberOfValidators int) {
 }
 
 func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
+	// not working
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -116,7 +117,8 @@ func benchmarkIBC_DeliverTx_Update_Client(b *testing.B, numberOfValidators int) 
 	b.ResetTimer()
 	resp := testApp.DeliverTx(deliverTxRequest)
 	b.StopTimer()
-
+	require.Equal(b, uint32(0), resp.Code)
+	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")

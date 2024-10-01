@@ -87,6 +87,14 @@ func NewTestApp() *app.App {
 	emptyOpts := EmptyAppOptions{}
 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
+	//path, err := os.MkdirTemp("/tmp", "test-app-db")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//db, err := dbm.NewGoLevelDB("db", path)
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 

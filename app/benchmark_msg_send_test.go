@@ -19,23 +19,25 @@ import (
 
 func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
+	testApp.Commit()
 
 	checkTxRequest := types.RequestCheckTx{
 		Tx:   rawTxs[0],
 		Type: types.CheckTxType_New,
 	}
 
-	var resp types.ResponseCheckTx
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		resp = testApp.CheckTx(checkTxRequest)
-	}
+	resp := testApp.CheckTx(checkTxRequest)
 	b.StopTimer()
+	require.Equal(b, uint32(0), resp.Code)
+	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 }
 
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
+	// not working
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
+	testApp.Commit()
 
 	checkTxRequest := types.RequestCheckTx{
 		Tx:   rawTxs[0],
@@ -44,14 +46,15 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 
 	var totalGas int64
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 39200; j++ {
-			resp := testApp.CheckTx(checkTxRequest)
-			b.StopTimer()
-			totalGas += resp.GasUsed
-			b.StartTimer()
-		}
+	for j := 0; j < 39200; j++ {
+		b.StartTimer()
+		resp := testApp.CheckTx(checkTxRequest)
+		b.StopTimer()
+		require.Equal(b, uint32(0), resp.Code)
+		require.Equal(b, "", resp.Codespace)
+		totalGas += resp.GasUsed
 	}
+
 	b.StopTimer()
 	b.ReportMetric(float64(totalGas), "total_gas_used")
 }
@@ -63,16 +66,16 @@ func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
 		Tx: rawTxs[0],
 	}
 
-	var resp types.ResponseDeliverTx
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testApp.DeliverTx(deliverTxRequest)
-	}
+	resp := testApp.DeliverTx(deliverTxRequest)
 	b.StopTimer()
+	require.Equal(b, uint32(0), resp.Code)
+	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 }
 
 func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
+	// not working
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
 	deliverTxRequest := types.RequestDeliverTx{
@@ -81,13 +84,13 @@ func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
 
 	var totalGas int64
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 39200; j++ {
-			resp := testApp.DeliverTx(deliverTxRequest)
-			b.StopTimer()
-			totalGas += resp.GasUsed
-			b.StartTimer()
-		}
+	for j := 0; j < 39200; j++ {
+		b.StartTimer()
+		resp := testApp.DeliverTx(deliverTxRequest)
+		b.StopTimer()
+		require.Equal(b, uint32(0), resp.Code)
+		require.Equal(b, "", resp.Codespace)
+		totalGas += resp.GasUsed
 	}
 	b.StopTimer()
 	b.ReportMetric(float64(totalGas), "total_gas_used")
@@ -105,11 +108,9 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testApp.PrepareProposal(prepareProposalRequest)
-	}
+	resp := testApp.PrepareProposal(prepareProposalRequest)
 	b.StopTimer()
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.BlockData.Txs)), "total_gas_used")
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
@@ -127,14 +128,11 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	var prepareProposalResponse types.ResponsePrepareProposal
-	for i := 0; i < b.N; i++ {
-		prepareProposalResponse = testApp.PrepareProposal(prepareProposalRequest)
-	}
+	resp := testApp.PrepareProposal(prepareProposalRequest)
 	b.StopTimer()
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(len(resp.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(calculateBlockSizeInMb(resp.BlockData.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalRequest.BlockData.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
@@ -163,11 +161,11 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testApp.ProcessProposal(processProposalRequest)
-	}
+	resp := testApp.ProcessProposal(processProposalRequest)
 	b.StopTimer()
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
@@ -185,9 +183,9 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	}
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
 
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number of transactions")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block size (mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size_(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
 
 	processProposalRequest := types.RequestProcessProposal{
 		BlockData: prepareProposalResponse.BlockData,
@@ -202,9 +200,11 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testApp.ProcessProposal(processProposalRequest)
-	}
+	resp := testApp.ProcessProposal(processProposalRequest)
+	b.StopTimer()
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
 }
 
 // generateMsgSendTransactions creates a test app then generates a number

@@ -51,23 +51,24 @@ func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
 
 func benchmarkCheckTx_PFB(b *testing.B, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, 1, size)
+	testApp.Commit()
 
 	checkTxRequest := types.RequestCheckTx{
 		Tx:   rawTxs[0],
 		Type: types.CheckTxType_New,
 	}
 
-	var resp types.ResponseCheckTx
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		resp = testApp.CheckTx(checkTxRequest)
-	}
+	resp := testApp.CheckTx(checkTxRequest)
 	b.StopTimer()
+	require.Equal(b, uint32(0), resp.Code)
+	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
 }
 
 func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
+	// not working
 	testCases := []struct {
 		size int
 	}{
@@ -103,12 +104,11 @@ func benchmarkDeliverTx_PFB(b *testing.B, size int) {
 		Tx: rawTxs[0],
 	}
 
-	var resp types.ResponseDeliverTx
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		resp = testApp.DeliverTx(deliverTxRequest)
-	}
+	resp := testApp.DeliverTx(deliverTxRequest)
 	b.StopTimer()
+	require.Equal(b, uint32(0), resp.Code)
+	require.Equal(b, "", resp.Codespace)
 	b.ReportMetric(float64(resp.GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
 }
@@ -236,7 +236,6 @@ func benchmarkProcessProposal_PFB(b *testing.B, count, size int) {
 func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
-	testApp.Commit()
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
