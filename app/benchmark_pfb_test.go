@@ -8,10 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	types2 "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -68,7 +66,6 @@ func benchmarkCheckTx_PFB(b *testing.B, size int) {
 }
 
 func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
-	// not working
 	testCases := []struct {
 		size int
 	}{
@@ -100,8 +97,12 @@ func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
 func benchmarkDeliverTx_PFB(b *testing.B, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, 1, size)
 
+	blobTx, ok, err := blobtx.UnmarshalBlobTx(rawTxs[0])
+	require.NoError(b, err)
+	require.True(b, ok)
+
 	deliverTxRequest := types.RequestDeliverTx{
-		Tx: rawTxs[0],
+		Tx: blobTx.Tx,
 	}
 
 	b.ResetTimer()
@@ -157,6 +158,7 @@ func benchmarkPrepareProposal_PFB(b *testing.B, count, size int) {
 	b.ResetTimer()
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
 	b.StopTimer()
+	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "prepare_proposal_time(ns)")
 	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
@@ -206,6 +208,7 @@ func benchmarkProcessProposal_PFB(b *testing.B, count, size int) {
 	}
 
 	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
 
 	processProposalRequest := types.RequestProcessProposal{
 		BlockData: prepareProposalResponse.BlockData,
@@ -250,12 +253,9 @@ func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App
 	blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, acc.GetAddress().Bytes())
 	require.NoError(b, err)
 	for i := 0; i < count; i++ {
-		msg, err := types2.NewMsgPayForBlobs(acc.GetAddress().String(), 1, blob)
-		rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		tx, _, err := signer.CreatePayForBlobs(account, []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(b, err)
-		blobTxBytes, err := tx.MarshalBlobTx(rawTx, blob)
-		require.NoError(b, err)
-		rawTxs = append(rawTxs, blobTxBytes)
+		rawTxs = append(rawTxs, tx)
 		accountSequence++
 		err = signer.SetSequence(account, accountSequence)
 		require.NoError(b, err)
