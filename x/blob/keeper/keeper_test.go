@@ -27,7 +27,7 @@ import (
 
 // TestPayForBlobs verifies the attributes on the emitted event.
 func TestPayForBlobs(t *testing.T) {
-	k, _, ctx := CreateKeeper(t)
+	k, _, ctx := CreateKeeper(t, appconsts.LatestVersion)
 	signer := "celestia15drmhzw5kwgenvemy30rqqqgq52axf5wwrruf7"
 	namespace := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	namespaces := [][]byte{namespace.Bytes()}
@@ -72,7 +72,7 @@ func createMsgPayForBlob(t *testing.T, signer string, namespace share.Namespace,
 	return msg
 }
 
-func CreateKeeper(t *testing.T) (*keeper.Keeper, store.CommitMultiStore, sdk.Context) {
+func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMultiStore, sdk.Context) {
 	storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
@@ -87,7 +87,7 @@ func CreateKeeper(t *testing.T) (*keeper.Keeper, store.CommitMultiStore, sdk.Con
 	ctx := sdk.NewContext(stateStore, tmproto.Header{
 		Version: tmversion.Consensus{
 			Block: 1,
-			App:   1,
+			App:   version,
 		},
 	}, false, nil)
 

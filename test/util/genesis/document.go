@@ -24,6 +24,7 @@ func Document(
 	chainID string,
 	gentxs []json.RawMessage,
 	accounts []Account,
+	genesisTime time.Time,
 	mods ...Modifier,
 ) (*coretypes.GenesisDoc, error) {
 	genutilGenState := genutiltypes.DefaultGenesisState()
@@ -73,7 +74,7 @@ func Document(
 	// Create the genesis doc
 	genesisDoc := &coretypes.GenesisDoc{
 		ChainID:         chainID,
-		GenesisTime:     time.Now(),
+		GenesisTime:     genesisTime,
 		ConsensusParams: params,
 		AppState:        stateBz,
 	}
@@ -101,7 +102,6 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 		)
 
 		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
-
 		genAccs[i] = authtypes.NewBaseAccount(addr, account.PubKey, uint64(i), 0)
 	}
 	return genBals, genAccs, nil

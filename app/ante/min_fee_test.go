@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -58,7 +57,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     true,
@@ -66,7 +65,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "good tx; fee equal to required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     false,
@@ -74,7 +73,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "good tx; fee above required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     false,
@@ -82,7 +81,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / v2.NetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
 			appVersion: uint64(1),
 			isCheckTx:  false,
 			expErr:     false,
@@ -143,7 +142,7 @@ func TestValidateTxFee(t *testing.T) {
 
 			ctx = ctx.WithMinGasPrices(sdk.DecCoins{validatorMinGasPriceCoin})
 
-			networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", v2.NetworkMinGasPrice))
+			networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
 			require.NoError(t, err)
 
 			subspace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)

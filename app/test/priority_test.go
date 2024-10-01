@@ -80,7 +80,6 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	wg := &sync.WaitGroup{}
 	for _, accName := range s.accountNames {
 		wg.Add(1)
-		accName := accName // new variable per iteration
 		go func() {
 			defer wg.Done()
 			// ensure that it is greater than the min gas price
