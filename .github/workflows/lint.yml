@@ -30,7 +30,7 @@ jobs:
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.4
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.4.5
     with:
       dockerfile: "docker/Dockerfile"
 
@@ -38,4 +38,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.4.4
+      - uses: celestiaorg/.github/.github/actions/yamllint@v0.4.5
