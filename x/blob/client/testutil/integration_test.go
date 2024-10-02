@@ -143,7 +143,6 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		require.NoError(s.ctx.WaitForNextBlock())
 		s.Run(tc.name, func() {
 			cmd := paycli.CmdPayForBlob()

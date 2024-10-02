@@ -109,7 +109,7 @@ func (k Keeper) GetLatestDataCommitment(ctx sdk.Context) (types.DataCommitment, 
 			return types.DataCommitment{}, err
 		}
 		if !found {
-			return types.DataCommitment{}, errors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
+			return types.DataCommitment{}, errors.Wrapf(types.ErrAttestationNotFound, "nonce %d", i)
 		}
 		dcc, ok := att.(*types.DataCommitment)
 		if !ok {
@@ -136,7 +136,7 @@ func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
 			return false, err
 		}
 		if !found {
-			return false, errors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
+			return false, errors.Wrapf(types.ErrAttestationNotFound, "nonce %d", i)
 		}
 		_, ok := att.(*types.DataCommitment)
 		if !ok {
