@@ -9,23 +9,31 @@ on:
     tags:
       - "v*"
   pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The checkout reference (ie tag, branch, sha)"
+        required: true
+        type: string
 
 jobs:
   docker-security-build:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.3
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.5
     with:
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
+      checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
 
   docker-txsim-build:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.3
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.5
     with:
       dockerfile: docker/Dockerfile_txsim
       packageName: txsim
+      checkout_ref: ${{ github.event.inputs.ref }}
     secrets: inherit
