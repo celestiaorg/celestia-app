@@ -1,10 +1,5 @@
-<<<<<<< HEAD:docker/txsim/Dockerfile
 # Stage 1: generate txsim binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.6-alpine3.19 as builder
-=======
-# Stage 1: generate celestia-appd binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.1-alpine3.19 as builder
->>>>>>> 73793b96 (feat(statesync): extract app version from snapshot (#3871)):docker/Dockerfile_txsim
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.1-alpine3.20 as builder
 
 ARG TARGETOS
 ARG TARGETARCH
