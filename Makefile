@@ -7,7 +7,7 @@ DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspa
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
-GOLANG_CROSS_VERSION  ?= v1.22.6
+GOLANG_CROSS_VERSION  ?= v1.23.1
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -102,7 +102,7 @@ lint:
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 	@echo "--> Running hadolint"
-	@hadolint Dockerfile
+	@hadolint docker/Dockerfile docker/Dockerfile_txsim
 	@echo "--> Running yamllint"
 	@yamllint --no-warnings . -c .yamllint.yml
 
