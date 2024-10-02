@@ -6,7 +6,6 @@ require (
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/math v1.3.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
-	github.com/celestiaorg/celestia-app/v2 v2.1.2
 	github.com/celestiaorg/go-square v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.0.0
 	github.com/celestiaorg/knuu v0.15.2
@@ -61,7 +60,6 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/bufbuild/protocompile v0.14.1 // indirect
 	github.com/celestiaorg/bittwister v0.0.0-20231213180407-65cdbaf5b8c7 // indirect
-	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
