@@ -121,8 +121,6 @@ func TestAppUpgradeV3(t *testing.T) {
 		_ = testApp.Commit()
 	}
 	require.Equal(t, v3.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
-	require.Equal(t, appconsts.GetTimeoutCommit(v3.Version), endBlockResp.Timeouts.TimeoutCommit)
-	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), endBlockResp.Timeouts.TimeoutPropose)
 
 	// confirm that an authored blob tx works
 	blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("hello world"), accAddr.Bytes())
@@ -149,7 +147,11 @@ func TestAppUpgradeV3(t *testing.T) {
 	})
 	require.Equal(t, abci.CodeTypeOK, deliverTxResp.Code, deliverTxResp.Log)
 
-	_ = testApp.EndBlock(abci.RequestEndBlock{})
+	respEndBlock := testApp.EndBlock(abci.
+		RequestEndBlock{Height: initialHeight + appconsts.DefaultUpgradeHeightDelay})
+	require.Equal(t, appconsts.GetTimeoutCommit(v3.Version), respEndBlock.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), respEndBlock.Timeouts.TimeoutPropose)
+
 }
 
 // TestAppUpgradeV2 verifies that the all module's params are overridden during an
