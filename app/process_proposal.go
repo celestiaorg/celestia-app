@@ -55,13 +55,12 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
-		tx := rawTx
 		blobTx, isBlobTx := blob.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
-			tx = blobTx.Tx
+			rawTx = blobTx.Tx
 		}
 
-		sdkTx, err := app.txConfig.TxDecoder()(tx)
+		sdkTx, err := app.txConfig.TxDecoder()(rawTx)
 		if err != nil {
 			if req.Header.Version.App == v1 {
 				// For appVersion 1, there was no block validity rule that all
