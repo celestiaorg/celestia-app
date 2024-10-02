@@ -88,6 +88,10 @@ func TestAppUpgradeV3(t *testing.T) {
 		Height: 3,
 	})
 	require.Equal(t, v2.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
+	require.Equal(t, appconsts.GetTimeoutCommit(v2.Version),
+		endBlockResp.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v2.Version),
+		endBlockResp.Timeouts.TimeoutPropose)
 	testApp.Commit()
 	require.NoError(t, signer.IncrementSequence(testnode.DefaultValidatorAccountName))
 
@@ -99,10 +103,11 @@ func TestAppUpgradeV3(t *testing.T) {
 	// brace yourselfs, this part may take a while
 	initialHeight := int64(4)
 	for height := initialHeight; height < initialHeight+appconsts.DefaultUpgradeHeightDelay; height++ {
+		appVersion := v2.Version
 		_ = testApp.BeginBlock(abci.RequestBeginBlock{
 			Header: tmproto.Header{
 				Height:  height,
-				Version: tmversion.Consensus{App: 2},
+				Version: tmversion.Consensus{App: appVersion},
 			},
 		})
 
@@ -110,9 +115,14 @@ func TestAppUpgradeV3(t *testing.T) {
 			Height: 3 + appconsts.DefaultUpgradeHeightDelay,
 		})
 
+		require.Equal(t, appconsts.GetTimeoutCommit(appVersion), endBlockResp.Timeouts.TimeoutCommit)
+		require.Equal(t, appconsts.GetTimeoutPropose(appVersion), endBlockResp.Timeouts.TimeoutPropose)
+
 		_ = testApp.Commit()
 	}
 	require.Equal(t, v3.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
+	require.Equal(t, appconsts.GetTimeoutCommit(v3.Version), endBlockResp.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), endBlockResp.Timeouts.TimeoutPropose)
 
 	// confirm that an authored blob tx works
 	blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("hello world"), accAddr.Bytes())
@@ -286,7 +296,11 @@ func upgradeFromV1ToV2(t *testing.T, testApp *app.App) {
 		Height:  2,
 		Version: tmversion.Consensus{App: 1},
 	}})
-	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	endBlockResp := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	require.Equal(t, appconsts.GetTimeoutCommit(v2.Version),
+		endBlockResp.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v2.Version),
+		endBlockResp.Timeouts.TimeoutPropose)
 	testApp.Commit()
 	require.EqualValues(t, 2, testApp.AppVersion())
 }
