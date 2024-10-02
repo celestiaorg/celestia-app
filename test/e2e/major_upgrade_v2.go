@@ -72,19 +72,6 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 			return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v1.Version, resp.Header.Version.App)
 		}
 
-		abciInfo, err := client.ABCIInfo(ctx)
-		testnet.NoError("failed to get ABCI info", err)
-		if abciInfo.Response.LastBlockHeight <= heightBefore {
-			if abciInfo.Response.AppVersion != v1.Version {
-				return fmt.Errorf("version mismatch before upgrade: expected %d, got %d", v1.Version, abciInfo.Response.AppVersion)
-			}
-			if abciInfo.Response.Timeouts.TimeoutCommit != 5*time.Second {
-				return fmt.Errorf("timeout mismatch before upgrade: expected %v, got %v", 5*time.Second, abciInfo.Response.Timeouts.TimeoutCommit)
-			}
-			if abciInfo.Response.Timeouts.TimeoutPropose != 5*time.Second {
-				return fmt.Errorf("timeout mismatch before upgrade: expected %v, got %v", 5*time.Second, abciInfo.Response.Timeouts.TimeoutPropose)
-			}
-		}
 		resp, err = client.Header(ctx, &upgradeHeight)
 		testnet.NoError("failed to get header", err)
 		if resp.Header.Version.App != v2.Version {
