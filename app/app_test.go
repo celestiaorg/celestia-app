@@ -164,6 +164,8 @@ func TestOfferSnapshot(t *testing.T) {
 
 func validSnapshot() abci.RequestOfferSnapshot {
 	return abci.RequestOfferSnapshot{
+		// Snapshot was created by logging the contents of OfferSnapshot on a
+		// node that was syncing via state sync.
 		Snapshot: &abci.Snapshot{
 			Height:   0x1b07ec,
 			Format:   0x2,
