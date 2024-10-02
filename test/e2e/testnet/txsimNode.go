@@ -79,6 +79,7 @@ func CreateTxClient(
 		return nil, err
 	}
 
+	log.Info().Str("args", fmt.Sprintf("%v", args)).Msg("setting args for tx client")
 	return &TxSim{
 		Name:     name,
 		Instance: txIns,
