@@ -283,7 +283,10 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 
 	// assert that the chain starts with version provided in genesis
 	infoResp := testApp.Info(abci.RequestInfo{})
-	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
+	appVersion := app.DefaultInitialConsensusParams().Version.AppVersion
+	require.EqualValues(t, appVersion, infoResp.AppVersion)
+	require.EqualValues(t, appconsts.GetTimeoutCommit(appVersion), infoResp.Timeouts.TimeoutCommit)
+	require.EqualValues(t, appconsts.GetTimeoutPropose(appVersion), infoResp.Timeouts.TimeoutPropose)
 
 	supportedVersions := []uint64{v1.Version, v2.Version, v3.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
@@ -299,9 +302,9 @@ func upgradeFromV1ToV2(t *testing.T, testApp *app.App) {
 		Version: tmversion.Consensus{App: 1},
 	}})
 	endBlockResp := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
-	require.Equal(t, appconsts.GetTimeoutCommit(v2.Version),
+	require.Equal(t, appconsts.GetTimeoutCommit(v1.Version),
 		endBlockResp.Timeouts.TimeoutCommit)
-	require.Equal(t, appconsts.GetTimeoutPropose(v2.Version),
+	require.Equal(t, appconsts.GetTimeoutPropose(v1.Version),
 		endBlockResp.Timeouts.TimeoutPropose)
 	testApp.Commit()
 	require.EqualValues(t, 2, testApp.AppVersion())
