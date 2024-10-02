@@ -838,5 +838,5 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 }
 
 func isSupportedAppVersion(appVersion uint64) bool {
-	return appVersion == v1 || appVersion == v2
+	return appVersion == v1 || appVersion == v2 || appVersion == v3
 }
