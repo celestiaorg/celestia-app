@@ -53,6 +53,8 @@ func createTestApp(t *testing.T) *app.App {
 
 func createRequest() abcitypes.RequestOfferSnapshot {
 	return abcitypes.RequestOfferSnapshot{
+		// Snapshot was created by logging the contents of OfferSnapshot on a
+		// node that was syncing via state sync.
 		Snapshot: &abcitypes.Snapshot{
 			Height:   0x290400,
 			Format:   0x2,
