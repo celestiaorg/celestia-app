@@ -6,12 +6,17 @@ IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
+<<<<<<< HEAD
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
 GOLANG_CROSS_VERSION  ?= v1.22.6
 # Set this to override the max square size of the binary
 OVERRIDE_MAX_SQUARE_SIZE ?= 
 # Set this to override the upgrade height delay of the binary
 OVERRIDE_UPGRADE_HEIGHT_DELAY ?= 
+=======
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v2
+GOLANG_CROSS_VERSION  ?= v1.23.1
+>>>>>>> 73793b96 (feat(statesync): extract app version from snapshot (#3871))
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \

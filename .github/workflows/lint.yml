@@ -22,10 +22,13 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@v6.1.0
         with:
+<<<<<<< HEAD
           version: v1.59.1
+=======
+          version: v1.61.0
+>>>>>>> 73793b96 (feat(statesync): extract app version from snapshot (#3871))
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
-          skip-pkg-cache: true
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile
