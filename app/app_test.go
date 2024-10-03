@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -15,8 +16,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -112,49 +115,41 @@ func TestInitChain(t *testing.T) {
 }
 
 func TestOfferSnapshot(t *testing.T) {
-	logger := log.NewNopLogger()
-	db := tmdb.NewMemDB()
-	traceStore := &NoopWriter{}
-	invCheckPeriod := uint(1)
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeHeight := int64(0)
-	appOptions := NoopAppOptions{}
-	snapshotOption := getSnapshotOption(t)
-
-	t.Run("should ACCEPT a valid snapshot", func(t *testing.T) {
-		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
-		request := validSnapshot()
+	t.Run("should ACCEPT a snapshot with app version 0", func(t *testing.T) {
+		// Snapshots taken before the app version field was introduced to RequestOfferSnapshot should still be accepted.
+		app := createTestApp(t)
+		request := createRequest()
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got := app.OfferSnapshot(request)
 		assert.Equal(t, want, got)
 	})
 	t.Run("should ACCEPT a snapshot with app version 1", func(t *testing.T) {
-		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
-		request := validSnapshot()
+		app := createTestApp(t)
+		request := createRequest()
 		request.AppVersion = 1
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got := app.OfferSnapshot(request)
 		assert.Equal(t, want, got)
 	})
 	t.Run("should ACCEPT a snapshot with app version 2", func(t *testing.T) {
-		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
-		request := validSnapshot()
+		app := createTestApp(t)
+		request := createRequest()
 		request.AppVersion = 2
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got := app.OfferSnapshot(request)
 		assert.Equal(t, want, got)
 	})
 	t.Run("should ACCEPT a snapshot with app version 3", func(t *testing.T) {
-		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
-		request := validSnapshot()
+		app := createTestApp(t)
+		request := createRequest()
 		request.AppVersion = 3
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got := app.OfferSnapshot(request)
 		assert.Equal(t, want, got)
 	})
 	t.Run("should REJECT a snapshot with unsupported app version", func(t *testing.T) {
-		app := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions, snapshotOption)
-		request := validSnapshot()
+		app := createTestApp(t)
+		request := createRequest()
 		request.AppVersion = 4 // unsupported app version
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}
 		got := app.OfferSnapshot(request)
@@ -162,7 +157,24 @@ func TestOfferSnapshot(t *testing.T) {
 	})
 }
 
-func validSnapshot() abci.RequestOfferSnapshot {
+func createTestApp(t *testing.T) *app.App {
+	db := dbm.NewMemDB()
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	upgradeHeight := int64(3)
+	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
+	snapshotDB, err := dbm.NewDB("metadata", dbm.GoLevelDBBackend, snapshotDir)
+	require.NoError(t, err)
+	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
+	require.NoError(t, err)
+	baseAppOption := baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(10, 10))
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, config, upgradeHeight, util.EmptyAppOptions{}, baseAppOption)
+	require.NoError(t, err)
+	response := testApp.Info(abcitypes.RequestInfo{})
+	require.Equal(t, uint64(0), response.AppVersion)
+	return testApp
+}
+
+func createRequest() abci.RequestOfferSnapshot {
 	return abci.RequestOfferSnapshot{
 		// Snapshot was created by logging the contents of OfferSnapshot on a
 		// node that was syncing via state sync.
@@ -173,7 +185,8 @@ func validSnapshot() abci.RequestOfferSnapshot {
 			Hash:     []uint8{0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
 			Metadata: []uint8{0xa, 0x20, 0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
 		},
-		AppHash: []byte("apphash"),
+		AppHash:    []byte("apphash"),
+		AppVersion: 0, // unit tests will override this
 	}
 }
 
