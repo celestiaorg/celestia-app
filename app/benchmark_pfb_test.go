@@ -16,6 +16,7 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
@@ -232,6 +233,87 @@ func benchmarkProcessProposal_PFB(b *testing.B, count, size int) {
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
 	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+}
+
+func BenchmarkProcessProposal_PFB_Half_Second(b *testing.B) {
+	testCases := []struct {
+		count, size int
+	}{
+		{count: 11_000, size: 50},
+		{count: 11_000, size: 100},
+		{count: 11_000, size: 200},
+		{count: 11_000, size: 300},
+		{count: 11_000, size: 400},
+		{count: 7000, size: 500},
+		{count: 7000, size: 600},
+		{count: 5000, size: 1_000},
+		{count: 5000, size: 1200},
+		{count: 5000, size: 1500},
+		{count: 5000, size: 1800},
+		{count: 5000, size: 2000},
+	}
+	for _, testCase := range testCases {
+		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
+			benchmarkProcessProposal_PFB_Half_Second(b, testCase.count, testCase.size)
+		})
+	}
+}
+
+func benchmarkProcessProposal_PFB_Half_Second(b *testing.B, count, size int) {
+	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
+
+	targetTimeLowerBound := 0.499
+	targetTimeUpperBound := 0.511
+
+	start := 0
+	end := count
+	segment := end - start
+	for {
+		if segment == 1 {
+			break
+		}
+
+		prepareProposalRequest := types.RequestPrepareProposal{
+			BlockData: &tmproto.Data{
+				Txs: rawTxs[start:end],
+			},
+			ChainId: testApp.GetChainID(),
+			Height:  10,
+		}
+		prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+		require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+
+		processProposalRequest := types.RequestProcessProposal{
+			BlockData: prepareProposalResponse.BlockData,
+			Header: tmproto.Header{
+				Height:   10,
+				DataHash: prepareProposalResponse.BlockData.Hash,
+				ChainID:  testutil.ChainID,
+				Version: version.Consensus{
+					App: testApp.AppVersion(),
+				},
+			},
+		}
+
+		startTime := time.Now()
+		resp := testApp.ProcessProposal(processProposalRequest)
+		endTime := time.Now()
+		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+
+		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
+
+		b.ReportMetric(timeElapsed, fmt.Sprintf("processProposalTime(s)_%d_%d_%f", end-start, size, calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs[start:end])))
+
+		if timeElapsed < targetTimeLowerBound {
+			end = end + segment/2
+			segment = end - start
+		} else if timeElapsed > targetTimeUpperBound {
+			end = end / 2
+			segment = end - start
+		} else {
+			break
+		}
+	}
 }
 
 // generatePayForBlobTransactions creates a test app then generates a number

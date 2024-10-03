@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"fmt"
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -15,6 +16,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	"testing"
+	"time"
 )
 
 func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
@@ -205,6 +207,62 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
 
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
+}
+
+func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
+	targetTimeLowerBound := 0.499
+	targetTimeUpperBound := 0.511
+	numberOfTransaction := 5500
+	testApp, rawTxs := generateMsgSendTransactions(b, numberOfTransaction)
+	start := 0
+	end := numberOfTransaction
+	segment := end - start
+	for {
+		if segment == 1 {
+			break
+		}
+
+		prepareProposalRequest := types.RequestPrepareProposal{
+			BlockData: &tmproto.Data{
+				Txs: rawTxs[start:end],
+			},
+			ChainId: testApp.GetChainID(),
+			Height:  10,
+		}
+		prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+		require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+
+		processProposalRequest := types.RequestProcessProposal{
+			BlockData: prepareProposalResponse.BlockData,
+			Header: tmproto.Header{
+				Height:   10,
+				DataHash: prepareProposalResponse.BlockData.Hash,
+				ChainID:  testutil.ChainID,
+				Version: version.Consensus{
+					App: testApp.AppVersion(),
+				},
+			},
+		}
+
+		startTime := time.Now()
+		resp := testApp.ProcessProposal(processProposalRequest)
+		endTime := time.Now()
+		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+
+		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
+
+		b.ReportMetric(timeElapsed, fmt.Sprintf("elapsedTime(s)_%d", end-start))
+
+		if timeElapsed < targetTimeLowerBound {
+			end = end + segment/2
+			segment = end - start
+		} else if timeElapsed > targetTimeUpperBound {
+			end = end / 2
+			segment = end - start
+		} else {
+			break
+		}
+	}
 }
 
 // generateMsgSendTransactions creates a test app then generates a number
