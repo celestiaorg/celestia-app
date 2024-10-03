@@ -31,7 +31,7 @@ func CreateTxClient(
 	version string,
 	endpoint string,
 	seed int64,
-	sequences int,
+	blobSequences int,
 	blobRange string,
 	blobsPerSeq int,
 	pollTime int,
@@ -45,6 +45,7 @@ func CreateTxClient(
 		return nil, err
 	}
 	image := txsimDockerImageName(version)
+	fmt.Printf("txsimDocker image: %s\n", image)
 	err = instance.Build().SetImage(ctx, image)
 	if err != nil {
 		log.Err(err).
@@ -70,9 +71,9 @@ func CreateTxClient(
 		fmt.Sprintf("--grpc-endpoint %s", endpoint),
 		fmt.Sprintf("--poll-time %ds", pollTime),
 		fmt.Sprintf("--seed %d", seed),
-		// fmt.Sprintf("--blob %d", sequences),
-		// fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
-		// fmt.Sprintf("--blob-sizes %s", blobRange),
+		fmt.Sprintf("--blob %d", blobSequences),
+		fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
+		fmt.Sprintf("--blob-sizes %s", blobRange),
 		fmt.Sprintf("--upgrade-schedule %s", stringifyUpgradeSchedule(upgradeSchedule)),
 		// fmt.Sprintf("--blob-share-version %d", share.ShareVersionZero),
 	}
