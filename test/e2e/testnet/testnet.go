@@ -136,28 +136,26 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 	return nil
 }
 
-// CreateTxClient creates a txsim node and sets it up
-// name: name of the txsim knuu instance
-// version: version of the txsim docker image to be pulled from the registry
-// specified by txsimDockerSrcURL
-// seed: seed for the txsim
-// sequences: number of sequences to be run by the txsim
-// blobRange: range of blob sizes to be used by the txsim in bytes
-// pollTime: time in seconds between each sequence
-// resources: resources to be allocated to the txsim
-// grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
+// CreateTxClient creates a txsim node and sets it up.
 func (t *Testnet) CreateTxClient(
 	ctx context.Context,
-	name, version string,
+	// name of the txsim knuu instance
+	name string,
+	// version of the txsim docker image to be pulled from the registry
+	version string,
+	// sequences: number of sequences to be run by the txsim
 	sequences int,
+	// blobRange: range of blob sizes to be used by the txsim in bytes
 	blobRange string,
 	blobPerSequence int,
+	// resources: resources to be allocated to the txsim
 	resources Resources,
+	// grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
 	grpcEndpoint string,
 	upgradeSchedule map[int64]uint64,
 ) error {
-	// create an account, and store it in a temp directory and add the account as genesis account to
-	// the testnet
+	// Create an account, and store it in a temp directory and add the account as genesis account to
+	// the testnet.
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
 	log.Info().
 		Str("name", name).
@@ -168,7 +166,7 @@ func (t *Testnet) CreateTxClient(
 		return err
 	}
 
-	// Create a txsim node using the key stored in the txsimKeyringDir
+	// Create a txsim node using the key stored in the txsimKeyringDir.
 	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
 		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
@@ -185,7 +183,7 @@ func (t *Testnet) CreateTxClient(
 		return err
 	}
 
-	// copy over the keyring directory to the txsim instance
+	// Copy over the keyring directory to the txsim instance.
 	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
 	if err != nil {
 		log.Err(err).

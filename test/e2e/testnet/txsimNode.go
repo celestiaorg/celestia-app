@@ -24,9 +24,11 @@ type TxSim struct {
 	Instance *instance.Instance
 }
 
+// CreateTxClient returns a new TxSim instance.
 func CreateTxClient(
 	ctx context.Context,
-	name, version string,
+	name string,
+	version string,
 	endpoint string,
 	seed int64,
 	sequences int,
@@ -38,12 +40,12 @@ func CreateTxClient(
 	knuu *knuu.Knuu,
 	upgradeSchedule map[int64]uint64,
 ) (*TxSim, error) {
-	txIns, err := knuu.NewInstance(name)
+	instance, err := knuu.NewInstance(name)
 	if err != nil {
 		return nil, err
 	}
 	image := txsimDockerImageName(version)
-	err = txIns.Build().SetImage(ctx, image)
+	err = instance.Build().SetImage(ctx, image)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
@@ -51,15 +53,15 @@ func CreateTxClient(
 			Msg("failed to set image for tx client")
 		return nil, err
 	}
-	err = txIns.Resources().SetMemory(resources.MemoryRequest, resources.MemoryLimit)
+	err = instance.Resources().SetMemory(resources.MemoryRequest, resources.MemoryLimit)
 	if err != nil {
 		return nil, err
 	}
-	err = txIns.Resources().SetCPU(resources.CPU)
+	err = instance.Resources().SetCPU(resources.CPU)
 	if err != nil {
 		return nil, err
 	}
-	err = txIns.Storage().AddVolumeWithOwner(volumePath, resources.Volume, 10001)
+	err = instance.Storage().AddVolumeWithOwner(volumePath, resources.Volume, 10001)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +77,7 @@ func CreateTxClient(
 		// fmt.Sprintf("--blob-share-version %d", share.ShareVersionZero),
 	}
 
-	if err := txIns.Build().SetArgs(args...); err != nil {
+	if err := instance.Build().SetArgs(args...); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +89,7 @@ func CreateTxClient(
 
 	return &TxSim{
 		Name:     name,
-		Instance: txIns,
+		Instance: instance,
 	}, nil
 }
 
