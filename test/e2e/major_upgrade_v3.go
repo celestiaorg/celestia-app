@@ -27,7 +27,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	// HACKHACK: use a version of celestia-app built from a commit on this PR.
 	// Do not merge as-is.
-	latestVersion := "ef37dcd"
+	latestVersion := "0433ddc"
 
 	logger.Println("Running major upgrade to v3 test", "version", latestVersion)
 
