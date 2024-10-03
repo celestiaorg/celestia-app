@@ -53,7 +53,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	upgradeSchedule := map[int64]uint64{
 		upgradeHeight: v3.Version,
 	}
-	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 1, "0", 0, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
