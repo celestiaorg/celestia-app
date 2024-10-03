@@ -80,7 +80,6 @@ func benchmarkIBC_CheckTx_Update_Client(b *testing.B, numberOfValidators int) {
 }
 
 func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
-	// not working
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -172,7 +171,7 @@ func benchmarkIBC_PrepareProposal_Update_Client(b *testing.B, numberOfValidators
 	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
 	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -240,7 +239,7 @@ func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators
 	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
 	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
