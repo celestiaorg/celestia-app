@@ -16,10 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	abcitypes "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -158,18 +156,18 @@ func TestOfferSnapshot(t *testing.T) {
 }
 
 func createTestApp(t *testing.T) *app.App {
-	db := dbm.NewMemDB()
+	db := tmdb.NewMemDB()
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(3)
 	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
-	snapshotDB, err := dbm.NewDB("metadata", dbm.GoLevelDBBackend, snapshotDir)
+	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, snapshotDir)
 	require.NoError(t, err)
 	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
 	require.NoError(t, err)
 	baseAppOption := baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(10, 10))
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, config, upgradeHeight, util.EmptyAppOptions{}, baseAppOption)
 	require.NoError(t, err)
-	response := testApp.Info(abcitypes.RequestInfo{})
+	response := testApp.Info(abci.RequestInfo{})
 	require.Equal(t, uint64(0), response.AppVersion)
 	return testApp
 }
@@ -188,17 +186,6 @@ func createRequest() abci.RequestOfferSnapshot {
 		AppHash:    []byte("apphash"),
 		AppVersion: 0, // unit tests will override this
 	}
-}
-
-func getSnapshotOption(t *testing.T) func(*baseapp.BaseApp) {
-	snapshotDir := t.TempDir()
-	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, t.TempDir())
-	require.NoError(t, err)
-	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
-	require.NoError(t, err)
-	interval := uint64(10)
-	keepRecent := uint32(10)
-	return baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(interval, keepRecent))
 }
 
 // NoopWriter is a no-op implementation of a writer.
