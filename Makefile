@@ -7,11 +7,13 @@ DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspa
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
-GOLANG_CROSS_VERSION  ?= v1.22.6
+# Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
+# See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
+GOLANG_CROSS_VERSION  ?= v1.23.1
 # Set this to override the max square size of the binary
-OVERRIDE_MAX_SQUARE_SIZE ?= 
+OVERRIDE_MAX_SQUARE_SIZE ?=
 # Set this to override the upgrade height delay of the binary
-OVERRIDE_UPGRADE_HEIGHT_DELAY ?= 
+OVERRIDE_UPGRADE_HEIGHT_DELAY ?=
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
