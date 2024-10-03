@@ -8,6 +8,6 @@ const (
 	SubtreeRootThreshold int    = 64
 	TxSizeCostPerByte    uint64 = 10
 	GasPerBlobByte       uint32 = 8
-	TimeoutPropose              = time.Second * 11
-	TimeoutCommit               = time.Second * 11
+	TimeoutPropose              = time.Second * 3
+	TimeoutCommit               = time.Second * 1
 )
