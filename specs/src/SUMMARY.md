@@ -12,6 +12,7 @@ Celestia App Specifications
 - [AnteHandler](./ante_handler.md)
   - [AnteHandler v1](./ante_handler_v1.md)
   - [AnteHandler v2](./ante_handler_v2.md)
+  - [AnteHandler v3](./ante_handler_v3.md)
 - [Fraud Proofs](./fraud_proofs.md)
 - [Networking](./networking.md)
 - [Public-Key Cryptography](./public_key_cryptography.md)
@@ -24,3 +25,4 @@ Celestia App Specifications
 - [Parameters](./parameters.md)
   - [Parameters v1](./parameters_v1.md)
   - [Parameters v2](./parameters_v2.md)
+  - [Parameters v3](./parameters_v3.md)
