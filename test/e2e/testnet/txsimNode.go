@@ -66,18 +66,20 @@ func CreateTxClient(
 		return nil, err
 	}
 	args := []string{
-		fmt.Sprintf("-grpc-endpoint %s", endpoint),
-		fmt.Sprintf("-poll-time %ds", pollTime),
-		fmt.Sprintf("-seed %d ", seed),
-		fmt.Sprintf("-blob %d ", sequences),
-		fmt.Sprintf("-blob-amounts %d ", blobsPerSeq),
-		fmt.Sprintf("-blob-sizes %s ", blobRange),
+		fmt.Sprintf("--grpc-endpoint %s", endpoint),
+		fmt.Sprintf("--poll-time %ds", pollTime),
+		fmt.Sprintf("--seed %d ", seed),
+		fmt.Sprintf("--blob %d ", sequences),
+		fmt.Sprintf("--blob-amounts %d ", blobsPerSeq),
+		fmt.Sprintf("--blob-sizes %s ", blobRange),
+		fmt.Sprintf("--key-path %s ", volumePath),
 	}
 
 	if err := txIns.Build().SetArgs(args...); err != nil {
 		return nil, err
 	}
 
+	log.Info().Str("args", fmt.Sprintf("%v", args)).Msg("setting args for tx client")
 	return &TxSim{
 		Name:     name,
 		Instance: txIns,
