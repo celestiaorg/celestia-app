@@ -25,7 +25,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	defer testNet.Cleanup(ctx)
 
-	latestVersion := "ef37dcd" //, err := testnet.GetLatestVersion()
+	// HACKHACK: use a version of celestia-app built from a commit on this PR.
+	// Do not merge as-is.
+	latestVersion := "ef37dcd"
 
 	logger.Println("Running major upgrade to v3 test", "version", latestVersion)
 
