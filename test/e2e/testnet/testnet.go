@@ -52,10 +52,12 @@ func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, cha
 
 	kn.HandleStopSignal(ctx)
 
+	g := genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...)
+	//g.ConsensusParams.Version.AppVersion = v3.Version
 	return &Testnet{
 		seed:    seed,
 		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
+		genesis: g,
 		keygen:  newKeyGenerator(seed),
 		grafana: grafana,
 		knuu:    kn,
@@ -360,14 +362,31 @@ func (t *Testnet) RemoteRPCEndpoints(ctx context.Context) ([]string, error) {
 
 // WaitToSync waits for the started nodes to sync with the network and move
 // past the genesis block.
-func (t *Testnet) WaitToSync(ctx context.Context) error {
+func (t *Testnet) WaitToSync(ctx context.Context, indices ...int) error {
 	genesisNodes := make([]*Node, 0)
 	for _, node := range t.nodes {
 		if node.StartHeight == 0 {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
-	for _, node := range genesisNodes {
+
+	// filter genesis nodes based on indices
+	filteredGenesisNodes := make([]*Node, 0)
+	if len(indices) != 0 {
+		for i, node := range genesisNodes {
+			if !isInIndices(i, indices) {
+				continue
+			}
+			filteredGenesisNodes = append(filteredGenesisNodes, node)
+		}
+	} else {
+		filteredGenesisNodes = genesisNodes
+	}
+
+	for i, node := range filteredGenesisNodes {
+		if len(indices) != 0 && !isInIndices(i, indices) {
+			continue
+		}
 		log.Info().Str("name", node.Name).Msg(
 			"waiting for node to sync")
 		client, err := node.Client()
@@ -395,19 +414,44 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 	}
 	return nil
 }
+func isInIndices(i int, indices []int) bool {
+	for _, index := range indices {
+		if i == index {
+			return true
+		}
+	}
+	return false
+}
 
 // StartNodes starts the testnet nodes and setup proxies.
 // It does not wait for the nodes to produce blocks.
 // For that, use WaitToSync.
-func (t *Testnet) StartNodes(ctx context.Context) error {
+func (t *Testnet) StartNodes(ctx context.Context, indices ...int) error {
 	genesisNodes := make([]*Node, 0)
+	// identify genesis nodes
 	for _, node := range t.nodes {
 		if node.StartHeight == 0 {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
+
+	// filter genesis nodes based on indices
+	filteredGenesisNodes := make([]*Node, 0)
+	if len(indices) != 0 {
+		for i, node := range genesisNodes {
+			if !isInIndices(i, indices) {
+				continue
+			}
+			filteredGenesisNodes = append(filteredGenesisNodes, node)
+		}
+	} else {
+		filteredGenesisNodes = genesisNodes
+
+	}
+
 	// start genesis nodes asynchronously
-	for _, node := range genesisNodes {
+	// if indices are provided, only start the nodes at those indices
+	for _, node := range filteredGenesisNodes {
 		err := node.StartAsync(ctx)
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
@@ -415,7 +459,7 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 	}
 	log.Info().Msg("create endpoint proxies for genesis nodes")
 	// wait for instances to be running
-	for _, node := range genesisNodes {
+	for _, node := range filteredGenesisNodes {
 		err := node.WaitUntilStartedAndCreateProxy(ctx)
 		if err != nil {
 			log.Err(err).Str("name", node.Name).Str("version",
@@ -428,9 +472,9 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 	return nil
 }
 
-func (t *Testnet) Start(ctx context.Context) error {
+func (t *Testnet) Start(ctx context.Context, indices ...int) error {
 	// start nodes and setup proxies
-	err := t.StartNodes(ctx)
+	err := t.StartNodes(ctx, indices...)
 	if err != nil {
 		return err
 	}
