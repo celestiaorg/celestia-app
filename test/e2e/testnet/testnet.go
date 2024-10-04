@@ -200,8 +200,11 @@ func (t *Testnet) CreateTxClient(
 	return nil
 }
 
-func (t *Testnet) StartTxClients(ctx context.Context) error {
-	for _, txsim := range t.txClients {
+func (t *Testnet) StartTxClients(ctx context.Context, indices ...int) error {
+	for i, txsim := range t.txClients {
+		if len(indices) != 0 && !isInIndices(i, indices) {
+			continue
+		}
 		err := txsim.Instance.Execution().StartAsync(ctx)
 		if err != nil {
 			log.Err(err).
