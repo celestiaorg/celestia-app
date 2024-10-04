@@ -161,7 +161,7 @@ func (t *Testnet) CreateTxClient(
 		Str("name", name).
 		Str("directory", txsimKeyringDir).
 		Msg("txsim keyring directory created")
-	kr, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
+	_, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
 	if err != nil {
 		return err
 	}
@@ -188,15 +188,15 @@ func (t *Testnet) CreateTxClient(
 		// // }
 
 		// Get the public key to verify the key was imported
-		info, err := kr.Key(name)
-		if err != nil {
-			return err
-		}
-		address, err := info.GetAddress()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Imported Key Address: %s\n", address)
+		// info, err := kr.Key(name)
+		// if err != nil {
+		// 	return err
+		// }
+		// address, err := info.GetAddress()
+		// if err != nil {
+		// 	return err
+		// }
+		// fmt.Printf("Imported Key Address: %s\n", address)
 	}
 
 	// Create a txsim node using the key stored in the txsimKeyringDir.
