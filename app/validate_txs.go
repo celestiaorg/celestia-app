@@ -1,10 +1,13 @@
 package app
 
 import (
+	v3consts "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	types2 "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -44,12 +47,22 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 // function used to apply the ante handler.
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
+	msgSendTransactionCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
+		msgTypes := msgTypes(sdkTx)
+		if count := countOccurrence(msgTypes, sdk.MsgTypeURL(&types.MsgSend{})); count != 0 {
+			if msgSendTransactionCount+count > v3consts.MsgSendTransactionCap {
+				logger.Debug("skipping tx because the msg send transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+				continue
+			}
+			msgSendTransactionCount += count
+		}
+
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
@@ -59,7 +72,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 				"filtering already checked transaction",
 				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
 				"error", err,
-				"msgs", msgTypes(sdkTx),
+				"msgs", msgTypes,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			continue
@@ -77,11 +90,20 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // function used to apply the ante handler.
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []*tx.BlobTx) ([]*tx.BlobTx, sdk.Context) {
 	n := 0
+	pfbTransactionCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
+		}
+		msgTypes := msgTypes(sdkTx)
+		if count := countOccurrence(msgTypes, sdk.MsgTypeURL(&types2.MsgPayForBlobs{})); count != 0 {
+			if pfbTransactionCount+count > v3consts.PFBTransactionCap {
+				logger.Debug("skipping tx because the msg pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+				continue
+			}
+			pfbTransactionCount += count
 		}
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
@@ -121,4 +143,16 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 		}
 	}
 	return txs
+}
+
+// countOccurrence takes a strings slice and counts the number
+// of time the provided item exists in that slice.
+func countOccurrence(slice []string, item string) int {
+	count := 0
+	for _, v := range slice {
+		if v == item {
+			count++
+		}
+	}
+	return count
 }
