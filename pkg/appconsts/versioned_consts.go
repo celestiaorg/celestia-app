@@ -42,7 +42,7 @@ func GasPerBlobByte(_ uint64) uint32 {
 	return v3.GasPerBlobByte
 }
 
-func TxMaxBytes(_ uint64) int {
+func MaxTxBytes(_ uint64) int {
 	return v3.MaxTxBytes
 }
 

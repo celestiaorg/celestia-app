@@ -19,7 +19,7 @@ func NewMaxTxSizeDecorator() MaxTxSizeDecorator {
 func (d MaxTxSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	// Tx size rule applies to app versions v3 and onwards.
 	if ctx.BlockHeader().Version.App >= v3.Version {
-		if len(ctx.TxBytes()) >= appconsts.TxMaxBytes(ctx.BlockHeader().Version.App) {
+		if len(ctx.TxBytes()) >= appconsts.MaxTxBytes(ctx.BlockHeader().Version.App) {
 			return ctx, sdkerrors.ErrTxTooLarge
 		}
 	}
