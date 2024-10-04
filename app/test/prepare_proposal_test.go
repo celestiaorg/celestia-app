@@ -1,7 +1,11 @@
 package app_test
 
 import (
+	"crypto/rand"
 	"fmt"
+	"testing"
+	"time"
+
 	v3consts "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
@@ -9,9 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"testing"
-	"time"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
