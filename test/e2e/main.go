@@ -24,6 +24,7 @@ func main() {
 		{"MinorVersionCompatibility", MinorVersionCompatibility},
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
 		{"E2ESimple", E2ESimple},
+		{"Timeouts", Timeouts},
 	}
 
 	// check if a specific test is passed and run it
