@@ -457,3 +457,8 @@ func (t *Testnet) Node(i int) *Node {
 func (t *Testnet) Nodes() []*Node {
 	return t.nodes
 }
+
+func (t *Testnet) GetGenesisAppVersion() uint64 {
+	return t.genesis.ConsensusParams.Version.AppVersion
+
+}
