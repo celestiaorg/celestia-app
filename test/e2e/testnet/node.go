@@ -36,7 +36,6 @@ const (
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"
-	txsimRootDir   = "/home/celestia"
 )
 
 type Node struct {
@@ -99,10 +98,13 @@ type Resources struct {
 
 func NewNode(
 	ctx context.Context,
-	name, version string,
-	startHeight, selfDelegation int64,
+	name string,
+	version string,
+	startHeight int64,
+	selfDelegation int64,
 	peers []string,
-	signerKey, networkKey crypto.PrivKey,
+	signerKey crypto.PrivKey,
+	networkKey crypto.PrivKey,
 	upgradeHeight int64,
 	resources Resources,
 	grafana *GrafanaInfo,

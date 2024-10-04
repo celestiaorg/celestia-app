@@ -90,7 +90,7 @@ well funded account that can act as the master account. The command runs until a
 			if err != nil {
 				return err
 			}
-			fmt.Printf("keys: %v\n")
+			fmt.Printf("keys: %v\n", keys)
 			records, err := keys.List()
 			if err != nil {
 				return err
@@ -100,7 +100,7 @@ well funded account that can act as the master account. The command runs until a
 				if err != nil {
 					return err
 				}
-				fmt.Printf("reccord name: %v address %v\n", record.Name, address)
+				fmt.Printf("reccord name: %v address %v\n", record.Name, address.String())
 			}
 
 			// get the rpc and grpc endpoints

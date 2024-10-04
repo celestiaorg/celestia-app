@@ -168,7 +168,7 @@ func (t *Testnet) CreateTxClient(
 
 	// Create a txsim node using the key stored in the txsimKeyringDir.
 	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
-		blobSequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu, upgradeSchedule)
+		blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
@@ -184,7 +184,7 @@ func (t *Testnet) CreateTxClient(
 	}
 
 	// Copy over the keyring directory to the txsim instance.
-	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
+	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, remoteRootDir, "10001:10001")
 	if err != nil {
 		log.Err(err).
 			Str("directory", txsimKeyringDir).
