@@ -1,5 +1,5 @@
-# Stage 1: generate celestia-appd binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.22.6-alpine3.19 as builder
+# Stage 1: generate txsim binary
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.1-alpine3.20 as builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -16,11 +16,10 @@ RUN apk update && apk add --no-cache \
     musl-dev
 COPY . /celestia-app
 WORKDIR /celestia-app
-# we need the celestia-appd build as we might want to create an account
-# internally for txsimulation
+
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build && make txsim-build
+    make txsim-build
 
 # Stage 2: create a minimal image with the binary
 FROM docker.io/alpine:3.20
@@ -45,18 +44,14 @@ RUN apk update && apk add --no-cache \
     -s /sbin/nologin \
     -u ${UID}
 
-# Copy in the celestia-appd binary
-COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
+# Copy in the txsim binary
 COPY --from=builder /celestia-app/build/txsim /bin/txsim
 
-COPY --chown=${USER_NAME}:${USER_NAME} docker/txsim.sh /opt/entrypoint.sh
+COPY --chown=${USER_NAME}:${USER_NAME} docker/txsim/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
 # Set the working directory to the home directory.
 WORKDIR ${CELESTIA_HOME}
-
-# grpc, rpc, api ports
-EXPOSE 26657 1317 9090
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
