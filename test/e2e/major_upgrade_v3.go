@@ -10,6 +10,7 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/tendermint/tendermint/crypto"
 )
 
 func MajorUpgradeToV3(logger *log.Logger) error {
@@ -53,7 +54,14 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	upgradeSchedule := map[int64]uint64{
 		upgradeHeightV3: v3.Version,
 	}
-	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+
+	// TODO: get the keys from the validators and plumb them into txClients
+	validatorKeys := []crypto.PrivKey{}
+	for _, node := range testNet.Nodes() {
+		validatorKeys = append(validatorKeys, node.SignerKey)
+	}
+
+	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule, validatorKeys)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
@@ -61,7 +69,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
-	timer := time.NewTimer(time.Minute)
+	timer := time.NewTimer(10 * time.Minute)
 	defer timer.Stop()
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()

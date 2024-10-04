@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/tendermint/tendermint/crypto"
 )
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
@@ -35,8 +36,7 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10,
-		"100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil, []crypto.PrivKey{})
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")

@@ -3,6 +3,7 @@ package testnet
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog/log"
+	"github.com/tendermint/tendermint/crypto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -110,10 +112,12 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 	blobPerSequence int,
 	resources Resources,
 	grpcEndpoints []string,
+	upgradeSchedule map[int64]uint64,
+	validatorKeys []crypto.PrivKey,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, nil)
+		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule, validatorKeys)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -146,6 +150,9 @@ func (t *Testnet) CreateTxClient(
 	grpcEndpoint string,
 	// upgradeSchedule is a map from height to version, specifying the version to upgrade to at the given height
 	upgradeSchedule map[int64]uint64,
+	// validatorKeys is a list of validator keys to be used by the txsim. This
+	// is needed so that txSim can signal for versions on behalf of validators.
+	validatorKeys []crypto.PrivKey,
 ) error {
 	// Create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet.
@@ -154,19 +161,46 @@ func (t *Testnet) CreateTxClient(
 		Str("name", name).
 		Str("directory", txsimKeyringDir).
 		Msg("txsim keyring directory created")
-	_, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
+	kr, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
 	if err != nil {
 		return err
 	}
 
-	// Create a txsim node using the key stored in the txsimKeyringDir.
-	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
-	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error creating txsim")
-		return err
+	// Iterate over the Tendermint private keys and import them into the Cosmos SDK keyring
+	for i, validatorKey := range validatorKeys {
+		name := fmt.Sprintf("validator-%d", i)
+
+		// Convert Tendermint private key to raw bytes and then to base64 (or keep it raw)
+		privKeyBytes := validatorKey.Bytes()
+		privKeyBase64 := base64.StdEncoding.EncodeToString(privKeyBytes)
+
+		// Output the Base64 encoded key (or use privKeyBytes for raw format)
+		fmt.Printf("Private Key for %s: %s\n", name, privKeyBase64)
+
+		// Convert Tendermint private key to Cosmos SDK's crypto.PrivKey type
+		// cosmosPrivKey := cryptotypes.PrivKey(validatorKey.(types.PrivKey))
+
+		// Import the private key into Cosmos SDK keyring
+		// kr.ImportPrivKey()
+		// // err := kr.ImportPrivKey(name, cosmosPrivKey, "password")
+		// // if err != nil {
+		// // 	return err
+		// // }
+
+		// Get the public key to verify the key was imported
+		info, err := kr.Key(name)
+		if err != nil {
+			return err
+		}
+		address, err := info.GetAddress()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Imported Key Address: %s\n", address)
 	}
+
+	// Create a txsim node using the key stored in the txsimKeyringDir.
+	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, txsimKeyringDir, t.knuu, upgradeSchedule)
 	err = txsim.Instance.Build().Commit(ctx)
 	if err != nil {
 		log.Err(err).
@@ -225,8 +259,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	if txsimKeyringDir == "" {
 		kr = keyring.NewInMemory(cdc)
 	} else { // create a keyring with the specified directory
-		kr, err = keyring.New(app.Name, keyring.BackendTest,
-			txsimKeyringDir, nil, cdc)
+		kr, err = keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, cdc)
 		if err != nil {
 			return nil, err
 		}

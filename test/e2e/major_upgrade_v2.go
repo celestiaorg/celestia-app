@@ -12,6 +12,7 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
@@ -52,7 +53,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil, []crypto.PrivKey{})
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
