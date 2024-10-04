@@ -20,42 +20,30 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 	testCases := []struct {
 		name        string
 		txSize      int
-		isCheckTx   bool
 		expectError bool
 		appVersion  uint64
 	}{
 		{
-			name:        "good tx: under max tx bytes threshold",
+			name:        "good tx; under max tx bytes threshold",
 			txSize:      v3.MaxTxBytes - 1,
-			isCheckTx:   true,
 			appVersion:  v3.Version,
 			expectError: false,
 		},
 		{
 			name:        "bad tx; over max tx bytes threshold",
 			txSize:      v3.MaxTxBytes + 1,
-			isCheckTx:   true,
 			appVersion:  v3.Version,
 			expectError: true,
 		},
 		{
 			name:        "bad tx; equal to max tx bytes threshold",
 			txSize:      v3.MaxTxBytes,
-			isCheckTx:   true,
 			appVersion:  v3.Version,
 			expectError: true,
 		},
 		{
-			name:        "bad tx; should not error when not CheckTx",
-			txSize:      v3.MaxTxBytes,
-			isCheckTx:   false,
-			appVersion:  v3.Version,
-			expectError: false,
-		},
-		{
 			name:        "only applies to v3 and above",
 			txSize:      v3.MaxTxBytes,
-			isCheckTx:   true,
 			appVersion:  v2.Version,
 			expectError: false,
 		},
@@ -67,7 +55,7 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 				Version: version.Consensus{
 					App: tc.appVersion,
 				},
-			}, tc.isCheckTx, nil)
+			}, false, nil)
 
 			txBytes := make([]byte, tc.txSize)
 
