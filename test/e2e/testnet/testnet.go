@@ -3,7 +3,6 @@ package testnet
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -167,37 +166,7 @@ func (t *Testnet) CreateTxClient(
 	}
 
 	// Iterate over the Tendermint private keys and import them into the Cosmos SDK keyring
-	for i, validatorKey := range validatorKeys {
-		name := fmt.Sprintf("validator-%d", i)
-
-		// Convert Tendermint private key to raw bytes and then to base64 (or keep it raw)
-		privKeyBytes := validatorKey.Bytes()
-		privKeyBase64 := base64.StdEncoding.EncodeToString(privKeyBytes)
-
-		// Output the Base64 encoded key (or use privKeyBytes for raw format)
-		fmt.Printf("Private Key for %s: %s\n", name, privKeyBase64)
-
-		// Convert Tendermint private key to Cosmos SDK's crypto.PrivKey type
-		// cosmosPrivKey := cryptotypes.PrivKey(validatorKey.(types.PrivKey))
-
-		// Import the private key into Cosmos SDK keyring
-		// kr.ImportPrivKey()
-		// // err := kr.ImportPrivKey(name, cosmosPrivKey, "password")
-		// // if err != nil {
-		// // 	return err
-		// // }
-
-		// Get the public key to verify the key was imported
-		// info, err := kr.Key(name)
-		// if err != nil {
-		// 	return err
-		// }
-		// address, err := info.GetAddress()
-		// if err != nil {
-		// 	return err
-		// }
-		// fmt.Printf("Imported Key Address: %s\n", address)
-	}
+	// TODO take the validatorKeys and add them to the keyring or txsimKeyringDir.
 
 	// Create a txsim node using the key stored in the txsimKeyringDir.
 	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, txsimKeyringDir, t.knuu, upgradeSchedule)

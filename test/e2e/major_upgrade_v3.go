@@ -55,13 +55,12 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		upgradeHeightV3: v3.Version,
 	}
 
-	// TODO: get the keys from the validators and plumb them into txClients
-	validatorKeys := []crypto.PrivKey{}
+	nodeKeys := []crypto.PrivKey{}
 	for _, node := range testNet.Nodes() {
-		validatorKeys = append(validatorKeys, node.SignerKey)
+		nodeKeys = append(nodeKeys, node.SignerKey)
 	}
 
-	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule, validatorKeys)
+	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule, nodeKeys)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
