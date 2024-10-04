@@ -215,6 +215,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 }
 
 func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping prepare proposal capping number of transactions test in short mode.")
+	}
 	// creating a big number of accounts so that every account
 	// only creates a single transaction. This is for transactions
 	// to be skipped without worrying about the sequence number being
