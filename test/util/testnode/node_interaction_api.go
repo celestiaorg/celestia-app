@@ -22,6 +22,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/node"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
@@ -33,6 +34,7 @@ type Context struct {
 	goContext context.Context
 	client.Context
 	apiAddress string
+	tmNode     *node.Node
 }
 
 func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tmconfig.Config, chainID, apiAddress string) Context {
@@ -50,6 +52,9 @@ func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tm
 	return Context{goContext: goContext, Context: clientContext, apiAddress: apiAddress}
 }
 
+func (c *Context) GetTMNode() *node.Node {
+	return c.tmNode
+}
 func (c *Context) GoContext() context.Context {
 	return c.goContext
 }

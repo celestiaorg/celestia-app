@@ -54,6 +54,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	cctx.GetTMNode().ConsensusStateTimeoutsByHeight(0)
 
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
