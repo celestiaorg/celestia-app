@@ -144,7 +144,7 @@ func (t *Testnet) CreateTxClient(
 	// version of the txsim docker image to be pulled from the registry
 	version string,
 	// sequences: number of sequences to be run by the txsim
-	sequences int,
+	blobSequences int,
 	// blobRange: range of blob sizes to be used by the txsim in bytes
 	blobRange string,
 	blobPerSequence int,
@@ -168,7 +168,7 @@ func (t *Testnet) CreateTxClient(
 
 	// Create a txsim node using the key stored in the txsimKeyringDir.
 	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
-		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu, upgradeSchedule)
+		blobSequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/rs/zerolog/log"
@@ -75,7 +76,7 @@ func CreateTxClient(
 		fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
 		fmt.Sprintf("--blob-sizes %s", blobRange),
 		fmt.Sprintf("--upgrade-schedule %s", stringifyUpgradeSchedule(upgradeSchedule)),
-		// fmt.Sprintf("--blob-share-version %d", share.ShareVersionZero),
+		fmt.Sprintf("--blob-share-version %d", share.ShareVersionZero),
 	}
 
 	if err := instance.Build().SetArgs(args...); err != nil {
