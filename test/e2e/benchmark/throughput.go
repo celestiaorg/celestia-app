@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -140,9 +141,16 @@ func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) er
 func TwoNodeBigBlock8MB(logger *log.Logger) error {
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * testnet.MB
+	return runBenchmarkTest(logger, "TwoNodeBigBlock8MB", manifest)
+}
+
+func TwoNodeBigBlock8MBV3(logger *log.Logger) error {
+	manifest := bigBlockManifest
+	manifest.MaxBlockBytes = 8 * testnet.MB
 	manifest.CelestiaAppVersion = "pr-3882"
 	manifest.TxClientVersion = "pr-3882"
-	return runBenchmarkTest(logger, "TwoNodeBigBlock8MB", manifest)
+	manifest.GenesisAppVersion = v3.Version
+	return runBenchmarkTest(logger, "TwoNodeBigBlock8MBV3", manifest)
 }
 
 func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
