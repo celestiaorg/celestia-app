@@ -19,6 +19,8 @@ type BenchmarkTest struct {
 	manifest *Manifest
 }
 
+// NewBenchmarkTest wraps around testnet.New to create a new benchmark test
+// it may modify genesis consensus parameters based on manifest
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// create a new testnet
 	testNet, err := testnet.New(context.Background(), name, seed,
@@ -28,12 +30,13 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 		return nil, err
 	}
 
+	// modify the consensus parameters based on the manifest
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
 	return &BenchmarkTest{Testnet: testNet, manifest: manifest}, nil
 }
 
 // SetupNodes creates genesis nodes and tx clients based on the manifest.
-// There will be manifest.Validators validators and manifest.TxClients tx clients.
+// There will be manifest.Validators many validators and manifest.TxClients many tx clients.
 // Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
 func (b *BenchmarkTest) SetupNodes() error {
 	ctx := context.Background()
