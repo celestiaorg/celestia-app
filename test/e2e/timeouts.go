@@ -16,15 +16,16 @@ import (
 // committed.
 func Timeouts(logger *log.Logger) error {
 	ctx := context.Background()
-	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "Timeouts", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
+	logger.Println("Genesis app version is", testNet.GetGenesisAppVersion())
 	defer testNet.Cleanup(ctx)
 
 	latestVersion := "pr-3882"
 	testnet.NoError("failed to get latest version", err)
 
-	logger.Println("Running E2ESimple test", "version", latestVersion)
+	logger.Println("Running Timeouts test", "version", latestVersion)
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
@@ -33,18 +34,33 @@ func Timeouts(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10,
-		"100-2000", 100, testnet.DefaultResources, endpoints[0])
+	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 60,
+		"20000", 6, testnet.DefaultResources, endpoints[0])
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
-	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))
+	// We set the timeouts intentionally far from the default values to make sure
+	// that the configs do not take effect rather timeouts are set based on the
+	// app version in the genesis or the block headers
+	testnet.NoError("failed to setup testnets", testNet.Setup(ctx,
+		testnet.WithTimeoutPropose(1*time.Second),
+		testnet.WithTimeoutCommit(30*time.Second)))
 
 	logger.Println("Starting testnets")
-	testnet.NoError("failed to start testnets", testNet.Start(ctx))
+	// only start 3/4 of the nodes
+	testnet.NoError("failed to start testnets", testNet.Start(ctx, 0, 1, 2, 3))
 
-	logger.Println("Waiting for 30 seconds to produce blocks")
-	time.Sleep(30 * time.Second)
+	logger.Println("Waiting for some time to produce blocks")
+	time.Sleep(60 * time.Second)
+	//
+	//// now start the last node
+	//testNet.Start(ctx, 3)
+	//
+	//logger.Println("Waiting for some time  for the last node to catch" +
+	//	" up and" +
+	//	" produce blocks")
+	//time.Sleep(120 * time.Second)
+	// TODO can extend the test by turning off one of the nodes and checking if the network still works
 
 	logger.Println("Reading blockchain headers")
 	blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
@@ -60,6 +76,15 @@ func Timeouts(logger *log.Logger) error {
 	}
 	if totalTxs < 10 {
 		return fmt.Errorf("expected at least 10 transactions, got %d", totalTxs)
+	}
+	blockTimes := testnode.CalculateBlockTime(blockchain)
+	stats := testnode.CalculateStats(blockTimes)
+	targetBlockTime := 6 * time.Second
+	targetBlockTimeIsReached := (stats.Avg < targetBlockTime+1*time.Second) &&
+		(stats.Avg > targetBlockTime-1*time.Second)
+	if !targetBlockTimeIsReached {
+		return fmt.Errorf("expected block time to be around %v+-1s, got %v",
+			targetBlockTime, stats.Avg)
 	}
 	return nil
 }
