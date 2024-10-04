@@ -100,7 +100,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 		msgTypes := msgTypes(sdkTx)
 		if count := countOccurrence(msgTypes, sdk.MsgTypeURL(&types2.MsgPayForBlobs{})); count != 0 {
 			if pfbTransactionCount+count > v3consts.PFBTransactionCap {
-				logger.Debug("skipping tx because the msg pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+				logger.Debug("skipping tx because the pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 				continue
 			}
 			pfbTransactionCount += count
