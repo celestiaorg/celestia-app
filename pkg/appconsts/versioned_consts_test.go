@@ -70,7 +70,7 @@ func TestVersionedConsts(t *testing.T) {
 			name:             "MaxTxBytes v3",
 			version:          v3.Version,
 			expectedConstant: v3.MaxTxBytes,
-			got:              appconsts.TxMaxBytes(v3.Version),
+			got:              appconsts.MaxTxBytes(v3.Version),
 		},
 	}
 
