@@ -27,9 +27,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	// HACKHACK: use a version of celestia-app built from a commit on this PR.
 	// Do not merge as-is.
-	latestVersion := "0433ddc"
+	version := "pr-3910"
 
-	logger.Println("Running major upgrade to v3 test", "version", latestVersion)
+	logger.Println("Running major upgrade to v3 test", "version", version)
 
 	cp := app.DefaultConsensusParams()
 	cp.Version.AppVersion = v2.Version
@@ -39,11 +39,11 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	testnet.NoError("failed to create preloader", err)
 
 	defer func() { _ = preloader.EmptyImages(ctx) }()
-	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(latestVersion)))
+	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(version)))
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
-		err := testNet.CreateGenesisNode(ctx, latestVersion, 10000000, 0, testnet.DefaultResources, true)
+		err := testNet.CreateGenesisNode(ctx, version, 10000000, 0, testnet.DefaultResources, true)
 		testnet.NoError("failed to create genesis node", err)
 	}
 
@@ -53,7 +53,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	upgradeSchedule := map[int64]uint64{
 		upgradeHeight: v3.Version,
 	}
-	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
