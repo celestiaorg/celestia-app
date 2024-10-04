@@ -1,4 +1,3 @@
-//nolint:staticcheck
 package main
 
 import (
@@ -15,12 +14,12 @@ import (
 
 func MajorUpgradeToV3(logger *log.Logger) error {
 	numNodes := 4
-	upgradeHeight := int64(20)
+	upgradeHeightV3 := int64(20)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(ctx, "runMajorUpgradeToV3", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "MajorUpgradeToV3", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -31,15 +30,16 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	logger.Println("Running major upgrade to v3 test", "version", version)
 
-	cp := app.DefaultConsensusParams()
-	cp.Version.AppVersion = v2.Version
-	testNet.SetConsensusParams(cp)
+	consensusParams := app.DefaultConsensusParams()
+	consensusParams.Version.AppVersion = v2.Version // Start the test on v2
+	testNet.SetConsensusParams(consensusParams)
 
 	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
+	err = preloader.AddImage(ctx, testnet.DockerImageName(version))
+	testnet.NoError("failed to add image", err)
 	defer func() { _ = preloader.EmptyImages(ctx) }()
-	testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(version)))
 
 	logger.Println("Creating genesis nodes")
 	for i := 0; i < numNodes; i++ {
@@ -51,7 +51,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{
-		upgradeHeight: v3.Version,
+		upgradeHeightV3: v3.Version,
 	}
 	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)

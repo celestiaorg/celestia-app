@@ -30,10 +30,7 @@ type Testnet struct {
 	knuu      *knuu.Knuu
 }
 
-func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, chainID string,
-	genesisModifiers ...genesis.Modifier) (
-	*Testnet, error,
-) {
+func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, chainID string, genesisModifiers ...genesis.Modifier) (*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
@@ -83,14 +80,10 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx,
-		fmt.Sprintf("val%d", len(t.nodes)), version, 0,
-		selfDelegation, nil, signerKey, networkKey,
-		upgradeHeight, resources, t.grafana, t.knuu, disableBBR,
-	)
+	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -101,9 +94,9 @@ func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDel
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeight, resources, disableBBR); err != nil {
+		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
 			return err
 		}
 	}
@@ -120,8 +113,7 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(ctx, name, version, sequences,
-			blobRange, blobPerSequence, resources, grpcEndpoint, nil)
+		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, nil)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -152,6 +144,7 @@ func (t *Testnet) CreateTxClient(
 	resources Resources,
 	// grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
 	grpcEndpoint string,
+	// upgradeSchedule is a map from height to version, specifying the version to upgrade to at the given height
 	upgradeSchedule map[int64]uint64,
 ) error {
 	// Create an account, and store it in a temp directory and add the account as genesis account to
@@ -167,8 +160,7 @@ func (t *Testnet) CreateTxClient(
 	}
 
 	// Create a txsim node using the key stored in the txsimKeyringDir.
-	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
-		blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
+	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).

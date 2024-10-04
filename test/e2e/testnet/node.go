@@ -105,7 +105,7 @@ func NewNode(
 	peers []string,
 	signerKey crypto.PrivKey,
 	networkKey crypto.PrivKey,
-	upgradeHeight int64,
+	upgradeHeightV2 int64,
 	resources Resources,
 	grafana *GrafanaInfo,
 	kn *knuu.Knuu,
@@ -161,8 +161,8 @@ func NewNode(
 	if disableBBR {
 		args = append(args, "--force-no-bbr")
 	}
-	if upgradeHeight != 0 {
-		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
+	if upgradeHeightV2 != 0 {
+		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeightV2))
 	}
 
 	if err := knInstance.Build().SetArgs(args...); err != nil {
