@@ -480,12 +480,12 @@ func (t *Testnet) Start(ctx context.Context, indices ...int) error {
 	}
 	// wait for nodes to sync
 	log.Info().Msg("waiting for genesis nodes to sync")
-	err = t.WaitToSync(ctx)
+	err = t.WaitToSync(ctx, indices...)
 	if err != nil {
 		return err
 	}
 
-	return t.StartTxClients(ctx)
+	return t.StartTxClients(ctx, indices...)
 }
 
 func (t *Testnet) Cleanup(ctx context.Context) {
