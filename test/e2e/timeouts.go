@@ -48,18 +48,18 @@ func Timeouts(logger *log.Logger) error {
 
 	logger.Println("Starting testnets")
 	// only start 3/4 of the nodes
-	testnet.NoError("failed to start testnets", testNet.Start(ctx, 0, 1, 2, 3))
+	testnet.NoError("failed to start testnets", testNet.Start(ctx, 0, 1, 2))
 
 	logger.Println("Waiting for some time to produce blocks")
 	time.Sleep(60 * time.Second)
-	//
-	//// now start the last node
-	//testNet.Start(ctx, 3)
-	//
-	//logger.Println("Waiting for some time  for the last node to catch" +
-	//	" up and" +
-	//	" produce blocks")
-	//time.Sleep(120 * time.Second)
+
+	// now start the last node
+	testNet.Start(ctx, 3)
+
+	logger.Println("Waiting for some time  for the last node to catch" +
+		" up and" +
+		" produce blocks")
+	time.Sleep(120 * time.Second)
 	// TODO can extend the test by turning off one of the nodes and checking if the network still works
 
 	logger.Println("Reading blockchain headers")
