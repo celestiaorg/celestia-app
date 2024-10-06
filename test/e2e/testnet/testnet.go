@@ -166,7 +166,7 @@ func (t *Testnet) CreateTxClient(
 	}
 	err = t.genesis.AddAccount(genesis.Account{
 		PubKey:  pk,
-		Balance: 500000,
+		Balance: 1e16,
 		Name:    name,
 	})
 	if err != nil {
@@ -214,6 +214,12 @@ func (t *Testnet) CreateTxClient(
 			Msg("error committing txsim")
 		return err
 	}
+
+	// copy over the keyring directory to the txsim instance
+	// txsimRootDir
+	// txsimRootDir   = "/home/celestia"
+	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimKeyringDir, "10001:10001")
+
 	t.txClients = append(t.txClients, txsim)
 	return nil
 }
