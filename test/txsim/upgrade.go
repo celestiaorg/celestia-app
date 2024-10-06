@@ -15,17 +15,24 @@ var _ Sequence = &UpgradeSequence{}
 
 const fundsForUpgrade = 100_000
 
-// UpgradeSequence simulates an upgrade proposal and voting process
+// UpgradeSequence simulates a sequence of validators submitting
+// MsgSignalVersions for a particular version and then eventually a
+// MsgTryUpgrade.
 type UpgradeSequence struct {
-	voted       map[string]bool
-	height      int64
-	version     uint64
-	account     types.AccAddress
+	// signalled is a map from validator address to a boolean indicating if they have signalled.
+	signalled map[string]bool
+	// height is the first height at which the upgrade sequence is run.
+	height int64
+	// version is the version that validators are signalling for.
+	version uint64
+	// account is the address of the account that submits the MsgTryUpgrade.
+	account types.AccAddress
+	// hasUpgraded is true if the MsgTryUpgrade has been submitted.
 	hasUpgraded bool
 }
 
 func NewUpgradeSequence(version uint64, height int64) *UpgradeSequence {
-	return &UpgradeSequence{version: version, height: height, voted: make(map[string]bool)}
+	return &UpgradeSequence{version: version, height: height, signalled: make(map[string]bool)}
 }
 
 func (s *UpgradeSequence) Clone(_ int) []Sequence {
@@ -55,12 +62,12 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 	// Choose a random validator to be the authority
 	var msg types.Msg
 	for _, validator := range validatorsResp.Validators {
-		if !s.voted[validator.OperatorAddress] {
+		if !s.signalled[validator.OperatorAddress] {
 			msg = &signaltypes.MsgSignalVersion{
 				ValidatorAddress: validator.OperatorAddress,
 				Version:          s.version,
 			}
-			s.voted[validator.OperatorAddress] = true
+			s.signalled[validator.OperatorAddress] = true
 		}
 	}
 	// if all validators have voted, we can now try to upgrade.
@@ -70,8 +77,8 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 	}
 
 	delay := uint64(0)
-	// apply a delay to the first sequence only
-	if len(s.voted) == 0 {
+	// apply a delay to the first signal only
+	if len(s.signalled) == 0 {
 		delay = uint64(s.height)
 	}
 
