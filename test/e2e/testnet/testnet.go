@@ -148,36 +148,65 @@ func (t *Testnet) CreateTxClient(
 	// upgradeSchedule is a map from height to version, specifying the version to upgrade to at the given height
 	upgradeSchedule map[int64]uint64,
 ) error {
-	// Create an account, and store it in a temp directory and add the account as genesis account to
-	// the testnet.
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
-	log.Info().
-		Str("name", name).
-		Str("directory", txsimKeyringDir).
-		Msg("txsim keyring directory created")
-	kr, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
+	defer os.RemoveAll(txsimKeyringDir)
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	txsimKeyring, err := keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, cdc)
+	if err != nil {
+		return fmt.Errorf("failed to create keyring: %w", err)
+	}
 
-	// nodeKeys := []crypto.PrivKey{}
+	key, _, err := txsimKeyring.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return fmt.Errorf("failed to create mnemonic: %w", err)
+	}
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to get public key: %w", err)
+	}
+	err = t.genesis.AddAccount(genesis.Account{
+		PubKey:  pk,
+		Balance: 500000,
+		Name:    name,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add account to genesis: %w", err)
+	}
+	fmt.Printf("before copy")
+	records, err := txsimKeyring.List()
+	if err != nil {
+		return fmt.Errorf("failed to list keys: %w", err)
+	}
+	for _, record := range records {
+		fmt.Printf("kr record name %v\n", record.Name)
+	}
+
+	// Copy the keys from the genesis keyring to the txsim keyring
 	for _, node := range t.Nodes() {
 		nodeName := node.Name
 		fmt.Printf("nodeName %v\n", nodeName)
 		armor, err := t.Genesis().Keyring().ExportPrivKeyArmor(nodeName, "")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to export key: %w", err)
 		}
-		fmt.Printf("armor %v\n", armor)
-		err = kr.ImportPrivKey(nodeName, armor, "")
+		err = txsimKeyring.ImportPrivKey(nodeName, armor, "")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to import key: %w", err)
 		}
-		fmt.Printf("imported %v into kr successfully\n", nodeName)
+		fmt.Printf("imported %v into txsimKeyring successfully\n", nodeName)
 	}
 
-	// Iterate over the Tendermint private keys and import them into the Cosmos SDK keyring
-	// TODO take the validatorKeys and add them to the keyring or txsimKeyringDir.
+	fmt.Printf("after copy")
+	records, err = txsimKeyring.List()
+	if err != nil {
+		return fmt.Errorf("failed to list keys: %w", err)
+	}
+	for _, record := range records {
+		fmt.Printf("kr record name %v\n", record.Name)
+	}
 
-	// Create a txsim node using the key stored in the txsimKeyringDir.
 	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, txsimKeyringDir, t.knuu, upgradeSchedule)
+
 	err = txsim.Instance.Build().Commit(ctx)
 	if err != nil {
 		log.Err(err).
@@ -185,17 +214,6 @@ func (t *Testnet) CreateTxClient(
 			Msg("error committing txsim")
 		return err
 	}
-
-	// Copy over the keyring directory to the txsim instance.
-	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, remoteRootDir, "10001:10001")
-	if err != nil {
-		log.Err(err).
-			Str("directory", txsimKeyringDir).
-			Str("name", name).
-			Msg("error adding keyring dir to txsim")
-		return err
-	}
-
 	t.txClients = append(t.txClients, txsim)
 	return nil
 }
@@ -222,6 +240,18 @@ func (t *Testnet) StartTxClients(ctx context.Context) error {
 
 	}
 	return nil
+}
+
+func createTxsimKeyringDir(name string, kr keyring.Keyring) string {
+	// Create an account, and store it in a temp directory and add the account as genesis account to
+	// the testnet.
+	txsimKeyringDir := filepath.Join(os.TempDir(), name)
+	log.Info().
+		Str("name", name).
+		Str("directory", txsimKeyringDir).
+		Msg("txsim keyring directory created")
+
+	return txsimKeyringDir
 }
 
 // CreateAccount creates an account and adds it to the
