@@ -56,11 +56,16 @@ func (b *BenchmarkTest) SetupNodes() error {
 	// create tx clients and point them to the validators
 	log.Println("Creating tx clients")
 
-	err = b.CreateTxClients(ctx, b.manifest.TxClientVersion,
+	err = b.CreateTxClients(
+		ctx,
+		b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,
 		b.manifest.BlobsPerSeq,
-		b.manifest.TxClientsResource, gRPCEndpoints)
+		b.manifest.TxClientsResource,
+		gRPCEndpoints,
+		map[int64]uint64{},
+	)
 	testnet.NoError("failed to create tx clients", err)
 
 	log.Println("Setting up testnet")

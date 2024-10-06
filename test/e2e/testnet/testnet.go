@@ -17,7 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog/log"
-	"github.com/tendermint/tendermint/crypto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -112,11 +111,10 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 	resources Resources,
 	grpcEndpoints []string,
 	upgradeSchedule map[int64]uint64,
-	validatorKeys []crypto.PrivKey,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule, validatorKeys)
+		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -149,9 +147,6 @@ func (t *Testnet) CreateTxClient(
 	grpcEndpoint string,
 	// upgradeSchedule is a map from height to version, specifying the version to upgrade to at the given height
 	upgradeSchedule map[int64]uint64,
-	// validatorKeys is a list of validator keys to be used by the txsim. This
-	// is needed so that txSim can signal for versions on behalf of validators.
-	validatorKeys []crypto.PrivKey,
 ) error {
 	// Create an account, and store it in a temp directory and add the account as genesis account to
 	// the testnet.
@@ -160,9 +155,22 @@ func (t *Testnet) CreateTxClient(
 		Str("name", name).
 		Str("directory", txsimKeyringDir).
 		Msg("txsim keyring directory created")
-	_, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
-	if err != nil {
-		return err
+	kr, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
+
+	// nodeKeys := []crypto.PrivKey{}
+	for _, node := range t.Nodes() {
+		nodeName := node.Name
+		fmt.Printf("nodeName %v\n", nodeName)
+		armor, err := t.Genesis().Keyring().ExportPrivKeyArmor(nodeName, "")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("armor %v\n", armor)
+		err = kr.ImportPrivKey(nodeName, armor, "")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("imported %v into kr successfully\n", nodeName)
 	}
 
 	// Iterate over the Tendermint private keys and import them into the Cosmos SDK keyring
@@ -261,11 +269,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx,
-		fmt.Sprintf("val%d", len(t.nodes)), version,
-		startHeight, 0, nil, signerKey, networkKey,
-		upgradeHeight, resources, t.grafana, t.knuu, disableBBR,
-	)
+	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -449,4 +453,8 @@ func (t *Testnet) Node(i int) *Node {
 
 func (t *Testnet) Nodes() []*Node {
 	return t.nodes
+}
+
+func (t *Testnet) Genesis() *genesis.Genesis {
+	return t.genesis
 }

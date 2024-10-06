@@ -15,7 +15,6 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/tendermint/tendermint/crypto"
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
@@ -64,7 +63,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil, []crypto.PrivKey{})
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], nil)
 	testnet.NoError("failed to create tx client", err)
 
 	// start the testnet

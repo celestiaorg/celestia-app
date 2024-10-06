@@ -10,7 +10,6 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/tendermint/tendermint/crypto"
 )
 
 func MajorUpgradeToV3(logger *log.Logger) error {
@@ -55,12 +54,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		upgradeHeightV3: v3.Version,
 	}
 
-	nodeKeys := []crypto.PrivKey{}
-	for _, node := range testNet.Nodes() {
-		nodeKeys = append(nodeKeys, node.SignerKey)
-	}
-
-	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule, nodeKeys)
+	err = testNet.CreateTxClient(ctx, "txsim", version, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
