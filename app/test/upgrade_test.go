@@ -22,11 +22,14 @@ import (
 	"github.com/celestiaorg/go-square/v2/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	// evidencekeeper "github.com/cosmos/cosmos-sdk/x/evidence/keeper"
+	evidencetypes "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6/packetforward/types"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -70,6 +73,20 @@ func TestAppUpgradeV3(t *testing.T) {
 		},
 		user.SetGasLimitAndGasPrice(100_000, appconsts.DefaultMinGasPrice),
 	)
+
+	fmt.Println(testApp.AppVersion(), "APP VERSION")
+	// evidencekeeper.GetEvidence()
+	
+
+	// query evidence params
+	// gotBefore, err := testApp.ParamsKeeper.Params(ctx, &proposal.QueryParamsRequest{
+	// 	Subspace: "",
+	// 	Key:      evidencetypes.StoreKey,
+	// })
+	// ctx.KVStore(testApp.GetKey(evidencetypes.StoreKey)).Set([]byte("key"), []byte("value"))
+	storeKey := testApp.GetKey(evidencetypes.StoreKey)
+	fmt.Println(storeKey, "STORE KEY")
+
 	require.NoError(t, err)
 	testApp.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
@@ -91,7 +108,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	testApp.Commit()
 	require.NoError(t, signer.IncrementSequence(testnode.DefaultValidatorAccountName))
 
-	ctx = testApp.NewContext(true, tmproto.Header{})
+	ctx = testApp.NewContext(true, tmproto.Header{Version: tmversion.Consensus{App: 3}})
 	getUpgradeResp, err := testApp.SignalKeeper.GetUpgrade(ctx, &signaltypes.QueryGetUpgradeRequest{})
 	require.NoError(t, err)
 	require.Equal(t, v3.Version, getUpgradeResp.Upgrade.AppVersion)
@@ -113,6 +130,15 @@ func TestAppUpgradeV3(t *testing.T) {
 		_ = testApp.Commit()
 	}
 	require.Equal(t, v3.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
+
+	// query evidence params
+	storeKey2 := testApp.GetKey(evidencetypes.StoreKey)
+	fmt.Println(storeKey2, "STORE KEY AFTER")
+	evidencetypes.DefaultGenesisState().GetEvidence()
+	_, err = testApp.EvidenceKeeper.Evidence(ctx, evidencetypes.NewQueryEvidenceRequest(bytes.HexBytes("EvidenceHash")))
+	fmt.Println(err, "ERROR")
+	ctx.KVStore(testApp.GetKey(evidencetypes.StoreKey)).Set([]byte("key"), []byte("value"))
+	testApp.GetKey(evidencetypes.StoreKey)
 
 	// confirm that an authored blob tx works
 	blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("hello world"), accAddr.Bytes())
