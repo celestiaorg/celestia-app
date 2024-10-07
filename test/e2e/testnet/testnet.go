@@ -130,22 +130,26 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 }
 
 // CreateTxClient creates a txsim node and sets it up.
+//
+// Parameters:
+// ctx: Context for managing the lifecycle.
+// name: Name of the txsim knuu instance.
+// version: Version of the txsim Docker image to pull.
+// blobSequences: Number of blob sequences to run by the txsim.
+// blobRange: Range of blob sizes in bytes used by the txsim.
+// blobPerSequence: Number of blobs per sequence.
+// resources: Resources allocated to the txsim.
+// grpcEndpoint: gRPC endpoint of the node for transaction submission.
+// upgradeSchedule: Map from height to version for scheduled upgrades (v3 and onwards).
 func (t *Testnet) CreateTxClient(
 	ctx context.Context,
-	// name of the txsim knuu instance
 	name string,
-	// version of the txsim docker image to be pulled from the registry
 	version string,
-	// sequences: number of sequences to be run by the txsim
 	blobSequences int,
-	// blobRange: range of blob sizes to be used by the txsim in bytes
 	blobRange string,
 	blobPerSequence int,
-	// resources: resources to be allocated to the txsim
 	resources Resources,
-	// grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
 	grpcEndpoint string,
-	// upgradeSchedule is a map from height to version, specifying the version to upgrade to at the given height
 	upgradeSchedule map[int64]uint64,
 ) error {
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
