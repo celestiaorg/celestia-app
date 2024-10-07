@@ -61,27 +61,6 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 		return Operation{}, errors.New("no validators found")
 	}
 
-	// Choose a random validator to be the authority
-	var msg types.Msg
-	for _, validator := range validatorsResp.Validators {
-		fmt.Printf("validator: %v\n", validator)
-		if !s.signalled[validator.OperatorAddress] {
-			msg = &signaltypes.MsgSignalVersion{
-				ValidatorAddress: validator.OperatorAddress,
-				Version:          s.version,
-			}
-			fmt.Printf("msg %v\n", msg)
-			s.signalled[validator.OperatorAddress] = true
-			fmt.Printf("marking %v as signalled", validator.OperatorAddress)
-		}
-	}
-	// if all validators have voted, we can now try to upgrade.
-	if msg == nil {
-		fmt.Printf("all validators have signalled so we can try to upgrade")
-		msg = signaltypes.NewMsgTryUpgrade(s.account)
-		s.hasUpgraded = true
-	}
-
 	delay := uint64(0)
 	// apply a delay to the first signal only
 	if len(s.signalled) == 0 {
@@ -89,6 +68,27 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 		delay = uint64(s.height)
 	}
 
+	// Choose a random validator to be the authority
+	for _, validator := range validatorsResp.Validators {
+		fmt.Printf("validator: %v\n", validator)
+		if !s.signalled[validator.OperatorAddress] {
+			fmt.Printf("marking %v as signalled", validator.OperatorAddress)
+			s.signalled[validator.OperatorAddress] = true
+			msg := &signaltypes.MsgSignalVersion{
+				ValidatorAddress: validator.OperatorAddress,
+				Version:          s.version,
+			}
+			return Operation{
+				Msgs:  []types.Msg{msg},
+				Delay: delay,
+			}, nil
+		}
+	}
+
+	// if all validators have voted, we can now try to upgrade.
+	fmt.Printf("all validators have signalled so we can try to upgrade")
+	s.hasUpgraded = true
+	msg := signaltypes.NewMsgTryUpgrade(s.account)
 	return Operation{
 		Msgs:  []types.Msg{msg},
 		Delay: delay,
