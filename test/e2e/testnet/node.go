@@ -36,6 +36,7 @@ const (
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"
+	txsimRootDir   = "/home/celestia"
 )
 
 type Node struct {

@@ -3,7 +3,6 @@ package txsim
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
@@ -52,7 +51,6 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 
 	stakingQuerier := stakingtypes.NewQueryClient(querier)
 	validatorsResp, err := stakingQuerier.Validators(ctx, &stakingtypes.QueryValidatorsRequest{})
-	fmt.Printf("validators: %v\n", validatorsResp.Validators)
 	if err != nil {
 		return Operation{}, err
 	}
@@ -64,15 +62,12 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 	delay := uint64(0)
 	// apply a delay to the first signal only
 	if len(s.signalled) == 0 {
-		fmt.Printf("applying delay to first signal")
 		delay = uint64(s.height)
 	}
 
 	// Choose a random validator to be the authority
 	for _, validator := range validatorsResp.Validators {
-		fmt.Printf("validator: %v\n", validator)
 		if !s.signalled[validator.OperatorAddress] {
-			fmt.Printf("marking %v as signalled", validator.OperatorAddress)
 			s.signalled[validator.OperatorAddress] = true
 			msg := &signaltypes.MsgSignalVersion{
 				ValidatorAddress: validator.OperatorAddress,
@@ -86,7 +81,6 @@ func (s *UpgradeSequence) Next(ctx context.Context, querier grpc.ClientConn, _ *
 	}
 
 	// if all validators have voted, we can now try to upgrade.
-	fmt.Printf("all validators have signalled so we can try to upgrade")
 	s.hasUpgraded = true
 	msg := signaltypes.NewMsgTryUpgrade(s.account)
 	return Operation{

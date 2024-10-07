@@ -25,7 +25,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	defer testNet.Cleanup(ctx)
 
 	// HACKHACK: use a version of celestia-app built from a commit on this PR.
-	// Do not merge as-is.
+	// This can be removed after the PR is merged to main.
 	version := "pr-3910"
 
 	logger.Println("Running major upgrade to v3 test", "version", version)

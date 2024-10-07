@@ -64,7 +64,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		b.manifest.BlobsPerSeq,
 		b.manifest.TxClientsResource,
 		gRPCEndpoints,
-		map[int64]uint64{},
+		map[int64]uint64{}, // upgrade schedule
 	)
 	testnet.NoError("failed to create tx clients", err)
 

@@ -46,7 +46,10 @@ func CreateTxClient(
 		return nil, err
 	}
 	image := txsimDockerImageName(version)
-	fmt.Printf("txsimDocker image: %s\n", image)
+	log.Info().
+		Str("name", name).
+		Str("image", image).
+		Msg("setting image for tx client")
 	err = instance.Build().SetImage(ctx, image)
 	if err != nil {
 		log.Err(err).

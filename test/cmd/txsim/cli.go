@@ -138,13 +138,11 @@ well funded account that can act as the master account. The command runs until a
 			}
 
 			upgradeScheduleMap, err := parseUpgradeSchedule(upgradeSchedule)
-			fmt.Printf("upgradeScheduleMap: %v\n", upgradeScheduleMap)
 			if err != nil {
 				return fmt.Errorf("invalid upgrade schedule: %w", err)
 			}
 
 			for height, version := range upgradeScheduleMap {
-				fmt.Printf("creating new upgrade sequence for height %v and version %v\n", height, version)
 				sequences = append(sequences, txsim.NewUpgradeSequence(version, height))
 			}
 
