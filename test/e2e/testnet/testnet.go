@@ -177,13 +177,11 @@ func (t *Testnet) CreateTxClient(
 	// Copy the keys from the genesis keyring to the txsim keyring so that txsim
 	// can submit MsgSignalVersion on behalf of the validators.
 	for _, node := range t.Nodes() {
-		nodeName := node.Name
-		fmt.Printf("nodeName %v\n", nodeName)
-		armor, err := t.Genesis().Keyring().ExportPrivKeyArmor(nodeName, "")
+		armor, err := t.Genesis().Keyring().ExportPrivKeyArmor(node.Name, "")
 		if err != nil {
 			return fmt.Errorf("failed to export key: %w", err)
 		}
-		err = txsimKeyring.ImportPrivKey(nodeName, armor, "")
+		err = txsimKeyring.ImportPrivKey(node.Name, armor, "")
 		if err != nil {
 			return fmt.Errorf("failed to import key: %w", err)
 		}
