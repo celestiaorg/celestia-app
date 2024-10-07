@@ -54,7 +54,8 @@ func Timeouts(logger *log.Logger) error {
 	time.Sleep(60 * time.Second)
 
 	// now start the last node
-	testNet.Start(ctx, 3)
+	testnet.NoError("failed to start the remaining portion of testnets"+
+		" validators", testNet.Start(ctx, 3))
 
 	logger.Println("Waiting for some time  for the last node to catch" +
 		" up and" +
