@@ -144,6 +144,7 @@ well funded account that can act as the master account. The command runs until a
 			}
 
 			for height, version := range upgradeScheduleMap {
+				fmt.Printf("creating new upgrade sequence for height %v and version %v\n", height, version)
 				sequences = append(sequences, txsim.NewUpgradeSequence(version, height))
 			}
 
