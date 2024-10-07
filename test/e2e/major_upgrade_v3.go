@@ -84,7 +84,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 				if resp.Header.Version.App == v3.Version {
 					upgradeComplete = true
 				}
-				fmt.Println("height", resp.Header.Height)
+				logger.Printf("height %v", resp.Header.Height)
 				lastHeight = resp.Header.Height
 			}
 		}
