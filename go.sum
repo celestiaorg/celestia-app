@@ -321,8 +321,8 @@ github.com/celestiaorg/celestia-core v1.42.0-tm-v0.34.35 h1:bWy5XOgeuuSLe0Lc/htL
 github.com/celestiaorg/celestia-core v1.42.0-tm-v0.34.35/go.mod h1:/fK0n3ps09t5uErBQe1QZbrE81L81MNUzWpFyWQLDT0=
 github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16 h1:f+fTe7GGk0/qgdzyqB8kk8EcDf9d6MC22khBTQiDXsU=
 github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16/go.mod h1:07Z8HJqS8Rw4XlZ+ok3D3NM/X/in8mvcGLvl0Zb5wrA=
-github.com/celestiaorg/go-square v1.1.0 h1:K4tBL5PCJwDtpBfyDxxZ3N962aC9VYb5/bw3LjagEtY=
-github.com/celestiaorg/go-square v1.1.0/go.mod h1:1EXMErhDrWJM8B8V9hN7dqJ2kUTClfwdqMOmF9yQUa0=
+github.com/celestiaorg/go-square v1.1.1 h1:Cy3p8WVspVcyOqHM8BWFuuYPwMitO1pYGe+ImILFZRA=
+github.com/celestiaorg/go-square v1.1.1/go.mod h1:1EXMErhDrWJM8B8V9hN7dqJ2kUTClfwdqMOmF9yQUa0=
 github.com/celestiaorg/go-square/v2 v2.0.0 h1:U5QV8/de5lc7glosfgyHhcxbFwNuwU4+6aYZ2RgjM04=
 github.com/celestiaorg/go-square/v2 v2.0.0/go.mod h1:y0BolG0tRM7UN1sAQyDDUkT+aMJPwFIjviVvnCB62C0=
 github.com/celestiaorg/knuu v0.16.1 h1:EOR/c9kvc0jZet/mma2qwAdlvEbl94bW9cC8FItkyBE=
