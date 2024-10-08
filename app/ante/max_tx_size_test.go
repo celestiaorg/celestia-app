@@ -36,14 +36,14 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "bad tx; equal to max tx bytes threshold",
+			name:        "good tx; equal to max tx bytes threshold",
 			txSize:      v3.MaxTxBytes,
 			appVersion:  v3.Version,
-			expectError: true,
+			expectError: false,
 		},
 		{
-			name:        "only applies to v3 and above",
-			txSize:      v3.MaxTxBytes,
+			name:        "good tx; limit only applies to v3 and above",
+			txSize:      v3.MaxTxBytes + 10,
 			appVersion:  v2.Version,
 			expectError: false,
 		},
