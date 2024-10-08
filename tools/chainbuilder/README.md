@@ -6,13 +6,13 @@
 
 Use `go` to run the binary as follows:
 
-```
+```shell
 go run ./tools/chainbuilder
 ```
 
 This will create a directory with the name `testnode-{chainID}`. All files will be populated and blocks generated based on specified input. You can run a validator on the file system afterwards by calling:
 
-```
+```shell
 celestia-appd start --home /path/to/testnode-{chainID}
 ```
 
