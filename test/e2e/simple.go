@@ -9,16 +9,35 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
 // This test runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
+	const testName = "E2ESimple"
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
+	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format("20060102_150405"))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        identifier,
+		ProxyEnabled: true,
+		// if the tests timeout, pass the timeout option
+		// Timeout: 120 * time.Minute,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+	kn.HandleStopSignal(ctx)
+	logger.Println("Knuu initialized", "scope", kn.Scope, "testName", testName)
+
+	testNet, err := testnet.New(ctx, testnet.TestnetOptions{
+		Seed:    seed,
+		Grafana: nil,
+		ChainID: "test",
+		Knuu:    kn,
+	})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)

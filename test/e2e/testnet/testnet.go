@@ -30,40 +30,23 @@ type Testnet struct {
 	knuu      *knuu.Knuu
 }
 
-func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, chainID string,
-	genesisModifiers ...genesis.Modifier) (
-	*Testnet, error,
-) {
-	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
-	kn, err := knuu.New(ctx, knuu.Options{
-		Scope:        identifier,
-		ProxyEnabled: true,
-		// if the tests timeout, pass the timeout option
-		// Timeout: 120 * time.Minute,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	log.Info().
-		Str("scope", kn.Scope).
-		Str("TestName", name).
-		Msg("Knuu initialized")
-
-	kn.HandleStopSignal(ctx)
-
-	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...),
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
-		knuu:    kn,
-	}, nil
+type TestnetOptions struct {
+	Seed             int64
+	Grafana          *GrafanaInfo
+	ChainID          string
+	GenesisModifiers []genesis.Modifier
+	Knuu             *knuu.Knuu
 }
 
-func (t *Testnet) Knuu() *knuu.Knuu {
-	return t.knuu
+func New(ctx context.Context, opts TestnetOptions) (*Testnet, error) {
+	return &Testnet{
+		seed:    opts.Seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
+		keygen:  newKeyGenerator(opts.Seed),
+		grafana: opts.Grafana,
+		knuu:    opts.Knuu,
+	}, nil
 }
 
 func (t *Testnet) NewPreloader() (*preloader.Preloader, error) {

@@ -12,11 +12,13 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
 func MajorUpgradeToV2(logger *log.Logger) error {
 	var (
+		testName      = "MajorUpgradeToV2"
 		numNodes      = 4
 		upgradeHeight = int64(10)
 	)
@@ -24,8 +26,25 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format("20060102_150405"))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        identifier,
+		ProxyEnabled: true,
+		// if the tests timeout, pass the timeout option
+		// Timeout: 120 * time.Minute,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+
+	kn.HandleStopSignal(ctx)
+	logger.Println("Knuu initialized", "scope", kn.Scope, "testName", testName)
+
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(ctx, "MajorUpgradeToV2", seed, nil, "test")
+	testNet, err := testnet.New(ctx, testnet.TestnetOptions{
+		Seed:    seed,
+		Grafana: nil,
+		ChainID: "test",
+		Knuu:    kn,
+	})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
