@@ -143,7 +143,7 @@ type ibcModule struct {
 // DefaultGenesis returns custom x/ibc module genesis state.
 func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	// per ibc documentation, this value should be 3-5 times the expected block
-	// time. The expected block time is 15 seconds, therefore this value is 75
+	// time. The expected block time is 6 seconds, therefore this value is 30
 	// seconds.
 	maxBlockTime := appconsts.GoalBlockTime * 5
 	gs := ibctypes.DefaultGenesisState()

@@ -9,5 +9,5 @@ const (
 	// interval isn't enforced at consensus, the real block interval isn't
 	// guaranteed to exactly match GoalBlockTime. GoalBlockTime is currently targeted
 	// through static timeouts (i.e. TimeoutPropose, TimeoutCommit).
-	GoalBlockTime = time.Second * 15
+	GoalBlockTime = time.Second * 6
 )
