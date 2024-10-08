@@ -66,7 +66,7 @@ func (s *TimeoutTestSuite) SetupSuite() {
 func (s *TimeoutTestSuite) TestConfigTimeoutsOverride() {
 	t := s.T()
 
-	require.NoError(t, s.cctx.WaitForBlocks(2))
+	require.NoError(t, s.cctx.WaitForBlocks(1))
 
 	tmNode := s.cctx.GetTMNode()
 	configTimeoutPropose := tmNode.Config().Consensus.TimeoutPropose.Seconds()
@@ -76,11 +76,12 @@ func (s *TimeoutTestSuite) TestConfigTimeoutsOverride() {
 	assert.Equal(t, timeoutPropose.Seconds(), configTimeoutPropose)
 	assert.Equal(t, timeoutCommit.Seconds(), configTimeoutCommit)
 
-	// read the timeouts from the state at height 1 i.e., the genesis block
+	// read the timeouts from the state at height 1 i.e.,
+	//the state after applying the genesis file
 	state1, err := s.cctx.GetTMNode().ConsensusStateTimeoutsByHeight(1)
 	require.NoError(t, err)
 
-	// state timeouts should not match the timeouts of the config
+	// state timeouts should NOT match the timeouts of the config
 	assert.True(t, configTimeoutPropose != state1.TimeoutPropose.Seconds())
 	assert.True(t, configTimeoutCommit != state1.TimeoutCommit.Seconds())
 
