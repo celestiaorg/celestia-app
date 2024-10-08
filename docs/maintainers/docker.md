@@ -2,7 +2,7 @@
 
 ## Context
 
-Github Actions should automatically build and publish a Docker image for each release. If Github Actions failed to build or publish the Docker image, you can manually build and publish a Docker image using this guide.
+Github Actions should automatically build and publish a Docker image for each release. If Github Actions failed, you can manually build and publish a Docker image using this guide.
 
 ## Prerequisites
 
