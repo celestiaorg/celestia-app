@@ -54,7 +54,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cfg := testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	cctx.GetTMNode().ConsensusStateTimeoutsByHeight(0)
 
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -179,7 +178,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		require.NoError(t, s.cctx.WaitForNextBlock())
 	}
 }
-
 func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	t := s.T()
 
