@@ -208,7 +208,7 @@ func (t *Testnet) CreateTxClient(
 	}
 
 	// copy over the keyring directory to the txsim instance
-	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
+	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimKeyringDir, "10001:10001")
 	if err != nil {
 		log.Err(err).
 			Str("directory", txsimKeyringDir).
