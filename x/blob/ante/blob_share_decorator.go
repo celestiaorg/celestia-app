@@ -36,7 +36,7 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	maxBlobShares := d.getMaxBlobShares(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if sharesNeeded := getSharesNeeded(pfb.BlobSizes); sharesNeeded > maxBlobShares {
+			if sharesNeeded := getSharesNeeded(uint32(len(ctx.TxBytes())), pfb.BlobSizes); sharesNeeded > maxBlobShares {
 				return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
 			}
 		}
@@ -75,7 +75,8 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 
 // getSharesNeeded returns the total number of shares needed to represent all of
 // the blobs described by blobSizes.
-func getSharesNeeded(blobSizes []uint32) (sum int) {
+func getSharesNeeded(base uint32, blobSizes []uint32) (sum int) {
+	sum = share.CompactSharesNeeded(base)
 	for _, blobSize := range blobSizes {
 		sum += share.SparseSharesNeeded(blobSize)
 	}

@@ -67,6 +67,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			tx = blobTx.Tx
 		}
 
+		ctx := sdkCtx.WithTxBytes(tx)
+
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
 			if req.Header.Version.App == v1 {
@@ -93,7 +95,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doesn't exist.
-			sdkCtx, err = handler(sdkCtx, sdkTx, false)
+			ctx, err = handler(ctx, sdkTx, false)
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "failure to increment sequence", err)
 				return reject()
