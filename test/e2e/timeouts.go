@@ -35,7 +35,7 @@ func Timeouts(logger *log.Logger) error {
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 60,
-		"20000", 6, testnet.DefaultResources, endpoints[0])
+		"20000", 6, testnet.DefaultResources, endpoints[0], map[int64]uint64{})
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
