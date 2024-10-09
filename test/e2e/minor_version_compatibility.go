@@ -51,7 +51,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Println("Knuu initialized", "scope", kn.Scope, "testName", testName)
 
-	testNet, err := testnet.New(ctx, testnet.TestnetOptions{
+	testNet, err := testnet.New(ctx, testnet.Options{
 		Seed:    seed,
 		Grafana: nil,
 		ChainID: "test",

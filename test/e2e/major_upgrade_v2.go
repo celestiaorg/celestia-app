@@ -39,7 +39,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Println("Knuu initialized", "scope", kn.Scope, "testName", testName)
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(ctx, testnet.TestnetOptions{
+	testNet, err := testnet.New(ctx, testnet.Options{
 		Seed:    seed,
 		Grafana: nil,
 		ChainID: "test",

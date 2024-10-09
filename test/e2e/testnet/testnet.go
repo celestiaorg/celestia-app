@@ -30,7 +30,7 @@ type Testnet struct {
 	knuu      *knuu.Knuu
 }
 
-type TestnetOptions struct {
+type Options struct {
 	Seed             int64
 	Grafana          *GrafanaInfo
 	ChainID          string
@@ -38,7 +38,7 @@ type TestnetOptions struct {
 	Knuu             *knuu.Knuu
 }
 
-func New(ctx context.Context, opts TestnetOptions) (*Testnet, error) {
+func New(ctx context.Context, opts Options) (*Testnet, error) {
 	return &Testnet{
 		seed:    opts.Seed,
 		nodes:   make([]*Node, 0),
