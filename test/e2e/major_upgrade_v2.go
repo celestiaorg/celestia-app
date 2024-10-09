@@ -16,13 +16,16 @@ import (
 )
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	numNodes := 4
-	upgradeHeight := int64(10)
+	var (
+		numNodes      = 4
+		upgradeHeight = int64(10)
+	)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(ctx, "runMajorUpgradeToV2", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "MajorUpgradeToV2", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -49,7 +52,8 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	upgradeSchedule := map[int64]uint64{}
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")

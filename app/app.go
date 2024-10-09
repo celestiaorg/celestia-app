@@ -580,7 +580,7 @@ func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
 // mountKeysAndInit mounts the keys for the provided app version and then
 // invokes baseapp.Init().
 func (app *App) mountKeysAndInit(appVersion uint64) {
-	app.BaseApp.Logger().Info(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
+	app.Logger().Info(fmt.Sprintf("mounting KV stores for app version %v", appVersion))
 	app.MountKVStores(app.versionedKeys(appVersion))
 
 	// Invoke load latest version for its side-effect of invoking baseapp.Init()
@@ -805,19 +805,38 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
+	app.Logger().Info("offering snapshot", "height", req.Snapshot.Height, "app_version", req.AppVersion)
+	if req.AppVersion != 0 {
+		if !isSupportedAppVersion(req.AppVersion) {
+			app.Logger().Info("rejecting snapshot because unsupported app version", "app_version", req.AppVersion)
+			return abci.ResponseOfferSnapshot{
+				Result: abci.ResponseOfferSnapshot_REJECT,
+			}
+		}
+
+		app.Logger().Info("mounting keys for snapshot", "app_version", req.AppVersion)
+		app.mountKeysAndInit(req.AppVersion)
+		return app.BaseApp.OfferSnapshot(req)
+	}
+
+	// If the app version is not set in the snapshot, this falls back to inferring the app version based on the upgrade height.
 	if app.upgradeHeightV2 == 0 {
-		app.Logger().Debug("v2 upgrade height not set, assuming app version 2")
+		app.Logger().Info("v2 upgrade height not set, assuming app version 2")
 		app.mountKeysAndInit(v2)
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
 	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
-		app.Logger().Debug("snapshot height is greater than or equal to upgrade height, assuming app version 2")
+		app.Logger().Info("snapshot height is greater than or equal to upgrade height, assuming app version 2")
 		app.mountKeysAndInit(v2)
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
-	app.Logger().Debug("snapshot height is less than upgrade height, assuming app version 1")
+	app.Logger().Info("snapshot height is less than upgrade height, assuming app version 1")
 	app.mountKeysAndInit(v1)
 	return app.BaseApp.OfferSnapshot(req)
+}
+
+func isSupportedAppVersion(appVersion uint64) bool {
+	return appVersion == v1 || appVersion == v2 || appVersion == v3
 }

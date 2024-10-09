@@ -15,7 +15,9 @@ import (
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func E2ESimple(logger *log.Logger) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	testNet, err := testnet.New(ctx, "E2ESimple", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
@@ -33,8 +35,8 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10,
-		"100-2000", 100, testnet.DefaultResources, endpoints[0])
+	upgradeSchedule := map[int64]uint64{}
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
