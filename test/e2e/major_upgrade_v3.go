@@ -11,6 +11,7 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	zlog "github.com/rs/zerolog/log"
 )
 
 func MajorUpgradeToV3(logger *log.Logger) error {
@@ -87,6 +88,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		}
 	}
 	logger.Println("waiting for upgrade")
+
+	// wait for the upgrade to complete
+	var upgradedHeight int64
 	for _, node := range testNet.Nodes() {
 		client, err := node.Client()
 		testnet.NoError("failed to get client", err)
@@ -101,6 +105,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 				testnet.NoError("failed to get header", err)
 				if resp.Header.Version.App == v3.Version {
 					upgradeComplete = true
+					if upgradedHeight == 0 {
+						upgradedHeight = resp.Header.Height
+					}
 				}
 				logger.Printf("height %v", resp.Header.Height)
 				lastHeight = resp.Header.Height
@@ -111,8 +118,16 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		}
 
 		logger.Println("upgrade is completed")
+		zlog.Info().Str("name", node.Name).Msg("upgrade is completed")
 
-		for h := int64(1); h <= lastHeight; h++ {
+	}
+
+	// now check if the timeouts are set correctly
+	zlog.Info().Int("upgradedHeight", int(upgradedHeight)).Msg("checking timeouts")
+	for _, node := range testNet.Nodes() {
+		zlog.Info().Str("name", node.Name).Msg("checking timeouts")
+		for h := int64(1); h <= upgradedHeight+4; h++ {
+			client, err := node.Client()
 			block, err := client.Block(ctx, &h)
 			testnet.NoError("failed to get header", err)
 
@@ -131,8 +146,8 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 					" %v, expected %v",
 					block.Block.Header.Height, tInfo.TimeoutPropose, appconsts.GetTimeoutPropose(block.Block.Header.Version.App))
 			}
-
 		}
+		zlog.Info().Str("name", node.Name).Msg("timeouts are checked")
 	}
 
 	return nil
