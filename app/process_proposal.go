@@ -67,7 +67,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			tx = blobTx.Tx
 		}
 
-		sdkCtx = sdkCtx.WithTxBytes(tx)
+		// todo: uncomment once we're sure this isn't consensus breaking
+		// sdkCtx = sdkCtx.WithTxBytes(tx)
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
