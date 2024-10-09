@@ -34,7 +34,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		logger.Fatal("no versions to test")
 	}
 	r := rand.New(rand.NewSource(seed))
-	logger.Println("Running minor version compatibility test", "versions", versions)
+	logger.Printf("Running %s test with versions %s", testName, versions)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -49,9 +49,9 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	testnet.NoError("failed to initialize Knuu", err)
 
 	kn.HandleStopSignal(ctx)
-	logger.Printf("Knuu initialized", "scope", kn.Scope, "testName", testName)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(ctx, testnet.Options{
+	testNet, err := testnet.New(testnet.Options{
 		Seed:    seed,
 		Grafana: nil,
 		ChainID: "test",

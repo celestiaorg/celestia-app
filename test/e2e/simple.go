@@ -30,9 +30,9 @@ func E2ESimple(logger *log.Logger) error {
 	})
 	testnet.NoError("failed to initialize Knuu", err)
 	kn.HandleStopSignal(ctx)
-	logger.Printf("Knuu initialized", "scope", kn.Scope, "testName", testName)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(ctx, testnet.Options{
+	testNet, err := testnet.New(testnet.Options{
 		Seed:    seed,
 		Grafana: nil,
 		ChainID: "test",
@@ -45,7 +45,7 @@ func E2ESimple(logger *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
-	logger.Println("Running E2ESimple test", "version", latestVersion)
+	logger.Printf("Running %s test with version %s", testName, latestVersion)
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",

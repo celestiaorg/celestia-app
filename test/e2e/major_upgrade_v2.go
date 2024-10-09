@@ -36,10 +36,10 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	testnet.NoError("failed to initialize Knuu", err)
 
 	kn.HandleStopSignal(ctx)
-	logger.Printf("Knuu initialized", "scope", kn.Scope, "testName", testName)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(ctx, testnet.Options{
+	testNet, err := testnet.New(testnet.Options{
 		Seed:    seed,
 		Grafana: nil,
 		ChainID: "test",
@@ -52,7 +52,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
 
-	logger.Println("Running major upgrade to v2 test", "version", latestVersion)
+	logger.Printf("Running %s test with version %s", testName, latestVersion)
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 

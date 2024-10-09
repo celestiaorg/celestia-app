@@ -36,9 +36,9 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	// context.Background() is used to allow the stopSignal to be functioning even after this function returns
 	kn.HandleStopSignal(context.Background())
 
-	log.Printf("Knuu initialized", "scope", kn.Scope, "testName", name)
+	log.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(ctx, testnet.Options{
+	testNet, err := testnet.New(testnet.Options{
 		Seed:             seed,
 		Grafana:          testnet.GetGrafanaInfoFromEnvVar(),
 		ChainID:          manifest.ChainID,
