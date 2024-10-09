@@ -15,7 +15,7 @@ import (
 
 func MajorUpgradeToV3(logger *log.Logger) error {
 	numNodes := 4
-	upgradeHeightV3 := int64(20)
+	upgradeHeightV3 := int64(4)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -28,7 +28,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	// HACKHACK: use a version of celestia-app built from a commit on this PR.
 	// This can be removed after the PR is merged to main and we override the
 	// upgrade height delay to one block in a new Docker image.
-	version := "1a20c01"
+	version := "pr-3882"
 
 	logger.Println("Running major upgrade to v3 test", "version", version)
 
@@ -66,9 +66,26 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	timer := time.NewTimer(10 * time.Minute)
 	defer timer.Stop()
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
+	// checking initial timeouts
+	logger.Println("checking initial timeouts")
+	for _, node := range testNet.Nodes() {
+		client, err := node.Client()
+		tInfo, err := client.ConsensusTimeoutsInfo(ctx, 1)
+		testnet.NoError("failed to get consensus timeouts info", err)
+		logger.Printf("timeout commit: %v, timeout propose: %v", tInfo.TimeoutCommit, tInfo.TimeoutPropose)
+		if appconsts.GetTimeoutCommit(v2.Version) != tInfo.TimeoutCommit {
+			return fmt.Errorf("timeout commit mismatch at height 1: got %v, expected %v",
+				tInfo.TimeoutCommit, appconsts.GetTimeoutCommit(v2.Version))
+		}
+		if appconsts.GetTimeoutPropose(v2.Version) != tInfo.TimeoutPropose {
+			return fmt.Errorf("timeout propose mismatch at height 1: got %v, "+
+				"expected %v",
+				tInfo.TimeoutPropose, appconsts.GetTimeoutPropose(v2.Version))
+		}
+	}
 	logger.Println("waiting for upgrade")
 	for _, node := range testNet.Nodes() {
 		client, err := node.Client()
@@ -87,8 +104,13 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 				}
 				logger.Printf("height %v", resp.Header.Height)
 				lastHeight = resp.Header.Height
+				tInfo, err := client.ConsensusTimeoutsInfo(ctx, lastHeight+1)
+				testnet.NoError("failed to get consensus timeouts info", err)
+				logger.Printf("timeout commit: %v, timeout propose: %v", tInfo.TimeoutCommit, tInfo.TimeoutPropose)
 			}
 		}
+
+		logger.Println("upgrade is completed")
 
 		for h := int64(1); h <= lastHeight; h++ {
 			block, err := client.Block(ctx, &h)
@@ -105,7 +127,8 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 					block.Block.Header.Height, tInfo.TimeoutCommit, appconsts.GetTimeoutCommit(block.Block.Header.Version.App))
 			}
 			if appconsts.GetTimeoutPropose(block.Block.Header.Version.App) != tInfo.TimeoutPropose {
-				return fmt.Errorf("timeout commit mismatch at height %d: got %v, expected %v",
+				return fmt.Errorf("timeout propose mismatch at height %d: got"+
+					" %v, expected %v",
 					block.Block.Header.Height, tInfo.TimeoutPropose, appconsts.GetTimeoutPropose(block.Block.Header.Version.App))
 			}
 
