@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
@@ -72,7 +73,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	for _, node := range testNet.Nodes() {
 		client, err := node.Client()
 		testnet.NoError("failed to get client", err)
-
 		upgradeComplete := false
 		lastHeight := int64(0)
 		for !upgradeComplete {
@@ -88,6 +88,27 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 				logger.Printf("height %v", resp.Header.Height)
 				lastHeight = resp.Header.Height
 			}
+		}
+
+		for h := int64(1); h <= lastHeight; h++ {
+			block, err := client.Block(ctx, &h)
+			testnet.NoError("failed to get header", err)
+
+			// timeouts of the next height are set based on the block at the current height
+			// so, we retrieve the timeouts of the next height to see if they
+			// are set according to the block at the current height
+			tInfo, err := client.ConsensusTimeoutsInfo(ctx, h+1)
+			testnet.NoError("failed to get consensus timeouts info", err)
+
+			if appconsts.GetTimeoutCommit(block.Block.Header.Version.App) != tInfo.TimeoutCommit {
+				return fmt.Errorf("timeout commit mismatch at height %d: got %v, expected %v",
+					block.Block.Header.Height, tInfo.TimeoutCommit, appconsts.GetTimeoutCommit(block.Block.Header.Version.App))
+			}
+			if appconsts.GetTimeoutPropose(block.Block.Header.Version.App) != tInfo.TimeoutPropose {
+				return fmt.Errorf("timeout commit mismatch at height %d: got %v, expected %v",
+					block.Block.Header.Height, tInfo.TimeoutPropose, appconsts.GetTimeoutPropose(block.Block.Header.Version.App))
+			}
+
 		}
 	}
 
