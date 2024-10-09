@@ -30,7 +30,7 @@ func E2ESimple(logger *log.Logger) error {
 	})
 	testnet.NoError("failed to initialize Knuu", err)
 	kn.HandleStopSignal(ctx)
-	logger.Println("Knuu initialized", "scope", kn.Scope, "testName", testName)
+	logger.Printf("Knuu initialized", "scope", kn.Scope, "testName", testName)
 
 	testNet, err := testnet.New(ctx, testnet.Options{
 		Seed:    seed,
