@@ -1,6 +1,8 @@
 package ante
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -32,7 +34,7 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	if ctx.BlockHeader().Version.App == v1.Version {
 		return next(ctx, tx, simulate)
 	}
-
+	fmt.Println("calling the ante handler lol")
 	maxBlobShares := d.getMaxBlobShares(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {

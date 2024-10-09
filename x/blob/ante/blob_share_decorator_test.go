@@ -170,12 +170,3 @@ func TestBlobShareDecorator(t *testing.T) {
 func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 	return ctx, nil
 }
-
-// repeat returns a slice of length n with each element set to val.
-func repeat[T any](n int, val T) []T {
-	result := make([]T, n)
-	for i := range result {
-		result[i] = val
-	}
-	return result
-}
