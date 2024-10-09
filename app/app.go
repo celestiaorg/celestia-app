@@ -280,6 +280,7 @@ func New(
 		),
 	)
 
+	app.Logger().Info("upgrade height delay", "delay in # blocks", appconsts.UpgradeHeightDelay())
 	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper, appconsts.UpgradeHeightDelay())
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
