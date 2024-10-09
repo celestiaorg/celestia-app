@@ -34,7 +34,6 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	if ctx.BlockHeader().Version.App == v1.Version {
 		return next(ctx, tx, simulate)
 	}
-	fmt.Println("calling the ante handler lol")
 	maxBlobShares := d.getMaxBlobShares(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
