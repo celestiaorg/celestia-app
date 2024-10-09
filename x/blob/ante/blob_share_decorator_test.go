@@ -106,7 +106,6 @@ func TestBlobShareDecorator(t *testing.T) {
 			blobsPerPFB: 1,
 			blobSize:    share.AvailableBytesFromSparseShares(squareSize*squareSize - 1),
 			appVersion:  v2.Version,
-			wantErr:     blob.ErrBlobsTooLarge,
 		},
 		{
 			name:        "PFB with 1 blob that occupies total square",

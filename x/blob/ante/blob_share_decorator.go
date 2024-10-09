@@ -1,8 +1,6 @@
 package ante
 
 import (
-	"fmt"
-
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -34,7 +32,7 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	if ctx.BlockHeader().Version.App == v1.Version {
 		return next(ctx, tx, simulate)
 	}
-	fmt.Println("calling the ante handler lol")
+
 	maxBlobShares := d.getMaxBlobShares(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
@@ -51,10 +49,8 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 func (d BlobShareDecorator) getMaxBlobShares(ctx sdk.Context) int {
 	squareSize := d.getMaxSquareSize(ctx)
 	totalShares := squareSize * squareSize
-	// The PFB tx share must occupy at least one share so the number of blob shares
-	// is at most one less than totalShares.
-	blobShares := totalShares - 1
-	return blobShares
+	// the shares used up by the tx are calculated in `getSharesNeeded`
+	return totalShares
 }
 
 // getMaxSquareSize returns the maximum square size based on the current values
@@ -76,9 +72,9 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 }
 
 // getSharesNeeded returns the total number of shares needed to represent all of
-// the blobs described by blobSizes.
-func getSharesNeeded(base uint32, blobSizes []uint32) (sum int) {
-	sum = share.CompactSharesNeeded(base)
+// the blobs described by blobSizes along with the shares used by the tx
+func getSharesNeeded(txSize uint32, blobSizes []uint32) (sum int) {
+	sum = share.CompactSharesNeeded(txSize)
 	for _, blobSize := range blobSizes {
 		sum += share.SparseSharesNeeded(blobSize)
 	}
