@@ -15,6 +15,10 @@ import (
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
+const (
+	timeFormat = "20060102_150405"
+)
+
 type BenchmarkTest struct {
 	*testnet.Testnet
 	manifest *Manifest
@@ -24,7 +28,7 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
+	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format(timeFormat))
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,

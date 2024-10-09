@@ -26,7 +26,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format("20060102_150405"))
+	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,
