@@ -63,6 +63,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
 	logger.Println("Starting testnet")
+	// start one of the nodes with delay
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
 	timer := time.NewTimer(10 * time.Minute)
@@ -74,6 +75,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	logger.Println("checking initial timeouts")
 	for _, node := range testNet.Nodes() {
 		client, err := node.Client()
+		testnet.NoError("failed to get client", err)
 		tInfo, err := client.ConsensusTimeoutsInfo(ctx, 1)
 		testnet.NoError("failed to get consensus timeouts info", err)
 		logger.Printf("timeout commit: %v, timeout propose: %v", tInfo.TimeoutCommit, tInfo.TimeoutPropose)
@@ -117,7 +119,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 			}
 		}
 
-		logger.Println("upgrade is completed")
 		zlog.Info().Str("name", node.Name).Msg("upgrade is completed")
 
 	}
@@ -125,9 +126,10 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	// now check if the timeouts are set correctly
 	zlog.Info().Int("upgradedHeight", int(upgradedHeight)).Msg("checking timeouts")
 	for _, node := range testNet.Nodes() {
+		client, err := node.Client()
+		testnet.NoError("failed to get client", err)
 		zlog.Info().Str("name", node.Name).Msg("checking timeouts")
 		for h := int64(1); h <= upgradedHeight+4; h++ {
-			client, err := node.Client()
 			block, err := client.Block(ctx, &h)
 			testnet.NoError("failed to get header", err)
 
