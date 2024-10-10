@@ -3,6 +3,7 @@ package ante_test
 import (
 	"testing"
 
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
@@ -10,9 +11,24 @@ import (
 	ante "github.com/celestiaorg/celestia-app/v2/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v2/x/blob/types"
 	"github.com/celestiaorg/go-square/shares"
+=======
+	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+>>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
@@ -24,84 +40,73 @@ const (
 
 func TestBlobShareDecorator(t *testing.T) {
 	type testCase struct {
-		name       string
-		pfb        *blob.MsgPayForBlobs
-		appVersion uint64
-		wantErr    error
+		name                  string
+		blobsPerPFB, blobSize int
+		appVersion            uint64
+		wantErr               error
 	}
+
+	rand := tmrand.NewRand()
 
 	testCases := []testCase{
 		{
-			name: "want no error if appVersion v1 and 8 MiB blob",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{8 * mebibyte},
-			},
-			appVersion: v1.Version,
+			name:        "want no error if appVersion v1 and 8 MiB blob",
+			blobsPerPFB: 1,
+			blobSize:    8 * mebibyte,
+			appVersion:  v1.Version,
 		},
 		{
-			name: "PFB with 1 blob that is 1 byte",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{1},
-			},
-			appVersion: v2.Version,
+			name:        "PFB with 1 blob that is 1 byte",
+			blobsPerPFB: 1,
+			blobSize:    1,
+			appVersion:  v2.Version,
 		},
 		{
-			name: "PFB with 1 blob that is 1 MiB",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{mebibyte},
-			},
-			appVersion: v2.Version,
+			name:        "PFB with 1 blob that is 1 MiB",
+			blobsPerPFB: 1,
+			blobSize:    1 * mebibyte,
+			appVersion:  v2.Version,
 		},
 		{
-			name: "PFB with 1 blob that is 2 MiB",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{2 * mebibyte},
-			},
-			appVersion: v2.Version,
+			name:        "PFB with 1 blob that is 2 MiB",
+			blobsPerPFB: 1,
+			blobSize:    2 * mebibyte,
+			appVersion:  v2.Version,
 			// This test case should return an error because a square size of 64
 			// has exactly 2 MiB of total capacity so the total blob capacity
 			// will be slightly smaller than 2 MiB.
 			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
-			name: "PFB with 2 blobs that are 1 byte each",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{1, 1},
-			},
-			appVersion: v2.Version,
+			name:        "PFB with 2 blobs that are 1 byte each",
+			blobsPerPFB: 2,
+			blobSize:    1,
+			appVersion:  v2.Version,
 		},
 		{
-			name: "PFB with 2 blobs that are 1 MiB each",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{mebibyte, mebibyte},
-			},
-			appVersion: v2.Version,
+			name:        "PFB with 2 blobs that are 1 MiB each",
+			blobsPerPFB: 2,
+			blobSize:    1 * mebibyte,
+			appVersion:  v2.Version,
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
 			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
-			name: "PFB with many single byte blobs should fit",
-			pfb: &blob.MsgPayForBlobs{
-				// 4095 blobs each of size 1 byte should occupy 4095 shares.
-				// When square size is 64, there are 4095 shares available to
-				// blob shares so we don't expect an error for this test case.
-				BlobSizes: repeat(4095, 1),
-			},
-			appVersion: v2.Version,
+			name:        "PFB with many single byte blobs should fit",
+			blobsPerPFB: 3000,
+			blobSize:    1,
+			appVersion:  v2.Version,
 		},
 		{
-			name: "PFB with too many single byte blobs should not fit",
-			pfb: &blob.MsgPayForBlobs{
-				// 4096 blobs each of size 1 byte should occupy 4096 shares.
-				// When square size is 64, there are 4095 shares available to
-				// blob shares so we expect an error for this test case.
-				BlobSizes: repeat(4096, 1),
-			},
-			appVersion: v2.Version,
-			wantErr:    blob.ErrBlobsTooLarge,
+			name:        "PFB with too many single byte blobs should not fit",
+			blobsPerPFB: 4000,
+			blobSize:    1,
+			appVersion:  v2.Version,
+			wantErr:     blob.ErrBlobsTooLarge,
 		},
 		{
+<<<<<<< HEAD
 			name: "PFB with 1 blob that is 1 share",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
@@ -121,12 +126,31 @@ func TestBlobShareDecorator(t *testing.T) {
 				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize))},
 			},
 			appVersion: v2.Version,
+=======
+			name:        "PFB with 1 blob that is 1 share",
+			blobsPerPFB: 1,
+			blobSize:    100,
+			appVersion:  v2.Version,
+		},
+		{
+			name:        "PFB with 1 blob that occupies total square - 1",
+			blobsPerPFB: 1,
+			blobSize:    share.AvailableBytesFromSparseShares(squareSize*squareSize - 1),
+			appVersion:  v2.Version,
+		},
+		{
+			name:        "PFB with 1 blob that occupies total square",
+			blobsPerPFB: 1,
+			blobSize:    share.AvailableBytesFromSparseShares(squareSize * squareSize),
+			appVersion:  v2.Version,
+>>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 			// This test case should return an error because if the blob
 			// occupies the total square, there is no space for the PFB tx
 			// share.
 			wantErr: blob.ErrBlobsTooLarge,
 		},
 		{
+<<<<<<< HEAD
 			name: "PFB with 2 blobs that are 1 share each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{
@@ -146,19 +170,51 @@ func TestBlobShareDecorator(t *testing.T) {
 			},
 			appVersion: v2.Version,
 			wantErr:    blob.ErrBlobsTooLarge,
+=======
+			name:        "PFB with 2 blobs that are 1 share each",
+			blobsPerPFB: 2,
+			blobSize:    100,
+			appVersion:  v2.Version,
+		},
+		{
+			name:        "PFB with 2 blobs that occupy half the square each",
+			blobsPerPFB: 2,
+			blobSize:    share.AvailableBytesFromSparseShares(squareSize * squareSize / 2),
+			appVersion:  v2.Version,
+			wantErr:     blob.ErrBlobsTooLarge,
+>>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 		},
 	}
 
-	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			txBuilder := txConfig.NewTxBuilder()
-			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
-			tx := txBuilder.GetTx()
+			kr, _ := testnode.NewKeyring(testfactory.TestAccName)
+			signer, err := user.NewSigner(
+				kr,
+				ecfg.TxConfig,
+				testfactory.ChainID,
+				tc.appVersion,
+				user.NewAccount(testfactory.TestAccName, 1, 0),
+			)
+			require.NoError(t, err)
+
+			blobTx := blobfactory.RandBlobTxs(signer, rand, 1, tc.blobsPerPFB, tc.blobSize)
+
+			btx, isBlob, err := blobtx.UnmarshalBlobTx([]byte(blobTx[0]))
+			require.NoError(t, err)
+			require.True(t, isBlob)
+
+			sdkTx, err := ecfg.TxConfig.TxDecoder()(btx.Tx)
+			require.NoError(t, err)
 
 			decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
-			ctx := sdk.Context{}.WithIsCheckTx(true).WithBlockHeader(tmproto.Header{Version: version.Consensus{App: tc.appVersion}})
-			_, err := decorator.AnteHandle(ctx, tx, false, mockNext)
+			ctx := sdk.Context{}.
+				WithIsCheckTx(true).
+				WithBlockHeader(tmproto.Header{Version: version.Consensus{App: tc.appVersion}}).
+				WithTxBytes(btx.Tx)
+			_, err = decorator.AnteHandle(ctx, sdkTx, false, mockNext)
 			assert.ErrorIs(t, tc.wantErr, err)
 		})
 	}
@@ -166,13 +222,4 @@ func TestBlobShareDecorator(t *testing.T) {
 
 func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 	return ctx, nil
-}
-
-// repeat returns a slice of length n with each element set to val.
-func repeat(n int, val uint32) []uint32 {
-	result := make([]uint32, n)
-	for i := range result {
-		result[i] = val
-	}
-	return result
 }
