@@ -68,6 +68,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		}
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
+		// Set the tx bytes in the context for app version v3 and greater
+		if sdkCtx.BlockHeader().Version.App >= 3 {
+			sdkCtx = sdkCtx.WithTxBytes(tx)
+		}
+
 		if err != nil {
 			if req.Header.Version.App == v1 {
 				// For appVersion 1, there was no block validity rule that all
@@ -89,9 +94,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 				logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
 				return reject()
 			}
-
-			// Set the tx size on the context before calling the AnteHandler
-			sdkCtx = sdkCtx.WithTxBytes(tx)
 
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
@@ -116,11 +118,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold, app.AppVersion()); err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject()
-		}
-
-		// set the tx bytes in the context for app version v3 and greater
-		if sdkCtx.BlockHeader().Version.App >= 3 {
-			sdkCtx = sdkCtx.WithTxBytes(tx)
 		}
 
 		// validated the PFB signature
