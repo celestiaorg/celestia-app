@@ -7,7 +7,6 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
@@ -63,7 +62,7 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 			_, err := anteHandler(ctx, nil, false)
 			if tc.expectError {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), sdkerrors.ErrTxTooLarge.Error())
+				require.Contains(t, err.Error(), "tx size is larger than the application's configured threshold")
 			} else {
 				require.NoError(t, err)
 			}
