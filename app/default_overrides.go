@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
-	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -36,6 +35,8 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+const mebibyte = 1024 * 1024
 
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
 // implementation to provide custom default genesis state.
@@ -259,20 +260,14 @@ func DefaultEvidenceParams() tmproto.EvidenceParams {
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
-	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 
-	cfg.Mempool.TTLNumBlocks = 5
-	cfg.Mempool.TTLDuration = time.Duration(cfg.Mempool.TTLNumBlocks) * appconsts.GoalBlockTime
-	// Given that there is a stateful transaction size check in CheckTx,
-	// We set a loose upper bound on what we expect the transaction to
-	// be based on the upper bound size of the entire block for the given
-	// version. This acts as a first line of DoS protection
-	upperBoundBytes := appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * share.ContinuationSparseShareContentSize
-	cfg.Mempool.MaxTxBytes = upperBoundBytes
-	cfg.Mempool.MaxTxsBytes = int64(upperBoundBytes) * cfg.Mempool.TTLNumBlocks
-	cfg.Mempool.Version = "v1" // prioritized mempool
+	cfg.Mempool.TTLNumBlocks = 12
+	cfg.Mempool.TTLDuration = time.Duration(75 * time.Second)
+	cfg.Mempool.MaxTxBytes = 8 * mebibyte   // 8 MiB
+	cfg.Mempool.MaxTxsBytes = 40 * mebibyte // 40 MiB
+	cfg.Mempool.Version = "v1"              // prioritized mempool
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
