@@ -66,7 +66,7 @@ func TestProcessProposal(t *testing.T) {
 		),
 		user.SetMemo(largeMemo))
 
-	// create 1 large sendTx that includes a large memo making the 
+	// create 1 large sendTx that includes a large memo making the
 	// transaction over the configured max tx bytes limit
 	largeSendTx := testutil.SendTxsWithAccounts(
 		t, testApp, enc, kr, 1000, accounts[0], accounts[1:2], testutil.ChainID, user.SetMemo(largeMemo),
