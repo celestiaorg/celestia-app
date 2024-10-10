@@ -264,7 +264,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 
 	cfg.Mempool.TTLNumBlocks = 12
-	cfg.Mempool.TTLDuration = time.Duration(75 * time.Second)
+	cfg.Mempool.TTLDuration = 75 * time.Second
 	cfg.Mempool.MaxTxBytes = 8 * mebibyte   // 8 MiB
 	cfg.Mempool.MaxTxsBytes = 40 * mebibyte // 40 MiB
 	cfg.Mempool.Version = "v1"              // prioritized mempool
