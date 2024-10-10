@@ -165,6 +165,7 @@
 <tr><td><code>SHARE_INFO_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>The number of bytes used for <a href="data_structures.html#share">share</a> information</td></tr>
 <tr><td><code>SHARE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the index of the first transaction in a transaction share. Must be able to represent any integer up to and including <code>SHARE_SIZE - 1</code>.</td></tr>
 <tr><td><code>SHARE_SIZE</code></td><td><code>uint64</code></td><td><code>512</code></td><td><code>byte</code></td><td>Size of transaction and blob <a href="data_structures.html#share">shares</a>, in bytes.</td></tr>
+<tr><td><code>SignerSize</code></td><td><code>int</code></td><td><code>20</code></td><td><code>byte</code></td><td>The number of bytes used to store the signer in a <a href="data_structures.html#share">share</a>.</td></tr>
 <tr><td><code>STATE_SUBTREE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>Number of bytes reserved to identify state subtrees.</td></tr>
 <tr><td><code>UNBONDING_DURATION</code></td><td><code>uint32</code></td><td></td><td><code>block</code></td><td>Duration, in blocks, for unbonding a validator or delegation.</td></tr>
 <tr><td><code>v1.Version</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>First version of the application. Breaking changes (hard forks) must update this parameter.</td></tr>
