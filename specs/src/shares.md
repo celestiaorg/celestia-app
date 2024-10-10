@@ -23,6 +23,12 @@ User submitted transactions are split into shares (see [share splitting](#share-
 
 ## Share Format
 
+### Share Version
+
+The share version is a 7-bit big-endian unsigned integer that is used to indicate the version of the [share format](#share-format). A new share version MUST be introduced if the share format changes in a way that is not backwards compatible. There are two share versions [share version 0](#share-version-0) and [share version 1](#share-version-1).
+
+### Share Version 0
+
 Every share has a fixed size [`SHARE_SIZE`](./consensus.md#constants). The share format below is consistent for all shares:
 
 - The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (denoted by "namespace version" in the figure below).
@@ -44,9 +50,17 @@ Continuation share in a sequence:
 
 Since raw data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block. For example, Celestia transaction shares encode additional metadata in the form of "reserved bytes".
 
-### Share Version
+### Share Version 1
 
-The share version is a 7-bit big-endian unsigned integer that is used to indicate the version of the [share format](#share-format). The only supported share version is `0`. A new share version MUST be introduced if the share format changes in a way that is not backwards compatible.
+Share version 1 is similar to share version 0 with the addition of a `signer` field. The signer is located after the sequence length in the first share. The signer is [`SIGNER_SIZE`](./consensus.md#constants) bytes.
+
+First share in a sequence with signer:
+
+![figure 3: first share with signer](./figures/first_share_with_signer.svg)
+
+Continuation share in a sequence:
+
+![figure 4: share continuation](./figures/share_continuation.svg)
 
 ## Transaction Shares
 
