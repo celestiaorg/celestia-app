@@ -38,7 +38,20 @@ type Options struct {
 	Knuu             *knuu.Knuu
 }
 
+func (opts Options) Validate() error {
+	if opts.ChainID == "" {
+		return errors.New("chain ID is required")
+	}
+	if opts.Knuu == nil {
+		return errors.New("knuu is required")
+	}
+	return nil
+}
+
 func New(opts Options) (*Testnet, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
+	}
 	return &Testnet{
 		seed:    opts.Seed,
 		nodes:   make([]*Node, 0),
