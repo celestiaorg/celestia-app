@@ -137,6 +137,22 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
+	// create a tx that can't be included in a 64 x 64 when accounting for the
+	// pfb along with the shares
+	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[3:4],
+		infos[3:4],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			[][]int{repeat(4000, 1)},
+		),
+	)[0]
+
 	type test struct {
 		name      string
 		txs       func() [][]byte
@@ -181,6 +197,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			},
 			prunedTxs: [][]byte{noAccountTx},
 		},
+		{
+			name: "blob tx with too many shares",
+			txs: func() [][]byte {
+				return [][]byte{tooManyShareBtx}
+			},
+			prunedTxs: [][]byte{tooManyShareBtx},
+		},
 	}
 
 	for _, tt := range tests {
@@ -215,4 +238,13 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 		}
 	}
 	return infos
+}
+
+// repeat returns a slice of length n with each element set to val.
+func repeat[T any](n int, val T) []T {
+	result := make([]T, n)
+	for i := range result {
+		result[i] = val
+	}
+	return result
 }
