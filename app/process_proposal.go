@@ -90,6 +90,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 				return reject()
 			}
 
+			// Set the tx size on the context before calling the AnteHandler
+			sdkCtx = sdkCtx.WithTxBytes(tx)
+
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doesn't exist.
@@ -114,6 +117,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject()
 		}
+
+		// Set the tx size on the context before calling the AnteHandler
+		sdkCtx = sdkCtx.WithTxBytes(tx)
 
 		// validated the PFB signature
 		sdkCtx, err = handler(sdkCtx, sdkTx, false)

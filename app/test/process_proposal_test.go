@@ -3,6 +3,7 @@ package app_test
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,26 @@ func TestProcessProposal(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
+		blobfactory.DefaultTxOpts()...,
+	)
+
+	largeMemo := strings.Repeat("a", appconsts.MaxTxBytes(appconsts.LatestVersion))
+
+	// create 2 single blobTxs that include a large memo making the transaction
+	// larger than the configured max tx bytes
+	largeBlobTxs := blobfactory.ManyMultiBlobTx(
+		t, enc, kr, testutil.ChainID, accounts[3:], infos[3:],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
+			[][]int{{100}, {1000}, {420}, {300}},
+		),
+		user.SetMemo(largeMemo))
+
+	// create 1 large sendTx that includes a large memo making the 
+	// transaction over the configured max tx bytes limit
+	largeSendTx := testutil.SendTxsWithAccounts(
+		t, testApp, enc, kr, 1000, accounts[0], accounts[1:2], testutil.ChainID, user.SetMemo(largeMemo),
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -294,6 +315,26 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, err := tx.MarshalBlobTx(rawTx, blob)
 				require.NoError(t, err)
 				d.Txs[0] = blobTxBytes
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "blob txs larger than configured max tx bytes",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append(d.Txs, largeBlobTxs...)
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "send tx larger than configured max tx bytes",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Txs = append(coretypes.Txs(largeSendTx).ToSliceOfBytes(), d.Txs...)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,

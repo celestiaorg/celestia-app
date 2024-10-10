@@ -1,21 +1,22 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
 	"time"
-
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
@@ -39,6 +40,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -96,6 +98,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -136,6 +139,28 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+
+	// memo is 2MG resulting in the transaction being over limit
+	largeString := strings.Repeat("a", 2*1024*1024)
+
+	// 3 transactions over MaxTxBytes limit
+	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
+
+	// 3 blobTxs over MaxTxBytes limit
+	largeBlobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			[][]int{{100}, {1000}, {420}},
+		),
+		user.SetMemo(largeString),
+	)
 
 	type test struct {
 		name      string
@@ -180,6 +205,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				return [][]byte{noAccountTx}
 			},
 			prunedTxs: [][]byte{noAccountTx},
+		},
+		{
+			name: "blobTxs and sendTxs that exceed MaxTxBytes limit",
+			txs: func() [][]byte {
+				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxBytes limit
+			},
+			prunedTxs: append(largeTxs, largeBlobTxs...),
 		},
 	}
 
