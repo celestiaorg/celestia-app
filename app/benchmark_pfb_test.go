@@ -302,8 +302,6 @@ func benchmarkProcessProposal_PFB_Half_Second(b *testing.B, count, size int) {
 
 		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
 
-		b.ReportMetric(timeElapsed, fmt.Sprintf("processProposalTime(s)_%d_%d_%f", end-start, size, calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs[start:end])))
-
 		if timeElapsed < targetTimeLowerBound {
 			end = end + segment/2
 			segment = end - start
@@ -311,6 +309,8 @@ func benchmarkProcessProposal_PFB_Half_Second(b *testing.B, count, size int) {
 			end = end / 2
 			segment = end - start
 		} else {
+			b.ReportMetric(timeElapsed, fmt.Sprintf("processProposalTime(s)_%d_%d_%f", end-start, size, calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs[start:end])))
+
 			break
 		}
 	}

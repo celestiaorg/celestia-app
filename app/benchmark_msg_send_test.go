@@ -251,8 +251,6 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 
 		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
 
-		b.ReportMetric(timeElapsed, fmt.Sprintf("elapsedTime(s)_%d", end-start))
-
 		if timeElapsed < targetTimeLowerBound {
 			end = end + segment/2
 			segment = end - start
@@ -260,6 +258,7 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 			end = end / 2
 			segment = end - start
 		} else {
+			b.ReportMetric(timeElapsed, fmt.Sprintf("elapsedTime(s)_%d", end-start))
 			break
 		}
 	}
