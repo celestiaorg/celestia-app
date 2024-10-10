@@ -118,8 +118,10 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			return reject()
 		}
 
-		// Set the tx size on the context before calling the AnteHandler
-		sdkCtx = sdkCtx.WithTxBytes(tx)
+		// set the tx bytes in the context for app version v3 and greater
+		if sdkCtx.BlockHeader().Version.App >= 3 {
+			sdkCtx = sdkCtx.WithTxBytes(tx)
+		}
 
 		// validated the PFB signature
 		sdkCtx, err = handler(sdkCtx, sdkTx, false)

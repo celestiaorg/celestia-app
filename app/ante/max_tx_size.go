@@ -23,9 +23,11 @@ func (d MaxTxSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
+	currentTxSize := len(ctx.TxBytes())
 	maxTxBytes := appconsts.MaxTxBytes(ctx.BlockHeader().Version.App)
-	if len(ctx.TxBytes()) > maxTxBytes {
-		return ctx, fmt.Errorf("tx size is larger than the application's configured threshold: %d bytes", maxTxBytes)
+	if currentTxSize > maxTxBytes {
+		bytesOverLimit := currentTxSize - maxTxBytes
+		return ctx, fmt.Errorf("tx size %d bytes is larger than the application's configured threshold of %d bytes. Please reduce the size by %d bytes", currentTxSize, maxTxBytes, bytesOverLimit)
 	}
 	return next(ctx, tx, simulate)
 }
