@@ -140,7 +140,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
-	// memo is 2MG resulting in the transaction being over limit
+	// memo is 2 MiB resulting in the transaction being over limit
 	largeString := strings.Repeat("a", 2*1024*1024)
 
 	// 3 transactions over MaxTxBytes limit
