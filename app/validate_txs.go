@@ -54,8 +54,8 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
-		msgTypes := msgTypes(sdkTx)
-		if count := countOccurrence(msgTypes, sdk.MsgTypeURL(&types.MsgSend{})); count != 0 {
+		msgTypes, occurrences := msgTypes(sdkTx)
+		if count := occurrences[sdk.MsgTypeURL(&types.MsgSend{})]; count != 0 {
 			if msgSendTransactionCount+count > v3consts.MsgSendTransactionCap {
 				logger.Debug("skipping tx because the msg send transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 				continue
@@ -97,8 +97,8 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
 		}
-		msgTypes := msgTypes(sdkTx)
-		if count := countOccurrence(msgTypes, sdk.MsgTypeURL(&types2.MsgPayForBlobs{})); count != 0 {
+		_, occurrences := msgTypes(sdkTx)
+		if count := occurrences[sdk.MsgTypeURL(&types2.MsgPayForBlobs{})]; count != 0 {
 			if pfbTransactionCount+count > v3consts.PFBTransactionCap {
 				logger.Debug("skipping tx because the pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 				continue
@@ -124,13 +124,18 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 	return txs[:n], ctx
 }
 
-func msgTypes(sdkTx sdk.Tx) []string {
+// msgTypes takes an sdk transaction and returns the types of the messages
+// included in it along with.
+func msgTypes(sdkTx sdk.Tx) ([]string, map[string]int) {
 	msgs := sdkTx.GetMsgs()
-	msgNames := make([]string, len(msgs))
-	for i, msg := range msgs {
-		msgNames[i] = sdk.MsgTypeURL(msg)
+	types := make([]string, 0, len(msgs))
+	occurrences := make(map[string]int)
+	for _, msg := range msgs {
+		msgType := sdk.MsgTypeURL(msg)
+		types = append(types, msgType)
+		occurrences[msgType]++
 	}
-	return msgNames
+	return types, occurrences
 }
 
 func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
@@ -143,16 +148,4 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 		}
 	}
 	return txs
-}
-
-// countOccurrence takes a strings slice and counts the number
-// of time the provided item exists in that slice.
-func countOccurrence(slice []string, item string) int {
-	count := 0
-	for _, v := range slice {
-		if v == item {
-			count++
-		}
-	}
-	return count
 }
