@@ -24,6 +24,7 @@ func main() {
 	tests := []Test{
 		{"MinorVersionCompatibility", MinorVersionCompatibility},
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
+		{"MajorUpgradeToV3", MajorUpgradeToV3},
 		{"E2ESimple", E2ESimple},
 	}
 
