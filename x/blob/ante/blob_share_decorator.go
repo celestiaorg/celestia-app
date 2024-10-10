@@ -3,6 +3,7 @@ package ante
 import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 
@@ -25,12 +26,17 @@ func NewBlobShareDecorator(k BlobKeeper) BlobShareDecorator {
 // returns an error if tx contains a MsgPayForBlobs where the shares occupied by
 // the PFB exceeds the max number of shares in a data square.
 func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if !ctx.IsCheckTx() {
+	switch ctx.BlockHeader().Version.App {
+	case v2.Version:
+		if !ctx.IsCheckTx() {
+			return next(ctx, tx, simulate)
+		}
+	case v1.Version:
 		return next(ctx, tx, simulate)
-	}
-
-	if ctx.BlockHeader().Version.App == v1.Version {
-		return next(ctx, tx, simulate)
+	default:
+		if ctx.IsReCheckTx() {
+			return next(ctx, tx, simulate)
+		}
 	}
 
 	maxBlobShares := d.getMaxBlobShares(ctx)

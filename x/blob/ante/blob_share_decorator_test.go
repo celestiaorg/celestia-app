@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
@@ -168,4 +169,54 @@ func TestBlobShareDecorator(t *testing.T) {
 
 func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 	return ctx, nil
+}
+
+func TestBSDAppVersion(t *testing.T) {
+	type test struct {
+		appVersion uint64
+		isCheckTx  bool
+		expectErr  bool
+	}
+	tests := []test{
+		{appVersion: v1.Version, isCheckTx: false, expectErr: false},
+		{appVersion: v2.Version, isCheckTx: false, expectErr: false},
+		{appVersion: v2.Version, isCheckTx: true, expectErr: true},
+		{appVersion: v3.Version, isCheckTx: false, expectErr: true},
+		{appVersion: v3.Version, isCheckTx: true, expectErr: true},
+	}
+
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	kr, _ := testnode.NewKeyring(testfactory.TestAccName)
+	rand := tmrand.NewRand()
+
+	for _, tt := range tests {
+		signer, err := user.NewSigner(
+			kr,
+			ecfg.TxConfig,
+			testfactory.ChainID,
+			v1.Version,
+			user.NewAccount(testfactory.TestAccName, 1, 0),
+		)
+		require.NoError(t, err)
+
+		blobTx := blobfactory.RandBlobTxs(signer, rand, 1, 4000, 1)
+
+		btx, isBlob, err := blobtx.UnmarshalBlobTx([]byte(blobTx[0]))
+		require.NoError(t, err)
+		require.True(t, isBlob)
+
+		sdkTx, err := ecfg.TxConfig.TxDecoder()(btx.Tx)
+		require.NoError(t, err)
+
+		decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
+		ctx := sdk.Context{}.
+			WithBlockHeader(tmproto.Header{Version: version.Consensus{App: tt.appVersion}}).
+			WithTxBytes(btx.Tx).
+			WithIsCheckTx(tt.isCheckTx)
+		_, err = decorator.AnteHandle(ctx, sdkTx, false, mockNext)
+		if tt.expectErr {
+			assert.Error(t, err)
+		}
+
+	}
 }
