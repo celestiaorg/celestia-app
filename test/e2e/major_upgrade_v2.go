@@ -30,8 +30,6 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,
-		// if the tests timeout, pass the timeout option
-		// Timeout: 120 * time.Minute,
 	})
 	testnet.NoError("failed to initialize Knuu", err)
 
@@ -39,12 +37,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(testnet.Options{
-		Seed:    seed,
-		Grafana: nil,
-		ChainID: "test",
-		Knuu:    kn,
-	})
+	testNet, err := testnet.New(kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)

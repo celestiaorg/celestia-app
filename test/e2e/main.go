@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	seed       = 42
 	timeFormat = "20060102_150405"
 )
 

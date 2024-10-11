@@ -25,26 +25,18 @@ func E2ESimple(logger *log.Logger) error {
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,
-		// if the tests timeout, pass the timeout option
-		// Timeout: 120 * time.Minute,
 	})
 	testnet.NoError("failed to initialize Knuu", err)
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(testnet.Options{
-		Seed:    seed,
-		Grafana: nil,
-		ChainID: "test",
-		Knuu:    kn,
-	})
+	testNet, err := testnet.New(kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
 
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
-
 	logger.Printf("Running %s test with version %s", testName, latestVersion)
 
 	logger.Println("Creating testnet validators")

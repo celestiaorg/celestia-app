@@ -20,6 +20,11 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
+const (
+	DefaultSeed    int64 = 42
+	DefaultChainID       = "test-chain-id"
+)
+
 type Testnet struct {
 	seed      int64
 	nodes     []*Node
@@ -38,27 +43,15 @@ type Options struct {
 	Knuu             *knuu.Knuu
 }
 
-func (opts Options) Validate() error {
-	if opts.ChainID == "" {
-		return errors.New("chain ID is required")
-	}
-	if opts.Knuu == nil {
-		return errors.New("knuu is required")
-	}
-	return nil
-}
-
-func New(opts Options) (*Testnet, error) {
-	if err := opts.Validate(); err != nil {
-		return nil, err
-	}
+func New(knuu *knuu.Knuu, opts Options) (*Testnet, error) {
+	opts.setDefaults()
 	return &Testnet{
 		seed:    opts.Seed,
 		nodes:   make([]*Node, 0),
 		genesis: genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
 		keygen:  newKeyGenerator(opts.Seed),
 		grafana: opts.Grafana,
-		knuu:    opts.Knuu,
+		knuu:    knuu,
 	}, nil
 }
 
@@ -477,4 +470,13 @@ func (t *Testnet) Nodes() []*Node {
 
 func (t *Testnet) Genesis() *genesis.Genesis {
 	return t.genesis
+}
+
+func (o *Options) setDefaults() {
+	if o.ChainID == "" {
+		o.ChainID = DefaultChainID
+	}
+	if o.Seed == 0 {
+		o.Seed = DefaultSeed
+	}
 }

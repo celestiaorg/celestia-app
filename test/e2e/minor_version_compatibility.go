@@ -33,6 +33,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
 	}
+	seed := testnet.DefaultSeed
 	r := rand.New(rand.NewSource(seed))
 	logger.Printf("Running %s test with versions %s", testName, versions)
 
@@ -43,20 +44,13 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,
-		// if the tests timeout, pass the timeout option
-		// Timeout: 120 * time.Minute,
 	})
 	testnet.NoError("failed to initialize Knuu", err)
 
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(testnet.Options{
-		Seed:    seed,
-		Grafana: nil,
-		ChainID: "test",
-		Knuu:    kn,
-	})
+	testNet, err := testnet.New(kn, testnet.Options{Seed: seed})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)

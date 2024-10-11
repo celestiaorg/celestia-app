@@ -42,12 +42,10 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 
 	log.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(testnet.Options{
-		Seed:             seed,
+	testNet, err := testnet.New(kn, testnet.Options{
 		Grafana:          testnet.GetGrafanaInfoFromEnvVar(),
 		ChainID:          manifest.ChainID,
 		GenesisModifiers: manifest.GetGenesisModifiers(),
-		Knuu:             kn,
 	})
 	testnet.NoError("failed to create testnet", err)
 
