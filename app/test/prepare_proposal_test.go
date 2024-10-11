@@ -41,6 +41,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
