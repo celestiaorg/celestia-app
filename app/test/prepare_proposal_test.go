@@ -283,7 +283,6 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 		accounts = append(accounts, fmt.Sprintf("account%d", i))
 	}
 	consensusParams := app.DefaultConsensusParams()
-	consensusParams.Block.MaxBytes = 128
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
