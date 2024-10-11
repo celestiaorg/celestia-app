@@ -4,7 +4,7 @@
 
 # Stop script execution if an error is encountered
 set -o errexit
-# Stop scyript execution if an undefined variable is used
+# Stop script execution if an undefined variable is used
 set -o nounset
 
 if ! [ -x "$(command -v celestia-appd)" ]
@@ -88,12 +88,6 @@ createGenesis() {
 
     trace_push_batch_size=1000
     sed -i.bak -e "s/^trace_push_batch_size *=.*/trace_push_batch_size = \"$trace_push_batch_size\"/" ${CELESTIA_APP_HOME}/config/config.toml
-
-    timeout_propose="100s"
-    sed -i.bak -e "s/^timeout_propose *=.*/timeout_propose = \"$timeout_propose\"/" ${CELESTIA_APP_HOME}/config/config.toml
-
-    timeout_commit="900s"
-    sed -i.bak -e "s/^timeout_commit *=.*/timeout_commit = \"$timeout_commit\"/" ${CELESTIA_APP_HOME}/config/config.toml
 
     echo "Tracing is set up with the ability to pull traced data from the node on the address http://127.0.0.1${trace_pull_address}"
 }
