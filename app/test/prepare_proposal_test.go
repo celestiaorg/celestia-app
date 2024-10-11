@@ -260,7 +260,7 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 		accountIndex++
 	}
 
-	numberOfMsgSends := v3consts.MsgSendTransactionCap + 500
+	numberOfMsgSends := v3consts.SdkMsgTransactionCap + 500
 	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
 	for i := 0; i < numberOfMsgSends; i++ {
 		msg := banktypes.NewMsgSend(
@@ -286,8 +286,8 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 		},
 		{
 			name:                 "capping only msg send transactions",
-			inputTransactions:    msgSendTxs[:v3consts.MsgSendTransactionCap+50],
-			expectedTransactions: msgSendTxs[:v3consts.MsgSendTransactionCap],
+			inputTransactions:    msgSendTxs[:v3consts.SdkMsgTransactionCap+50],
+			expectedTransactions: msgSendTxs[:v3consts.SdkMsgTransactionCap],
 		},
 		{
 			name: "capping msg send after pfb transactions",
@@ -298,8 +298,8 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 				return input
 			}(),
 			expectedTransactions: func() [][]byte {
-				expected := make([][]byte, 0, v3consts.MsgSendTransactionCap+100)
-				expected = append(expected, msgSendTxs[:v3consts.MsgSendTransactionCap]...)
+				expected := make([][]byte, 0, v3consts.SdkMsgTransactionCap+100)
+				expected = append(expected, msgSendTxs[:v3consts.SdkMsgTransactionCap]...)
 				expected = append(expected, pfbTxs[:100]...)
 				return expected
 			}(),
