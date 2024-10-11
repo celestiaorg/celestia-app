@@ -52,6 +52,10 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
+
+		// Set the tx size on the context before calling the AnteHandler
+		ctx = ctx.WithTxBytes(tx)
+
 		msgTypes := msgTypes(sdkTx)
 		if sdkTransactionsCount+len(sdkTx.GetMsgs()) > v3consts.SdkMsgTransactionCap {
 			logger.Debug("skipping tx because the sdk message cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
@@ -93,6 +97,10 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
 		}
+
+		// Set the tx size on the context before calling the AnteHandler
+		ctx = ctx.WithTxBytes(tx.Tx)
+
 		if pfbTransactionCount+len(sdkTx.GetMsgs()) > v3consts.PFBTransactionCap {
 			logger.Debug("skipping tx because the pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
