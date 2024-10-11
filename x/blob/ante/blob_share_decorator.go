@@ -74,7 +74,7 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 // getSharesNeeded returns the total number of shares needed to represent all of
 // the blobs described by blobSizes along with the shares used by the tx
 func getSharesNeeded(txSize uint32, blobSizes []uint32) (sum int) {
-	sum = share.CompactSharesNeeded(txSize)
+	sum = shares.CompactSharesNeeded(int(txSize))
 	for _, blobSize := range blobSizes {
 		sum += shares.SparseSharesNeeded(blobSize)
 	}

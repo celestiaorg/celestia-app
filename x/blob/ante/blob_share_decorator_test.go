@@ -3,28 +3,18 @@ package ante_test
 import (
 	"testing"
 
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v2/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v2/pkg/user"
+	"github.com/celestiaorg/celestia-app/v2/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v2/test/util/testnode"
 	ante "github.com/celestiaorg/celestia-app/v2/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/v2/x/blob/types"
+	blob "github.com/celestiaorg/go-square/blob"
 	"github.com/celestiaorg/go-square/shares"
-=======
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
->>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,7 +65,7 @@ func TestBlobShareDecorator(t *testing.T) {
 			// This test case should return an error because a square size of 64
 			// has exactly 2 MiB of total capacity so the total blob capacity
 			// will be slightly smaller than 2 MiB.
-			wantErr: blob.ErrBlobsTooLarge,
+			wantErr: blobtypes.ErrBlobsTooLarge,
 		},
 		{
 			name:        "PFB with 2 blobs that are 1 byte each",
@@ -90,7 +80,7 @@ func TestBlobShareDecorator(t *testing.T) {
 			appVersion:  v2.Version,
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
-			wantErr: blob.ErrBlobsTooLarge,
+			wantErr: blobtypes.ErrBlobsTooLarge,
 		},
 		{
 			name:        "PFB with many single byte blobs should fit",
@@ -103,30 +93,9 @@ func TestBlobShareDecorator(t *testing.T) {
 			blobsPerPFB: 4000,
 			blobSize:    1,
 			appVersion:  v2.Version,
-			wantErr:     blob.ErrBlobsTooLarge,
+			wantErr:     blobtypes.ErrBlobsTooLarge,
 		},
 		{
-<<<<<<< HEAD
-			name: "PFB with 1 blob that is 1 share",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(1))},
-			},
-			appVersion: v2.Version,
-		},
-		{
-			name: "PFB with 1 blob that occupies total square - 1",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
-			},
-			appVersion: v2.Version,
-		},
-		{
-			name: "PFB with 1 blob that occupies total square",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize))},
-			},
-			appVersion: v2.Version,
-=======
 			name:        "PFB with 1 blob that is 1 share",
 			blobsPerPFB: 1,
 			blobSize:    100,
@@ -135,42 +104,20 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name:        "PFB with 1 blob that occupies total square - 1",
 			blobsPerPFB: 1,
-			blobSize:    share.AvailableBytesFromSparseShares(squareSize*squareSize - 1),
+			blobSize:    shares.AvailableBytesFromSparseShares(squareSize*squareSize - 1),
 			appVersion:  v2.Version,
 		},
 		{
 			name:        "PFB with 1 blob that occupies total square",
 			blobsPerPFB: 1,
-			blobSize:    share.AvailableBytesFromSparseShares(squareSize * squareSize),
+			blobSize:    shares.AvailableBytesFromSparseShares(squareSize * squareSize),
 			appVersion:  v2.Version,
->>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 			// This test case should return an error because if the blob
 			// occupies the total square, there is no space for the PFB tx
 			// share.
-			wantErr: blob.ErrBlobsTooLarge,
+			wantErr: blobtypes.ErrBlobsTooLarge,
 		},
 		{
-<<<<<<< HEAD
-			name: "PFB with 2 blobs that are 1 share each",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{
-					uint32(shares.AvailableBytesFromSparseShares(1)),
-					uint32(shares.AvailableBytesFromSparseShares(1)),
-				},
-			},
-			appVersion: v2.Version,
-		},
-		{
-			name: "PFB with 2 blobs that occupy half the square each",
-			pfb: &blob.MsgPayForBlobs{
-				BlobSizes: []uint32{
-					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
-					uint32(shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
-				},
-			},
-			appVersion: v2.Version,
-			wantErr:    blob.ErrBlobsTooLarge,
-=======
 			name:        "PFB with 2 blobs that are 1 share each",
 			blobsPerPFB: 2,
 			blobSize:    100,
@@ -179,10 +126,9 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name:        "PFB with 2 blobs that occupy half the square each",
 			blobsPerPFB: 2,
-			blobSize:    share.AvailableBytesFromSparseShares(squareSize * squareSize / 2),
+			blobSize:    shares.AvailableBytesFromSparseShares(squareSize * squareSize / 2),
 			appVersion:  v2.Version,
-			wantErr:     blob.ErrBlobsTooLarge,
->>>>>>> ca222a86 (chore: optimize checkTx (#3954))
+			wantErr:     blobtypes.ErrBlobsTooLarge,
 		},
 	}
 
@@ -202,8 +148,7 @@ func TestBlobShareDecorator(t *testing.T) {
 
 			blobTx := blobfactory.RandBlobTxs(signer, rand, 1, tc.blobsPerPFB, tc.blobSize)
 
-			btx, isBlob, err := blobtx.UnmarshalBlobTx([]byte(blobTx[0]))
-			require.NoError(t, err)
+			btx, isBlob := blob.UnmarshalBlobTx([]byte(blobTx[0]))
 			require.True(t, isBlob)
 
 			sdkTx, err := ecfg.TxConfig.TxDecoder()(btx.Tx)

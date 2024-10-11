@@ -14,7 +14,6 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v2/app"
 	"github.com/celestiaorg/celestia-app/v2/app/encoding"
 	"github.com/celestiaorg/celestia-app/v2/pkg/appconsts"
@@ -29,24 +28,6 @@ import (
 	appns "github.com/celestiaorg/go-square/namespace"
 	"github.com/celestiaorg/go-square/shares"
 	"github.com/celestiaorg/go-square/square"
-=======
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
->>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 )
 
 func TestProcessProposal(t *testing.T) {
@@ -363,45 +344,6 @@ func TestProcessProposal(t *testing.T) {
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
-<<<<<<< HEAD
-=======
-		{
-			name:  "valid v1 authored blob",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				addr := signer.Account(accounts[0]).Address()
-				blob, err := share.NewV1Blob(ns1, data, addr)
-				require.NoError(t, err)
-				rawTx, _, err := signer.CreatePayForBlobs(accounts[0], []*share.Blob{blob}, user.SetGasLimit(100000), user.SetFee(100000))
-				require.NoError(t, err)
-				d.Txs[0] = rawTx
-				d.Hash = calculateNewDataHash(t, d.Txs)
-			},
-			appVersion:     appconsts.LatestVersion,
-			expectedResult: abci.ResponseProcessProposal_ACCEPT,
-		},
-		{
-			name:  "v1 authored blob with invalid signer",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				addr := signer.Account(accounts[0]).Address()
-				falseAddr := testnode.RandomAddress().(sdk.AccAddress)
-				blob, err := share.NewV1Blob(ns1, data, falseAddr)
-				require.NoError(t, err)
-				msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blob)
-				require.NoError(t, err)
-
-				rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(100000))
-				require.NoError(t, err)
-
-				blobTxBytes, err := tx.MarshalBlobTx(rawTx, blob)
-				require.NoError(t, err)
-				d.Txs[0] = blobTxBytes
-				d.Hash = calculateNewDataHash(t, d.Txs)
-			},
-			appVersion:     appconsts.LatestVersion,
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
 		{
 			name: "blob tx that takes up too many shares",
 			input: &tmproto.Data{
@@ -412,10 +354,9 @@ func TestProcessProposal(t *testing.T) {
 				// so we add it here
 				d.Txs = append(d.Txs, tooManyShareBtx)
 			},
-			appVersion:     v3.Version,
+			appVersion:     v2.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
->>>>>>> ca222a86 (chore: optimize checkTx (#3954))
 	}
 
 	for _, tt := range tests {
