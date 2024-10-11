@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -278,10 +277,7 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 	// to be skipped without worrying about the sequence number being
 	// sequential.
 	numberOfAccounts := 8000
-	accounts := make([]string, 0, numberOfAccounts)
-	for i := 0; i < numberOfAccounts; i++ {
-		accounts = append(accounts, fmt.Sprintf("account%d", i))
-	}
+	accounts := testnode.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
