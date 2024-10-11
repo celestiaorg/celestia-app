@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
@@ -39,6 +41,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -96,6 +99,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -136,6 +140,44 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+
+	// create a tx that can't be included in a 64 x 64 when accounting for the
+	// pfb along with the shares
+	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[3:4],
+		infos[3:4],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			[][]int{repeat(4000, 1)},
+		),
+	)[0]
+
+	// memo is 2 MiB resulting in the transaction being over limit
+	largeString := strings.Repeat("a", 2*1024*1024)
+
+	// 3 transactions over MaxTxSize limit
+	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
+
+	// 3 blobTxs over MaxTxSize limit
+	largeBlobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			[][]int{{100}, {1000}, {420}},
+		),
+		user.SetMemo(largeString),
+	)
 
 	type test struct {
 		name      string
@@ -181,6 +223,20 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			},
 			prunedTxs: [][]byte{noAccountTx},
 		},
+		{
+			name: "blob tx with too many shares",
+			txs: func() [][]byte {
+				return [][]byte{tooManyShareBtx}
+			},
+			prunedTxs: [][]byte{tooManyShareBtx},
+		},
+		{
+			name: "blobTxs and sendTxs that exceed MaxTxSize limit",
+			txs: func() [][]byte {
+				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxSize limit
+			},
+			prunedTxs: append(largeTxs, largeBlobTxs...),
+		},
 	}
 
 	for _, tt := range tests {
@@ -215,4 +271,13 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 		}
 	}
 	return infos
+}
+
+// repeat returns a slice of length n with each element set to val.
+func repeat[T any](n int, val T) []T {
+	result := make([]T, n)
+	for i := range result {
+		result[i] = val
+	}
+	return result
 }

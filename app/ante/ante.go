@@ -32,6 +32,8 @@ func NewAnteHandler(
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
+		// Ensure the tx is not larger than the configured threshold.
+		NewMaxTxSizeDecorator(),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
 		// Ensure the tx passes ValidateBasic.
