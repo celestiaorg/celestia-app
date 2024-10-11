@@ -14,46 +14,51 @@ const (
 	seed = 42
 )
 
-var bigBlockManifest = Manifest{
-	ChainID:    "test",
-	Validators: 2,
-	TxClients:  2,
-	ValidatorResource: testnet.Resources{
+func getBigBlockManifest() (Manifest, error) {
+	latestVersion, err := testnet.GetLatestVersion()
+	if err != nil {
+		return Manifest{}, err
+	}
+	bigBlockManifest := Manifest{
+		ChainID:    "test",
+		Validators: 2,
+		TxClients:  2,
+		ValidatorResource: testnet.Resources{
 		MemoryRequest: resource.MustParse("12Gi"),
 		MemoryLimit:   resource.MustParse("12Gi"),
 		CPU:           resource.MustParse("8"),
 		Volume:        resource.MustParse("20Gi"),
-	},
-	TxClientsResource: testnet.Resources{
+	    },
+	    TxClientsResource: testnet.Resources{
 		MemoryRequest: resource.MustParse("1Gi"),
 		MemoryLimit:   resource.MustParse("3Gi"),
 		CPU:           resource.MustParse("2"),
 		Volume:        resource.MustParse("1Gi"),
-	},
-	SelfDelegation: 10000000,
-	// @TODO Update the CelestiaAppVersion and  TxClientVersion to the latest
-	// version of the main branch once the PR#3261 is merged by addressing this
-	// issue https://github.com/celestiaorg/celestia-app/issues/3603.
-	CelestiaAppVersion: "pr-3261",
-	TxClientVersion:    "pr-3261",
-	EnableLatency:      false,
-	LatencyParams:      LatencyParams{70, 0}, // in  milliseconds
-	BlobSequences:      60,
-	BlobsPerSeq:        6,
-	BlobSizes:          "200000",
-	PerPeerBandwidth:   5 * testnet.MB,
-	UpgradeHeight:      0,
-	TimeoutCommit:      11 * time.Second,
-	TimeoutPropose:     80 * time.Second,
-	Mempool:            "v1", // ineffective as it always defaults to v1
-	BroadcastTxs:       true,
-	Prometheus:         false,
-	GovMaxSquareSize:   512,
-	MaxBlockBytes:      7800000,
-	TestDuration:       5 * time.Minute,
-	LocalTracingType:   "local",
-	PushTrace:          true,
-	DisableBBR:         true,
+        },
+		SelfDelegation:     10000000,
+		CelestiaAppVersion: latestVersion,
+		TxClientVersion:    latestVersion,
+		EnableLatency:      false,
+		LatencyParams:      LatencyParams{70, 0}, // in  milliseconds
+		BlobSequences:      60,
+		BlobsPerSeq:        6,
+		BlobSizes:          "200000",
+		PerPeerBandwidth:   5 * testnet.MB,
+		UpgradeHeight:      0,
+		TimeoutCommit:      11 * time.Second,
+		TimeoutPropose:     80 * time.Second,
+		Mempool:            "v1", // ineffective as it always defaults to v1
+		BroadcastTxs:       true,
+		Prometheus:         false,
+		GovMaxSquareSize:   512,
+		MaxBlockBytes:      8 * testnet.MB,
+		TestDuration:       5 * time.Minute,
+		LocalTracingType:   "local",
+		PushTrace:          true,
+		DisableBBR:         true,
+	}
+
+	return bigBlockManifest, nil
 }
 
 func TwoNodeSimple(logger *log.Logger) error {
@@ -138,54 +143,23 @@ func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) er
 }
 
 func TwoNodeBigBlock8MB(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 8 * testnet.MB
+	manifest, err := getBigBlockManifest()
+	testnet.NoError("failed to get manifest", err)
 	return runBenchmarkTest(logger, "TwoNodeBigBlock8MB", manifest)
 }
 
 func TwoNodeBigBlock8MBLatency(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 8 * testnet.MB
+	manifest, err := getBigBlockManifest()
+	testnet.NoError("failed to get manifest", err)
 	manifest.EnableLatency = true
-	manifest.LatencyParams = LatencyParams{70, 0}
 	return runBenchmarkTest(logger, "TwoNodeBigBlock8MBLatency", manifest)
 }
 
-func TwoNodeBigBlock32MB(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 32 * testnet.MB
-	return runBenchmarkTest(logger, "TwoNodeBigBlock32MB", manifest)
-}
-
-func TwoNodeBigBlock64MB(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 64 * testnet.MB
-	return runBenchmarkTest(logger, "TwoNodeBigBlock64MB", manifest)
-}
-
 func LargeNetworkBigBlock8MB(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 8 * testnet.MB
+	manifest, err := getBigBlockManifest()
+	testnet.NoError("failed to get manifest", err)
 	manifest.Validators = 50
 	manifest.TxClients = 50
 	manifest.BlobSequences = 2
 	return runBenchmarkTest(logger, "LargeNetworkBigBlock8MB", manifest)
-}
-
-func LargeNetworkBigBlock32MB(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 32 * testnet.MB
-	manifest.Validators = 50
-	manifest.TxClients = 50
-	manifest.BlobSequences = 2
-	return runBenchmarkTest(logger, "LargeNetworkBigBlock32MB", manifest)
-}
-
-func LargeNetworkBigBlock64MB(logger *log.Logger) error {
-	manifest := bigBlockManifest
-	manifest.MaxBlockBytes = 64 * testnet.MB
-	manifest.Validators = 50
-	manifest.TxClients = 50
-	manifest.BlobSequences = 2
-	return runBenchmarkTest(logger, "LargeNetworkBigBlock64MB", manifest)
 }
