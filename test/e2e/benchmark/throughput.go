@@ -147,6 +147,8 @@ func TwoNodeBigBlock8MB(logger *log.Logger) error {
 func TwoNodeBigBlock8MBV3(logger *log.Logger) error {
 	manifest := bigBlockManifest
 	manifest.MaxBlockBytes = 8 * testnet.MB
+	// HACKHACK: use a version of celestia-app built from a commit on this PR.
+	// This can be removed after the PR is merged to main.
 	manifest.CelestiaAppVersion = "pr-3882"
 	manifest.TxClientVersion = "pr-3882"
 	manifest.GenesisAppVersion = v3.Version
