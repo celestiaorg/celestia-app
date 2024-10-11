@@ -11,30 +11,30 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 )
 
-// Timeouts runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
+// VersionedTimeouts runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
-func Timeouts(logger *log.Logger) error {
+func VersionedTimeouts(logger *log.Logger) error {
 	ctx := context.Background()
-	testNet, err := testnet.New(ctx, "Timeouts", seed, nil, "test")
+	testNet, err := testnet.New(ctx, "VersionedTimeouts", seed, nil, "test")
 	testnet.NoError("failed to create testnet", err)
 
 	logger.Println("Genesis app version is", testNet.GetGenesisAppVersion())
 	defer testNet.Cleanup(ctx)
 
-	latestVersion := "pr-3882"
-	testnet.NoError("failed to get latest version", err)
+	// TODO, this needs to be updated to get the latest version from the app
+	version := "pr-3882"
 
-	logger.Println("Running Timeouts test", "version", latestVersion)
+	logger.Println("Running VersionedTimeouts test", "version", version)
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
+		testNet.CreateGenesisNodes(ctx, 4, version, 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 60,
+	err = testNet.CreateTxClient(ctx, "txsim", version, 60,
 		"20000", 6, testnet.DefaultResources, endpoints[0], map[int64]uint64{})
 	testnet.NoError("failed to create tx client", err)
 
