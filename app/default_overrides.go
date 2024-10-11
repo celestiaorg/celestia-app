@@ -36,8 +36,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-const mebibyte = 1024 * 1024
-
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
 // implementation to provide custom default genesis state.
 type bankModule struct {
