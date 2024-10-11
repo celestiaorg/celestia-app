@@ -265,9 +265,9 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 8 * mebibyte   // 8 MiB
-	cfg.Mempool.MaxTxsBytes = 40 * mebibyte // 40 MiB
-	cfg.Mempool.Version = "v1"              // prioritized mempool
+	cfg.Mempool.MaxTxBytes = 7_897_088
+	cfg.Mempool.MaxTxsBytes = 39_485_440
+	cfg.Mempool.Version = "v1" // prioritized mempool
 
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
