@@ -63,7 +63,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	logger.Println("Setting up testnet")
 	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
 	logger.Println("Starting testnet")
-	// start one of the nodes with delay
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
 	timer := time.NewTimer(10 * time.Minute)
