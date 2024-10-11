@@ -3,6 +3,7 @@
 The AnteHandler chains together several decorators to ensure the following criteria are met for app version 3:
 
 - The tx does not contain any messages that are unsupported by the current app version. See `MsgVersioningGateKeeper`.
+- The tx size is not larger than the application's configured versioned constant MaxTxBytes.
 - The tx does not contain any [extension options](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L119-L122).
 - The tx passes `ValidateBasic()`.
 - The tx's [timeout_height](https://github.com/cosmos/cosmos-sdk/blob/22c28366466e64ebf0df1ce5bec8b1130523552c/proto/cosmos/tx/v1beta1/tx.proto#L115-L117) has not been reached if one is specified.

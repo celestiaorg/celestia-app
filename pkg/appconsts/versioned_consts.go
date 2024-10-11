@@ -42,6 +42,10 @@ func GasPerBlobByte(_ uint64) uint32 {
 	return v3.GasPerBlobByte
 }
 
+func MaxTxBytes(_ uint64) int {
+	return v3.MaxTxBytes
+}
+
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)

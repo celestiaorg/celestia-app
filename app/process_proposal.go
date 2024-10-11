@@ -71,6 +71,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		// sdkCtx = sdkCtx.WithTxBytes(tx)
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
+		// Set the tx bytes in the context for app version v3 and greater
+		if sdkCtx.BlockHeader().Version.App >= 3 {
+			sdkCtx = sdkCtx.WithTxBytes(tx)
+		}
+
 		if err != nil {
 			if req.Header.Version.App == v1 {
 				// For appVersion 1, there was no block validity rule that all
