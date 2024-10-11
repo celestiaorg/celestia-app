@@ -138,9 +138,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
-	// create a tx that can't be included in a 64 x 64 when accounting for the
-	// pfb along with the shares
-	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+	// Create a tx that can't be included in a 64 x 64 when accounting for the
+	// PFB shares along with the blob shares.
+	tooManyShareBlobTx := blobfactory.ManyMultiBlobTx(
 		t,
 		encConf.TxConfig,
 		kr,
@@ -201,9 +201,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		{
 			name: "blob tx with too many shares",
 			txs: func() [][]byte {
-				return [][]byte{tooManyShareBtx}
+				return [][]byte{tooManyShareBlobTx}
 			},
-			prunedTxs: [][]byte{tooManyShareBtx},
+			prunedTxs: [][]byte{tooManyShareBlobTx},
 		},
 	}
 

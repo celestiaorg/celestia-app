@@ -30,10 +30,11 @@ const (
 
 func TestBlobShareDecorator(t *testing.T) {
 	type testCase struct {
-		name                  string
-		blobsPerPFB, blobSize int
-		appVersion            uint64
-		wantErr               error
+		name        string
+		blobsPerPFB int
+		blobSize    int
+		appVersion  uint64
+		wantErr     error
 	}
 
 	rand := tmrand.NewRand()

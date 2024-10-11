@@ -81,7 +81,9 @@ func TestProcessProposal(t *testing.T) {
 	assert.Error(t, err)
 	data := bytes.Repeat([]byte{1}, 13)
 
-	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+	// Create a tx that can't be included in a 64 x 64 when accounting for the
+	// PFB shares along with the blob shares.
+	tooManyShareBlobTx := blobfactory.ManyMultiBlobTx(
 		t,
 		enc,
 		kr,
@@ -352,7 +354,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				// this tx will get filtered out by prepare proposal before this
 				// so we add it here
-				d.Txs = append(d.Txs, tooManyShareBtx)
+				d.Txs = append(d.Txs, tooManyShareBlobTx)
 			},
 			appVersion:     v2.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
