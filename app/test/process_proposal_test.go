@@ -20,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
@@ -79,6 +80,20 @@ func TestProcessProposal(t *testing.T) {
 
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	data := bytes.Repeat([]byte{1}, 13)
+
+	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+		t,
+		enc,
+		kr,
+		testutil.ChainID,
+		accounts[3:4],
+		infos[3:4],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			[][]int{repeat(4000, 1)},
+		),
+	)[0]
 
 	type test struct {
 		name           string
@@ -297,6 +312,19 @@ func TestProcessProposal(t *testing.T) {
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "blob tx that takes up too many shares",
+			input: &tmproto.Data{
+				Txs: [][]byte{},
+			},
+			mutator: func(d *tmproto.Data) {
+				// this tx will get filtered out by prepare proposal before this
+				// so we add it here
+				d.Txs = append(d.Txs, tooManyShareBtx)
+			},
+			appVersion:     v3.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
