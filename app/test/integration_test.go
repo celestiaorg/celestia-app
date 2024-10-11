@@ -178,6 +178,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		require.NoError(t, s.cctx.WaitForNextBlock())
 	}
 }
+
 func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	t := s.T()
 

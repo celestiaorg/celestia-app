@@ -77,7 +77,7 @@ func (s *TimeoutTestSuite) TestConfigTimeoutsOverride() {
 	assert.Equal(t, timeoutCommit.Seconds(), configTimeoutCommit)
 
 	// read the timeouts from the state at height 1 i.e.,
-	//the state after applying the genesis file
+	// the state after applying the genesis file
 	state1, err := s.cctx.GetTMNode().ConsensusStateTimeoutsByHeight(1)
 	require.NoError(t, err)
 
