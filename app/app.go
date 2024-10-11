@@ -806,7 +806,6 @@ func (app *App) InitializeAppVersion(ctx sdk.Context) {
 
 // OfferSnapshot is a wrapper around the baseapp's OfferSnapshot method. It is
 // needed to mount stores for the appropriate app version.
-// TODO [Q]: How about taking care of v3 version in this call?
 func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferSnapshot {
 	if app.IsSealed() {
 		// If the app is sealed, keys have already been mounted so this can
