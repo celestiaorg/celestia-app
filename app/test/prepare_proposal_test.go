@@ -160,10 +160,10 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// memo is 2 MiB resulting in the transaction being over limit
 	largeString := strings.Repeat("a", 2*1024*1024)
 
-	// 3 transactions over MaxTxBytes limit
+	// 3 transactions over MaxTxSize limit
 	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
-	// 3 blobTxs over MaxTxBytes limit
+	// 3 blobTxs over MaxTxSize limit
 	largeBlobTxs := blobfactory.ManyMultiBlobTx(
 		t,
 		encConf.TxConfig,
@@ -231,9 +231,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			prunedTxs: [][]byte{tooManyShareBtx},
 		},
 		{
-			name: "blobTxs and sendTxs that exceed MaxTxBytes limit",
+			name: "blobTxs and sendTxs that exceed MaxTxSize limit",
 			txs: func() [][]byte {
-				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxBytes limit
+				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxSize limit
 			},
 			prunedTxs: append(largeTxs, largeBlobTxs...),
 		},

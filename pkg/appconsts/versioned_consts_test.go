@@ -67,10 +67,10 @@ func TestVersionedConsts(t *testing.T) {
 			got:              appconsts.GasPerBlobByte(v3.Version),
 		},
 		{
-			name:             "MaxTxBytes v3",
+			name:             "MaxTxSize v3",
 			version:          v3.Version,
-			expectedConstant: v3.MaxTxBytes,
-			got:              appconsts.MaxTxBytes(v3.Version),
+			expectedConstant: v3.MaxTxSize,
+			got:              appconsts.MaxTxSize(v3.Version),
 		},
 	}
 
