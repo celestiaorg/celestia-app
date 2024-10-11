@@ -54,10 +54,10 @@ func TestProcessProposal(t *testing.T) {
 		blobfactory.DefaultTxOpts()...,
 	)
 
-	largeMemo := strings.Repeat("a", appconsts.MaxTxBytes(appconsts.LatestVersion))
+	largeMemo := strings.Repeat("a", appconsts.MaxTxSize(appconsts.LatestVersion))
 
 	// create 2 single blobTxs that include a large memo making the transaction
-	// larger than the configured max tx bytes
+	// larger than the configured max tx size
 	largeBlobTxs := blobfactory.ManyMultiBlobTx(
 		t, enc, kr, testutil.ChainID, accounts[3:], infos[3:],
 		blobfactory.NestedBlobs(
@@ -68,7 +68,7 @@ func TestProcessProposal(t *testing.T) {
 		user.SetMemo(largeMemo))
 
 	// create 1 large sendTx that includes a large memo making the
-	// transaction over the configured max tx bytes limit
+	// transaction over the configured max tx size limit
 	largeSendTx := testutil.SendTxsWithAccounts(
 		t, testApp, enc, kr, 1000, accounts[0], accounts[1:2], testutil.ChainID, user.SetMemo(largeMemo),
 	)
@@ -349,7 +349,7 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "blob txs larger than configured max tx bytes",
+			name:  "blob txs larger than configured max tx size",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, largeBlobTxs...)
@@ -359,7 +359,7 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "send tx larger than configured max tx bytes",
+			name:  "send tx larger than configured max tx size",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append(coretypes.Txs(largeSendTx).ToSliceOfBytes(), d.Txs...)
