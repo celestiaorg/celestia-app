@@ -67,6 +67,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			tx = blobTx.Tx
 		}
 
+		// todo: uncomment once we're sure this isn't consensus breaking
+		// sdkCtx = sdkCtx.WithTxBytes(tx)
+
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		// Set the tx bytes in the context for app version v3 and greater
 		if sdkCtx.BlockHeader().Version.App >= 3 {

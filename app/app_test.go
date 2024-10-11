@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -160,7 +161,15 @@ func createTestApp(t *testing.T) *app.App {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(3)
 	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
+	t.Cleanup(func() {
+		err := os.RemoveAll(snapshotDir)
+		require.NoError(t, err)
+	})
 	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, snapshotDir)
+	t.Cleanup(func() {
+		err := snapshotDB.Close()
+		require.NoError(t, err)
+	})
 	require.NoError(t, err)
 	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
 	require.NoError(t, err)

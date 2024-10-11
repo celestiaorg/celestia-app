@@ -41,6 +41,7 @@ var (
 	stake, stakeValue, blob                           int
 	useFeegrant, suppressLogs                         bool
 	upgradeSchedule                                   string
+	blobShareVersion                                  int
 )
 
 func main() {
@@ -102,8 +103,8 @@ well funded account that can act as the master account. The command runs until a
 				masterAccName = os.Getenv(TxsimMasterAccName)
 			}
 
-			if stake == 0 && send == 0 && blob == 0 {
-				return errors.New("no sequences specified. Use --stake, --send or --blob")
+			if stake == 0 && send == 0 && blob == 0 && upgradeSchedule == "" {
+				return errors.New("no sequences specified. Use --stake, --send, --upgrade-schedule or --blob")
 			}
 
 			// setup the sequences
@@ -128,7 +129,12 @@ well funded account that can act as the master account. The command runs until a
 					return fmt.Errorf("invalid blob amounts: %w", err)
 				}
 
-				sequences = append(sequences, txsim.NewBlobSequence(sizes, blobsPerPFB).Clone(blob)...)
+				sequence := txsim.NewBlobSequence(sizes, blobsPerPFB)
+				if blobShareVersion >= 0 {
+					sequence.WithShareVersion(uint8(blobShareVersion))
+				}
+
+				sequences = append(sequences, sequence.Clone(blob)...)
 			}
 
 			upgradeScheduleMap, err := parseUpgradeSchedule(upgradeSchedule)
@@ -210,6 +216,7 @@ func flags() *flag.FlagSet {
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs per PFB specified as a single value or a min-max range (e.g., 10 or 5-10). A single value indicates the exact number of blobs to be created.")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
+	flags.IntVar(&blobShareVersion, "blob-share-version", -1, "optionally specify a share version to use for the blob sequences")
 	return flags
 }
 

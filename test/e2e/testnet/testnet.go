@@ -30,10 +30,7 @@ type Testnet struct {
 	knuu      *knuu.Knuu
 }
 
-func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, chainID string,
-	genesisModifiers ...genesis.Modifier) (
-	*Testnet, error,
-) {
+func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, chainID string, genesisModifiers ...genesis.Modifier) (*Testnet, error) {
 	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
@@ -83,14 +80,10 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx,
-		fmt.Sprintf("val%d", len(t.nodes)), version, 0,
-		selfDelegation, nil, signerKey, networkKey,
-		upgradeHeight, resources, t.grafana, t.knuu, disableBBR,
-	)
+	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -101,9 +94,9 @@ func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDel
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeight, resources, disableBBR); err != nil {
+		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
 			return err
 		}
 	}
@@ -117,11 +110,11 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 	blobPerSequence int,
 	resources Resources,
 	grpcEndpoints []string,
+	upgradeSchedule map[int64]uint64,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(ctx, name, version, sequences,
-			blobRange, blobPerSequence, resources, grpcEndpoint)
+		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule)
 		if err != nil {
 			log.Err(err).Str("name", name).
 				Str("grpc endpoint", grpcEndpoint).
@@ -136,46 +129,76 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 	return nil
 }
 
-// CreateTxClient creates a txsim node and sets it up
-// name: name of the txsim knuu instance
-// version: version of the txsim docker image to be pulled from the registry
-// specified by txsimDockerSrcURL
-// seed: seed for the txsim
-// sequences: number of sequences to be run by the txsim
-// blobRange: range of blob sizes to be used by the txsim in bytes
-// pollTime: time in seconds between each sequence
-// resources: resources to be allocated to the txsim
-// grpcEndpoint: grpc endpoint of the node to which the txsim will connect and send transactions
+// CreateTxClient creates a txsim node and sets it up.
+//
+// Parameters:
+// ctx: Context for managing the lifecycle.
+// name: Name of the txsim knuu instance.
+// version: Version of the txsim Docker image to pull.
+// blobSequences: Number of blob sequences to run by the txsim.
+// blobRange: Range of blob sizes in bytes used by the txsim.
+// blobPerSequence: Number of blobs per sequence.
+// resources: Resources allocated to the txsim.
+// grpcEndpoint: gRPC endpoint of the node for transaction submission.
+// upgradeSchedule: Map from height to version for scheduled upgrades (v3 and onwards).
 func (t *Testnet) CreateTxClient(
 	ctx context.Context,
-	name, version string,
-	sequences int,
+	name string,
+	version string,
+	blobSequences int,
 	blobRange string,
 	blobPerSequence int,
 	resources Resources,
 	grpcEndpoint string,
+	upgradeSchedule map[int64]uint64,
 ) error {
-	// create an account, and store it in a temp directory and add the account as genesis account to
-	// the testnet
 	txsimKeyringDir := filepath.Join(os.TempDir(), name)
-	log.Info().
-		Str("name", name).
-		Str("directory", txsimKeyringDir).
-		Msg("txsim keyring directory created")
-	_, err := t.CreateAccount(name, 1e16, txsimKeyringDir)
+	defer os.RemoveAll(txsimKeyringDir)
+
+	config := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
+	txsimKeyring, err := keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, config)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create keyring: %w", err)
 	}
 
-	// Create a txsim node using the key stored in the txsimKeyringDir
-	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed,
-		sequences, blobRange, blobPerSequence, 1, resources, txsimRootDir, t.knuu)
+	key, _, err := txsimKeyring.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return fmt.Errorf("failed to create mnemonic: %w", err)
+	}
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("failed to get public key: %w", err)
+	}
+	err = t.genesis.AddAccount(genesis.Account{
+		PubKey:  pk,
+		Balance: 1e16,
+		Name:    name,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add account to genesis: %w", err)
+	}
+
+	// Copy the keys from the genesis keyring to the txsim keyring so that txsim
+	// can submit MsgSignalVersion on behalf of the validators.
+	for _, node := range t.Nodes() {
+		armor, err := t.Genesis().Keyring().ExportPrivKeyArmor(node.Name, "")
+		if err != nil {
+			return fmt.Errorf("failed to export key: %w", err)
+		}
+		err = txsimKeyring.ImportPrivKey(node.Name, armor, "")
+		if err != nil {
+			return fmt.Errorf("failed to import key: %w", err)
+		}
+	}
+
+	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, txsimKeyringDir, t.knuu, upgradeSchedule)
 	if err != nil {
 		log.Err(err).
 			Str("name", name).
 			Msg("error creating txsim")
 		return err
 	}
+
 	err = txsim.Instance.Build().Commit(ctx)
 	if err != nil {
 		log.Err(err).
@@ -185,7 +208,7 @@ func (t *Testnet) CreateTxClient(
 	}
 
 	// copy over the keyring directory to the txsim instance
-	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimRootDir, "10001:10001")
+	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimKeyringDir, "10001:10001")
 	if err != nil {
 		log.Err(err).
 			Str("directory", txsimKeyringDir).
@@ -234,8 +257,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	if txsimKeyringDir == "" {
 		kr = keyring.NewInMemory(cdc)
 	} else { // create a keyring with the specified directory
-		kr, err = keyring.New(app.Name, keyring.BackendTest,
-			txsimKeyringDir, nil, cdc)
+		kr, err = keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, cdc)
 		if err != nil {
 			return nil, err
 		}
@@ -268,11 +290,7 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx,
-		fmt.Sprintf("val%d", len(t.nodes)), version,
-		startHeight, 0, nil, signerKey, networkKey,
-		upgradeHeight, resources, t.grafana, t.knuu, disableBBR,
-	)
+	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -456,4 +474,8 @@ func (t *Testnet) Node(i int) *Node {
 
 func (t *Testnet) Nodes() []*Node {
 	return t.nodes
+}
+
+func (t *Testnet) Genesis() *genesis.Genesis {
+	return t.genesis
 }

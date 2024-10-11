@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -40,7 +41,6 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -140,6 +140,22 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
+	// create a tx that can't be included in a 64 x 64 when accounting for the
+	// pfb along with the shares
+	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[3:4],
+		infos[3:4],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			[][]int{repeat(4000, 1)},
+		),
+	)[0]
+
 	// memo is 2 MiB resulting in the transaction being over limit
 	largeString := strings.Repeat("a", 2*1024*1024)
 
@@ -207,6 +223,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			prunedTxs: [][]byte{noAccountTx},
 		},
 		{
+			name: "blob tx with too many shares",
+			txs: func() [][]byte {
+				return [][]byte{tooManyShareBtx}
+			},
+			prunedTxs: [][]byte{tooManyShareBtx},
+		},
+		{
 			name: "blobTxs and sendTxs that exceed MaxTxBytes limit",
 			txs: func() [][]byte {
 				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxBytes limit
@@ -247,4 +270,13 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 		}
 	}
 	return infos
+}
+
+// repeat returns a slice of length n with each element set to val.
+func repeat[T any](n int, val T) []T {
+	result := make([]T, n)
+	for i := range result {
+		result[i] = val
+	}
+	return result
 }
