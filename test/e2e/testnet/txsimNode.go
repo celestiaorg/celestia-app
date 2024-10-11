@@ -78,8 +78,11 @@ func CreateTxClient(
 		fmt.Sprintf("--blob %d", blobSequences),
 		fmt.Sprintf("--blob-amounts %d", blobsPerSeq),
 		fmt.Sprintf("--blob-sizes %s", blobRange),
-		fmt.Sprintf("--upgrade-schedule %s", stringifyUpgradeSchedule(upgradeSchedule)),
 		fmt.Sprintf("--blob-share-version %d", share.ShareVersionZero),
+	}
+
+	if len(upgradeSchedule) > 0 {
+		args = append(args, fmt.Sprintf("--upgrade-schedule %s", stringifyUpgradeSchedule(upgradeSchedule)))
 	}
 
 	if err := instance.Build().SetArgs(args...); err != nil {
