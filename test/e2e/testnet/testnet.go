@@ -40,7 +40,6 @@ type Options struct {
 	Grafana          *GrafanaInfo
 	ChainID          string
 	GenesisModifiers []genesis.Modifier
-	Knuu             *knuu.Knuu
 }
 
 func New(knuu *knuu.Knuu, opts Options) (*Testnet, error) {
