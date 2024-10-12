@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	v3consts "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -295,7 +294,7 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 		signers = append(signers, signer)
 	}
 
-	numberOfPFBs := v3consts.PFBTransactionCap + 500
+	numberOfPFBs := appconsts.PFBTransactionCap + 500
 	pfbTxs := make([][]byte, 0, numberOfPFBs)
 	randomBytes := make([]byte, 2000)
 	_, err := rand.Read(randomBytes)
@@ -310,7 +309,7 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 		accountIndex++
 	}
 
-	numberOfMsgSends := v3consts.SdkMsgTransactionCap + 500
+	numberOfMsgSends := appconsts.SdkMsgTransactionCap + 500
 	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
 	for i := 0; i < numberOfMsgSends; i++ {
 		msg := banktypes.NewMsgSend(
@@ -331,13 +330,13 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 	}{
 		{
 			name:                 "capping only PFB transactions",
-			inputTransactions:    pfbTxs[:v3consts.PFBTransactionCap+50],
-			expectedTransactions: pfbTxs[:v3consts.PFBTransactionCap],
+			inputTransactions:    pfbTxs[:appconsts.PFBTransactionCap+50],
+			expectedTransactions: pfbTxs[:appconsts.PFBTransactionCap],
 		},
 		{
 			name:                 "capping only msg send transactions",
-			inputTransactions:    msgSendTxs[:v3consts.SdkMsgTransactionCap+50],
-			expectedTransactions: msgSendTxs[:v3consts.SdkMsgTransactionCap],
+			inputTransactions:    msgSendTxs[:appconsts.SdkMsgTransactionCap+50],
+			expectedTransactions: msgSendTxs[:appconsts.SdkMsgTransactionCap],
 		},
 		{
 			name: "capping msg send after pfb transactions",
@@ -348,8 +347,8 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 				return input
 			}(),
 			expectedTransactions: func() [][]byte {
-				expected := make([][]byte, 0, v3consts.SdkMsgTransactionCap+100)
-				expected = append(expected, msgSendTxs[:v3consts.SdkMsgTransactionCap]...)
+				expected := make([][]byte, 0, appconsts.SdkMsgTransactionCap+100)
+				expected = append(expected, msgSendTxs[:appconsts.SdkMsgTransactionCap]...)
 				expected = append(expected, pfbTxs[:100]...)
 				return expected
 			}(),
@@ -363,9 +362,9 @@ func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
 				return input
 			}(),
 			expectedTransactions: func() [][]byte {
-				expected := make([][]byte, 0, v3consts.PFBTransactionCap+100)
+				expected := make([][]byte, 0, appconsts.PFBTransactionCap+100)
 				expected = append(expected, msgSendTxs[:100]...)
-				expected = append(expected, pfbTxs[:v3consts.PFBTransactionCap]...)
+				expected = append(expected, pfbTxs[:appconsts.PFBTransactionCap]...)
 				return expected
 			}(),
 		},
