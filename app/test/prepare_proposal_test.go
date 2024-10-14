@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"crypto/rand"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"strings"
 	"testing"
 	"time"
@@ -309,6 +311,26 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
+	multiPFBsPerTxs := make([][]byte, 0, numberOfPFBs)
+	numberOfMsgsPerTx := 10
+	for i := 0; i < numberOfPFBs; i++ {
+		msgs := make([]sdk.Msg, 0)
+		blobs := make([]*share.Blob, 0)
+		for j := 0; j < numberOfMsgsPerTx; j++ {
+			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
+			require.NoError(t, err)
+			msg, err := blobtypes.NewMsgPayForBlobs(addrs[accountIndex].String(), appconsts.LatestVersion, blob)
+			msgs = append(msgs, msg)
+			blobs = append(blobs, blob)
+		}
+		txBytes, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
+		require.NoError(t, err)
+		blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
+		require.NoError(t, err)
+		multiPFBsPerTxs = append(multiPFBsPerTxs, blobTx)
+		accountIndex++
+	}
+
 	numberOfMsgSends := appconsts.NonPFBTransactionCap + 500
 	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
 	for i := 0; i < numberOfMsgSends; i++ {
@@ -332,6 +354,11 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			name:                 "capping only PFB transactions",
 			inputTransactions:    pfbTxs[:appconsts.PFBTransactionCap+50],
 			expectedTransactions: pfbTxs[:appconsts.PFBTransactionCap],
+		},
+		{
+			name:                 "capping only PFB transactions with multiple messages",
+			inputTransactions:    multiPFBsPerTxs[:appconsts.PFBTransactionCap],
+			expectedTransactions: multiPFBsPerTxs[:appconsts.PFBTransactionCap/numberOfMsgsPerTx],
 		},
 		{
 			name:                 "capping only msg send transactions",
