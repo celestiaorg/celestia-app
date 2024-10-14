@@ -45,7 +45,7 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 // function used to apply the ante handler.
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
-	sdkTransactionsCount := 0
+	nonPFBTransactionsCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx)
 		if err != nil {
@@ -57,11 +57,11 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if sdkTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.NonPFBTransactionCap {
+		if nonPFBTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.NonPFBTransactionCap {
 			logger.Debug("skipping tx because the sdk message cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
-		sdkTransactionsCount += len(sdkTx.GetMsgs())
+		nonPFBTransactionsCount += len(sdkTx.GetMsgs())
 
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
