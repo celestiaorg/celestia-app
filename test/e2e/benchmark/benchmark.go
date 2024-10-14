@@ -28,9 +28,9 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format(timeFormat))
+	scope := fmt.Sprintf("%s_%s", name, time.Now().Format(timeFormat))
 	kn, err := knuu.New(ctx, knuu.Options{
-		Scope:        identifier,
+		Scope:        scope,
 		ProxyEnabled: true,
 	})
 	if err != nil {
