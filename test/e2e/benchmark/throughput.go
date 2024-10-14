@@ -10,10 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-const (
-	seed = 42
-)
-
 var bigBlockManifest = Manifest{
 	ChainID:    "test",
 	Validators: 2,
