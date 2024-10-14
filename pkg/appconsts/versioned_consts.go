@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"time"
 
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 )
 
@@ -56,18 +58,22 @@ var (
 
 func GetTimeoutPropose(v uint64) time.Duration {
 	switch v {
-	case v3.Version:
-		return v3.TimeoutPropose
-	default:
+	case v1.Version:
 		return TimeoutPropose
+	case v2.Version:
+		return TimeoutPropose
+	default:
+		return v3.TimeoutPropose
 	}
 }
 
 func GetTimeoutCommit(v uint64) time.Duration {
 	switch v {
-	case v3.Version:
-		return v3.TimeoutCommit
-	default:
+	case v1.Version:
 		return TimeoutCommit
+	case v2.Version:
+		return TimeoutCommit
+	default:
+		return v3.TimeoutCommit
 	}
 }

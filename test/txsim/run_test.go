@@ -170,6 +170,8 @@ func TestTxSimUpgrade(t *testing.T) {
 		WithFundedAccounts("txsim-master")
 	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)
 
+	time.Sleep(time.Second * 2)
+
 	// updrade to v3 at height 20
 	sequences := []txsim.Sequence{
 		txsim.NewUpgradeSequence(v3.Version, 20),

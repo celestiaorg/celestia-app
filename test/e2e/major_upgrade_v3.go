@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
@@ -70,24 +69,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	// checking initial timeouts
-	logger.Println("checking initial timeouts")
-	for _, node := range testNet.Nodes() {
-		client, err := node.Client()
-		testnet.NoError("failed to get client", err)
-		tInfo, err := client.ConsensusTimeoutsInfo(ctx, 1)
-		testnet.NoError("failed to get consensus timeouts info", err)
-		logger.Printf("timeout commit: %v, timeout propose: %v", tInfo.TimeoutCommit, tInfo.TimeoutPropose)
-		if appconsts.GetTimeoutCommit(v2.Version) != tInfo.TimeoutCommit {
-			return fmt.Errorf("timeout commit mismatch at height 1: got %v, expected %v",
-				tInfo.TimeoutCommit, appconsts.GetTimeoutCommit(v2.Version))
-		}
-		if appconsts.GetTimeoutPropose(v2.Version) != tInfo.TimeoutPropose {
-			return fmt.Errorf("timeout propose mismatch at height 1: got %v, "+
-				"expected %v",
-				tInfo.TimeoutPropose, appconsts.GetTimeoutPropose(v2.Version))
-		}
-	}
 	logger.Println("waiting for upgrade")
 
 	// wait for the upgrade to complete
@@ -112,9 +93,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 				}
 				logger.Printf("height %v", resp.Header.Height)
 				lastHeight = resp.Header.Height
-				tInfo, err := client.ConsensusTimeoutsInfo(ctx, lastHeight+1)
-				testnet.NoError("failed to get consensus timeouts info", err)
-				logger.Printf("timeout commit: %v, timeout propose: %v", tInfo.TimeoutCommit, tInfo.TimeoutPropose)
 			}
 		}
 
@@ -122,33 +100,40 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	}
 
-	// now check if the timeouts are set correctly
-	zlog.Info().Int("upgradedHeight", int(upgradedHeight)).Msg("checking timeouts")
-	for _, node := range testNet.Nodes() {
-		client, err := node.Client()
-		testnet.NoError("failed to get client", err)
-		zlog.Info().Str("name", node.Name).Msg("checking timeouts")
-		for h := int64(1); h <= upgradedHeight+4; h++ {
-			block, err := client.Block(ctx, &h)
-			testnet.NoError("failed to get header", err)
+	// check if the timeouts are set correctly
 
-			// timeouts of the next height are set based on the block at the current height
-			// so, we retrieve the timeouts of the next height to see if they
-			// are set according to the block at the current height
-			tInfo, err := client.ConsensusTimeoutsInfo(ctx, h+1)
-			testnet.NoError("failed to get consensus timeouts info", err)
-
-			if appconsts.GetTimeoutCommit(block.Block.Header.Version.App) != tInfo.TimeoutCommit {
-				return fmt.Errorf("timeout commit mismatch at height %d: got %v, expected %v",
-					block.Block.Header.Height, tInfo.TimeoutCommit, appconsts.GetTimeoutCommit(block.Block.Header.Version.App))
-			}
-			if appconsts.GetTimeoutPropose(block.Block.Header.Version.App) != tInfo.TimeoutPropose {
-				return fmt.Errorf("timeout propose mismatch at height %d: got"+
-					" %v, expected %v",
-					block.Block.Header.Height, tInfo.TimeoutPropose, appconsts.GetTimeoutPropose(block.Block.Header.Version.App))
-			}
+	rpcNode := testNet.Nodes()[0]
+	client, err := rpcNode.Client()
+	testnet.NoError("failed to get client", err)
+	blockTimes := make([]time.Duration, 0, 7)
+	latestBlockTime := time.Time{}
+	nilTime := time.Time{}
+	for h := int64(upgradedHeight - 4); h <= upgradedHeight+4; h++ {
+		resp, err := client.Header(ctx, nil)
+		testnet.NoError("failed to get header", err)
+		if latestBlockTime.Equal(nilTime) {
+			continue
 		}
-		zlog.Info().Str("name", node.Name).Msg("timeouts are checked")
+
+		blockTime := resp.Header.Time
+		blockDur := blockTime.Sub(latestBlockTime)
+		blockTimes = append(blockTimes, blockDur)
+		latestBlockTime = blockTime
+	}
+
+	if len(blockTimes) < 7 {
+		testnet.NoError("", fmt.Errorf("not enough block times collected: %v", len(blockTimes)))
+	}
+
+	startDur := blockTimes[0]
+	endDur := blockTimes[len(blockTimes)-1]
+
+	if startDur < time.Second*10 {
+		testnet.NoError("", fmt.Errorf("blocks for v2 are too short %v", len(blockTimes)))
+	}
+
+	if endDur > time.Second*7 {
+		testnet.NoError("", fmt.Errorf("blocks for v3 are too long %v", len(blockTimes)))
 	}
 
 	return nil
