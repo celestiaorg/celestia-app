@@ -9,17 +9,29 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
 // VersionedTimeouts runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
 // and MsgSends over 30 seconds and then asserts that at least 10 transactions were
 // committed.
 func VersionedTimeouts(logger *log.Logger) error {
-	ctx := context.Background()
-	testNet, err := testnet.New(ctx, "VersionedTimeouts", seed, nil, "test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scope := fmt.Sprintf("%s_%s", "VersionedTimeouts", time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        scope,
+		ProxyEnabled: true,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+
+	kn.HandleStopSignal(ctx)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
+	testNet, err := testnet.New(kn, testnet.Options{ChainID: "test"})
 	testnet.NoError("failed to create testnet", err)
 
-	logger.Println("Genesis app version is", testNet.GetGenesisAppVersion())
+	logger.Println("Genesis app version is", testNet.Genesis().ConsensusParams.Version.AppVersion)
 	defer testNet.Cleanup(ctx)
 
 	// TODO, this needs to be updated to get the latest version from the app

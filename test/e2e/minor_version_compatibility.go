@@ -15,10 +15,14 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
-	const numNodes = 4
+	const (
+		testName = "MinorVersionCompatibility"
+		numNodes = 4
+	)
 
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
@@ -29,13 +33,24 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
 	}
+	seed := testnet.DefaultSeed
 	r := rand.New(rand.NewSource(seed))
-	logger.Println("Running minor version compatibility test", "versions", versions)
+	logger.Printf("Running %s test with versions %s", testName, versions)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	testNet, err := testnet.New(ctx, "MinorVersionCompatibility", seed, nil, "test")
+	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        identifier,
+		ProxyEnabled: true,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+
+	kn.HandleStopSignal(ctx)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
+
+	testNet, err := testnet.New(kn, testnet.Options{Seed: seed})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)

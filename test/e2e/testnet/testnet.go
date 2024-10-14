@@ -20,6 +20,11 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
+const (
+	DefaultSeed    int64 = 42
+	DefaultChainID       = "test-chain-id"
+)
+
 type Testnet struct {
 	seed      int64
 	nodes     []*Node
@@ -30,39 +35,23 @@ type Testnet struct {
 	knuu      *knuu.Knuu
 }
 
-func New(ctx context.Context, name string, seed int64, grafana *GrafanaInfo, chainID string, genesisModifiers ...genesis.Modifier) (*Testnet, error) {
-	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
-	kn, err := knuu.New(ctx, knuu.Options{
-		Scope:        identifier,
-		ProxyEnabled: true,
-		// if the tests timeout, pass the timeout option
-		// Timeout: 120 * time.Minute,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	log.Info().
-		Str("scope", kn.Scope).
-		Str("TestName", name).
-		Msg("Knuu initialized")
-
-	kn.HandleStopSignal(ctx)
-
-	g := genesis.NewDefaultGenesis().WithChainID(chainID).WithModifiers(genesisModifiers...)
-	//g.ConsensusParams.Version.AppVersion = v3.Version
-	return &Testnet{
-		seed:    seed,
-		nodes:   make([]*Node, 0),
-		genesis: g,
-		keygen:  newKeyGenerator(seed),
-		grafana: grafana,
-		knuu:    kn,
-	}, nil
+type Options struct {
+	Seed             int64
+	Grafana          *GrafanaInfo
+	ChainID          string
+	GenesisModifiers []genesis.Modifier
 }
 
-func (t *Testnet) Knuu() *knuu.Knuu {
-	return t.knuu
+func New(knuu *knuu.Knuu, opts Options) (*Testnet, error) {
+	opts.setDefaults()
+	return &Testnet{
+		seed:    opts.Seed,
+		nodes:   make([]*Node, 0),
+		genesis: genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
+		keygen:  newKeyGenerator(opts.Seed),
+		grafana: opts.Grafana,
+		knuu:    knuu,
+	}, nil
 }
 
 func (t *Testnet) NewPreloader() (*preloader.Preloader, error) {
@@ -527,7 +516,11 @@ func (t *Testnet) Genesis() *genesis.Genesis {
 	return t.genesis
 }
 
-func (t *Testnet) GetGenesisAppVersion() uint64 {
-	return t.genesis.ConsensusParams.Version.AppVersion
-
+func (o *Options) setDefaults() {
+	if o.ChainID == "" {
+		o.ChainID = DefaultChainID
+	}
+	if o.Seed == 0 {
+		o.Seed = DefaultSeed
+	}
 }

@@ -10,17 +10,29 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	zlog "github.com/rs/zerolog/log"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
 func MajorUpgradeToV3(logger *log.Logger) error {
+	testName := "MajorUpgradeToV3"
 	numNodes := 4
-	upgradeHeightV3 := int64(4)
+	upgradeHeightV3 := int64(10)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	scope := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        scope,
+		ProxyEnabled: true,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+
+	kn.HandleStopSignal(ctx)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
+
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(ctx, "MajorUpgradeToV3", seed, nil, "test")
+	testNet, err := testnet.New(kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -95,9 +107,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 				lastHeight = resp.Header.Height
 			}
 		}
-
-		zlog.Info().Str("name", node.Name).Msg("upgrade is completed")
-
 	}
 
 	// check if the timeouts are set correctly
