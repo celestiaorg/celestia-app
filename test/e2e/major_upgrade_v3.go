@@ -23,9 +23,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
+	scope := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
 	kn, err := knuu.New(ctx, knuu.Options{
-		Scope:        identifier,
+		Scope:        scope,
 		ProxyEnabled: true,
 	})
 	testnet.NoError("failed to initialize Knuu", err)
