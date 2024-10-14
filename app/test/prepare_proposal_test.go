@@ -267,7 +267,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	}
 }
 
-func TestPrepareProposalCappingNumberOfTransactions(t *testing.T) {
+func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping prepare proposal capping number of transactions test in short mode.")
 	}
