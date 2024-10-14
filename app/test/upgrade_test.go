@@ -151,7 +151,6 @@ func TestAppUpgradeV3(t *testing.T) {
 		RequestEndBlock{Height: initialHeight + appconsts.DefaultUpgradeHeightDelay})
 	require.Equal(t, appconsts.GetTimeoutCommit(v3.Version), respEndBlock.Timeouts.TimeoutCommit)
 	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), respEndBlock.Timeouts.TimeoutPropose)
-
 }
 
 // TestAppUpgradeV2 verifies that the all module's params are overridden during an

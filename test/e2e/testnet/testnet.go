@@ -424,6 +424,7 @@ func (t *Testnet) WaitToSync(ctx context.Context, indices ...int) error {
 	}
 	return nil
 }
+
 func isInIndices(i int, indices []int) bool {
 	for _, index := range indices {
 		if i == index {
@@ -456,7 +457,6 @@ func (t *Testnet) StartNodes(ctx context.Context, indices ...int) error {
 		}
 	} else {
 		filteredGenesisNodes = genesisNodes
-
 	}
 
 	// start genesis nodes asynchronously
