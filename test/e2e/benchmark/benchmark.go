@@ -15,9 +15,7 @@ import (
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
-const (
-	timeFormat = "20060102_150405"
-)
+const timeFormat = "20060102_150405"
 
 type BenchmarkTest struct {
 	*testnet.Testnet
@@ -37,7 +35,7 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 		return nil, err
 	}
 
-	// context.Background() is used to allow the stopSignal to be functioning even after this function returns
+	// context.Background() is used to allow the stopSignal to be functional even after this function returns
 	kn.HandleStopSignal(context.Background())
 
 	log.Printf("Knuu initialized with scope %s", kn.Scope)

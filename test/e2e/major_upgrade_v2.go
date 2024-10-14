@@ -17,18 +17,16 @@ import (
 )
 
 func MajorUpgradeToV2(logger *log.Logger) error {
-	var (
-		testName      = "MajorUpgradeToV2"
-		numNodes      = 4
-		upgradeHeight = int64(10)
-	)
+	testName := "MajorUpgradeToV2"
+	numNodes := 4
+	upgradeHeight := int64(10)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
+	scope := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
 	kn, err := knuu.New(ctx, knuu.Options{
-		Scope:        identifier,
+		Scope:        scope,
 		ProxyEnabled: true,
 	})
 	testnet.NoError("failed to initialize Knuu", err)
