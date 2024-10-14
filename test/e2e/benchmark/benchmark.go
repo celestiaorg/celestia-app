@@ -12,7 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
+
+const timeFormat = "20060102_150405"
 
 type BenchmarkTest struct {
 	*testnet.Testnet
@@ -20,13 +23,29 @@ type BenchmarkTest struct {
 }
 
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
-	// create a new testnet
-	testNet, err := testnet.New(context.Background(), name, seed,
-		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
-		manifest.GetGenesisModifiers()...)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scope := fmt.Sprintf("%s_%s", name, time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        scope,
+		ProxyEnabled: true,
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	// context.Background() is used to allow the stopSignal to be functional even after this function returns
+	kn.HandleStopSignal(context.Background())
+
+	log.Printf("Knuu initialized with scope %s", kn.Scope)
+
+	testNet, err := testnet.New(kn, testnet.Options{
+		Grafana:          testnet.GetGrafanaInfoFromEnvVar(),
+		ChainID:          manifest.ChainID,
+		GenesisModifiers: manifest.GetGenesisModifiers(),
+	})
+	testnet.NoError("failed to create testnet", err)
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
 	return &BenchmarkTest{Testnet: testNet, manifest: manifest}, nil
