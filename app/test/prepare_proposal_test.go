@@ -2,11 +2,12 @@ package app_test
 
 import (
 	"crypto/rand"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"strings"
 	"testing"
 	"time"
+
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
