@@ -321,6 +321,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 			require.NoError(t, err)
 			msg, err := blobtypes.NewMsgPayForBlobs(addrs[accountIndex].String(), appconsts.LatestVersion, blob)
+			require.NoError(t, err)
 			msgs = append(msgs, msg)
 			blobs = append(blobs, blob)
 		}
