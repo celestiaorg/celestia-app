@@ -117,7 +117,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	blockTimes := make([]time.Duration, 0, 7)
 	latestBlockTime := time.Time{}
 	nilTime := time.Time{}
-	for h := int64(upgradedHeight - 4); h <= upgradedHeight+4; h++ {
+	for h := upgradedHeight - 4; h <= upgradedHeight+4; h++ {
 		resp, err := client.Header(ctx, nil)
 		testnet.NoError("failed to get header", err)
 		if latestBlockTime.Equal(nilTime) {
