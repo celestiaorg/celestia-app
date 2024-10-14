@@ -57,7 +57,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if sdkTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.SdkMsgTransactionCap {
+		if sdkTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.NonPFBTransactionCap {
 			logger.Debug("skipping tx because the sdk message cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
