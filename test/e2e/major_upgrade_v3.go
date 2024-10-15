@@ -40,7 +40,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	// HACKHACK: use a version of celestia-app built from a commit on this PR.
 	// This can be removed after the PR is merged to main and we override the
 	// upgrade height delay to one block in a new Docker image.
-	version := "pr-3882"
+	version := "5a71dd73289720e737e72b3f4158a91ab45999b7"
 
 	logger.Println("Running major upgrade to v3 test", "version", version)
 
@@ -115,7 +115,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	testnet.NoError("failed to get client", err)
 	blockTimes := make([]time.Duration, 0, 7)
 	var prevBlockTime time.Time
-	for h := upgradedHeight - 4; h <= upgradedHeight+4; h++ {
+	for h := upgradeHeightV3 - 4; h <= upgradeHeightV3+4; h++ {
 		resp, err := client.Header(ctx, &h)
 		testnet.NoError("failed to get header", err)
 		blockTime := resp.Header.Time
