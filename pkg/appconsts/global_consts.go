@@ -11,7 +11,7 @@ import (
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 //
-// They can not change throughout the lifetime of a network.
+// They cannot change throughout the lifetime of a network.
 const (
 	// DefaultShareVersion is the defacto share version. Use this if you are
 	// unsure of which version to use.
@@ -20,7 +20,7 @@ const (
 	// MinSquareSize is the smallest original square width.
 	MinSquareSize = 1
 
-	// MinshareCount is the minimum number of shares allowed in the original
+	// MinShareCount is the minimum number of shares allowed in the original
 	// data square.
 	MinShareCount = MinSquareSize * MinSquareSize
 
@@ -51,7 +51,7 @@ var (
 	SupportedShareVersions = share.SupportedShareVersions
 )
 
-// returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
+// UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
 func UpgradeHeightDelay() int64 {
 	if OverrideUpgradeHeightDelayStr != "" {
 		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
@@ -67,3 +67,12 @@ func UpgradeHeightDelay() int64 {
 func HashLength() int {
 	return hashLength
 }
+
+// The following consts are not consensus breaking and will be applied straight after this binary is started.
+const (
+	// NonPFBTransactionCap is the maximum number of SDK messages, aside from PFBs, that a block can contain.
+	NonPFBTransactionCap = 200
+
+	// PFBTransactionCap is the maximum number of PFB messages a block can contain.
+	PFBTransactionCap = 600
+)
