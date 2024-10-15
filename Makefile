@@ -1,8 +1,18 @@
-GIT_TAG := $(shell git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' \
-    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-mocha$$' \
-    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-arabica$$' \
-    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]*$$' \
-    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta)$$' \
+# GIT_TAG is an environment variable that is set to the latest git tag on the
+# current commit with the following example priority: v2.2.0, v2.2.0-mocha,
+# v2.2.0-arabica, v2.2.0-rc0, v2.2.0-beta, v2.2.0-alpha. If no tag points to the
+# current commit, git describe is used. The priority in this command is
+# necessary because `git tag --sort=-creatordate` only works for annotated tags
+# with metadata. Git tags created via GitHub releases are not annotated and do
+# not have metadata like creatordate. Therefore, this command is a hacky attempt
+# to get the most recent tag on the current commit according to Celestia's
+# testnet versioning scheme + SemVer.
+GIT_TAG := $(shell git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' \
+    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-mocha$$' \
+    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-arabica$$' \
+    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]*$$' \
+    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-(beta)$$' \
+    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha)$$' \
     || git describe --tags)
 VERSION := $(shell echo $(GIT_TAG) | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
