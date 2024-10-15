@@ -110,24 +110,23 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	}
 
 	// check if the timeouts are set correctly
-
 	rpcNode := testNet.Nodes()[0]
 	client, err := rpcNode.Client()
 	testnet.NoError("failed to get client", err)
 	blockTimes := make([]time.Duration, 0, 7)
 	latestBlockTime := time.Time{}
-	nilTime := time.Time{}
 	for h := upgradedHeight - 4; h <= upgradedHeight+4; h++ {
 		resp, err := client.Header(ctx, nil)
 		testnet.NoError("failed to get header", err)
-		if latestBlockTime.Equal(nilTime) {
+		blockTime := resp.Header.Time
+		if latestBlockTime.Equal(time.Time{}) {
+			latestBlockTime = blockTime
 			continue
 		}
 
-		blockTime := resp.Header.Time
 		blockDur := blockTime.Sub(latestBlockTime)
-		blockTimes = append(blockTimes, blockDur)
 		latestBlockTime = blockTime
+		blockTimes = append(blockTimes, blockDur)
 	}
 
 	if len(blockTimes) < 7 {

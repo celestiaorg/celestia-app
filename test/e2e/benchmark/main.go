@@ -18,7 +18,6 @@ func main() {
 		{"LargeNetworkBigBlock8MB", LargeNetworkBigBlock8MB},
 		{"LargeNetworkBigBlock32MB", LargeNetworkBigBlock32MB},
 		{"LargeNetworkBigBlock64MB", LargeNetworkBigBlock64MB},
-		{"TwoNodeBigBlock8MBV3", TwoNodeBigBlock8MBV3},
 	}
 
 	// check the test name passed as an argument and run it

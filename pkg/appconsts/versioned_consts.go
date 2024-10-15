@@ -59,9 +59,9 @@ var (
 func GetTimeoutPropose(v uint64) time.Duration {
 	switch v {
 	case v1.Version:
-		return TimeoutPropose
+		return v1.TimeoutPropose
 	case v2.Version:
-		return TimeoutPropose
+		return v2.TimeoutPropose
 	default:
 		return v3.TimeoutPropose
 	}
@@ -70,9 +70,9 @@ func GetTimeoutPropose(v uint64) time.Duration {
 func GetTimeoutCommit(v uint64) time.Duration {
 	switch v {
 	case v1.Version:
-		return TimeoutCommit
+		return v1.TimeoutCommit
 	case v2.Version:
-		return TimeoutCommit
+		return v2.TimeoutCommit
 	default:
 		return v3.TimeoutCommit
 	}

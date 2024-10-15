@@ -25,7 +25,6 @@ func main() {
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
 		{"MajorUpgradeToV3", MajorUpgradeToV3},
 		{"E2ESimple", E2ESimple},
-		{"VersionedTimeouts", VersionedTimeouts},
 	}
 
 	// check if a specific test is passed and run it

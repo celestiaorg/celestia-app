@@ -3,9 +3,6 @@ package testnode
 import (
 	"context"
 	"fmt"
-	"math"
-	"sort"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -96,67 +93,6 @@ func ReadBlockchainHeaders(ctx context.Context, rpcAddress string) ([]*types.Blo
 func reverseSlice[T any](s []T) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
-	}
-}
-
-type HeightTime struct {
-	Height int64
-	Time   time.Duration
-}
-
-func CalculateBlockTime(blockMetas []*types.BlockMeta) []HeightTime {
-	// sort by Height in ascending order
-	sort.Slice(blockMetas, func(i, j int) bool {
-		return blockMetas[i].Header.Height < blockMetas[j].Header.Height
-	})
-
-	var result []HeightTime
-	for i := 0; i < len(blockMetas)-1; i++ {
-		// the time difference between the current header and the next one
-		timeDiff := blockMetas[i+1].Header.Time.Sub(blockMetas[i].Header.Time)
-		// shift the time difference to the next height
-		result = append(result, HeightTime{Height: blockMetas[i+1].Header.Height, Time: timeDiff})
-	}
-	return result
-}
-
-type Stats struct {
-	Min time.Duration
-	Max time.Duration
-	Avg time.Duration
-	Std time.Duration
-}
-
-func CalculateStats(heightTimes []HeightTime) Stats {
-	var min, max, sum time.Duration
-	var count int64
-	var variance float64
-
-	for i, ht := range heightTimes {
-		if i == 0 || ht.Time < min {
-			min = ht.Time
-		}
-		if i == 0 || ht.Time > max {
-			max = ht.Time
-		}
-		sum += ht.Time
-		count++
-	}
-
-	avg := time.Duration(int64(sum) / count)
-
-	for _, ht := range heightTimes {
-		diff := float64(ht.Time - avg)
-		variance += diff * diff
-	}
-
-	std := time.Duration(math.Sqrt(variance / float64(count)))
-
-	return Stats{
-		Min: min,
-		Max: max,
-		Avg: avg,
-		Std: std,
 	}
 }
 
