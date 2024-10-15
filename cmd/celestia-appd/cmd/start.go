@@ -113,8 +113,6 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			}
 
 			serverCtx := server.GetServerContextFromCmd(cmd)
-			serverCtx.Logger.Info("starting node with timeout_propose: ",
-				serverCtx.Config.Consensus.TimeoutPropose.Seconds())
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err

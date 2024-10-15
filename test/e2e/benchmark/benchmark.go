@@ -22,8 +22,8 @@ type BenchmarkTest struct {
 	manifest *Manifest
 }
 
-// NewBenchmarkTest wraps around testnet.New to create a new benchmark test
-// it may modify genesis consensus parameters based on manifest
+// NewBenchmarkTest wraps around testnet.New to create a new benchmark test.
+// It may modify genesis consensus parameters based on manifest.
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
