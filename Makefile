@@ -41,11 +41,6 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 
-debug:
-	@echo "GIT_TAG: $(GIT_TAG)"
-	@echo "VERSION: $(VERSION)"
-.PHONY: debug
-
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -277,3 +272,9 @@ enable-bbr:
 	    echo "BBR is already enabled."; \
 	fi
 .PHONY: enable-bbr
+
+## debug-version: Print the git tag and version.
+debug-version:
+	@echo "GIT_TAG: $(GIT_TAG)"
+	@echo "VERSION: $(VERSION)"
+.PHONY: debug-version
