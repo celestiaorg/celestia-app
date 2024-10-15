@@ -115,17 +115,19 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	testnet.NoError("failed to get client", err)
 	blockTimes := make([]time.Duration, 0, 7)
 	latestBlockTime := time.Time{}
+	blockTimes := make([]time.Duration, 0, 7)
+	var prevBlockTime time.Time
 	for h := upgradedHeight - 4; h <= upgradedHeight+4; h++ {
-		resp, err := client.Header(ctx, nil)
+		resp, err := client.Header(ctx, &h)
 		testnet.NoError("failed to get header", err)
 		blockTime := resp.Header.Time
-		if latestBlockTime.Equal(time.Time{}) {
-			latestBlockTime = blockTime
+		if prevBlockTime.IsZero() {
+			prevBlockTime = blockTime
 			continue
 		}
 
-		blockDur := blockTime.Sub(latestBlockTime)
-		latestBlockTime = blockTime
+		blockDur := blockTime.Sub(prevBlockTime)
+		prevBlockTime = blockTime
 		blockTimes = append(blockTimes, blockDur)
 	}
 
