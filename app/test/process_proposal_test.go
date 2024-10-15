@@ -81,6 +81,22 @@ func TestProcessProposal(t *testing.T) {
 	assert.Error(t, err)
 	data := bytes.Repeat([]byte{1}, 13)
 
+	// Create a tx that can't be included in a 64 x 64 when accounting for the
+	// PFB shares along with the blob shares.
+	tooManyShareBlobTx := blobfactory.ManyMultiBlobTx(
+		t,
+		enc,
+		kr,
+		testutil.ChainID,
+		accounts[3:4],
+		infos[3:4],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			[][]int{repeat(4000, 1)},
+		),
+	)[0]
+
 	type test struct {
 		name           string
 		input          *tmproto.Data
@@ -328,6 +344,19 @@ func TestProcessProposal(t *testing.T) {
 				d.Hash = dah.Hash()
 			},
 			appVersion:     appconsts.LatestVersion,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "blob tx that takes up too many shares",
+			input: &tmproto.Data{
+				Txs: [][]byte{},
+			},
+			mutator: func(d *tmproto.Data) {
+				// this tx will get filtered out by prepare proposal before this
+				// so we add it here
+				d.Txs = append(d.Txs, tooManyShareBlobTx)
+			},
+			appVersion:     v2.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}

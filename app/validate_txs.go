@@ -42,6 +42,7 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
 	for _, tx := range txs {
+		ctx = ctx.WithTxBytes(tx)
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
@@ -75,6 +76,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []*blob.BlobTx) ([]*blob.BlobTx, sdk.Context) {
 	n := 0
 	for _, tx := range txs {
+		ctx = ctx.WithTxBytes(tx.Tx)
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
