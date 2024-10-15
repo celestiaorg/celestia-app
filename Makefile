@@ -1,4 +1,10 @@
-VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
+GIT_TAG := $(shell git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' \
+    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-mocha$$' \
+    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-arabica$$' \
+    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]*$$' \
+    || git tag --points-at HEAD --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta)$$' \
+    || git describe --tags)
+VERSION := $(shell echo $(GIT_TAG) | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
@@ -24,6 +30,11 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideUpgradeHeightDelayStr=$(OVERRIDE_UPGRADE_HEIGHT_DELAY)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
+
+debug:
+	@echo "GIT_TAG: $(GIT_TAG)"
+	@echo "VERSION: $(VERSION)"
+.PHONY: debug
 
 ## help: Get more info on make commands.
 help: Makefile
