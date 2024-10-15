@@ -76,9 +76,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
-	timer := time.NewTimer(10 * time.Minute)
+	timer := time.NewTimer(20 * time.Minute)
 	defer timer.Stop()
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	logger.Println("waiting for upgrade")
