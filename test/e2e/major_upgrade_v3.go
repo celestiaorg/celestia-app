@@ -114,8 +114,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	client, err := rpcNode.Client()
 	testnet.NoError("failed to get client", err)
 	blockTimes := make([]time.Duration, 0, 7)
-	latestBlockTime := time.Time{}
-	blockTimes := make([]time.Duration, 0, 7)
 	var prevBlockTime time.Time
 	for h := upgradedHeight - 4; h <= upgradedHeight+4; h++ {
 		resp, err := client.Header(ctx, &h)
