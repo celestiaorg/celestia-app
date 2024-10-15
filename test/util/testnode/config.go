@@ -184,7 +184,7 @@ func DefaultAppCreator() srvtypes.AppCreator {
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
-		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*0))
+		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*30))
 		return app
 	}
 }

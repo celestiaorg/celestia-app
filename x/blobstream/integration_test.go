@@ -47,7 +47,7 @@ func (s *BlobstreamIntegrationSuite) SetupSuite() {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
 
-	require.NoError(t, s.cctx.WaitForNextBlock())
+	require.NoError(t, s.cctx.WaitForBlocks(10))
 }
 
 func (s *BlobstreamIntegrationSuite) TestBlobstream() {
