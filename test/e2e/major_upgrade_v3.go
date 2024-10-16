@@ -78,7 +78,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 	timer := time.NewTimer(20 * time.Minute)
 	defer timer.Stop()
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
 	logger.Println("waiting for upgrade")
@@ -113,13 +113,21 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	rpcNode := testNet.Nodes()[0]
 	client, err := rpcNode.Client()
 	testnet.NoError("failed to get client", err)
-	blockTimes := make([]time.Duration, 0, 7)
+
+	startHeight := upgradeHeightV3 - 5
+	endHeight := upgradedHeight + 1
+	blockTimes := make([]time.Duration, 0, endHeight-startHeight)
 	var prevBlockTime time.Time
-	for h := upgradeHeightV3 - 4; h <= upgradeHeightV3+4; h++ {
+
+	for h := startHeight; h < endHeight; h++ {
 		resp, err := client.Header(ctx, &h)
 		testnet.NoError("failed to get header", err)
 		blockTime := resp.Header.Time
-		if prevBlockTime.IsZero() {
+
+		if h == startHeight {
+			if resp.Header.Version.App != v2.Version {
+				return fmt.Errorf("start height %v was app version 2, this is a flake and the start height needs to be reduced", startHeight)
+			}
 			prevBlockTime = blockTime
 			continue
 		}
@@ -127,10 +135,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		blockDur := blockTime.Sub(prevBlockTime)
 		prevBlockTime = blockTime
 		blockTimes = append(blockTimes, blockDur)
-	}
-
-	if len(blockTimes) < 7 {
-		testnet.NoError("", fmt.Errorf("not enough block times collected: %v", len(blockTimes)))
 	}
 
 	startDur := blockTimes[0]
