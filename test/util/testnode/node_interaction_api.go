@@ -52,10 +52,6 @@ func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tm
 	return Context{goContext: goContext, Context: clientContext, apiAddress: apiAddress}
 }
 
-func (c *Context) GetTMNode() *node.Node {
-	return c.tmNode
-}
-
 func (c *Context) GoContext() context.Context {
 	return c.goContext
 }
