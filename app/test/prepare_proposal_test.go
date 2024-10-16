@@ -297,7 +297,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		signers = append(signers, signer)
 	}
 
-	numberOfPFBs := appconsts.PFBTransactionCap + 500
+	numberOfPFBs := appconsts.PFBTransactionCap(testApp.AppVersion()) + 500
 	pfbTxs := make([][]byte, 0, numberOfPFBs)
 	randomBytes := make([]byte, 2000)
 	_, err := rand.Read(randomBytes)
@@ -333,7 +333,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
-	numberOfMsgSends := appconsts.NonPFBTransactionCap + 500
+	numberOfMsgSends := appconsts.NonPFBTransactionCap(testApp.AppVersion()) + 500
 	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
 	for i := 0; i < numberOfMsgSends; i++ {
 		msg := banktypes.NewMsgSend(
@@ -354,18 +354,18 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	}{
 		{
 			name:                 "capping only PFB transactions",
-			inputTransactions:    pfbTxs[:appconsts.PFBTransactionCap+50],
-			expectedTransactions: pfbTxs[:appconsts.PFBTransactionCap],
+			inputTransactions:    pfbTxs[:appconsts.PFBTransactionCap(testApp.AppVersion())+50],
+			expectedTransactions: pfbTxs[:appconsts.PFBTransactionCap(testApp.AppVersion())],
 		},
 		{
 			name:                 "capping only PFB transactions with multiple messages",
-			inputTransactions:    multiPFBsPerTxs[:appconsts.PFBTransactionCap],
-			expectedTransactions: multiPFBsPerTxs[:appconsts.PFBTransactionCap/numberOfMsgsPerTx],
+			inputTransactions:    multiPFBsPerTxs[:appconsts.PFBTransactionCap(testApp.AppVersion())],
+			expectedTransactions: multiPFBsPerTxs[:appconsts.PFBTransactionCap(testApp.AppVersion())/numberOfMsgsPerTx],
 		},
 		{
 			name:                 "capping only msg send transactions",
-			inputTransactions:    msgSendTxs[:appconsts.NonPFBTransactionCap+50],
-			expectedTransactions: msgSendTxs[:appconsts.NonPFBTransactionCap],
+			inputTransactions:    msgSendTxs[:appconsts.NonPFBTransactionCap(testApp.AppVersion())+50],
+			expectedTransactions: msgSendTxs[:appconsts.NonPFBTransactionCap(testApp.AppVersion())],
 		},
 		{
 			name: "capping msg send after pfb transactions",
@@ -376,8 +376,8 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 				return input
 			}(),
 			expectedTransactions: func() [][]byte {
-				expected := make([][]byte, 0, appconsts.NonPFBTransactionCap+100)
-				expected = append(expected, msgSendTxs[:appconsts.NonPFBTransactionCap]...)
+				expected := make([][]byte, 0, appconsts.NonPFBTransactionCap(testApp.AppVersion())+100)
+				expected = append(expected, msgSendTxs[:appconsts.NonPFBTransactionCap(testApp.AppVersion())]...)
 				expected = append(expected, pfbTxs[:100]...)
 				return expected
 			}(),
@@ -391,9 +391,9 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 				return input
 			}(),
 			expectedTransactions: func() [][]byte {
-				expected := make([][]byte, 0, appconsts.PFBTransactionCap+100)
+				expected := make([][]byte, 0, appconsts.PFBTransactionCap(testApp.AppVersion())+100)
 				expected = append(expected, msgSendTxs[:100]...)
-				expected = append(expected, pfbTxs[:appconsts.PFBTransactionCap]...)
+				expected = append(expected, pfbTxs[:appconsts.PFBTransactionCap(testApp.AppVersion())]...)
 				return expected
 			}(),
 		},

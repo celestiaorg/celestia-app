@@ -57,7 +57,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if nonPFBTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.NonPFBTransactionCap {
+		if nonPFBTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.NonPFBTransactionCap(ctx.ConsensusParams().Version.AppVersion) {
 			logger.Debug("skipping tx because the sdk message cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
@@ -101,7 +101,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx.Tx)
 
-		if pfbTransactionCount+len(sdkTx.GetMsgs()) > appconsts.PFBTransactionCap {
+		if pfbTransactionCount+len(sdkTx.GetMsgs()) > appconsts.PFBTransactionCap(ctx.ConsensusParams().Version.AppVersion) {
 			logger.Debug("skipping tx because the pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}

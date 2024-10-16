@@ -46,6 +46,14 @@ func MaxTxSize(_ uint64) int {
 	return v3.MaxTxSize
 }
 
+func NonPFBTransactionCap(_ uint64) int {
+	return v3.NonPFBTransactionCap
+}
+
+func PFBTransactionCap(_ uint64) int {
+	return v3.PFBTransactionCap
+}
+
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)

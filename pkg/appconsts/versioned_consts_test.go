@@ -72,6 +72,30 @@ func TestVersionedConsts(t *testing.T) {
 			expectedConstant: v3.MaxTxSize,
 			got:              appconsts.MaxTxSize(v3.Version),
 		},
+		{
+			name:             "NonPFBTransactionCap v2",
+			version:          v2.Version,
+			expectedConstant: v2.NonPFBTransactionCap,
+			got:              appconsts.NonPFBTransactionCap(v2.Version),
+		},
+		{
+			name:             "NonPFBTransactionCap v3",
+			version:          v3.Version,
+			expectedConstant: v3.NonPFBTransactionCap,
+			got:              appconsts.NonPFBTransactionCap(v3.Version),
+		},
+		{
+			name:             "PFBTransactionCap v2",
+			version:          v2.Version,
+			expectedConstant: v2.PFBTransactionCap,
+			got:              appconsts.PFBTransactionCap(v2.Version),
+		},
+		{
+			name:             "PFBTransactionCap v3",
+			version:          v3.Version,
+			expectedConstant: v3.PFBTransactionCap,
+			got:              appconsts.PFBTransactionCap(v3.Version),
+		},
 	}
 
 	for _, tc := range testCases {
