@@ -280,7 +280,7 @@ func New(
 		),
 	)
 
-	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper, appconsts.UpgradeHeightDelay())
+	app.SignalKeeper = signal.NewKeeper(appCodec, keys[signaltypes.StoreKey], app.StakingKeeper)
 
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec,
@@ -458,7 +458,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
-	// For v1 only we upgrade using a agreed upon height known ahead of time
+	// For v1 only we upgrade using an agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeightV2-1 {
@@ -480,6 +480,8 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
+	res.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(currentVersion)
+	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(currentVersion)
 	return res
 }
 
@@ -535,11 +537,15 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)
 	}
+
+	resp.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(resp.AppVersion)
+	resp.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(resp.AppVersion)
+
 	return resp
 }
 
 // InitChain implements the ABCI interface. This method is a wrapper around
-// baseapp's InitChain so we can take the app version and setup the multicommit
+// baseapp's InitChain so that we can take the app version and setup the multicommit
 // store.
 //
 // Side-effect: calls baseapp.Init()
@@ -558,6 +564,8 @@ func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain
 		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
 		app.SetAppVersion(ctx, appVersion)
 	}
+	res.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(appVersion)
+	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(appVersion)
 	return res
 }
 

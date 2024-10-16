@@ -69,7 +69,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
-			k := signal.NewKeeper(config.Codec, nil, stakingKeeper, appconsts.DefaultUpgradeHeightDelay)
+			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
 			got := k.GetVotingPowerThreshold(sdk.Context{})
 			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
@@ -183,7 +183,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), version)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.DefaultUpgradeHeightDelay)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(version))
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
@@ -426,7 +426,7 @@ func TestGetUpgrade(t *testing.T) {
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
 		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
-		assert.Equal(t, appconsts.DefaultUpgradeHeightDelay, got.Upgrade.UpgradeHeight)
+		assert.Equal(t, appconsts.UpgradeHeightDelay(v2.Version), got.Upgrade.UpgradeHeight)
 	})
 }
 
@@ -452,7 +452,7 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper, appconsts.DefaultUpgradeHeightDelay)
+	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }
 

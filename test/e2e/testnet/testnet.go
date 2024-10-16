@@ -376,6 +376,7 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 			genesisNodes = append(genesisNodes, node)
 		}
 	}
+
 	for _, node := range genesisNodes {
 		log.Info().Str("name", node.Name).Msg(
 			"waiting for node to sync")
@@ -410,18 +411,18 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 // For that, use WaitToSync.
 func (t *Testnet) StartNodes(ctx context.Context) error {
 	genesisNodes := make([]*Node, 0)
+	// identify genesis nodes
 	for _, node := range t.nodes {
 		if node.StartHeight == 0 {
 			genesisNodes = append(genesisNodes, node)
 		}
-	}
-	// start genesis nodes asynchronously
-	for _, node := range genesisNodes {
+
 		err := node.StartAsync(ctx)
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+
 	log.Info().Msg("create endpoint proxies for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {

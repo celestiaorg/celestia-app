@@ -2,7 +2,10 @@ package appconsts
 
 import (
 	"strconv"
+	"time"
 
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 )
 
@@ -52,3 +55,45 @@ var (
 	DefaultTxSizeCostPerByte    = TxSizeCostPerByte(LatestVersion)
 	DefaultGasPerBlobByte       = GasPerBlobByte(LatestVersion)
 )
+
+func GetTimeoutPropose(v uint64) time.Duration {
+	switch v {
+	case v1.Version:
+		return v1.TimeoutPropose
+	case v2.Version:
+		return v2.TimeoutPropose
+	default:
+		return v3.TimeoutPropose
+	}
+}
+
+func GetTimeoutCommit(v uint64) time.Duration {
+	switch v {
+	case v1.Version:
+		return v1.TimeoutCommit
+	case v2.Version:
+		return v2.TimeoutCommit
+	default:
+		return v3.TimeoutCommit
+	}
+}
+
+// UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
+func UpgradeHeightDelay(v uint64) int64 {
+	if OverrideUpgradeHeightDelayStr != "" {
+		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
+		if err != nil {
+			panic("Invalid OverrideUpgradeHeightDelayStr value")
+		}
+		return parsedValue
+	}
+	switch v {
+	case v1.Version:
+		return v1.UpgradeHeightDelay
+	case v2.Version:
+		return v2.UpgradeHeightDelay
+	default:
+		return v3.UpgradeHeightDelay
+
+	}
+}

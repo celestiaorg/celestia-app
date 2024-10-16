@@ -33,6 +33,7 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 	})
 
 	cctx = NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
+	cctx.tmNode = tmNode
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
