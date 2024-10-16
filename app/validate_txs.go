@@ -45,7 +45,7 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 // function used to apply the ante handler.
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
-	nonPFBTransactionsCount := 0
+	nonPFBMessageCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx)
 		if err != nil {
@@ -57,11 +57,11 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if nonPFBTransactionsCount+len(sdkTx.GetMsgs()) > appconsts.NonPFBTransactionCap {
-			logger.Debug("skipping tx because the sdk message cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+		if nonPFBMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxNonPFBMessages {
+			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
-		nonPFBTransactionsCount += len(sdkTx.GetMsgs())
+		nonPFBMessageCount += len(sdkTx.GetMsgs())
 
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
@@ -90,7 +90,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // function used to apply the ante handler.
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []*tx.BlobTx) ([]*tx.BlobTx, sdk.Context) {
 	n := 0
-	pfbTransactionCount := 0
+	pfbMessageCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
@@ -101,11 +101,11 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx.Tx)
 
-		if pfbTransactionCount+len(sdkTx.GetMsgs()) > appconsts.PFBTransactionCap {
-			logger.Debug("skipping tx because the pfb transaction cap was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
+			logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
 			continue
 		}
-		pfbTransactionCount += len(sdkTx.GetMsgs())
+		pfbMessageCount += len(sdkTx.GetMsgs())
 
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
