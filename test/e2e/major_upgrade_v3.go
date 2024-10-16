@@ -126,7 +126,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 		if h == startHeight {
 			if resp.Header.Version.App != v2.Version {
-				return fmt.Errorf("start height %v was app version 2, this is a flake and the start height needs to be reduced", startHeight)
+				return fmt.Errorf("expected start height %v was app version 2", startHeight)
 			}
 			prevBlockTime = blockTime
 			continue
