@@ -18,7 +18,7 @@ import (
 func MajorUpgradeToV3(logger *log.Logger) error {
 	testName := "MajorUpgradeToV3"
 	numNodes := 4
-	upgradeHeightV3 := int64(10)
+	upgradeHeightV3 := int64(40)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -162,6 +162,17 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		if b.dur < appconsts.GetTimeoutCommit(b.block.Version.App) {
 			return fmt.Errorf(
 				"block was too fast for corresponding version: version %v duration %v upgrade height %v height %v",
+				b.block.Version.App,
+				b.dur,
+				preciseUpgradeHeight,
+				b.block.Height,
+			)
+		}
+
+		// check if the time decreased for v3
+		if b.block.Version.App == v3.Version && b.dur > appconsts.GetTimeoutCommit(b.block.Version.App)+5 {
+			return fmt.Errorf(
+				"block was too slow for corresponding version: version %v duration %v upgrade height %v height %v",
 				b.block.Version.App,
 				b.dur,
 				preciseUpgradeHeight,
