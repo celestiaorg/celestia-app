@@ -163,16 +163,6 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 			continue
 		}
 
-		if b.dur > appconsts.GetTimeoutCommit(b.block.Version.App) {
-			return fmt.Errorf(
-				"block was too slow for corresponding version: version %v duration %v upgrade height %v height %v",
-				b.block.Version.App,
-				b.dur,
-				preciseUpgradeHeight,
-				b.block.Height,
-			)
-		}
-
 		if b.dur < appconsts.GetTimeoutCommit(b.block.Version.App) {
 			return fmt.Errorf(
 				"block was too fast for corresponding version: version %v duration %v upgrade height %v height %v",
