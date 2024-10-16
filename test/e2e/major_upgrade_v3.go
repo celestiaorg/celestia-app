@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func MajorUpgradeToV3(logger *log.Logger) error {
@@ -115,17 +117,23 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	testnet.NoError("failed to get client", err)
 
 	startHeight := upgradeHeightV3 - 5
-	endHeight := upgradedHeight + 1
-	blockTimes := make([]time.Duration, 0, endHeight-startHeight)
+	endHeight := upgradedHeight + 5
+
+	type versionDuration struct {
+		dur   time.Duration
+		block *tmtypes.Block
+	}
+
+	blockSummaries := make([]versionDuration, 0, endHeight-startHeight)
 	var prevBlockTime time.Time
 
 	for h := startHeight; h < endHeight; h++ {
-		resp, err := client.Header(ctx, &h)
+		resp, err := client.Block(ctx, &h)
 		testnet.NoError("failed to get header", err)
-		blockTime := resp.Header.Time
+		blockTime := resp.Block.Time
 
 		if h == startHeight {
-			if resp.Header.Version.App != v2.Version {
+			if resp.Block.Version.App != v2.Version {
 				return fmt.Errorf("expected start height %v was app version 2", startHeight)
 			}
 			prevBlockTime = blockTime
@@ -134,18 +142,51 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 
 		blockDur := blockTime.Sub(prevBlockTime)
 		prevBlockTime = blockTime
-		blockTimes = append(blockTimes, blockDur)
+		blockSummaries = append(blockSummaries, versionDuration{dur: blockDur, block: resp.Block})
 	}
 
-	startDur := blockTimes[0]
-	endDur := blockTimes[len(blockTimes)-1]
+	preciseUpgradeHeight := 0
+	multipleRounds := 0
+	for _, b := range blockSummaries {
 
-	if startDur < time.Second*10 {
-		testnet.NoError("", fmt.Errorf("blocks for v2 are too short %v", len(blockTimes)))
+		// check for the precise upgrade height and skip, as the block time
+		// won't match due to the off by 1 nature of the block time.
+		if b.block.Version.App == v3.Version && preciseUpgradeHeight == 0 {
+			preciseUpgradeHeight = int(b.block.Height)
+			continue
+		}
+
+		// don't test heights with multiple rounds as the times are off and fail
+		// later if there are too many
+		if b.block.LastCommit.Round > 0 {
+			multipleRounds++
+			continue
+		}
+
+		if b.dur > appconsts.GetTimeoutCommit(b.block.Version.App) {
+			return fmt.Errorf(
+				"block was too slow for corresponding version: version %v duration %v upgrade height %v height %v",
+				b.block.Version.App,
+				b.dur,
+				preciseUpgradeHeight,
+				b.block.Height,
+			)
+		}
+
+		if b.dur < appconsts.GetTimeoutCommit(b.block.Version.App) {
+			return fmt.Errorf(
+				"block was too fast for corresponding version: version %v duration %v upgrade height %v height %v",
+				b.block.Version.App,
+				b.dur,
+				preciseUpgradeHeight,
+				b.block.Height,
+			)
+		}
+
 	}
 
-	if endDur > time.Second*7 {
-		testnet.NoError("", fmt.Errorf("blocks for v3 are too long %v", len(blockTimes)))
+	if multipleRounds > 2 {
+		return fmt.Errorf("too many multiple rounds for test to be reliable: %d", multipleRounds)
 	}
 
 	return nil
