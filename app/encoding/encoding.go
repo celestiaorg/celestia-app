@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"github.com/celestiaorg/celestia-app/v3/ibc/lightclients/groth16"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -37,6 +38,7 @@ func MakeConfig(moduleRegisters ...ModuleRegister) Config {
 		moduleRegister.RegisterInterfaces(interfaceRegistry)
 		moduleRegister.RegisterLegacyAminoCodec(amino)
 	}
+	groth16.RegisterInterfaces(interfaceRegistry)
 
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
 	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)

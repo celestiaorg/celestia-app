@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package celestia.ibc.lightclients.groth16.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/ibc/lightclients/groth16";
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+
+// ClientState defines a groth16 client that holds two keys for verifying state
+// transition and inclusion proofs needed to verify IBC packets
+message ClientState {
+  option (gogoproto.goproto_getters) = false;
+  // latest height of the client state
+  uint64 latest_height = 1;
+
+  // groth16 state transition proof verifier key. Verifies proofs on a rollups
+  // state root after the state transition has been applied. Only BN254 curve is
+  // supported
+  bytes state_transition_verifier_key = 2
+      [ (gogoproto.moretags) = "yaml:\"stp_verifier_key\"" ];
+
+  // groth16 state inclusion proof verifier key. Verifies proofs that a key
+  // value pair is a child of a given state root. Only BN254 curve is supported
+  bytes state_inclusion_verifier_key = 3
+      [ (gogoproto.moretags) = "yaml:\"sip_verifier_key\"" ];
+}
+
+// ConsensusState defines a groth16 consensus state.
+message ConsensusState {
+  option (gogoproto.goproto_getters) = false;
+  // timestamp that corresponds to the block height in which the ConsensusState
+  // was stored.
+  google.protobuf.Timestamp timestamp = 1
+      [ (gogoproto.nullable) = false, (gogoproto.stdtime) = true ];
+  // state root of the rollup
+  bytes state_root = 2 [ (gogoproto.moretags) = "yaml:\"state_root\"" ];
+}
+
+// Header defines a groth16 header for updating the trusted state root of a
+// rollup
+message Header {
+  option (gogoproto.goproto_getters) = false;
+  // serialized groth16 proof that the given state transition is valid
+  bytes state_transition_proof = 1
+      [ (gogoproto.moretags) = "yaml:\"state_transition_proof\"" ];
+
+  // last verified height of the rollup. This is used to retrieve the previous
+  // state root with which the proof is verified against
+  int64 trusted_height = 2 [ (gogoproto.moretags) = "yaml:\"trusted_height\"" ];
+
+  // new state root and height of the rollup after the state transition has been
+  // applied
+  bytes new_state_root = 3 [ (gogoproto.moretags) = "yaml:\"new_state_root\"" ];
+  int64 new_height = 4 [ (gogoproto.moretags) = "yaml:\"new_height\"" ];
+
+  // TODO: This is provided by the user at the moment but we can't trust them 
+  // with this data. We need to get all the data roots from the
+  // the store.
+  repeated bytes data_roots = 5 [ (gogoproto.moretags) = "yaml:\"data_roots\"" ];
+}

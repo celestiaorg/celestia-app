@@ -15,10 +15,9 @@ service Query {
     option (google.api.http).get = "/signal/v1/tally/{version}";
   }
 
-  // GetUpgrade enables a client to query for upgrade information if an upgrade is pending.
-  // The response will be empty if no upgrade is pending.
-  rpc GetUpgrade(QueryGetUpgradeRequest)
-      returns (QueryGetUpgradeResponse) {
+  // GetUpgrade enables a client to query for upgrade information if an upgrade
+  // is pending. The response will be empty if no upgrade is pending.
+  rpc GetUpgrade(QueryGetUpgradeRequest) returns (QueryGetUpgradeResponse) {
     option (google.api.http).get = "/signal/v1/upgrade";
   }
 }
@@ -37,6 +36,4 @@ message QueryVersionTallyResponse {
 message QueryGetUpgradeRequest {}
 
 // QueryGetUpgradeResponse is the response type for the GetUpgrade query.
-message QueryGetUpgradeResponse {
-  Upgrade upgrade = 1;
-}
+message QueryGetUpgradeResponse { Upgrade upgrade = 1; }

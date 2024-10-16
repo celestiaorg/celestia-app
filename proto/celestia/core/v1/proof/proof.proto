@@ -47,8 +47,8 @@ message NMTProof {
 
 // Proof is taken from the merkle package
 message Proof {
-  int64          total     = 1;
-  int64          index     = 2;
-  bytes          leaf_hash = 3;
-  repeated bytes aunts     = 4;
+  int64 total = 1;
+  int64 index = 2;
+  bytes leaf_hash = 3;
+  repeated bytes aunts = 4;
 }

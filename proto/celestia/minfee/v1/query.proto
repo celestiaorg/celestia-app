@@ -10,15 +10,18 @@ option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
 // Query defines the gRPC querier service.
 service Query {
   // NetworkMinGasPrice queries the network wide minimum gas price.
-  rpc NetworkMinGasPrice(QueryNetworkMinGasPrice) returns (QueryNetworkMinGasPriceResponse) {
+  rpc NetworkMinGasPrice(QueryNetworkMinGasPrice)
+      returns (QueryNetworkMinGasPriceResponse) {
     option (google.api.http).get = "/celestia/minfee/v1/min_gas_price";
   }
 }
 
-// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice RPC method.
+// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice
+// RPC method.
 message QueryNetworkMinGasPrice {}
 
-// QueryNetworkMinGasPriceResponse is the response type for  Query/NetworkMinGasPrice RPC method.
+// QueryNetworkMinGasPriceResponse is the response type for
+// Query/NetworkMinGasPrice RPC method.
 message QueryNetworkMinGasPriceResponse {
   string network_min_gas_price = 1 [
     (cosmos_proto.scalar) = "cosmos.Dec",

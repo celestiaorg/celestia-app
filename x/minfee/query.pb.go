@@ -31,7 +31,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice RPC method.
+// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice
+// RPC method.
 type QueryNetworkMinGasPrice struct {
 }
 
@@ -68,7 +69,8 @@ func (m *QueryNetworkMinGasPrice) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryNetworkMinGasPrice proto.InternalMessageInfo
 
-// QueryNetworkMinGasPriceResponse is the response type for  Query/NetworkMinGasPrice RPC method.
+// QueryNetworkMinGasPriceResponse is the response type for
+// Query/NetworkMinGasPrice RPC method.
 type QueryNetworkMinGasPriceResponse struct {
 	NetworkMinGasPrice github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=network_min_gas_price,json=networkMinGasPrice,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"network_min_gas_price"`
 }
