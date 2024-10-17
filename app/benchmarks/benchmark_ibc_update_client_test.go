@@ -327,7 +327,6 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 		LastBlockID:        lastBlockID,
 	}
 	header0Hash := t.Hash()
-	fmt.Println(header0Hash.Bytes())
 	blockID := makeBlockID(header0Hash, 1000, []byte("partshash"))
 	commit, err := makeValidCommit(5, blockID, state.Validators, privVals)
 	require.NoError(b, err)
