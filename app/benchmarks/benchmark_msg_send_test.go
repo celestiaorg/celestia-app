@@ -266,11 +266,22 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 
 		switch {
 		case timeElapsed < targetTimeLowerBound:
-			end += segment / 2
+			newEnd := end + segment/2
+			if newEnd > len(rawTxs) {
+				newEnd = len(rawTxs)
+			}
+			end = newEnd
 			segment = end - start
+			if segment <= 1 {
+				break
+			}
 			continue
 		case timeElapsed > targetTimeUpperBound:
-			end /= 2
+			newEnd := end / 2
+			if newEnd <= start {
+				break
+			}
+			end = newEnd
 			segment = end - start
 			continue
 		default:
