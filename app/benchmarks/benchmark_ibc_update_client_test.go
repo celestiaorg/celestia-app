@@ -1,7 +1,11 @@
-package app_test
+package benchmarks_test
 
 import (
 	"fmt"
+	"math"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -19,15 +23,10 @@ import (
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	crypto2 "github.com/tendermint/tendermint/proto/tendermint/crypto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	types5 "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmprotoversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/version"
-	"math"
-	"testing"
-	"time"
 
 	"github.com/tendermint/tendermint/crypto/ed25519"
-	cmtversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	sm "github.com/tendermint/tendermint/state"
 	types0 "github.com/tendermint/tendermint/types"
 )
@@ -54,12 +53,12 @@ func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBC_CheckTx_Update_Client(b, testCase.numberOfValidators)
+			benchmarkIBCCheckTxUpdateClient(b, testCase.numberOfValidators)
 		})
 	}
 }
 
-func benchmarkIBC_CheckTx_Update_Client(b *testing.B, numberOfValidators int) {
+func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
 	testApp.Commit()
 
@@ -101,12 +100,12 @@ func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBC_DeliverTx_Update_Client(b, testCase.numberOfValidators)
+			benchmarkIBCDeliverTxUpdateClient(b, testCase.numberOfValidators)
 		})
 	}
 }
 
-func benchmarkIBC_DeliverTx_Update_Client(b *testing.B, numberOfValidators int) {
+func benchmarkIBCDeliverTxUpdateClient(b *testing.B, numberOfValidators int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
 
 	deliverTxRequest := types.RequestDeliverTx{
@@ -146,12 +145,12 @@ func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBC_PrepareProposal_Update_Client(b, testCase.numberOfValidators, testCase.count)
+			benchmarkIBCPrepareProposalUpdateClient(b, testCase.numberOfValidators, testCase.count)
 		})
 	}
 }
 
-func benchmarkIBC_PrepareProposal_Update_Client(b *testing.B, numberOfValidators, count int) {
+func benchmarkIBCPrepareProposalUpdateClient(b *testing.B, numberOfValidators, count int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
 
 	blockData := &tmproto.Data{
@@ -198,12 +197,12 @@ func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBC_ProcessProposal_Update_Client(b, testCase.numberOfValidators, testCase.count)
+			benchmarkIBCProcessProposalUpdateClient(b, testCase.numberOfValidators, testCase.count)
 		})
 	}
 }
 
-func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators, count int) {
+func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, count int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
 
 	blockData := &tmproto.Data{
@@ -251,7 +250,7 @@ func benchmarkIBC_ProcessProposal_Update_Client(b *testing.B, numberOfValidators
 // ABCI method.
 func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, numberOfMessages int, offsetAccountSequence int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
@@ -270,7 +269,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 
 	accountSequence := testutil.DirectQueryAccount(testApp, addr).GetSequence()
 	err = signer.SetSequence(account, accountSequence+uint64(offsetAccountSequence))
-	//accountSequence := uint64(0)
+	require.NoError(b, err)
 	rawTxs := make([][]byte, 0, numberOfMessages)
 	for i := 0; i < numberOfMessages; i++ {
 		rawTx, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(25497600000), user.SetFee(100000))
@@ -293,8 +292,8 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	lastCommitHash := crypto.CRandBytes(tmhash.Size)
 	lastBlockHash := crypto.CRandBytes(tmhash.Size)
 	lastBlockID := makeBlockID(lastBlockHash, 1000, []byte("hash"))
-	header := types5.Header{
-		Version:            cmtversion.Consensus{Block: version.BlockProtocol, App: 1},
+	header := tmproto.Header{
+		Version:            tmprotoversion.Consensus{Block: version.BlockProtocol, App: 1},
 		ChainID:            state.ChainID,
 		Height:             5,
 		Time:               w,
@@ -310,7 +309,7 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 		LastBlockId:        lastBlockID.ToProto(),
 	}
 	t := types0.Header{
-		Version:            cmtversion.Consensus{Block: version.BlockProtocol, App: 1},
+		Version:            tmprotoversion.Consensus{Block: version.BlockProtocol, App: 1},
 		ChainID:            state.ChainID,
 		Height:             5,
 		Time:               w,
@@ -330,30 +329,30 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	blockID := makeBlockID(header0Hash, 1000, []byte("partshash"))
 	commit, err := makeValidCommit(5, blockID, state.Validators, privVals)
 	require.NoError(b, err)
-	signatures := make([]types5.CommitSig, numberOfValidators)
-	validators := make([]*types5.Validator, numberOfValidators)
+	signatures := make([]tmproto.CommitSig, numberOfValidators)
+	validators := make([]*tmproto.Validator, numberOfValidators)
 	for i := 0; i < numberOfValidators; i++ {
-		signatures[i] = types5.CommitSig{
-			BlockIdFlag:      types5.BlockIDFlag(commit.Signatures[i].BlockIDFlag),
+		signatures[i] = tmproto.CommitSig{
+			BlockIdFlag:      tmproto.BlockIDFlag(commit.Signatures[i].BlockIDFlag),
 			ValidatorAddress: commit.Signatures[i].ValidatorAddress,
 			Timestamp:        commit.Signatures[i].Timestamp,
 			Signature:        commit.Signatures[i].Signature,
 		}
-		validators[i] = &types5.Validator{
+		validators[i] = &tmproto.Validator{
 			Address:          state.Validators.Validators[i].Address,
 			PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Validators[i].PubKey.Bytes()}},
 			VotingPower:      state.Validators.Validators[i].VotingPower,
 			ProposerPriority: state.Validators.Validators[i].ProposerPriority,
 		}
 	}
-	sh := types5.SignedHeader{
+	sh := tmproto.SignedHeader{
 		Header: &header,
-		Commit: &types5.Commit{
+		Commit: &tmproto.Commit{
 			Height: commit.Height,
 			Round:  commit.Round,
-			BlockID: types5.BlockID{
+			BlockID: tmproto.BlockID{
 				Hash: header0Hash,
-				PartSetHeader: types5.PartSetHeader{
+				PartSetHeader: tmproto.PartSetHeader{
 					Total: commit.BlockID.PartSetHeader.Total,
 					Hash:  commit.BlockID.PartSetHeader.Hash,
 				},
@@ -367,16 +366,12 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 		TrustingPeriod:  time.Hour * 24 * 21 * 100, // we want to always accept the upgrade
 		UnbondingPeriod: time.Hour * 24 * 21 * 101,
 		MaxClockDrift:   math.MaxInt64 - 1,
-		FrozenHeight: types3.Height{
-			RevisionNumber: 0,
-			RevisionHeight: 0,
-		},
+		FrozenHeight:    types3.Height{},
 		LatestHeight: types3.Height{
 			RevisionNumber: 0,
 			RevisionHeight: 4,
 		},
 		ProofSpecs:                   types2.GetSDKSpecs(),
-		UpgradePath:                  nil,
 		AllowUpdateAfterExpiry:       true,
 		AllowUpdateAfterMisbehaviour: true,
 	}
@@ -409,9 +404,9 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 			clientName,
 			&types4.Header{
 				SignedHeader: &sh,
-				ValidatorSet: &types5.ValidatorSet{
+				ValidatorSet: &tmproto.ValidatorSet{
 					Validators: validators,
-					Proposer: &types5.Validator{
+					Proposer: &tmproto.Validator{
 						Address:          state.Validators.Proposer.Address,
 						PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
 						VotingPower:      state.Validators.Proposer.VotingPower,
@@ -423,9 +418,9 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 					RevisionNumber: 0,
 					RevisionHeight: 4,
 				},
-				TrustedValidators: &types5.ValidatorSet{
+				TrustedValidators: &tmproto.ValidatorSet{
 					Validators: validators,
-					Proposer: &types5.Validator{
+					Proposer: &tmproto.Validator{
 						Address:          state.Validators.Proposer.Address,
 						PubKey:           crypto2.PublicKey{Sum: &crypto2.PublicKey_Ed25519{Ed25519: state.Validators.Proposer.PubKey.Bytes()}},
 						VotingPower:      state.Validators.Proposer.VotingPower,
@@ -486,6 +481,7 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types0.PrivValid
 
 	return s, stateDB, privVals
 }
+
 func makeValidCommit(
 	height int64,
 	blockID types0.BlockID,

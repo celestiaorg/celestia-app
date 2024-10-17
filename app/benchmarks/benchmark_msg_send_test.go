@@ -1,7 +1,10 @@
-package app_test
+package benchmarks_test
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -15,8 +18,6 @@ import (
 	"github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
-	"testing"
-	"time"
 )
 
 func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
@@ -251,16 +252,19 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 
 		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
 
-		if timeElapsed < targetTimeLowerBound {
-			end = end + segment/2
+		switch {
+		case timeElapsed < targetTimeLowerBound:
+			end += segment / 2
 			segment = end - start
-		} else if timeElapsed > targetTimeUpperBound {
-			end = end / 2
+			continue
+		case timeElapsed > targetTimeUpperBound:
+			end /= 2
 			segment = end - start
-		} else {
+			continue
+		default:
 			b.ReportMetric(timeElapsed, fmt.Sprintf("elapsedTime(s)_%d", end-start))
-			break
 		}
+		break
 	}
 }
 
@@ -268,7 +272,7 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 // of valid msg send transactions.
 func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)

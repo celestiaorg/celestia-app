@@ -1,7 +1,12 @@
-package app_test
+package benchmarks_test
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
+	"github.com/tendermint/tendermint/crypto"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -14,9 +19,6 @@ import (
 	"github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
-	"math/rand"
-	"testing"
-	"time"
 )
 
 func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
@@ -43,12 +45,12 @@ func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("%d bytes", testCase.size), func(b *testing.B) {
-			benchmarkCheckTx_PFB(b, testCase.size)
+			benchmarkCheckTxPFB(b, testCase.size)
 		})
 	}
 }
 
-func benchmarkCheckTx_PFB(b *testing.B, size int) {
+func benchmarkCheckTxPFB(b *testing.B, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, 1, size)
 	testApp.Commit()
 
@@ -90,12 +92,12 @@ func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("%d bytes", testCase.size), func(b *testing.B) {
-			benchmarkDeliverTx_PFB(b, testCase.size)
+			benchmarkDeliverTxPFB(b, testCase.size)
 		})
 	}
 }
 
-func benchmarkDeliverTx_PFB(b *testing.B, size int) {
+func benchmarkDeliverTxPFB(b *testing.B, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, 1, size)
 
 	blobTx, ok, err := blobtx.UnmarshalBlobTx(rawTxs[0])
@@ -139,12 +141,12 @@ func BenchmarkPrepareProposal_PFB_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
-			benchmarkPrepareProposal_PFB(b, testCase.count, testCase.size)
+			benchmarkPrepareProposalPFB(b, testCase.count, testCase.size)
 		})
 	}
 }
 
-func benchmarkPrepareProposal_PFB(b *testing.B, count, size int) {
+func benchmarkPrepareProposalPFB(b *testing.B, count, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
 
 	blockData := &tmproto.Data{
@@ -191,12 +193,12 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
-			benchmarkProcessProposal_PFB(b, testCase.count, testCase.size)
+			benchmarkProcessProposalPFB(b, testCase.count, testCase.size)
 		})
 	}
 }
 
-func benchmarkProcessProposal_PFB(b *testing.B, count, size int) {
+func benchmarkProcessProposalPFB(b *testing.B, count, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
 
 	blockData := &tmproto.Data{
@@ -254,12 +256,12 @@ func BenchmarkProcessProposal_PFB_Half_Second(b *testing.B) {
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
-			benchmarkProcessProposal_PFB_Half_Second(b, testCase.count, testCase.size)
+			benchmarkProcessProposalPFBHalfSecond(b, testCase.count, testCase.size)
 		})
 	}
 }
 
-func benchmarkProcessProposal_PFB_Half_Second(b *testing.B, count, size int) {
+func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
 
 	targetTimeLowerBound := 0.499
@@ -302,17 +304,27 @@ func benchmarkProcessProposal_PFB_Half_Second(b *testing.B, count, size int) {
 
 		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
 
-		if timeElapsed < targetTimeLowerBound {
-			end = end + segment/2
+		switch {
+		case timeElapsed < targetTimeLowerBound:
+			end += segment / 2
 			segment = end - start
-		} else if timeElapsed > targetTimeUpperBound {
-			end = end / 2
+			continue
+		case timeElapsed > targetTimeUpperBound:
+			end /= 2
 			segment = end - start
-		} else {
-			b.ReportMetric(timeElapsed, fmt.Sprintf("processProposalTime(s)_%d_%d_%f", end-start, size, calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs[start:end])))
-
-			break
+			continue
+		default:
+			b.ReportMetric(
+				timeElapsed,
+				fmt.Sprintf(
+					"processProposalTime(s)_%d_%d_%f",
+					end-start,
+					size,
+					calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs[start:end]),
+				),
+			)
 		}
+		break
 	}
 }
 
@@ -320,7 +332,7 @@ func benchmarkProcessProposal_PFB_Half_Second(b *testing.B, count, size int) {
 // of valid PFB transactions.
 func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
@@ -329,9 +341,7 @@ func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App
 	require.NoError(b, err)
 
 	rawTxs := make([][]byte, 0, count)
-	randomBytes := make([]byte, size)
-	_, err = rand.Read(randomBytes)
-	require.NoError(b, err)
+	randomBytes := crypto.CRandBytes(size)
 	blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, acc.GetAddress().Bytes())
 	require.NoError(b, err)
 	for i := 0; i < count; i++ {
