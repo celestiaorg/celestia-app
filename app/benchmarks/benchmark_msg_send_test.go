@@ -333,7 +333,8 @@ func calculateBlockSizeInMb(txs [][]byte) float64 {
 func calculateTotalGasUsed(testApp *app.App, txs [][]byte) uint64 {
 	var totalGas uint64
 	for _, tx := range txs {
-		gasInfo, _, _ := testApp.Simulate(tx)
+		gasInfo, _, err := testApp.Simulate(tx)
+		require.NoError(b, err)
 		totalGas += gasInfo.GasUsed
 	}
 	return totalGas
