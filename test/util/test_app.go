@@ -96,14 +96,6 @@ func NewTestApp() *app.App {
 	emptyOpts := EmptyAppOptions{}
 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
-	//path, err := os.MkdirTemp("/tmp", "test-app-db")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//db, err := dbm.NewGoLevelDB("db", path)
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -226,7 +218,7 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 		Block: &abci.BlockParams{
 			// choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: cparams.Block.MaxBytes,
+			MaxBytes: int64(appconsts.DefaultUpperBoundMaxBytes),
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,
