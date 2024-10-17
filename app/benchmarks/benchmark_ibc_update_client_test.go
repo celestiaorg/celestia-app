@@ -1,4 +1,4 @@
-//go:build bench_prepare_proposal
+//go:build bench_abci_methods
 
 package benchmarks_test
 

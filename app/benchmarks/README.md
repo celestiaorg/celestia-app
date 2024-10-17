@@ -11,7 +11,7 @@ This package contains benchmarks for the ABCI methods with the following transac
 To run the benchmarks, run the following in the root directory:
 
 ```shell
-go test -tags=bench_prepare_proposal -bench=<benchmark_name> app/benchmarks/benchmark_*
+go test -tags=bench_abci_methods -bench=<benchmark_name> app/benchmarks/benchmark_*
 ```
 
 ## Results
