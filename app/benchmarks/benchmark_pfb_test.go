@@ -280,7 +280,14 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 	start := 0
 	end := count
 	segment := end - start
+	maxIterations := 100000
+	iterations := 0
 	for {
+		iterations++
+		if iterations >= maxIterations {
+			b.Errorf("Maximum iterations reached without achieving target processing time")
+			break
+		}
 		if segment == 1 {
 			break
 		}
