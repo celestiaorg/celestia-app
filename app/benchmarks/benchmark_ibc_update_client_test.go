@@ -4,7 +4,6 @@ package benchmarks_test
 
 import (
 	"fmt"
-	"github.com/tendermint/tendermint/libs/log"
 	"math"
 	"testing"
 	"time"
@@ -35,7 +34,6 @@ import (
 )
 
 func BenchmarkIBC_CheckTx_Update_Client_Multi(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -83,7 +81,6 @@ func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
 }
 
 func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		numberOfValidators int
 	}{
@@ -129,7 +126,6 @@ func benchmarkIBCDeliverTxUpdateClient(b *testing.B, numberOfValidators int) {
 }
 
 func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		count, numberOfValidators int
 	}{
@@ -182,7 +178,6 @@ func benchmarkIBCPrepareProposalUpdateClient(b *testing.B, numberOfValidators, c
 }
 
 func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		count, numberOfValidators int
 	}{

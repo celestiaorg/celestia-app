@@ -4,7 +4,6 @@ package benchmarks_test
 
 import (
 	"fmt"
-	"github.com/tendermint/tendermint/libs/log"
 	"testing"
 	"time"
 
@@ -24,7 +23,6 @@ import (
 )
 
 func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 	testApp.Commit()
 
@@ -42,7 +40,6 @@ func BenchmarkCheckTx_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 	testApp.Commit()
 
@@ -66,7 +63,6 @@ func BenchmarkCheckTx_MsgSend_8MB(b *testing.B) {
 }
 
 func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
 	deliverTxRequest := types.RequestDeliverTx{
@@ -82,7 +78,6 @@ func BenchmarkDeliverTx_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
 	var totalGas int64
@@ -103,7 +98,6 @@ func BenchmarkDeliverTx_MsgSend_8MB(b *testing.B) {
 }
 
 func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
 	prepareProposalRequest := types.RequestPrepareProposal{
@@ -122,7 +116,6 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	// a full 8mb block equals to around 31645 msg send transactions.
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
@@ -146,7 +139,6 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 }
 
 func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generateMsgSendTransactions(b, 1)
 
 	blockData := &tmproto.Data{
@@ -181,7 +173,6 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	// a full 8mb block equals to around 31645 msg send transactions.
 	// using 31645 to let prepare proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
@@ -222,7 +213,6 @@ func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 }
 
 func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
-	testutil.TestAppLogger = log.NewNopLogger()
 	targetTimeLowerBound := 0.499
 	targetTimeUpperBound := 0.511
 	numberOfTransaction := 5500
@@ -333,8 +323,7 @@ func calculateBlockSizeInMb(txs [][]byte) float64 {
 func calculateTotalGasUsed(testApp *app.App, txs [][]byte) uint64 {
 	var totalGas uint64
 	for _, tx := range txs {
-		gasInfo, _, err := testApp.Simulate(tx)
-		require.NoError(b, err)
+		gasInfo, _, _ := testApp.Simulate(tx)
 		totalGas += gasInfo.GasUsed
 	}
 	return totalGas
