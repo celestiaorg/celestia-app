@@ -142,7 +142,7 @@ func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	require.GreaterOrEqual(b, len(resp.BlockData.Txs), 1)
 	b.ReportMetric(float64(len(resp.BlockData.Txs)), "number_of_transactions")
 	b.ReportMetric(calculateBlockSizeInMb(resp.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalRequest.BlockData.Txs)), "total_gas_used")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, resp.BlockData.Txs)), "total_gas_used")
 }
 
 func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
