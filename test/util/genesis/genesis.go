@@ -73,7 +73,7 @@ func NewDefaultGenesis() *Genesis {
 	return g
 }
 
-// WithModifier adds a genesis modifier to the genesis.
+// WithModifiers adds a genesis modifier to the genesis.
 func (g *Genesis) WithModifiers(ops ...Modifier) *Genesis {
 	g.genOps = append(g.genOps, ops...)
 	return g
@@ -97,7 +97,7 @@ func (g *Genesis) WithGenesisTime(genesisTime time.Time) *Genesis {
 	return g
 }
 
-// WithAccounts adds the given validators to the genesis.
+// WithValidators adds the given validators to the genesis.
 func (g *Genesis) WithValidators(vals ...Validator) *Genesis {
 	for _, val := range vals {
 		err := g.NewValidator(val)
@@ -117,6 +117,11 @@ func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 			panic(err)
 		}
 	}
+	return g
+}
+
+func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
+	g.kr = kr
 	return g
 }
 
@@ -175,7 +180,7 @@ func (g *Genesis) AddValidator(val Validator) error {
 	return nil
 }
 
-// Creates a new validator account and adds it to the genesis.
+// NewValidator creates a new validator account and adds it to the genesis.
 func (g *Genesis) NewValidator(val Validator) error {
 	// Add the validator's genesis account
 	if err := g.NewAccount(val.KeyringAccount); err != nil {
@@ -208,6 +213,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		g.ChainID,
 		gentxs,
 		g.accounts,
+		g.GenesisTime,
 		g.genOps...,
 	)
 }
@@ -219,4 +225,8 @@ func (g *Genesis) Validator(i int) (Validator, bool) {
 		return g.validators[i], true
 	}
 	return Validator{}, false
+}
+
+func (g *Genesis) EncodingConfig() encoding.Config {
+	return g.ecfg
 }

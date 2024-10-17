@@ -174,7 +174,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 func DefaultAppCreator() srvtypes.AppCreator {
 	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		return app.New(
+		app := app.New(
 			log.NewNopLogger(),
 			tmdb.NewMemDB(),
 			nil, // trace store
@@ -184,13 +184,15 @@ func DefaultAppCreator() srvtypes.AppCreator {
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
+		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*30))
+		return app
 	}
 }
 
 func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		return app.New(
+		app := app.New(
 			log.NewNopLogger(),
 			tmdb.NewMemDB(),
 			nil, // trace store
@@ -200,6 +202,8 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(minGasPrice),
 		)
+		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*0))
+		return app
 	}
 }
 

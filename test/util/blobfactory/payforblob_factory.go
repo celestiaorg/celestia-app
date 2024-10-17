@@ -245,10 +245,10 @@ func ManyMultiBlobTx(
 	accounts []string,
 	accInfos []AccountInfo,
 	blobs [][]*share.Blob,
+	opts ...user.TxOption,
 ) [][]byte {
 	t.Helper()
 	txs := make([][]byte, len(accounts))
-	opts := DefaultTxOpts()
 	for i, acc := range accounts {
 		signer, err := user.NewSigner(kr, enc, chainid, appconsts.LatestVersion, user.NewAccount(acc, accInfos[i].AccountNum, accInfos[i].Sequence))
 		require.NoError(t, err)

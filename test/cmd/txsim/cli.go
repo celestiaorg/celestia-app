@@ -40,6 +40,8 @@ var (
 	send, sendIterations, sendAmount                  int
 	stake, stakeValue, blob                           int
 	useFeegrant, suppressLogs                         bool
+	upgradeSchedule                                   string
+	blobShareVersion                                  int
 )
 
 func main() {
@@ -101,8 +103,8 @@ well funded account that can act as the master account. The command runs until a
 				masterAccName = os.Getenv(TxsimMasterAccName)
 			}
 
-			if stake == 0 && send == 0 && blob == 0 {
-				return errors.New("no sequences specified. Use --stake, --send or --blob")
+			if stake == 0 && send == 0 && blob == 0 && upgradeSchedule == "" {
+				return errors.New("no sequences specified. Use --stake, --send, --upgrade-schedule or --blob")
 			}
 
 			// setup the sequences
@@ -127,7 +129,21 @@ well funded account that can act as the master account. The command runs until a
 					return fmt.Errorf("invalid blob amounts: %w", err)
 				}
 
-				sequences = append(sequences, txsim.NewBlobSequence(sizes, blobsPerPFB).Clone(blob)...)
+				sequence := txsim.NewBlobSequence(sizes, blobsPerPFB)
+				if blobShareVersion >= 0 {
+					sequence.WithShareVersion(uint8(blobShareVersion))
+				}
+
+				sequences = append(sequences, sequence.Clone(blob)...)
+			}
+
+			upgradeScheduleMap, err := parseUpgradeSchedule(upgradeSchedule)
+			if err != nil {
+				return fmt.Errorf("invalid upgrade schedule: %w", err)
+			}
+
+			for height, version := range upgradeScheduleMap {
+				sequences = append(sequences, txsim.NewUpgradeSequence(version, height))
 			}
 
 			if seed == 0 {
@@ -195,10 +211,12 @@ func flags() *flag.FlagSet {
 	flags.IntVar(&stake, "stake", 0, "number of stake sequences to run")
 	flags.IntVar(&stakeValue, "stake-value", 1000, "amount of initial stake per sequence")
 	flags.IntVar(&blob, "blob", 0, "number of blob sequences to run")
+	flags.StringVar(&upgradeSchedule, "upgrade-schedule", "", "upgrade schedule for the network in format height:version i.e. 100:3,200:4")
 	flags.StringVar(&blobSizes, "blob-sizes", "100-1000", "range of blob sizes to send")
 	flags.StringVar(&blobAmounts, "blob-amounts", "1", "range of blobs per PFB specified as a single value or a min-max range (e.g., 10 or 5-10). A single value indicates the exact number of blobs to be created.")
 	flags.BoolVar(&useFeegrant, "feegrant", false, "use the feegrant module to pay for fees")
 	flags.BoolVar(&suppressLogs, "suppressLogs", false, "disable logging")
+	flags.IntVar(&blobShareVersion, "blob-share-version", -1, "optionally specify a share version to use for the blob sequences")
 	return flags
 }
 
@@ -223,4 +241,28 @@ func readRange(r string) (txsim.Range, error) {
 	}
 
 	return txsim.NewRange(n, m), nil
+}
+
+func parseUpgradeSchedule(schedule string) (map[int64]uint64, error) {
+	scheduleMap := make(map[int64]uint64)
+	if schedule == "" {
+		return nil, nil
+	}
+	scheduleParts := strings.Split(schedule, ",")
+	for _, part := range scheduleParts {
+		parts := strings.Split(part, ":")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid upgrade schedule format: %s", part)
+		}
+		height, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid height in upgrade schedule: %s", parts[0])
+		}
+		version, err := strconv.ParseUint(parts[1], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid version in upgrade schedule: %s", parts[1])
+		}
+		scheduleMap[height] = version
+	}
+	return scheduleMap, nil
 }

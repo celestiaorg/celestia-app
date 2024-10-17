@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	seed = 42
+	timeFormat = "20060102_150405"
 )
 
 type TestFunc func(logger *log.Logger) error
@@ -23,6 +23,7 @@ func main() {
 	tests := []Test{
 		{"MinorVersionCompatibility", MinorVersionCompatibility},
 		{"MajorUpgradeToV2", MajorUpgradeToV2},
+		{"MajorUpgradeToV3", MajorUpgradeToV3},
 		{"E2ESimple", E2ESimple},
 	}
 

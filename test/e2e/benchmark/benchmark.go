@@ -12,28 +12,49 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 )
+
+const timeFormat = "20060102_150405"
 
 type BenchmarkTest struct {
 	*testnet.Testnet
 	manifest *Manifest
 }
 
+// NewBenchmarkTest wraps around testnet.New to create a new benchmark test.
+// It may modify genesis consensus parameters based on manifest.
 func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
-	// create a new testnet
-	testNet, err := testnet.New(context.Background(), name, seed,
-		testnet.GetGrafanaInfoFromEnvVar(), manifest.ChainID,
-		manifest.GetGenesisModifiers()...)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scope := fmt.Sprintf("%s_%s", name, time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        scope,
+		ProxyEnabled: true,
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	// context.Background() is used to allow the stopSignal to be functional even after this function returns
+	kn.HandleStopSignal(context.Background())
+
+	log.Printf("Knuu initialized with scope %s", kn.Scope)
+
+	testNet, err := testnet.New(kn, testnet.Options{
+		Grafana:          testnet.GetGrafanaInfoFromEnvVar(),
+		ChainID:          manifest.ChainID,
+		GenesisModifiers: manifest.GetGenesisModifiers(),
+	})
+	testnet.NoError("failed to create testnet", err)
 
 	testNet.SetConsensusParams(manifest.GetConsensusParams())
 	return &BenchmarkTest{Testnet: testNet, manifest: manifest}, nil
 }
 
 // SetupNodes creates genesis nodes and tx clients based on the manifest.
-// There will be manifest.Validators validators and manifest.TxClients tx clients.
+// There will be manifest.Validators many validators and manifest.TxClients many tx clients.
 // Each tx client connects to one validator. If TxClients are fewer than Validators, some validators will not have a tx client.
 func (b *BenchmarkTest) SetupNodes() error {
 	ctx := context.Background()
@@ -56,11 +77,16 @@ func (b *BenchmarkTest) SetupNodes() error {
 	// create tx clients and point them to the validators
 	log.Println("Creating tx clients")
 
-	err = b.CreateTxClients(ctx, b.manifest.TxClientVersion,
+	err = b.CreateTxClients(
+		ctx,
+		b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,
 		b.manifest.BlobsPerSeq,
-		b.manifest.TxClientsResource, gRPCEndpoints)
+		b.manifest.TxClientsResource,
+		gRPCEndpoints,
+		map[int64]uint64{}, // upgrade schedule
+	)
 	testnet.NoError("failed to create tx clients", err)
 
 	log.Println("Setting up testnet")

@@ -12,12 +12,17 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/txsim"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -151,4 +156,53 @@ func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
 	return cctx.Keyring, rpcAddr, grpcAddr
+}
+
+func TestTxSimUpgrade(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestTxSimUpgrade in short mode.")
+	}
+	cp := app.DefaultConsensusParams()
+	cp.Version.AppVersion = v2.Version
+	cfg := testnode.DefaultConfig().
+		WithTimeoutCommit(300 * time.Millisecond).
+		WithConsensusParams(cp).
+		WithFundedAccounts("txsim-master")
+	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)
+
+	require.NoError(t, cctx.WaitForNextBlock())
+
+	// updrade to v3 at height 20
+	sequences := []txsim.Sequence{
+		txsim.NewUpgradeSequence(v3.Version, 20),
+	}
+
+	opts := txsim.DefaultOptions().
+		// SuppressLogs().
+		WithPollTime(time.Millisecond * 100)
+
+	err := txsim.Run(
+		cctx.GoContext(),
+		grpcAddr,
+		cctx.Keyring,
+		encoding.MakeConfig(app.ModuleEncodingRegisters...),
+		opts,
+		sequences...,
+	)
+	require.NoError(t, err)
+
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer conn.Close()
+
+	querier := signaltypes.NewQueryClient(conn)
+
+	// We can't check that the upgrade was successful because the upgrade height is thousands of blocks away
+	// and even at 300 millisecond block times, it would take too long. Instead we just want to assert
+	// that the upgrade is ready to be performed
+	require.Eventually(t, func() bool {
+		upgradePlan, err := querier.GetUpgrade(cctx.GoContext(), &signaltypes.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		return upgradePlan.Upgrade != nil && upgradePlan.Upgrade.AppVersion == v3.Version
+	}, time.Second*20, time.Millisecond*100)
 }

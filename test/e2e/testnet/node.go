@@ -59,8 +59,7 @@ type Node struct {
 
 // PullRoundStateTraces retrieves the round state traces from a node.
 // It will save them to the provided path.
-func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error,
-) {
+func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error) {
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling round state traces")
 
@@ -73,8 +72,7 @@ func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundStat
 
 // PullBlockSummaryTraces retrieves the block summary traces from a node.
 // It will save them to the provided path.
-func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error,
-) {
+func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error) {
 	addr := n.AddressTracing()
 	log.Info().Str("Address", addr).Msg("Pulling block summary traces")
 
@@ -99,11 +97,14 @@ type Resources struct {
 
 func NewNode(
 	ctx context.Context,
-	name, version string,
-	startHeight, selfDelegation int64,
+	name string,
+	version string,
+	startHeight int64,
+	selfDelegation int64,
 	peers []string,
-	signerKey, networkKey crypto.PrivKey,
-	upgradeHeight int64,
+	signerKey crypto.PrivKey,
+	networkKey crypto.PrivKey,
+	upgradeHeightV2 int64,
 	resources Resources,
 	grafana *GrafanaInfo,
 	kn *knuu.Knuu,
@@ -159,8 +160,8 @@ func NewNode(
 	if disableBBR {
 		args = append(args, "--force-no-bbr")
 	}
-	if upgradeHeight != 0 {
-		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeight))
+	if upgradeHeightV2 != 0 {
+		args = append(args, fmt.Sprintf("--v2-upgrade-height=%d", upgradeHeightV2))
 	}
 
 	if err := knInstance.Build().SetArgs(args...); err != nil {
@@ -395,11 +396,21 @@ func (n *Node) GenesisValidator() genesis.Validator {
 }
 
 func (n *Node) Upgrade(ctx context.Context, version string) error {
-	if err := n.Instance.Execution().UpgradeImage(ctx, DockerImageName(version)); err != nil {
+	if err := n.Instance.Execution().Stop(ctx); err != nil {
 		return err
 	}
 
-	return n.Instance.Execution().WaitInstanceIsRunning(ctx)
+	if err := n.Instance.Execution().SetImage(ctx, DockerImageName(version)); err != nil {
+		return err
+	}
+
+	// New set of args can be set here
+	// Or/and the start command can also be set here
+
+	if err := n.Instance.Build().Commit(ctx); err != nil {
+		return err
+	}
+	return n.Instance.Execution().Start(ctx)
 }
 
 func DockerImageName(version string) string {
