@@ -3,7 +3,7 @@
 
 This document contains the results of the benchmarks defined under `app/benchmarks`.
 
-The benchmarks were run on a Macbook Pro M3 MAX with 48GB RAM.
+The benchmarks were run on a Macbook Pro M3 MAX with 16 cores 48GB RAM.
 
 The benchmarks will be run using an in memory DB, then a local db, goleveldb.
 

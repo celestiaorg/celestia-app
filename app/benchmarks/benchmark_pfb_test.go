@@ -1,3 +1,5 @@
+//go:build bench_prepare_proposal
+
 package benchmarks_test
 
 import (
@@ -6,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -22,6 +25,7 @@ import (
 )
 
 func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		size int
 	}{
@@ -51,6 +55,7 @@ func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
 }
 
 func benchmarkCheckTxPFB(b *testing.B, size int) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generatePayForBlobTransactions(b, 1, size)
 	testApp.Commit()
 
@@ -69,6 +74,7 @@ func benchmarkCheckTxPFB(b *testing.B, size int) {
 }
 
 func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		size int
 	}{
@@ -98,6 +104,7 @@ func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
 }
 
 func benchmarkDeliverTxPFB(b *testing.B, size int) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testApp, rawTxs := generatePayForBlobTransactions(b, 1, size)
 
 	blobTx, ok, err := blobtx.UnmarshalBlobTx(rawTxs[0])
@@ -118,6 +125,7 @@ func benchmarkDeliverTxPFB(b *testing.B, size int) {
 }
 
 func BenchmarkPrepareProposal_PFB_Multi(b *testing.B) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		count, size int
 	}{
@@ -170,6 +178,7 @@ func benchmarkPrepareProposalPFB(b *testing.B, count, size int) {
 }
 
 func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		count, size int
 	}{
@@ -238,6 +247,7 @@ func benchmarkProcessProposalPFB(b *testing.B, count, size int) {
 }
 
 func BenchmarkProcessProposal_PFB_Half_Second(b *testing.B) {
+	testutil.TestAppLogger = log.NewNopLogger()
 	testCases := []struct {
 		count, size int
 	}{
