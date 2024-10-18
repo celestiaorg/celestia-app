@@ -23,7 +23,7 @@ If you are a library consumer, a number of the Go APIs have changed since celest
 
 ## v3.0.0
 
-### Node Operators (v3.0.0-rc0)
+### Node Operators (v3.0.0)
 
 - Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
 - Consensus node operators should manually configure their node's mempool `ttl-num-blocks = 12`. An example command to do this:
