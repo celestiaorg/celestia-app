@@ -24,4 +24,4 @@ We decided to softly limit the number of messages contained in a block, via intr
 
 This way, the default block construction mechanism will only propose blocks that respect these limitations. And if a block that doesn't respect them reached consensus, it will still be accepted since this rule is not consensus breaking.
 
-As specified in [results](results.md) documents, those results were generated on 16 core 48GM RAM machine, and gave us certain thresholds. However, when we run the same experiments on the recommended validator setup, 4 cores 16GB RAM, the numbers were lower. These low numbers are what we used in the limits.
+As specified in [results](results.md) document, those results were generated on 16 core 48GB RAM machine, and gave us certain thresholds. However, when we run the same experiments on the recommended validator setup, 4 cores 16GB RAM, the numbers were lower. These low numbers are what we used in the limits.
