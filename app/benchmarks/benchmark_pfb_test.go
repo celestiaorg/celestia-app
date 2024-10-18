@@ -30,29 +30,29 @@ func init() {
 
 func BenchmarkCheckTx_PFB_Multi(b *testing.B) {
 	testCases := []struct {
-		size int
+		blobSize int
 	}{
-		{size: 300},
-		{size: 500},
-		{size: 1000},
-		{size: 5000},
-		{size: 10_000},
-		{size: 50_000},
-		{size: 100_000},
-		{size: 200_000},
-		{size: 300_000},
-		{size: 400_000},
-		{size: 500_000},
-		{size: 1_000_000},
-		{size: 2_000_000},
-		{size: 3_000_000},
-		{size: 4_000_000},
-		{size: 5_000_000},
-		{size: 6_000_000},
+		{blobSize: 300},
+		{blobSize: 500},
+		{blobSize: 1000},
+		{blobSize: 5000},
+		{blobSize: 10_000},
+		{blobSize: 50_000},
+		{blobSize: 100_000},
+		{blobSize: 200_000},
+		{blobSize: 300_000},
+		{blobSize: 400_000},
+		{blobSize: 500_000},
+		{blobSize: 1_000_000},
+		{blobSize: 2_000_000},
+		{blobSize: 3_000_000},
+		{blobSize: 4_000_000},
+		{blobSize: 5_000_000},
+		{blobSize: 6_000_000},
 	}
 	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("%d bytes", testCase.size), func(b *testing.B) {
-			benchmarkCheckTxPFB(b, testCase.size)
+		b.Run(fmt.Sprintf("%d bytes", testCase.blobSize), func(b *testing.B) {
+			benchmarkCheckTxPFB(b, testCase.blobSize)
 		})
 	}
 }
@@ -77,29 +77,29 @@ func benchmarkCheckTxPFB(b *testing.B, size int) {
 
 func BenchmarkDeliverTx_PFB_Multi(b *testing.B) {
 	testCases := []struct {
-		size int
+		blobSize int
 	}{
-		{size: 300},
-		{size: 500},
-		{size: 1000},
-		{size: 5000},
-		{size: 10_000},
-		{size: 50_000},
-		{size: 100_000},
-		{size: 200_000},
-		{size: 300_000},
-		{size: 400_000},
-		{size: 500_000},
-		{size: 1_000_000},
-		{size: 2_000_000},
-		{size: 3_000_000},
-		{size: 4_000_000},
-		{size: 5_000_000},
-		{size: 6_000_000},
+		{blobSize: 300},
+		{blobSize: 500},
+		{blobSize: 1000},
+		{blobSize: 5000},
+		{blobSize: 10_000},
+		{blobSize: 50_000},
+		{blobSize: 100_000},
+		{blobSize: 200_000},
+		{blobSize: 300_000},
+		{blobSize: 400_000},
+		{blobSize: 500_000},
+		{blobSize: 1_000_000},
+		{blobSize: 2_000_000},
+		{blobSize: 3_000_000},
+		{blobSize: 4_000_000},
+		{blobSize: 5_000_000},
+		{blobSize: 6_000_000},
 	}
 	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("%d bytes", testCase.size), func(b *testing.B) {
-			benchmarkDeliverTxPFB(b, testCase.size)
+		b.Run(fmt.Sprintf("%d bytes", testCase.blobSize), func(b *testing.B) {
+			benchmarkDeliverTxPFB(b, testCase.blobSize)
 		})
 	}
 }
@@ -126,29 +126,29 @@ func benchmarkDeliverTxPFB(b *testing.B, size int) {
 
 func BenchmarkPrepareProposal_PFB_Multi(b *testing.B) {
 	testCases := []struct {
-		count, size int
+		numberOfTransactions, blobSize int
 	}{
-		{count: 15_000, size: 300},
-		{count: 10_000, size: 500},
-		{count: 6_000, size: 1000},
-		{count: 3_000, size: 5000},
-		{count: 1_000, size: 10_000},
-		{count: 500, size: 50_000},
-		{count: 100, size: 100_000},
-		{count: 100, size: 200_000},
-		{count: 50, size: 300_000},
-		{count: 50, size: 400_000},
-		{count: 30, size: 500_000},
-		{count: 10, size: 1_000_000},
-		{count: 5, size: 2_000_000},
-		{count: 3, size: 3_000_000},
-		{count: 3, size: 4_000_000},
-		{count: 2, size: 5_000_000},
-		{count: 2, size: 6_000_000},
+		{numberOfTransactions: 15_000, blobSize: 300},
+		{numberOfTransactions: 10_000, blobSize: 500},
+		{numberOfTransactions: 6_000, blobSize: 1000},
+		{numberOfTransactions: 3_000, blobSize: 5000},
+		{numberOfTransactions: 1_000, blobSize: 10_000},
+		{numberOfTransactions: 500, blobSize: 50_000},
+		{numberOfTransactions: 100, blobSize: 100_000},
+		{numberOfTransactions: 100, blobSize: 200_000},
+		{numberOfTransactions: 50, blobSize: 300_000},
+		{numberOfTransactions: 50, blobSize: 400_000},
+		{numberOfTransactions: 30, blobSize: 500_000},
+		{numberOfTransactions: 10, blobSize: 1_000_000},
+		{numberOfTransactions: 5, blobSize: 2_000_000},
+		{numberOfTransactions: 3, blobSize: 3_000_000},
+		{numberOfTransactions: 3, blobSize: 4_000_000},
+		{numberOfTransactions: 2, blobSize: 5_000_000},
+		{numberOfTransactions: 2, blobSize: 6_000_000},
 	}
 	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
-			benchmarkPrepareProposalPFB(b, testCase.count, testCase.size)
+		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.numberOfTransactions, testCase.blobSize), func(b *testing.B) {
+			benchmarkPrepareProposalPFB(b, testCase.numberOfTransactions, testCase.blobSize)
 		})
 	}
 }
@@ -178,29 +178,29 @@ func benchmarkPrepareProposalPFB(b *testing.B, count, size int) {
 
 func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 	testCases := []struct {
-		count, size int
+		numberOfTransactions, blobSize int
 	}{
-		{count: 15_000, size: 300},
-		{count: 10_000, size: 500},
-		{count: 6_000, size: 1000},
-		{count: 3_000, size: 5000},
-		{count: 1_000, size: 10_000},
-		{count: 500, size: 50_000},
-		{count: 100, size: 100_000},
-		{count: 100, size: 200_000},
-		{count: 50, size: 300_000},
-		{count: 50, size: 400_000},
-		{count: 30, size: 500_000},
-		{count: 10, size: 1_000_000},
-		{count: 5, size: 2_000_000},
-		{count: 3, size: 3_000_000},
-		{count: 3, size: 4_000_000},
-		{count: 2, size: 5_000_000},
-		{count: 2, size: 6_000_000},
+		{numberOfTransactions: 15_000, blobSize: 300},
+		{numberOfTransactions: 10_000, blobSize: 500},
+		{numberOfTransactions: 6_000, blobSize: 1000},
+		{numberOfTransactions: 3_000, blobSize: 5000},
+		{numberOfTransactions: 1_000, blobSize: 10_000},
+		{numberOfTransactions: 500, blobSize: 50_000},
+		{numberOfTransactions: 100, blobSize: 100_000},
+		{numberOfTransactions: 100, blobSize: 200_000},
+		{numberOfTransactions: 50, blobSize: 300_000},
+		{numberOfTransactions: 50, blobSize: 400_000},
+		{numberOfTransactions: 30, blobSize: 500_000},
+		{numberOfTransactions: 10, blobSize: 1_000_000},
+		{numberOfTransactions: 5, blobSize: 2_000_000},
+		{numberOfTransactions: 3, blobSize: 3_000_000},
+		{numberOfTransactions: 3, blobSize: 4_000_000},
+		{numberOfTransactions: 2, blobSize: 5_000_000},
+		{numberOfTransactions: 2, blobSize: 6_000_000},
 	}
 	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
-			benchmarkProcessProposalPFB(b, testCase.count, testCase.size)
+		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.numberOfTransactions, testCase.blobSize), func(b *testing.B) {
+			benchmarkProcessProposalPFB(b, testCase.numberOfTransactions, testCase.blobSize)
 		})
 	}
 }
@@ -246,24 +246,24 @@ func benchmarkProcessProposalPFB(b *testing.B, count, size int) {
 
 func BenchmarkProcessProposal_PFB_Half_Second(b *testing.B) {
 	testCases := []struct {
-		count, size int
+		numberOfTransactions, blobSize int
 	}{
-		{count: 11_000, size: 50},
-		{count: 11_000, size: 100},
-		{count: 11_000, size: 200},
-		{count: 11_000, size: 300},
-		{count: 11_000, size: 400},
-		{count: 7000, size: 500},
-		{count: 7000, size: 600},
-		{count: 5000, size: 1_000},
-		{count: 5000, size: 1200},
-		{count: 5000, size: 1500},
-		{count: 5000, size: 1800},
-		{count: 5000, size: 2000},
+		{numberOfTransactions: 11_000, blobSize: 50},
+		{numberOfTransactions: 11_000, blobSize: 100},
+		{numberOfTransactions: 11_000, blobSize: 200},
+		{numberOfTransactions: 11_000, blobSize: 300},
+		{numberOfTransactions: 11_000, blobSize: 400},
+		{numberOfTransactions: 7000, blobSize: 500},
+		{numberOfTransactions: 7000, blobSize: 600},
+		{numberOfTransactions: 5000, blobSize: 1_000},
+		{numberOfTransactions: 5000, blobSize: 1200},
+		{numberOfTransactions: 5000, blobSize: 1500},
+		{numberOfTransactions: 5000, blobSize: 1800},
+		{numberOfTransactions: 5000, blobSize: 2000},
 	}
 	for _, testCase := range testCases {
-		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.count, testCase.size), func(b *testing.B) {
-			benchmarkProcessProposalPFBHalfSecond(b, testCase.count, testCase.size)
+		b.Run(fmt.Sprintf("%d transactions of %d bytes", testCase.numberOfTransactions, testCase.blobSize), func(b *testing.B) {
+			benchmarkProcessProposalPFBHalfSecond(b, testCase.numberOfTransactions, testCase.blobSize)
 		})
 	}
 }

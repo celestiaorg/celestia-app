@@ -127,27 +127,27 @@ func benchmarkIBCDeliverTxUpdateClient(b *testing.B, numberOfValidators int) {
 
 func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
-		count, numberOfValidators int
+		numberOfTransactions, numberOfValidators int
 	}{
-		{count: 6_000, numberOfValidators: 2},
-		{count: 3_000, numberOfValidators: 10},
-		{count: 2_000, numberOfValidators: 25},
-		{count: 1_000, numberOfValidators: 50},
-		{count: 500, numberOfValidators: 75},
-		{count: 500, numberOfValidators: 100},
-		{count: 500, numberOfValidators: 125},
-		{count: 500, numberOfValidators: 150},
-		{count: 500, numberOfValidators: 175},
-		{count: 500, numberOfValidators: 200},
-		{count: 500, numberOfValidators: 225},
-		{count: 500, numberOfValidators: 250},
-		{count: 500, numberOfValidators: 300},
-		{count: 500, numberOfValidators: 400},
-		{count: 500, numberOfValidators: 500},
+		{numberOfTransactions: 6_000, numberOfValidators: 2},
+		{numberOfTransactions: 3_000, numberOfValidators: 10},
+		{numberOfTransactions: 2_000, numberOfValidators: 25},
+		{numberOfTransactions: 1_000, numberOfValidators: 50},
+		{numberOfTransactions: 500, numberOfValidators: 75},
+		{numberOfTransactions: 500, numberOfValidators: 100},
+		{numberOfTransactions: 500, numberOfValidators: 125},
+		{numberOfTransactions: 500, numberOfValidators: 150},
+		{numberOfTransactions: 500, numberOfValidators: 175},
+		{numberOfTransactions: 500, numberOfValidators: 200},
+		{numberOfTransactions: 500, numberOfValidators: 225},
+		{numberOfTransactions: 500, numberOfValidators: 250},
+		{numberOfTransactions: 500, numberOfValidators: 300},
+		{numberOfTransactions: 500, numberOfValidators: 400},
+		{numberOfTransactions: 500, numberOfValidators: 500},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBCPrepareProposalUpdateClient(b, testCase.numberOfValidators, testCase.count)
+			benchmarkIBCPrepareProposalUpdateClient(b, testCase.numberOfValidators, testCase.numberOfTransactions)
 		})
 	}
 }
@@ -179,27 +179,27 @@ func benchmarkIBCPrepareProposalUpdateClient(b *testing.B, numberOfValidators, c
 
 func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 	testCases := []struct {
-		count, numberOfValidators int
+		numberOfTransactions, numberOfValidators int
 	}{
-		{count: 6_000, numberOfValidators: 2},
-		{count: 3_000, numberOfValidators: 10},
-		{count: 2_000, numberOfValidators: 25},
-		{count: 1_000, numberOfValidators: 50},
-		{count: 500, numberOfValidators: 75},
-		{count: 500, numberOfValidators: 100},
-		{count: 500, numberOfValidators: 125},
-		{count: 500, numberOfValidators: 150},
-		{count: 500, numberOfValidators: 175},
-		{count: 500, numberOfValidators: 200},
-		{count: 500, numberOfValidators: 225},
-		{count: 500, numberOfValidators: 250},
-		{count: 500, numberOfValidators: 300},
-		{count: 500, numberOfValidators: 400},
-		{count: 500, numberOfValidators: 500},
+		{numberOfTransactions: 6_000, numberOfValidators: 2},
+		{numberOfTransactions: 3_000, numberOfValidators: 10},
+		{numberOfTransactions: 2_000, numberOfValidators: 25},
+		{numberOfTransactions: 1_000, numberOfValidators: 50},
+		{numberOfTransactions: 500, numberOfValidators: 75},
+		{numberOfTransactions: 500, numberOfValidators: 100},
+		{numberOfTransactions: 500, numberOfValidators: 125},
+		{numberOfTransactions: 500, numberOfValidators: 150},
+		{numberOfTransactions: 500, numberOfValidators: 175},
+		{numberOfTransactions: 500, numberOfValidators: 200},
+		{numberOfTransactions: 500, numberOfValidators: 225},
+		{numberOfTransactions: 500, numberOfValidators: 250},
+		{numberOfTransactions: 500, numberOfValidators: 300},
+		{numberOfTransactions: 500, numberOfValidators: 400},
+		{numberOfTransactions: 500, numberOfValidators: 500},
 	}
 	for _, testCase := range testCases {
 		b.Run(fmt.Sprintf("number of validators: %d", testCase.numberOfValidators), func(b *testing.B) {
-			benchmarkIBCProcessProposalUpdateClient(b, testCase.numberOfValidators, testCase.count)
+			benchmarkIBCProcessProposalUpdateClient(b, testCase.numberOfValidators, testCase.numberOfTransactions)
 		})
 	}
 }
