@@ -32,6 +32,6 @@ If you are a library consumer, a number of the Go APIs have changed since celest
   sed -i 's/ttl-num-blocks = 5/ttl-num-blocks = 12/' ~/.celestia-app/config/config.toml
   ```
 
-### Library Consumers (v3.0.0-rc0)
+### Library Consumers (v3.0.0)
 
 - Namespace and share constants in the `appconsts` package were moved to [celestiaorg/go-square](https://github.com/celestiaorg/go-square). See [#3765](https://github.com/celestiaorg/celestia-app/pull/3765).
