@@ -20,7 +20,7 @@ The results are outlined in the [results](results.md) document.
 
 ## Key takeaways
 
-We decided to softly limit the number of messages contained in a block, via introducing the `NonPFBTransactionCap` and `PFBTransactionCap`, and checking against them in prepare proposal.
+We decided to softly limit the number of messages contained in a block, via introducing the `MaxPFBMessages` and `MaxNonPFBMessages`, and checking against them in prepare proposal.
 
 This way, the default block construction mechanism will only propose blocks that respect these limitations. And if a block that doesn't respect them reached consensus, it will still be accepted since this rule is not consensus breaking.
 

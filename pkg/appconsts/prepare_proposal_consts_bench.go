@@ -6,9 +6,9 @@ package appconsts
 // For the production values, check prepare_proposal_consts.go file.
 
 const (
-	// NonPFBTransactionCap arbitrary high numbers for running benchmarks.
-	NonPFBTransactionCap = 999999999999
+	// MaxPFBMessages arbitrary high numbers for running benchmarks.
+	MaxPFBMessages = 999999999999
 
-	// PFBTransactionCap arbitrary high numbers for running benchmarks.
-	PFBTransactionCap = 999999999999
+	// MaxNonPFBMessages arbitrary high numbers for running benchmarks.
+	MaxNonPFBMessages = 999999999999
 )
