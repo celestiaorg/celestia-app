@@ -44,7 +44,10 @@ import (
 
 const ChainID = testfactory.ChainID
 
-var GenesisTime = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+var (
+	GenesisTime   = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	TestAppLogger = log.NewTMLogger(os.Stdout)
+)
 
 // Get flags every time the simulator is run
 func init() {
@@ -78,6 +81,7 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet, cparams *
 	// commit genesis changes
 	testApp.Commit()
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Time:               time.Now(),
 		ChainID:            ChainID,
 		Height:             testApp.LastBlockHeight() + 1,
 		AppHash:            testApp.LastCommitID().Hash,
@@ -99,7 +103,7 @@ func NewTestApp() *app.App {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	return app.New(
-		log.NewTMLogger(os.Stdout), db, nil,
+		TestAppLogger, db, nil,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
