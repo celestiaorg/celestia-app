@@ -37,6 +37,10 @@ func TestAppUpgradeV3(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestAppUpgradeV3 in short mode")
 	}
+
+	appconsts.OverrideUpgradeHeightDelayStr = "1"
+	defer func() { appconsts.OverrideUpgradeHeightDelayStr = "" }()
+
 	testApp, genesis := SetupTestAppWithUpgradeHeight(t, 3)
 	upgradeFromV1ToV2(t, testApp)
 
@@ -88,6 +92,10 @@ func TestAppUpgradeV3(t *testing.T) {
 		Height: 3,
 	})
 	require.Equal(t, v2.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
+	require.Equal(t, appconsts.GetTimeoutCommit(v2.Version),
+		endBlockResp.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v2.Version),
+		endBlockResp.Timeouts.TimeoutPropose)
 	testApp.Commit()
 	require.NoError(t, signer.IncrementSequence(testnode.DefaultValidatorAccountName))
 
@@ -98,17 +106,21 @@ func TestAppUpgradeV3(t *testing.T) {
 
 	// brace yourselfs, this part may take a while
 	initialHeight := int64(4)
-	for height := initialHeight; height < initialHeight+appconsts.DefaultUpgradeHeightDelay; height++ {
+	for height := initialHeight; height < initialHeight+appconsts.UpgradeHeightDelay(v2.Version); height++ {
+		appVersion := v2.Version
 		_ = testApp.BeginBlock(abci.RequestBeginBlock{
 			Header: tmproto.Header{
 				Height:  height,
-				Version: tmversion.Consensus{App: 2},
+				Version: tmversion.Consensus{App: appVersion},
 			},
 		})
 
 		endBlockResp = testApp.EndBlock(abci.RequestEndBlock{
-			Height: 3 + appconsts.DefaultUpgradeHeightDelay,
+			Height: 3 + appconsts.UpgradeHeightDelay(v2.Version),
 		})
+
+		require.Equal(t, appconsts.GetTimeoutCommit(appVersion), endBlockResp.Timeouts.TimeoutCommit)
+		require.Equal(t, appconsts.GetTimeoutPropose(appVersion), endBlockResp.Timeouts.TimeoutPropose)
 
 		_ = testApp.Commit()
 	}
@@ -129,7 +141,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	_ = testApp.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			ChainID: genesis.ChainID,
-			Height:  initialHeight + appconsts.DefaultUpgradeHeightDelay,
+			Height:  initialHeight + appconsts.UpgradeHeightDelay(v3.Version),
 			Version: tmversion.Consensus{App: 3},
 		},
 	})
@@ -139,7 +151,10 @@ func TestAppUpgradeV3(t *testing.T) {
 	})
 	require.Equal(t, abci.CodeTypeOK, deliverTxResp.Code, deliverTxResp.Log)
 
-	_ = testApp.EndBlock(abci.RequestEndBlock{})
+	respEndBlock := testApp.EndBlock(abci.
+		RequestEndBlock{Height: initialHeight + appconsts.UpgradeHeightDelay(v3.Version)})
+	require.Equal(t, appconsts.GetTimeoutCommit(v3.Version), respEndBlock.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), respEndBlock.Timeouts.TimeoutPropose)
 }
 
 // TestAppUpgradeV2 verifies that the all module's params are overridden during an
@@ -271,7 +286,10 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 
 	// assert that the chain starts with version provided in genesis
 	infoResp := testApp.Info(abci.RequestInfo{})
-	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
+	appVersion := app.DefaultInitialConsensusParams().Version.AppVersion
+	require.EqualValues(t, appVersion, infoResp.AppVersion)
+	require.EqualValues(t, appconsts.GetTimeoutCommit(appVersion), infoResp.Timeouts.TimeoutCommit)
+	require.EqualValues(t, appconsts.GetTimeoutPropose(appVersion), infoResp.Timeouts.TimeoutPropose)
 
 	supportedVersions := []uint64{v1.Version, v2.Version, v3.Version}
 	require.Equal(t, supportedVersions, testApp.SupportedVersions())
@@ -286,7 +304,11 @@ func upgradeFromV1ToV2(t *testing.T, testApp *app.App) {
 		Height:  2,
 		Version: tmversion.Consensus{App: 1},
 	}})
-	testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	endBlockResp := testApp.EndBlock(abci.RequestEndBlock{Height: 2})
+	require.Equal(t, appconsts.GetTimeoutCommit(v1.Version),
+		endBlockResp.Timeouts.TimeoutCommit)
+	require.Equal(t, appconsts.GetTimeoutPropose(v1.Version),
+		endBlockResp.Timeouts.TimeoutPropose)
 	testApp.Commit()
 	require.EqualValues(t, 2, testApp.AppVersion())
 }

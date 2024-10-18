@@ -80,6 +80,8 @@ type Manifest struct {
 	GovMaxSquareSize int64
 
 	DisableBBR bool
+
+	GenesisAppVersion uint64
 }
 
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
@@ -88,6 +90,7 @@ func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 
 	blobParams := blobtypes.DefaultParams()
 	blobParams.GovMaxSquareSize = uint64(m.GovMaxSquareSize)
+
 	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
 
 	return modifiers
@@ -96,6 +99,7 @@ func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 func (m *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = m.MaxBlockBytes
+	cparams.Version.AppVersion = m.GenesisAppVersion
 	return cparams
 }
 

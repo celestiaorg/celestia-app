@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -41,10 +42,6 @@ type Keeper struct {
 	// stakingKeeper is used to fetch validators to calculate the total power
 	// signalled to a version.
 	stakingKeeper StakingKeeper
-
-	// upgradeHeightDelayBlocks is the number of blocks after a quorum has been
-	// reached that the chain should upgrade to the new version
-	upgradeHeightDelayBlocks int64
 }
 
 // NewKeeper returns a signal keeper.
@@ -52,13 +49,11 @@ func NewKeeper(
 	binaryCodec codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
 	stakingKeeper StakingKeeper,
-	upgradeHeightDelayBlocks int64,
 ) Keeper {
 	return Keeper{
-		binaryCodec:              binaryCodec,
-		storeKey:                 storeKey,
-		stakingKeeper:            stakingKeeper,
-		upgradeHeightDelayBlocks: upgradeHeightDelayBlocks,
+		binaryCodec:   binaryCodec,
+		storeKey:      storeKey,
+		stakingKeeper: stakingKeeper,
 	}
 }
 
@@ -109,7 +104,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		}
 		upgrade := types.Upgrade{
 			AppVersion:    version,
-			UpgradeHeight: sdkCtx.BlockHeader().Height + k.upgradeHeightDelayBlocks,
+			UpgradeHeight: sdkCtx.BlockHeader().Height + appconsts.UpgradeHeightDelay(version),
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}
