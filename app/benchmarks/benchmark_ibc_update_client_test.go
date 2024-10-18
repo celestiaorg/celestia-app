@@ -245,7 +245,7 @@ func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, c
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
 
-// generatePayForBlobTransactions creates a test app then generates an IBC
+// generateIBCUpdateClientTransaction creates a test app then generates an IBC
 // update client transaction with the specified number of validators.
 // Note: the number of the verified signatures is: 2 * numberOfValidators / 3
 // the offset is just a hack for transactions to be processed by the needed
