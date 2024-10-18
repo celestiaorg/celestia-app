@@ -7,6 +7,7 @@ Celestia App Specifications
 - [Shares](./shares.md)
 - [Consensus](./consensus.md)
   - [CAT Pool](./cat_pool.md)
+  - [Vacuum!](./vacuum.md)
 - [Block Proposer](./block_proposer.md)
 - [Block Validity Rules](./block_validity_rules.md)
 - [AnteHandler](./ante_handler.md)
