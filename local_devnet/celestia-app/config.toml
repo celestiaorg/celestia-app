@@ -395,21 +395,21 @@ only_internal_wal = "false"
 wal_file = "data/cs.wal/wal"
 
 # How long we wait for a proposal block before prevoting nil
-timeout_propose = "10s"
+timeout_propose = "5s"
 # How much timeout_propose increases with each round
 timeout_propose_delta = "500ms"
 # How long we wait after receiving +2/3 prevotes for “anything” (ie. not a single block or nil)
-timeout_prevote = "1s"
+timeout_prevote = "3s"
 # How much the timeout_prevote increases with each round
 timeout_prevote_delta = "500ms"
 # How long we wait after receiving +2/3 precommits for “anything” (ie. not a single block or nil)
-timeout_precommit = "1s"
+timeout_precommit = "3s"
 # How much the timeout_precommit increases with each round
 timeout_precommit_delta = "500ms"
 # How long we wait after committing a block, before starting on the new
 # height (this gives us a chance to receive some more precommits, even
 # though we already have +2/3).
-timeout_commit = "11s"
+timeout_commit = "5s"
 
 # How many blocks to look back to check existence of the node's consensus votes before joining consensus
 # When non-zero, the node will panic upon restart
@@ -450,7 +450,7 @@ discard_abci_responses = false
 # to decide which txs to index based on configuration set in the application.
 #
 # Options:
-#   1) "null"
+#   1) "kv"
 #   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
 # 		- When "kv" is chosen "tx.height" and "tx.hash" will always be indexed.
 #   3) "psql" - the indexer services backed by PostgreSQL.
@@ -517,3 +517,4 @@ pyroscope_trace = false
 # inuse_objects, inuse_space, goroutines, mutex_count, mutex_duration,
 # block_count, block_duration.
 pyroscope_profile_types = ["cpu", "alloc_objects", "inuse_objects", "goroutines", "mutex_count", "mutex_duration", "block_count", "block_duration", ]
+

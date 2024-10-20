@@ -19,7 +19,7 @@
       ]
     },
     "version": {
-      "app_version": "2"
+      "app_version": "1"
     }
   },
   "app_hash": "",
@@ -144,7 +144,7 @@
     "blob": {
       "params": {
         "gas_per_blob_byte": 8,
-        "gov_max_square_size": "64"
+        "gov_max_square_size": "128"
       }
     },
     "capability": {

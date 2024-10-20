@@ -62,11 +62,14 @@ fi
     echo "trying to create validator..."
     sleep 1s
   done
+
+#  sleep 20s
+#  txsim --blob-sizes 2008 --key-mnemonic "ladder south movie meat because before flame blade electric height impose learn file dose shine inmate pioneer chest gun leopard tell vessel hint raccoon"  --grpc-endpoint localhost:9090  --blob 50
 } &
 
 # start node
 celestia-appd start \
 --home="${CELESTIA_HOME}" \
 --moniker="${MONIKER}" \
---p2p.persistent_peers=e3c592c0c2ad4b05cef3791456b0d6dd4da72ed2@core0:26656 \
---rpc.laddr=tcp://0.0.0.0:26657
+--p2p.persistent_peers="e3c592c0c2ad4b05cef3791456b0d6dd4da72ed2@core0:26656,c7a982ec9ef3af4f0846cb30e439cd70d961ce6e@core1:26656,6570631840e8efb9dc5da90574403a6b27418504@core2:26656,a30ec55c1df749da3f77abbcfc511ba298350609@core3:26656" \
+--rpc.laddr=tcp://0.0.0.0:26657 --force-no-bbr --log_level info --v2-upgrade-height 10
