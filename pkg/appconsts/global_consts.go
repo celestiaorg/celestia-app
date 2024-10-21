@@ -48,14 +48,3 @@ var (
 func HashLength() int {
 	return hashLength
 }
-
-// The following consts are not consensus breaking and will be applied straight
-// after this binary is started.
-const (
-	// MaxNonPFBMessages is the maximum number of SDK messages, aside from
-	// PFBs, that a block can contain.
-	MaxNonPFBMessages = 200
-
-	// MaxPFBMessages is the maximum number of PFB messages a block can contain.
-	MaxPFBMessages = 600
-)
