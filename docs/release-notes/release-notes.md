@@ -2,6 +2,21 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v3.0.0
+
+### Node Operators (v3.0.0)
+
+- Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
+- Consensus node operators should manually configure their node's mempool `ttl-num-blocks = 12` in config.toml. An example command to do this:
+
+  ```bash
+  sed -i 's/ttl-num-blocks = 5/ttl-num-blocks = 12/' ~/.celestia-app/config/config.toml
+  ```
+
+### Library Consumers (v3.0.0)
+
+- Namespace and share constants in the `appconsts` package were moved to [celestiaorg/go-square](https://github.com/celestiaorg/go-square). See [#3765](https://github.com/celestiaorg/celestia-app/pull/3765).
+
 ## [v2.0.0](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0)
 
 ### Node Operators (v2.0.0)
@@ -20,18 +35,3 @@ If you are a library consumer, a number of the Go APIs have changed since celest
   - celestia-app v1.x had a shares package. celestia-app v2.x uses [go-square/shares](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/shares)
   - celestia-app v1.x had a blob.types package with `CreateCommitment` function. celestia-app v2.x uses `CreateCommitment` function from the [go-square/inclusion](https://github.com/celestiaorg/go-square/tree/c8242f96a844956f8d1c60e5511104deed8bc361/inclusion).
 - celestia-app v1.x had a lot of functionality included in the signer. celestia-app v2.x splits a txClient from the signer. See [#3433](https://github.com/celestiaorg/celestia-app/pull/3433).
-
-## v3.0.0
-
-### Node Operators (v3.0.0)
-
-- Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
-- Consensus node operators should manually configure their node's mempool `ttl-num-blocks = 12`. An example command to do this:
-
-  ```bash
-  sed -i 's/ttl-num-blocks = 5/ttl-num-blocks = 12/' ~/.celestia-app/config/config.toml
-  ```
-
-### Library Consumers (v3.0.0)
-
-- Namespace and share constants in the `appconsts` package were moved to [celestiaorg/go-square](https://github.com/celestiaorg/go-square). See [#3765](https://github.com/celestiaorg/celestia-app/pull/3765).
