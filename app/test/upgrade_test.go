@@ -254,6 +254,7 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 
 func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, *genesis.Genesis) {
 	t.Helper()
+
 	db := dbm.NewMemDB()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, util.EmptyAppOptions{})

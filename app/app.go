@@ -461,25 +461,31 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 	return app.manager.BeginBlock(ctx, req)
 }
 
-// EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
-
+	// For v1 only we upgrade using an agreed upon height known ahead of time
 	if currentVersion == v1 {
+		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeightV2-1 {
 			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
+
+			// The blobstream module was disabled in v2 so the following line
+			// removes the params subspace for blobstream.
+			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {
+				panic(err)
+			}
 		}
+		// from v2 to v3 and onwards we use a signalling mechanism
 	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
-		// Version changes must be increasing. Downgrades are not permitted.
+		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
-
 	// Question why do we do this every block instead of just during the v2 to v3 upgrade?
 	res.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(currentVersion)
 	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(currentVersion)

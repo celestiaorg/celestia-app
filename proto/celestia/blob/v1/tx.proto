@@ -1,5 +1,5 @@
 syntax = "proto3";
-package celestia.blob.v2;
+package celestia.blob.v1;
 
 import "google/api/annotations.proto";
 
