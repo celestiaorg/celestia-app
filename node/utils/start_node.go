@@ -5,7 +5,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -14,11 +13,10 @@ import (
 )
 
 func StartNode(ctx context.Context, config *testnode.Config, multiplexer *Multiplexer) (cctx testnode.Context, cleanup func() error, err error) {
-	basePath, err := genesis.InitFiles(config.TmConfig.RootDir, config.TmConfig, config.Genesis, 0)
+	err = genesis.InitFiles(config.TmConfig.RootDir, config.TmConfig, config.AppConfig, config.Genesis, 0)
 	if err != nil {
 		return testnode.Context{}, nil, err
 	}
-	config.AppOptions.Set(flags.FlagHome, basePath)
 
 	cometNode, cleanupComet, err := newCometNode(config, multiplexer)
 	if err != nil {
