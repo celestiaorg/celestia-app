@@ -6,6 +6,7 @@ services:
     container_name: core0
     build:
       context: ..
+      dockerfile: ./docker/Dockerfile
     expose:
       - "26660" # for prometheus
     ports:
@@ -31,6 +32,7 @@ services:
     container_name: core1
     build:
       context: ..
+      dockerfile: ./docker/Dockerfile
     expose:
       - "26660" # for prometheus
     depends_on:
@@ -59,6 +61,7 @@ services:
     container_name: core2
     build:
       context: ..
+      dockerfile: ./docker/Dockerfile
     expose:
       - "26660" # for prometheus
     depends_on:
@@ -87,6 +90,7 @@ services:
     container_name: core3
     build:
       context: ..
+      dockerfile: ./docker/Dockerfile
     expose:
       - "26660" # for prometheus
     depends_on:

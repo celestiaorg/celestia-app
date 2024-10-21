@@ -35,7 +35,7 @@ node            |  |                               |  |
 
 ### Source
 
-1. [Install Go](https://go.dev/doc/install) 1.22.6
+1. [Install Go](https://go.dev/doc/install) 1.23.1
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -76,6 +76,22 @@ If you'd rather not install from source, you can download a prebuilt binary from
 See <https://docs.celestia.org/nodes/celestia-app> for more information.
 
 ## Usage
+
+First, make sure that the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm is enabled in the
+system's kernel. The result should contain `bbr`:
+
+```sh
+sysctl net.ipv4.tcp_congestion_control
+```
+
+If not, enable it on Linux by calling the `make use-bbr` or by running:
+
+```sh
+sudo modprobe tcp_bbr
+net.core.default_qdisc=fq
+net.ipv4.tcp_congestion_control=bbr
+sudo sysctl -p
+```
 
 ```sh
 # Print help
@@ -118,7 +134,7 @@ This repo contains multiple go modules. When using it, rename `go.work.example` 
 
 ### Tools
 
-1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.59.1
+1. Install [golangci-lint](https://golangci-lint.run/welcome/install) 1.61.0
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint) 0.39.0
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
@@ -153,8 +169,9 @@ Package-specific READMEs aim to explain implementation details for developers th
 
 ## Audits
 
-| Date       | Auditor                                       | Version                                                                             | Report                                                        |
-|------------|-----------------------------------------------|-------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)   | [informal-systems.pdf](docs/audit/informal-systems.pdf)       |
-| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10) | [binary-builders.pdf](docs/audit/binary-builders.pdf)         |
-| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)   | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf) |
+| Date       | Auditor                                       | Version                                                                                                | Report                                                                                |
+|------------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| 2023/9/15  | [Informal Systems](https://informal.systems/) | [v1.0.0-rc6](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc6)                      | [informal-systems.pdf](docs/audit/informal-systems.pdf)                               |
+| 2023/10/17 | [Binary Builders](https://binary.builders/)   | [v1.0.0-rc10](https://github.com/celestiaorg/celestia-app/releases/tag/v1.0.0-rc10)                    | [binary-builders.pdf](docs/audit/binary-builders.pdf)                                 |
+| 2024/7/1   | [Informal Systems](https://informal.systems/) | [v2.0.0-rc1](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0-rc1)                      | [informal-systems-v2.pdf](docs/audit/informal-systems-v2.pdf)                         |
+| 2024/9/20  | [Informal Systems](https://informal.systems/) | [306c587](https://github.com/celestiaorg/celestia-app/commit/306c58745d135d31c3777a1af2f58d50adbd32c8) | [informal-systems-authored-blobs.pdf](docs/audit/informal-systems-authored-blobs.pdf) |

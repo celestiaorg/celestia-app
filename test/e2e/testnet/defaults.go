@@ -1,10 +1,12 @@
 package testnet
 
+import "k8s.io/apimachinery/pkg/api/resource"
+
 var DefaultResources = Resources{
-	MemoryRequest: "400Mi",
-	MemoryLimit:   "400Mi",
-	CPU:           "300m",
-	Volume:        "1Gi",
+	MemoryRequest: resource.MustParse("400Mi"),
+	MemoryLimit:   resource.MustParse("400Mi"),
+	CPU:           resource.MustParse("300m"),
+	Volume:        resource.MustParse("1Gi"),
 }
 
 const (

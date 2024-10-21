@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# This script starts a single node testnet.
+
 # Stop script execution if an error is encountered
 set -o errexit
 # Stop script execution if an undefined variable is used
@@ -60,7 +62,7 @@ createGenesis() {
     # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
     # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
 
-    # Override the default RPC servier listening address
+    # Override the default RPC server listening address
     sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' "${CELESTIA_APP_HOME}"/config/config.toml
 
     # Enable transaction indexing
@@ -102,7 +104,8 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --v2-upgrade-height 3
+    --v2-upgrade-height 3 \
+    --force-no-bbr // no need to require BBR usage on a local node
 }
 
 if [ -f $GENESIS_FILE ]; then

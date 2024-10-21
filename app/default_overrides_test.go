@@ -80,11 +80,11 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			Size:                  tmcfg.DefaultMempoolConfig().Size,
 			WalPath:               tmcfg.DefaultMempoolConfig().WalPath,
 
-			// overrides
+			// Overrides
 			MaxTxBytes:   7_897_088,
 			MaxTxsBytes:  39_485_440,
 			TTLDuration:  75 * time.Second,
-			TTLNumBlocks: 5,
+			TTLNumBlocks: 12,
 			Version:      "v1",
 		}
 		assert.Equal(t, want, *got.Mempool)

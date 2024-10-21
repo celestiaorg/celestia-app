@@ -12,8 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/celestiaorg/celestia-app/v3/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
-	"github.com/celestiaorg/celestia-app/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v3/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -90,9 +90,6 @@ var (
 	// register interfaces and specific type to encoding config
 	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
 )
-
-// TODO: remove this constant. The v2 state machin shouldn't need to support app version 3.
-const v3 = uint64(3)
 
 func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	var err error
@@ -306,7 +303,7 @@ func allStoreKeys() []string {
 // versionedStoreKeys returns the store keys for each app version.
 func versionedStoreKeys() map[uint64][]string {
 	return map[uint64][]string{
-		1: {
+		v1: {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
@@ -324,7 +321,7 @@ func versionedStoreKeys() map[uint64][]string {
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
-		2: {
+		v2: {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
@@ -344,7 +341,7 @@ func versionedStoreKeys() map[uint64][]string {
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
-		3: {
+		v3: { // same as v2
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,

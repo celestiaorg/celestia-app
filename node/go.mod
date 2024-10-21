@@ -35,7 +35,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
-	github.com/celestiaorg/celestia-app/x/signal v1.0.0 // indirect
+	github.com/celestiaorg/celestia-app/v3/x/signal v1.0.0 // indirect
 	github.com/celestiaorg/go-square v1.1.0 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/go-square/v2 v2.0.0-rc2 // indirect
@@ -212,7 +212,7 @@ replace (
 	github.com/celestiaorg/celestia-app/v2 => ../../celestia-app-v2
 	// replace celestia-app v3 with a local copy so that we can modify it's modules.go
 	github.com/celestiaorg/celestia-app/v3 => ../
-	github.com/celestiaorg/celestia-app/x/signal => ../x/signal
+	github.com/celestiaorg/celestia-app/v3/x/signal => ../x/signal
 	// replace cosmos-sdk with a local copy that exposes config.IsSealed().
 	github.com/cosmos/cosmos-sdk => ../../cosmos-sdk
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0

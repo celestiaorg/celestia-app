@@ -1,8 +1,20 @@
 package app_test
 
 import (
+	"crypto/rand"
+	"strings"
 	"testing"
 	"time"
+
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v3/pkg/user"
+	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
@@ -39,6 +51,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -96,6 +109,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
+		blobfactory.DefaultTxOpts()...,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -136,6 +150,44 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+
+	// create a tx that can't be included in a 64 x 64 when accounting for the
+	// pfb along with the shares
+	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[3:4],
+		infos[3:4],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			[][]int{repeat(4000, 1)},
+		),
+	)[0]
+
+	// memo is 2 MiB resulting in the transaction being over limit
+	largeString := strings.Repeat("a", 2*1024*1024)
+
+	// 3 transactions over MaxTxSize limit
+	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
+
+	// 3 blobTxs over MaxTxSize limit
+	largeBlobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			[][]int{{100}, {1000}, {420}},
+		),
+		user.SetMemo(largeString),
+	)
 
 	type test struct {
 		name      string
@@ -181,6 +233,20 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			},
 			prunedTxs: [][]byte{noAccountTx},
 		},
+		{
+			name: "blob tx with too many shares",
+			txs: func() [][]byte {
+				return [][]byte{tooManyShareBtx}
+			},
+			prunedTxs: [][]byte{tooManyShareBtx},
+		},
+		{
+			name: "blobTxs and sendTxs that exceed MaxTxSize limit",
+			txs: func() [][]byte {
+				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxSize limit
+			},
+			prunedTxs: append(largeTxs, largeBlobTxs...),
+		},
 	}
 
 	for _, tt := range tests {
@@ -204,6 +270,148 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	}
 }
 
+func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping prepare proposal capping number of transactions test in short mode.")
+	}
+	// creating a big number of accounts so that every account
+	// only creates a single transaction. This is for transactions
+	// to be skipped without worrying about the sequence number being
+	// sequential.
+	numberOfAccounts := 8000
+	accounts := testnode.GenerateAccounts(numberOfAccounts)
+	consensusParams := app.DefaultConsensusParams()
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
+	accs := make([]types.AccountI, 0, numberOfAccounts)
+	signers := make([]*user.Signer, 0, numberOfAccounts)
+	for index, account := range accounts {
+		addr := testfactory.GetAddress(kr, account)
+		addrs = append(addrs, addr)
+		acc := testutil.DirectQueryAccount(testApp, addrs[index])
+		accs = append(accs, acc)
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+		require.NoError(t, err)
+		signers = append(signers, signer)
+	}
+
+	numberOfPFBs := appconsts.MaxPFBMessages + 500
+	pfbTxs := make([][]byte, 0, numberOfPFBs)
+	randomBytes := make([]byte, 2000)
+	_, err := rand.Read(randomBytes)
+	require.NoError(t, err)
+	accountIndex := 0
+	for i := 0; i < numberOfPFBs; i++ {
+		blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
+		require.NoError(t, err)
+		tx, _, err := signers[accountIndex].CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		require.NoError(t, err)
+		pfbTxs = append(pfbTxs, tx)
+		accountIndex++
+	}
+
+	multiPFBsPerTxs := make([][]byte, 0, numberOfPFBs)
+	numberOfMsgsPerTx := 10
+	for i := 0; i < numberOfPFBs; i++ {
+		msgs := make([]sdk.Msg, 0)
+		blobs := make([]*share.Blob, 0)
+		for j := 0; j < numberOfMsgsPerTx; j++ {
+			blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
+			require.NoError(t, err)
+			msg, err := blobtypes.NewMsgPayForBlobs(addrs[accountIndex].String(), appconsts.LatestVersion, blob)
+			require.NoError(t, err)
+			msgs = append(msgs, msg)
+			blobs = append(blobs, blob)
+		}
+		txBytes, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
+		require.NoError(t, err)
+		blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
+		require.NoError(t, err)
+		multiPFBsPerTxs = append(multiPFBsPerTxs, blobTx)
+		accountIndex++
+	}
+
+	numberOfMsgSends := appconsts.MaxNonPFBMessages + 500
+	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
+	for i := 0; i < numberOfMsgSends; i++ {
+		msg := banktypes.NewMsgSend(
+			addrs[accountIndex],
+			testnode.RandomAddress().(sdk.AccAddress),
+			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+		)
+		rawTx, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		require.NoError(t, err)
+		msgSendTxs = append(msgSendTxs, rawTx)
+		accountIndex++
+	}
+
+	testCases := []struct {
+		name                 string
+		inputTransactions    [][]byte
+		expectedTransactions [][]byte
+	}{
+		{
+			name:                 "capping only PFB transactions",
+			inputTransactions:    pfbTxs[:appconsts.MaxPFBMessages+50],
+			expectedTransactions: pfbTxs[:appconsts.MaxPFBMessages],
+		},
+		{
+			name:                 "capping only PFB transactions with multiple messages",
+			inputTransactions:    multiPFBsPerTxs[:appconsts.MaxPFBMessages],
+			expectedTransactions: multiPFBsPerTxs[:appconsts.MaxPFBMessages/numberOfMsgsPerTx],
+		},
+		{
+			name:                 "capping only msg send transactions",
+			inputTransactions:    msgSendTxs[:appconsts.MaxNonPFBMessages+50],
+			expectedTransactions: msgSendTxs[:appconsts.MaxNonPFBMessages],
+		},
+		{
+			name: "capping msg send after pfb transactions",
+			inputTransactions: func() [][]byte {
+				input := make([][]byte, 0, len(msgSendTxs)+100)
+				input = append(input, pfbTxs[:100]...)
+				input = append(input, msgSendTxs...)
+				return input
+			}(),
+			expectedTransactions: func() [][]byte {
+				expected := make([][]byte, 0, appconsts.MaxNonPFBMessages+100)
+				expected = append(expected, msgSendTxs[:appconsts.MaxNonPFBMessages]...)
+				expected = append(expected, pfbTxs[:100]...)
+				return expected
+			}(),
+		},
+		{
+			name: "capping pfb after msg send transactions",
+			inputTransactions: func() [][]byte {
+				input := make([][]byte, 0, len(pfbTxs)+100)
+				input = append(input, msgSendTxs[:100]...)
+				input = append(input, pfbTxs...)
+				return input
+			}(),
+			expectedTransactions: func() [][]byte {
+				expected := make([][]byte, 0, appconsts.MaxPFBMessages+100)
+				expected = append(expected, msgSendTxs[:100]...)
+				expected = append(expected, pfbTxs[:appconsts.MaxPFBMessages]...)
+				return expected
+			}(),
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+				BlockData: &tmproto.Data{
+					Txs: testCase.inputTransactions,
+				},
+				ChainId: testApp.GetChainID(),
+				Height:  10,
+			})
+			assert.Equal(t, testCase.expectedTransactions, resp.BlockData.Txs)
+		})
+	}
+}
+
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {
@@ -215,4 +423,13 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 		}
 	}
 	return infos
+}
+
+// repeat returns a slice of length n with each element set to val.
+func repeat[T any](n int, val T) []T {
+	result := make([]T, n)
+	for i := range result {
+		result[i] = val
+	}
+	return result
 }

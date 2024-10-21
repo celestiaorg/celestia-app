@@ -88,7 +88,6 @@ func TestExtendShares(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		_, err := ExtendShares(tt.shares)
 		if tt.expectedErr {
 			require.NotNil(t, err)
@@ -122,7 +121,6 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		pdah, err := tt.dah.ToProto()
 		require.NoError(t, err)
 		resDah, err := DataAvailabilityHeaderFromProto(pdah)
@@ -203,7 +201,6 @@ func Test_DAHValidateBasic(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		err := tt.dah.ValidateBasic()
 		if tt.expectErr {
 			require.True(t, strings.Contains(err.Error(), tt.errStr), tt.name)

@@ -2,7 +2,7 @@ package testnode
 
 import (
 	"context"
-	"net"
+	"path/filepath"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
@@ -16,14 +16,15 @@ import (
 // accessed via the returned client.Context or via the returned rpc and grpc
 // addresses. Configured genesis options will be applied after all accounts have
 // been initialized.
-func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr string) {
+func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
 	// initialize the genesis file and validator files for the first validator.
-	baseDir, err := genesis.InitFiles(t.TempDir(), cfg.TmConfig, cfg.Genesis, 0)
+	baseDir := filepath.Join(t.TempDir(), "testnode")
+	err := genesis.InitFiles(baseDir, config.TmConfig, config.AppConfig, config.Genesis, 0)
 	require.NoError(t, err)
 
-	tmNode, app, err := NewCometNode(baseDir, &cfg.UniversalTestingConfig)
+	tmNode, app, err := NewCometNode(baseDir, &config.UniversalTestingConfig)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -31,15 +32,16 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		cancel()
 	})
 
-	cctx = NewContext(ctx, cfg.Genesis.Keyring(), cfg.TmConfig, cfg.Genesis.ChainID, cfg.AppConfig.API.Address)
+	cctx = NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
+	cctx.tmNode = tmNode
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, cfg.AppConfig, cctx)
+	cctx, cleanupGRPC, err := StartGRPCServer(app, config.AppConfig, cctx)
 	require.NoError(t, err)
 
-	apiServer, err := StartAPIServer(app, *cfg.AppConfig, cctx)
+	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -64,30 +66,5 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		}
 	})
 
-	return cctx, cfg.TmConfig.RPC.ListenAddress, cfg.AppConfig.GRPC.Address
-}
-
-// getFreePort returns a free port and optionally an error.
-func getFreePort() (int, error) {
-	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", a)
-	if err != nil {
-		return 0, err
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-// mustGetFreePort returns a free port. Panics if no free ports are available or
-// an error is encountered.
-func mustGetFreePort() int {
-	port, err := getFreePort()
-	if err != nil {
-		panic(err)
-	}
-	return port
+	return cctx, config.TmConfig.RPC.ListenAddress, config.AppConfig.GRPC.Address
 }

@@ -3,6 +3,9 @@ package testnode
 import (
 	"context"
 	"encoding/hex"
+	"net"
+	"os"
+	"path"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -87,4 +90,49 @@ func GenerateAccounts(count int) []string {
 		accs[i] = tmrand.Str(20)
 	}
 	return accs
+}
+
+// getFreePort returns a free port and optionally an error.
+func getFreePort() (int, error) {
+	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", a)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+// mustGetFreePort returns a free port. Panics if no free ports are available or
+// an error is encountered.
+func mustGetFreePort() int {
+	port, err := getFreePort()
+	if err != nil {
+		panic(err)
+	}
+	return port
+}
+
+// removeDir removes the directory `rootDir`.
+// The main use of this is to reduce the flakiness of the CI when it's unable to delete
+// the config folder of the tendermint node.
+// This will manually go over the files contained inside the provided `rootDir`
+// and delete them one by one.
+func removeDir(rootDir string) error {
+	dir, err := os.ReadDir(rootDir)
+	if err != nil {
+		return err
+	}
+	for _, d := range dir {
+		path := path.Join([]string{rootDir, d.Name()}...)
+		err := os.RemoveAll(path)
+		if err != nil {
+			return err
+		}
+	}
+	return os.RemoveAll(rootDir)
 }
