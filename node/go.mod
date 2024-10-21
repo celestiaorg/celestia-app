@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/node
 
-go 1.22.6
+go 1.23.1
 
 require (
 	github.com/celestiaorg/celestia-app/v2 v2.0.0

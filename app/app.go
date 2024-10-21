@@ -439,13 +439,13 @@ func New(
 		tmos.Exit(err.Error())
 	}
 
-	height := app.LastBlockHeight()
-	ctx, err := app.CreateQueryContext(height, false)
-	if err != nil {
-		panic(err)
-	}
-	app.SetAppVersion(ctx, v3)
-	app.mountKeysAndInit(3)
+	// height := app.LastBlockHeight()
+	// ctx, err := app.CreateQueryContext(height, false)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// app.SetAppVersion(ctx, v3)
+	// app.mountKeysAndInit(3)
 
 	return app
 }
@@ -461,6 +461,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 	return app.manager.BeginBlock(ctx, req)
 }
 
+// EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
@@ -486,7 +487,6 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
-	// Question why do we do this every block instead of just during the v2 to v3 upgrade?
 	res.Timeouts.TimeoutCommit = appconsts.GetTimeoutCommit(currentVersion)
 	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(currentVersion)
 	return res
