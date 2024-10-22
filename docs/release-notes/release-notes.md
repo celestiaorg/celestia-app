@@ -2,9 +2,24 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v3.0.0
+
+### Node Operators (v3.0.0)
+
+- Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
+- Consensus node operators should manually configure their node's mempool `ttl-num-blocks = 12` in config.toml. An example command to do this:
+
+  ```bash
+  sed -i 's/ttl-num-blocks = 5/ttl-num-blocks = 12/' ~/.celestia-app/config/config.toml
+  ```
+
+### Library Consumers (v3.0.0)
+
+- Namespace and share constants in the `appconsts` package were moved to [celestiaorg/go-square](https://github.com/celestiaorg/go-square). See [#3765](https://github.com/celestiaorg/celestia-app/pull/3765).
+
 ## [v2.0.0](https://github.com/celestiaorg/celestia-app/releases/tag/v2.0.0)
 
-### Node Operators
+### Node Operators (v2.0.0)
 
 If you are a consensus node operator, please follow the communication channels listed under [network upgrades](https://docs.celestia.org/nodes/participate#network-upgrades) to learn when this release is recommended for each network (e.g. Mocha, Mainnet Beta).
 
@@ -12,7 +27,7 @@ Consensus node operators are expected to upgrade to this release _prior_ to the 
 
 Consensus node operators should enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3812](https://github.com/celestiaorg/celestia-app/pull/3812).
 
-### Library Consumers
+### Library Consumers (v2.0.0)
 
 If you are a library consumer, a number of the Go APIs have changed since celestia-app v1.x.x. Some of the notable changes are:
 
