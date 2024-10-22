@@ -284,7 +284,8 @@ build-multiplexer:
 	@echo "--> Building celestia-app/multiplexer and outputting binary to build/multiplexer"
 	@mkdir -p build/
 	@cd ./multiplexer && go build -o ../build/multiplexer .
-	@go mod tidy
+	@echo "--> Running multiplexer binary"
+	@./build/multiplexer
 .PHONY: build-multiplexer
 
 ## Alias for build-multiplexer
