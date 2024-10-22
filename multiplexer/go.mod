@@ -36,6 +36,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0 // indirect
+	github.com/celestiaorg/celestia-app/v3/x/minfee v0.0.0 // indirect
 	github.com/celestiaorg/go-square v1.1.1 // indirect
 	github.com/celestiaorg/go-square/merkle v0.0.0-20240117232118-fd78256df076 // indirect
 	github.com/celestiaorg/go-square/v2 v2.0.0 // indirect
@@ -152,7 +153,6 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/petermattis/goid v0.0.0-20230317030725-371a4b8eda08 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -206,8 +206,8 @@ require (
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/api v0.171.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
 	google.golang.org/grpc v1.67.1 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -225,6 +225,8 @@ replace (
 	github.com/celestiaorg/celestia-app/v2 => ../../celestia-app-v2
 	// replace celestia-app v3 with a local copy so that we can modify it's modules.go
 	github.com/celestiaorg/celestia-app/v3 => ../
+	// replace celestia-app v3 with a local copy so that we can modify it's modules.go
+	github.com/celestiaorg/celestia-app/v3/x/minfee => ../x/minfee
 	// replace cosmos-sdk with a local copy so that we can debug log.
 	github.com/cosmos/cosmos-sdk => ../../cosmos-sdk
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0

@@ -30,6 +30,9 @@ const (
 	// DefaultNetworkMinGasPrice is used by x/minfee to prevent transactions from being
 	// included in a block if they specify a gas price lower than this.
 	// Only applies to app version >= 2
+	//
+	// Deprecated: Import this constant from x/minfee instead.
+	// TODO: Remove this constant in v4.
 	DefaultNetworkMinGasPrice = 0.000001 // utia
 )
 
