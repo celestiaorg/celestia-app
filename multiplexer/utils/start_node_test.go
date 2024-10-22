@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/node/utils"
+	"github.com/celestiaorg/celestia-app/multiplexer/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"

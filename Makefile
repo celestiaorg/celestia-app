@@ -248,14 +248,6 @@ prebuilt-binary:
 		release --clean
 .PHONY: prebuilt-binary
 
-## build-node: Build the node binary.
-build-node:
-	@echo "--> Building celestia-app/node and outputting binary to build/node"
-	@mkdir -p build/
-	@cd ./node && go build -o ../build/node .
-	@go mod tidy
-.PHONY: build-node
-
 ## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
@@ -286,3 +278,15 @@ debug-version:
 	@echo "GIT_TAG: $(GIT_TAG)"
 	@echo "VERSION: $(VERSION)"
 .PHONY: debug-version
+
+## build-multiplexer: Build the multiplexer binary.
+build-multiplexer:
+	@echo "--> Building celestia-app/multiplexer and outputting binary to build/multiplexer"
+	@mkdir -p build/
+	@cd ./multiplexer && go build -o ../build/multiplexer .
+	@go mod tidy
+.PHONY: build-multiplexer
+
+## Alias for build-multiplexer
+multiplexer: build-multiplexer
+.PHONY: multiplexer

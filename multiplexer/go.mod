@@ -1,4 +1,4 @@
-module github.com/celestiaorg/celestia-app/node
+module github.com/celestiaorg/celestia-app/multiplexer
 
 go 1.23.1
 
