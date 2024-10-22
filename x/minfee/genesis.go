@@ -10,7 +10,7 @@ import (
 // DefaultGenesis returns the default genesis state.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		NetworkMinGasPrice: DefaultNetworkMinGasPrice,
+		NetworkMinGasPrice: DefaultNetworkMinGasPriceAsDec(),
 	}
 }
 

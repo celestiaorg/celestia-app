@@ -3,7 +3,6 @@ package minfee
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -13,17 +12,8 @@ const ModuleName = "minfee"
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyNetworkMinGasPrice     = []byte("NetworkMinGasPrice")
-	DefaultNetworkMinGasPrice sdk.Dec
+	KeyNetworkMinGasPrice = []byte("NetworkMinGasPrice")
 )
-
-func init() {
-	DefaultNetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
-	if err != nil {
-		panic(err)
-	}
-	DefaultNetworkMinGasPrice = DefaultNetworkMinGasPriceDec
-}
 
 type Params struct {
 	NetworkMinGasPrice sdk.Dec
