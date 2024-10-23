@@ -255,7 +255,8 @@ require (
 )
 
 replace (
-	// Replace this import until there's an official release of x/minfee
+	// Replace this import until there's an official release of x/minfee.
+	// After this PR merges, we can create a release of x/minfee v1.0.0
 	github.com/celestiaorg/celestia-app/x/minfee => ./x/minfee
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
