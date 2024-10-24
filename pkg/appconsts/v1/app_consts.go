@@ -4,7 +4,7 @@ import "time"
 
 const (
 	Version              uint64 = 1
-	SquareSizeUpperBound int    = 128
+	SquareSizeUpperBound int    = 512
 	SubtreeRootThreshold int    = 64
 	TimeoutPropose              = time.Second * 10
 	TimeoutCommit               = time.Second * 11
