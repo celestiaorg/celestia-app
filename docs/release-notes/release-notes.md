@@ -7,6 +7,7 @@ This guide provides notes for major version releases. These notes may be helpful
 ### Node Operators (v3.0.0)
 
 - Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
+  - if using linux in docker, kubernetes, a vm or baremetal, this can be done by calling the `make enable-bbr` command on the host machine.
 - Consensus node operators should manually configure their node's mempool `ttl-num-blocks = 12` in config.toml. An example command to do this:
 
   ```bash
