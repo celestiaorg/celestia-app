@@ -278,3 +278,16 @@ debug-version:
 	@echo "GIT_TAG: $(GIT_TAG)"
 	@echo "VERSION: $(VERSION)"
 .PHONY: debug-version
+
+## build-multiplexer: Build the multiplexer binary.
+build-multiplexer:
+	@echo "--> Building celestia-app/multiplexer and outputting binary to build/multiplexer"
+	@mkdir -p build/
+	@cd ./multiplexer && go build -o ../build/multiplexer .
+	@echo "--> Running multiplexer binary"
+	@./build/multiplexer
+.PHONY: build-multiplexer
+
+## Alias for build-multiplexer
+multiplexer: build-multiplexer
+.PHONY: multiplexer

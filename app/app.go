@@ -175,8 +175,7 @@ type App struct {
 	MsgGateKeeper *ante.MsgVersioningGateKeeper
 }
 
-// New returns a reference to an uninitialized app. Callers must subsequently
-// call app.Info or app.InitChain to initialize the baseapp.
+// New returns a reference to an initialized app.
 //
 // NOTE: upgradeHeightV2 refers specifically to the height that a node will
 // upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
@@ -187,7 +186,7 @@ func New(
 	traceStore io.Writer,
 	invCheckPeriod uint,
 	encodingConfig encoding.Config,
-	upgradeHeightV2 int64,
+	upgradeHeightV2 int64, // TODO: remove this param
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -440,6 +439,14 @@ func New(
 		tmos.Exit(err.Error())
 	}
 
+	// height := app.LastBlockHeight()
+	// ctx, err := app.CreateQueryContext(height, false)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// app.SetAppVersion(ctx, v3)
+	// app.mountKeysAndInit(3)
+
 	return app
 }
 
@@ -516,8 +523,6 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // Info implements the ABCI interface. This method is a wrapper around baseapp's
 // Info command so that it can take the app version and setup the multicommit
 // store.
-//
-// Side-effect: calls baseapp.Init()
 func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)
@@ -549,6 +554,7 @@ func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
 // store.
 //
 // Side-effect: calls baseapp.Init()
+// TODO: refactor this method because it no longer needs to support initializing a chain with an app version that isn't 3.
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	req = setDefaultAppVersion(req)
 	appVersion := req.ConsensusParams.Version.AppVersion
@@ -802,6 +808,10 @@ func (app *App) InitializeAppVersion(ctx sdk.Context) {
 	} else {
 		app.SetAppVersion(ctx, appVersion)
 	}
+}
+
+func (app *App) RunMigrations() []byte {
+	return []byte{}
 }
 
 // OfferSnapshot is a wrapper around the baseapp's OfferSnapshot method. It is
