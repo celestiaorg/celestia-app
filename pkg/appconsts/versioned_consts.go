@@ -2,6 +2,7 @@ package appconsts
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
@@ -79,7 +80,7 @@ func GetTimeoutCommit(v uint64) time.Duration {
 }
 
 // UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
-func UpgradeHeightDelay(v uint64) int64 {
+func UpgradeHeightDelay(chainID string, v uint64) int64 {
 	if OverrideUpgradeHeightDelayStr != "" {
 		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
 		if err != nil {
@@ -87,10 +88,13 @@ func UpgradeHeightDelay(v uint64) int64 {
 		}
 		return parsedValue
 	}
-	switch v {
-	case v1.Version:
+	switch {
+	case v == v1.Version:
 		return v1.UpgradeHeightDelay
-	case v2.Version:
+	// ONLY ON ARABICA: don't return the v2 value even when the app version is
+	// v2 on arabica. This is due to a bug that was shipped on arabica, where
+	// the next version was used.
+	case v == v2.Version && !strings.Contains(chainID, "arabica"):
 		return v2.UpgradeHeightDelay
 	default:
 		return v3.UpgradeHeightDelay

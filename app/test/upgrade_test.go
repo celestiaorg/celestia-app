@@ -106,7 +106,7 @@ func TestAppUpgradeV3(t *testing.T) {
 
 	// brace yourselfs, this part may take a while
 	initialHeight := int64(4)
-	for height := initialHeight; height < initialHeight+appconsts.UpgradeHeightDelay(v2.Version); height++ {
+	for height := initialHeight; height < initialHeight+appconsts.UpgradeHeightDelay(testApp.GetChainID(), v2.Version); height++ {
 		appVersion := v2.Version
 		_ = testApp.BeginBlock(abci.RequestBeginBlock{
 			Header: tmproto.Header{
@@ -116,7 +116,7 @@ func TestAppUpgradeV3(t *testing.T) {
 		})
 
 		endBlockResp = testApp.EndBlock(abci.RequestEndBlock{
-			Height: 3 + appconsts.UpgradeHeightDelay(v2.Version),
+			Height: 3 + appconsts.UpgradeHeightDelay(testApp.GetChainID(), v2.Version),
 		})
 
 		require.Equal(t, appconsts.GetTimeoutCommit(appVersion), endBlockResp.Timeouts.TimeoutCommit)
@@ -141,7 +141,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	_ = testApp.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			ChainID: genesis.ChainID,
-			Height:  initialHeight + appconsts.UpgradeHeightDelay(v3.Version),
+			Height:  initialHeight + appconsts.UpgradeHeightDelay(testApp.GetChainID(), v3.Version),
 			Version: tmversion.Consensus{App: 3},
 		},
 	})
@@ -152,7 +152,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	require.Equal(t, abci.CodeTypeOK, deliverTxResp.Code, deliverTxResp.Log)
 
 	respEndBlock := testApp.EndBlock(abci.
-		RequestEndBlock{Height: initialHeight + appconsts.UpgradeHeightDelay(v3.Version)})
+		RequestEndBlock{Height: initialHeight + appconsts.UpgradeHeightDelay(testApp.GetChainID(), v3.Version)})
 	require.Equal(t, appconsts.GetTimeoutCommit(v3.Version), respEndBlock.Timeouts.TimeoutCommit)
 	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), respEndBlock.Timeouts.TimeoutPropose)
 }

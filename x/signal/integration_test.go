@@ -23,10 +23,12 @@ func TestUpgradeIntegration(t *testing.T) {
 	cp := app.DefaultConsensusParams()
 	cp.Version.AppVersion = v2.Version
 	app, _ := testutil.SetupTestAppWithGenesisValSet(cp)
+	chainID := "test"
 	ctx := sdk.NewContext(app.CommitMultiStore(), tmtypes.Header{
 		Version: tmversion.Consensus{
 			App: v2.Version,
 		},
+		ChainID: chainID,
 	}, false, tmlog.NewNopLogger())
 	goCtx := sdk.WrapSDKContext(ctx)
 	ctx = sdk.UnwrapSDKContext(goCtx)
@@ -77,7 +79,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.False(t, shouldUpgrade)
 	require.EqualValues(t, 0, version)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(version))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(chainID, version))
 
 	shouldUpgrade, version = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)

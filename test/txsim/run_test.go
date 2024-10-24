@@ -151,7 +151,7 @@ func TestTxSimulator(t *testing.T) {
 func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
 
-	cfg := testnode.DefaultConfig().WithTimeoutCommit(300 * time.Millisecond).WithFundedAccounts("txsim-master")
+	cfg := testnode.DefaultConfig().WithBlockTime(300 * time.Millisecond).WithFundedAccounts("txsim-master")
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
@@ -165,7 +165,7 @@ func TestTxSimUpgrade(t *testing.T) {
 	cp := app.DefaultConsensusParams()
 	cp.Version.AppVersion = v2.Version
 	cfg := testnode.DefaultConfig().
-		WithTimeoutCommit(300 * time.Millisecond).
+		WithBlockTime(300 * time.Millisecond).
 		WithConsensusParams(cp).
 		WithFundedAccounts("txsim-master")
 	cctx, _, grpcAddr := testnode.NewNetwork(t, cfg)
