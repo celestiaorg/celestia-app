@@ -14,6 +14,31 @@ This guide provides notes for major version releases. These notes may be helpful
   sed -i 's/ttl-num-blocks = 5/ttl-num-blocks = 12/' ~/.celestia-app/config/config.toml
   ```
 
+- Upgrades now use the `x/signal` module to coordinate the network to an upgrade height.
+
+The following command can be used, if you are a validator in the active set, to signal to upgrade to v3
+
+```bash
+celestia-appd tx signal signal 3 <plus transaction flags>
+```
+
+You can track the tally of signalling by validators using the following query
+
+```bash
+celestia-appd query signal tally 3
+```
+
+Once 5/6+ of the voting power have signalled, the upgrade will be ready. There is a hard coded delay between confirmation of the upgrade and execution to the new state machine. 
+
+To view the upcoming upgrade height use the following query:
+
+```bash
+celestia-appd query signal upgrade
+> An upgrade is pending to app version 3 at height 2348907.
+```
+
+For more information refer to the module [docs](../../x/signal/README.md)
+
 ### Library Consumers (v3.0.0)
 
 - Namespace and share constants in the `appconsts` package were moved to [celestiaorg/go-square](https://github.com/celestiaorg/go-square). See [#3765](https://github.com/celestiaorg/celestia-app/pull/3765).
