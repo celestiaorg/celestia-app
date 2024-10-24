@@ -10,12 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/ethereum/go-ethereum/rlp"
 	gethtrie "github.com/ethereum/go-ethereum/trie"
-	"github.com/stretchr/testify/require"
 
 	crand "crypto/rand"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 )
 
@@ -33,13 +32,17 @@ func TestVerifyMerklePatriciaTrieProof(t *testing.T) {
 
 		for _, kv := range vals {
 			proof := prover(kv.k)
+			proofBytes, err := serializeProofDB(proof)
+			if err != nil {
+				t.Fatalf("prover %d: failed to serialize proof for key %x: %v", i, kv.k, err)
+			}
+
 			if proof == nil {
 				t.Fatalf("prover %d: missing key %x while constructing proof", i, kv.k)
 			}
-			var proofBuf bytes.Buffer
-			err := rlp.Encode(&proofBuf, proof)
-			require.NoError(t, err)
-			val, err := mpt.VerifyMerklePatriciaTrieProof(root.Bytes(), string(kv.k), proofBuf.Bytes())
+
+			val, err := mpt.VerifyMerklePatriciaTrieProof(root.Bytes(), string(kv.k), proofBytes)
+			fmt.Println(val, "VALUES")
 			if err != nil {
 				t.Fatalf("prover %d: failed to verify proof for key %x: %v\nraw proof: %x", i, kv.k, err, proof)
 			}
@@ -50,9 +53,9 @@ func TestVerifyMerklePatriciaTrieProof(t *testing.T) {
 	}
 }
 
-func randomTrie(n int) (*gethtrie.Trie, map[string]*kv) {
-	trie := gethtrie.NewEmpty(newTestDatabase(rawdb.NewMemoryDatabase(), rawdb.HashScheme))
-	vals := make(map[string]*kv)
+func randomTrie(n int) (trie *gethtrie.Trie, vals map[string]*kv) {
+	trie = gethtrie.NewEmpty(newTestDatabase(rawdb.NewMemoryDatabase(), rawdb.HashScheme))
+	vals = make(map[string]*kv)
 	for i := byte(0); i < 100; i++ {
 		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
 		value2 := &kv{common.LeftPadBytes([]byte{i + 10}, 32), []byte{i}, false}
@@ -105,4 +108,26 @@ func makeProvers(trie *gethtrie.Trie) []func(key []byte) *memorydb.Database {
 		return proof
 	})
 	return provers
+}
+
+func serializeProofDB(proof *memorydb.Database) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+
+	it := proof.NewIterator(nil, nil)
+	for it.Next() {
+		key := it.Key()
+		value := it.Value()
+
+		// Encode the key and value pair
+		if err := encoder.Encode(key); err != nil {
+			return nil, err
+		}
+		if err := encoder.Encode(value); err != nil {
+			return nil, err
+		}
+	}
+
+	// Return the serialized byte slice
+	return buf.Bytes(), nil
 }
