@@ -102,9 +102,10 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		if version <= sdkCtx.BlockHeader().Version.App {
 			return &types.MsgTryUpgradeResponse{}, types.ErrInvalidUpgradeVersion.Wrapf("can not upgrade to version %v because it is less than or equal to current version %v", version, sdkCtx.BlockHeader().Version.App)
 		}
+		header := sdkCtx.BlockHeader()
 		upgrade := types.Upgrade{
 			AppVersion:    version,
-			UpgradeHeight: sdkCtx.BlockHeader().Height + appconsts.UpgradeHeightDelay(version),
+			UpgradeHeight: sdkCtx.BlockHeader().Height + appconsts.UpgradeHeightDelay(header.ChainID, header.Version.App),
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}

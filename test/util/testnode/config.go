@@ -82,9 +82,11 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 	return c
 }
 
-// WithTimeoutCommit sets the TimeoutCommit and returns the Config.
-func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+// WithBlockTime sets the block time and returns the Config.
+func (c *Config) WithBlockTime(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
+	creator := DefaultAppCreator(d)
+	c.WithAppCreator(creator)
 	return c
 }
 
@@ -132,7 +134,7 @@ func DefaultConfig() *Config {
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithAppCreator(DefaultAppCreator()).
+		WithAppCreator(DefaultAppCreator(time.Millisecond * 30)).
 		WithSuppressLogs(true)
 }
 
@@ -171,7 +173,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	return tmCfg
 }
 
-func DefaultAppCreator() srvtypes.AppCreator {
+func DefaultAppCreator(blockTime time.Duration) srvtypes.AppCreator {
 	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		app := app.New(
@@ -184,7 +186,7 @@ func DefaultAppCreator() srvtypes.AppCreator {
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
-		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*30))
+		app.SetEndBlocker(wrapEndBlocker(app, blockTime))
 		return app
 	}
 }
