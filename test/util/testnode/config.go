@@ -90,6 +90,14 @@ func (c *Config) WithBlockTime(d time.Duration) *Config {
 	return c
 }
 
+// Deprecated: use WithBlockTime instead. WithTimeoutCommit sets the timeout
+// commit in the cometBFT config and returns the Config. Warning, this won't
+// actually change the block time and is being deprecated.
+func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
+}
+
 // WithFundedAccounts sets the genesis accounts and returns the Config.
 func (c *Config) WithFundedAccounts(accounts ...string) *Config {
 	c.Genesis = c.Genesis.WithKeyringAccounts(
