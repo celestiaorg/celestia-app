@@ -1,12 +1,11 @@
-package minfee_test
+package app_test
 
 import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/celestiaorg/celestia-app/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -24,5 +23,5 @@ func TestQueryNetworkMinGasPrice(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the response
-	require.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.NetworkMinGasPrice.MustFloat64())
+	require.Equal(t, minfee.DefaultNetworkMinGasPriceAsDec(), resp.NetworkMinGasPrice)
 }
