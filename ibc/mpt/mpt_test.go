@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	gethtrie "github.com/ethereum/go-ethereum/trie"
+	"github.com/stretchr/testify/require"
 
 	crand "crypto/rand"
 	"encoding/binary"
@@ -32,17 +32,14 @@ func TestVerifyMerklePatriciaTrieProof(t *testing.T) {
 
 		for _, kv := range vals {
 			proof := prover(kv.k)
-			proofBytes, err := serializeProofDB(proof)
-			if err != nil {
-				t.Fatalf("prover %d: failed to serialize proof for key %x: %v", i, kv.k, err)
-			}
+			proofBytes, err := proofListToBytes(*proof)
+			require.NoError(t, err)
 
 			if proof == nil {
 				t.Fatalf("prover %d: missing key %x while constructing proof", i, kv.k)
 			}
 
 			val, err := mpt.VerifyMerklePatriciaTrieProof(root.Bytes(), string(kv.k), proofBytes)
-			fmt.Println(val, "VALUES")
 			if err != nil {
 				t.Fatalf("prover %d: failed to verify proof for key %x: %v\nraw proof: %x", i, kv.k, err, proof)
 			}
@@ -88,46 +85,34 @@ func initRnd() *mrand.Rand {
 
 // makeProvers creates Merkle trie provers based on different implementations to
 // test all variations.
-func makeProvers(trie *gethtrie.Trie) []func(key []byte) *memorydb.Database {
-	var provers []func(key []byte) *memorydb.Database
+func makeProvers(trie *gethtrie.Trie) []func(key []byte) *mpt.ProofList {
+	var provers []func(key []byte) *mpt.ProofList
 
 	// Create a direct trie based Merkle prover
-	provers = append(provers, func(key []byte) *memorydb.Database {
-		proof := memorydb.New()
-		trie.Prove(key, proof)
-		return proof
+	provers = append(provers, func(key []byte) *mpt.ProofList {
+		var proof mpt.ProofList
+		trie.Prove(key, &proof)
+		return &proof
 	})
 	// Create a leaf iterator based Merkle prover
-	provers = append(provers, func(key []byte) *memorydb.Database {
-		proof := memorydb.New()
+	provers = append(provers, func(key []byte) *mpt.ProofList {
+		var proof mpt.ProofList
 		if it := gethtrie.NewIterator(trie.MustNodeIterator(key)); it.Next() && bytes.Equal(key, it.Key) {
 			for _, p := range it.Prove() {
 				proof.Put(crypto.Keccak256(p), p)
 			}
 		}
-		return proof
+		return &proof
 	})
 	return provers
 }
 
-func serializeProofDB(proof *memorydb.Database) ([]byte, error) {
+// Converts proofList to []byte by encoding it with gob
+func proofListToBytes(proof mpt.ProofList) ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
-
-	it := proof.NewIterator(nil, nil)
-	for it.Next() {
-		key := it.Key()
-		value := it.Value()
-
-		// Encode the key and value pair
-		if err := encoder.Encode(key); err != nil {
-			return nil, err
-		}
-		if err := encoder.Encode(value); err != nil {
-			return nil, err
-		}
+	if err := encoder.Encode(proof); err != nil {
+		return nil, fmt.Errorf("failed to encode proofList to bytes: %w", err)
 	}
-
-	// Return the serialized byte slice
 	return buf.Bytes(), nil
 }
