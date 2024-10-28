@@ -2,7 +2,6 @@ package appconsts
 
 import (
 	"strconv"
-	"strings"
 	"time"
 
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
@@ -88,13 +87,16 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 		}
 		return parsedValue
 	}
-	switch {
-	case v == v1.Version:
+	switch v {
+	case v1.Version:
 		return v1.UpgradeHeightDelay
-	// ONLY ON ARABICA: don't return the v2 value even when the app version is
-	// v2 on arabica. This is due to a bug that was shipped on arabica, where
-	// the next version was used.
-	case v == v2.Version && !strings.Contains(chainID, "arabica"):
+	case v2.Version:
+		// ONLY ON ARABICA: don't return the v2 value even when the app version is
+		// v2 on arabica. This is due to a bug that was shipped on arabica, where
+		// the next version was used.
+		if chainID == ArabicaChainID {
+			return v3.UpgradeHeightDelay
+		}
 		return v2.UpgradeHeightDelay
 	default:
 		return v3.UpgradeHeightDelay

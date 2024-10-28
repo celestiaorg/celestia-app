@@ -105,6 +105,11 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			chainID:                    "celestia",
 			version:                    v2.Version,
 			expectedUpgradeHeightDelay: v2.UpgradeHeightDelay,
+		}, {
+			name:                       "v2 upgrade delay on an arabica network other than arabica-11",
+			chainID:                    "arabica-11",
+			version:                    v2.Version,
+			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay, // falls back to v3 because of arabica bug
 		},
 		{
 			name:                       "v2 upgrade delay on arabica",
