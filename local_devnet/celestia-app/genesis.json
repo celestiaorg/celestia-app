@@ -4,7 +4,7 @@
   "initial_height": "1",
   "consensus_params": {
     "block": {
-      "max_bytes": "1974272",
+      "max_bytes": "16974272",
       "max_gas": "-1",
       "time_iota_ms": "1"
     },
@@ -262,18 +262,18 @@
         "min_deposit": [
           {
             "denom": "utia",
-            "amount": "10000000000"
+            "amount": "1"
           }
         ],
         "max_deposit_period": "60s"
       },
       "voting_params": {
-        "voting_period": "60s"
+        "voting_period": "20s"
       },
       "tally_params": {
-        "quorum": "0.334000000000000000",
-        "threshold": "0.500000000000000000",
-        "veto_threshold": "0.334000000000000000"
+        "quorum": "0.00000000000000001",
+        "threshold": "0.000000000000000001",
+        "veto_threshold": "0.000000000000000001"
       }
     },
     "ibc": {
