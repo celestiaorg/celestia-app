@@ -225,6 +225,19 @@ prebuilt-binary:
 		release --clean
 .PHONY: prebuilt-binary
 
+<<<<<<< HEAD
+=======
+## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
+check-bbr:
+	@echo "Checking if BBR is enabled..."
+	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
+		echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
+	else \
+		echo "BBR is enabled."; \
+	fi
+.PHONY: check-bbr
+
+>>>>>>> c410d880 (fix: make check-bbr (#4004))
 ## enable-bbr: Enable BBR congestion control algorithm. Only works on Linux.
 enable-bbr:
 	@echo "Configuring system to use BBR..."
