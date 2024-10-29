@@ -82,10 +82,10 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 	return c
 }
 
-// WithTimeoutCommit sets the TimeoutCommit and returns the Config.
+// WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
+// the Config.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
-	c.TmConfig.Consensus.TimeoutCommit = d
-	return c
+	return c.WithAppCreator(DefaultAppCreator(WithTimeoutCommit(d)))
 }
 
 // WithFundedAccounts sets the genesis accounts and returns the Config.
@@ -132,7 +132,7 @@ func DefaultConfig() *Config {
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithAppCreator(DefaultAppCreator()).
+		WithTimeoutCommit(time.Millisecond * 30).
 		WithSuppressLogs(true)
 }
 
@@ -171,7 +171,15 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	return tmCfg
 }
 
-func DefaultAppCreator() srvtypes.AppCreator {
+type AppCreationOptions func(app *app.App)
+
+func WithTimeoutCommit(d time.Duration) AppCreationOptions {
+	return func(app *app.App) {
+		app.SetEndBlocker(wrapEndBlocker(app, d))
+	}
+}
+
+func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 	return func(_ log.Logger, _ tmdb.DB, _ io.Writer, _ srvtypes.AppOptions) srvtypes.Application {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		app := app.New(
@@ -184,7 +192,11 @@ func DefaultAppCreator() srvtypes.AppCreator {
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
-		app.SetEndBlocker(wrapEndBlocker(app, time.Millisecond*30))
+
+		for _, opt := range opts {
+			opt(app)
+		}
+
 		return app
 	}
 }
