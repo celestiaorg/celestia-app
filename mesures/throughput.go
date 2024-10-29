@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"time"
 )
 
 const mebibyte = 1024 * 1024
@@ -31,6 +32,7 @@ func main() {
 		if err != nil {
 			i--
 			fmt.Println(err.Error())
+			time.Sleep(10 * time.Second)
 			continue
 		}
 		total := toBytes(block)
