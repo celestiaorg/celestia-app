@@ -10,9 +10,9 @@ import (
 const mebibyte = 1024 * 1024
 
 func main() {
-	start := int64(1881)
+	start := int64(2560)
 	//end:= int64(3803)
-	end := int64(1881 + 500)
+	end := int64(2560 + 500)
 	count := float64(end - start + 1)
 	rpcAddress := "http://localhost:26657"
 
