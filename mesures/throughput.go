@@ -29,7 +29,9 @@ func main() {
 	for i := start; i < end; i++ {
 		block, err := trpc.Block(context.Background(), &i)
 		if err != nil {
-			panic(err)
+			i--
+			fmt.Println(err.Error())
+			continue
 		}
 		total := toBytes(block)
 		totalBytes += total
