@@ -49,7 +49,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 
 	cfg := testnode.DefaultConfig().
 		WithModifiers(genesis.ImmediateProposals(s.ecfg.Codec)).
-		WithBlockTime(time.Second)
+		WithTimeoutCommit(time.Second)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
