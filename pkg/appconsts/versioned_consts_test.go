@@ -80,3 +80,50 @@ func TestVersionedConsts(t *testing.T) {
 		})
 	}
 }
+
+func TestUpgradeHeightDelay(t *testing.T) {
+	tests := []struct {
+		name                       string
+		chainID                    string
+		version                    uint64
+		expectedUpgradeHeightDelay int64
+	}{
+		{
+			name:                       "v1 upgrade delay",
+			chainID:                    "test-chain",
+			version:                    v1.Version,
+			expectedUpgradeHeightDelay: v1.UpgradeHeightDelay,
+		},
+		{
+			name:                       "v1 arabica upgrade delay",
+			chainID:                    "arabica-11",
+			version:                    v1.Version,
+			expectedUpgradeHeightDelay: v1.UpgradeHeightDelay,
+		},
+		{
+			name:                       "v2 upgrade delay on non-arabica chain",
+			chainID:                    "celestia",
+			version:                    v2.Version,
+			expectedUpgradeHeightDelay: v2.UpgradeHeightDelay,
+		},
+		{
+			name:                       "v2 upgrade delay on arabica",
+			chainID:                    "arabica-11",
+			version:                    v2.Version,
+			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay, // falls back to v3 because of arabica bug
+		},
+		{
+			name:                       "v3 upgrade delay",
+			chainID:                    "mocha-4",
+			version:                    3,
+			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := appconsts.UpgradeHeightDelay(tc.chainID, tc.version)
+			require.Equal(t, tc.expectedUpgradeHeightDelay, actual)
+		})
+	}
+}
