@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
+// VerifyMerklePatriciaTrieProof verifies MPT proofs with IBC public inputs
 func VerifyMerklePatriciaTrieProof(stateRoot []byte, key string, proof []byte) (value []byte, err error) {
 	rootHash := common.BytesToHash(stateRoot)
 	bytesToProofList, err := bytesToProofList(proof)
