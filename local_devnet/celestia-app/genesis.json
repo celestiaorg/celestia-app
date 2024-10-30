@@ -4,7 +4,7 @@
   "initial_height": "1",
   "consensus_params": {
     "block": {
-      "max_bytes": "16974272",
+      "max_bytes": "609742720",
       "max_gas": "-1",
       "time_iota_ms": "1"
     },
@@ -144,7 +144,7 @@
     "blob": {
       "params": {
         "gas_per_blob_byte": 8,
-        "gov_max_square_size": "128"
+        "gov_max_square_size": "256"
       }
     },
     "capability": {
