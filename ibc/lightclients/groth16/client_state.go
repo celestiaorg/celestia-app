@@ -8,8 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/groth16"
+	"github.com/celestiaorg/celestia-app/v3/ibc/mpt"
 	clienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/v6/modules/core/03-connection/types"
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
@@ -32,7 +31,6 @@ func NewClientState(
 	return &ClientState{
 		LatestHeight:               latestHeight,
 		StateTransitionVerifierKey: stateTransitionVerifierKey,
-		StateInclusionVerifierKey:  stateInclusionVerifierKey,
 	}
 }
 
@@ -61,10 +59,7 @@ func (cs ClientState) Status(
 // Validate performs a basic validation of the client state fields.
 func (cs ClientState) Validate() error {
 	if cs.StateTransitionVerifierKey == nil {
-		return sdkerrors.Wrap(clienttypes.ErrInvalidClient, "state transition or inclusion verifier key is nil")
-	}
-	if cs.StateInclusionVerifierKey == nil {
-		return sdkerrors.Wrap(clienttypes.ErrInvalidClient, "state inclusion verifier key is nil")
+		return sdkerrors.Wrap(clienttypes.ErrInvalidClient, "state transition verifier key is nil")
 	}
 	return nil
 }
@@ -77,7 +72,6 @@ func (cs ClientState) ZeroCustomFields() exported.ClientState {
 	return &ClientState{
 		LatestHeight:               cs.LatestHeight,
 		StateTransitionVerifierKey: cs.StateTransitionVerifierKey,
-		StateInclusionVerifierKey:  cs.StateInclusionVerifierKey,
 	}
 }
 
@@ -378,7 +372,6 @@ func verifyDelayPeriodPassed(ctx sdk.Context, store sdk.KVStore, proofHeight exp
 
 // The following are modified methods from the v9 IBC Client interface. The idea is to make
 // it easy to update this client once Celestia moves to v9 of IBC
-
 func (cs ClientState) VerifyMembership(
 	clientStore sdk.KVStore,
 	cdc codec.BinaryCodec,
@@ -389,16 +382,10 @@ func (cs ClientState) VerifyMembership(
 	path exported.Path,
 	value []byte,
 ) error {
-	groth16Proof := groth16.NewProof(ecc.BN254)
-
-	_, err := groth16Proof.ReadFrom(bytes.NewReader(proof))
-	if err != nil {
-		return fmt.Errorf("failed to deserialize proof: %w", err)
-	}
-
-	vk, err := cs.GetStateInclusionVerifierKey()
-	if err != nil {
-		return fmt.Errorf("failed to get state transition verifier key: %w", err)
+	// Path validation
+	merklePath, ok := path.(commitmenttypes.MerklePath)
+	if !ok {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", commitmenttypes.MerklePath{}, path)
 	}
 
 	consensusState, err := GetConsensusState(clientStore, cdc, height)
@@ -406,19 +393,18 @@ func (cs ClientState) VerifyMembership(
 		return fmt.Errorf("failed to get consensus state: %w", err)
 	}
 
-	merklePath, ok := path.(commitmenttypes.MerklePath)
-	if !ok {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", commitmenttypes.MerklePath{}, path)
-	}
-
-	publicWitness, err := GenerateStateInclusionPublicWitness(consensusState.StateRoot, merklePath.KeyPath, value)
+	// Inclusion verification only supports MPT tries currently
+	// KeyPath structure is arbitrary and we could structure it as we see fit
+	// or we could add a new type that's more compatible with ethereum
+	verifiedValue, err := mpt.VerifyMerklePatriciaTrieProof(consensusState.StateRoot, merklePath.KeyPath[0], proof)
 	if err != nil {
-		return fmt.Errorf("failed to generate state inclusion public witness: %w", err)
+		fmt.Errorf("inclusion verification failed", err)
 	}
 
-	if err := groth16.Verify(groth16Proof, vk, publicWitness); err != nil {
-		return fmt.Errorf("failed to verify state inclusion proof: %w", err)
+	if !bytes.Equal(value, verifiedValue) {
+		fmt.Errorf("retrieved value does not match the value passed to the client")
 	}
+
 	return nil
 }
 
@@ -433,18 +419,6 @@ func (cs ClientState) VerifyNonMembership(
 	proof []byte,
 	path exported.Path,
 ) error {
-	groth16Proof := groth16.NewProof(ecc.BN254)
-
-	_, err := groth16Proof.ReadFrom(bytes.NewReader(proof))
-	if err != nil {
-		return fmt.Errorf("failed to deserialize proof: %w", err)
-	}
-
-	vk, err := cs.GetStateInclusionVerifierKey()
-	if err != nil {
-		return fmt.Errorf("failed to get state transition verifier key: %w", err)
-	}
-
 	consensusState, err := GetConsensusState(clientStore, cdc, height)
 	if err != nil {
 		return fmt.Errorf("failed to get consensus state: %w", err)
@@ -455,14 +429,19 @@ func (cs ClientState) VerifyNonMembership(
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", commitmenttypes.MerklePath{}, path)
 	}
 
-	publicWitness, err := GenerateStateInclusionPublicWitness(consensusState.StateRoot, merklePath.KeyPath, nil)
+	// Inclusion verification only supports MPT tries currently
+	// KeyPath structure is arbitrary and we could structure it as we see fit
+	// or we could add a new type that's more compatible with ethereum
+	verifiedValue, err := mpt.VerifyMerklePatriciaTrieProof(consensusState.StateRoot, merklePath.KeyPath[0], proof)
 	if err != nil {
-		return fmt.Errorf("failed to generate state inclusion public witness: %w", err)
+		fmt.Errorf("inclusion verification failed", err)
 	}
 
-	if err := groth16.Verify(groth16Proof, vk, publicWitness); err != nil {
-		return fmt.Errorf("failed to verify state inclusion proof: %w", err)
+	// if verifiedValue is not nil error
+	if verifiedValue != nil {
+		fmt.Errorf("the value for the specified key exists", err)
 	}
+
 	return nil
 }
 

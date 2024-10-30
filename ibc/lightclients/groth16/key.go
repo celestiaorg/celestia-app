@@ -15,14 +15,6 @@ func (cs *ClientState) GetStateTransitionVerifierKey() (groth16.VerifyingKey, er
 	return vk, nil
 }
 
-func (cs *ClientState) GetStateInclusionVerifierKey() (groth16.VerifyingKey, error) {
-	vk, err := DeserializeVerifyingKey(cs.StateInclusionVerifierKey)
-	if err != nil {
-		return nil, err
-	}
-	return vk, nil
-}
-
 func SerializeVerifyingKey(vk groth16.VerifyingKey) ([]byte, error) {
 	var buf bytes.Buffer
 	_, err := vk.WriteTo(&buf)

@@ -7,8 +7,8 @@ option go_package = "github.com/celestiaorg/celestia-app/ibc/lightclients/groth1
 import "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 
-// ClientState defines a groth16 client that holds two keys for verifying state
-// transition and inclusion proofs needed to verify IBC packets
+// ClientState defines a groth16 client that holds a key for verifying state
+// transition proofs needed to verify IBC packets
 message ClientState {
   option (gogoproto.goproto_getters) = false;
   // latest height of the client state
@@ -19,11 +19,6 @@ message ClientState {
   // supported
   bytes state_transition_verifier_key = 2
       [ (gogoproto.moretags) = "yaml:\"stp_verifier_key\"" ];
-
-  // groth16 state inclusion proof verifier key. Verifies proofs that a key
-  // value pair is a child of a given state root. Only BN254 curve is supported
-  bytes state_inclusion_verifier_key = 3
-      [ (gogoproto.moretags) = "yaml:\"sip_verifier_key\"" ];
 }
 
 // ConsensusState defines a groth16 consensus state.
