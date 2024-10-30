@@ -13,7 +13,7 @@ const mebibyte = 1024 * 1024
 func main() {
 	start := int64(2560)
 	//end:= int64(3803)
-	end := int64(2560 + 500)
+	end := int64(551 + 200)
 	count := float64(end - start + 1)
 	rpcAddress := "http://localhost:26657"
 
@@ -42,11 +42,19 @@ func main() {
 
 	startHeader, err := trpc.Header(context.Background(), &start)
 	if err != nil {
-		panic(err)
+		time.Sleep(15 * time.Second)
+		startHeader, err = trpc.Header(context.Background(), &start)
+		if err != nil {
+			panic(err)
+		}
 	}
 	endHeader, err := trpc.Header(context.Background(), &end)
 	if err != nil {
-		panic(err)
+		time.Sleep(15 * time.Second)
+		endHeader, err = trpc.Header(context.Background(), &end)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	totalTime := endHeader.Header.Time.Sub(startHeader.Header.Time).Seconds()
