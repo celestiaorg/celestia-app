@@ -288,7 +288,7 @@ enable-mptcp:
 .PHONY: enable-mptcp
 
 ## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
-disable_mptcp:
+disable-mptcp:
 	@echo "Disabling MPTCP..."
 	@sudo sysctl -w net.mptcp.enabled=0
 	@sudo sysctl -w net.mptcp.mptcp_path_manager=default
