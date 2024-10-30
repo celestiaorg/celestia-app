@@ -273,8 +273,36 @@ enable-bbr:
 	fi
 .PHONY: enable-bbr
 
+## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
+enable-mptcp:
+	@echo "Configuring system to use mptcp..."
+	@sudo sysctl -w net.mptcp.enabled=1
+	@sudo sysctl -w net.mptcp.mptcp_path_manager=ndiffports
+	@sudo sysctl -w net.mptcp.mptcp_ndiffports=16
+	@echo "Making MPTCP settings persistent across reboots..."
+	@echo "net.mptcp.enabled=1" | sudo tee -a /etc/sysctl.conf
+	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
+	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
+	@echo "MPTCP configuration complete and persistent!"
+	
+.PHONY: enable-mptcp
+
+## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+disable_mptcp:
+	@echo "Disabling MPTCP..."
+	@sudo sysctl -w net.mptcp.enabled=0
+	@sudo sysctl -w net.mptcp.mptcp_path_manager=default
+	@echo "Removing MPTCP settings from /etc/sysctl.conf..."
+	@sudo sed -i '/net.mptcp.enabled=1/d' /etc/sysctl.conf
+	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
+	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
+	@echo "MPTCP configuration reverted!"
+
+.PHONY: disable-mptcp
+
 ## debug-version: Print the git tag and version.
 debug-version:
 	@echo "GIT_TAG: $(GIT_TAG)"
 	@echo "VERSION: $(VERSION)"
 .PHONY: debug-version
+	
