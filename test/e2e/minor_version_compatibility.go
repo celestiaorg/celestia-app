@@ -19,6 +19,11 @@ import (
 )
 
 func MinorVersionCompatibility(logger *log.Logger) error {
+	const (
+		testName = "MinorVersionCompatibility"
+		numNodes = 4
+	)
+
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
 	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates()
@@ -28,47 +33,60 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
 	}
-	numNodes := 4
+	seed := testnet.DefaultSeed
 	r := rand.New(rand.NewSource(seed))
-	logger.Println("Running minor version compatibility test", "versions", versions)
-
-	testNet, err := testnet.New("runMinorVersionCompatibility", seed, nil, "test")
-	testnet.NoError("failed to create testnet", err)
+	logger.Printf("Running %s test with versions %s", testName, versions)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	defer testNet.Cleanup()
+	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        identifier,
+		ProxyEnabled: true,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+
+	kn.HandleStopSignal(ctx)
+	logger.Printf("Knuu initialized with scope %s", kn.Scope)
+
+	testNet, err := testnet.New(kn, testnet.Options{Seed: seed})
+	testnet.NoError("failed to create testnet", err)
+
+	defer testNet.Cleanup(ctx)
 
 	testNet.SetConsensusParams(app.DefaultInitialConsensusParams())
 
 	// preload all docker images
-	preloader, err := knuu.NewPreloader()
+	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	defer func() { _ = preloader.EmptyImages() }()
+	defer func() { _ = preloader.EmptyImages(ctx) }()
 	for _, v := range versions {
-		testnet.NoError("failed to add image", preloader.AddImage(testnet.DockerImageName(v.String())))
+		testnet.NoError("failed to add image", preloader.AddImage(ctx, testnet.DockerImageName(v.String())))
 	}
 
 	for i := 0; i < numNodes; i++ {
 		// each node begins with a random version within the same major version set
 		v := versions.Random(r).String()
 		logger.Println("Starting node", "node", i, "version", v)
-		testnet.NoError("failed to create genesis node", testNet.CreateGenesisNode(v, 10000000, 0, testnet.DefaultResources))
+
+		testnet.NoError("failed to create genesis node",
+			testNet.CreateGenesisNode(ctx, v, 10000000, 0, testnet.DefaultResources, false))
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints()
+	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	err = testNet.CreateTxClient("txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0])
+	upgradeSchedule := map[int64]uint64{}
+	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	// start the testnet
 	logger.Println("Setting up testnet")
-	testnet.NoError("Failed to setup testnet", testNet.Setup())
+	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
 	logger.Println("Starting testnet")
-	testnet.NoError("Failed to start testnet", testNet.Start())
+	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
 	for i := 0; i < len(versions)*2; i++ {
 		// FIXME: skip the first node because we need them available to
@@ -84,10 +102,10 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 
 		newVersion := versions.Random(r).String()
 		logger.Println("Upgrading node", "node", i%numNodes+1, "version", newVersion)
-		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(newVersion))
+		testnet.NoError("failed to upgrade node", testNet.Node(i%numNodes).Upgrade(ctx, newVersion))
 		time.Sleep(10 * time.Second)
 		// wait for the node to reach two more heights
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, 30*time.Second))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, heightBefore+2, time.Minute))
 	}
 
 	heights := make([]int64, 4)

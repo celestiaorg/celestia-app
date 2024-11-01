@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/tendermint/tendermint/config"
 
 	"github.com/tendermint/tendermint/pkg/trace"
@@ -19,7 +20,7 @@ import (
 )
 
 const (
-	compactBlocksVersion = "70e7354" //"a28b9e7"
+	compactBlocksVersion = "70e7354"
 )
 
 func main() {
@@ -34,6 +35,7 @@ func Run() error {
 		timeoutCommit  = 3 * time.Second
 		timeoutPropose = 4 * time.Second
 		version        = compactBlocksVersion
+		timeFormat     = "20060102_150405"
 	)
 
 	blobParams := blobtypes.DefaultParams()
@@ -41,39 +43,50 @@ func Run() error {
 	blobParams.GovMaxSquareSize = 128
 	ecfg := encoding.MakeConfig(app.ModuleBasics)
 
-	network, err := testnet.New("compact-blocks", 864, nil, "", genesis.SetBlobParams(ecfg.Codec, blobParams))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	identifier := fmt.Sprintf("%s_%s", "compact-blocks", time.Now().Format(timeFormat))
+	kn, err := knuu.New(ctx, knuu.Options{
+		Scope:        identifier,
+		ProxyEnabled: true,
+	})
+	testnet.NoError("failed to initialize Knuu", err)
+
+	network, err := testnet.New(kn, testnet.Options{
+		GenesisModifiers: []genesis.Modifier{
+			genesis.SetBlobParams(ecfg.Codec, blobParams),
+		},
+		ChainID: identifier,
+	})
 	if err != nil {
 		return err
 	}
-	defer network.Cleanup()
+	defer network.Cleanup(ctx)
 
 	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = 8 * 1024 * 1024
 	network.SetConsensusParams(cparams)
 
-	err = network.CreateGenesisNodes(nodes, version, 10000000, 0, testnet.DefaultResources)
+	err = network.CreateGenesisNodes(ctx, nodes, version, 10000000, 0, testnet.DefaultResources, true)
 	if err != nil {
 		return err
 	}
 
-	for _, node := range network.Nodes() {
-		if err := node.Instance.EnableBitTwister(); err != nil {
-			return fmt.Errorf("failed to enable bit twister: %v", err)
-		}
-	}
-
-	gRPCEndpoints, err := network.RemoteGRPCEndpoints()
+	gRPCEndpoints, err := network.RemoteGRPCEndpoints(ctx)
 	if err != nil {
 		return err
 	}
 
 	err = network.CreateTxClients(
+		ctx,
 		compactBlocksVersion,
 		40,
 		"128000-256000",
 		1,
 		testnet.DefaultResources,
 		gRPCEndpoints[:2],
+		map[int64]uint64{},
 	)
 	if err != nil {
 		return err
@@ -81,6 +94,7 @@ func Run() error {
 
 	log.Printf("Setting up network\n")
 	err = network.Setup(
+		ctx,
 		testnet.WithTimeoutCommit(timeoutCommit),
 		testnet.WithTimeoutPropose(timeoutPropose),
 		testnet.WithMempool("v2"),
@@ -109,40 +123,26 @@ func Run() error {
 	}
 	log.Print("Setting up trace push config")
 	for _, node := range network.Nodes() {
-		if err = node.Instance.SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
+		if err = node.Instance.Build().SetEnvironmentVariable(trace.PushBucketName, pushConfig.BucketName); err != nil {
 			return fmt.Errorf("failed to set TRACE_PUSH_BUCKET_NAME: %v", err)
 		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
+		if err = node.Instance.Build().SetEnvironmentVariable(trace.PushRegion, pushConfig.Region); err != nil {
 			return fmt.Errorf("failed to set TRACE_PUSH_REGION: %v", err)
 		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
+		if err = node.Instance.Build().SetEnvironmentVariable(trace.PushAccessKey, pushConfig.AccessKey); err != nil {
 			return fmt.Errorf("failed to set TRACE_PUSH_ACCESS_KEY: %v", err)
 		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
+		if err = node.Instance.Build().SetEnvironmentVariable(trace.PushKey, pushConfig.SecretKey); err != nil {
 			return fmt.Errorf("failed to set TRACE_PUSH_SECRET_KEY: %v", err)
 		}
-		if err = node.Instance.SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
+		if err = node.Instance.Build().SetEnvironmentVariable(trace.PushDelay, fmt.Sprintf("%d", pushConfig.PushDelay)); err != nil {
 			return fmt.Errorf("failed to set TRACE_PUSH_DELAY: %v", err)
 		}
 	}
 
 	log.Printf("Starting network\n")
-	err = network.StartNodes()
+	err = network.Start(ctx)
 	if err != nil {
-		return err
-	}
-
-	if err := network.WaitToSync(); err != nil {
-		return err
-	}
-
-	for _, node := range network.Nodes() {
-		if err = node.Instance.SetLatencyAndJitter(40, 10); err != nil {
-			return fmt.Errorf("failed to set latency and jitter: %v", err)
-		}
-	}
-
-	if err := network.StartTxClients(); err != nil {
 		return err
 	}
 
@@ -164,14 +164,13 @@ func Run() error {
 			log.Printf("Height: %v", status.SyncInfo.LatestBlockHeight)
 
 		case <-timeout.C:
-			network.StopTxClients()
 			log.Println("--- COLLECTING DATA")
 			file := "/Users/callum/Developer/go/src/github.com/celestiaorg/big-blocks-research/traces"
-			if err := trace.S3Download(file, network.ChainID(), pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable, schema.MempoolRecoveryTable); err != nil {
+			if err := trace.S3Download(file, identifier, pushConfig, schema.RoundStateTable, schema.BlockTable, schema.ProposalTable, schema.CompactBlockTable, schema.MempoolRecoveryTable); err != nil {
 				return fmt.Errorf("failed to download traces from S3: %w", err)
 			}
 
-			log.Println("--- FINISHED ✅: ChainID: ", network.ChainID())
+			log.Println("--- FINISHED ✅: ChainID: ", identifier)
 			return nil
 		}
 	}

@@ -5,17 +5,13 @@ import (
 	"encoding/binary"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
-
-// DefaultUpgradeHeightDelay is the number of blocks after a quorum has been
-// reached that the chain should upgrade to the new version. Assuming a block
-// interval of 12 seconds, this is 7 days.
-const DefaultUpgradeHeightDelay = int64(7 * 24 * 60 * 60 / 12) // 7 days * 24 hours * 60 minutes * 60 seconds / 12 seconds per block = 50,400 blocks.
 
 // Keeper implements the MsgServer and QueryServer interfaces
 var (
@@ -108,7 +104,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		}
 		upgrade := types.Upgrade{
 			AppVersion:    version,
-			UpgradeHeight: sdkCtx.BlockHeader().Height + DefaultUpgradeHeightDelay,
+			UpgradeHeight: sdkCtx.BlockHeader().Height + appconsts.UpgradeHeightDelay(version),
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}

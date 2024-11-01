@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -34,11 +32,20 @@ import (
 )
 
 const (
-	DefaultPollTime              = 3 * time.Second
-	DefaultGasMultiplier float64 = 1.1
+	DefaultPollTime                  = 3 * time.Second
+	DefaultGasMultiplier     float64 = 1.1
+	txTrackerPruningInterval         = 10 * time.Minute
 )
 
 type Option func(client *TxClient)
+
+// txInfo is a struct that holds the sequence and the signer of a transaction
+// in the local tx pool.
+type txInfo struct {
+	sequence  uint64
+	signer    string
+	timestamp time.Time
+}
 
 // TxResponse is a response from the chain after
 // a transaction has been submitted.
@@ -136,6 +143,9 @@ type TxClient struct {
 	defaultGasPrice float64
 	defaultAccount  string
 	defaultAddress  sdktypes.AccAddress
+	// txTracker maps the tx hash to the Sequence and signer of the transaction
+	// that was submitted to the chain
+	txTracker map[string]txInfo
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -168,6 +178,7 @@ func NewTxClient(
 		defaultGasPrice: appconsts.DefaultMinGasPrice,
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
+		txTracker:       make(map[string]txInfo),
 	}
 
 	for _, opt := range options {
@@ -301,6 +312,12 @@ func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts 
 func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
+
+	// prune transactions that are older than 10 minutes
+	// pruning has to be done in broadcast, since users
+	// might not always call ConfirmTx().
+	client.pruneTxTracker()
+
 	account, err := client.getAccountNameFromMsgs(msgs)
 	if err != nil {
 		return nil, err
@@ -367,23 +384,20 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 		return nil, err
 	}
 	if resp.TxResponse.Code != abci.CodeTypeOK {
-		if apperrors.IsNonceMismatchCode(resp.TxResponse.Code) {
-			// query the account to update the sequence number on-chain for the account
-			_, seqNum, err := QueryAccount(ctx, client.grpc, client.registry, client.signer.accounts[signer].address)
-			if err != nil {
-				return nil, fmt.Errorf("querying account for new sequence number: %w\noriginal tx response: %s", err, resp.TxResponse.RawLog)
-			}
-			if err := client.signer.SetSequence(signer, seqNum); err != nil {
-				return nil, fmt.Errorf("setting sequence: %w", err)
-			}
-			return client.retryBroadcastingTx(ctx, txBytes)
-		}
 		broadcastTxErr := &BroadcastTxError{
 			TxHash:   resp.TxResponse.TxHash,
 			Code:     resp.TxResponse.Code,
 			ErrorLog: resp.TxResponse.RawLog,
 		}
-		return resp.TxResponse, broadcastTxErr
+		return nil, broadcastTxErr
+	}
+
+	// save the sequence and signer of the transaction in the local txTracker
+	// before the sequence is incremented
+	client.txTracker[resp.TxResponse.TxHash] = txInfo{
+		sequence:  client.signer.accounts[signer].Sequence(),
+		signer:    signer,
+		timestamp: time.Now(),
 	}
 
 	// after the transaction has been submitted, we can increment the
@@ -394,62 +408,13 @@ func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer 
 	return resp.TxResponse, nil
 }
 
-// retryBroadcastingTx creates a new transaction by copying over an existing transaction but creates a new signature with the
-// new sequence number. It then calls `broadcastTx` and attempts to submit the transaction
-func (client *TxClient) retryBroadcastingTx(ctx context.Context, txBytes []byte) (*sdktypes.TxResponse, error) {
-	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
-	if isBlobTx {
-		// only check the error if the bytes are supposed to be of type blob tx
-		if err != nil {
-			return nil, err
-		}
-		txBytes = blobTx.Tx
-	}
-	tx, err := client.signer.DecodeTx(txBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	opts := make([]TxOption, 0)
-	if granter := tx.FeeGranter(); granter != nil {
-		opts = append(opts, SetFeeGranter(granter))
-	}
-	if payer := tx.FeePayer(); payer != nil {
-		opts = append(opts, SetFeePayer(payer))
-	}
-	if memo := tx.GetMemo(); memo != "" {
-		opts = append(opts, SetMemo(memo))
-	}
-	if fee := tx.GetFee(); fee != nil {
-		opts = append(opts, SetFee(fee.AmountOf(appconsts.BondDenom).Uint64()))
-	}
-	if gas := tx.GetGas(); gas > 0 {
-		opts = append(opts, SetGasLimit(gas))
-	}
-
-	txBuilder, err := client.signer.txBuilder(tx.GetMsgs(), opts...)
-	if err != nil {
-		return nil, err
-	}
-	signer, _, err := client.signer.signTransaction(txBuilder)
-	if err != nil {
-		return nil, fmt.Errorf("resigning transaction: %w", err)
-	}
-
-	newTxBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
-	if err != nil {
-		return nil, err
-	}
-
-	// rewrap the blob tx if it was originally a blob tx
-	if isBlobTx {
-		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
-		if err != nil {
-			return nil, err
+// pruneTxTracker removes transactions from the local tx tracker that are older than 10 minutes
+func (client *TxClient) pruneTxTracker() {
+	for hash, txInfo := range client.txTracker {
+		if time.Since(txInfo.timestamp) >= txTrackerPruningInterval {
+			delete(client.txTracker, hash)
 		}
 	}
-
-	return client.broadcastTx(ctx, newTxBytes, signer)
 }
 
 // ConfirmTx periodically pings the provided node for the commitment of a transaction by its
@@ -491,14 +456,43 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 					}
 					return nil, executionErr
 				}
+				client.deleteFromTxTracker(txHash)
 				return txResponse, nil
 			case "EVICTED":
-				return nil, fmt.Errorf("tx was evicted from the mempool")
+				return nil, client.handleEvictions(txHash)
 			default:
+				client.deleteFromTxTracker(txHash)
 				return nil, fmt.Errorf("unknown tx: %s", txHash)
 			}
 		}
 	}
+}
+
+// handleEvictions handles the scenario where a transaction is evicted from the mempool.
+// It removes the evicted transaction from the local tx tracker without incrementing
+// the signer's sequence.
+func (client *TxClient) handleEvictions(txHash string) error {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	// Get transaction from the local tx tracker
+	txInfo, exists := client.txTracker[txHash]
+	if !exists {
+		return fmt.Errorf("tx: %s not found in tx client txTracker; likely failed during broadcast", txHash)
+	}
+	// The sequence should be rolled back to the sequence of the transaction that was evicted to be
+	// ready for resubmission. All transactions with a later nonce will be kicked by the nodes tx pool.
+	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
+		return fmt.Errorf("setting sequence: %w", err)
+	}
+	delete(client.txTracker, txHash)
+	return fmt.Errorf("tx was evicted from the mempool")
+}
+
+// deleteFromTxTracker safely deletes a transaction from the local tx tracker.
+func (client *TxClient) deleteFromTxTracker(txHash string) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	delete(client.txTracker, txHash)
 }
 
 // EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
@@ -575,6 +569,7 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 	if err != nil {
 		return fmt.Errorf("retrieving address from keyring: %w", err)
 	}
+	// FIXME: have a less trusting way of getting the account number and sequence
 	accNum, sequence, err := QueryAccount(ctx, client.grpc, client.registry, addr)
 	if err != nil {
 		return fmt.Errorf("querying account %s: %w", account, err)
@@ -601,6 +596,14 @@ func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, err
 		return "", err
 	}
 	return record.Name, nil
+}
+
+// GetTxFromTxTracker gets transaction info from the tx client's local tx tracker by its hash
+func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer string, exists bool) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	txInfo, exists := client.txTracker[hash]
+	return txInfo.sequence, txInfo.signer, exists
 }
 
 // Signer exposes the tx clients underlying signer

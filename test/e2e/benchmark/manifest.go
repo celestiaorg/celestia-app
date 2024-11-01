@@ -78,6 +78,10 @@ type Manifest struct {
 
 	UpgradeHeight    int64
 	GovMaxSquareSize int64
+
+	DisableBBR bool
+
+	GenesisAppVersion uint64
 }
 
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
@@ -86,6 +90,7 @@ func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 
 	blobParams := blobtypes.DefaultParams()
 	blobParams.GovMaxSquareSize = uint64(m.GovMaxSquareSize)
+
 	modifiers = append(modifiers, genesis.SetBlobParams(ecfg.Codec, blobParams))
 
 	return modifiers
@@ -94,6 +99,7 @@ func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 func (m *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = m.MaxBlockBytes
+	cparams.Version.AppVersion = m.GenesisAppVersion
 	return cparams
 }
 
@@ -103,12 +109,16 @@ func (m *Manifest) summary() string {
 	if m.EnableLatency {
 		latency = 1
 	}
+	bbr := 1
+	if m.DisableBBR {
+		bbr = 0
+	}
 	maxBlockMB := m.MaxBlockBytes / testnet.MB
-	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-%dmb",
+	summary := fmt.Sprintf("v%d-t%d-b%d-bw%dmb-tc%d-tp%d-l%d-%s-br%d-%dmb",
 		m.Validators, m.TxClients,
 		m.BlobSequences, m.PerPeerBandwidth/testnet.MB,
 		m.TimeoutCommit/time.Second, m.TimeoutPropose/time.Second,
-		latency, m.Mempool, maxBlockMB)
+		latency, m.Mempool, bbr, maxBlockMB)
 	if len(summary) > 50 {
 		return summary[:50]
 	}

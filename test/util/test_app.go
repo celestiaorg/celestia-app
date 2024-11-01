@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,7 +44,10 @@ import (
 
 const ChainID = testfactory.ChainID
 
-var GenesisTime = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+var (
+	GenesisTime   = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	TestAppLogger = log.NewTMLogger(os.Stdout)
+)
 
 // Get flags every time the simulator is run
 func init() {
@@ -63,10 +67,21 @@ func (ao EmptyAppOptions) Get(_ string) interface{} {
 // of the app from first genesis account. A no-op logger is set in app.
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
 	testApp, valSet, kr := NewTestAppWithGenesisSet(cparams, genAccounts...)
+	initialiseTestApp(testApp, valSet, cparams)
+	return testApp, kr
+}
 
+func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, keyring.Keyring) {
+	testApp, valSet, kr := NewTestAppWithGenesisSetAndMaxSquareSize(cparams, maxSquareSize, genAccounts...)
+	initialiseTestApp(testApp, valSet, cparams)
+	return testApp, kr
+}
+
+func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet, cparams *tmproto.ConsensusParams) {
 	// commit genesis changes
 	testApp.Commit()
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Time:               time.Now(),
 		ChainID:            ChainID,
 		Height:             testApp.LastBlockHeight() + 1,
 		AppHash:            testApp.LastCommitID().Hash,
@@ -76,8 +91,6 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 			App: cparams.Version.AppVersion,
 		},
 	}})
-
-	return testApp, kr
 }
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
@@ -90,7 +103,7 @@ func NewTestApp() *app.App {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	return app.New(
-		log.NewTMLogger(os.Stdout), db, nil,
+		TestAppLogger, db, nil,
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		0,
@@ -178,7 +191,27 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
 	testApp := NewTestApp()
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
+	testApp = InitialiseTestAppWithGenesis(testApp, cparams, genesisState)
+	return testApp, valSet, kr
+}
 
+// NewTestAppWithGenesisSetAndMaxSquareSize initializes a new app with genesis accounts and a specific max square size
+// and returns the testApp, validator set and keyring.
+func NewTestAppWithGenesisSetAndMaxSquareSize(cparams *tmproto.ConsensusParams, maxSquareSize int, genAccounts ...string) (*app.App, *tmtypes.ValidatorSet, keyring.Keyring) {
+	testApp := NewTestApp()
+	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
+
+	// hacky way of changing the gov max square size without changing the consts
+	blobJSON := string(genesisState["blob"])
+	replace := strings.Replace(blobJSON, fmt.Sprintf("%d", appconsts.DefaultGovMaxSquareSize), fmt.Sprintf("%d", maxSquareSize), 1)
+	genesisState["blob"] = json.RawMessage(replace)
+
+	testApp = InitialiseTestAppWithGenesis(testApp, cparams, genesisState)
+	return testApp, valSet, kr
+}
+
+// InitialiseTestAppWithGenesis initializes the provided app with the provided genesis.
+func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusParams, genesisState app.GenesisState) *app.App {
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	if err != nil {
 		panic(err)
@@ -208,7 +241,7 @@ func NewTestAppWithGenesisSet(cparams *tmproto.ConsensusParams, genAccounts ...s
 			ChainId:         ChainID,
 		},
 	)
-	return testApp, valSet, kr
+	return testApp
 }
 
 // AddDeterministicValidatorToGenesis adds a set of five validators to the genesis.

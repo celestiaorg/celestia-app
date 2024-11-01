@@ -32,6 +32,8 @@ func NewAnteHandler(
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
+		// Ensure the tx is not larger than the configured threshold.
+		NewMaxTxSizeDecorator(),
 		// Ensure the tx does not contain any extension options.
 		ante.NewExtensionOptionsDecorator(nil),
 		// Ensure the tx passes ValidateBasic.
@@ -42,7 +44,7 @@ func NewAnteHandler(
 		ante.NewValidateMemoDecorator(accountKeeper),
 		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
 		// Side effect: consumes gas from the gas meter.
-		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
+		NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.

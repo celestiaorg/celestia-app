@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -44,12 +45,24 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 // function used to apply the ante handler.
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
+	nonPFBMessageCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
 			continue
 		}
+
+		// Set the tx size on the context before calling the AnteHandler
+		ctx = ctx.WithTxBytes(tx)
+
+		msgTypes := msgTypes(sdkTx)
+		if nonPFBMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxNonPFBMessages {
+			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			continue
+		}
+		nonPFBMessageCount += len(sdkTx.GetMsgs())
+
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
@@ -59,7 +72,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 				"filtering already checked transaction",
 				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
 				"error", err,
-				"msgs", msgTypes(sdkTx),
+				"msgs", msgTypes,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			continue
@@ -77,12 +90,23 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // function used to apply the ante handler.
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []*tx.BlobTx) ([]*tx.BlobTx, sdk.Context) {
 	n := 0
+	pfbMessageCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 			continue
 		}
+
+		// Set the tx size on the context before calling the AnteHandler
+		ctx = ctx.WithTxBytes(tx.Tx)
+
+		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
+			logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			continue
+		}
+		pfbMessageCount += len(sdkTx.GetMsgs())
+
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
