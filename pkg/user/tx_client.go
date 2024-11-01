@@ -21,6 +21,7 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/rpc/core"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -434,7 +435,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 
 		if resp != nil {
 			switch resp.Status {
-			case "PENDING":
+			case core.TxStatusPending:
 				// Continue polling if the transaction is still pending
 				select {
 				case <-ctx.Done():
@@ -442,7 +443,7 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 				case <-pollTicker.C:
 					continue
 				}
-			case "COMMITTED":
+			case core.TxStatusCommitted:
 				txResponse := &TxResponse{
 					Height: resp.Height,
 					TxHash: txHash,
@@ -454,15 +455,16 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 						Code:     resp.ExecutionCode,
 						ErrorLog: resp.Error,
 					}
+					client.deleteFromTxTracker(txHash)
 					return nil, executionErr
 				}
 				client.deleteFromTxTracker(txHash)
 				return txResponse, nil
-			case "EVICTED":
+			case core.TxStatusEvicted:
 				return nil, client.handleEvictions(txHash)
 			default:
 				client.deleteFromTxTracker(txHash)
-				return nil, fmt.Errorf("unknown tx: %s", txHash)
+				return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 			}
 		}
 	}

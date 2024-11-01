@@ -153,6 +153,7 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+	log.Println("--- RUNNING TESTNET")
 	for {
 		select {
 		case <-heightTicker.C:

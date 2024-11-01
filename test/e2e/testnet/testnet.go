@@ -393,11 +393,10 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 					break
 				}
 			} else {
-				log.Info().Err(err).Str("name", node.Name).Msg(
-					"getting status")
+				err = errors.New("error getting status")
 			}
 			if i == 9 {
-				return fmt.Errorf("failed to start node %s", node.Name)
+				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
 			}
 			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
 				"node is not synced yet, waiting...")

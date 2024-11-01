@@ -57,7 +57,6 @@ func E2ESimple(logger *log.Logger) error {
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
 
 	logger.Println("Waiting for 30 seconds to produce blocks")
-	// wait for 30 seconds
 	time.Sleep(30 * time.Second)
 
 	logger.Println("Reading blockchain headers")
