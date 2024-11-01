@@ -8,10 +8,11 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 
 ## Global parameters
 
-| Parameter         | Default | Summary                                                                                                                | Changeable via Governance |
-|-------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| MaxBlockSizeBytes | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
-| MaxSquareSize     | 128     | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False                     |
+| Parameter          | Default | Summary                                                                                                                | Changeable via Governance |
+|--------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| MaxBlockSizeBytes  | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
+| MaxSquareSize      | 128     | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False                     |
+| UpgradeHeightDelay | 100800  | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                              | False                     |
 
 ## Module parameters
 
