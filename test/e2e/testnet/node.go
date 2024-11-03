@@ -194,10 +194,6 @@ func (n *Node) SetLatencyAndJitter(latency, jitter int64) error {
 }
 
 func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []string, configOptions ...Option) error {
-	if len(peers) == 0 {
-		return fmt.Errorf("no peers provided")
-	}
-
 	// Initialize file directories
 	rootDir := os.TempDir()
 	nodeDir := filepath.Join(rootDir, n.Name)

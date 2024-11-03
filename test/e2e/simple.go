@@ -6,20 +6,15 @@ import (
 	"log"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
 
-// E2ESimple runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
-// and MsgSends over 30 seconds and then asserts that at least 10 transactions were
-// committed.
-func E2ESimple(logger *log.Logger) error {
+func baseTestnet(ctx context.Context, logger *log.Logger, name string, genNodes int, appVersion uint64, upgradeSchedule map[int64]uint64) (*testnet.Testnet, error) {
 	const testName = "E2ESimple"
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	identifier := fmt.Sprintf("%s_%s", testName, time.Now().Format(timeFormat))
 	kn, err := knuu.New(ctx, knuu.Options{
@@ -33,7 +28,9 @@ func E2ESimple(logger *log.Logger) error {
 	testNet, err := testnet.New(kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
-	defer testNet.Cleanup(ctx)
+	consensusParams := app.DefaultConsensusParams()
+	consensusParams.Version.AppVersion = appVersion
+	testNet.SetConsensusParams(consensusParams)
 
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
@@ -41,14 +38,31 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
+		testNet.CreateGenesisNodes(ctx, genNodes, latestVersion, 10000000, 0, testnet.DefaultResources, true),
+	)
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
 	testnet.NoError("failed to get remote gRPC endpoints", err)
-	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
+
+	return testNet, nil
+}
+
+// E2ESimple runs a simple testnet with 4 validators. It submits both MsgPayForBlobs
+// and MsgSends over 30 seconds and then asserts that at least 10 transactions were
+// committed.
+func E2ESimple(logger *log.Logger) error {
+	const testName = "E2ESimple"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	testNet, err := baseTestnet(ctx, logger, testName, 4, appconsts.LatestVersion, map[int64]uint64{})
+	testnet.NoError("failed to create testnet", err)
+
+	defer testNet.Cleanup(ctx)
 
 	logger.Println("Setting up testnets")
 	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))

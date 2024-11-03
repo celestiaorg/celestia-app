@@ -472,6 +472,14 @@ func (t *Testnet) Genesis() *genesis.Genesis {
 	return t.genesis
 }
 
+func (t *Testnet) Knuu() *knuu.Knuu {
+	return t.knuu
+}
+
+func (t *Testnet) Grafana() *GrafanaInfo {
+	return t.grafana
+}
+
 func (o *Options) setDefaults() {
 	if o.ChainID == "" {
 		o.ChainID = DefaultChainID

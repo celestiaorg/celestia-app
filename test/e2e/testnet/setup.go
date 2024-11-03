@@ -119,5 +119,7 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	// transactions simultaneously which is useful for big block tests.
 	srvCfg.GRPC.MaxRecvMsgSize = 128 * MiB
 	srvCfg.GRPC.MaxSendMsgSize = 128 * MiB
+	srvCfg.StateSync.SnapshotInterval = 1
+	srvCfg.StateSync.SnapshotKeepRecent = 10
 	return srvCfg, srvCfg.ValidateBasic()
 }
