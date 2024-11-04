@@ -17,12 +17,6 @@ make enable-bbr
 
 command on the host machine.
 
-Optionally, mctcp can be enabled. This can be done by calling
-
-```sh
-make enable-mctcp
-```
-
 #### Configure Node for V3
 
 Consensus node operators should update several configurations for v3. This can be done by calling:
