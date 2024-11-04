@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.6
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.5.0
     with:
       dockerfile: docker/Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
@@ -31,7 +31,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.4.6
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.5.0
     with:
       dockerfile: docker/txsim/Dockerfile
       packageName: txsim
