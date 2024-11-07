@@ -251,10 +251,10 @@ prebuilt-binary:
 ## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
-	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
-	    echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
+	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
+		echo "WARNING: BBR is not enabled. Please enable BBR for optimal performance. Call make enable-bbr or see Usage section in the README."; \
 	else \
-	    echo "BBR is enabled."; \
+		echo "BBR is enabled."; \
 	fi
 .PHONY: check-bbr
 
@@ -274,8 +274,54 @@ enable-bbr:
 	fi
 .PHONY: enable-bbr
 
+## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
+enable-mptcp:
+	@echo "Configuring system to use mptcp..."
+	@sudo sysctl -w net.mptcp.enabled=1
+	@sudo sysctl -w net.mptcp.mptcp_path_manager=ndiffports
+	@sudo sysctl -w net.mptcp.mptcp_ndiffports=16
+	@echo "Making MPTCP settings persistent across reboots..."
+	@echo "net.mptcp.enabled=1" | sudo tee -a /etc/sysctl.conf
+	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
+	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
+	@echo "MPTCP configuration complete and persistent!"
+	
+.PHONY: enable-mptcp
+
+## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+disable-mptcp:
+	@echo "Disabling MPTCP..."
+	@sudo sysctl -w net.mptcp.enabled=0
+	@sudo sysctl -w net.mptcp.mptcp_path_manager=default
+	@echo "Removing MPTCP settings from /etc/sysctl.conf..."
+	@sudo sed -i '/net.mptcp.enabled=1/d' /etc/sysctl.conf
+	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
+	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
+	@echo "MPTCP configuration reverted!"
+
+.PHONY: disable-mptcp
+
+CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
+SEND_RECV_RATE ?= 10485760  # 10 MiB
+
+configure-v3:
+	@echo "Using config file at: $(CONFIG_FILE)"; \
+	if [[ "$$(uname)" == "Darwin" ]]; then \
+		sed -i '' "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i '' "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i '' "s/ttl-num-blocks = 5/ttl-num-blocks = 12/" $(CONFIG_FILE); \
+	else \
+		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i "s/ttl-num-blocks = 5/ttl-num-blocks = 12/" $(CONFIG_FILE); \
+	fi
+
+.PHONY: configure-v3
+
+
 ## debug-version: Print the git tag and version.
 debug-version:
 	@echo "GIT_TAG: $(GIT_TAG)"
 	@echo "VERSION: $(VERSION)"
 .PHONY: debug-version
+	

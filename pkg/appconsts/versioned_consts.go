@@ -79,7 +79,7 @@ func GetTimeoutCommit(v uint64) time.Duration {
 }
 
 // UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
-func UpgradeHeightDelay(v uint64) int64 {
+func UpgradeHeightDelay(chainID string, v uint64) int64 {
 	if OverrideUpgradeHeightDelayStr != "" {
 		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
 		if err != nil {
@@ -91,6 +91,12 @@ func UpgradeHeightDelay(v uint64) int64 {
 	case v1.Version:
 		return v1.UpgradeHeightDelay
 	case v2.Version:
+		// ONLY ON ARABICA: don't return the v2 value even when the app version is
+		// v2 on arabica. This is due to a bug that was shipped on arabica, where
+		// the next version was used.
+		if chainID == ArabicaChainID {
+			return v3.UpgradeHeightDelay
+		}
 		return v2.UpgradeHeightDelay
 	default:
 		return v3.UpgradeHeightDelay

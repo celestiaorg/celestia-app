@@ -6,13 +6,39 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ### Node Operators (v3.0.0)
 
-- Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
-  - if using linux in docker, kubernetes, a vm or baremetal, this can be done by calling the `make enable-bbr` command on the host machine.
-- Consensus node operators should manually configure their node's mempool `ttl-num-blocks = 12` in config.toml. An example command to do this:
+#### Enabling BBR and MCTCP
 
-  ```bash
-  sed -i 's/ttl-num-blocks = 5/ttl-num-blocks = 12/' ~/.celestia-app/config/config.toml
-  ```
+Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
+if using linux in docker, kubernetes, a vm or baremetal, this can be done by calling 
+
+```sh
+make enable-bbr 
+```
+
+command on the host machine.
+
+#### Configure Node for V3
+
+Consensus node operators should update several configurations for v3. This can be done by calling:
+
+```sh
+make configure-v3
+```
+
+If the config file is not in the default spot, it can be provided using:
+
+```sh
+make configure-v3 CONFIG_FILE=path/to/other/config.toml
+```
+
+**Alternatively**, the configurations can be changed manually. This involves updating the mempool TTLs and the send and the receive rates.
+
+- Configuring Bandwidth Settings
+  - update `recv_rate` and `send_rate` in your TOML config file to 10MiB (10485760).
+- Extend TTLs
+  - update `ttl-num-blocks` in your TOML config file to 12.
+
+#### Signaling Upgrades
 
 - Upgrades now use the `x/signal` module to coordinate the network to an upgrade height.
 
