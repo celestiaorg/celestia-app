@@ -92,10 +92,6 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts
 		return nil, 0, fmt.Errorf("account %s not found", accountName)
 	}
 
-	if err := blobtypes.ValidateBlobs(blobs...); err != nil {
-		return nil, 0, err
-	}
-
 	msg, err := blobtypes.NewMsgPayForBlobs(acc.address.String(), s.appVersion, blobs...)
 	if err != nil {
 		return nil, 0, err
