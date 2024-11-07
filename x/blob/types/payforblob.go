@@ -232,7 +232,7 @@ func ValidateBlobs(blobs ...*share.Blob) error {
 // ValidateBlobShareVersion validates any share version specific rules
 func ValidateBlobShareVersion(signer sdk.AccAddress, blobs ...*share.Blob) error {
 	for _, blob := range blobs {
-		if blob.ShareVersion() != share.ShareVersionOne && !bytes.Equal(blob.Signer(), []byte(signer)) {
+		if blob.ShareVersion() == share.ShareVersionOne && !bytes.Equal(blob.Signer(), []byte(signer)) {
 			return ErrInvalidBlobSigner.Wrapf("blob signer %X does not match msgPFB signer %X", blob.Signer(), signer)
 		}
 	}
