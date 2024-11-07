@@ -274,6 +274,10 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true
 
+	const mebibyte = 1048576
+	cfg.P2P.SendRate = 10 * mebibyte
+	cfg.P2P.RecvRate = 10 * mebibyte
+
 	return cfg
 }
 
