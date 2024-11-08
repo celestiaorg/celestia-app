@@ -321,8 +321,9 @@ func TestProcessProposal(t *testing.T) {
 				falseAddr := testnode.RandomAddress().(sdk.AccAddress)
 				blob, err := share.NewV1Blob(ns1, data, falseAddr)
 				require.NoError(t, err)
-				msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blob)
+				msg, err := blobtypes.NewMsgPayForBlobs(falseAddr.String(), appconsts.LatestVersion, blob)
 				require.NoError(t, err)
+				msg.Signer = addr.String()
 
 				rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(100000))
 				require.NoError(t, err)

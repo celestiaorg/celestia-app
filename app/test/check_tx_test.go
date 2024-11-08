@@ -189,11 +189,18 @@ func TestCheckTx(t *testing.T) {
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), testnode.RandomAddress().(sdk.AccAddress))
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
-				return blobTx
+				blob, err = share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), testnode.RandomAddress().(sdk.AccAddress))
+				require.NoError(t, err)
+				bTx, _, err := tx.UnmarshalBlobTx(blobTx)
+				require.NoError(t, err)
+				bTx.Blobs[0] = blob
+				blobTxBytes, err := tx.MarshalBlobTx(bTx.Tx, bTx.Blobs[0])
+				require.NoError(t, err)
+				return blobTxBytes
 			},
 			expectedABCICode: blobtypes.ErrInvalidBlobSigner.ABCICode(),
 		},
