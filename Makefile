@@ -309,11 +309,11 @@ configure-v3:
 	@if [ "$$(uname)" = "Darwin" ]; then \
 		sed -i '' "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i '' "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i '' "s/ttl-num-blocks = 5/ttl-num-blocks = 12/" $(CONFIG_FILE); \
+		sed -i '' "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	else \
 		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i "s/ttl-num-blocks = 5/ttl-num-blocks = 12/" $(CONFIG_FILE); \
+		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	fi
 
 .PHONY: configure-v3
