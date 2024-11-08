@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	fmt "fmt"
 
 	"cosmossdk.io/errors"
@@ -42,12 +43,23 @@ const (
 // See: https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/building-modules/messages-and-queries.md#legacy-amino-legacymsgs
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlobs(signer string, version uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, appVersion uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(version))
+
+	signerBytes, err := sdk.AccAddressFromBech32(signer)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ValidateBlobShareVersion(signerBytes, blobs...)
+	if err != nil {
+		return nil, err
+	}
+
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, fmt.Errorf("creating commitments: %w", err)
 	}
@@ -214,6 +226,16 @@ func ValidateBlobs(blobs ...*share.Blob) error {
 		}
 	}
 
+	return nil
+}
+
+// ValidateBlobShareVersion validates any share version specific rules
+func ValidateBlobShareVersion(signer sdk.AccAddress, blobs ...*share.Blob) error {
+	for _, blob := range blobs {
+		if blob.ShareVersion() == share.ShareVersionOne && !bytes.Equal(blob.Signer(), []byte(signer)) {
+			return ErrInvalidBlobSigner.Wrapf("blob signer %X does not match msgPFB signer %X", blob.Signer(), signer)
+		}
+	}
 	return nil
 }
 
