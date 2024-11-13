@@ -10,7 +10,7 @@ var DefaultResources = Resources{
 }
 
 const (
-	TxsimVersion = "pr-3541"
+	TxsimVersion = "8e573bb"
 	MB           = 1000 * 1000
 	GB           = 1000 * MB
 	MiB          = 1024 * 1024
