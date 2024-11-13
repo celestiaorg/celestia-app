@@ -13,7 +13,7 @@ Prebuilt binaries are attached to each release via [GoReleaser](https://goreleas
 
 ## Steps
 
-1. [Optional] If you need to make any code changes to fix the issue that occured when CI tried to generate and attach the prebuilt binaries, then you likely need to skip validation when running GoReleaser locally. To skip validation, modify the Makefile command like so:
+1. [Optional] If you need to make any code changes to fix the issue that occurred when CI tried to generate and attach the prebuilt binaries, then you likely need to skip validation when running GoReleaser locally. To skip validation, modify the Makefile command like so:
 
     ```diff
     ## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
