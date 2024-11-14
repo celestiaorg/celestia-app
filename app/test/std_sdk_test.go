@@ -349,7 +349,7 @@ func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 		require.NoError(t, err)
 		got, err := resp.NetworkMinGasPrice.Float64()
 		require.NoError(t, err)
-		assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, got)
+		assert.Equal(t, minfee.DefaultNetworkMinGasPrice, got)
 	})
 	t.Run("testnode can query local min gas price", func(t *testing.T) {
 		serviceClient := nodeservice.NewServiceClient(s.cctx.GRPCClient)

@@ -57,7 +57,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "bad tx; fee below required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount-1)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / minfee.DefaultNetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     true,
@@ -65,7 +65,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "good tx; fee equal to required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / minfee.DefaultNetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     false,
@@ -73,7 +73,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "good tx; fee above required minimum",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount+1)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / minfee.DefaultNetworkMinGasPrice),
 			appVersion: uint64(2),
 			isCheckTx:  false,
 			expErr:     false,
@@ -81,7 +81,7 @@ func TestValidateTxFee(t *testing.T) {
 		{
 			name:       "good tx; with no fee (v1)",
 			fee:        sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, feeAmount)),
-			gasLimit:   uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			gasLimit:   uint64(float64(feeAmount) / minfee.DefaultNetworkMinGasPrice),
 			appVersion: uint64(1),
 			isCheckTx:  false,
 			expErr:     false,
@@ -142,12 +142,9 @@ func TestValidateTxFee(t *testing.T) {
 
 			ctx = ctx.WithMinGasPrices(sdk.DecCoins{validatorMinGasPriceCoin})
 
-			networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
-			require.NoError(t, err)
-
 			subspace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
 			subspace = minfee.RegisterMinFeeParamTable(subspace)
-			subspace.Set(ctx, minfee.KeyNetworkMinGasPrice, networkMinGasPriceDec)
+			subspace.Set(ctx, minfee.KeyNetworkMinGasPrice, minfee.DefaultNetworkMinGasPriceAsDec())
 
 			_, _, err = ante.ValidateTxFee(ctx, tx, paramsKeeper)
 			if tc.expErr {
