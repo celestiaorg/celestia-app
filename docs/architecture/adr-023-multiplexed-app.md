@@ -27,9 +27,27 @@ TBD
 
 As a prerequisite to this work, Go modules must be extracted for all state machine modules. This is necessary so that the types defined by one module do not conflict with the types defined by the same module imported via a different state machine version.
 
+How the protobuf registry will work in this setup or any other globally defined variables?
+
+TBD
+
+How ABCI might change (i.e. when we use a later version of the SDK we might have VoteExtensions and FinalizeBlock)?
+
+TBD
+
 ## Alternative Approaches
 
+### Option 1: Conditional statements
+
 Continue adding conditional statements to the codebase to implement version-specific logic. Note: this approach may no longer be viable when two different state machine versions need to use different versions of the same dependency. For example, celestia-app v3.x uses `github.com/cosmos/ibc-go/v6 v6.2.2` but it isn't possible to update that dependency for future celestia-app versions without having the bump also impact the v3.x state machine.
+
+### Option 2: Run old state machines out of process
+
+![out-of-process-old-state-machines](./assets/adr023/out-of-process-old-state-machines.png)
+
+### Option 3: Run CometBFT out of process
+
+![out-of-process-cometbft](./assets/adr023/out-of-process-cometbft.png)
 
 ## Consequences
 
