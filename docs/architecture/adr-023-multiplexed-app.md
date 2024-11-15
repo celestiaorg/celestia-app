@@ -23,11 +23,9 @@ TBD
 
 ## Detailed Design
 
-![multiplexer](./assets/adr023/multiplexer.png)
+![multiplexer-diagram](./assets/adr023/multiplexer-diagram.png)
 
 As a prerequisite to this work, Go modules must be extracted for all state machine modules. This is necessary so that the types defined by one module do not conflict with the types defined by the same module imported via a different state machine version.
-
-![modules](./assets/adr023/modules.png)
 
 ## Alternative Approaches
 
