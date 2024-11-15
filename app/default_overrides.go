@@ -271,7 +271,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Consensus.TimeoutCommit = appconsts.GetTimeoutCommit(appconsts.LatestVersion)
 	cfg.Consensus.SkipTimeoutCommit = false
 
-	cfg.TxIndex.Indexer = "null"
+	cfg.TxIndex.Indexer = "kv"
 	cfg.Storage.DiscardABCIResponses = true
 
 	const mebibyte = 1048576
