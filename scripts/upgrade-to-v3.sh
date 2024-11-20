@@ -1,8 +1,8 @@
 #!/bin/sh
 
+# This script will upgrade the node from v2 -> v3.
 # Prerequisites: ensure ./single-node.sh is running in another terminal.
 # Wait until block height is 3 for the node to upgrade from v1 -> v2.
-# This script will upgrade the node from v2 -> v3.
 
 # Stop script execution if an error is encountered
 set -o errexit
