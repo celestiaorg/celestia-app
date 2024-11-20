@@ -459,6 +459,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
 	// For v1 only we upgrade using an agreed upon height known ahead of time
+	app.BaseApp.Logger().Debug(fmt.Sprintf("currentVersion %v", currentVersion))
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
 		if req.Height == app.upgradeHeightV2-1 {
@@ -476,6 +477,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
+			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to %v", currentVersion, newVersion))
 			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}

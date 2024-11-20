@@ -78,7 +78,7 @@ createGenesis() {
     sed -i'.bak' 's#"604800s"#"60s"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
 
     # Override the genesis to use app version 1 and then upgrade to app version 2 later.
-    sed -i'.bak' 's#"app_version": "2"#"app_version": "1"#g' "${CELESTIA_APP_HOME}"/config/genesis.json
+    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' ${CELESTIA_APP_HOME}/config/genesis.json
 
     trace_type="local"
     sed -i.bak -e "s/^trace_type *=.*/trace_type = \"$trace_type\"/" ${CELESTIA_APP_HOME}/config/config.toml
