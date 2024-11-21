@@ -65,9 +65,24 @@ Continue adding conditional statements to the codebase to implement version-spec
 
 ![out-of-process-old-state-machines](./assets/adr023/out-of-process-old-state-machines.png)
 
+Pros:
+
+- Fault isolation: If one state machine crashes or experiences an error, it does not necessarily impact the others.
+- Resource consumption: After a state machine is no longer needed, it can be shut down and its resources can be reclaimed.
+
+Cons:
+
+- Communication overhead: Communication between the state machines and the multiplexer may be slower than if the state machines were running in-process. Benchmarks are needed to determine the impact of this overhead.
+
 ### Option 3: Run CometBFT out of process
 
 ![out-of-process-cometbft](./assets/adr023/out-of-process-cometbft.png)
+
+CometBFT supports connecting to an application that is running in-process and out-of-process. For example, to run CometBFT and connect to an application that is running out-of-process, one can use the `--proxy_app` flag like so: `cometbft node --proxy_app=/var/run/abci.sock`. If this ADR is implemented, we can connect an out-of-process CometBFT to the multiplexer using the `--proxy_app` flag.
+
+Pros:
+
+Cons:
 
 ## Consequences
 
