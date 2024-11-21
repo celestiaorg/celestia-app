@@ -430,6 +430,43 @@ func TestGetUpgrade(t *testing.T) {
 	})
 }
 
+func TestTallyAfterTryUpgrade(t *testing.T) {
+	upgradeKeeper, ctx, _ := setup(t)
+	goCtx := sdk.WrapSDKContext(ctx)
+
+	_, err := upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[0].String(),
+		Version:          3,
+	})
+	require.NoError(t, err)
+
+	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[1].String(),
+		Version:          3,
+	})
+	require.NoError(t, err)
+
+	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
+		ValidatorAddress: testutil.ValAddrs[2].String(),
+		Version:          3,
+	})
+	require.NoError(t, err)
+
+	_, err = upgradeKeeper.TryUpgrade(goCtx, &types.MsgTryUpgrade{})
+	require.NoError(t, err)
+
+	// Previously there was a bug where querying for the version tally after a
+	// successful try upgrade would result in a panic. See
+	// https://github.com/celestiaorg/celestia-app/issues/4007
+	res, err := upgradeKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+		Version: 2,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 100, res.ThresholdPower)
+	require.EqualValues(t, 120, res.TotalVotingPower)
+
+}
+
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	signalStore := sdk.NewKVStoreKey(types.StoreKey)
 	db := tmdb.NewMemDB()
