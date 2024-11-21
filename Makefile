@@ -222,7 +222,8 @@ goreleaser-check:
 	fi
 	docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
