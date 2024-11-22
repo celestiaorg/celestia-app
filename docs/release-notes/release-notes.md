@@ -9,10 +9,10 @@ This guide provides notes for major version releases. These notes may be helpful
 #### Enabling BBR and MCTCP
 
 Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
-if using linux in docker, kubernetes, a vm or baremetal, this can be done by calling 
+if using linux in docker, kubernetes, a vm or baremetal, this can be done by calling
 
 ```sh
-make enable-bbr 
+make enable-bbr
 ```
 
 command on the host machine.
@@ -54,7 +54,7 @@ You can track the tally of signalling by validators using the following query
 celestia-appd query signal tally 3
 ```
 
-Once 5/6+ of the voting power have signalled, the upgrade will be ready. There is a hard coded delay between confirmation of the upgrade and execution to the new state machine. 
+Once 5/6+ of the voting power have signalled, the upgrade will be ready. There is a hard coded delay between confirmation of the upgrade and execution to the new state machine.
 
 To view the upcoming upgrade height use the following query:
 

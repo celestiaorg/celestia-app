@@ -22,7 +22,7 @@ pull_request_rules:
     actions:
       backport:
         branches:
-          - v3.x          
+          - v3.x
   - name: forward-port patches to main branch (v1.x)
     conditions:
       - base=v1.x
