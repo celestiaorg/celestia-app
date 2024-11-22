@@ -274,6 +274,22 @@ enable-bbr:
 	fi
 .PHONY: enable-bbr
 
+## disable-bbr: Disable BBR congestion control algorithm and revert to default.
+disable-bbr:
+	@echo "Disabling BBR and reverting to default congestion control algorithm..."
+	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
+	    echo "BBR is currently enabled. Reverting to Cubic..."; \
+	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf; \
+	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf; \
+	    sudo modprobe -r tcp_bbr; \
+	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf; \
+	    sudo sysctl -p; \
+	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm."; \
+	else \
+	    echo "BBR is not enabled. No changes made."; \
+	fi
+.PHONY: disable-bbr
+
 ## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
 enable-mptcp:
 	@echo "Configuring system to use mptcp..."
