@@ -250,3 +250,74 @@ enable-bbr:
 	    echo "BBR is already enabled."; \
 	fi
 .PHONY: enable-bbr
+<<<<<<< HEAD
+=======
+
+## disable-bbr: Disable BBR congestion control algorithm and revert to default.
+disable-bbr:
+	@echo "Disabling BBR and reverting to default congestion control algorithm..."
+	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
+	    echo "BBR is currently enabled. Reverting to Cubic..."; \
+	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf; \
+	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf; \
+	    sudo modprobe -r tcp_bbr; \
+	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf; \
+	    sudo sysctl -p; \
+	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm."; \
+	else \
+	    echo "BBR is not enabled. No changes made."; \
+	fi
+.PHONY: disable-bbr
+
+## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
+enable-mptcp:
+	@echo "Configuring system to use mptcp..."
+	@sudo sysctl -w net.mptcp.enabled=1
+	@sudo sysctl -w net.mptcp.mptcp_path_manager=ndiffports
+	@sudo sysctl -w net.mptcp.mptcp_ndiffports=16
+	@echo "Making MPTCP settings persistent across reboots..."
+	@echo "net.mptcp.enabled=1" | sudo tee -a /etc/sysctl.conf
+	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
+	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
+	@echo "MPTCP configuration complete and persistent!"
+	
+.PHONY: enable-mptcp
+
+## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+disable-mptcp:
+	@echo "Disabling MPTCP..."
+	@sudo sysctl -w net.mptcp.enabled=0
+	@sudo sysctl -w net.mptcp.mptcp_path_manager=default
+	@echo "Removing MPTCP settings from /etc/sysctl.conf..."
+	@sudo sed -i '/net.mptcp.enabled=1/d' /etc/sysctl.conf
+	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
+	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
+	@echo "MPTCP configuration reverted!"
+
+.PHONY: disable-mptcp
+
+CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
+SEND_RECV_RATE ?= 10485760  # 10 MiB
+
+configure-v3:
+	@echo "Using config file at: $(CONFIG_FILE)"
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		sed -i '' "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i '' "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i '' "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
+	else \
+		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
+		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
+	fi
+
+.PHONY: configure-v3
+
+
+## debug-version: Print the git tag and version.
+debug-version:
+	@echo "GIT_TAG: $(GIT_TAG)"
+	@echo "VERSION: $(VERSION)"
+.PHONY: debug-version
+	
+>>>>>>> e90d616f (feat: script to disable bbr (#4047))
