@@ -317,7 +317,6 @@ configure-v3:
 		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	fi
-
 .PHONY: configure-v3
 
 
