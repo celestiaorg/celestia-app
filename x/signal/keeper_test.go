@@ -464,7 +464,6 @@ func TestTallyAfterTryUpgrade(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 100, res.ThresholdPower)
 	require.EqualValues(t, 120, res.TotalVotingPower)
-
 }
 
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
