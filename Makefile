@@ -222,7 +222,8 @@ goreleaser-check:
 	fi
 	docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -239,7 +240,8 @@ prebuilt-binary:
 	fi
 	docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -301,7 +303,7 @@ enable-mptcp:
 	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
 	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
 	@echo "MPTCP configuration complete and persistent!"
-	
+
 .PHONY: enable-mptcp
 
 ## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
@@ -331,7 +333,6 @@ configure-v3:
 		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	fi
-
 .PHONY: configure-v3
 
 
@@ -340,4 +341,3 @@ debug-version:
 	@echo "GIT_TAG: $(GIT_TAG)"
 	@echo "VERSION: $(VERSION)"
 .PHONY: debug-version
-	
