@@ -8,10 +8,11 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 
 ## Global parameters
 
-| Parameter         | Default | Summary                                                                                                                | Changeable via Governance |
-|-------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| MaxBlockSizeBytes | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
-| MaxSquareSize     | 128     | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False                     |
+| Parameter            | Value   | Summary                                                                                                                            | Changeable via Governance |
+|----------------------|---------|------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| SquareSizeUpperBound | 128     | Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended). | False                     |
+| SubtreeRootThreshold | 64      | See ADR 13 for more details.                                                                                                       | False                     |
+| MaxBlockSizeBytes    | 100 MiB | Hardcoded value in CometBFT for the protobuf encoded block.                                                                        | False                     |
 
 ## Module parameters
 

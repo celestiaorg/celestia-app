@@ -8,11 +8,15 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 
 ## Global parameters
 
-| Parameter          | Default | Summary                                                                                                                | Changeable via Governance |
-|--------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| MaxBlockSizeBytes  | 100MiB  | Hardcoded value in CometBFT for the protobuf encoded block.                                                            | False                     |
-| MaxSquareSize      | 128     | Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended). | False                     |
-| UpgradeHeightDelay | 100800  | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                              | False                     |
+| Parameter            | Value         | Summary                                                                                                                            | Changeable via Governance |
+|----------------------|---------------|------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| SquareSizeUpperBound | 128           | Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended). | False                     |
+| SubtreeRootThreshold | 64            | See ADR 13 for more details.                                                                                                       | False                     |
+| MaxTxSize            | 2 MiB         | Maximum size of a transaction in bytes.                                                                                            | False                     |
+| TimeoutPropose       | 3500 ms       | Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT specs for more details.   | False                     |
+| TimeoutCommit        | 4200 ms       | Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT specs for more details. | False                     |
+| UpgradeHeightDelay   | 100800 blocks | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                                          | False                     |
+| MaxBlockSizeBytes    | 100 MiB       | Hardcoded value in CometBFT for the protobuf encoded block.                                                                        | False                     |
 
 ## Module parameters
 
@@ -22,9 +26,9 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | auth.SigVerifyCostED25519                     | 590                                         | Gas used to verify Ed25519 signature.                                                                                               | True                      |
 | auth.SigVerifyCostSecp256k1                   | 1000                                        | Gas used to verify secp256k1 signature.                                                                                             | True                      |
 | auth.TxSigLimit                               | 7                                           | Max number of signatures allowed in a multisig transaction.                                                                         | True                      |
-| auth.TxSizeCostPerByte                        | 10                                          | Gas used per transaction byte.                                                                                                      | False                      |
+| auth.TxSizeCostPerByte                        | 10                                          | Gas used per transaction byte.                                                                                                      | False                     |
 | bank.SendEnabled                              | true                                        | Allow transfers.                                                                                                                    | False                     |
-| blob.GasPerBlobByte                           | 8                                           | Gas used per blob byte.                                                                                                             | False                      |
+| blob.GasPerBlobByte                           | 8                                           | Gas used per blob byte.                                                                                                             | False                     |
 | blob.GovMaxSquareSize                         | 64                                          | Governance parameter for the maximum square size of the original data square.                                                       | True                      |
 | consensus.block.MaxBytes                      | 1974272 bytes (~1.88 MiB)                   | Governance parameter for the maximum size of the protobuf encoded block.                                                            | True                      |
 | consensus.block.MaxGas                        | -1                                          | Maximum gas allowed per block (-1 is infinite).                                                                                     | True                      |
