@@ -1,12 +1,7 @@
 #!/bin/sh
 
 # This script starts a single node testnet on app version 1. Then it upgrades
-# from v1 -> v2 -> v3. Note: this script may leave a running celestia-appd in
-# the background.
-#
-# TODO: consider running the MsgTryUpgrade in the background and
-# running celestia-appd in foreground so that celestia-appd gets exited when we
-# ctrl+c from this script.
+# from v1 -> v2 -> v3.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -113,7 +108,7 @@ startCelestiaApp() {
     --grpc.enable \
     --grpc-web.enable \
     --v2-upgrade-height 3 \
-    --force-no-bbr & # no need to require BBR usage on a local node. Run the node in the background so we can upgrade to v3.
+    --force-no-bbr # no need to require BBR usage on a local node.
 }
 
 upgradeToV3() {
@@ -157,5 +152,6 @@ if [ -f $GENESIS_FILE ]; then
 else
   createGenesis
 fi
-startCelestiaApp
-upgradeToV3
+
+upgradeToV3 & # Start the upgrade process from v2 -> v3 in the background.
+startCelestiaApp # Start celestia-app in the foreground.
