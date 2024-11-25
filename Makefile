@@ -222,7 +222,8 @@ goreleaser-check:
 	fi
 	docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -239,7 +240,8 @@ prebuilt-binary:
 	fi
 	docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		--env CGO_ENABLED=1 \
+		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -274,6 +276,22 @@ enable-bbr:
 	fi
 .PHONY: enable-bbr
 
+## disable-bbr: Disable BBR congestion control algorithm and revert to default.
+disable-bbr:
+	@echo "Disabling BBR and reverting to default congestion control algorithm..."
+	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
+	    echo "BBR is currently enabled. Reverting to Cubic..."; \
+	    sudo sed -i '/^net.core.default_qdisc=fq/d' /etc/sysctl.conf; \
+	    sudo sed -i '/^net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf; \
+	    sudo modprobe -r tcp_bbr; \
+	    echo "net.ipv4.tcp_congestion_control=cubic" | sudo tee -a /etc/sysctl.conf; \
+	    sudo sysctl -p; \
+	    echo "BBR has been disabled, and Cubic is now the default congestion control algorithm."; \
+	else \
+	    echo "BBR is not enabled. No changes made."; \
+	fi
+.PHONY: disable-bbr
+
 ## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
 enable-mptcp:
 	@echo "Configuring system to use mptcp..."
@@ -285,7 +303,7 @@ enable-mptcp:
 	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
 	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
 	@echo "MPTCP configuration complete and persistent!"
-	
+
 .PHONY: enable-mptcp
 
 ## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
@@ -315,7 +333,6 @@ configure-v3:
 		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	fi
-
 .PHONY: configure-v3
 
 
@@ -324,4 +341,3 @@ debug-version:
 	@echo "GIT_TAG: $(GIT_TAG)"
 	@echo "VERSION: $(VERSION)"
 .PHONY: debug-version
-	
