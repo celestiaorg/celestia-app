@@ -1,7 +1,12 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 1. Then it upgrades from v1 -> v2 -> v3.
-# Note: this script may leave a running celestia-appd in the background.
+# This script starts a single node testnet on app version 1. Then it upgrades
+# from v1 -> v2 -> v3. Note: this script may leave a running celestia-appd in
+# the background.
+#
+# TODO: consider running the MsgTryUpgrade in the background and
+# running celestia-appd in foreground so that celestia-appd gets exited when we
+# ctrl+c from this script.
 
 # Stop script execution if an error is encountered
 set -o errexit
