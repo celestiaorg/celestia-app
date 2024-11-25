@@ -60,6 +60,16 @@ func TestUpgradeIntegration(t *testing.T) {
 	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
 	require.NoError(t, err)
 
+	// Verify that if a user queries the version tally, it still works after a
+	// successful try upgrade.
+	res, err = app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
+		Version: 3,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, res.VotingPower)
+	require.EqualValues(t, 1, res.ThresholdPower)
+	require.EqualValues(t, 1, res.TotalVotingPower)
+
 	// Verify that if a subsequent call to TryUpgrade is made, it returns an
 	// error because an upgrade is already pending.
 	_, err = app.SignalKeeper.TryUpgrade(ctx, nil)
