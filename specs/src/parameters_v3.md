@@ -14,7 +14,7 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | SubtreeRootThreshold | 64            | See [ADR-013](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md) for more details.                                                                                                       | False                     |
 | MaxTxSize            | 2 MiB         | Maximum size of a transaction in bytes.                                                                                            | False                     |
 | TimeoutPropose       | 3500 ms       | Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT specs for more details.   | False                     |
-| TimeoutCommit        | 4200 ms       | Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT specs for more details. | False                     |
+| TimeoutCommit        | 4200 ms       | Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#precommit-step-heighthroundr) for more details. | False                     |
 | UpgradeHeightDelay   | 100800 blocks | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                                          | False                     |
 | MaxBlockSizeBytes    | 100 MiB       | Hardcoded value in CometBFT for the protobuf encoded block.                                                                        | False                     |
 
