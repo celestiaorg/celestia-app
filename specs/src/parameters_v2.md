@@ -11,7 +11,7 @@ hardcoded in the application or they are blocked by the `x/paramfilter` module.
 | Parameter            | Value        | Summary                                                                                                                            | Changeable via Governance |
 |----------------------|--------------|------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
 | SquareSizeUpperBound | 128          | Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended). | False                     |
-| SubtreeRootThreshold | 64           | See ADR 13 for more details.                                                                                                       | False                     |
+| SubtreeRootThreshold | 64           | See [ADR-013](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md) for more details.                                                                                                       | False                     |
 | UpgradeHeightDelay   | 50400 blocks | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                                          | False                     |
 | MaxBlockSizeBytes    | 100 MiB      | Hardcoded value in CometBFT for the protobuf encoded block.                                                                        | False                     |
 
