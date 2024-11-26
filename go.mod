@@ -7,7 +7,7 @@ require (
 	cosmossdk.io/math v1.4.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.1
-	github.com/celestiaorg/go-square/v2 v2.0.0
+	github.com/celestiaorg/go-square/v2 v2.1.0
 	github.com/celestiaorg/knuu v0.16.1
 	github.com/celestiaorg/nmt v0.22.2
 	github.com/celestiaorg/rsmt2d v0.14.0
