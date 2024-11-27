@@ -281,7 +281,7 @@ func (s *IntegrationTestSuite) TestIsEmptyBlock() {
 	for _, h := range emptyHeights {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
-		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
+		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App)) //nolint:staticcheck
 		ExtendBlockTest(t, blockRes.Block)
 	}
 }
