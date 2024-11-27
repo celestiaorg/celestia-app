@@ -275,13 +275,24 @@ func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 	}
 }
 
-func (s *IntegrationTestSuite) TestEmptyBlock() {
+func (s *IntegrationTestSuite) TestIsEmptyBlock() {
 	t := s.T()
 	emptyHeights := []int64{1, 2, 3}
 	for _, h := range emptyHeights {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
 		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
+		ExtendBlockTest(t, blockRes.Block)
+	}
+}
+
+func (s *IntegrationTestSuite) TestIsEmptyBlockRef() {
+	t := s.T()
+	emptyHeights := []int64{1, 2, 3}
+	for _, h := range emptyHeights {
+		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
+		require.NoError(t, err)
+		require.True(t, app.IsEmptyBlockRef(&blockRes.Block.Data, blockRes.Block.Header.Version.App))
 		ExtendBlockTest(t, blockRes.Block)
 	}
 }
