@@ -122,7 +122,6 @@ func TestAppUpgradeV3(t *testing.T) {
 		require.Equal(t, appconsts.GetTimeoutPropose(appVersion), endBlockResp.Timeouts.TimeoutPropose)
 
 		_ = testApp.Commit()
-		fmt.Printf("block height for v3 %v\n", height)
 	}
 	require.Equal(t, v3.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
 
