@@ -87,6 +87,9 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 		}
 		return parsedValue
 	}
+	if chainID == "test" {
+		return 3
+	}
 	switch v {
 	case v1.Version:
 		return v1.UpgradeHeightDelay
@@ -100,6 +103,5 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 		return v2.UpgradeHeightDelay
 	default:
 		return v3.UpgradeHeightDelay
-
 	}
 }

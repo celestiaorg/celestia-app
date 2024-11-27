@@ -104,7 +104,6 @@ func TestAppUpgradeV3(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, v3.Version, getUpgradeResp.Upgrade.AppVersion)
 
-	// brace yourselfs, this part may take a while
 	initialHeight := int64(4)
 	for height := initialHeight; height < initialHeight+appconsts.UpgradeHeightDelay(testApp.GetChainID(), v2.Version); height++ {
 		appVersion := v2.Version
@@ -123,6 +122,7 @@ func TestAppUpgradeV3(t *testing.T) {
 		require.Equal(t, appconsts.GetTimeoutPropose(appVersion), endBlockResp.Timeouts.TimeoutPropose)
 
 		_ = testApp.Commit()
+		fmt.Printf("block height for v3 %v\n", height)
 	}
 	require.Equal(t, v3.Version, endBlockResp.ConsensusParamUpdates.Version.AppVersion)
 

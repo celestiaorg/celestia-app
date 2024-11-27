@@ -118,6 +118,18 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			version:                    3,
 			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay,
 		},
+		{
+			name:                       "the upgrade delay for chainID 'test' should be 3 regardless of the version",
+			chainID:                    "test",
+			version:                    3,
+			expectedUpgradeHeightDelay: 3,
+		},
+		{
+			name:                       "the upgrade delay for chainID 'test' should be 3 regardless of the version",
+			chainID:                    "test",
+			version:                    4,
+			expectedUpgradeHeightDelay: 3,
+		},
 	}
 
 	for _, tc := range tests {
