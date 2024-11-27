@@ -25,8 +25,17 @@ func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSq
 	return da.ExtendShares(share.ToBytes(dataSquare))
 }
 
-// EmptyBlock returns true if the given block data is considered empty by the
+// IsEmptyBlock returns true if the given block data is considered empty by the
 // application at a given version.
+//
+// Deprecated: Use IsEmptyBlockRef for better performance with large data structures.
 func IsEmptyBlock(data coretypes.Data, _ uint64) bool {
+	return len(data.Txs) == 0
+}
+
+// IsEmptyBlockRef returns true if the application considers the given block data
+// empty at a given version.
+// This method passes the block data by reference for improved performance.
+func IsEmptyBlockRef(data *coretypes.Data, _ uint64) bool {
 	return len(data.Txs) == 0
 }
