@@ -13,27 +13,27 @@ The benchmarks will be run using an in memory DB, then a local db, goleveldb.
 
 #### CheckTx
 
-A single `checkTx` of a `sendMsg` message takes 0.0003585 **ns** to execute. And it uses 74374 gas.
+A single `checkTx` of a `sendMsg` message takes 0.0003585 **ns** to execute and it uses 74374 gas.
 
-The transactions in an `8mb` block containing 31645 `sendMsg` messages take 6,29 s (6293858682 ns) to run `checkTx` on all of them. The total gas used is 1884371034 gas.
+The transactions in an `8MB` block containing 31645 `sendMsg` messages take 6,29 s (6293858682 ns) to run `checkTx` on all of them. The total gas used is 1884371034 gas.
 
 #### DeliverTx
 
-A single `deliverTx` of a `sendMsg` message takes 0.0002890 **ns** to execute. And it uses 103251 gas.
+A single `deliverTx` of a `sendMsg` message takes 0.0002890 **ns** to execute and it uses 103251 gas.
 
-The transactions in an `8mb` block containing 31645 `sendMsg` messages take 7,56 s (7564111078 ns) to run `deliverTx` on all of them. The total gas used is 2801272121 gas.
+The transactions in an `8MB` block containing 31645 `sendMsg` messages take 7,56 s (7564111078 ns) to run `deliverTx` on all of them. The total gas used is 2801272121 gas.
 
 #### PrepareProposal
 
-A single `prepareProposal` of a `sendMsg` message takes 0.0002801 **ns** to execute. And it uses 101110 gas.
+A single `prepareProposal` of a `sendMsg` message takes 0.0002801 **ns** to execute and it uses 101110 gas.
 
-An `8mb` block containing 31645 `sendMsg` messages takes 5,04 s (5049140917 ns) to execute. The total gas used 1843040790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,04 s (5049140917 ns) to execute. The total gas used is 1843040790 gas.
 
 #### ProcessProposal
 
-A single `processProposal` of a `sendMsg` message takes 0.0002313 **ns** to execute. And it uses 101110 gas.
+A single `processProposal` of a `sendMsg` message takes 0.0002313 **ns** to execute and it uses 101110 gas.
 
-An `8mb` block containing 31645 `sendMsg` messages takes 5,17 s (5179850250 ns) to execute. The total gas used 1,843,040,790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,17 s (5179850250 ns) to execute. The total gas used 1,843,040,790 gas.
 
 For the processing time of a block full of `sendMsg`, we benchmarked how much time they take depending on the number of transactions, and we have the following results:
 
@@ -123,7 +123,7 @@ Benchmarks of `DeliverTx` for a single PFB with different sizes:
 
 #### PrepareProposal: `BenchmarkPrepareProposal_PFB_Multi`
 
-The benchmarks for `PrepareProposal` for 8mb blocks containing PFBs of different sizes:
+The benchmarks for `PrepareProposal` for 8MB blocks containing PFBs of different sizes:
 
 | Benchmark Name                                                         | Block Size (MB) | Number of Transactions | Prepare Proposal Time (s) | Total Gas Used  | Transaction Size (Bytes) | Transaction Size (MB) |
 |------------------------------------------------------------------------|-----------------|------------------------|---------------------------|-----------------|--------------------------|-----------------------|
@@ -147,7 +147,7 @@ The benchmarks for `PrepareProposal` for 8mb blocks containing PFBs of different
 
 #### ProcessProposal: `BenchmarkProcessProposal_PFB_Multi`
 
-The benchmarks for `ProcessProposal` for 8mb blocks containing PFBs of different sizes:
+The benchmarks for `ProcessProposal` for 8MB blocks containing PFBs of different sizes:
 
 | Benchmark Name                                                         | Block Size (MB) | Number of Transactions | Process Proposal Time (s) | Total Gas Used  | Transaction Size (Bytes) | Transaction Size (MB) |
 |------------------------------------------------------------------------|-----------------|------------------------|---------------------------|-----------------|--------------------------|-----------------------|
@@ -217,7 +217,7 @@ The benchmarks of executing `deliverTx` on a single transaction containing an IB
 
 #### PrepareProposal: `BenchmarkIBC_PrepareProposal_Update_Client_Multi`
 
-Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with different number of signatures:
+Benchmarks of an `8MB` containing the maximum number of IBC `UpdateClient` with different number of signatures:
 
 | Benchmark Name                                                                | Block Size (MB)  | Number of Transactions  | Number of Validators | Number of Verified Signatures | Prepare Proposal Time (s)   | Total Gas Used   | Transaction Size (Bytes)   | Transaction Size (MB)  |
 |-------------------------------------------------------------------------------|------------------|-------------------------|----------------------|-------------------------------|-----------------------------|------------------|----------------------------|------------------------|
@@ -238,7 +238,7 @@ Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with 
 
 #### ProcessProposal: `BenchmarkIBC_ProcessProposal_Update_Client_Multi`
 
-Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with different number of signatures:
+Benchmarks of an `8MB` containing the maximum number of IBC `UpdateClient` with different number of signatures:
 
 | Benchmark Name                                                                | Block Size (MB) | Number of Transactions | Number of Validators | Number of Verified Signatures | Process Proposal Time (s) | Total Gas Used | Transaction Size (Bytes) | Transaction Size (MB) |
 |-------------------------------------------------------------------------------|-----------------|------------------------|----------------------|-------------------------------|---------------------------|----------------|--------------------------|-----------------------|
@@ -627,27 +627,27 @@ Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with 
 
 #### CheckTx
 
-A single `checkTx` of a `sendMsg` message takes 0.0003071 **ns** to execute. And it uses 74374 gas.
+A single `checkTx` of a `sendMsg` message takes 0.0003071 **ns** to execute and it uses 74374 gas.
 
-The transactions in an `8mb` block containing 31645 `sendMsg` messages take 6,45 s (6455816060 ns) to run `checkTx` on all of them. The total gas used is 1884371034 gas.
+The transactions in an `8MB` block containing 31645 `sendMsg` messages take 6,45 s (6455816060 ns) to run `checkTx` on all of them. The total gas used is 1884371034 gas.
 
 #### DeliverTx
 
-A single `deliverTx` of a `sendMsg` message takes 0.0003948 **ns** to execute. And it uses 103251 gas.
+A single `deliverTx` of a `sendMsg` message takes 0.0003948 **ns** to execute and it uses 103251 gas.
 
-The transactions in an `8mb` block containing 31645 `sendMsg` messages take 7,50 s (7506830940 ns) to run `deliverTx` on all of them. The total gas used is 2801272121 gas.
+The transactions in an `8MB` block containing 31645 `sendMsg` messages take 7,50 s (7506830940 ns) to run `deliverTx` on all of them. The total gas used is 2801272121 gas.
 
 #### PrepareProposal
 
-A single `prepareProposal` of a `sendMsg` message takes 0.0003943 **ns** to execute. And it uses 101110 gas.
+A single `prepareProposal` of a `sendMsg` message takes 0.0003943 **ns** to execute and it uses 101110 gas.
 
-An `8mb` block containing 31645 `sendMsg` messages takes 5,2 s (5242159792 ns) to execute. The total gas used 1843040790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,2 s (5242159792 ns) to execute. The total gas used 1843040790 gas.
 
 #### ProcessProposal
 
-A single `processProposal` of a `sendMsg` message takes 0.0003010 **ns** to execute. And it uses 101110 gas.
+A single `processProposal` of a `sendMsg` message takes 0.0003010 **ns** to execute and it uses 101110 gas.
 
-An `8mb` block containing 31645 `sendMsg` messages takes 5,21 s (5214205041 ns) to execute. The total gas used 1843040790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,21 s (5214205041 ns) to execute. The total gas used 1843040790 gas.
 
 ### `PFB` benchmarks
 
@@ -701,7 +701,7 @@ Benchmarks of `DeliverTx` for a single PFB with different sizes:
 
 #### PrepareProposal: `BenchmarkPrepareProposal_PFB_Multi`
 
-The benchmarks for `PrepareProposal` for 8mb blocks containing PFBs of different sizes:
+The benchmarks for `PrepareProposal` for 8MB blocks containing PFBs of different sizes:
 
 | Benchmark Name                                                         | Block Size (MB) | Number of Transactions | Prepare Proposal Time (s) | Total Gas Used  | Transaction Size (Bytes) | Transaction Size (MB) |
 |------------------------------------------------------------------------|-----------------|------------------------|---------------------------|-----------------|--------------------------|-----------------------|
@@ -725,7 +725,7 @@ The benchmarks for `PrepareProposal` for 8mb blocks containing PFBs of different
 
 #### ProcessProposal: `BenchmarkProcessProposal_PFB_Multi`
 
-The benchmarks for `ProcessProposal` for 8mb blocks containing PFBs of different sizes:
+The benchmarks for `ProcessProposal` for 8MB blocks containing PFBs of different sizes:
 
 | Benchmark Name                                                         | Block Size (MB) | Number of Transactions | Process Proposal Time (s) | Total Gas Used  | Transaction Size (Bytes) | Transaction Size (MB) |
 |------------------------------------------------------------------------|-----------------|------------------------|---------------------------|-----------------|--------------------------|-----------------------|
@@ -795,7 +795,7 @@ The benchmarks of executing `deliverTx` on a single transaction containing an IB
 
 #### PrepareProposal: `BenchmarkIBC_PrepareProposal_Update_Client_Multi`
 
-Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with different number of signatures:
+Benchmarks of an `8MB` containing the maximum number of IBC `UpdateClient` with different number of signatures:
 
 | Benchmark Name                                                                | Block Size (MB) | Number of Transactions | Number of Validators | Number of Verified Signatures | Prepare Proposal Time (s) | Total Gas Used | Transaction Size (Bytes) | Transaction Size (MB) |
 |-------------------------------------------------------------------------------|-----------------|------------------------|----------------------|-------------------------------|---------------------------|----------------|--------------------------|-----------------------|
@@ -817,7 +817,7 @@ Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with 
 
 #### ProcessProposal: `BenchmarkIBC_ProcessProposal_Update_Client_Multi`
 
-Benchmarks of an `8mb` containing the maximum number of IBC `UpdateClient` with different number of signatures:
+Benchmarks of an `8MB` containing the maximum number of IBC `UpdateClient` with different number of signatures:
 
 | Benchmark Name                                                                | Block Size (MB) | Number of Transactions | Number of Validators | Number of Verified Signatures | Process Proposal Time (s) | Total Gas Used | Transaction Size (Bytes) | Transaction Size (MB) |
 |-------------------------------------------------------------------------------|-----------------|------------------------|----------------------|-------------------------------|---------------------------|----------------|--------------------------|-----------------------|
