@@ -476,6 +476,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
 			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
