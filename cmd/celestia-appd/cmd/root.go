@@ -56,6 +56,9 @@ func NewRootCmd() *cobra.Command {
 	rootCommand := &cobra.Command{
 		Use: "celestia-appd",
 		PersistentPreRunE: func(command *cobra.Command, _ []string) error {
+			command.SetOut(command.OutOrStdout())
+			command.SetErr(command.ErrOrStderr())
+
 			clientContext, err := client.ReadPersistentCommandFlags(initClientContext, command.Flags())
 			if err != nil {
 				return err
