@@ -6,5 +6,4 @@ package appconsts
 // Look at the Makefile to see how these are set.
 var (
 	OverrideSquareSizeUpperBoundStr string
-	OverrideUpgradeHeightDelayStr   string
 )

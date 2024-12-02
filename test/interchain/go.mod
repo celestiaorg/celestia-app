@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/test/interchain
 go 1.23.1
 
 require (
-	cosmossdk.io/math v1.3.0
+	cosmossdk.io/math v1.4.0
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/strangelove-ventures/interchaintest/v6 v6.0.0
 	github.com/stretchr/testify v1.9.0
