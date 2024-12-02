@@ -150,20 +150,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// node produces blocks.
 	tmCfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 
-	// Override the mempool's MaxTxBytes to allow the testnode to accept a
-	// transaction that fills the entire square. Any blob transaction larger
-	// than the square size will still fail no matter what.
-	maxTxBytes := appconsts.DefaultUpperBoundMaxBytes
-	tmCfg.Mempool.MaxTxBytes = maxTxBytes
-
-	// Override the MaxBodyBytes to allow the testnode to accept very large
-	// transactions and respond to queries with large responses (200 MiB was
-	// chosen only as an arbitrary large number).
-	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
-
-	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
-
-	// set all the ports to random open ones
+	// Set all the ports to random open ones.
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", mustGetFreePort())
