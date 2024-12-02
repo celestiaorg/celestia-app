@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime/pprof"
 	"strings"
@@ -580,6 +579,8 @@ sudo sysctl -p
 
 Then verify BBR is enabled:
 sysctl net.ipv4.tcp_congestion_control
+or
+cat /proc/sys/net/ipv4/tcp_congestion_control
 
 This node will get worse p2p performance using a different congestion control algorithm.
 If you need to bypass this check use the --force-no-bbr flag.
@@ -594,16 +595,15 @@ If you need to bypass this check use the --force-no-bbr flag.
 		return nil
 	}
 
-	cmd := exec.Command("sysctl", "net.ipv4.tcp_congestion_control")
-	output, err := cmd.Output()
+	file, err := os.ReadFile("/proc/sys/net/ipv4/tcp_congestion_control")
 	if err != nil {
 		fmt.Print(warning)
-		return fmt.Errorf("failed to execute 'sysctl net.ipv4.tcp_congestion_control' %w", err)
+		return fmt.Errorf("failed to read file '/proc/sys/net/ipv4/tcp_congestion_control' %w", err)
 	}
 
-	if !strings.Contains(string(output), "bbr") {
+	if !strings.Contains(string(file), "bbr") {
 		fmt.Print(warning)
-		return fmt.Errorf("BBR not enabled because output %v does not contain 'bbr'", string(output))
+		return fmt.Errorf("BBR not enabled because output %v does not contain 'bbr'", string(file))
 	}
 
 	return nil
