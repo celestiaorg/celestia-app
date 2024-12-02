@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -34,6 +35,23 @@ type IntegrationTestSuite struct {
 	cctx     Context
 }
 
+func customTendermintConfig() *tmconfig.Config {
+	tmCfg := DefaultTendermintConfig()
+	// Override the mempool's MaxTxBytes to allow the testnode to accept a
+	// transaction that fills the entire square. Any blob transaction larger
+	// than the square size will still fail no matter what.
+	maxTxBytes := appconsts.DefaultUpperBoundMaxBytes
+	tmCfg.Mempool.MaxTxBytes = maxTxBytes
+
+	// Override the MaxBodyBytes to allow the testnode to accept very large
+	// transactions and respond to queries with large responses (200 MiB was
+	// chosen only as an arbitrary large number).
+	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
+
+	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
+	return tmCfg
+}
+
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	s.accounts = RandomAccounts(10)
@@ -44,7 +62,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
-		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params))
+		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params)).
+		WithTendermintConfig(customTendermintConfig())
 
 	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
