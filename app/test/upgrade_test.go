@@ -38,9 +38,6 @@ func TestAppUpgradeV3(t *testing.T) {
 		t.Skip("skipping TestAppUpgradeV3 in short mode")
 	}
 
-	appconsts.OverrideUpgradeHeightDelayStr = "1"
-	defer func() { appconsts.OverrideUpgradeHeightDelayStr = "" }()
-
 	testApp, genesis := SetupTestAppWithUpgradeHeight(t, 3)
 	upgradeFromV1ToV2(t, testApp)
 
@@ -104,7 +101,6 @@ func TestAppUpgradeV3(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, v3.Version, getUpgradeResp.Upgrade.AppVersion)
 
-	// brace yourselfs, this part may take a while
 	initialHeight := int64(4)
 	for height := initialHeight; height < initialHeight+appconsts.UpgradeHeightDelay(testApp.GetChainID(), v2.Version); height++ {
 		appVersion := v2.Version
@@ -259,6 +255,7 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, util.EmptyAppOptions{})
 	genesis := genesis.NewDefaultGenesis().
+		WithChainID("test").
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
 		WithConsensusParams(app.DefaultInitialConsensusParams())
 	genDoc, err := genesis.Export()

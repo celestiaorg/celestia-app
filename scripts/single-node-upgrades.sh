@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# This script starts a single node testnet on app version 3.
+# This script starts a single node testnet on app version 1. Then it upgrades
+# from v1 -> v2 -> v3.
 
 # Stop script execution if an error is encountered
 set -o errexit
@@ -18,6 +19,7 @@ CHAIN_ID="test"
 KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="500utia"
+BROADCAST_MODE="block"
 
 VERSION=$(celestia-appd version 2>&1)
 APP_HOME="${HOME}/.celestia-app"
@@ -72,6 +74,9 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
+    # Override the genesis to use app version 1 and then upgrade to app version 2 later.
+    sed -i'.bak' 's/"app_version": *"[^"]*"/"app_version": "1"/' ${APP_HOME}/config/genesis.json
+
     # Override the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
@@ -102,7 +107,39 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --force-no-bbr # no need to require BBR usage on a local node
+    --v2-upgrade-height 3 \
+    --force-no-bbr # no need to require BBR usage on a local node.
+}
+
+upgradeToV3() {
+    sleep 45
+    echo "Submitting signal for v3..."
+    celestia-appd tx signal signal 3 \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes \
+        > /dev/null 2>&1 # Hide output to reduce terminal noise
+
+    echo "Querying the tally for v3..."
+    celestia-appd query signal tally 3
+
+    echo "Submitting msg try upgrade..."
+    celestia-appd tx signal try-upgrade \
+        --keyring-backend=${KEYRING_BACKEND} \
+        --home ${APP_HOME} \
+        --from ${KEY_NAME} \
+        --fees ${FEES} \
+        --chain-id ${CHAIN_ID} \
+        --broadcast-mode ${BROADCAST_MODE} \
+        --yes \
+        > /dev/null 2>&1 # Hide output to reduce terminal noise
+
+    echo "Querying for pending upgrade..."
+    celestia-appd query signal upgrade
 }
 
 if [ -f $GENESIS_FILE ]; then
@@ -115,4 +152,6 @@ if [ -f $GENESIS_FILE ]; then
 else
   createGenesis
 fi
-startCelestiaApp
+
+upgradeToV3 & # Start the upgrade process from v2 -> v3 in the background.
+startCelestiaApp # Start celestia-app in the foreground.
