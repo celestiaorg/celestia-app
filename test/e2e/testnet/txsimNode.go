@@ -66,10 +66,10 @@ func CreateTxClient(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.Storage().AddVolumeWithOwner(volumePath, resources.Volume, 10001)
-	if err != nil {
-		return nil, err
-	}
+	// err = instance.Storage().AddVolumeWithOwner(volumePath, resources.Volume, 10001)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	args := []string{
 		fmt.Sprintf("--key-path %s", volumePath),
 		fmt.Sprintf("--grpc-endpoint %s", endpoint),

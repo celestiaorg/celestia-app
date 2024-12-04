@@ -199,8 +199,12 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	}
 
 	// Initialize file directories
-	rootDir := os.TempDir()
-	nodeDir := filepath.Join(rootDir, n.Name)
+	tmpDir, err := os.MkdirTemp("", "e2e_test_")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	nodeDir := filepath.Join(tmpDir, n.Name)
 	log.Info().Str("name", n.Name).
 		Str("directory", nodeDir).
 		Msg("Creating validator's config and data directories")
@@ -214,10 +218,11 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	}
 
 	// Create and write the config file
-	cfg, err := MakeConfig(ctx, n, configOptions...)
+	cfg, err := MakeConfig(ctx, n, peers, configOptions...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
+	// cfg.P2P.PersistentPeers = strings.Join(peers, ",")
 	configFilePath := filepath.Join(nodeDir, "config", "config.toml")
 	config.WriteConfigFile(configFilePath, cfg)
 
@@ -253,11 +258,11 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	pvStatePath := filepath.Join(nodeDir, "data", "priv_validator_state.json")
 	(privval.NewFilePV(n.SignerKey, pvKeyPath, pvStatePath)).Save()
 
-	addrBookFile := filepath.Join(nodeDir, "config", "addrbook.json")
-	err = WriteAddressBook(peers, addrBookFile)
-	if err != nil {
-		return fmt.Errorf("writing address book: %w", err)
-	}
+	// addrBookFile := filepath.Join(nodeDir, "config", "addrbook.json")
+	// err = WriteAddressBook(peers, addrBookFile)
+	// if err != nil {
+	// 	return fmt.Errorf("writing address book: %w", err)
+	// }
 
 	if err := n.Instance.Build().Commit(ctx); err != nil {
 		return fmt.Errorf("committing instance: %w", err)
@@ -279,11 +284,8 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 // populating the address book. This will look something like:
 // 3314051954fc072a0678ec0cbac690ad8676ab98@61.108.66.220:26656
 func (n Node) AddressP2P(ctx context.Context, withID bool) string {
-	ip, err := n.Instance.Network().GetIP(ctx)
-	if err != nil {
-		panic(err)
-	}
-	addr := fmt.Sprintf("%v:%d", ip, p2pPort)
+	hostName := n.Instance.Network().HostName()
+	addr := fmt.Sprintf("%v:%d", hostName, p2pPort)
 	if withID {
 		addr = fmt.Sprintf("%x@%v", n.NetworkKey.PubKey().Address().Bytes(), addr)
 	}
@@ -305,20 +307,14 @@ func (n Node) AddressRPC() string {
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressGRPC(ctx context.Context) (string, error) {
-	ip, err := n.Instance.Network().GetIP(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s:%d", ip, grpcPort), nil
+	hostName := n.Instance.Network().HostName()
+	return fmt.Sprintf("%s:%d", hostName, grpcPort), nil
 }
 
 // RemoteAddressRPC retrieves the RPC endpoint address of a node within the cluster.
 func (n Node) RemoteAddressRPC(ctx context.Context) (string, error) {
-	ip, err := n.Instance.Network().GetIP(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s:%d", ip, rpcPort), nil
+	hostName := n.Instance.Network().HostName()
+	return fmt.Sprintf("%s:%d", hostName, rpcPort), nil
 }
 
 func (n Node) AddressTracing() string {
@@ -326,11 +322,8 @@ func (n Node) AddressTracing() string {
 }
 
 func (n Node) RemoteAddressTracing(ctx context.Context) (string, error) {
-	ip, err := n.Instance.Network().GetIP(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("http://%s:26661", ip), nil
+	hostName := n.Instance.Network().HostName()
+	return fmt.Sprintf("http://%s:26661", hostName), nil
 }
 
 func (n Node) IsValidator() bool {

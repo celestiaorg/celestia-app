@@ -227,13 +227,13 @@ require (
 	go.opentelemetry.io/otel/trace v1.30.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.27.0 // indirect
-	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/crypto v0.29.0 // indirect
+	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/term v0.24.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/term v0.26.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/api v0.169.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
@@ -254,6 +254,8 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/knuu => /Users/peter/git/celestiaorg/knuu/branches/smuu/20241203-proxy-with-namespace-filter
+
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
