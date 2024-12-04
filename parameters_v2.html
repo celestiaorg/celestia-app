@@ -143,10 +143,11 @@
 also includes parameter that require a hardfork to change due to being manually
 hardcoded in the application or they are blocked by the <code>x/paramfilter</code> module.</p>
 <h2 id="global-parameters"><a class="header" href="#global-parameters">Global parameters</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
-<tr><td>MaxBlockSizeBytes</td><td>100MiB</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
-<tr><td>MaxSquareSize</td><td>128</td><td>Hardcoded maximum square size determined per shares per row or column for the original data square (not yet extended).</td><td>False</td></tr>
-<tr><td>UpgradeHeightDelay</td><td>50400</td><td>Height based delay after a successful <code>MsgTryUpgrade</code> has been submitted.</td><td>False</td></tr>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Value</th><th>Summary</th><th>Changeable via Governance</th></tr></thead><tbody>
+<tr><td>SquareSizeUpperBound</td><td>128</td><td>Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).</td><td>False</td></tr>
+<tr><td>SubtreeRootThreshold</td><td>64</td><td>See <a href="https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md">ADR-013</a> for more details.</td><td>False</td></tr>
+<tr><td>UpgradeHeightDelay</td><td>50400 blocks</td><td>Height based delay after a successful <code>MsgTryUpgrade</code> has been submitted.</td><td>False</td></tr>
+<tr><td>MaxBlockSizeBytes</td><td>100 MiB</td><td>Hardcoded value in CometBFT for the protobuf encoded block.</td><td>False</td></tr>
 </tbody></table>
 </div>
 <h2 id="module-parameters"><a class="header" href="#module-parameters">Module parameters</a></h2>
