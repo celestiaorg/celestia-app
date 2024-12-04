@@ -180,7 +180,7 @@ Given that one can configure a mempool to switch off broadcast, there are no gua
 <p>A <code>SeenTx</code> is broadcasted to ALL nodes upon receiving a &quot;new&quot; transaction from a peer. The transaction pool does not need to track every unique inbound transaction, therefore &quot;new&quot; is identified as:</p>
 <ul>
 <li>The node does not currently have the transaction</li>
-<li>The node did not recently reject the transacton or has recently seen the same transaction committed (subject to the size of the cache)</li>
+<li>The node did not recently reject the transaction or has recently seen the same transaction committed (subject to the size of the cache)</li>
 <li>The node did not recently evict the transaction (subject to the size of the cache)</li>
 </ul>
 <p>Given this criteria, it is feasible, yet unlikely that a node receives two <code>SeenTx</code> messages from the same peer for the same transaction.</p>
