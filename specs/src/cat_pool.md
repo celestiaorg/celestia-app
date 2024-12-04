@@ -53,7 +53,7 @@ A node in the protocol has two distinct modes: "broadcast" and "request/response
 A `SeenTx` is broadcasted to ALL nodes upon receiving a "new" transaction from a peer. The transaction pool does not need to track every unique inbound transaction, therefore "new" is identified as:
 
 - The node does not currently have the transaction
-- The node did not recently reject the transacton or has recently seen the same transaction committed (subject to the size of the cache)
+- The node did not recently reject the transaction or has recently seen the same transaction committed (subject to the size of the cache)
 - The node did not recently evict the transaction (subject to the size of the cache)
 
 Given this criteria, it is feasible, yet unlikely that a node receives two `SeenTx` messages from the same peer for the same transaction.
