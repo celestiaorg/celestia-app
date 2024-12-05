@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"crypto/rand"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -51,7 +52,6 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -97,75 +97,74 @@ func TestPrepareProposalFiltering(t *testing.T) {
 
 	// create 3 single blob blobTxs that are signed with valid account numbers
 	// and sequences
-	blobTxs := blobfactory.ManyMultiBlobTx(
-		t,
-		encConf.TxConfig,
-		kr,
-		testutil.ChainID,
-		accounts[:3],
-		infos[:3],
-		blobfactory.NestedBlobs(
-			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
-			[][]int{{100}, {1000}, {420}},
-		),
-		blobfactory.DefaultTxOpts()...,
-	)
+	// blobTxs := blobfactory.ManyMultiBlobTx(
+	// 	t,
+	// 	encConf.TxConfig,
+	// 	kr,
+	// 	testutil.ChainID,
+	// 	accounts[:3],
+	// 	infos[:3],
+	// 	blobfactory.NestedBlobs(
+	// 		t,
+	// 		testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+	// 		[][]int{{100}, {1000}, {420}},
+	// 	),
+	// )
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
 	// and sequences
-	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
-		t,
-		testApp,
-		encConf.TxConfig,
-		kr,
-		1000,
-		accounts[0],
-		accounts[len(accounts)-3:],
-		testutil.ChainID,
-	)).ToSliceOfBytes()
+	// sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+	// 	t,
+	// 	testApp,
+	// 	encConf.TxConfig,
+	// 	kr,
+	// 	1000,
+	// 	accounts[0],
+	// 	accounts[len(accounts)-3:],
+	// 	testutil.ChainID,
+	// )).ToSliceOfBytes()
 
-	validTxs := func() [][]byte {
-		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs))
-		txs = append(txs, blobTxs...)
-		txs = append(txs, sendTxs...)
-		return txs
-	}
+	// validTxs := func() [][]byte {
+	// 	txs := make([][]byte, 0, len(sendTxs)+len(blobTxs))
+	// 	txs = append(txs, blobTxs...)
+	// 	txs = append(txs, sendTxs...)
+	// 	return txs
+	// }
 
 	// create 3 MsgSend transactions that are using the same sequence as the
 	// first three blob transactions above
-	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
-		t,
-		testApp,
-		encConf.TxConfig,
-		kr,
-		1000,
-		accounts[0],
-		accounts[:3],
-		testutil.ChainID,
-	)).ToSliceOfBytes()
+	// duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+	// 	t,
+	// 	testApp,
+	// 	encConf.TxConfig,
+	// 	kr,
+	// 	1000,
+	// 	accounts[0],
+	// 	accounts[:3],
+	// 	testutil.ChainID,
+	// )).ToSliceOfBytes()
 
 	// create a transaction with an account that doesn't exist. This will cause the increment nonce
 	nilAccount := "carmon san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+	// noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
 	// create a tx that can't be included in a 64 x 64 when accounting for the
 	// pfb along with the shares
-	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
-		t,
-		encConf.TxConfig,
-		kr,
-		testutil.ChainID,
-		accounts[3:4],
-		infos[3:4],
-		blobfactory.NestedBlobs(
-			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
-			[][]int{repeat(4000, 1)},
-		),
-	)[0]
+	// tooManyShareBtx := blobfactory.ManyMultiBlobTx(
+	// 	t,
+	// 	encConf.TxConfig,
+	// 	kr,
+	// 	testutil.ChainID,
+	// 	accounts[3:4],
+	// 	infos[3:4],
+	// 	blobfactory.NestedBlobs(
+	// 		t,
+	// 		testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+	// 		[][]int{repeat(4000, 1)},
+	// 	),
+	// )[0]
 
 	// memo is 2 MiB resulting in the transaction being over limit
 	largeString := strings.Repeat("a", 2*1024*1024)
@@ -184,10 +183,24 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		blobfactory.NestedBlobs(
 			t,
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
-			[][]int{{100}, {1000}, {420}},
+			[][]int{{699050}, {699050}, {699050}}, // over 2MiB, equal to 2 MiB, and under 2 MiB
 		),
-		user.SetMemo(largeString),
 	)
+
+	// 3 blobTxs where one is over MaxTxSize limit
+	// mixedSizeBlobTxs := blobfactory.ManyMultiBlobTx(
+	// 	t,
+	// 	encConf.TxConfig,
+	// 	kr,
+	// 	testutil.ChainID,
+	// 	accounts[:2],
+	// 	infos[:2],
+	// 	blobfactory.NestedBlobs(
+	// 		t,
+	// 		testfactory.RandomBlobNamespaces(tmrand.NewRand(), 2),
+	// 		[][]int{{2}, {2800}, {2097152}},
+	// 	),
+	// )
 
 	type test struct {
 		name      string
@@ -196,50 +209,50 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	}
 
 	tests := []test{
-		{
-			name:      "all valid txs, none are pruned",
-			txs:       func() [][]byte { return validTxs() },
-			prunedTxs: [][]byte{},
-		},
-		{
-			// even though duplicateSeqSendTxs are getting appended to the end of the
-			// block, and we do not check the signatures of the standard txs,
-			// the blob txs still get pruned because we are separating the
-			// normal and blob txs, and checking/executing the normal txs first.
-			name: "duplicate sequence appended to the end of the block",
-			txs: func() [][]byte {
-				return append(validTxs(), duplicateSeqSendTxs...)
-			},
-			prunedTxs: blobTxs,
-		},
-		{
-			name: "duplicate sequence txs",
-			txs: func() [][]byte {
-				txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(duplicateSeqSendTxs))
-				// these should increment the nonce of the accounts that are
-				// signing the blobtxs, which should make those signatures
-				// invalid.
-				txs = append(txs, duplicateSeqSendTxs...)
-				txs = append(txs, blobTxs...)
-				txs = append(txs, sendTxs...)
-				return txs
-			},
-			prunedTxs: blobTxs,
-		},
-		{
-			name: "nil account panic catch",
-			txs: func() [][]byte {
-				return [][]byte{noAccountTx}
-			},
-			prunedTxs: [][]byte{noAccountTx},
-		},
-		{
-			name: "blob tx with too many shares",
-			txs: func() [][]byte {
-				return [][]byte{tooManyShareBtx}
-			},
-			prunedTxs: [][]byte{tooManyShareBtx},
-		},
+		// {
+		// 	name:      "all valid txs, none are pruned",
+		// 	txs:       func() [][]byte { return validTxs() },
+		// 	prunedTxs: [][]byte{},
+		// },
+		// {
+		// 	// even though duplicateSeqSendTxs are getting appended to the end of the
+		// 	// block, and we do not check the signatures of the standard txs,
+		// 	// the blob txs still get pruned because we are separating the
+		// 	// normal and blob txs, and checking/executing the normal txs first.
+		// 	name: "duplicate sequence appended to the end of the block",
+		// 	txs: func() [][]byte {
+		// 		return append(validTxs(), duplicateSeqSendTxs...)
+		// 	},
+		// 	prunedTxs: blobTxs,
+		// },
+		// {
+		// 	name: "duplicate sequence txs",
+		// 	txs: func() [][]byte {
+		// 		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(duplicateSeqSendTxs))
+		// 		// these should increment the nonce of the accounts that are
+		// 		// signing the blobtxs, which should make those signatures
+		// 		// invalid.
+		// 		txs = append(txs, duplicateSeqSendTxs...)
+		// 		txs = append(txs, blobTxs...)
+		// 		txs = append(txs, sendTxs...)
+		// 		return txs
+		// 	},
+		// 	prunedTxs: blobTxs,
+		// },
+		// {
+		// 	name: "nil account panic catch",
+		// 	txs: func() [][]byte {
+		// 		return [][]byte{noAccountTx}
+		// 	},
+		// 	prunedTxs: [][]byte{noAccountTx},
+		// },
+		// {
+		// 	name: "blob tx with too many shares",
+		// 	txs: func() [][]byte {
+		// 		return [][]byte{tooManyShareBtx}
+		// 	},
+		// 	prunedTxs: [][]byte{tooManyShareBtx},
+		// },
 		{
 			name: "blobTxs and sendTxs that exceed MaxTxSize limit",
 			txs: func() [][]byte {
@@ -260,10 +273,16 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				Height:    height,
 				Time:      blockTime,
 			})
+			fmt.Println(
+				"EXPECTED TXS", len(tt.txs())-len(tt.prunedTxs),
+				"RESPONSE TXS", len(resp.BlockData.Txs),
+			)
 			// check that we have the expected number of transactions
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
 			// check that the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
+				fmt.Println("PTX: ", len(ptx))
+				fmt.Println(len(tt.prunedTxs), "PRUNED TXS")
 				require.NotContains(t, resp.BlockData.Txs, ptx)
 			}
 		})

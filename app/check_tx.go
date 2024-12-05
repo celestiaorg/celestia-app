@@ -15,6 +15,15 @@ import (
 // transactions that contain blobs.
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
+
+	// all txs should be under the max tx size limit
+	maxTxSize := appconsts.MaxTxSize(app.AppVersion())
+	currentTxSize := len(tx)
+	if currentTxSize > appconsts.MaxTxSize(app.AppVersion()) {
+		err := fmt.Errorf("tx size %d bytes is larger than the application's configured threshold of %d bytes", currentTxSize, maxTxSize)
+		return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
+	}
+
 	// check if the transaction contains blobs
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {

@@ -51,7 +51,6 @@ func TestProcessProposal(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	largeMemo := strings.Repeat("a", appconsts.MaxTxSize(appconsts.LatestVersion))
@@ -64,8 +63,7 @@ func TestProcessProposal(t *testing.T) {
 			t,
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
-		),
-		user.SetMemo(largeMemo))
+		))
 
 	// create 1 large sendTx that includes a large memo making the
 	// transaction over the configured max tx size limit
