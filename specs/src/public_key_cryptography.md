@@ -14,7 +14,7 @@ A highly-optimized library is available in C (<https://github.com/bitcoin-core/s
 
 ### Public-keys
 
-Secp256k1 public keys can be compressed to 257-bits (or 33 bytes) per the format described [here](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basics/accounts.md#public-keys).
+Secp256k1 public keys can be compressed to 256-bits (or 33 bytes) per the format described [here](https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/docs/basics/accounts.md#public-keys).
 
 ### Addresses
 
