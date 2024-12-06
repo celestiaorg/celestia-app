@@ -53,14 +53,14 @@ A node in the protocol has two distinct modes: "broadcast" and "request/response
 A `SeenTx` is broadcasted to ALL nodes upon receiving a "new" transaction from a peer. The transaction pool does not need to track every unique inbound transaction, therefore "new" is identified as:
 
 - The node does not currently have the transaction
-- The node did not recently reject the transacton or has recently seen the same transaction committed (subject to the size of the cache)
+- The node did not recently reject the transaction or has recently seen the same transaction committed (subject to the size of the cache)
 - The node did not recently evict the transaction (subject to the size of the cache)
 
 Given this criteria, it is feasible, yet unlikely that a node receives two `SeenTx` messages from the same peer for the same transaction.
 
 A `SeenTx` MAY be sent for each transaction currently in the transaction pool when a connection with a peer is first established. This acts as a mechanism for syncing pool state across peers.
 
-The `SeenTx` message MUST only be broadcasted after validation and storage. Although it is possible that a node later drops a transaction under load shedding, a `SeenTx` should give as strong guarantees as possible that the node can be relied upon by others that don't yet have the transcation to obtain it.
+The `SeenTx` message MUST only be broadcasted after validation and storage. Although it is possible that a node later drops a transaction under load shedding, a `SeenTx` should give as strong guarantees as possible that the node can be relied upon by others that don't yet have the transaction to obtain it.
 
 > **Note:**
 > Inbound transactions submitted via the RPC do not trigger a `SeenTx` message as it is assumed that the node is the first to see the transaction and by gossiping it to others it is implied that the node has seen the transaction.

@@ -51,7 +51,7 @@ A PFB Fraud Proof = PFB Inclusion Proof + Blob Inclusion Proof
 After you verify the PFB Inclusion Proof you will get the:
 
 - index where the blob is located
-- how long the bob is
+- how long the blob is
 - the commitment of the blob
 
 With the information that you now confirmed you can confirm the blob inclusion proof of the shares that start at the index for the given length.
