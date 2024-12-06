@@ -38,6 +38,7 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
 	// all transactions should be below the max tx size
 	maxTxSize := appconsts.MaxTxSize(ctx.BlockHeader().Version.App)
+	//nolint:prealloc
 	var txsBelowLimit [][]byte
 	for idx, tx := range txs {
 		if len(tx) > maxTxSize {
