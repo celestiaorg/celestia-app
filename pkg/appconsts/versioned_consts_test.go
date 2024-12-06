@@ -120,13 +120,13 @@ func TestUpgradeHeightDelay(t *testing.T) {
 		},
 		{
 			name:                       "the upgrade delay for chainID 'test' should be 3 regardless of the version",
-			chainID:                    "test",
+			chainID:                    appconsts.TestChainID,
 			version:                    3,
 			expectedUpgradeHeightDelay: 3,
 		},
 		{
 			name:                       "the upgrade delay for chainID 'test' should be 3 regardless of the version",
-			chainID:                    "test",
+			chainID:                    appconsts.TestChainID,
 			version:                    4,
 			expectedUpgradeHeightDelay: 3,
 		},
