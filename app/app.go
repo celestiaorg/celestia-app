@@ -456,6 +456,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker executes application updates at the end of every block.
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	fmt.Printf("app.upgradeHeightV2 %v", app.upgradeHeightV2)
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
 	// For v1 only we upgrade using an agreed upon height known ahead of time

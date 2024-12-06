@@ -57,4 +57,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID}
 
 echo "Starting celestia-appd..."
-celestia-appd start --force-no-bbr
+celestia-appd start --force-no-bbr --v2-upgrade-height 2

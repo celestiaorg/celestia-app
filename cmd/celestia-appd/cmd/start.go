@@ -120,16 +120,16 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 
 			switch clientCtx.ChainID {
 			case appconsts.ArabicaChainID:
-				serverCtx.Logger.Info(fmt.Sprintf("Setting the default value for the --v2-upgrade-height flag to %v because chainID %v\n", appconsts.ArabicaUpgradeHeightV2, appconsts.ArabicaChainID))
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.ArabicaUpgradeHeightV2, appconsts.ArabicaChainID))
 				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.ArabicaUpgradeHeightV2)
 			case appconsts.MochaChainID:
-				serverCtx.Logger.Info(fmt.Sprintf("Setting the default value for the --v2-upgrade-height flag to %v because chainID %v\n", appconsts.MochaUpgradeHeightV2, appconsts.MochaChainID))
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.MochaUpgradeHeightV2, appconsts.MochaChainID))
 				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MochaUpgradeHeightV2)
 			case appconsts.MainnetChainID:
-				serverCtx.Logger.Info(fmt.Sprintf("Setting the default value for the --v2-upgrade-height flag to %v because chainID %v\n", appconsts.MainnetChainID, appconsts.MainnetChainID))
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.MainnetChainID, appconsts.MainnetChainID))
 				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
 			default:
-				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the --v2-upgrade-height flag when chainID is %v", clientCtx.ChainID))
+				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the v2 upgrade height when the chainID is %v", clientCtx.ChainID))
 			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
