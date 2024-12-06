@@ -67,8 +67,8 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 	}
 	testCases := []testCase{
 		{
-			name: "2 mebibyte blob",
-			blob: newBlobWithSize(2 * mebibyte),
+			name: "~ 1.9 mebibyte blob",
+			blob: newBlobWithSize(2_000_000),
 			want: blobtypes.ErrBlobsTooLarge.ABCICode(),
 		},
 	}
