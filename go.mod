@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.1
 	github.com/celestiaorg/go-square/v2 v2.1.0
-	github.com/celestiaorg/knuu v0.16.1
+	github.com/celestiaorg/knuu v0.16.2
 	github.com/celestiaorg/nmt v0.22.2
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft-db v1.0.1
@@ -254,8 +254,6 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/knuu => /Users/peter/git/celestiaorg/knuu/branches/smuu/20241203-proxy-with-namespace-filter
-
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0
 	// The following replace statement can be removed when we upgrade to cosmos-sdk >= v0.50.0
