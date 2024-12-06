@@ -107,10 +107,10 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			return err
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := checkBBR(cmd)
-			if err != nil {
-				return err
-			}
+			// err := checkBBR(cmd)
+			// if err != nil {
+			// 	return err
+			// }
 
 			serverCtx := server.GetServerContextFromCmd(cmd)
 			clientCtx, err := client.GetClientQueryContext(cmd)
