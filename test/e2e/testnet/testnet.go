@@ -392,22 +392,24 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
 		}
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 20; i++ {
 			resp, err := client.Status(ctx)
 			if err == nil {
-				if resp.SyncInfo.LatestBlockHeight > 0 {
+				if resp != nil && resp.SyncInfo.LatestBlockHeight > 0 {
 					log.Info().Int("attempts", i).Str("name", node.Name).Int64("latest_block_height", resp.SyncInfo.LatestBlockHeight).Msg(
 						"node has synced")
 					break
+				} else {
+					log.Info().Str("name", node.Name).Int("attempt", i).Msg(
+						"node status retrieved but not synced yet, waiting...")
 				}
 			} else {
-				err = errors.New("error getting status")
+				log.Error().Str("name", node.Name).Int("attempt", i).Err(err).Msg(
+					"error getting status, retrying...")
 			}
-			if i == 9 {
-				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
+			if i == 19 {
+				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, err)
 			}
-			log.Info().Str("name", node.Name).Int("attempt", i).Int64("latest_block_height", resp.SyncInfo.LatestBlockHeight).Msg(
-				"node is not synced yet, waiting...")
 			time.Sleep(time.Duration(i) * time.Second)
 		}
 	}
