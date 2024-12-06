@@ -179,8 +179,7 @@ type App struct {
 // call app.Info or app.InitChain to initialize the baseapp.
 //
 // NOTE: upgradeHeightV2 refers specifically to the height that a node will
-// upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
-// signalling scheme
+// upgrade from v1 to v2.
 func New(
 	logger log.Logger,
 	db dbm.DB,
