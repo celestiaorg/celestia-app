@@ -167,9 +167,8 @@ type App struct {
 
 	manager      *module.Manager
 	configurator module.Configurator
-
-	// upgradeHeightV2 is the height that a node will upgrade from app version 1
-	// to 2. Do not use this value directly, instead use app.GetUpgradeHeightV2().
+	// upgradeHeightV2 is used as a coordination mechanism for the height-based
+	// upgrade from v1 to v2.
 	upgradeHeightV2 int64
 	// MsgGateKeeper is used to define which messages are accepted for a given
 	// app version.
@@ -178,6 +177,10 @@ type App struct {
 
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp.
+//
+// NOTE: upgradeHeightV2 refers specifically to the height that a node will
+// upgrade from v1 to v2. It will be deprecated in v3 in place for a dynamically
+// signalling scheme
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -445,8 +448,7 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	fmt.Printf("upgrade height: %v\n", app.GetUpgradeHeightV2())
-	if req.Header.Height == app.GetUpgradeHeightV2() {
+	if req.Header.Height == app.upgradeHeightV2 {
 		app.BaseApp.Logger().Info("upgraded from app version 1 to 2")
 	}
 	return app.manager.BeginBlock(ctx, req)
@@ -459,7 +461,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// For v1 only we upgrade using an agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
-		if req.Height == app.GetUpgradeHeightV2()-1 {
+		if req.Height == app.upgradeHeightV2-1 {
 			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
@@ -827,13 +829,13 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 	}
 
 	// If the app version is not set in the snapshot, this falls back to inferring the app version based on the upgrade height.
-	if app.GetUpgradeHeightV2() == 0 {
+	if app.upgradeHeightV2 == 0 {
 		app.Logger().Info("v2 upgrade height not set, assuming app version 2")
 		app.mountKeysAndInit(v2)
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
-	if req.Snapshot.Height >= uint64(app.GetUpgradeHeightV2()) {
+	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
 		app.Logger().Info("snapshot height is greater than or equal to upgrade height, assuming app version 2")
 		app.mountKeysAndInit(v2)
 		return app.BaseApp.OfferSnapshot(req)
@@ -846,12 +848,4 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 
 func isSupportedAppVersion(appVersion uint64) bool {
 	return appVersion == v1 || appVersion == v2 || appVersion == v3
-}
-
-func (app *App) GetUpgradeHeightV2() int64 {
-	return app.upgradeHeightV2
-}
-
-func (app *App) SetUpgradeHeightV2(upgradeHeightV2 int64) {
-	app.upgradeHeightV2 = upgradeHeightV2
 }

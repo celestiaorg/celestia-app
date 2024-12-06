@@ -117,8 +117,20 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			if err != nil {
 				return err
 			}
-			fmt.Printf("serverCtx.Config.BaseConfig.ChainID %v\n", serverCtx.Config.BaseConfig.ChainID())
-			fmt.Printf("clientCtx.ChainID %v\n", clientCtx.ChainID)
+
+			switch clientCtx.ChainID {
+			case appconsts.ArabicaChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Setting the default value for the --v2-upgrade-height flag to %v because chainID %v\n", appconsts.ArabicaUpgradeHeightV2, appconsts.ArabicaChainID))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.ArabicaUpgradeHeightV2)
+			case appconsts.MochaChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Setting the default value for the --v2-upgrade-height flag to %v because chainID %v\n", appconsts.MochaUpgradeHeightV2, appconsts.MochaChainID))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MochaUpgradeHeightV2)
+			case appconsts.MainnetChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Setting the default value for the --v2-upgrade-height flag to %v because chainID %v\n", appconsts.MainnetChainID, appconsts.MainnetChainID))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
+			default:
+				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the --v2-upgrade-height flag when chainID is %v", clientCtx.ChainID))
+			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
 			if !withTM {
@@ -263,20 +275,6 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 
 	if err := config.ValidateBasic(); err != nil {
 		return err
-	}
-
-	fmt.Printf("clientCtx.ChainID %v\n", clientCtx.ChainID)
-
-	switch clientCtx.ChainID {
-	case appconsts.ArabicaChainID:
-		fmt.Printf("Setting default value for upgrade height %v\n", appconsts.ArabicaUpgradeHeightV2)
-		ctx.Viper.SetDefault(UpgradeHeightFlag, appconsts.ArabicaUpgradeHeightV2)
-	case appconsts.MochaChainID:
-		fmt.Printf("Setting default value for upgrade height %v\n", appconsts.MochaUpgradeHeightV2)
-		ctx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MochaUpgradeHeightV2)
-	case appconsts.MainnetChainID:
-		fmt.Printf("Setting default value for upgrade height %v\n", appconsts.MainnetUpgradeHeightV2)
-		ctx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
 	}
 
 	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
