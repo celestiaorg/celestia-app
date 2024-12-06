@@ -116,6 +116,8 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			if err != nil {
 				return err
 			}
+			fmt.Printf("serverCtx.Config.BaseConfig.ChainID %v\n", serverCtx.Config.BaseConfig.ChainID())
+			fmt.Printf("clientCtx.ChainID %v\n", clientCtx.ChainID)
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
 			if !withTM {
