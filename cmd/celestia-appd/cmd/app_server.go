@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -51,7 +49,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		traceStore,
 		cast.ToUint(appOptions.Get(server.FlagInvCheckPeriod)),
 		encoding.MakeConfig(app.ModuleEncodingRegisters...),
-		getUpgradeHeightV2(appOptions),
+		cast.ToInt64(appOptions.Get(UpgradeHeightFlag)),
 		appOptions,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOptions.Get(server.FlagMinGasPrices))),
@@ -64,30 +62,4 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOptions.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOptions.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOptions.Get(server.FlagStateSyncSnapshotKeepRecent)))),
 	)
-}
-
-func getUpgradeHeightV2(appOptions servertypes.AppOptions) int64 {
-	upgradeHeight := cast.ToInt64(appOptions.Get(UpgradeHeightFlag))
-	if upgradeHeight != 0 {
-		fmt.Printf("upgrade height flag non-zero so using it: %d\n", upgradeHeight)
-		return upgradeHeight
-	}
-
-	fmt.Printf("upgrade height flag zero\n")
-
-	// TODO: this chainID doesn't always appear populated.
-	chainID := cast.ToString(appOptions.Get(flags.FlagChainID))
-	fmt.Printf("chainID %v\n", chainID)
-
-	switch chainID {
-	case appconsts.ArabicaChainID:
-		return appconsts.ArabicaUpgradeHeightV2
-	case appconsts.MochaChainID:
-		return appconsts.MochaUpgradeHeightV2
-	case appconsts.MainnetChainID:
-		return appconsts.MainnetUpgradeHeightV2
-	default:
-		// default to the upgrade height provided by the flag
-		return upgradeHeight
-	}
 }

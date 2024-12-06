@@ -167,8 +167,9 @@ type App struct {
 
 	manager      *module.Manager
 	configurator module.Configurator
-	// upgradeHeightV2 is used as a coordination mechanism for the height-based
-	// upgrade from v1 to v2.
+
+	// upgradeHeightV2 is the height that a node will upgrade from app version 1
+	// to 2. Do not use this value directly, instead use app.getUpgradeHeightV2().
 	upgradeHeightV2 int64
 	// MsgGateKeeper is used to define which messages are accepted for a given
 	// app version.
@@ -177,9 +178,6 @@ type App struct {
 
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp.
-//
-// NOTE: upgradeHeightV2 refers specifically to the height that a node will
-// upgrade from v1 to v2.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -447,7 +445,7 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	if req.Header.Height == app.upgradeHeightV2 {
+	if req.Header.Height == app.getUpgradeHeightV2() {
 		app.BaseApp.Logger().Info("upgraded from app version 1 to 2")
 	}
 	return app.manager.BeginBlock(ctx, req)
@@ -460,7 +458,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 	// For v1 only we upgrade using an agreed upon height known ahead of time
 	if currentVersion == v1 {
 		// check that we are at the height before the upgrade
-		if req.Height == app.upgradeHeightV2-1 {
+		if req.Height == app.getUpgradeHeightV2()-1 {
 			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
 			app.SetInitialAppVersionInConsensusParams(ctx, v2)
 			app.SetAppVersion(ctx, v2)
@@ -828,13 +826,13 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 	}
 
 	// If the app version is not set in the snapshot, this falls back to inferring the app version based on the upgrade height.
-	if app.upgradeHeightV2 == 0 {
+	if app.getUpgradeHeightV2() == 0 {
 		app.Logger().Info("v2 upgrade height not set, assuming app version 2")
 		app.mountKeysAndInit(v2)
 		return app.BaseApp.OfferSnapshot(req)
 	}
 
-	if req.Snapshot.Height >= uint64(app.upgradeHeightV2) {
+	if req.Snapshot.Height >= uint64(app.getUpgradeHeightV2()) {
 		app.Logger().Info("snapshot height is greater than or equal to upgrade height, assuming app version 2")
 		app.mountKeysAndInit(v2)
 		return app.BaseApp.OfferSnapshot(req)
@@ -847,4 +845,38 @@ func (app *App) OfferSnapshot(req abci.RequestOfferSnapshot) abci.ResponseOfferS
 
 func isSupportedAppVersion(appVersion uint64) bool {
 	return appVersion == v1 || appVersion == v2 || appVersion == v3
+}
+
+// getUpgradeHeightV2 returns the height that a node will upgrade from app
+// version 1 to 2. If the upgrade height flag is not set, it will infer the
+// value based on the chain ID.
+func (app *App) getUpgradeHeightV2() int64 {
+	upgradeHeight := app.upgradeHeightV2
+	if upgradeHeight != 0 {
+		fmt.Printf("upgrade height flag is not zero so using it: %d\n", upgradeHeight)
+		return upgradeHeight
+	}
+
+	fmt.Printf("upgrade height flag is zero\n")
+
+	// TODO: chainID here isn't always defined. For example if a node uses state
+	// sync (see arabica.sh) then it never has the ABCI method Init() invoked on
+	// it so the base app never gets the chain ID.
+	chainID := app.GetChainID()
+	fmt.Printf("chainID %v\n", chainID)
+
+	switch chainID {
+	case appconsts.ArabicaChainID:
+		fmt.Printf("returning %v\n", appconsts.ArabicaUpgradeHeightV2)
+		return appconsts.ArabicaUpgradeHeightV2
+	case appconsts.MochaChainID:
+		fmt.Printf("returning %v\n", appconsts.MochaUpgradeHeightV2)
+		return appconsts.MochaUpgradeHeightV2
+	case appconsts.MainnetChainID:
+		fmt.Printf("returning %v\n", appconsts.MainnetUpgradeHeightV2)
+		return appconsts.MainnetUpgradeHeightV2
+	default:
+		// default to the upgrade height provided by the flag
+		return upgradeHeight
+	}
 }
