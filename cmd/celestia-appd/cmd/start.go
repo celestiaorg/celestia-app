@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -262,6 +263,20 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 
 	if err := config.ValidateBasic(); err != nil {
 		return err
+	}
+
+	fmt.Printf("clientCtx.ChainID %v\n", clientCtx.ChainID)
+
+	switch clientCtx.ChainID {
+	case appconsts.ArabicaChainID:
+		fmt.Printf("Setting default value for upgrade height %v\n", appconsts.ArabicaUpgradeHeightV2)
+		ctx.Viper.SetDefault(UpgradeHeightFlag, appconsts.ArabicaUpgradeHeightV2)
+	case appconsts.MochaChainID:
+		fmt.Printf("Setting default value for upgrade height %v\n", appconsts.MochaUpgradeHeightV2)
+		ctx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MochaUpgradeHeightV2)
+	case appconsts.MainnetChainID:
+		fmt.Printf("Setting default value for upgrade height %v\n", appconsts.MainnetUpgradeHeightV2)
+		ctx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
 	}
 
 	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
