@@ -222,7 +222,6 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
-	// cfg.P2P.PersistentPeers = strings.Join(peers, ",")
 	configFilePath := filepath.Join(nodeDir, "config", "config.toml")
 	config.WriteConfigFile(configFilePath, cfg)
 
@@ -257,12 +256,6 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	pvKeyPath := filepath.Join(nodeDir, "config", "priv_validator_key.json")
 	pvStatePath := filepath.Join(nodeDir, "data", "priv_validator_state.json")
 	(privval.NewFilePV(n.SignerKey, pvKeyPath, pvStatePath)).Save()
-
-	// addrBookFile := filepath.Join(nodeDir, "config", "addrbook.json")
-	// err = WriteAddressBook(peers, addrBookFile)
-	// if err != nil {
-	// 	return fmt.Errorf("writing address book: %w", err)
-	// }
 
 	if err := n.Instance.Build().Commit(ctx); err != nil {
 		return fmt.Errorf("committing instance: %w", err)
