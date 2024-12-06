@@ -32,7 +32,9 @@ func TestCheckTx(t *testing.T) {
 	ns1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}
+	var genericErrorCode uint32 = 1
+
+	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
 
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 	testApp.Commit()
@@ -44,6 +46,7 @@ func TestCheckTx(t *testing.T) {
 		checkType        abci.CheckTxType
 		getTx            func() []byte
 		expectedABCICode uint32
+		expectedLog      string
 	}
 
 	tests := []test{
@@ -173,11 +176,11 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: abci.CodeTypeOK,
 		},
 		{
-			name:      "10,000,000 byte blob",
+			name:      "2,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[9], encCfg.TxConfig, 10)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 10_000_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 2_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[9], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -221,26 +224,29 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob over 2MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
-				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2_000_000), signer.Account(accs[10]).Address())
+				signer := createSigner(t, kr, accs[11], encCfg.TxConfig, 12)
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accs[11]).Address())
 				require.NoError(t, err)
-				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
+				blobTx, _, err := signer.CreatePayForBlobs(accs[11], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				return blobTx
 			},
-			expectedABCICode: blobtypes.ErrBlobsTooLarge.ABCICode(),
+			expectedLog:      "is larger than the application's configured threshold",
+			expectedABCICode: genericErrorCode,
 		},
 		{
 			name:      "v0 blob over 2MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
-				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2_000_000))
+				signer := createSigner(t, kr, accs[12], encCfg.TxConfig, 13)
+				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
 				require.NoError(t, err)
-				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
+				blobTx, _, err := signer.CreatePayForBlobs(accs[12], []*share.Blob{blob}, opts...)
 				require.NoError(t, err)
 				return blobTx
 			},
+			expectedLog:      "is larger than the application's configured threshold",
+			expectedABCICode: genericErrorCode,
 		},
 	}
 
@@ -248,6 +254,7 @@ func TestCheckTx(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.CheckTx(abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
 			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
+			assert.Contains(t, resp.Log, tt.expectedLog)
 		})
 	}
 }

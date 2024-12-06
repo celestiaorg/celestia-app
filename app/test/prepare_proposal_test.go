@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"strings"
 	"testing"
 	"time"

@@ -39,9 +39,9 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 	// all transactions should be below the max tx size
 	maxTxSize := appconsts.MaxTxSize(ctx.BlockHeader().Version.App)
 	var txsBelowLimit [][]byte
-	for _, tx := range txs {
+	for idx, tx := range txs {
 		if len(tx) > maxTxSize {
-			err := fmt.Sprintf("tx size %d bytes is larger than the application's configured threshold of %d bytes", len(tx), maxTxSize)
+			err := fmt.Sprintf("tx size %d bytes at index %d exceeds the application's configured threshold of %d bytes", len(tx), idx, maxTxSize)
 			logger.Error(err)
 			continue
 		}
