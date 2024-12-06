@@ -183,7 +183,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		blobfactory.NestedBlobs(
 			t,
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
-			[][]int{{maxTxSize + 1}, {maxTxSize + 1}, {maxTxSize + 1}}, // over 2MiB, equal to 2 MiB, and under 2 MiB
+			[][]int{{maxTxSize + 1}, {maxTxSize + 1}, {maxTxSize + 1}},
 		),
 	)
 
