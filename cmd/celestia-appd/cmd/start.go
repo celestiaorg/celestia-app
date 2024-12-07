@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -115,6 +116,20 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
+			}
+
+			switch clientCtx.ChainID {
+			case appconsts.ArabicaChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.ArabicaChainID, appconsts.ArabicaUpgradeHeightV2))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.ArabicaUpgradeHeightV2)
+			case appconsts.MochaChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.MochaChainID, appconsts.MochaUpgradeHeightV2))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MochaUpgradeHeightV2)
+			case appconsts.MainnetChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.MainnetChainID, appconsts.MainnetUpgradeHeightV2))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
+			default:
+				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the v2 upgrade height when the chainID is %v", clientCtx.ChainID))
 			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
