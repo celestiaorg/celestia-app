@@ -2,7 +2,7 @@
 reviewers:
   # The default reviewers
   defaults:
-    # Example of Github Team. Github team must have write access to repo.
+    # Example of Github Team. Github team must have to write access to the repo.
     # NOTE: This assigned the team itself, not members of the team. The Github
     # team auto PR assignment will then turn this into individuals
     - team:celestia-core # This is the Github Team
