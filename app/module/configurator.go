@@ -14,7 +14,7 @@ import (
 // Configurator implements the module.Configurator interface.
 var _ module.Configurator = Configurator{}
 
-// Configurator is a struct used at startup to register all the message and
+// Configurator is a struct used at startup to register all the messages and
 // query servers for all modules. It allows the module to register any migrations from
 // one consensus version of the module to the next. Finally it maps all the messages
 // to the app versions that they are accepted in. This then gets used in the antehandler
