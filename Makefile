@@ -1,20 +1,4 @@
-# GIT_TAG is an environment variable that is set to the latest git tag on the
-# current commit with the following example priority: v2.2.0, v2.2.0-mocha,
-# v2.2.0-arabica, v2.2.0-rc0, v2.2.0-beta, v2.2.0-alpha. If no tag points to the
-# current commit, git describe is used. The priority in this command is
-# necessary because `git tag --sort=-creatordate` only works for annotated tags
-# with metadata. Git tags created via GitHub releases are not annotated and do
-# not have metadata like creatordate. Therefore, this command is a hacky attempt
-# to get the most recent tag on the current commit according to Celestia's
-# testnet versioning scheme + SemVer.
-GIT_TAG := $(shell git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$$' \
-    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-mocha$$' \
-    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-arabica$$' \
-    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]*$$' \
-    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-(beta)$$' \
-    || git tag --points-at HEAD --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha)$$' \
-    || git describe --tags)
-VERSION := $(shell echo $(GIT_TAG) | sed 's/^v//')
+VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
@@ -220,7 +204,7 @@ goreleaser-check:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
-		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
+		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -238,7 +222,7 @@ prebuilt-binary:
 	docker run \
 		--rm \
 		--env CGO_ENABLED=1 \
-		--env GORELEASER_CURRENT_TAG=${GIT_TAG} \
+		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
@@ -331,10 +315,3 @@ configure-v3:
 		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	fi
 .PHONY: configure-v3
-
-
-## debug-version: Print the git tag and version.
-debug-version:
-	@echo "GIT_TAG: $(GIT_TAG)"
-	@echo "VERSION: $(VERSION)"
-.PHONY: debug-version
