@@ -3,7 +3,7 @@
 
 This document contains the results of the benchmarks defined under `app/benchmarks`.
 
-The benchmarks were run on a Macbook Pro M3 MAX with 16 cores 48GB RAM.
+The benchmarks were run on a Macbook Pro M3 MAX with 16 cores and 48GB RAM.
 
 The benchmarks will be run using an in memory DB, then a local db, goleveldb.
 
@@ -33,7 +33,7 @@ An `8MB` block containing 31645 `sendMsg` messages takes 5,04 s (5049140917 ns) 
 
 A single `processProposal` of a `sendMsg` message takes 0.0002313 **ns** to execute and it uses 101110 gas.
 
-An `8MB` block containing 31645 `sendMsg` messages takes 5,17 s (5179850250 ns) to execute. The total gas used 1,843,040,790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,17 s (5179850250 ns) to execute. The total gas used was 1,843,040,790 gas.
 
 For the processing time of a block full of `sendMsg`, we benchmarked how much time they take depending on the number of transactions, and we have the following results:
 
@@ -641,13 +641,13 @@ The transactions in an `8MB` block containing 31645 `sendMsg` messages take 7,50
 
 A single `prepareProposal` of a `sendMsg` message takes 0.0003943 **ns** to execute and it uses 101110 gas.
 
-An `8MB` block containing 31645 `sendMsg` messages takes 5,2 s (5242159792 ns) to execute. The total gas used 1843040790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,2 s (5242159792 ns) to execute. The total gas used was 1843040790 gas.
 
 #### ProcessProposal
 
 A single `processProposal` of a `sendMsg` message takes 0.0003010 **ns** to execute and it uses 101110 gas.
 
-An `8MB` block containing 31645 `sendMsg` messages takes 5,21 s (5214205041 ns) to execute. The total gas used 1843040790 gas.
+An `8MB` block containing 31645 `sendMsg` messages takes 5,21 s (5214205041 ns) to execute. The total gas used was 1843040790 gas.
 
 ### `PFB` benchmarks
 
