@@ -9,6 +9,8 @@ on:
       - "v*"
     tags:
       - "v*"
+  release:
+    types: [published]
   pull_request:
 
 jobs:
