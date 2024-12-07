@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	// This is relatively brittle. It would be better if going below the min gas price
+	// This is relatively brittle. It would be better if going below the minimum gas price
 	// had a specific error type.
 	regexpMinGasPrice = regexp.MustCompile(`insufficient fees; got: \d+utia required: \d+utia`)
 	regexpInt         = regexp.MustCompile(`[0-9]+`)
@@ -50,13 +50,13 @@ func ParseInsufficientMinGasPrice(err error, gasPrice float64, gasLimit uint64) 
 	}
 
 	// catch rare condition that required is zero. This should theoretically
-	// never happen as a min gas price of zero should always be accepted.
+	// never happens as a minimum gas price of zero should always be accepted.
 	if required == 0 {
 		return 0, errors.New("unexpected case: required gas price is zero (why was an error returned)")
 	}
 
-	// calculate the actual min gas price of the node based on the difference
-	// between the got and required values. If gas price was zero, we need to use
+	// calculate the actual minimum gas price of the node based on the difference
+	// between the got and required values. If the gas price was zero, we need to use
 	// the gasLimit to infer this.
 	if gasPrice == 0 || got == 0 {
 		if gasLimit == 0 {
