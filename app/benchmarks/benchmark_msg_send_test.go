@@ -117,7 +117,7 @@ func BenchmarkPrepareProposal_MsgSend_1(b *testing.B) {
 
 func BenchmarkPrepareProposal_MsgSend_8MB(b *testing.B) {
 	// a full 8mb block equals to around 31645 msg send transactions.
-	// using 31645 to let prepare proposal choose the maximum
+	// using 31645 to let prepare a proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
 	blockData := &tmproto.Data{
@@ -174,7 +174,7 @@ func BenchmarkProcessProposal_MsgSend_1(b *testing.B) {
 
 func BenchmarkProcessProposal_MsgSend_8MB(b *testing.B) {
 	// a full 8mb block equals to around 31645 msg send transactions.
-	// using 31645 to let prepare proposal choose the maximum
+	// using 31645 to let prepare a proposal choose the maximum
 	testApp, rawTxs := generateMsgSendTransactions(b, 31645)
 
 	blockData := &tmproto.Data{
@@ -281,7 +281,7 @@ func BenchmarkProcessProposal_MsgSend_8MB_Find_Half_Sec(b *testing.B) {
 	}
 }
 
-// generateMsgSendTransactions creates a test app then generates a number
+// generateMsgSendTransactions creates a test app and then generates a number
 // of valid msg send transactions.
 func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	account := "test"
