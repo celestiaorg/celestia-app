@@ -35,12 +35,12 @@ func init() {
 
 // ConsumeTxSizeGasDecorator will take in parameters and consume gas proportional
 // to the size of tx before calling next AnteHandler. Note, the gas costs will be
-// slightly over estimated due to the fact that any given signing account may need
+// slightly overestimated due to the fact that any given signing account may need
 // to be retrieved from state.
 //
 // CONTRACT: If simulate=true, then signatures must either be completely filled
 // in or empty.
-// CONTRACT: To use this decorator, signatures of transaction must be represented
+// CONTRACT: To use this decorator, signatures of a transaction must be represented
 // as legacytx.StdSignature otherwise simulate mode will incorrectly estimate gas cost.
 
 // The code was copied from celestia's fork of the cosmos-sdk:
