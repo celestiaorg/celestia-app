@@ -13,7 +13,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// Manager defines a module manager that provides the high level utility for
+// Manager defines a module manager that provides the high-level utility for
 // managing and executing operations for a group of modules. This implementation
 // was originally inspired by the module manager defined in Cosmos SDK but this
 // implementation maps the state machine version to different versions of the
@@ -24,7 +24,7 @@ type Manager struct {
 	versionedModules map[uint64]map[string]sdkmodule.AppModule
 	// uniqueModuleVersions is a mapping of module name -> module consensus
 	// version -> the range of app versions this particular module operates
-	// over. The first element in the array represent the fromVersion and the
+	// over. The first element in the array represents the fromVersion and the
 	// last the toVersion (this is inclusive).
 	uniqueModuleVersions map[string]map[uint64][2]uint64
 	allModules           []sdkmodule.AppModule
