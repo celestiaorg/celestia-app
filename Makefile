@@ -127,20 +127,26 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
-## markdown-link-check: Check all markdown links.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
 	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
 .PHONY: markdown-link-check
 
+## lint-links: Check all markdown links.
+lint-links: markdown-link-check
+.PHONY: lint-links
 
-## fmt: Format files per linters golangci-lint and markdownlint.
+
 fmt:
 	@echo "--> Running golangci-lint --fix"
 	@golangci-lint run --fix
 	@echo "--> Running markdownlint --fix"
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
+
+## lint-fix: Format files per linters golangci-lint and markdownlint.
+lint-fix: fmt
+.PHONY: lint-fix
 
 ## test: Run tests.
 test:
