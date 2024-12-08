@@ -95,24 +95,33 @@ proto-format:
 	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
 .PHONY: proto-format
 
-## build-docker: Build the celestia-appd docker image from the current branch. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
-## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
+## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
+docker-build: build-docker
+.PHONY: docker-build
+
 build-ghcr-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
 .PHONY: build-ghcr-docker
 
-## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
+## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.
+docker-build-ghcr: build-ghcr-docker
+.PHONY: docker-build-ghcr
+
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
 	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(COMMIT)
 .PHONY: publish-ghcr-docker
+
+## docker-publish: Publish the celestia-appd docker image. Requires docker.
+docker-publish: publish-ghcr-docker
+.PHONY: docker-publish
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
