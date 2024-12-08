@@ -41,7 +41,7 @@ BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
-	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@sed -n 's/^##//p' $< | sort | column -t -s ':' | sed -e 's/^/ /'
 .PHONY: help
 
 ## build: Build the celestia-appd binary into the ./build directory.
@@ -247,7 +247,6 @@ prebuilt-binary:
 		release --clean
 .PHONY: prebuilt-binary
 
-## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
 check-bbr:
 	@echo "Checking if BBR is enabled..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
@@ -257,7 +256,10 @@ check-bbr:
 	fi
 .PHONY: check-bbr
 
-## enable-bbr: Enable BBR congestion control algorithm. Only works on Linux.
+## bbr-check: Check if your system uses BBR congestion control algorithm. Only works on Linux.
+bbr-check: check-bbr
+.PHONY: bbr-check
+
 enable-bbr:
 	@echo "Configuring system to use BBR..."
 	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
@@ -273,7 +275,10 @@ enable-bbr:
 	fi
 .PHONY: enable-bbr
 
-## disable-bbr: Disable BBR congestion control algorithm and revert to default.
+## bbr-enable: Enable BBR congestion control algorithm. Only works on Linux.
+bbr-enable: enable-bbr
+.PHONY: bbr-enable
+
 disable-bbr:
 	@echo "Disabling BBR and reverting to default congestion control algorithm..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
@@ -288,6 +293,10 @@ disable-bbr:
 	    echo "BBR is not enabled. No changes made."; \
 	fi
 .PHONY: disable-bbr
+
+## bbr-disable: Disable BBR congestion control algorithm and revert to default.
+bbr-disable: disable-bbr
+.PHONY: bbr-disable
 
 ## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
 enable-mptcp:
