@@ -298,7 +298,6 @@ disable-bbr:
 bbr-disable: disable-bbr
 .PHONY: bbr-disable
 
-## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
 enable-mptcp:
 	@echo "Configuring system to use mptcp..."
 	@sudo sysctl -w net.mptcp.enabled=1
@@ -309,10 +308,12 @@ enable-mptcp:
 	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
 	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
 	@echo "MPTCP configuration complete and persistent!"
-
 .PHONY: enable-mptcp
 
-## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+## mptcp-enable: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
+mptcp-enable: enable-mptcp
+.PHONY: mptcp-enable
+
 disable-mptcp:
 	@echo "Disabling MPTCP..."
 	@sudo sysctl -w net.mptcp.enabled=0
@@ -322,8 +323,10 @@ disable-mptcp:
 	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
 	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
 	@echo "MPTCP configuration reverted!"
-
 .PHONY: disable-mptcp
+
+## mptcp-disable: Disable mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+mptcp-disable: disable-mptcp
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
 SEND_RECV_RATE ?= 10485760  # 10 MiB
