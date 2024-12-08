@@ -235,7 +235,6 @@ goreleaser-check:
 		check
 .PHONY: goreleaser-check
 
-## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
 		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
@@ -252,6 +251,10 @@ prebuilt-binary:
 		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
 		release --clean
 .PHONY: prebuilt-binary
+
+## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
+goreleaser: prebuilt-binary
+.PHONY: goreleaser
 
 check-bbr:
 	@echo "Checking if BBR is enabled..."
