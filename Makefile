@@ -41,7 +41,7 @@ BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
-	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
+	@sed -n 's/^##//p' $< | sort | column -t -s ':' | sed -e 's/^/ /'
 .PHONY: help
 
 ## build: Build the celestia-appd binary into the ./build directory.
@@ -95,24 +95,33 @@ proto-format:
 	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
 .PHONY: proto-format
 
-## build-docker: Build the celestia-appd docker image from the current branch. Requires docker.
 build-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
-## build-ghcr-docker: Build the celestia-appd docker image from the last commit. Requires docker.
+## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
+docker-build: build-docker
+.PHONY: docker-build
+
 build-ghcr-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .
 .PHONY: build-ghcr-docker
 
-## publish-ghcr-docker: Publish the celestia-appd docker image. Requires docker.
+## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.
+docker-build-ghcr: build-ghcr-docker
+.PHONY: docker-build-ghcr
+
 publish-ghcr-docker:
 # Make sure you are logged in and authenticated to the ghcr.io registry.
 	@echo "--> Publishing Docker image"
 	$(DOCKER) push ghcr.io/celestiaorg/celestia-app:$(COMMIT)
 .PHONY: publish-ghcr-docker
+
+## docker-publish: Publish the celestia-appd docker image. Requires docker.
+docker-publish: publish-ghcr-docker
+.PHONY: docker-publish
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
@@ -127,20 +136,26 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
-## markdown-link-check: Check all markdown links.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
 	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
 .PHONY: markdown-link-check
 
+## lint-links: Check all markdown links.
+lint-links: markdown-link-check
+.PHONY: lint-links
 
-## fmt: Format files per linters golangci-lint and markdownlint.
+
 fmt:
 	@echo "--> Running golangci-lint --fix"
 	@golangci-lint run --fix
 	@echo "--> Running markdownlint --fix"
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
+
+## lint-fix: Format files per linters golangci-lint and markdownlint.
+lint-fix: fmt
+.PHONY: lint-fix
 
 ## test: Run tests.
 test:
@@ -229,7 +244,6 @@ goreleaser-check:
 		check
 .PHONY: goreleaser-check
 
-## prebuilt-binary: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
 prebuilt-binary:
 	@if [ ! -f ".release-env" ]; then \
 		echo "A .release-env file was not found but is required to create prebuilt binaries. This command is expected to be run in CI where a .release-env file exists. If you need to run this command locally to attach binaries to a release, you need to create a .release-env file with a Github token (classic) that has repo:public_repo scope."; \
@@ -247,7 +261,10 @@ prebuilt-binary:
 		release --clean
 .PHONY: prebuilt-binary
 
-## check-bbr: Check if your system uses BBR congestion control algorithm. Only works on Linux.
+## goreleaser: Create prebuilt binaries and attach them to GitHub release. Requires Docker.
+goreleaser: prebuilt-binary
+.PHONY: goreleaser
+
 check-bbr:
 	@echo "Checking if BBR is enabled..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" != "bbr" ]; then \
@@ -257,7 +274,10 @@ check-bbr:
 	fi
 .PHONY: check-bbr
 
-## enable-bbr: Enable BBR congestion control algorithm. Only works on Linux.
+## bbr-check: Check if your system uses BBR congestion control algorithm. Only works on Linux.
+bbr-check: check-bbr
+.PHONY: bbr-check
+
 enable-bbr:
 	@echo "Configuring system to use BBR..."
 	@if [ "$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')" != "bbr" ]; then \
@@ -273,7 +293,10 @@ enable-bbr:
 	fi
 .PHONY: enable-bbr
 
-## disable-bbr: Disable BBR congestion control algorithm and revert to default.
+## bbr-enable: Enable BBR congestion control algorithm. Only works on Linux.
+bbr-enable: enable-bbr
+.PHONY: bbr-enable
+
 disable-bbr:
 	@echo "Disabling BBR and reverting to default congestion control algorithm..."
 	@if [ "$$(sysctl net.ipv4.tcp_congestion_control | awk '{print $$3}')" = "bbr" ]; then \
@@ -289,7 +312,10 @@ disable-bbr:
 	fi
 .PHONY: disable-bbr
 
-## enable-mptcp: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
+## bbr-disable: Disable BBR congestion control algorithm and revert to default.
+bbr-disable: disable-bbr
+.PHONY: bbr-disable
+
 enable-mptcp:
 	@echo "Configuring system to use mptcp..."
 	@sudo sysctl -w net.mptcp.enabled=1
@@ -300,10 +326,12 @@ enable-mptcp:
 	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
 	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
 	@echo "MPTCP configuration complete and persistent!"
-
 .PHONY: enable-mptcp
 
-## disable-mptcp: Disables mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+## mptcp-enable: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
+mptcp-enable: enable-mptcp
+.PHONY: mptcp-enable
+
 disable-mptcp:
 	@echo "Disabling MPTCP..."
 	@sudo sysctl -w net.mptcp.enabled=0
@@ -313,8 +341,10 @@ disable-mptcp:
 	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
 	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
 	@echo "MPTCP configuration reverted!"
-
 .PHONY: disable-mptcp
+
+## mptcp-disable: Disable mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
+mptcp-disable: disable-mptcp
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
 SEND_RECV_RATE ?= 10485760  # 10 MiB
