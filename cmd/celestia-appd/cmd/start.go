@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -115,6 +116,10 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
+			}
+
+			if contains(appconsts.PublicNetworks, clientCtx.ChainID) && serverCtx.Viper.GetDuration(TimeoutCommitFlag) != 0 {
+				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets.", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
 			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)

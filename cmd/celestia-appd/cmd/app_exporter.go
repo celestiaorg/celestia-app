@@ -20,7 +20,7 @@ func appExporter(
 	appOptions servertypes.AppOptions,
 ) (servertypes.ExportedApp, error) {
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	application := app.New(logger, db, traceStore, uint(1), config, 0, appOptions)
+	application := app.New(logger, db, traceStore, uint(1), config, 0, 0, appOptions)
 	if height != -1 {
 		if err := application.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
