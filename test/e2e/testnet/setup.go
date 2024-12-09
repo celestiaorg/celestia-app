@@ -1,7 +1,6 @@
 package testnet
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -13,7 +12,7 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(ctx context.Context, node *Node, peers []string, opts ...Option) (*config.Config, error) {
+func MakeConfig(node *Node, peers []string, opts ...Option) (*config.Config, error) {
 	cfg := app.DefaultConsensusConfig()
 	cfg.TxIndex.Indexer = "kv"
 	cfg.Consensus.TimeoutPropose = config.DefaultConsensusConfig().TimeoutPropose

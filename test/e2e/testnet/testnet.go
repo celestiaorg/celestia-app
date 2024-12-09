@@ -309,7 +309,7 @@ func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
 		peers := make([]string, 0, len(t.nodes)-1)
 		for _, peer := range t.nodes {
 			if peer.Name != node.Name {
-				peers = append(peers, peer.AddressP2P(ctx, true))
+				peers = append(peers, peer.AddressP2P(true))
 			}
 		}
 
@@ -344,7 +344,7 @@ func (t *Testnet) RPCEndpoints() []string {
 func (t *Testnet) RemoteGRPCEndpoints(ctx context.Context) ([]string, error) {
 	grpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
-		grpcEP, err := node.RemoteAddressGRPC(ctx)
+		grpcEP, err := node.RemoteAddressGRPC()
 		if err != nil {
 			return nil, err
 		}
@@ -366,7 +366,7 @@ func (t *Testnet) GetGenesisValidators() []genesis.Validator {
 func (t *Testnet) RemoteRPCEndpoints(ctx context.Context) ([]string, error) {
 	rpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
-		grpcEP, err := node.RemoteAddressRPC(ctx)
+		grpcEP, err := node.RemoteAddressRPC()
 		if err != nil {
 			return nil, err
 		}
@@ -399,10 +399,9 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 					log.Info().Int("attempts", i).Str("name", node.Name).Int64("latest_block_height", resp.SyncInfo.LatestBlockHeight).Msg(
 						"node has synced")
 					break
-				} else {
-					log.Info().Str("name", node.Name).Int("attempt", i).Msg(
-						"node status retrieved but not synced yet, waiting...")
 				}
+				log.Info().Str("name", node.Name).Int("attempt", i).Msg(
+					"node status retrieved but not synced yet, waiting...")
 			} else {
 				log.Error().Str("name", node.Name).Int("attempt", i).Err(err).Msg(
 					"error getting status, retrying...")

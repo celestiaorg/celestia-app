@@ -218,7 +218,7 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	}
 
 	// Create and write the config file
-	cfg, err := MakeConfig(ctx, n, peers, configOptions...)
+	cfg, err := MakeConfig(n, peers, configOptions...)
 	if err != nil {
 		return fmt.Errorf("making config: %w", err)
 	}
@@ -276,7 +276,7 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 // AddressP2P returns a P2P endpoint address for the node. This is used for
 // populating the address book. This will look something like:
 // 3314051954fc072a0678ec0cbac690ad8676ab98@61.108.66.220:26656
-func (n Node) AddressP2P(ctx context.Context, withID bool) string {
+func (n Node) AddressP2P(withID bool) string {
 	hostName := n.Instance.Network().HostName()
 	addr := fmt.Sprintf("%v:%d", hostName, p2pPort)
 	if withID {
@@ -299,13 +299,13 @@ func (n Node) AddressRPC() string {
 // }
 
 // RemoteAddressGRPC retrieves the gRPC endpoint address of a node within the cluster.
-func (n Node) RemoteAddressGRPC(ctx context.Context) (string, error) {
+func (n Node) RemoteAddressGRPC() (string, error) {
 	hostName := n.Instance.Network().HostName()
 	return fmt.Sprintf("%s:%d", hostName, grpcPort), nil
 }
 
 // RemoteAddressRPC retrieves the RPC endpoint address of a node within the cluster.
-func (n Node) RemoteAddressRPC(ctx context.Context) (string, error) {
+func (n Node) RemoteAddressRPC() (string, error) {
 	hostName := n.Instance.Network().HostName()
 	return fmt.Sprintf("%s:%d", hostName, rpcPort), nil
 }
@@ -314,7 +314,7 @@ func (n Node) AddressTracing() string {
 	return n.traceProxyHost
 }
 
-func (n Node) RemoteAddressTracing(ctx context.Context) (string, error) {
+func (n Node) RemoteAddressTracing() (string, error) {
 	hostName := n.Instance.Network().HostName()
 	return fmt.Sprintf("http://%s:26661", hostName), nil
 }
