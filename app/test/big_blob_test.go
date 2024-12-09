@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
@@ -15,7 +16,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 )
 
 func TestBigBlobSuite(t *testing.T) {
@@ -95,17 +95,17 @@ func (s *BigBlobSuite) TestBlobExceedsMaxTxSize() {
 	t := s.T()
 
 	type testCase struct {
-		name string
-		blob *share.Blob
+		name         string
+		blob         *share.Blob
 		expectedCode uint32
 		expectedErr  string
 	}
 	testCases := []testCase{
 		{
-			name: "2 MiB blob",
-			blob: newBlobWithSize(2097152),
+			name:         "2 MiB blob",
+			blob:         newBlobWithSize(2097152),
 			expectedCode: apperrors.ErrTxExceedsMaxSize.ABCICode(),
-			expectedErr: apperrors.ErrTxExceedsMaxSize.Error(),
+			expectedErr:  apperrors.ErrTxExceedsMaxSize.Error(),
 		},
 	}
 
@@ -123,5 +123,4 @@ func (s *BigBlobSuite) TestBlobExceedsMaxTxSize() {
 			require.Equal(t, tc.expectedCode, code, err.Error(), tc.expectedErr)
 		})
 	}
-
 }
