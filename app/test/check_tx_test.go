@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
@@ -31,8 +32,6 @@ func TestCheckTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ns1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
-
-	var genericErrorCode uint32 = 1
 
 	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
 
@@ -99,6 +98,7 @@ func TestCheckTx(t *testing.T) {
 				return bbtx
 			},
 			expectedABCICode: blobtypes.ErrNamespaceMismatch.ABCICode(),
+			expectedLog:      blobtypes.ErrNamespaceMismatch.Error(),
 		},
 		{
 			name:      "PFB with no blob, CheckTxType_New",
@@ -114,6 +114,7 @@ func TestCheckTx(t *testing.T) {
 				return dtx.Tx
 			},
 			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
+			expectedLog:      blobtypes.ErrNoBlobs.Error(),
 		},
 		{
 			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
@@ -186,6 +187,7 @@ func TestCheckTx(t *testing.T) {
 				return tx
 			},
 			expectedABCICode: blobtypes.ErrBlobsTooLarge.ABCICode(),
+			expectedLog:      blobtypes.ErrBlobsTooLarge.Error(),
 		},
 		{
 			name:      "v1 blob with invalid signer",
@@ -206,6 +208,7 @@ func TestCheckTx(t *testing.T) {
 				return blobTxBytes
 			},
 			expectedABCICode: blobtypes.ErrInvalidBlobSigner.ABCICode(),
+			expectedLog:      blobtypes.ErrInvalidBlobSigner.Error(),
 		},
 		{
 			name:      "v1 blob with valid signer",
@@ -231,8 +234,8 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return blobTx
 			},
-			expectedLog:      "is larger than the application's configured threshold",
-			expectedABCICode: genericErrorCode,
+			expectedLog:      apperr.ErrTxExceedsMaxSize.Error(),
+			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 		{
 			name:      "v0 blob over 2MiB",
@@ -245,8 +248,8 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return blobTx
 			},
-			expectedLog:      "is larger than the application's configured threshold",
-			expectedABCICode: genericErrorCode,
+			expectedLog:      apperr.ErrTxExceedsMaxSize.Error(),
+			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 	}
 
