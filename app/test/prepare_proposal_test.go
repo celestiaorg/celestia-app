@@ -51,7 +51,6 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -109,7 +108,6 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -173,6 +171,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// 3 transactions over MaxTxSize limit
 	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
+	maxTxSize := appconsts.MaxTxSize(testApp.AppVersion()) // max tx size for the latest version
 	// 3 blobTxs over MaxTxSize limit
 	largeBlobTxs := blobfactory.ManyMultiBlobTx(
 		t,
@@ -184,9 +183,23 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		blobfactory.NestedBlobs(
 			t,
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
-			[][]int{{100}, {1000}, {420}},
+			[][]int{{maxTxSize + 1}, {maxTxSize + 1}, {maxTxSize + 1}},
 		),
-		user.SetMemo(largeString),
+	)
+
+	// 3 blobTxs where one is over MaxTxSize limit
+	mixedSizeBlobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig,
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			[][]int{{2}, {2800}, {maxTxSize + 1}},
+		),
 	)
 
 	type test struct {
@@ -246,6 +259,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxSize limit
 			},
 			prunedTxs: append(largeTxs, largeBlobTxs...),
+		},
+		{
+			name: "blobTxs with mixed sizes, one is over MaxTxSize limit",
+			txs: func() [][]byte {
+				return mixedSizeBlobTxs
+			},
+			prunedTxs: [][]byte{mixedSizeBlobTxs[2]},
 		},
 	}
 
