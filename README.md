@@ -126,6 +126,15 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 
 If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatibilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
 
+### Usage in tests
+
+If you are running celestia-app in tests, you may want to override the `timeout_commit` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `timeout_commit` with the `--timeout-commit` flag.
+
+```shell
+# Start celestia-appd with a one second timeout commit.
+celestia-appd start --timeout-commit 1s
+```
+
 ## Contributing
 
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.

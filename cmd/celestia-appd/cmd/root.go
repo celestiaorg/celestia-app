@@ -37,6 +37,9 @@ const (
 	// UpgradeHeightFlag is the flag to specify the upgrade height for v1 to v2
 	// application upgrade.
 	UpgradeHeightFlag = "v2-upgrade-height"
+
+	// TimeoutCommit is a flag that can be used to override the timeout_commit.
+	TimeoutCommitFlag = "timeout-commit"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -125,7 +128,7 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 	)
 
 	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback.
-	addCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addModuleInitFlags)
+	addCommands(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, addStartFlags)
 }
 
 // setDefaultConsensusParams sets the default consensus parameters for the
@@ -136,9 +139,11 @@ func setDefaultConsensusParams(command *cobra.Command) error {
 	return server.SetCmdServerContext(command, ctx)
 }
 
-func addModuleInitFlags(startCmd *cobra.Command) {
+// addStartFlags adds flags to the start command.
+func addStartFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
+	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
