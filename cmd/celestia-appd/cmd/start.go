@@ -118,6 +118,20 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 				return err
 			}
 
+			switch clientCtx.ChainID {
+			case appconsts.ArabicaChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.ArabicaChainID, appconsts.ArabicaUpgradeHeightV2))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.ArabicaUpgradeHeightV2)
+			case appconsts.MochaChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.MochaChainID, appconsts.MochaUpgradeHeightV2))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MochaUpgradeHeightV2)
+			case appconsts.MainnetChainID:
+				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.MainnetChainID, appconsts.MainnetUpgradeHeightV2))
+				serverCtx.Viper.SetDefault(UpgradeHeightFlag, appconsts.MainnetUpgradeHeightV2)
+			default:
+				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the v2 upgrade height when the chainID is %v", clientCtx.ChainID))
+			}
+
 			if contains(appconsts.PublicNetworks, clientCtx.ChainID) && serverCtx.Viper.GetDuration(TimeoutCommitFlag) != 0 {
 				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets.", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
 			}
