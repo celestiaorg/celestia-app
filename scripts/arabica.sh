@@ -57,4 +57,4 @@ echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID}
 
 echo "Starting celestia-appd..."
-celestia-appd start --v2-upgrade-height 1751707 --force-no-bbr --timeout-commit 1s
+celestia-appd start --v2-upgrade-height 1751707 --force-no-bbr
