@@ -70,7 +70,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		}
 	}
 	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := b.RemoteGRPCEndpoints(ctx)
+	gRPCEndpoints, err := b.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 

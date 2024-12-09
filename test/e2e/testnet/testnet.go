@@ -325,7 +325,7 @@ func (t *Testnet) RPCEndpoints() []string {
 
 // RemoteGRPCEndpoints retrieves the gRPC endpoint addresses of the
 // testnet's validator nodes.
-func (t *Testnet) RemoteGRPCEndpoints(ctx context.Context) ([]string, error) {
+func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
 	grpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
 		grpcEP, err := node.RemoteAddressGRPC()
@@ -384,7 +384,7 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 				}
 				t.logger.Println("node status retrieved but not synced yet, waiting...", "name", node.Name, "attempt", i)
 			} else {
-				t.logger.Printf("error getting status, retrying...", "name", node.Name, "attempt", i, "error", err)
+				t.logger.Println("error getting status, retrying...", "name", node.Name, "attempt", i, "error", err)
 			}
 			if i == 19 {
 				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, err)

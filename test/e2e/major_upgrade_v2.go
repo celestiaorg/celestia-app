@@ -60,7 +60,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)

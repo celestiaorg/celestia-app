@@ -44,7 +44,7 @@ func E2ESimple(logger *log.Logger) error {
 		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
