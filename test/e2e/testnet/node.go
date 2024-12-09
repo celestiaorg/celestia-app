@@ -4,11 +4,11 @@ package testnet
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-	"github.com/rs/zerolog/log"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
@@ -55,13 +55,15 @@ type Node struct {
 	// FIXME: This does not work currently with the reverse proxy
 	// grpcProxyHost  string
 	traceProxyHost string
+
+	logger *log.Logger
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
 // It will save them to the provided path.
 func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error) {
 	addr := n.AddressTracing()
-	log.Info().Str("Address", addr).Msg("Pulling round state traces")
+	n.logger.Println("Pulling round state traces", "address", addr)
 
 	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
 	if err != nil {
@@ -74,7 +76,7 @@ func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundStat
 // It will save them to the provided path.
 func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error) {
 	addr := n.AddressTracing()
-	log.Info().Str("Address", addr).Msg("Pulling block summary traces")
+	n.logger.Println("Pulling block summary traces", "address", addr)
 
 	err := trace.GetTable(addr, schema.BlockSummary{}.Table(), path)
 	if err != nil {
@@ -97,6 +99,7 @@ type Resources struct {
 
 func NewNode(
 	ctx context.Context,
+	logger *log.Logger,
 	name string,
 	version string,
 	startHeight int64,
@@ -178,6 +181,7 @@ func NewNode(
 		NetworkKey:     networkKey,
 		SelfDelegation: selfDelegation,
 		sidecars:       sidecars,
+		logger:         logger,
 	}, nil
 }
 
@@ -205,9 +209,7 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	}
 	defer os.RemoveAll(tmpDir)
 	nodeDir := filepath.Join(tmpDir, n.Name)
-	log.Info().Str("name", n.Name).
-		Str("directory", nodeDir).
-		Msg("Creating validator's config and data directories")
+	n.logger.Println("Creating validator's config and data directories", "name", n.Name, "directory", nodeDir)
 	for _, dir := range []string{
 		filepath.Join(nodeDir, "config"),
 		filepath.Join(nodeDir, "data"),
@@ -324,7 +326,7 @@ func (n Node) IsValidator() bool {
 }
 
 func (n Node) Client() (*http.HTTP, error) {
-	log.Debug().Str("RPC Address", n.AddressRPC()).Msg("Creating HTTP client for node")
+	n.logger.Println("Creating HTTP client for node", "rpc_address", n.AddressRPC())
 	return http.New(n.AddressRPC(), "/websocket")
 }
 

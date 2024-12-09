@@ -56,7 +56,7 @@ func runTest(logger *log.Logger, test Test) {
 	if err != nil {
 		logger.Fatalf("--- ERROR %s: %v", test.Name, err)
 	}
-	logger.Printf("--- ✅ PASS: %s \n\n", test.Name)
+	logger.Println("--- ✅ PASS: %s \n\n", test.Name)
 }
 
 func getTestNames(tests []Test) string {

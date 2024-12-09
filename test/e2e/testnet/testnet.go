@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/celestiaorg/knuu/pkg/preloader"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/rs/zerolog/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -35,6 +35,8 @@ type Testnet struct {
 	knuu        *knuu.Knuu
 	chainID     string
 	genesisHash string
+
+	logger *log.Logger
 }
 
 type Options struct {
@@ -44,7 +46,7 @@ type Options struct {
 	GenesisModifiers []genesis.Modifier
 }
 
-func New(knuu *knuu.Knuu, opts Options) (*Testnet, error) {
+func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 	opts.setDefaults()
 	return &Testnet{
 		seed:        opts.Seed,
@@ -55,6 +57,7 @@ func New(knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 		knuu:        knuu,
 		chainID:     opts.ChainID,
 		genesisHash: "",
+		logger:      logger,
 	}, nil
 }
 
@@ -78,7 +81,7 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -111,15 +114,10 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule)
 		if err != nil {
-			log.Err(err).Str("name", name).
-				Str("grpc endpoint", grpcEndpoint).
-				Msg("txsim creation failed")
+			t.logger.Println("txsim creation failed", "name", name, "grpc_endpoint", grpcEndpoint, "error", err)
 			return err
 		}
-		log.Info().
-			Str("name", name).
-			Str("grpc endpoint", grpcEndpoint).
-			Msg("txsim created")
+		t.logger.Println("txsim created", "name", name, "grpc_endpoint", grpcEndpoint)
 	}
 	return nil
 }
@@ -190,29 +188,22 @@ func (t *Testnet) CreateTxClient(
 		}
 	}
 
-	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
+	txsim, err := CreateTxClient(ctx, t.logger, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error creating txsim")
+		t.logger.Println("error creating txsim", "name", name, "error", err)
 		return err
 	}
 
 	err = txsim.Instance.Build().Commit(ctx)
 	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
+		t.logger.Println("error committing txsim", "name", name, "error", err)
 		return err
 	}
 
 	// copy over the keyring directory to the txsim instance
 	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, remoteRootDir, "10001:10001")
 	if err != nil {
-		log.Err(err).
-			Str("directory", txsimKeyringDir).
-			Str("name", name).
-			Msg("error adding keyring dir to txsim")
+		t.logger.Println("error adding keyring dir to txsim", "directory", txsimKeyringDir, "name", name, "error", err)
 		return err
 	}
 
@@ -224,14 +215,10 @@ func (t *Testnet) StartTxClients(ctx context.Context) error {
 	for _, txsim := range t.txClients {
 		err := txsim.Instance.Execution().StartAsync(ctx)
 		if err != nil {
-			log.Err(err).
-				Str("name", txsim.Name).
-				Msg("txsim failed to start")
+			t.logger.Println("txsim failed to start", "name", txsim.Name, "error", err)
 			return err
 		}
-		log.Info().
-			Str("name", txsim.Name).
-			Msg("txsim started")
+		t.logger.Println("txsim started", "name", txsim.Name)
 	}
 	// wait for txsims to start
 	for _, txsim := range t.txClients {
@@ -279,17 +266,14 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 		return nil, err
 	}
 
-	log.Info().
-		Str("name", name).
-		Str("pk", pk.String()).
-		Msg("txsim account created and added to genesis")
+	t.logger.Println("txsim account created and added to genesis", "name", name, "pk", pk.String())
 	return kr, nil
 }
 
 func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -386,8 +370,7 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 	}
 
 	for _, node := range genesisNodes {
-		log.Info().Str("name", node.Name).Msg(
-			"waiting for node to sync")
+		t.logger.Println("waiting for node to sync", "name", node.Name)
 		client, err := node.Client()
 		if err != nil {
 			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
@@ -396,15 +379,12 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 			resp, err := client.Status(ctx)
 			if err == nil {
 				if resp != nil && resp.SyncInfo.LatestBlockHeight > 0 {
-					log.Info().Int("attempts", i).Str("name", node.Name).Int64("latest_block_height", resp.SyncInfo.LatestBlockHeight).Msg(
-						"node has synced")
+					t.logger.Println("node has synced", "name", node.Name, "attempts", i, "latest_block_height", resp.SyncInfo.LatestBlockHeight)
 					break
 				}
-				log.Info().Str("name", node.Name).Int("attempt", i).Msg(
-					"node status retrieved but not synced yet, waiting...")
+				t.logger.Println("node status retrieved but not synced yet, waiting...", "name", node.Name, "attempt", i)
 			} else {
-				log.Error().Str("name", node.Name).Int("attempt", i).Err(err).Msg(
-					"error getting status, retrying...")
+				t.logger.Printf("error getting status, retrying...", "name", node.Name, "attempt", i, "error", err)
 			}
 			if i == 19 {
 				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, err)
@@ -432,17 +412,15 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 		}
 	}
 
-	log.Info().Msg("create endpoint proxies for genesis nodes")
+	t.logger.Println("create endpoint proxies for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndCreateProxy(ctx)
 		if err != nil {
-			log.Err(err).Str("name", node.Name).Str("version",
-				node.Version).Msg("failed to start and create proxy")
+			t.logger.Println("failed to start and create proxy", "name", node.Name, "version", node.Version, "error", err)
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
-		log.Info().Str("name", node.Name).Str("version",
-			node.Version).Msg("started and created proxy")
+		t.logger.Println("started and created proxy", "name", node.Name, "version", node.Version)
 	}
 	return nil
 }
@@ -454,7 +432,7 @@ func (t *Testnet) Start(ctx context.Context) error {
 		return err
 	}
 	// wait for nodes to sync
-	log.Info().Msg("waiting for genesis nodes to sync")
+	t.logger.Println("waiting for genesis nodes to sync")
 	err = t.WaitToSync(ctx)
 	if err != nil {
 		return err
@@ -465,7 +443,7 @@ func (t *Testnet) Start(ctx context.Context) error {
 
 func (t *Testnet) Cleanup(ctx context.Context) {
 	if err := t.knuu.CleanUp(ctx); err != nil {
-		log.Err(err).Msg("failed to cleanup knuu")
+		t.logger.Println("failed to cleanup knuu", "error", err)
 	}
 }
 

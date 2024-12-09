@@ -30,7 +30,7 @@ func E2ESimple(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(kn, testnet.Options{})
+	testNet, err := testnet.New(logger, kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)

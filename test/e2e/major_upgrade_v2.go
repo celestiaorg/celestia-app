@@ -35,7 +35,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(kn, testnet.Options{})
+	testNet, err := testnet.New(logger, kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
