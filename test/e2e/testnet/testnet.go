@@ -347,7 +347,7 @@ func (t *Testnet) GetGenesisValidators() []genesis.Validator {
 
 // RemoteRPCEndpoints retrieves the RPC endpoint addresses of the testnet's
 // validator nodes.
-func (t *Testnet) RemoteRPCEndpoints(ctx context.Context) ([]string, error) {
+func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	rpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
 		grpcEP, err := node.RemoteAddressRPC()
