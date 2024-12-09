@@ -16,7 +16,7 @@ import (
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
 
-	// all txs should be under the max tx size limit
+	// all txs must be less than or equal to the max tx size limit
 	maxTxSize := appconsts.MaxTxSize(app.AppVersion())
 	currentTxSize := len(tx)
 	if currentTxSize > appconsts.MaxTxSize(app.AppVersion()) {
