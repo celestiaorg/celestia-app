@@ -41,7 +41,7 @@ Both `SeenTx` and `WantTx` contain the sha256 hash of the raw transaction bytes.
 Both messages are sent across a new channel with the ID: `byte(0x31)`. This enables cross compatibility as discussed in greater detail below.
 
 > **Note:**
-> The term `SeenTx` is used over the more common `HasTx` because the transaction pool contains sophisticated eviction logic. TTL's, higher priority transactions and reCheckTx may mean that a transaction pool *had* a transaction but does not have it any more. Semantically it's more appropriate to use `SeenTx` to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.
+> The term `SeenTx` is used over the more common `HasTx` because the transaction pool contains sophisticated eviction logic. TTLs, higher priority transactions and reCheckTx may mean that a transaction pool *had* a transaction but does not have it any more. Semantically it's more appropriate to use `SeenTx` to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.
 
 ## Outbound logic
 
@@ -88,7 +88,7 @@ Upon receiving a `SeenTx` message:
 - If the node does not have the transaction but recently evicted it, it MAY choose to rerequest the transaction if it has adequate resources now to process it.
 - If the node has not seen the transaction or does not have any pending requests for that transaction, it can do one of two things:
   - It MAY immediately request the tx from the peer with a `WantTx`.
-  - If the node is connected to the peer specified in `FROM`, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a `Txs` message for a bounded amount of time but MUST eventually send a `WantMsg` message to either the original peer or any other peer that *has* the specified transaction.
+  - If the node is connected to the peer specified in `FROM`, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a `Txs` message for a bounded amount of time but MUST eventually send a `WantTx` message to either the original peer or any other peer that *has* the specified transaction.
 
 Upon receiving a `WantTx` message:
 
