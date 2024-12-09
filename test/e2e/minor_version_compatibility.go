@@ -50,7 +50,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(kn, testnet.Options{Seed: seed})
+	testNet, err := testnet.New(logger, kn, testnet.Options{Seed: seed})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -76,7 +76,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)

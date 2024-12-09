@@ -1,7 +1,6 @@
 package testnet
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -13,15 +12,14 @@ import (
 	"github.com/tendermint/tendermint/p2p/pex"
 )
 
-func MakeConfig(ctx context.Context, node *Node, opts ...Option) (*config.Config, error) {
+func MakeConfig(node *Node, peers []string, opts ...Option) (*config.Config, error) {
 	cfg := app.DefaultConsensusConfig()
 	cfg.TxIndex.Indexer = "kv"
 	cfg.Consensus.TimeoutPropose = config.DefaultConsensusConfig().TimeoutPropose
 	cfg.Consensus.TimeoutCommit = config.DefaultConsensusConfig().TimeoutCommit
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
-	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(ctx, false))
-	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
+	cfg.P2P.PersistentPeers = strings.Join(peers, ",")
 	cfg.Instrumentation.Prometheus = true
 
 	for _, opt := range opts {

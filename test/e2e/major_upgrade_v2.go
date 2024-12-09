@@ -35,7 +35,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(kn, testnet.Options{})
+	testNet, err := testnet.New(logger, kn, testnet.Options{})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -60,7 +60,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)

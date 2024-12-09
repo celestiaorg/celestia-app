@@ -24,7 +24,7 @@ type BenchmarkTest struct {
 
 // NewBenchmarkTest wraps around testnet.New to create a new benchmark test.
 // It may modify genesis consensus parameters based on manifest.
-func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
+func NewBenchmarkTest(logger *log.Logger, name string, manifest *Manifest) (*BenchmarkTest, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -42,8 +42,8 @@ func NewBenchmarkTest(name string, manifest *Manifest) (*BenchmarkTest, error) {
 
 	log.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(kn, testnet.Options{
-		Grafana:          testnet.GetGrafanaInfoFromEnvVar(),
+	testNet, err := testnet.New(logger, kn, testnet.Options{
+		Grafana:          testnet.GetGrafanaInfoFromEnvVar(logger),
 		ChainID:          manifest.ChainID,
 		GenesisModifiers: manifest.GetGenesisModifiers(),
 	})
@@ -70,7 +70,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 		}
 	}
 	// obtain the GRPC endpoints of the validators
-	gRPCEndpoints, err := b.RemoteGRPCEndpoints(ctx)
+	gRPCEndpoints, err := b.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get validators GRPC endpoints", err)
 	log.Println("validators GRPC endpoints", gRPCEndpoints)
 

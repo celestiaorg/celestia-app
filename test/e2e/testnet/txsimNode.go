@@ -4,12 +4,12 @@ package testnet
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -28,6 +28,7 @@ type TxSim struct {
 // CreateTxClient returns a new TxSim instance.
 func CreateTxClient(
 	ctx context.Context,
+	logger *log.Logger,
 	name string,
 	version string,
 	endpoint string,
@@ -46,16 +47,10 @@ func CreateTxClient(
 		return nil, err
 	}
 	image := txsimDockerImageName(version)
-	log.Info().
-		Str("name", name).
-		Str("image", image).
-		Msg("setting image for tx client")
+	logger.Println("setting image for tx client", "name", name, "image", image)
 	err = instance.Build().SetImage(ctx, image)
 	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Str("image", image).
-			Msg("failed to set image for tx client")
+		logger.Println("failed to set image for tx client", "name", name, "image", image, "error", err)
 		return nil, err
 	}
 	err = instance.Resources().SetMemory(resources.MemoryRequest, resources.MemoryLimit)
@@ -89,11 +84,7 @@ func CreateTxClient(
 		return nil, err
 	}
 
-	log.Info().
-		Str("name", name).
-		Str("image", image).
-		Str("args", strings.Join(args, " ")).
-		Msg("created tx client")
+	logger.Println("created tx client", "name", name, "image", image, "args", strings.Join(args, " "))
 
 	return &TxSim{
 		Name:     name,
