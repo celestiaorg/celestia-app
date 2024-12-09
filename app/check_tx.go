@@ -19,7 +19,7 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	// all txs must be less than or equal to the max tx size limit
 	maxTxSize := appconsts.MaxTxSize(app.AppVersion())
 	currentTxSize := len(tx)
-	if currentTxSize > appconsts.MaxTxSize(app.AppVersion()) {
+	if currentTxSize > maxTxSize {
 		err := fmt.Errorf("tx size %d bytes is larger than the application's configured threshold of %d bytes", currentTxSize, maxTxSize)
 		return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 	}
