@@ -169,7 +169,7 @@ message WantTx {
 <p>Both messages are sent across a new channel with the ID: <code>byte(0x31)</code>. This enables cross compatibility as discussed in greater detail below.</p>
 <blockquote>
 <p><strong>Note:</strong>
-The term <code>SeenTx</code> is used over the more common <code>HasTx</code> because the transaction pool contains sophisticated eviction logic. TTL's, higher priority transactions and reCheckTx may mean that a transaction pool <em>had</em> a transaction but does not have it any more. Semantically it's more appropriate to use <code>SeenTx</code> to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.</p>
+The term <code>SeenTx</code> is used over the more common <code>HasTx</code> because the transaction pool contains sophisticated eviction logic. TTLs, higher priority transactions and reCheckTx may mean that a transaction pool <em>had</em> a transaction but does not have it any more. Semantically it's more appropriate to use <code>SeenTx</code> to imply not the presence of a transaction but that the node has seen it and dealt with it accordingly.</p>
 </blockquote>
 <h2 id="outbound-logic"><a class="header" href="#outbound-logic">Outbound logic</a></h2>
 <p>A node in the protocol has two distinct modes: &quot;broadcast&quot; and &quot;request/response&quot;. When a node receives a transaction via RPC (or specifically through <code>CheckTx</code>), it assumed that it is the only recipient from that client and thus will immediately send that transaction, after validation, to all connected peers. Afterwards, only &quot;request/response&quot; is used to disseminate that transaction to everyone else.</p>
@@ -210,7 +210,7 @@ Inbound transactions submitted via the RPC do not trigger a <code>SeenTx</code> 
 <li>If the node has not seen the transaction or does not have any pending requests for that transaction, it can do one of two things:
 <ul>
 <li>It MAY immediately request the tx from the peer with a <code>WantTx</code>.</li>
-<li>If the node is connected to the peer specified in <code>FROM</code>, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a <code>Txs</code> message for a bounded amount of time but MUST eventually send a <code>WantMsg</code> message to either the original peer or any other peer that <em>has</em> the specified transaction.</li>
+<li>If the node is connected to the peer specified in <code>FROM</code>, it is likely, from a non-byzantine peer, that the node will also shortly receive the transaction from the peer. It MAY wait for a <code>Txs</code> message for a bounded amount of time but MUST eventually send a <code>WantTx</code> message to either the original peer or any other peer that <em>has</em> the specified transaction.</li>
 </ul>
 </li>
 </ul>
