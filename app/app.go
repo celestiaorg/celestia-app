@@ -857,7 +857,7 @@ func isSupportedAppVersion(appVersion uint64) bool {
 	return appVersion == v1 || appVersion == v2 || appVersion == v3
 }
 
-// getTimeoutCommit returns the timeoutCommit if a user has overriden it via the
+// getTimeoutCommit returns the timeoutCommit if a user has overridden it via the
 // --timeout-commit flag. Otherwise, it returns the default timeout commit based
 // on the app version.
 func (app *App) getTimeoutCommit(appVersion uint64) time.Duration {

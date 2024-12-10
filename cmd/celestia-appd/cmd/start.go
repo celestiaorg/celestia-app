@@ -133,7 +133,7 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			}
 
 			if contains(appconsts.PublicNetworks, clientCtx.ChainID) && serverCtx.Viper.GetDuration(TimeoutCommitFlag) != 0 {
-				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets.", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
+				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
 			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
