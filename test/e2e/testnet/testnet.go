@@ -359,6 +359,8 @@ func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	return rpcEndpoints, nil
 }
 
+const maxSyncAttempts = 20
+
 // WaitToSync waits for the started nodes to sync with the network and move
 // past the genesis block.
 func (t *Testnet) WaitToSync(ctx context.Context) error {
@@ -375,8 +377,10 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
 		}
-		for i := 0; i < 20; i++ {
+		var lastErr error
+		for i := 0; i < maxSyncAttempts; i++ {
 			resp, err := client.Status(ctx)
+			lastErr = err
 			if err == nil {
 				if resp != nil && resp.SyncInfo.LatestBlockHeight > 0 {
 					t.logger.Println("node has synced", "name", node.Name, "attempts", i, "latest_block_height", resp.SyncInfo.LatestBlockHeight)
@@ -386,10 +390,10 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 			} else {
 				t.logger.Println("error getting status, retrying...", "name", node.Name, "attempt", i, "error", err)
 			}
-			if i == 19 {
-				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, err)
+			if i == maxSyncAttempts-1 {
+				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, lastErr)
 			}
-			time.Sleep(time.Duration(i) * time.Second)
+			time.Sleep(time.Second * time.Duration(1<<uint(i)))
 		}
 	}
 	return nil
