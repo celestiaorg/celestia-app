@@ -36,7 +36,7 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 //
 // Side-effect: arranges all normal transactions before all blob transactions.
 func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
-	// all transactions should be below the max tx size
+	// all transactions should be less than or equal to the max tx size
 	maxTxSize := appconsts.MaxTxSize(ctx.BlockHeader().Version.App)
 	//nolint:prealloc
 	var txsBelowLimit [][]byte
