@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/celestiaorg/knuu/pkg/preloader"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/rs/zerolog/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -26,13 +26,17 @@ const (
 )
 
 type Testnet struct {
-	seed      int64
-	nodes     []*Node
-	genesis   *genesis.Genesis
-	keygen    *keyGenerator
-	grafana   *GrafanaInfo
-	txClients []*TxSim
-	knuu      *knuu.Knuu
+	seed        int64
+	nodes       []*Node
+	genesis     *genesis.Genesis
+	keygen      *keyGenerator
+	grafana     *GrafanaInfo
+	txClients   []*TxSim
+	knuu        *knuu.Knuu
+	chainID     string
+	genesisHash string
+
+	logger *log.Logger
 }
 
 type Options struct {
@@ -42,15 +46,18 @@ type Options struct {
 	GenesisModifiers []genesis.Modifier
 }
 
-func New(knuu *knuu.Knuu, opts Options) (*Testnet, error) {
+func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 	opts.setDefaults()
 	return &Testnet{
-		seed:    opts.Seed,
-		nodes:   make([]*Node, 0),
-		genesis: genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
-		keygen:  newKeyGenerator(opts.Seed),
-		grafana: opts.Grafana,
-		knuu:    knuu,
+		seed:        opts.Seed,
+		nodes:       make([]*Node, 0),
+		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
+		keygen:      newKeyGenerator(opts.Seed),
+		grafana:     opts.Grafana,
+		knuu:        knuu,
+		chainID:     opts.ChainID,
+		genesisHash: "",
+		logger:      logger,
 	}, nil
 }
 
@@ -74,7 +81,7 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -107,15 +114,10 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 		name := fmt.Sprintf("txsim%d", i)
 		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule)
 		if err != nil {
-			log.Err(err).Str("name", name).
-				Str("grpc endpoint", grpcEndpoint).
-				Msg("txsim creation failed")
+			t.logger.Println("txsim creation failed", "name", name, "grpc_endpoint", grpcEndpoint, "error", err)
 			return err
 		}
-		log.Info().
-			Str("name", name).
-			Str("grpc endpoint", grpcEndpoint).
-			Msg("txsim created")
+		t.logger.Println("txsim created", "name", name, "grpc_endpoint", grpcEndpoint)
 	}
 	return nil
 }
@@ -143,8 +145,12 @@ func (t *Testnet) CreateTxClient(
 	grpcEndpoint string,
 	upgradeSchedule map[int64]uint64,
 ) error {
-	txsimKeyringDir := filepath.Join(os.TempDir(), name)
-	defer os.RemoveAll(txsimKeyringDir)
+	tmpDir, err := os.MkdirTemp("", "e2e_test_")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	txsimKeyringDir := filepath.Join(tmpDir, name)
 
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	txsimKeyring, err := keyring.New(app.Name, keyring.BackendTest, txsimKeyringDir, nil, config)
@@ -182,29 +188,22 @@ func (t *Testnet) CreateTxClient(
 		}
 	}
 
-	txsim, err := CreateTxClient(ctx, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, txsimKeyringDir, t.knuu, upgradeSchedule)
+	txsim, err := CreateTxClient(ctx, t.logger, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error creating txsim")
+		t.logger.Println("error creating txsim", "name", name, "error", err)
 		return err
 	}
 
 	err = txsim.Instance.Build().Commit(ctx)
 	if err != nil {
-		log.Err(err).
-			Str("name", name).
-			Msg("error committing txsim")
+		t.logger.Println("error committing txsim", "name", name, "error", err)
 		return err
 	}
 
 	// copy over the keyring directory to the txsim instance
-	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, txsimKeyringDir, "10001:10001")
+	err = txsim.Instance.Storage().AddFolder(txsimKeyringDir, remoteRootDir, "10001:10001")
 	if err != nil {
-		log.Err(err).
-			Str("directory", txsimKeyringDir).
-			Str("name", name).
-			Msg("error adding keyring dir to txsim")
+		t.logger.Println("error adding keyring dir to txsim", "directory", txsimKeyringDir, "name", name, "error", err)
 		return err
 	}
 
@@ -216,14 +215,10 @@ func (t *Testnet) StartTxClients(ctx context.Context) error {
 	for _, txsim := range t.txClients {
 		err := txsim.Instance.Execution().StartAsync(ctx)
 		if err != nil {
-			log.Err(err).
-				Str("name", txsim.Name).
-				Msg("txsim failed to start")
+			t.logger.Println("txsim failed to start", "name", txsim.Name, "error", err)
 			return err
 		}
-		log.Info().
-			Str("name", txsim.Name).
-			Msg("txsim started")
+		t.logger.Println("txsim started", "name", txsim.Name)
 	}
 	// wait for txsims to start
 	for _, txsim := range t.txClients {
@@ -271,17 +266,14 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 		return nil, err
 	}
 
-	log.Info().
-		Str("name", name).
-		Str("pk", pk.String()).
-		Msg("txsim account created and added to genesis")
+	t.logger.Println("txsim account created and added to genesis", "name", name, "pk", pk.String())
 	return kr, nil
 }
 
 func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -297,11 +289,11 @@ func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
 
 	for _, node := range t.nodes {
 		// nodes are initialized with the addresses of all other
-		// nodes in their addressbook
+		// nodes as trusted peers
 		peers := make([]string, 0, len(t.nodes)-1)
 		for _, peer := range t.nodes {
 			if peer.Name != node.Name {
-				peers = append(peers, peer.AddressP2P(ctx, true))
+				peers = append(peers, peer.AddressP2P(true))
 			}
 		}
 
@@ -333,10 +325,10 @@ func (t *Testnet) RPCEndpoints() []string {
 
 // RemoteGRPCEndpoints retrieves the gRPC endpoint addresses of the
 // testnet's validator nodes.
-func (t *Testnet) RemoteGRPCEndpoints(ctx context.Context) ([]string, error) {
+func (t *Testnet) RemoteGRPCEndpoints() ([]string, error) {
 	grpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
-		grpcEP, err := node.RemoteAddressGRPC(ctx)
+		grpcEP, err := node.RemoteAddressGRPC()
 		if err != nil {
 			return nil, err
 		}
@@ -355,10 +347,10 @@ func (t *Testnet) GetGenesisValidators() []genesis.Validator {
 
 // RemoteRPCEndpoints retrieves the RPC endpoint addresses of the testnet's
 // validator nodes.
-func (t *Testnet) RemoteRPCEndpoints(ctx context.Context) ([]string, error) {
+func (t *Testnet) RemoteRPCEndpoints() ([]string, error) {
 	rpcEndpoints := make([]string, len(t.nodes))
 	for idx, node := range t.nodes {
-		grpcEP, err := node.RemoteAddressRPC(ctx)
+		grpcEP, err := node.RemoteAddressRPC()
 		if err != nil {
 			return nil, err
 		}
@@ -366,6 +358,8 @@ func (t *Testnet) RemoteRPCEndpoints(ctx context.Context) ([]string, error) {
 	}
 	return rpcEndpoints, nil
 }
+
+const maxSyncAttempts = 20
 
 // WaitToSync waits for the started nodes to sync with the network and move
 // past the genesis block.
@@ -378,29 +372,28 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 	}
 
 	for _, node := range genesisNodes {
-		log.Info().Str("name", node.Name).Msg(
-			"waiting for node to sync")
+		t.logger.Println("waiting for node to sync", "name", node.Name)
 		client, err := node.Client()
 		if err != nil {
 			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
 		}
-		for i := 0; i < 10; i++ {
+		var lastErr error
+		for i := 0; i < maxSyncAttempts; i++ {
 			resp, err := client.Status(ctx)
+			lastErr = err
 			if err == nil {
-				if resp.SyncInfo.LatestBlockHeight > 0 {
-					log.Info().Int("attempts", i).Str("name", node.Name).Msg(
-						"node has synced")
+				if resp != nil && resp.SyncInfo.LatestBlockHeight > 0 {
+					t.logger.Println("node has synced", "name", node.Name, "attempts", i, "latest_block_height", resp.SyncInfo.LatestBlockHeight)
 					break
 				}
+				t.logger.Println("node status retrieved but not synced yet, waiting...", "name", node.Name, "attempt", i)
 			} else {
-				err = errors.New("error getting status")
+				t.logger.Println("error getting status, retrying...", "name", node.Name, "attempt", i, "error", err)
 			}
-			if i == 9 {
-				return fmt.Errorf("failed to start node %s: %w", node.Name, err)
+			if i == maxSyncAttempts-1 {
+				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, lastErr)
 			}
-			log.Info().Str("name", node.Name).Int("attempt", i).Msg(
-				"node is not synced yet, waiting...")
-			time.Sleep(time.Duration(i) * time.Second)
+			time.Sleep(time.Second * time.Duration(1<<uint(i)))
 		}
 	}
 	return nil
@@ -423,17 +416,15 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 		}
 	}
 
-	log.Info().Msg("create endpoint proxies for genesis nodes")
+	t.logger.Println("create endpoint proxies for genesis nodes")
 	// wait for instances to be running
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndCreateProxy(ctx)
 		if err != nil {
-			log.Err(err).Str("name", node.Name).Str("version",
-				node.Version).Msg("failed to start and forward ports")
+			t.logger.Println("failed to start and create proxy", "name", node.Name, "version", node.Version, "error", err)
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
-		log.Info().Str("name", node.Name).Str("version",
-			node.Version).Msg("started and ports forwarded")
+		t.logger.Println("started and created proxy", "name", node.Name, "version", node.Version)
 	}
 	return nil
 }
@@ -445,7 +436,7 @@ func (t *Testnet) Start(ctx context.Context) error {
 		return err
 	}
 	// wait for nodes to sync
-	log.Info().Msg("waiting for genesis nodes to sync")
+	t.logger.Println("waiting for genesis nodes to sync")
 	err = t.WaitToSync(ctx)
 	if err != nil {
 		return err
@@ -456,7 +447,7 @@ func (t *Testnet) Start(ctx context.Context) error {
 
 func (t *Testnet) Cleanup(ctx context.Context) {
 	if err := t.knuu.CleanUp(ctx); err != nil {
-		log.Err(err).Msg("failed to cleanup knuu")
+		t.logger.Println("failed to cleanup knuu", "error", err)
 	}
 }
 
@@ -470,6 +461,34 @@ func (t *Testnet) Nodes() []*Node {
 
 func (t *Testnet) Genesis() *genesis.Genesis {
 	return t.genesis
+}
+
+func (t *Testnet) ChainID() string {
+	return t.chainID
+}
+
+func (t *Testnet) GenesisHash(ctx context.Context) (string, error) {
+	if t.genesisHash == "" {
+		if t.knuu == nil {
+			return "", errors.New("knuu is not initialized")
+		}
+		if len(t.nodes) == 0 {
+			return "", errors.New("no nodes available")
+		}
+
+		client, err := t.nodes[0].Client()
+		if err != nil {
+			return "", fmt.Errorf("failed to get client: %w", err)
+		}
+
+		height1 := int64(1)
+		block, err := client.Block(ctx, &height1)
+		if err != nil {
+			return "", fmt.Errorf("failed to get block: %w", err)
+		}
+		t.genesisHash = block.BlockID.Hash.String()
+	}
+	return t.genesisHash, nil
 }
 
 func (o *Options) setDefaults() {
