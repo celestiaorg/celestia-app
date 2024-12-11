@@ -23,7 +23,7 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	maxTxSize := appconsts.MaxTxSize(app.AppVersion())
 	currentTxSize := len(tx)
 	if currentTxSize > maxTxSize {
-		return sdkerrors.ResponseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured threshold of %d bytes", currentTxSize, maxTxSize), 0, 0, []abci.Event{}, false)
+		return sdkerrors.ResponseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()), 0, 0, []abci.Event{}, false)
 	}
 
 	// check if the transaction contains blobs

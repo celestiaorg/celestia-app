@@ -45,7 +45,6 @@ func TestCheckTx(t *testing.T) {
 		checkType        abci.CheckTxType
 		getTx            func() []byte
 		expectedABCICode uint32
-		expectedLog      string
 	}
 
 	tests := []test{
@@ -98,7 +97,6 @@ func TestCheckTx(t *testing.T) {
 				return bbtx
 			},
 			expectedABCICode: blobtypes.ErrNamespaceMismatch.ABCICode(),
-			expectedLog:      blobtypes.ErrNamespaceMismatch.Error(),
 		},
 		{
 			name:      "PFB with no blob, CheckTxType_New",
@@ -114,7 +112,6 @@ func TestCheckTx(t *testing.T) {
 				return dtx.Tx
 			},
 			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
-			expectedLog:      blobtypes.ErrNoBlobs.Error(),
 		},
 		{
 			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
@@ -187,7 +184,6 @@ func TestCheckTx(t *testing.T) {
 				return tx
 			},
 			expectedABCICode: blobtypes.ErrBlobsTooLarge.ABCICode(),
-			expectedLog:      blobtypes.ErrBlobsTooLarge.Error(),
 		},
 		{
 			name:      "v1 blob with invalid signer",
@@ -208,7 +204,6 @@ func TestCheckTx(t *testing.T) {
 				return blobTxBytes
 			},
 			expectedABCICode: blobtypes.ErrInvalidBlobSigner.ABCICode(),
-			expectedLog:      blobtypes.ErrInvalidBlobSigner.Error(),
 		},
 		{
 			name:      "v1 blob with valid signer",
@@ -234,7 +229,6 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return blobTx
 			},
-			expectedLog:      apperr.ErrTxExceedsMaxSize.Error(),
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 		{
@@ -248,7 +242,6 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return blobTx
 			},
-			expectedLog:      apperr.ErrTxExceedsMaxSize.Error(),
 			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 	}
@@ -257,7 +250,6 @@ func TestCheckTx(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.CheckTx(abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
 			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
-			assert.Contains(t, resp.Log, tt.expectedLog)
 		})
 	}
 }

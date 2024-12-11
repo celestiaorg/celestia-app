@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -36,20 +34,7 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []*tx.BlobTx) {
 //
 // Side-effect: arranges all normal transactions before all blob transactions.
 func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
-	// all transactions should be below the max tx size
-	maxTxSize := appconsts.MaxTxSize(ctx.BlockHeader().Version.App)
-	//nolint:prealloc
-	var txsBelowLimit [][]byte
-	for idx, tx := range txs {
-		if len(tx) > maxTxSize {
-			err := fmt.Sprintf("tx size %d bytes at index %d exceeds the application's configured threshold of %d bytes", len(tx), idx, maxTxSize)
-			logger.Error(err)
-			continue
-		}
-		txsBelowLimit = append(txsBelowLimit, tx)
-	}
-
-	normalTxs, blobTxs := separateTxs(txConfig, txsBelowLimit)
+	normalTxs, blobTxs := separateTxs(txConfig, txs)
 	normalTxs, ctx = filterStdTxs(logger, txConfig.TxDecoder(), ctx, handler, normalTxs)
 	blobTxs, _ = filterBlobTxs(logger, txConfig.TxDecoder(), ctx, handler, blobTxs)
 	return append(normalTxs, encodeBlobTxs(blobTxs)...)
