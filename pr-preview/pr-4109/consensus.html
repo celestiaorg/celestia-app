@@ -1,0 +1,782 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Consensus - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html" class="active"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="consensus-rules"><a class="header" href="#consensus-rules">Consensus Rules</a></h1>
+<!-- toc -->
+<h2 id="system-parameters"><a class="header" href="#system-parameters">System Parameters</a></h2>
+<h3 id="units"><a class="header" href="#units">Units</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>SI</th><th>value</th><th>description</th></tr></thead><tbody>
+<tr><td><code>1u</code></td><td><code>1u</code></td><td><code>10**0</code></td><td><code>1</code> unit.</td></tr>
+<tr><td><code>2u</code></td><td><code>k1u</code></td><td><code>10**3</code></td><td><code>1000</code> units.</td></tr>
+<tr><td><code>3u</code></td><td><code>M1u</code></td><td><code>10**6</code></td><td><code>1000000</code> units.</td></tr>
+<tr><td><code>4u</code></td><td><code>G1u</code></td><td><code>10**9</code></td><td><code>1000000000</code> units.</td></tr>
+</tbody></table>
+</div>
+<h3 id="constants"><a class="header" href="#constants">Constants</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>unit</th><th>description</th></tr></thead><tbody>
+<tr><td><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></td><td><code>uint64</code></td><td></td><td><code>share</code></td><td>Maximum number of rows/columns of the original data <a href="data_structures.html#share">shares</a> in <a href="data_structures.html#arranging-available-data-into-shares">square layout</a>.</td></tr>
+<tr><td><code>AVAILABLE_DATA_ORIGINAL_SQUARE_TARGET</code></td><td><code>uint64</code></td><td></td><td><code>share</code></td><td>Target number of rows/columns of the original data <a href="data_structures.html#share">shares</a> in <a href="data_structures.html#arranging-available-data-into-shares">square layout</a>.</td></tr>
+<tr><td><code>BLOCK_TIME</code></td><td><code>uint64</code></td><td></td><td>second</td><td>Block time, in seconds.</td></tr>
+<tr><td><code>CHAIN_ID</code></td><td><code>string</code></td><td><code>&quot;Celestia&quot;</code></td><td></td><td>Chain ID. Each chain assigns itself a (unique) ID.</td></tr>
+<tr><td><code>GENESIS_COIN_COUNT</code></td><td><code>uint64</code></td><td><code>10**8</code></td><td><code>4u</code></td><td><code>(= 100000000)</code> Number of coins at genesis.</td></tr>
+<tr><td><code>MAX_GRAFFITI_BYTES</code></td><td><code>uint64</code></td><td><code>32</code></td><td><code>byte</code></td><td>Maximum size of transaction graffiti, in bytes.</td></tr>
+<tr><td><code>MAX_VALIDATORS</code></td><td><code>uint16</code></td><td><code>64</code></td><td></td><td>Maximum number of active validators.</td></tr>
+<tr><td><code>NAMESPACE_VERSION_SIZE</code></td><td><code>int</code></td><td><code>1</code></td><td><code>byte</code></td><td>Size of namespace version in bytes.</td></tr>
+<tr><td><code>NAMESPACE_ID_SIZE</code></td><td><code>int</code></td><td><code>28</code></td><td><code>byte</code></td><td>Size of namespace ID in bytes.</td></tr>
+<tr><td><code>NAMESPACE_SIZE</code></td><td><code>int</code></td><td><code>29</code></td><td><code>byte</code></td><td>Size of namespace in bytes.</td></tr>
+<tr><td><code>NAMESPACE_ID_MAX_RESERVED</code></td><td><code>uint64</code></td><td><code>255</code></td><td></td><td>Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.</td></tr>
+<tr><td><code>SEQUENCE_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the sequence length in the first share of a sequence</td></tr>
+<tr><td><code>SHARE_INFO_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>The number of bytes used for <a href="data_structures.html#share">share</a> information</td></tr>
+<tr><td><code>SHARE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the index of the first transaction in a transaction share. Must be able to represent any integer up to and including <code>SHARE_SIZE - 1</code>.</td></tr>
+<tr><td><code>SHARE_SIZE</code></td><td><code>uint64</code></td><td><code>512</code></td><td><code>byte</code></td><td>Size of transaction and blob <a href="data_structures.html#share">shares</a>, in bytes.</td></tr>
+<tr><td><code>SignerSize</code></td><td><code>int</code></td><td><code>20</code></td><td><code>byte</code></td><td>The number of bytes used to store the signer in a <a href="data_structures.html#share">share</a>.</td></tr>
+<tr><td><code>STATE_SUBTREE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>Number of bytes reserved to identify state subtrees.</td></tr>
+<tr><td><code>UNBONDING_DURATION</code></td><td><code>uint32</code></td><td></td><td><code>block</code></td><td>Duration, in blocks, for unbonding a validator or delegation.</td></tr>
+<tr><td><code>v1.Version</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>First version of the application. Breaking changes (hard forks) must update this parameter.</td></tr>
+<tr><td><code>v2.Version</code></td><td><code>uint64</code></td><td><code>2</code></td><td></td><td>Second version of the application. Breaking changes (hard forks) must update this parameter.</td></tr>
+<tr><td><code>VERSION_BLOCK</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>Version of the Celestia chain. Breaking changes (hard forks) must update this parameter.</td></tr>
+</tbody></table>
+</div>
+<h3 id="rewards-and-penalties"><a class="header" href="#rewards-and-penalties">Rewards and Penalties</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>unit</th><th>description</th></tr></thead><tbody>
+<tr><td><code>SECONDS_PER_YEAR</code></td><td><code>uint64</code></td><td><code>31536000</code></td><td>second</td><td>Seconds per year. Omit leap seconds.</td></tr>
+<tr><td><code>TARGET_ANNUAL_ISSUANCE</code></td><td><code>uint64</code></td><td><code>2 * 10**6</code></td><td><code>4u</code></td><td><code>(= 2000000)</code> Target number of coins to issue per year.</td></tr>
+</tbody></table>
+</div>
+<h2 id="leader-selection"><a class="header" href="#leader-selection">Leader Selection</a></h2>
+<p>Refer to the CometBFT specifications for <a href="https://docs.cometbft.com/v0.34/spec/consensus/proposer-selection">proposer selection procedure</a>.</p>
+<h2 id="fork-choice"><a class="header" href="#fork-choice">Fork Choice</a></h2>
+<p>The Tendermint consensus protocol is fork-free by construction under an honest majority of stake assumption.</p>
+<p>If a block has a <a href="#blocklastcommit">valid commit</a>, it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See <a href="https://docs.cometbft.com/v0.34/spec/consensus/consensus#proof-of-fork-accountability">proof of fork accountability</a>.</p>
+<h2 id="block-validity"><a class="header" href="#block-validity">Block Validity</a></h2>
+<p>The validity of a newly-seen block, <code>block</code>, is determined by two components, detailed in subsequent sections:</p>
+<ol>
+<li><a href="#block-structure">Block structure</a>: whether the block header is valid, and data in a block is arranged into a valid and matching data root (i.e. syntax).</li>
+<li><a href="#state-transitions">State transition</a>: whether the application of transactions in the block produces a matching and valid state root (i.e. semantics).</li>
+</ol>
+<p>Pseudocode in this section is not in any specific language and should be interpreted as being in a neutral and sane language.</p>
+<h2 id="block-structure"><a class="header" href="#block-structure">Block Structure</a></h2>
+<p>Before executing <a href="#state-transitions">state transitions</a>, the structure of the <a href="./data_structures.html#block">block</a> must be verified.</p>
+<p>The following block fields are acquired from the network and parsed (i.e. <a href="./data_structures.html#serialization">deserialized</a>). If they cannot be parsed, the block is ignored but is not explicitly considered invalid by consensus rules. Further implications of ignoring a block are found in the <a href="./networking.html">networking spec</a>.</p>
+<ol>
+<li><a href="./data_structures.html#header">block.header</a></li>
+<li><a href="./data_structures.html#availabledataheader">block.availableDataHeader</a></li>
+<li><a href="./data_structures.html#commit">block.lastCommit</a></li>
+</ol>
+<p>If the above fields are parsed successfully, the available data <code>block.availableData</code> is acquired in erasure-coded form as <a href="./networking.html#availabledata">a list of share rows</a>, then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.</p>
+<h3 id="blockheader"><a class="header" href="#blockheader"><code>block.header</code></a></h3>
+<p>The <a href="./data_structures.html#header">block header</a> <code>block.header</code> (<code>header</code> for short) is the first thing that is downloaded from the new block, and commits to everything inside the block in some way. For previous block <code>prev</code> (if <code>prev</code> is not known, then the block is ignored), and previous block header <code>prev.header</code>, the following checks must be <code>true</code>:</p>
+<p><code>availableDataOriginalSquareSize</code> is computed as described <a href="./data_structures.html#header">here</a>.</p>
+<ol>
+<li><code>header.height</code> == <code>prev.header.height + 1</code>.</li>
+<li><code>header.timestamp</code> &gt; <code>prev.header.timestamp</code>.</li>
+<li><code>header.lastHeaderHash</code> == the <a href="./data_structures.html#header">header hash</a> of <code>prev</code>.</li>
+<li><code>header.lastCommitHash</code> == the <a href="./data_structures.html#hashing">hash</a> of <code>lastCommit</code>.</li>
+<li><code>header.consensusHash</code> == the value computed <a href="./data_structures.html#consensus-parameters">here</a>.</li>
+<li><code>header.stateCommitment</code> == the root of the state, computed <a href="#state-transitions">with the application of all state transitions in this block</a>.</li>
+<li><code>availableDataOriginalSquareSize</code> &lt;= <a href="#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
+<li><code>header.availableDataRoot</code> == the <a href="./data_structures.html#binary-merkle-tree">Merkle root</a> of the tree with the row and column roots of <code>block.availableDataHeader</code> as leaves.</li>
+<li><code>header.proposerAddress</code> == the <a href="#leader-selection">leader</a> for <code>header.height</code>.</li>
+</ol>
+<h3 id="blockavailabledataheader"><a class="header" href="#blockavailabledataheader"><code>block.availableDataHeader</code></a></h3>
+<p>The <a href="./data_structures.html#availabledataheader">available data header</a> <code>block.availableDataHeader</code> (<code>availableDataHeader</code> for short) is then processed. This commits to the available data, which is only downloaded after the <a href="#blocklastcommit">consensus commit</a> is processed. The following checks must be <code>true</code>:</p>
+<ol>
+<li>Length of <code>availableDataHeader.rowRoots</code> == <code>availableDataOriginalSquareSize * 2</code>.</li>
+<li>Length of <code>availableDataHeader.colRoots</code> == <code>availableDataOriginalSquareSize * 2</code>.</li>
+<li>The length of each element in <code>availableDataHeader.rowRoots</code> and <code>availableDataHeader.colRoots</code> must be <a href="./data_structures.html#hashing"><code>32</code></a>.</li>
+</ol>
+<h3 id="blocklastcommit"><a class="header" href="#blocklastcommit"><code>block.lastCommit</code></a></h3>
+<p>The last <a href="./data_structures.html#commit">commit</a> <code>block.lastCommit</code> (<code>lastCommit</code> for short) is processed next. This is the Tendermint commit (i.e. polka of votes) <em>for the previous block</em>. For previous block <code>prev</code> and previous block header <code>prev.header</code>, the following checks must be <code>true</code>:</p>
+<ol>
+<li><code>lastCommit.height</code> == <code>prev.header.height</code>.</li>
+<li><code>lastCommit.round</code> &gt;= <code>1</code>.</li>
+<li><code>lastCommit.headerHash</code> == the <a href="./data_structures.html#header">header hash</a> of <code>prev</code>.</li>
+<li>Length of <code>lastCommit.signatures</code> &lt;= <a href="#constants"><code>MAX_VALIDATORS</code></a>.</li>
+<li>Each of <code>lastCommit.signatures</code> must be a valid <a href="./data_structures.html#commitsig">CommitSig</a></li>
+<li>The sum of the votes for <code>prev</code> in <code>lastCommit</code> must be at least 2/3 (rounded up) of the voting power of <code>prev</code>'s next validator set.</li>
+</ol>
+<h3 id="blockavailabledata"><a class="header" href="#blockavailabledata"><code>block.availableData</code></a></h3>
+<p>The block's <a href="./data_structures.html#availabledata">available data</a> (analogous to transactions in contemporary blockchain designs) <code>block.availableData</code> (<code>availableData</code> for short) is finally processed. The <a href="./networking.html#availabledata">list of share rows</a> is parsed into the <a href="./data_structures.html#availabledata">actual data structures</a> using the reverse of <a href="./data_structures.html#arranging-available-data-into-shares">the process to encode available data into shares</a>; if parsing fails here, the block is invalid.</p>
+<p>Once parsed, the following checks must be <code>true</code>:</p>
+<ol>
+<li>The commitments of the <a href="./data_structures.html#2d-reed-solomon-encoding-scheme">erasure-coded extended</a> <code>availableData</code> must match those in <code>header.availableDataHeader</code>. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a <a href="data_structures.html#namespace-merkle-tree">Namespace Merkle Tree</a>.</li>
+<li>Length of <code>availableData.intermediateStateRootData</code> == length of <code>availableData.transactionData</code> + length of <code>availableData.payForBlobData</code> + 2. (Two additional state transitions are the <a href="#begin-block">begin</a> and <a href="#end-block">end block</a> implicit transitions.)</li>
+</ol>
+<h2 id="state-transitions"><a class="header" href="#state-transitions">State Transitions</a></h2>
+<p>Once the basic structure of the block <a href="#block-structure">has been validated</a>, state transitions must be applied to compute the new state and state root.</p>
+<p>For this section, the variable <code>state</code> represents the <a href="./data_structures.html#state">state tree</a>, with <code>state.accounts[k]</code>, <code>state.inactiveValidatorSet[k]</code>, <code>state.activeValidatorSet[k]</code>, and <code>state.delegationSet[k]</code> being shorthand for the leaf in the state tree in the <a href="./data_structures.html#state">accounts, inactive validator set, active validator set, and delegation set subtrees</a> with <a href="./data_structures.html#state">pre-hashed key</a> <code>k</code>. E.g. <code>state.accounts[a]</code> is shorthand for <code>state[(ACCOUNTS_SUBTREE_ID &lt;&lt; 8*(32-STATE_SUBTREE_RESERVED_BYTES)) | ((-1 &gt;&gt; 8*STATE_SUBTREE_RESERVED_BYTES) &amp; hash(a))]</code>.</p>
+<p>State transitions are applied in the following order:</p>
+<ol>
+<li><a href="#begin-block">Begin block</a>.</li>
+<li><a href="#blockavailabledatatransactiondata">Transactions</a>.</li>
+<li><a href="#end-block">End block</a>.</li>
+</ol>
+<h3 id="blockavailabledatatransactiondata"><a class="header" href="#blockavailabledatatransactiondata"><code>block.availableData.transactionData</code></a></h3>
+<p>Transactions are applied to the state. Note that <em>transactions</em> mutate the state (essentially, the validator set and minimal balances), while <em>blobs</em> do not.</p>
+<p><code>block.availableData.transactionData</code> is simply a list of <a href="./data_structures.html#wrappedtransaction">WrappedTransaction</a>s. For each wrapped transaction in this list, <code>wrappedTransaction</code>, with index <code>i</code> (starting from <code>0</code>), the following checks must be <code>true</code>:</p>
+<ol>
+<li><code>wrappedTransaction.index</code> == <code>i</code>.</li>
+</ol>
+<p>For <code>wrappedTransaction</code>'s <a href="./data_structures.html#transaction">transaction</a> <code>transaction</code>, the following checks must be <code>true</code>:</p>
+<ol>
+<li><code>transaction.signature</code> must be a <a href="./data_structures.html#public-key-cryptography">valid signature</a> over <code>transaction.signedTransactionData</code>.</li>
+</ol>
+<p>Finally, each <code>wrappedTransaction</code> is processed depending on <a href="./data_structures.html#signedtransactiondata">its transaction type</a>. These are specified in the next subsections, where <code>tx</code> is short for <code>transaction.signedTransactionData</code>, and <code>sender</code> is the recovered signing <a href="./data_structures.html#address">address</a>. We will define a few helper functions:</p>
+<pre><code class="language-py">tipCost(y, z) = y * z
+totalCost(x, y, z) = x + tipCost(y, z)
+</code></pre>
+<p>where <code>x</code> above is the amount of coins sent by the transaction authorizer, <code>y</code> above is the tip rate set in the transaction, and <code>z</code> above is the measure of the block space used by the transaction (i.e. size in bytes).</p>
+<p>Four additional helper functions are defined to manage the <a href="./data_structures.html#validator">validator queue</a>:</p>
+<ol>
+<li><code>findFromQueue(power)</code>, which returns the address of the last validator in the <a href="./data_structures.html#validator">validator queue</a> with voting power greater than or equal to <code>power</code>, or <code>0</code> if the queue is empty or no validators in the queue have at least <code>power</code> voting power.</li>
+<li><code>parentFromQueue(address)</code>, which returns the address of the parent in the validator queue of the validator with address <code>address</code>, or <code>0</code> if <code>address</code> is not in the queue or is the head of the queue.</li>
+<li><code>validatorQueueInsert</code>, defined as</li>
+</ol>
+<pre><code class="language-py">function validatorQueueInsert(validator)
+    # Insert the new validator into the linked list
+    parent = findFromQueue(validator.votingPower)
+    if parent != 0
+        if state.accounts[parent].status == AccountStatus.ValidatorBonded
+            validator.next = state.activeValidatorSet[parent].next
+            state.activeValidatorSet[parent].next = sender
+        else
+            validator.next = state.inactiveValidatorSet[parent].next
+            state.inactiveValidatorSet[parent].next = sender
+    else
+        validator.next = state.validatorQueueHead
+        state.validatorQueueHead = sender
+</code></pre>
+<!-- markdownlint-disable-next-line MD029 -->
+<ol start="4">
+<li><code>validatorQueueRemove</code>, defined as</li>
+</ol>
+<pre><code class="language-py">function validatorQueueRemove(validator, sender)
+    # Remove existing validator from the linked list
+    parent = parentFromQueue(sender)
+    if parent != 0
+        if state.accounts[parent].status == AccountStatus.ValidatorBonded
+            state.activeValidatorSet[parent].next = validator.next
+            validator.next = 0
+        else
+            state.inactiveValidatorSet[parent].next = validator.next
+            validator.next = 0
+    else
+        state.validatorQueueHead = validator.next
+        validator.next = 0
+</code></pre>
+<p>Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of <code>parentFromQueue</code>, a proof to the parent is provided, which should have <code>address</code> as its next validator).</p>
+<p>In addition, three helper functions to manage the <a href="./data_structures.html#blobpaid">blob paid list</a>:</p>
+<ol>
+<li><code>findFromBlobPaidList(start)</code>, which returns the transaction ID of the last transaction in the <a href="./data_structures.html#blobpaid">blob paid list</a> with <code>finish</code> greater than <code>start</code>, or <code>0</code> if the list is empty or no transactions in the list have at least <code>start</code> <code>finish</code>.</li>
+<li><code>parentFromBlobPaidList(txid)</code>, which returns the transaction ID of the parent in the blob paid list of the transaction with ID <code>txid</code>, or <code>0</code> if <code>txid</code> is not in the list or is the head of the list.</li>
+<li><code>blobPaidListInsert</code>, defined as</li>
+</ol>
+<pre><code class="language-py">function blobPaidListInsert(tx, txid)
+    # Insert the new transaction into the linked list
+    parent = findFromBlobPaidList(tx.blobStartIndex)
+    state.blobsPaid[txid].start = tx.blobStartIndex
+    numShares = ceil(tx.blobSize / SHARE_SIZE)
+    state.blobsPaid[txid].finish = tx.blobStartIndex + numShares - 1
+    if parent != 0
+        state.blobsPaid[txid].next = state.blobsPaid[parent].next
+        state.blobsPaid[parent].next = txid
+    else
+        state.blobsPaid[txid].next = state.blobPaidHead
+        state.blobPaidHead = txid
+</code></pre>
+<p>We define a helper function to compute F1 entries:</p>
+<pre><code class="language-py">function compute_new_entry(reward, power)
+    if power == 0
+        return 0
+    return reward // power
+</code></pre>
+<p>After applying a transaction, the new state state root is computed.</p>
+<h4 id="signedtransactiondatatransfer"><a class="header" href="#signedtransactiondatatransfer">SignedTransactionDataTransfer</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.Transfer</code></a>.</li>
+<li><code>totalCost(tx.amount, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+
+state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
+state.accounts[tx.to].balance += tx.amount
+
+state.activeValidatorSet.proposerBlockReward += tipCost(bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondatamsgpayfordata"><a class="header" href="#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx) + tx.blobSize
+currentStartFinish = state.blobsPaid[findFromBlobPaidList(tx.blobStartIndex)]
+parentStartFinish = state.blobsPaid[parentFromBlobPaidList(findFromBlobPaidList(tx.blobStartIndex))]
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.MsgPayForData</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li>The <code>ceil(tx.blobSize / SHARE_SIZE)</code> shares starting at index <code>tx.blobStartIndex</code> must:
+<ol>
+<li>Have namespace <code>tx.blobNamespace</code>.</li>
+</ol>
+</li>
+<li><code>tx.blobShareCommitment</code> == computed as described <a href="./data_structures.html#signedtransactiondatamsgpayfordata">here</a>.</li>
+<li><code>parentStartFinish.finish</code> &lt; <code>tx.blobStartIndex</code>.</li>
+<li><code>currentStartFinish.start</code> == <code>0</code> or <code>currentStartFinish.start</code> &gt; <code>tx.blobStartIndex + ceil(tx.blobSize / SHARE_SIZE)</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
+
+blobPaidListInsert(tx, id(tx))
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondatacreatevalidator"><a class="header" href="#signedtransactiondatacreatevalidator">SignedTransactionDataCreateValidator</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.CreateValidator</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>tx.commissionRate.denominator &gt; 0</code>.</li>
+<li><code>tx.commissionRate.numerator &lt;= tx.commissionRate.denominator</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.None</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+state.accounts[sender].status = AccountStatus.ValidatorQueued
+
+validator = new Validator
+validator.commissionRate = tx.commissionRate
+validator.delegatedCount = 0
+validator.votingPower = 0
+validator.pendingRewards = 0
+validator.latestEntry = PeriodEntry(0)
+validator.unbondingHeight = 0
+validator.isSlashed = false
+
+validatorQueueInsert(validator)
+
+state.inactiveValidatorSet[sender] = validator
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondatabeginunbondingvalidator"><a class="header" href="#signedtransactiondatabeginunbondingvalidator">SignedTransactionDataBeginUnbondingValidator</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.BeginUnbondingValidator</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.ValidatorQueued</code> or <code>state.accounts[sender].status</code> == <code>AccountStatus.ValidatorBonded</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+state.accounts[sender].status = ValidatorStatus.Unbonding
+
+if state.accounts[sender].status == AccountStatus.ValidatorQueued
+    validator = state.inactiveValidatorSet[sender]
+else if state.accounts[sender].status == AccountStatus.ValidatorBonded
+    validator = state.activeValidatorSet[sender]
+    delete state.activeValidatorSet[sender]
+
+validator.unbondingHeight = block.height + 1
+validator.latestEntry += compute_new_entry(validator.pendingRewards, validator.votingPower)
+validator.pendingRewards = 0
+
+validatorQueueRemove(validator, sender)
+
+state.inactiveValidatorSet[sender] = validator
+
+state.activeValidatorSet.activeVotingPower -= validator.votingPower
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondataunbondvalidator"><a class="header" href="#signedtransactiondataunbondvalidator">SignedTransactionDataUnbondValidator</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.UnbondValidator</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.ValidatorUnbonding</code>.</li>
+<li><code>state.inactiveValidatorSet[sender].unbondingHeight + UNBONDING_DURATION</code> &lt; <code>block.height</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">validator = state.inactiveValidatorSet[sender]
+
+state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+state.accounts[sender].status = AccountStatus.ValidatorUnbonded
+
+state.accounts[sender].balance += validator.commissionRewards
+
+state.inactiveValidatorSet[sender] = validator
+
+if validator.delegatedCount == 0
+    state.accounts[sender].status = AccountStatus.None
+    delete state.inactiveValidatorSet[sender]
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondatacreatedelegation"><a class="header" href="#signedtransactiondatacreatedelegation">SignedTransactionDataCreateDelegation</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.CreateDelegation</code></a>.</li>
+<li><code>totalCost(tx.amount, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>state.accounts[tx.to].status</code> == <code>AccountStatus.ValidatorQueued</code> or <code>state.accounts[tx.to].status</code> == <code>AccountStatus.ValidatorBonded</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.None</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
+state.accounts[sender].status = AccountStatus.DelegationBonded
+
+if state.accounts[tx.to].status == AccountStatus.ValidatorQueued
+    validator = state.inactiveValidatorSet[tx.to]
+else if state.accounts[tx.to].status == AccountStatus.ValidatorBonded
+    validator = state.activeValidatorSet[tx.to]
+
+delegation = new Delegation
+delegation.status = DelegationStatus.Bonded
+delegation.validator = tx.to
+delegation.stakedBalance = tx.amount
+delegation.beginEntry = validator.latestEntry
+delegation.endEntry = PeriodEntry(0)
+delegation.unbondingHeight = 0
+
+validator.latestEntry += compute_new_entry(validator.pendingRewards, validator.votingPower)
+validator.pendingRewards = 0
+validator.delegatedCount += 1
+validator.votingPower += tx.amount
+
+# Update the validator in the linked list by first removing then inserting
+validatorQueueRemove(validator, delegation.validator)
+validatorQueueInsert(validator)
+
+state.delegationSet[sender] = delegation
+
+if state.accounts[tx.to].status == AccountStatus.ValidatorQueued
+    state.inactiveValidatorSet[tx.to] = validator
+else if state.accounts[tx.to].status == AccountStatus.ValidatorBonded
+    state.activeValidatorSet[tx.to] = validator
+    state.activeValidatorSet.activeVotingPower += tx.amount
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondatabeginunbondingdelegation"><a class="header" href="#signedtransactiondatabeginunbondingdelegation">SignedTransactionDataBeginUnbondingDelegation</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.BeginUnbondingDelegation</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.DelegationBonded</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+state.accounts[sender].status = AccountStatus.DelegationUnbonding
+
+delegation = state.delegationSet[sender]
+
+if state.accounts[delegation.validator].status == AccountStatus.ValidatorQueued ||
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonding ||
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonded
+    validator = state.inactiveValidatorSet[delegation.validator]
+else if state.accounts[delegation.validator].status == AccountStatus.ValidatorBonded
+    validator = state.activeValidatorSet[delegation.validator]
+
+delegation.status = DelegationStatus.Unbonding
+delegation.endEntry = validator.latestEntry
+delegation.unbondingHeight = block.height + 1
+
+validator.latestEntry += compute_new_entry(validator.pendingRewards, validator.votingPower)
+validator.pendingRewards = 0
+validator.delegatedCount -= 1
+validator.votingPower -= delegation.stakedBalance
+
+# Update the validator in the linked list by first removing then inserting
+# Only do this if the validator is actually in the queue (i.e. bonded or queued)
+if state.accounts[delegation.validator].status == AccountStatus.ValidatorBonded ||
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorQueued
+    validatorQueueRemove(validator, delegation.validator)
+    validatorQueueInsert(validator)
+
+state.delegationSet[sender] = delegation
+
+if state.accounts[delegation.validator].status == AccountStatus.ValidatorQueued ||
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonding ||
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonded
+    state.inactiveValidatorSet[delegation.validator] = validator
+else if state.accounts[delegation.validator].status == AccountStatus.ValidatorBonded
+    state.activeValidatorSet[delegation.validator] = validator
+    state.activeValidatorSet.activeVotingPower -= delegation.stakedBalance
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondataunbonddelegation"><a class="header" href="#signedtransactiondataunbonddelegation">SignedTransactionDataUnbondDelegation</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.UnbondDelegation</code></a>.</li>
+<li><code>totalCost(0, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.DelegationUnbonding</code>.</li>
+<li><code>state.delegationSet[sender].unbondingHeight + UNBONDING_DURATION</code> &lt; <code>block.height</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">delegation = state.accounts[sender].delegationInfo
+
+state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+state.accounts[sender].status = None
+
+# Return the delegated stake
+state.accounts[sender].balance += delegation.stakedBalance
+# Also disperse rewards (commission has already been levied)
+state.accounts[sender].balance += delegation.stakedBalance * (delegation.endEntry - delegation.beginEntry)
+
+if state.accounts[delegation.validator].status == AccountStatus.ValidatorQueued ||
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonding
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonded
+    validator = state.inactiveValidatorSet[delegation.validator]
+else if state.accounts[delegation.validator].status == AccountStatus.ValidatorBonded
+    validator = state.activeValidatorSet[delegation.validator]
+
+if validator.delegatedCount == 0 &amp;&amp;
+      state.accounts[delegation.validator].status == AccountStatus.ValidatorUnbonded
+    state.accounts[delegation.validator].status = AccountStatus.None
+    delete state.inactiveValidatorSet[delegation.validator]
+
+delete state.accounts[sender].delegationInfo
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactiondataburn"><a class="header" href="#signedtransactiondataburn">SignedTransactionDataBurn</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.Burn</code></a>.</li>
+<li><code>totalCost(tx.amount, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactionredelegatecommission"><a class="header" href="#signedtransactionredelegatecommission">SignedTransactionRedelegateCommission</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.RedelegateCommission</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[tx.to].status</code> == <code>AccountStatus.DelegationBonded</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.ValidatorBonded</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+
+delegation = state.delegationSet[tx.to]
+validator = state.activeValidatorSet[delegation.validator]
+
+# Force-redelegate pending rewards for delegation
+pendingRewards = delegation.stakedBalance * (validator.latestEntry - delegation.beginEntry)
+delegation.stakedBalance += pendingRewards
+delegation.beginEntry = validator.latestEntry
+
+validator.latestEntry += compute_new_entry(validator.pendingRewards, validator.votingPower)
+validator.pendingRewards = 0
+
+# Assign pending commission rewards to delegation
+commissionRewards = validator.commissionRewards
+delegation.stakedBalance += commissionRewards
+validator.commissionRewards = 0
+
+# Update voting power
+validator.votingPower += pendingRewards + commissionRewards
+state.activeValidatorSet.activeVotingPower += pendingRewards + commissionRewards
+
+state.delegationSet[tx.to] = delegation
+state.activeValidatorSet[delegation.validator] = validator
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="signedtransactionredelegatereward"><a class="header" href="#signedtransactionredelegatereward">SignedTransactionRedelegateReward</a></h4>
+<pre><code class="language-py">bytesPaid = len(tx)
+</code></pre>
+<p>The following checks must be <code>true</code>:</p>
+<ol>
+<li><code>tx.type</code> == <a href="./data_structures.html#signedtransactiondata"><code>TransactionType.RedelegateReward</code></a>.</li>
+<li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
+<li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
+<li><code>state.accounts[sender].status</code> == <code>AccountStatus.DelegationBonded</code>.</li>
+<li><code>state.accounts[state.delegationSet[sender].validator].status</code> == <code>AccountStatus.ValidatorBonded</code>.</li>
+</ol>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">state.accounts[sender].nonce += 1
+state.accounts[sender].balance -= totalCost(0, tx.fee.tipRate, bytesPaid)
+
+delegation = state.delegationSet[sender]
+validator = state.activeValidatorSet[delegation.validator]
+
+# Redelegate pending rewards for delegation
+pendingRewards = delegation.stakedBalance * (validator.latestEntry - delegation.beginEntry)
+delegation.stakedBalance += pendingRewards
+delegation.beginEntry = validator.latestEntry
+
+validator.latestEntry += compute_new_entry(validator.pendingRewards, validator.votingPower)
+validator.pendingRewards = 0
+
+# Update voting power
+validator.votingPower += pendingRewards
+state.activeValidatorSet.activeVotingPower += pendingRewards
+
+state.delegationSet[sender] = delegation
+state.activeValidatorSet[delegation.validator] = validator
+
+state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
+</code></pre>
+<h4 id="begin-block"><a class="header" href="#begin-block">Begin Block</a></h4>
+<p>At the beginning of the block, rewards are distributed to the block proposer.</p>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">proposer = state.activeValidatorSet[block.header.proposerAddress]
+
+# Compute block subsidy and save to state for use in end block.
+rewardFactor = (TARGET_ANNUAL_ISSUANCE * BLOCK_TIME) / (SECONDS_PER_YEAR * sqrt(GENESIS_COIN_COUNT))
+blockReward = rewardFactor * sqrt(state.activeValidatorSet.activeVotingPower)
+state.activeValidatorSet.proposerBlockReward = blockReward
+
+# Save proposer's initial voting power to state for use in end block.
+state.activeValidatorSet.proposerInitialVotingPower = proposer.votingPower
+
+state.activeValidatorSet[block.header.proposerAddress] = proposer
+</code></pre>
+<h4 id="end-block"><a class="header" href="#end-block">End Block</a></h4>
+<p>Apply the following to the state:</p>
+<pre><code class="language-py">account = state.accounts[block.header.proposerAddress]
+
+if account.status == AccountStatus.ValidatorUnbonding
+      account.status == AccountStatus.ValidatorUnbonded
+    proposer = state.inactiveValidatorSet[block.header.proposerAddress]
+else if account.status == AccountStatus.ValidatorBonded
+    proposer = state.activeValidatorSet[block.header.proposerAddress]
+
+# Flush the outstanding pending rewards.
+proposer.latestEntry += compute_new_entry(proposer.pendingRewards, proposer.votingPower)
+proposer.pendingRewards = 0
+
+blockReward = state.activeValidatorSet.proposerBlockReward
+commissionReward = proposer.commissionRate.numerator * blockReward // proposer.commissionRate.denominator
+proposer.commissionRewards += commissionReward
+proposer.pendingRewards += blockReward - commissionReward
+
+# Even though the voting power hasn't changed yet, we consider this a period change.
+proposer.latestEntry += compute_new_entry(proposer.pendingRewards, state.activeValidatorSet.proposerInitialVotingPower)
+proposer.pendingRewards = 0
+
+if account.status == AccountStatus.ValidatorUnbonding
+      account.status == AccountStatus.ValidatorUnbonded
+    state.inactiveValidatorSet[block.header.proposerAddress] = proposer
+else if account.status == AccountStatus.ValidatorBonded
+    state.activeValidatorSet[block.header.proposerAddress] = proposer
+</code></pre>
+<p>At the end of a block, the top <code>MAX_VALIDATORS</code> validators by voting power with voting power <em>greater than</em> zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top <code>MAX_VALIDATORS</code> validators begin unbonding.</p>
+<p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="#signedtransactiondatabeginunbondingvalidator">here</a>, minus transaction sender updates (nonce, balance, and fee).</p>
+<p>This end block implicit state transition is a single state transition, and <a href="#blockavailabledata">only has a single intermediate state root</a> associated with it.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="shares.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="cat_pool.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="shares.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="cat_pool.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
