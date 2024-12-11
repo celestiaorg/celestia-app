@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
@@ -32,7 +33,7 @@ func TestCheckTx(t *testing.T) {
 	ns1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}
+	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
 
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 	testApp.Commit()
@@ -173,11 +174,11 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: abci.CodeTypeOK,
 		},
 		{
-			name:      "10,000,000 byte blob",
+			name:      "2,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				signer := createSigner(t, kr, accs[9], encCfg.TxConfig, 10)
-				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 10_000_000, 1)
+				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 2_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[9], blobs, opts...)
 				require.NoError(t, err)
 				return tx
@@ -216,6 +217,32 @@ func TestCheckTx(t *testing.T) {
 				return blobTx
 			},
 			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "v1 blob over 2MiB",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := createSigner(t, kr, accs[11], encCfg.TxConfig, 12)
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accs[11]).Address())
+				require.NoError(t, err)
+				blobTx, _, err := signer.CreatePayForBlobs(accs[11], []*share.Blob{blob}, opts...)
+				require.NoError(t, err)
+				return blobTx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
+		},
+		{
+			name:      "v0 blob over 2MiB",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := createSigner(t, kr, accs[12], encCfg.TxConfig, 13)
+				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
+				require.NoError(t, err)
+				blobTx, _, err := signer.CreatePayForBlobs(accs[12], []*share.Blob{blob}, opts...)
+				require.NoError(t, err)
+				return blobTx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSize.ABCICode(),
 		},
 	}
 

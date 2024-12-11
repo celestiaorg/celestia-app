@@ -3,6 +3,9 @@ package app
 import (
 	"fmt"
 
+	"cosmossdk.io/errors"
+
+	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
@@ -15,6 +18,14 @@ import (
 // transactions that contain blobs.
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
+
+	// all txs must be less than or equal to the max tx size limit
+	maxTxSize := appconsts.MaxTxSize(app.AppVersion())
+	currentTxSize := len(tx)
+	if currentTxSize > maxTxSize {
+		return sdkerrors.ResponseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()), 0, 0, []abci.Event{}, false)
+	}
+
 	// check if the transaction contains blobs
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
