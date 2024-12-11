@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
@@ -55,7 +56,7 @@ func (s *BigBlobSuite) SetupSuite() {
 	require.NoError(t, cctx.WaitForNextBlock())
 }
 
-// TestErrBlobsTooLarge verifies that submitting a 2 MiB blob hits ErrBlobsTooLarge.
+// TestErrBlobsTooLarge verifies that submitting a ~1.9 MiB blob hits ErrBlobsTooLarge.
 func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 	t := s.T()
 
@@ -67,8 +68,8 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 	}
 	testCases := []testCase{
 		{
-			name: "2 mebibyte blob",
-			blob: newBlobWithSize(2 * mebibyte),
+			name: "~ 1.9 MiB blob",
+			blob: newBlobWithSize(2_000_000),
 			want: blobtypes.ErrBlobsTooLarge.ABCICode(),
 		},
 	}
@@ -85,6 +86,41 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 			require.Nil(t, res)
 			code := err.(*user.BroadcastTxError).Code
 			require.Equal(t, tc.want, code, err.Error())
+		})
+	}
+}
+
+// TestBlobExceedsMaxTxSize verifies that submitting a 2 MiB blob hits ErrTxExceedsMaxSize.
+func (s *BigBlobSuite) TestBlobExceedsMaxTxSize() {
+	t := s.T()
+
+	type testCase struct {
+		name         string
+		blob         *share.Blob
+		expectedCode uint32
+		expectedErr  string
+	}
+	testCases := []testCase{
+		{
+			name:         "2 MiB blob",
+			blob:         newBlobWithSize(2097152),
+			expectedCode: apperrors.ErrTxExceedsMaxSize.ABCICode(),
+			expectedErr:  apperrors.ErrTxExceedsMaxSize.Error(),
+		},
+	}
+
+	txClient, err := testnode.NewTxClientFromContext(s.cctx)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			subCtx, cancel := context.WithTimeout(s.cctx.GoContext(), 30*time.Second)
+			defer cancel()
+			res, err := txClient.SubmitPayForBlob(subCtx, []*share.Blob{tc.blob}, user.SetGasLimitAndGasPrice(1e9, appconsts.DefaultMinGasPrice))
+			require.Error(t, err)
+			require.Nil(t, res)
+			code := err.(*user.BroadcastTxError).Code
+			require.Equal(t, tc.expectedCode, code, err.Error(), tc.expectedErr)
 		})
 	}
 }
