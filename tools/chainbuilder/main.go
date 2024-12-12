@@ -202,7 +202,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		nil,
 		0,
 		encCfg,
-		0,
+		0, // upgrade height v2
+		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
 	)
