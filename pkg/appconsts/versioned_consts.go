@@ -80,7 +80,7 @@ func GetTimeoutCommit(v uint64) time.Duration {
 
 // UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
 func UpgradeHeightDelay(chainID string, v uint64) int64 {
-	if chainID == "test" {
+	if chainID == TestChainID {
 		return 3
 	}
 	switch v {
