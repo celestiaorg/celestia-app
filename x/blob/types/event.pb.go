@@ -4,6 +4,7 @@
 package types
 
 import (
+	"errors"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
@@ -234,7 +235,7 @@ func (m *EventPayForBlobs) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: EventPayForBlobs: wiretype end group for non-group")
+			return errors.New("proto: EventPayForBlobs: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: EventPayForBlobs: illegal tag %d (wire type %d)", fieldNum, wire)
@@ -481,7 +482,7 @@ func skipEvent(dAtA []byte) (n int, err error) {
 }
 
 var (
-	ErrInvalidLengthEvent        = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowEvent          = fmt.Errorf("proto: integer overflow")
-	ErrUnexpectedEndOfGroupEvent = fmt.Errorf("proto: unexpected end of group")
+	ErrInvalidLengthEvent        = errors.New("proto: negative length found during unmarshaling")
+	ErrIntOverflowEvent          = errors.New("proto: integer overflow")
+	ErrUnexpectedEndOfGroupEvent = errors.New("proto: unexpected end of group")
 )
