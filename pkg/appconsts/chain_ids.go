@@ -5,3 +5,5 @@ const (
 	MochaChainID   = "mocha-4"
 	MainnetChainID = "celestia"
 )
+
+var PublicNetworks = []string{ArabicaChainID, MochaChainID, MainnetChainID}

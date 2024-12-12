@@ -7,12 +7,15 @@ on:
 
 jobs:
   goreleaser-check:
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
+      - name: Set GORELEASER_CURRENT_TAG in GitHub env
+        run: echo "GORELEASER_CURRENT_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -21,18 +24,21 @@ jobs:
           echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
       - name: Check the .goreleaser.yaml config file
         run: make goreleaser-check
+        env:
+          GORELEASER_CURRENT_TAG: ${{ env.GORELEASER_CURRENT_TAG }}
 
   goreleaser:
+    if: github.event_name == 'release'
     needs: goreleaser-check
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'push' && contains(github.ref, 'refs/tags/'))
     permissions: write-all
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
+      - name: Set GORELEASER_CURRENT_TAG in GitHub env
+        run: echo "GORELEASER_CURRENT_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -41,3 +47,5 @@ jobs:
           echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
       - name: Create prebuilt binaries and attach them to the GitHub release
         run: make prebuilt-binary
+        env:
+          GORELEASER_CURRENT_TAG: ${{ env.GORELEASER_CURRENT_TAG }}
