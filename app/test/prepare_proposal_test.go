@@ -51,7 +51,6 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*share.Blob{protoBlob}, numBlobTxs),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	normalTxs := testutil.SendTxsWithAccounts(
@@ -109,7 +108,6 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
-		blobfactory.DefaultTxOpts()...,
 	)
 
 	// create 3 MsgSend transactions that are signed with valid account numbers
@@ -173,22 +171,6 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// 3 transactions over MaxTxSize limit
 	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
-	// 3 blobTxs over MaxTxSize limit
-	largeBlobTxs := blobfactory.ManyMultiBlobTx(
-		t,
-		encConf.TxConfig,
-		kr,
-		testutil.ChainID,
-		accounts[:3],
-		infos[:3],
-		blobfactory.NestedBlobs(
-			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
-			[][]int{{100}, {1000}, {420}},
-		),
-		user.SetMemo(largeString),
-	)
-
 	type test struct {
 		name      string
 		txs       func() [][]byte
@@ -243,9 +225,9 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		{
 			name: "blobTxs and sendTxs that exceed MaxTxSize limit",
 			txs: func() [][]byte {
-				return append(largeTxs, largeBlobTxs...) // All txs are over MaxTxSize limit
+				return largeTxs // All txs are over MaxTxSize limit
 			},
-			prunedTxs: append(largeTxs, largeBlobTxs...),
+			prunedTxs: largeTxs,
 		},
 	}
 

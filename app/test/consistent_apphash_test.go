@@ -62,6 +62,10 @@ type appHashTest struct {
 	expectedAppHash    []byte
 }
 
+func DefaultTxOpts() []user.TxOption {
+	return blobfactory.FeeTxOpts(10_000_000)
+}
+
 // TestConsistentAppHash executes all state machine messages on all app versions, generates an app hash,
 // and compares it against a previously generated hash from the same set of transactions.
 // App hashes across different commits should be consistent.
@@ -377,7 +381,7 @@ func createEncodedBlobTx(t *testing.T, signer *user.Signer, accountAddresses []s
 	blobTx := blobTx{
 		author:    senderAcc.Name(),
 		blobs:     []*share.Blob{blob},
-		txOptions: blobfactory.DefaultTxOpts(),
+		txOptions: DefaultTxOpts(),
 	}
 	encodedBlobTx, _, err := signer.CreatePayForBlobs(blobTx.author, blobTx.blobs, blobTx.txOptions...)
 	require.NoError(t, err)
@@ -429,7 +433,7 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, error) {
 	encodedTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
-		encodedTx, err := signer.CreateTx([]sdk.Msg{msg}, blobfactory.DefaultTxOpts()...)
+		encodedTx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
 		if err != nil {
 			return nil, err
 		}
