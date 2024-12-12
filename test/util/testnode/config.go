@@ -176,6 +176,7 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 			0,   // invCheckPerid
 			encodingConfig,
 			0, // v2 upgrade height
+			0, // timeout commit
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
 		)
@@ -198,6 +199,7 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 			0,   // invCheckPerid
 			encodingConfig,
 			0, // v2 upgrade height
+			0, // timeout commit
 			simapp.EmptyAppOptions{},
 			baseapp.SetMinGasPrices(minGasPrice),
 		)
