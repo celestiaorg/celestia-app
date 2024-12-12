@@ -11,7 +11,7 @@ import (
 )
 
 func DefaultTxOpts() []user.TxOption {
-	return FeeTxOpts(10_000_000)
+	return FeeTxOpts(10_000_000_000)
 }
 
 func FeeTxOpts(gas uint64) []user.TxOption {
