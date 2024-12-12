@@ -51,6 +51,7 @@ help: Makefile
 build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
+	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build
 

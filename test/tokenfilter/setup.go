@@ -146,9 +146,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	db := dbm.NewMemDB()
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	genesisState := app.NewDefaultGenesisState(encCdc.Codec)
-	app := app.New(
-		log.NewNopLogger(), db, nil, 5, encCdc, 0, simapp.EmptyAppOptions{},
-	)
+	app := app.New(log.NewNopLogger(), db, nil, 5, encCdc, 0, 0, simapp.EmptyAppOptions{})
 
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)

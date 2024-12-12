@@ -65,7 +65,8 @@ func TestRun(t *testing.T) {
 		nil,
 		0,
 		encCfg,
-		0,
+		0, // upgrade height v2
+		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
 	)
