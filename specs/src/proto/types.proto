@@ -42,14 +42,14 @@ message AvailableDataHeader {
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#account
 // AccountStatus
-enum AccountStatus : uint8_t {
-    None = 1,
-    DelegationBonded = 2,
-    DelegationUnbonding = 3,
-    ValidatorQueued = 4,
-    ValidatorBonded = 5,
-    ValidatorUnbonding = 6,
-    ValidatorUnbonded = 7,
+enum AccountStatus {
+    None = 1;
+    DelegationBonded = 2;
+    DelegationUnbonding = 3;
+    ValidatorQueued = 4;
+    ValidatorBonded = 5;
+    ValidatorUnbonding = 6;
+    ValidatorUnbonded = 7;
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#periodentry
@@ -63,7 +63,7 @@ message Decimal {
   // Rational numerator
   uint64 numerator = 1;
   // Rational denominator
-  uint64 denominator = 1;
+  uint64 denominator = 2;
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#messagepaid
