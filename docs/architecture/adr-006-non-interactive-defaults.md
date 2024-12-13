@@ -295,7 +295,7 @@ type parsedTx struct {
    // the original raw bytes of the tx
    rawTx []byte
    // tx is the parsed sdk tx. this is nil for all txs that do not contain a
-   // MsgWirePayForBlob, as we do not need to parse other types of of transactions
+   // MsgWirePayForBlob, as we do not need to parse other types of transactions
    tx signing.Tx
    // msg is the wire msg if it exists in the tx. This field is nil for all txs
    // that do not contain one.
