@@ -171,7 +171,7 @@ func TestProcessProposal(t *testing.T) {
 				// Replace the data with new contents
 				d.Txs = [][]byte{blobTx}
 
-				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
+				// Erasure code the data to update the data root so this doesn't fail on an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
