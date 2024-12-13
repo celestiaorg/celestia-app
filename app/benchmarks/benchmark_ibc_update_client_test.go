@@ -441,8 +441,6 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	return msgs
 }
 
-var chainID = "test"
-
 func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types0.PrivValidator) {
 	vals := make([]types0.GenesisValidator, nVals)
 	privVals := make(map[string]types0.PrivValidator, nVals)
@@ -459,7 +457,7 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types0.PrivValid
 		privVals[valAddr.String()] = types0.NewMockPVWithParams(pk, false, false)
 	}
 	s, _ := sm.MakeGenesisState(&types0.GenesisDoc{
-		ChainID:    chainID,
+		ChainID:    appconsts.TestChainID,
 		Validators: vals,
 		AppHash:    nil,
 	})
