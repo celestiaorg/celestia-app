@@ -90,7 +90,7 @@ func TwoNodeSimple(logger *log.Logger) error {
 		DisableBBR:         true,
 	}
 
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
+	benchTest, err := NewBenchmarkTest(logger, testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -113,8 +113,8 @@ func TwoNodeSimple(logger *log.Logger) error {
 func runBenchmarkTest(logger *log.Logger, testName string, manifest Manifest) error {
 	logger.Println("Running", testName)
 	manifest.ChainID = manifest.summary()
-	log.Println("ChainID: ", manifest.ChainID)
-	benchTest, err := NewBenchmarkTest(testName, &manifest)
+	logger.Println("ChainID: ", manifest.ChainID)
+	benchTest, err := NewBenchmarkTest(logger, testName, &manifest)
 	testnet.NoError("failed to create benchmark test", err)
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -30,7 +30,7 @@ make test-e2e E2ESimple
 
 **Optional parameters**:
 
-- `KNUUU_TIMEOUT` can be used to override the default timeout of 60 minutes for the tests.
+- `KNUU_TIMEOUT` can be used to override the default timeout of 60 minutes for the tests.
 
 ## Observation
 
@@ -56,7 +56,7 @@ This will back up your default kubernetes configuration. If you use a different 
 
 ### Install minikube
 
-Minikube is required to be installed on your machine. If you have a linux machine, follow the [minikube docs](https://kubernetes.io/fr/docs/tasks/tools/install-minikube/). If you're on macOS ARM, this [tutorial](https://devopscube.com/minikube-mac/) can be helpful to run it using qemu.
+Minikube is required to be installed on your machine. If you have a linux machine, follow the [minikube docs](https://kubernetes.io/docs/tasks/tools/install-minikube/). If you're on macOS ARM, this [tutorial](https://devopscube.com/minikube-mac/) can be helpful to run it using qemu.
 
 ### Create namespace
 
