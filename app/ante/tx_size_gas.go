@@ -35,7 +35,7 @@ func init() {
 
 // ConsumeTxSizeGasDecorator will take in parameters and consume gas proportional
 // to the size of tx before calling next AnteHandler. Note, the gas costs will be
-// slightly over estimated due to the fact that any given signing account may need
+// slightly overestimated due to the fact that any given signing account may need
 // to be retrieved from state.
 //
 // CONTRACT: If simulate=true, then signatures must either be completely filled

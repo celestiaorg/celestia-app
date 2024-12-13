@@ -8,7 +8,7 @@ ARG BUILDER_IMAGE=docker.io/golang:1.23.1-alpine3.20
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maxuimum square size of the docker image i.e.
+# Use build args to override the maximum square size of the docker image i.e.
 # docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
 ARG MAX_SQUARE_SIZE
 # Use build args to override the upgrade height delay of the docker image i.e.
