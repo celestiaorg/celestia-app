@@ -492,16 +492,34 @@ func (t *Testnet) Cleanup(ctx context.Context) {
 
 	go func() {
 		defer wg.Done()
-		if err := t.knuu.CleanUp(ctx); err != nil {
-			t.logger.Println("failed to cleanup knuu", "error", err)
+		retries := 3
+		for i := 0; i < retries; i++ {
+			if err := t.knuu.CleanUp(ctx); err != nil {
+				t.logger.Println("failed to cleanup knuu", "error", err)
+				if i < retries-1 {
+					t.logger.Println("retrying cleanup knuu")
+					time.Sleep(2 * time.Second)
+					continue
+				}
+			}
+			break
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
+		retries := 3
 		for _, machine := range t.machines {
-			if err := machine.Remove(ctx, t.knuu); err != nil {
-				t.logger.Println("failed to remove machine", "error", err)
+			for i := 0; i < retries; i++ {
+				if err := machine.Remove(ctx, t.knuu); err != nil {
+					t.logger.Println("failed to remove machine", "error", err)
+					if i < retries-1 {
+						t.logger.Println("retrying remove machine")
+						time.Sleep(2 * time.Second)
+						continue
+					}
+				}
+				break
 			}
 		}
 	}()
