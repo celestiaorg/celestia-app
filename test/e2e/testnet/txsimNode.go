@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/machine"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
@@ -23,12 +24,14 @@ func txsimDockerImageName(version string) string {
 type TxSim struct {
 	Name     string
 	Instance *instance.Instance
+	machine  *machine.Machine
 }
 
 // CreateTxClient returns a new TxSim instance.
 func CreateTxClient(
 	ctx context.Context,
 	logger *log.Logger,
+	machine *machine.Machine,
 	name string,
 	version string,
 	endpoint string,
@@ -89,6 +92,7 @@ func CreateTxClient(
 	return &TxSim{
 		Name:     name,
 		Instance: instance,
+		machine:  machine,
 	}, nil
 }
 

@@ -9,3 +9,10 @@ func NoError(message string, err error) {
 		log.Fatalf("%s: %v", message, err)
 	}
 }
+
+func NoErrorWithCleanup(message string, err error, cleanup func()) {
+	if err != nil {
+		cleanup()
+		log.Fatalf("%s: %v", message, err)
+	}
+}

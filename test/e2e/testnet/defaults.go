@@ -3,9 +3,9 @@ package testnet
 import "k8s.io/apimachinery/pkg/api/resource"
 
 var DefaultResources = Resources{
-	MemoryRequest: resource.MustParse("400Mi"),
-	MemoryLimit:   resource.MustParse("400Mi"),
-	CPU:           resource.MustParse("300m"),
+	MemoryRequest: resource.MustParse("4Gi"),
+	MemoryLimit:   resource.MustParse("4Gi"),
+	CPU:           resource.MustParse("1"),
 	Volume:        resource.MustParse("1Gi"),
 }
 

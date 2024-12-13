@@ -72,14 +72,14 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 		logger.Println("Starting node", "node", i, "version", v)
 
 		testnet.NoError("failed to create genesis node",
-			testNet.CreateGenesisNode(ctx, v, 10000000, 0, testnet.DefaultResources, false))
+			testNet.CreateGenesisNode(ctx, nil, v, 10000000, 0, testnet.DefaultResources, false))
 	}
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, nil, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	// start the testnet

@@ -41,13 +41,13 @@ func E2ESimple(logger *log.Logger) error {
 
 	logger.Println("Creating testnet validators")
 	testnet.NoError("failed to create genesis nodes",
-		testNet.CreateGenesisNodes(ctx, 4, latestVersion, 10000000, 0, testnet.DefaultResources, true))
+		testNet.CreateGenesisNodes(ctx, 4, nil, latestVersion, 10000000, 0, testnet.DefaultResources, true))
 
 	logger.Println("Creating txsim")
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
-	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, nil, "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
@@ -56,8 +56,8 @@ func E2ESimple(logger *log.Logger) error {
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
 
-	logger.Println("Waiting for 30 seconds to produce blocks")
-	time.Sleep(30 * time.Second)
+	logger.Println("Waiting for 5 minutes to produce blocks")
+	time.Sleep(5 * time.Minute)
 
 	logger.Println("Reading blockchain headers")
 	blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())

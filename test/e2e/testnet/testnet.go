@@ -8,15 +8,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/machine"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/celestiaorg/knuu/pkg/preloader"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/inlets/cloud-provision/provision"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -28,6 +31,7 @@ const (
 type Testnet struct {
 	seed        int64
 	nodes       []*Node
+	machines    []*machine.Machine
 	genesis     *genesis.Genesis
 	keygen      *keyGenerator
 	grafana     *GrafanaInfo
@@ -61,6 +65,29 @@ func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 	}, nil
 }
 
+var (
+	machineOS                              = "ubuntu-24-04-x64"
+	machineUserDataForScalewayControlplane = []string{
+		"#!/bin/bash",
+		"touch /opt/knuu",
+		"wget https://scwcontainermulticloud.s3.fr-par.scw.cloud/node-agent_linux_amd64 && chmod +x node-agent_linux_amd64",
+		"export POOL_REGION=fr-par POOL_ID=%POOL_ID% SCW_SECRET_KEY=%SCW_SECRET_KEY%",
+		"sudo -E ./node-agent_linux_amd64 -loglevel 0 -no-controller",
+		"echo 'done' >> /opt/knuu",
+	}
+)
+
+// NewMachine creates a machine on the given provisioner
+func (t *Testnet) NewMachine(logger *log.Logger, provisioner provision.Provisioner, region, size, name string) (*machine.Machine, error) {
+	machine, err := machine.NewMachine(logger, provisioner, region, size, name, machineOS, machineUserDataForScalewayControlplane)
+	if err != nil {
+		return nil, err
+	}
+	t.machines = append(t.machines, machine)
+
+	return machine, nil
+}
+
 func (t *Testnet) NewPreloader() (*preloader.Preloader, error) {
 	if t.knuu == nil {
 		return nil, errors.New("knuu is not initialized")
@@ -78,10 +105,10 @@ func (t *Testnet) SetConsensusMaxBlockSize(size int64) {
 	t.genesis.ConsensusParams.Block.MaxBytes = size
 }
 
-func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNode(ctx context.Context, machine *machine.Machine, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, machine, fmt.Sprintf("val%d", len(t.nodes)), version, 0, selfDelegation, nil, signerKey, networkKey, upgradeHeightV2, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -92,9 +119,9 @@ func (t *Testnet) CreateGenesisNode(ctx context.Context, version string, selfDel
 	return nil
 }
 
-func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, machine *machine.Machine, version string, selfDelegation, upgradeHeightV2 int64, resources Resources, disableBBR bool) error {
 	for i := 0; i < num; i++ {
-		if err := t.CreateGenesisNode(ctx, version, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
+		if err := t.CreateGenesisNode(ctx, machine, version, selfDelegation, upgradeHeightV2, resources, disableBBR); err != nil {
 			return err
 		}
 	}
@@ -102,6 +129,7 @@ func (t *Testnet) CreateGenesisNodes(ctx context.Context, num int, version strin
 }
 
 func (t *Testnet) CreateTxClients(ctx context.Context,
+	machine *machine.Machine,
 	version string,
 	sequences int,
 	blobRange string,
@@ -112,7 +140,7 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 ) error {
 	for i, grpcEndpoint := range grpcEndpoints {
 		name := fmt.Sprintf("txsim%d", i)
-		err := t.CreateTxClient(ctx, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule)
+		err := t.CreateTxClient(ctx, machine, name, version, sequences, blobRange, blobPerSequence, resources, grpcEndpoint, upgradeSchedule)
 		if err != nil {
 			t.logger.Println("txsim creation failed", "name", name, "grpc_endpoint", grpcEndpoint, "error", err)
 			return err
@@ -136,6 +164,7 @@ func (t *Testnet) CreateTxClients(ctx context.Context,
 // upgradeSchedule: Map from height to version for scheduled upgrades (v3 and onwards).
 func (t *Testnet) CreateTxClient(
 	ctx context.Context,
+	machine *machine.Machine,
 	name string,
 	version string,
 	blobSequences int,
@@ -188,7 +217,7 @@ func (t *Testnet) CreateTxClient(
 		}
 	}
 
-	txsim, err := CreateTxClient(ctx, t.logger, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
+	txsim, err := CreateTxClient(ctx, t.logger, machine, name, version, grpcEndpoint, t.seed, blobSequences, blobRange, blobPerSequence, 1, resources, remoteRootDir, t.knuu, upgradeSchedule)
 	if err != nil {
 		t.logger.Println("error creating txsim", "name", name, "error", err)
 		return err
@@ -213,6 +242,12 @@ func (t *Testnet) CreateTxClient(
 
 func (t *Testnet) StartTxClients(ctx context.Context) error {
 	for _, txsim := range t.txClients {
+		if txsim.machine != nil {
+			if err := txsim.Instance.Build().SetNodeSelector(txsim.machine.GetNodeSelector()); err != nil {
+				t.logger.Println("error setting node selector", "name", txsim.Name, "error", err)
+				return err
+			}
+		}
 		err := txsim.Instance.Execution().StartAsync(ctx)
 		if err != nil {
 			t.logger.Println("txsim failed to start", "name", txsim.Name, "error", err)
@@ -270,10 +305,10 @@ func (t *Testnet) CreateAccount(name string, tokens int64, txsimKeyringDir strin
 	return kr, nil
 }
 
-func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
+func (t *Testnet) CreateNode(ctx context.Context, machine *machine.Machine, version string, startHeight, upgradeHeight int64, resources Resources, disableBBR bool) error {
 	signerKey := t.keygen.Generate(ed25519Type)
 	networkKey := t.keygen.Generate(ed25519Type)
-	node, err := NewNode(ctx, t.logger, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
+	node, err := NewNode(ctx, t.logger, machine, fmt.Sprintf("val%d", len(t.nodes)), version, startHeight, 0, nil, signerKey, networkKey, upgradeHeight, resources, t.grafana, t.knuu, disableBBR)
 	if err != nil {
 		return err
 	}
@@ -375,8 +410,13 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize client for node %s: %w", node.Name, err)
 		}
-		for i := 0; i < 20; i++ {
-			resp, err := client.Status(ctx)
+		maxAttempts := 30
+		statusTimeout := 1 * time.Second // Timeout for each status check
+		for i := 0; i < maxAttempts; i++ {
+			statusCtx, cancel := context.WithTimeout(ctx, statusTimeout)
+			defer cancel()
+
+			resp, err := client.Status(statusCtx)
 			if err == nil {
 				if resp != nil && resp.SyncInfo.LatestBlockHeight > 0 {
 					t.logger.Println("node has synced", "name", node.Name, "attempts", i, "latest_block_height", resp.SyncInfo.LatestBlockHeight)
@@ -386,7 +426,7 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 			} else {
 				t.logger.Println("error getting status, retrying...", "name", node.Name, "attempt", i, "error", err)
 			}
-			if i == 19 {
+			if i == maxAttempts-1 {
 				return fmt.Errorf("timed out waiting for node %s to sync: %w", node.Name, err)
 			}
 			time.Sleep(time.Duration(i) * time.Second)
@@ -426,6 +466,11 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 }
 
 func (t *Testnet) Start(ctx context.Context) error {
+	for _, machine := range t.machines {
+		if err := machine.WaitForCreation(); err != nil {
+			return fmt.Errorf("failed to wait for machine %s to be created: %w", machine.GetName(), err)
+		}
+	}
 	// start nodes and setup proxies
 	err := t.StartNodes(ctx)
 	if err != nil {
@@ -442,9 +487,26 @@ func (t *Testnet) Start(ctx context.Context) error {
 }
 
 func (t *Testnet) Cleanup(ctx context.Context) {
-	if err := t.knuu.CleanUp(ctx); err != nil {
-		t.logger.Println("failed to cleanup knuu", "error", err)
-	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		if err := t.knuu.CleanUp(ctx); err != nil {
+			t.logger.Println("failed to cleanup knuu", "error", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for _, machine := range t.machines {
+			if err := machine.Remove(ctx, t.knuu); err != nil {
+				t.logger.Println("failed to remove machine", "error", err)
+			}
+		}
+	}()
+
+	wg.Wait()
 }
 
 func (t *Testnet) Node(i int) *Node {

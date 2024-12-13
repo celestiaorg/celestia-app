@@ -59,7 +59,7 @@ func NewBenchmarkTest(logger *log.Logger, name string, manifest *Manifest) (*Ben
 func (b *BenchmarkTest) SetupNodes() error {
 	ctx := context.Background()
 	testnet.NoError("failed to create genesis nodes",
-		b.CreateGenesisNodes(ctx, b.manifest.Validators,
+		b.CreateGenesisNodes(ctx, b.manifest.Validators, nil,
 			b.manifest.CelestiaAppVersion, b.manifest.SelfDelegation,
 			b.manifest.UpgradeHeight, b.manifest.ValidatorResource, b.manifest.DisableBBR))
 
@@ -79,6 +79,7 @@ func (b *BenchmarkTest) SetupNodes() error {
 
 	err = b.CreateTxClients(
 		ctx,
+		nil,
 		b.manifest.TxClientVersion,
 		b.manifest.BlobSequences,
 		b.manifest.BlobSizes,

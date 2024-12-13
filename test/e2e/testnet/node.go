@@ -19,6 +19,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/celestiaorg/celestia-app/v3/test/e2e/machine"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/knuu/pkg/instance"
 	"github.com/celestiaorg/knuu/pkg/knuu"
@@ -57,6 +58,8 @@ type Node struct {
 	traceProxyHost string
 
 	logger *log.Logger
+
+	machine *machine.Machine
 }
 
 // PullRoundStateTraces retrieves the round state traces from a node.
@@ -100,6 +103,7 @@ type Resources struct {
 func NewNode(
 	ctx context.Context,
 	logger *log.Logger,
+	machine *machine.Machine,
 	name string,
 	version string,
 	startHeight int64,
@@ -182,6 +186,7 @@ func NewNode(
 		SelfDelegation: selfDelegation,
 		sidecars:       sidecars,
 		logger:         logger,
+		machine:        machine,
 	}, nil
 }
 
@@ -272,6 +277,7 @@ func (n *Node) Init(ctx context.Context, genesis *types.GenesisDoc, peers []stri
 	if err = n.Instance.Storage().AddFolder(nodeDir, remoteRootDir, "10001:10001"); err != nil {
 		return fmt.Errorf("copying over node %s directory: %w", n.Name, err)
 	}
+
 	return nil
 }
 
@@ -339,6 +345,11 @@ func (n *Node) Start(ctx context.Context) error {
 }
 
 func (n *Node) StartAsync(ctx context.Context) error {
+	if n.machine != nil {
+		if err := n.Instance.Build().SetNodeSelector(n.machine.GetNodeSelector()); err != nil {
+			return fmt.Errorf("setting node selector: %w", err)
+		}
+	}
 	return n.Instance.Execution().StartAsync(ctx)
 }
 
