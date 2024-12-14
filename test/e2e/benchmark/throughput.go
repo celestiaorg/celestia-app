@@ -11,7 +11,7 @@ import (
 )
 
 var bigBlockManifest = Manifest{
-	ChainID:    "test",
+	ChainID:    appconsts.TestChainID,
 	Validators: 2,
 	TxClients:  2,
 	ValidatorResource: testnet.Resources{

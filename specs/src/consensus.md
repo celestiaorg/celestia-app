@@ -227,7 +227,7 @@ function compute_new_entry(reward, power)
     return reward // power
 ```
 
-After applying a transaction, the new state state root is computed.
+After applying a transaction, the new state root is computed.
 
 #### SignedTransactionDataTransfer
 

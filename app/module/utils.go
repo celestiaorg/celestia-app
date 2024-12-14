@@ -9,7 +9,7 @@ import (
 )
 
 // defaultMigrationsOrder returns a default migrations order. The order is
-// ascending alphabetical by module name except "auth" will will be last. See:
+// ascending alphabetical by module name except "auth" will be last. See:
 // https://github.com/cosmos/cosmos-sdk/issues/10591
 func defaultMigrationsOrder(modules []string) []string {
 	result := filter(modules, isNotAuth)
