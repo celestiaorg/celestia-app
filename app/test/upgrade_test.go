@@ -257,7 +257,7 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 
 	db := dbm.NewMemDB()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, util.EmptyAppOptions{})
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, 0, util.EmptyAppOptions{})
 	genesis := genesis.NewDefaultGenesis().
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
 		WithConsensusParams(app.DefaultInitialConsensusParams())
