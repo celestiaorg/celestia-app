@@ -104,13 +104,8 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-<<<<<<< HEAD
-    --v2-upgrade-height 3 \
-    --force-no-bbr // no need to require BBR usage on a local node
-=======
     --timeout-commit 1s \
     --force-no-bbr # no need to require BBR usage on a local node
->>>>>>> d20916c7 (feat: override timeout commit via `--timeout-commit` (#4103))
 }
 
 if [ -f $GENESIS_FILE ]; then

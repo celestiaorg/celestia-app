@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -117,8 +118,6 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 				return err
 			}
 
-<<<<<<< HEAD
-=======
 			switch clientCtx.ChainID {
 			case appconsts.ArabicaChainID:
 				serverCtx.Logger.Info(fmt.Sprintf("Since the chainID is %v, configuring the default v2 upgrade height to %v", appconsts.ArabicaChainID, appconsts.ArabicaUpgradeHeightV2))
@@ -137,7 +136,6 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
 			}
 
->>>>>>> d20916c7 (feat: override timeout commit via `--timeout-commit` (#4103))
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
 			if !withTM {
 				serverCtx.Logger.Info("starting ABCI without Tendermint")

@@ -32,7 +32,7 @@ Follow the [creating a release candidate](#creating-a-release-candidate) section
 - The version tag should not include the `-rc` suffix.
 - If the release targets a testnet, suffix the release with `-arabica` or `-mocha`.
 - The release notes should contain an **Upgrade Notice** section with notable changes for node operators or library consumers.
-- The release notes section should contain a link to https://github.com/celestiaorg/celestia-app/blob/main/docs/release-notes/release-notes.md where we capture breaking changes
+- The release notes section should contain a link to <https://github.com/celestiaorg/celestia-app/blob/main/docs/release-notes/release-notes.md> where we capture breaking changes
 
 After creating the release:
 
