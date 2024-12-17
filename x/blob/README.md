@@ -96,7 +96,7 @@ rational can be found in the [data square layout](../../specs/src/data_square_la
 1. Determine the
    [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
    by dividing the length in shares by the `SubtreeRootThreshold`.
-1. Generate each subtree root by diving the blob shares into `SubtreeWidth`
+1. Generate each subtree root by dividing the blob shares into `SubtreeWidth`
    sized sets, then take the binary [namespaced merkle tree
    (NMT)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) root
    of each set of shares.
