@@ -13,6 +13,7 @@ import (
 	"github.com/inlets/cloud-provision/provision"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Machine represents a machine with its provisioned host details
@@ -87,6 +88,96 @@ func (machine *Machine) Remove(ctx context.Context, knuu *knuu.Knuu) error {
 		machine.logger.Printf("Kubernetes node deleted: %s\n", k8sNode.Name)
 	}
 
+	// Remove IPAddressPool and L2Advertisement resources
+	dynamicClient := knuu.K8sClient.DynamicClient()
+	err = dynamicClient.Resource(schema.GroupVersionResource{
+		Group:    "metallb.io",
+		Version:  "v1beta1",
+		Resource: "ipaddresspools",
+	}).Namespace("metallb-system").Delete(ctx, machine.GetName(), metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete IPAddressPool: %w", err)
+	}
+	machine.logger.Printf("IPAddressPool deleted: %s\n", machine.GetName())
+
+	err = dynamicClient.Resource(schema.GroupVersionResource{
+		Group:    "metallb.io",
+		Version:  "v1beta1",
+		Resource: "l2advertisements",
+	}).Namespace("metallb-system").Delete(ctx, machine.GetName(), metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete L2Advertisement: %w", err)
+	}
+	machine.logger.Printf("L2Advertisement deleted: %s\n", machine.GetName())
+
+	return nil
+}
+
+// Setup creates IPAddressPool resources
+func (machine *Machine) Setup(ctx context.Context, knuu *knuu.Knuu) error {
+
+	ipAddressPoolGVR := schema.GroupVersionResource{
+		Group:    "metallb.io",
+		Version:  "v1beta1",
+		Resource: "IPAddressPool",
+	}
+
+	l2AdvertisementGVR := schema.GroupVersionResource{
+		Group:    "metallb.io",
+		Version:  "v1beta1",
+		Resource: "L2Advertisement",
+	}
+
+	ipAddressPoolExists, err := knuu.K8sClient.CustomResourceDefinitionExists(ctx, &ipAddressPoolGVR)
+	if err != nil {
+		return fmt.Errorf("error checking IPAddressPool CRD existence: %w", err)
+	}
+	if ipAddressPoolExists {
+		machine.logger.Println("IPAddressPool CRD exists")
+		ipAddressPoolObject := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name":      machine.GetName(),
+				"namespace": "metallb-system",
+			},
+			"spec": map[string]interface{}{
+				"addresses": []string{fmt.Sprintf("%s-%s", machine.GetIP(), machine.GetIP())},
+			},
+		}
+		if err := knuu.K8sClient.CreateCustomResource(ctx, machine.GetName(), &ipAddressPoolGVR, &ipAddressPoolObject); err != nil {
+			return fmt.Errorf("failed to create IPAddressPool: %w", err)
+		}
+	}
+
+	l2AdvertisementExists, err := knuu.K8sClient.CustomResourceDefinitionExists(ctx, &l2AdvertisementGVR)
+	if err != nil {
+		return fmt.Errorf("error checking L2Advertisement CRD existence: %w", err)
+	}
+	if l2AdvertisementExists {
+		machine.logger.Println("L2Advertisement CRD exists")
+		l2AdvertisementObject := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name":      machine.GetName(),
+				"namespace": "metallb-system",
+			},
+			"spec": map[string]interface{}{
+				"ipAddressPools": []string{machine.GetName()},
+				"nodeSelectors": []map[string]interface{}{
+					{
+						"matchLabels": map[string]string{
+							"kubernetes.io/hostname": machine.GetName(),
+						},
+					},
+				},
+			},
+		}
+		if err := knuu.K8sClient.CreateCustomResource(ctx, machine.GetName(), &l2AdvertisementGVR, &l2AdvertisementObject); err != nil {
+			return fmt.Errorf("failed to create L2Advertisement: %w", err)
+		}
+	}
+
+	if ipAddressPoolExists || l2AdvertisementExists {
+		machine.logger.Println("IPAddressPool and/or L2Advertisement created successfully")
+	}
 	return nil
 }
 
@@ -129,5 +220,6 @@ func (machine *Machine) GetIP() string {
 }
 
 func (machine *Machine) GetNodeSelector() map[string]string {
-	return map[string]string{"k8s.scw.cloud/node-public-ip": machine.GetIP()}
+	// return map[string]string{"k8s.scw.cloud/node-public-ip": machine.GetIP()}
+	return map[string]string{"kubernetes.io/hostname": machine.GetName()}
 }

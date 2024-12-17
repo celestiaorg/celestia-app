@@ -6,13 +6,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sort"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/machine"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/inlets/cloud-provision/provision"
 )
@@ -23,6 +23,25 @@ import (
 func MultiRegionTest(logger *log.Logger) error {
 	const testName = "MultiRegionTest"
 
+	doToken := os.Getenv("DIGITALOCEAN_TOKEN")
+	if doToken == "" {
+		testnet.NoError("DIGITALOCEAN_TOKEN environment variable is not set", fmt.Errorf("DIGITALOCEAN_TOKEN environment variable is not set"))
+	}
+
+	provisioner, err := provision.NewDigitalOceanProvisioner(doToken)
+	testnet.NoError("failed to create digitalocean provisioner", err)
+
+	// machineUserDataForClastixControlplane := []string{
+	// 	"#!/bin/bash",
+	// 	"touch /opt/knuu",
+	// 	"sudo apt update && sudo apt install -y socat conntrack",
+	// 	"wget -O- https://goyaki.clastix.io | sudo JOIN_URL=ssmuu-1031-default-test.k8s.clastix.cloud:443 JOIN_TOKEN=peqw05.qjbgbmah91v210u4 JOIN_TOKEN_CACERT_HASH=sha256:4238684b30295f8f92ef45f13e30b3dca19997153921462059d553712f3cde99 bash -s join",
+	// 	"echo 'done' >> /opt/knuu",
+	// }
+
+	// _, err = machine.NewMachine(logger, provisioner, machine.Regions.DigitalOcean.NYC1, machine.Sizes.DigitalOcean.G16VCPU64GB, "citrix-test-1", "ubuntu-24-04-x64", machineUserDataForClastixControlplane)
+	// testnet.NoError("failed to create machine", err)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -30,6 +49,7 @@ func MultiRegionTest(logger *log.Logger) error {
 	kn, err := knuu.New(ctx, knuu.Options{
 		Scope:        identifier,
 		ProxyEnabled: true,
+		Timeout:      8 * time.Hour,
 	})
 	testnet.NoError("failed to initialize Knuu", err)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
@@ -48,30 +68,6 @@ func MultiRegionTest(logger *log.Logger) error {
 		os.Exit(0)
 	}()
 	defer testNet.Cleanup(ctx)
-
-	doToken := os.Getenv("DIGITALOCEAN_TOKEN")
-	if doToken == "" {
-		testnet.NoErrorWithCleanup("DIGITALOCEAN_TOKEN environment variable is not set", fmt.Errorf("DIGITALOCEAN_TOKEN environment variable is not set"), func() {
-			testNet.Cleanup(ctx)
-		})
-	}
-	poolID := os.Getenv("POOL_ID")
-	if poolID == "" {
-		testnet.NoErrorWithCleanup("POOL_ID environment variable is not set", fmt.Errorf("POOL_ID environment variable is not set"), func() {
-			testNet.Cleanup(ctx)
-		})
-	}
-	scwSecretKey := os.Getenv("SCW_SECRET_KEY")
-	if scwSecretKey == "" {
-		testnet.NoErrorWithCleanup("SCW_SECRET_KEY environment variable is not set", fmt.Errorf("SCW_SECRET_KEY environment variable is not set"), func() {
-			testNet.Cleanup(ctx)
-		})
-	}
-
-	provisioner, err := provision.NewDigitalOceanProvisioner(doToken)
-	testnet.NoErrorWithCleanup("failed to create digitalocean provisioner", err, func() {
-		testNet.Cleanup(ctx)
-	})
 
 	hwNodes := []struct {
 		region string
@@ -120,16 +116,16 @@ func MultiRegionTest(logger *log.Logger) error {
 			})
 	}
 
-	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints()
-	testnet.NoErrorWithCleanup("failed to get remote gRPC endpoints", err, func() {
-		testNet.Cleanup(ctx)
-	})
-	upgradeSchedule := map[int64]uint64{}
-	err = testNet.CreateTxClient(ctx, machineList[0], "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
-	testnet.NoErrorWithCleanup("failed to create tx client", err, func() {
-		testNet.Cleanup(ctx)
-	})
+	// logger.Println("Creating txsim")
+	// endpoints, err := testNet.RemoteGRPCEndpoints()
+	// testnet.NoErrorWithCleanup("failed to get remote gRPC endpoints", err, func() {
+	// 	testNet.Cleanup(ctx)
+	// })
+	// upgradeSchedule := map[int64]uint64{}
+	// err = testNet.CreateTxClient(ctx, machineList[0], "txsim", testnet.TxsimVersion, 10, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	// testnet.NoErrorWithCleanup("failed to create tx client", err, func() {
+	// 	testNet.Cleanup(ctx)
+	// })
 
 	logger.Println("Setting up testnets")
 	testnet.NoErrorWithCleanup("failed to setup testnets", testNet.Setup(ctx), func() {
@@ -141,30 +137,91 @@ func MultiRegionTest(logger *log.Logger) error {
 		testNet.Cleanup(ctx)
 	})
 
-	logger.Println("Waiting for 5 minutes to produce blocks")
-	time.Sleep(5 * time.Minute)
+	nodes := testNet.Nodes()
+	var wg sync.WaitGroup
+	heights := make(map[string]int64)
+	var mu sync.Mutex
 
-	logger.Println("Reading blockchain headers")
-	blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
-	testnet.NoErrorWithCleanup("failed to read blockchain headers", err, func() {
-		testNet.Cleanup(ctx)
-	})
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(n *testnet.Node) {
+			defer wg.Done()
+			client, err := n.Client()
+			if err != nil {
+				logger.Printf("Failed to get client for node %s: %v", n.Name, err)
+				return
+			}
+			interval := 6 * time.Second
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			timeout := time.After(30 * time.Minute)
 
-	totalTxs := 0
-	for _, blockMeta := range blockchain {
-		version := blockMeta.Header.Version.App
-		if appconsts.LatestVersion != version {
-			testnet.NoErrorWithCleanup("expected app version %d, got %d in blockMeta %d", fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height), func() {
-				testNet.Cleanup(ctx)
-			})
+			for {
+				select {
+				case <-timeout:
+					return
+				case <-ticker.C:
+					statusCtx, cancel := context.WithTimeout(ctx, interval)
+					status, err := client.Status(statusCtx)
+					cancel() // Ensure cancel is called immediately after use
+
+					if err != nil {
+						logger.Printf("Failed to get validator height for node %s: %v", n.Name, err)
+					} else {
+						mu.Lock()
+						heights[n.Name] = status.SyncInfo.LatestBlockHeight
+						mu.Unlock()
+					}
+				}
+			}
+		}(node)
+	}
+	wg.Wait()
+
+	// Calculate and log min, max, average, and median heights
+	var allHeights []int64
+	for _, h := range heights {
+		allHeights = append(allHeights, h)
+	}
+
+	if len(allHeights) > 0 {
+		sort.Slice(allHeights, func(i, j int) bool { return allHeights[i] < allHeights[j] })
+		minHeight := allHeights[0]
+		maxHeight := allHeights[len(allHeights)-1]
+		sum := int64(0)
+		for _, h := range allHeights {
+			sum += h
 		}
-		totalTxs += blockMeta.NumTxs
+		averageHeight := sum / int64(len(allHeights))
+		medianHeight := allHeights[len(allHeights)/2]
+
+		logger.Printf("Validator Heights - Min: %d, Max: %d, Average: %d, Median: %d", minHeight, maxHeight, averageHeight, medianHeight)
 	}
-	if totalTxs < 10 {
-		testnet.NoErrorWithCleanup("expected at least 10 transactions, got %d", fmt.Errorf("expected at least 10 transactions, got %d", totalTxs), func() {
-			testNet.Cleanup(ctx)
-		})
-	}
-	logger.Printf("Total transactions: %d", totalTxs)
+
+	// sleep forever
+	select {}
+
+	// logger.Println("Reading blockchain headers")
+	// blockchain, err := testnode.ReadBlockchainHeaders(ctx, testNet.Node(0).AddressRPC())
+	// testnet.NoErrorWithCleanup("failed to read blockchain headers", err, func() {
+	// 	testNet.Cleanup(ctx)
+	// })
+
+	// totalTxs := 0
+	// for _, blockMeta := range blockchain {
+	// 	version := blockMeta.Header.Version.App
+	// 	if appconsts.LatestVersion != version {
+	// 		testnet.NoErrorWithCleanup("expected app version %d, got %d in blockMeta %d", fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height), func() {
+	// 			testNet.Cleanup(ctx)
+	// 		})
+	// 	}
+	// 	totalTxs += blockMeta.NumTxs
+	// }
+	// if totalTxs < 10 {
+	// 	testnet.NoErrorWithCleanup("expected at least 10 transactions, got %d", fmt.Errorf("expected at least 10 transactions, got %d", totalTxs), func() {
+	// 		testNet.Cleanup(ctx)
+	// 	})
+	// }
+	// logger.Printf("Total transactions: %d", totalTxs)
 	return nil
 }

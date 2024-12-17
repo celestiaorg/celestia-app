@@ -280,7 +280,7 @@ require (
 )
 
 replace (
-	github.com/celestiaorg/knuu => github.com/celestiaorg/knuu v0.16.3-0.20241213064425-83a1a24c1ec7
+	github.com/celestiaorg/knuu => /Users/peter/git/celestiaorg/knuu/branches/smuu/20241217-create-custom-resource-with-namespace
 
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.25.0-sdk-v0.46.16
 	// Pin to ledger-cosmos-go v0.12.4 to avoid a breaking change introduced in v0.13.0

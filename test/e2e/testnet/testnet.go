@@ -75,11 +75,18 @@ var (
 		"sudo -E ./node-agent_linux_amd64 -loglevel 0 -no-controller",
 		"echo 'done' >> /opt/knuu",
 	}
+	machineUserDataForClastixControlplane = []string{
+		"#!/bin/bash",
+		"touch /opt/knuu",
+		"sudo apt update && sudo apt install -y socat conntrack",
+		"wget -O- https://goyaki.clastix.io | sudo JOIN_URL=ssmuu-1031-default-test.k8s.clastix.cloud:443 JOIN_TOKEN=peqw05.qjbgbmah91v210u4 JOIN_TOKEN_CACERT_HASH=sha256:4238684b30295f8f92ef45f13e30b3dca19997153921462059d553712f3cde99 bash -s join",
+		"echo 'done' >> /opt/knuu",
+	}
 )
 
 // NewMachine creates a machine on the given provisioner
 func (t *Testnet) NewMachine(logger *log.Logger, provisioner provision.Provisioner, region, size, name string) (*machine.Machine, error) {
-	machine, err := machine.NewMachine(logger, provisioner, region, size, name, machineOS, machineUserDataForScalewayControlplane)
+	machine, err := machine.NewMachine(logger, provisioner, region, size, name, machineOS, machineUserDataForClastixControlplane)
 	if err != nil {
 		return nil, err
 	}
@@ -469,6 +476,9 @@ func (t *Testnet) Start(ctx context.Context) error {
 	for _, machine := range t.machines {
 		if err := machine.WaitForCreation(); err != nil {
 			return fmt.Errorf("failed to wait for machine %s to be created: %w", machine.GetName(), err)
+		}
+		if err := machine.Setup(ctx, t.knuu); err != nil {
+			return fmt.Errorf("failed to setup machine %s: %w", machine.GetName(), err)
 		}
 	}
 	// start nodes and setup proxies
