@@ -351,7 +351,7 @@ func TestHasDataCommitmentInStore(t *testing.T) {
 	}
 }
 
-// TestGetDataCommitment This test will test the data commitment creation
+// TestDataCommitmentCreationCatchup This test will test the data commitment creation
 // catchup mechanism. It will run `abci.EndBlocker` on all the heights while
 // changing the data commitment window in different occasions, to see if at the
 // end of the test, the data commitments cover all the needed ranges.
