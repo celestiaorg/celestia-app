@@ -177,7 +177,7 @@ Light Nodes have additional access to row and column roots from the Data Availab
 
 ![Proof Size Result 2](./assets/adr009/proof-size-result2.png)
 
-### Total Proof Size for Parital Nodes
+### Total Proof Size for Partial Nodes
 
 Partial nodes in this context are light clients that may download all of the data in the reserved namespace. They check that the data behind the PFB was included in the `DataRoot`, via blob inclusion proofs.
 
