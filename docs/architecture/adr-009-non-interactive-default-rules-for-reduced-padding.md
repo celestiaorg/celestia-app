@@ -173,7 +173,7 @@ Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the curre
 
 ### Proof Size for Light-Nodes
 
-Light Nodes have additional access to row and collum roots from the Data Availability header. Therefore we can discard any blue nodes to the `DataRoot` from the analysis.
+Light Nodes have additional access to row and column roots from the Data Availability header. Therefore we can discard any blue nodes to the `DataRoot` from the analysis.
 
 ![Proof Size Result 2](./assets/adr009/proof-size-result2.png)
 
