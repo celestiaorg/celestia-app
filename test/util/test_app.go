@@ -245,7 +245,7 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 	return testApp
 }
 
-// AddDeterministicValidatorToGenesis adds a set of five validators to the genesis.
+// AddDeterministicValidatorsToGenesis adds a set of five validators to the genesis.
 func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
 	for i := range FixedMnemonics {
 		val := genesis.Validator{
