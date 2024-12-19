@@ -33,7 +33,7 @@ require (
 	github.com/tendermint/tm-db v0.6.7
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
 	google.golang.org/genproto/googleapis/api v0.0.0-20241015192408-796eee8c2d53
-	google.golang.org/grpc v1.69.0
+	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.32.0
