@@ -34,7 +34,7 @@ func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []share.Name
 	return namespaces
 }
 
-// isBlobNamespace returns an true if this namespace is a valid user-specifiable
+// isBlobNamespace returns a true if this namespace is a valid user-specifiable
 // blob namespace.
 func isBlobNamespace(namespace share.Namespace) bool {
 	if namespace.IsReserved() {
