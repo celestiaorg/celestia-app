@@ -78,7 +78,7 @@ func NewAnteHandler(
 		NewGovProposalDecorator(),
 		// Side effect: increment the nonce for all tx signers.
 		ante.NewIncrementSequenceDecorator(accountKeeper),
-		// Ensure that the tx is not a IBC packet or update message that has already been processed.
+		// Ensure that the tx is not an IBC packet or update message that has already been processed.
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
 	)
 }
