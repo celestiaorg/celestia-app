@@ -14,7 +14,7 @@ var (
 	_ baseapp.CircuitBreaker = MsgVersioningGateKeeper{}
 )
 
-// MsgVersioningGateKeeper dictates which transactions are accepted for an app version
+// MsgVersioningGateKeeper dictates which transactions are accepted for an the app version
 type MsgVersioningGateKeeper struct {
 	// acceptedMsgs is a map from appVersion -> msgTypeURL -> struct{}.
 	// If a msgTypeURL is present in the map it should be accepted for that appVersion.
@@ -31,7 +31,7 @@ func NewMsgVersioningGateKeeper(acceptedList map[uint64]map[string]struct{}) *Ms
 func (mgk MsgVersioningGateKeeper) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	acceptedMsgs, exists := mgk.acceptedMsgs[ctx.BlockHeader().Version.App]
 	if !exists {
-		return ctx, sdkerrors.ErrNotSupported.Wrapf("app version %d is not supported", ctx.BlockHeader().Version.App)
+		return ctx, sdkerrors.ErrNotSupported.Wrapf("the app version %d is not supported", ctx.BlockHeader().Version.App)
 	}
 
 	if err := mgk.hasInvalidMsg(ctx, acceptedMsgs, tx.GetMsgs()); err != nil {
