@@ -124,6 +124,16 @@ func (v VersionSet) FilterOutReleaseCandidates() VersionSet {
 	return output
 }
 
+func (v VersionSet) FilterOut(retracted Version) VersionSet {
+	output := make(VersionSet, 0, len(v))
+	for _, version := range v {
+		if version != retracted {
+			output = append(output, version)
+		}
+	}
+	return output
+}
+
 func (v VersionSet) GetLatest() Version {
 	latest := Version{}
 	for _, version := range v {

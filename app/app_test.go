@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -29,9 +30,10 @@ func TestNew(t *testing.T) {
 	invCheckPeriod := uint(1)
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(0)
+	timeoutCommit := time.Second
 	appOptions := NoopAppOptions{}
 
-	got := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+	got := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, timeoutCommit, appOptions)
 
 	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ICAHostKeeper)
@@ -44,7 +46,7 @@ func TestNew(t *testing.T) {
 	})
 	t.Run("should have set StakingKeeper hooks", func(t *testing.T) {
 		// StakingKeeper doesn't expose a GetHooks method so this checks if
-		// hooks have been set by verifying the a subsequent call to SetHooks
+		// hooks have been set by verifying the subsequent call to SetHooks
 		// will panic.
 		assert.Panics(t, func() { got.StakingKeeper.SetHooks(nil) })
 	})
@@ -65,8 +67,9 @@ func TestInitChain(t *testing.T) {
 	invCheckPeriod := uint(1)
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(0)
+	timeoutCommit := time.Second
 	appOptions := NoopAppOptions{}
-	testApp := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+	testApp := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, timeoutCommit, appOptions)
 	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
 	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
@@ -103,7 +106,7 @@ func TestInitChain(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			application := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, appOptions)
+			application := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, upgradeHeight, timeoutCommit, appOptions)
 			if tc.wantPanic {
 				assert.Panics(t, func() { application.InitChain(tc.request) })
 			} else {
@@ -160,6 +163,7 @@ func createTestApp(t *testing.T) *app.App {
 	db := tmdb.NewMemDB()
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(3)
+	timeoutCommit := time.Second
 	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
 	t.Cleanup(func() {
 		err := os.RemoveAll(snapshotDir)
@@ -174,7 +178,7 @@ func createTestApp(t *testing.T) *app.App {
 	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
 	require.NoError(t, err)
 	baseAppOption := baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(10, 10))
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, config, upgradeHeight, util.EmptyAppOptions{}, baseAppOption)
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, config, upgradeHeight, timeoutCommit, util.EmptyAppOptions{}, baseAppOption)
 	require.NoError(t, err)
 	response := testApp.Info(abci.RequestInfo{})
 	require.Equal(t, uint64(0), response.AppVersion)

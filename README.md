@@ -33,11 +33,11 @@ node            |  |                               |  |
 
 ## Install
 
-### Source
+### From source
 
 1. [Install Go](https://go.dev/doc/install) 1.23.1
 1. Clone this repo
-1. Install the celestia-app CLI
+1. Install the celestia-appd binary
 
     ```shell
     make install
@@ -77,25 +77,19 @@ See <https://docs.celestia.org/nodes/celestia-app> for more information.
 
 ## Usage
 
-First, make sure that the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm is enabled in the
-system's kernel. The result should contain `bbr`:
+> [!WARNING]
+> The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
 
-```sh
-sysctl net.ipv4.tcp_congestion_control
-```
+### Prerequisites
 
-If not, enable it on Linux by calling the `make enable-bbr` or by running:
+Enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
-```sh
-sudo modprobe tcp_bbr
-net.core.default_qdisc=fq
-net.ipv4.tcp_congestion_control=bbr
-sudo sysctl -p
-```
+```shell
+# Check if BBR is enabled.
+make bbr-check
 
-```sh
-# Print help
-celestia-appd --help
+# If BBR is not enabled then enable it.
+make bbr-enable
 ```
 
 ### Environment variables
@@ -104,13 +98,26 @@ celestia-appd --help
 |-----------------|-------------------------------------------------------------------|----------------------------------------------------------|----------|
 | `CELESTIA_HOME` | Where the application directory (`.celestia-app`) should be saved | [User home directory](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
-### Create your own single node devnet
+### Using celestia-appd
 
 ```sh
-# Start a single node devnet
+# Print help.
+celestia-appd --help
+
+# Create config files for a new chain named "test".
+celestia-appd init test
+
+# Start the consensus node.
+celestia-appd start
+```
+
+### Create a single node local testnet
+
+```sh
+# Start a single node local testnet.
 ./scripts/single-node.sh
 
-# Publish blob data to the local devnet
+# Publish blob data to the local testnet.
 celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f726c6421 \
 	--chain-id private \
 	--from validator \
@@ -119,12 +126,18 @@ celestia-appd tx blob pay-for-blob 0x00010203040506070809 0x48656c6c6f2c20576f72
 	--yes
 ```
 
-> [!NOTE]
-> The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
-
 ### Usage as a library
 
-If import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatibilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
+If you import celestia-app as a Go module, you may need to add some Go module `replace` directives to avoid type incompatibilities. Please see the `replace` directive in [go.mod](./go.mod) for inspiration.
+
+### Usage in tests
+
+If you are running celestia-app in tests, you may want to override the `timeout_commit` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `timeout_commit` with the `--timeout-commit` flag.
+
+```shell
+# Start celestia-appd with a one second timeout commit.
+celestia-appd start --timeout-commit 1s
+```
 
 ## Contributing
 
@@ -153,13 +166,13 @@ make build
 # Build and install the celestia-appd binary into the $GOPATH/bin directory.
 make install
 
-# Run tests
+# Run tests.
 make test
 
-# Format code with linters (this assumes golangci-lint and markdownlint are installed)
-make fmt
+# Format code with linters (this assumes golangci-lint and markdownlint are installed).
+make lint-fix
 
-# Regenerate Protobuf files (this assumes Docker is running)
+# Regenerate Protobuf files (this assumes Docker is running).
 make proto-gen
 ```
 

@@ -34,7 +34,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
 	logger.Println("Creating testnet")
-	testNet, err := testnet.New(kn, testnet.Options{})
+	testNet, err := testnet.New(logger, kn, testnet.Options{
+		ChainID: appconsts.TestChainID,
+	})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -60,7 +62,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{
 		upgradeHeightV3: v3.Version,

@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 )
@@ -22,13 +23,22 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	const (
 		testName = "MinorVersionCompatibility"
 		numNodes = 4
+		// retractedCelestiaApp is a version of celestia-app that was retracted.
+		retractedCelestiaApp = "v1.8.0"
 	)
 
 	versionStr, err := getAllVersions()
 	testnet.NoError("failed to get versions", err)
-	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates()
-	versions2 := testnet.ParseVersions(versionStr).FilterMajor(v2.Version) // include release candidates for v2 because there isn't an official release yet.
-	versions := slices.Concat(versions1, versions2)
+
+	retracted, ok := testnet.ParseVersion(retractedCelestiaApp)
+	if !ok {
+		logger.Fatal("failed to parse retracted version")
+	}
+
+	versions1 := testnet.ParseVersions(versionStr).FilterMajor(v1.Version).FilterOutReleaseCandidates().FilterOut(retracted)
+	versions2 := testnet.ParseVersions(versionStr).FilterMajor(v2.Version).FilterOutReleaseCandidates()
+	versions3 := testnet.ParseVersions(versionStr).FilterMajor(v3.Version).FilterOutReleaseCandidates()
+	versions := slices.Concat(versions1, versions2, versions3)
 
 	if len(versions) == 0 {
 		logger.Fatal("no versions to test")
@@ -50,7 +60,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	testNet, err := testnet.New(kn, testnet.Options{Seed: seed})
+	testNet, err := testnet.New(logger, kn, testnet.Options{Seed: seed})
 	testnet.NoError("failed to create testnet", err)
 
 	defer testNet.Cleanup(ctx)
@@ -76,7 +86,7 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	}
 
 	logger.Println("Creating txsim")
-	endpoints, err := testNet.RemoteGRPCEndpoints(ctx)
+	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{}
 	err = testNet.CreateTxClient(ctx, "txsim", testnet.TxsimVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)

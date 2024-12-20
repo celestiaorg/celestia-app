@@ -173,11 +173,11 @@ Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the curre
 
 ### Proof Size for Light-Nodes
 
-Light Nodes have additional access to row and collum roots from the Data Availability header. Therefore we can discard any blue nodes to the `DataRoot` from the analysis.
+Light Nodes have additional access to row and column roots from the Data Availability header. Therefore we can discard any blue nodes to the `DataRoot` from the analysis.
 
 ![Proof Size Result 2](./assets/adr009/proof-size-result2.png)
 
-### Total Proof Size for Parital Nodes
+### Total Proof Size for Partial Nodes
 
 Partial nodes in this context are light clients that may download all of the data in the reserved namespace. They check that the data behind the PFB was included in the `DataRoot`, via blob inclusion proofs.
 
