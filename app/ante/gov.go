@@ -20,7 +20,7 @@ func (d GovProposalDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	for _, m := range tx.GetMsgs() {
 		if proposal, ok := m.(*govv1.MsgSubmitProposal); ok {
 			if len(proposal.Messages) == 0 {
-				return ctx, errors.Wrapf(gov.ErrNoProposalMsgs, "must include at least one message in proposal")
+				return ctx, errors.Wrapf(gov.ErrNoProposalMsgs, "must include at least one message in the proposal")
 			}
 		}
 	}
