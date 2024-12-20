@@ -7,7 +7,7 @@ import (
 )
 
 // The following defaults correspond to initial parameters of the network that can be changed, not via app versions
-// but other means such as on-chain governance, or the nodes local config
+// but other means such as on-chain governance, or the node's local config
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
@@ -19,7 +19,7 @@ const (
 
 	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
 	// The min gas price acts as a filter. Transactions below that limit will not pass
-	// a nodes `CheckTx` and thus not be proposed by that node.
+	// a node's `CheckTx` and thus not be proposed by that node.
 	DefaultMinGasPrice = 0.002 // utia
 
 	// DefaultUnbondingTime is the default time a validator must wait
