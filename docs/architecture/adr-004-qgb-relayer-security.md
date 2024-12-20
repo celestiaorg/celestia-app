@@ -199,7 +199,7 @@ func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
     }
 
     store := ctx.KVStore(k.storeKey)
-    store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
+    store.Set([]byte(types.LatestAttestationNonce), types.UInt64Bytes(nonce))
 }
 ```
 
@@ -210,7 +210,7 @@ This will **panic** in the following cases:
 ```go
 func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
     store := ctx.KVStore(k.storeKey)
-    has := store.Has([]byte(types.LatestAttestationtNonce))
+    has := store.Has([]byte(types.LatestAttestationNonce))
     return has
 }
 ```
