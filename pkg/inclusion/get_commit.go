@@ -19,8 +19,8 @@ func GetCommitment(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, 
 	for i, path := range paths {
 		// here we prepend false (walk left down the tree) because we only need
 		// the subtree roots from the original data square.
-		orignalSquarePath := append(append(make([]WalkInstruction, 0, len(path.instructions)+1), WalkLeft), path.instructions...)
-		subTreeRoot, err := cacher.getSubTreeRoot(dah, path.row, orignalSquarePath)
+		originalSquarePath := append(append(make([]WalkInstruction, 0, len(path.instructions)+1), WalkLeft), path.instructions...)
+		subTreeRoot, err := cacher.getSubTreeRoot(dah, path.row, originalSquarePath)
 		if err != nil {
 			return nil, err
 		}
