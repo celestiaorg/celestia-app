@@ -187,7 +187,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 			errStr:    "minimum valid DataAvailabilityHeader has at least",
 		},
 		{
-			name:      "bash hash",
+			name:      "bad hash",
 			dah:       badHashDah,
 			expectErr: true,
 			errStr:    "wrong hash",
