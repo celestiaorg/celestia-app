@@ -32,7 +32,7 @@ func ParseNonceMismatch(err error) (uint64, error) {
 // ParseExpectedSequence extracts the expected sequence number from the
 // ErrWrongSequence error.
 func ParseExpectedSequence(str string) (uint64, error) {
-	if !strings.HasPrefix(str, "account sequence mismatch") {
+	if !strings.Contains(str, "incorrect account sequence") {
 		return 0, fmt.Errorf("unexpected wrong sequence error: %s", str)
 	}
 
