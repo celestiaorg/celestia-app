@@ -130,7 +130,7 @@ type App interface {
 	// Loads the app at a given height.
 	LoadHeight(height int64) error
 
-	// All the registered module account addreses.
+	// All the registered module account addresses.
 	ModuleAccountAddrs() map[string]bool
 
 	// Helper for the simulation framework.
