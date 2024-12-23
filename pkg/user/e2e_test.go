@@ -33,13 +33,13 @@ func TestConcurrentTxSubmission(t *testing.T) {
 	require.NoError(t, err)
 
 	// Pregenerate all the blobs
-	numTxs := 10
+	numTxs := 100
 	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), blobfactory.Repeat(2048, numTxs)...)
 
 	// Prepare transactions
 	var (
 		wg    sync.WaitGroup
-		errCh = make(chan error)
+		errCh = make(chan error, 1)
 	)
 
 	subCtx, cancel := context.WithCancel(ctx.GoContext())
@@ -61,7 +61,6 @@ func TestConcurrentTxSubmission(t *testing.T) {
 		}(blobs[i])
 	}
 	wg.Wait()
-
 	select {
 	case err := <-errCh:
 		require.NoError(t, err)
