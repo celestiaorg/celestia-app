@@ -69,7 +69,7 @@ func (app *App) getExportHeight(forZeroHeight bool) int64 {
 func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
 	applyAllowedAddrs := false
 
-	// check if there is a allowed address list
+	// check if there is an allowed address list
 	if len(jailAllowedAddrs) > 0 {
 		applyAllowedAddrs = true
 	}

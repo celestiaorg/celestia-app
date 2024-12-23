@@ -1,7 +1,7 @@
 package types
 
 var (
-	// UpgradeKey is the key in the signal store used to persist a upgrade if one is
+	// UpgradeKey is the key in the signal store used to persist an upgrade if one is
 	// pending.
 	UpgradeKey = []byte{0x00}
 
