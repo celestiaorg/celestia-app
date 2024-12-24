@@ -70,7 +70,7 @@ var root = []byte{0x82, 0x37, 0x91, 0xd2, 0x5d, 0x77, 0x7, 0x67, 0x35, 0x3, 0x90
 var incorrectRoot = bytes.Repeat([]byte{0}, 32)
 
 // validRowProof returns a row proof for one row. This test data copied from
-// ceelestia-app's pkg/proof/proof_test.go TestNewShareInclusionProof: "1
+// celestia-app's pkg/proof/proof_test.go TestNewShareInclusionProof: "1
 // transaction share"
 func validRowProof() RowProof {
 	return RowProof{
