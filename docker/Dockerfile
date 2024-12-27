@@ -19,7 +19,7 @@ ARG UPGRADE_HEIGHT_DELAY
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
-FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
+FROM --platform=$TARGETPLATFORM golang:1.21-alpine AS builder
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 # hadolint ignore=DL3018
