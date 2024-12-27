@@ -1,0 +1,13 @@
+# Remove or comment out old build steps for amd64
+# ...
+
+# Add a single step for multi-platform build
+- name: Build and push multi-platform image
+  uses: docker/build-push-action@v5
+  with:
+    context: .
+    file: ${{ inputs.dockerfile }}
+    platforms: linux/amd64,linux/arm64
+    push: true
+    tags: ${{ steps.meta.outputs.tags }}
+    labels: ${{ steps.meta.outputs.labels }}
