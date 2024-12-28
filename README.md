@@ -42,7 +42,24 @@ node            |  |                               |  |
     ```shell
     make install
     ```
+## Docker Installation
 
+1. Prerequisites
+- Ensure you have Docker version **20.10** or higher installed. You can download it from [Docker's official website](https://www.docker.com/get-started).
+- Allocate at least **2 CPU cores** and **4 GB of RAM** to Docker for optimal performance. This can be configured in Docker Desktop settings.
+
+2. Fetching the Latest Tagged Release
+To pull the latest tagged release of the `celestia-app` Docker image, run the following command:
+    ```bash
+    docker pull ghcr.io/celestiaorg/celestia-app:latest
+    ```
+
+3. Running the Application
+To start the application using Docker Compose, navigate to the directory containing your `docker-compose.yml` file and run:
+
+    ```bash 
+    docker-compose up
+    ```
 ### Prebuilt binary
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
