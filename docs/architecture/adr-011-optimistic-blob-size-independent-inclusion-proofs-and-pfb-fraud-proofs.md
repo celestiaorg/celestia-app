@@ -152,7 +152,7 @@ Worst case commitment inclusion proof size over 2-4 share PFB
 <!--- This does not need a fraud proof as it could be a validation rule that even light clients can check. This would require the light clients to know the sequencer set and whose turn it was. (not sure about this)
 --->
 
-The fraud proof for this would be to prove that the commitment of the PFB transaction does not equal the predicted commitment in the header. Therefore this is equivalent to a PFB transaction inclusion proof. This fraud proof would be optimistic as we would assume that the PFB commitment is correct. But realistically if the commitment over the PFB transaction is wrong then the PFB commitment is most likely wrong as well. Therefore the fraud poof would be a PFB Fraud Proof as described at the top.
+The fraud proof for this would be to prove that the commitment of the PFB transaction does not equal the predicted commitment in the header. Therefore this is equivalent to a PFB transaction inclusion proof. This fraud proof would be optimistic as we would assume that the PFB commitment is correct. But realistically if the commitment over the PFB transaction is wrong then the PFB commitment is most likely wrong as well. Therefore the fraud proof would be a PFB Fraud Proof as described at the top.
 If we do not have a PFB transaction that can be predicted, we also need to slash double signing of 2 valid PFB transactions in Celestia. This is required so we don't create a valid fraud proof over a valid commitment over the PFB transaction.
 
 The third optimization could be to SNARK the PFB Inclusion Proof to reduce the size even more.?
