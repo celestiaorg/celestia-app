@@ -22,7 +22,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 
-## help: Get more info on make commands.
+## help: Get more info on how to make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
 	@sed -n 's/^##//p' $< | sort | column -t -s ':' | sed -e 's/^/ /'
@@ -50,7 +50,7 @@ mod:
 	@(cd ./test/interchain && go mod tidy)
 .PHONY: mod
 
-## mod-verify: Verify dependencies have expected content.
+## mod-verify: Verify that dependencies have the expected content.
 mod-verify: mod
 	@echo "--> Verifying dependencies have expected content"
 	GO111MODULE=on go mod verify
@@ -68,7 +68,7 @@ proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
 .PHONY: proto-lint
 
-## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
+## proto-check-breaking: Check if there are any breaking changes to protobuf definitions.
 proto-check-breaking:
 	@echo "--> Checking if Protobuf definitions have any breaking changes"
 	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
