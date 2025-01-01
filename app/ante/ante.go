@@ -12,6 +12,27 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
 )
 
+// NewAnteHandler returns an AnteHandler that performs a series of checks and operations
+// before a transaction is executed. These checks include:
+// - Signature validation
+// - Checking sufficient funds to pay fees
+// - Blob size verification
+// - Message version checks
+// - Other Celestia-specific checks
+//
+// Parameters:
+// - accountKeeper: the account storage for balance and nonce verification
+// - bankKeeper: storage for token operations
+// - blobKeeper: storage for handling blob data
+// - feegrantKeeper: storage for managing fee grants
+// - signModeHandler: handler for signature modes
+// - sigGasConsumer: gas consumption calculator for signatures
+// - channelKeeper: storage for IBC channels
+// - paramKeeper: parameter storage
+// - msgVersioningGateKeeper: gatekeeper for message version validation
+//
+// Returns:
+// sdk.AnteHandler - a chain of decorators to process transactions before execution
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
 	bankKeeper authtypes.BankKeeper,
