@@ -1,107 +1,133 @@
 package ante
 
 import (
-	blobante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
+	errors "cosmossdk.io/errors"
+	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
+	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
-	ibcante "github.com/cosmos/ibc-go/v6/modules/core/ante"
-	ibckeeper "github.com/cosmos/ibc-go/v6/modules/core/keeper"
+	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
-// NewAnteHandler returns an AnteHandler that performs a series of checks and operations
-// before a transaction is executed. These checks include:
-// - Signature validation
-// - Checking sufficient funds to pay fees
-// - Blob size verification
-// - Message version checks
-// - Other Celestia-specific checks
+// priorityScalingFactor is used to scale the gas price into transaction priority.
+// The value 1_000_000 is chosen to ensure sufficient precision during conversion.
+const (
+	priorityScalingFactor = 1_000_000
+)
+
+// ValidateTxFeeWrapper creates a wrapper for transaction fee validation that conforms
+// to the ante.TxFeeChecker interface. This allows passing the additional parameter
+// paramKeeper into ante.NewDeductFeeDecorator.
 //
 // Parameters:
-// - accountKeeper: the account storage for balance and nonce verification
-// - bankKeeper: storage for token operations
-// - blobKeeper: storage for handling blob data
-// - feegrantKeeper: storage for managing fee grants
-// - signModeHandler: handler for signature modes
-// - sigGasConsumer: gas consumption calculator for signatures
-// - channelKeeper: storage for IBC channels
-// - paramKeeper: parameter storage
-// - msgVersioningGateKeeper: gatekeeper for message version validation
+// - paramKeeper: parameter storage for accessing the minimum gas price
 //
 // Returns:
-// sdk.AnteHandler - a chain of decorators to process transactions before execution
-func NewAnteHandler(
-	accountKeeper ante.AccountKeeper,
-	bankKeeper authtypes.BankKeeper,
-	blobKeeper blob.Keeper,
-	feegrantKeeper ante.FeegrantKeeper,
-	signModeHandler signing.SignModeHandler,
-	sigGasConsumer ante.SignatureVerificationGasConsumer,
-	channelKeeper *ibckeeper.Keeper,
-	paramKeeper paramkeeper.Keeper,
-	msgVersioningGateKeeper *MsgVersioningGateKeeper,
-) sdk.AnteHandler {
-	return sdk.ChainAnteDecorators(
-		// Wraps the panic with the string format of the transaction
-		NewHandlePanicDecorator(),
-		// Prevents messages that don't belong to the correct app version
-		// from being executed
-		msgVersioningGateKeeper,
-		// Set up the context with a gas meter.
-		// Must be called before gas consumption occurs in any other decorator.
-		ante.NewSetUpContextDecorator(),
-		// Ensure the tx is not larger than the configured threshold.
-		NewMaxTxSizeDecorator(),
-		// Ensure the tx does not contain any extension options.
-		ante.NewExtensionOptionsDecorator(nil),
-		// Ensure the tx passes ValidateBasic.
-		ante.NewValidateBasicDecorator(),
-		// Ensure the tx has not reached a height timeout.
-		ante.NewTxTimeoutHeightDecorator(),
-		// Ensure the tx memo <= max memo characters.
-		ante.NewValidateMemoDecorator(accountKeeper),
-		// Ensure the tx's gas limit is > the gas consumed based on the tx size.
-		// Side effect: consumes gas from the gas meter.
-		NewConsumeGasForTxSizeDecorator(accountKeeper),
-		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
-		// Ensure the gas price >= network min gas price if app version >= 2.
-		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
-		// Set public keys in the context for fee-payer and all signers.
-		// Contract: must be called before all signature verification decorators.
-		ante.NewSetPubKeyDecorator(accountKeeper),
-		// Ensure that the tx's count of signatures is <= the tx signature limit.
-		ante.NewValidateSigCountDecorator(accountKeeper),
-		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
-		// Side effect: consumes gas from the gas meter.
-		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
-		// Ensure that the tx's signatures are valid. For each signature, ensure
-		// that the signature's sequence number (a.k.a nonce) matches the
-		// account sequence number of the signer.
-		// Note: does not consume gas from the gas meter.
-		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
-		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
-		// Contract: must be called after all decorators that consume gas.
-		// Note: does not consume gas from the gas meter.
-		blobante.NewMinGasPFBDecorator(blobKeeper),
-		// Ensure that the tx's total blob size is <= the max blob size.
-		// Only applies to app version == 1.
-		blobante.NewMaxTotalBlobSizeDecorator(blobKeeper),
-		// Ensure that the blob shares occupied by the tx <= the max shares
-		// available to blob data in a data square. Only applies to app version
-		// >= 2.
-		blobante.NewBlobShareDecorator(blobKeeper),
-		// Ensure that tx's with a MsgSubmitProposal have at least one proposal
-		// message.
-		NewGovProposalDecorator(),
-		// Side effect: increment the nonce for all tx signers.
-		ante.NewIncrementSequenceDecorator(accountKeeper),
-		// Ensure that the tx is not an IBC packet or update message that has already been processed.
-		ibcante.NewRedundantRelayDecorator(channelKeeper),
-	)
+// - a function conforming to the ante.TxFeeChecker interface
+func ValidateTxFeeWrapper(paramKeeper params.Keeper) ante.TxFeeChecker {
+	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+		return ValidateTxFee(ctx, tx, paramKeeper)
+	}
 }
 
-var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
+// ValidateTxFee implements default fee validation logic for transactions.
+// It ensures that the provided transaction fee meets a minimum threshold for the node
+// as well as a network minimum threshold and computes the transaction priority based on the gas price.
+func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
+	feeTx, ok := tx.(sdk.FeeTx)
+	if !ok {
+		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
+	}
+
+	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
+	gas := feeTx.GetGas()
+
+	// Ensure that the provided fee meets a minimum threshold for the node.
+	// This is only for local mempool purposes and thus
+	// is only run during check tx.
+	if ctx.IsCheckTx() {
+		minGasPrice := ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
+		if !minGasPrice.IsZero() {
+			err := verifyMinFee(fee, gas, minGasPrice, "insufficient minimum gas price for this node")
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
+
+	// Ensure that the provided fee meets a network minimum threshold.
+	// Network minimum fee only applies to app versions greater than one.
+	if ctx.BlockHeader().Version.App > v1.Version {
+		subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
+		if !exists {
+			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
+		}
+
+		if !subspace.Has(ctx, minfee.KeyNetworkMinGasPrice) {
+			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "NetworkMinGasPrice")
+		}
+
+		var networkMinGasPrice sdk.Dec
+		// Gets the network minimum gas price from the parameter store.
+		// Panics if not configured properly.
+		subspace.Get(ctx, minfee.KeyNetworkMinGasPrice, &networkMinGasPrice)
+
+		err := verifyMinFee(fee, gas, networkMinGasPrice, "insufficient gas price for the network")
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	priority := getTxPriority(feeTx.GetFee(), int64(gas))
+	return feeTx.GetFee(), priority, nil
+}
+
+// verifyMinFee checks that the provided transaction fee is sufficient
+// given the minimum gas price.
+//
+// Parameters:
+// - fee: the actual transaction fee
+// - gas: the gas limit for the transaction
+// - minGasPrice: the minimum gas price (can be set by the node or network)
+// - errMsg: the error message to use if the fee is insufficient
+//
+// Returns:
+// - error: an error if the fee is insufficient, or nil if the check passes
+func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
+	// Determine the required fee by multiplying the required minimum gas
+	// price by the gas limit, where fee = minGasPrice * gas.
+	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).Ceil()
+	if fee.LT(minFee.TruncateInt()) {
+		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
+	}
+	return nil
+}
+
+// getTxPriority calculates the transaction priority based on the gas price.
+// Priority is computed as (fee * priorityScalingFactor) / gas for each coin in the fee.
+// If the transaction contains multiple types of coins, the lowest priority is used.
+//
+// Parameters:
+// - fee: the transaction fee as a set of coins
+// - gas: the gas limit for the transaction
+//
+// Returns:
+// - int64: the transaction priority, where a higher value indicates a higher priority
+func getTxPriority(fee sdk.Coins, gas int64) int64 {
+	var priority int64
+	for _, c := range fee {
+		p := c.Amount.Mul(sdk.NewInt(priorityScalingFactor)).QuoRaw(gas)
+		if !p.IsInt64() {
+			continue
+		}
+		// take the lowest priority as the transaction priority
+		if priority == 0 || p.Int64() < priority {
+			priority = p.Int64()
+		}
+	}
+
+	return priority
+}
