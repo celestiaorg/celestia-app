@@ -76,10 +76,10 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	coordinator.Setup(path2)
 
 	celestiaApp := celestia.App.(*app.App)
-	originalCelestiaBalalance := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	originalCelestiaBalance := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 
 	// Take half of the original balance
-	transferAmount := originalCelestiaBalalance.Amount.QuoRaw(2)
+	transferAmount := originalCelestiaBalance.Amount.QuoRaw(2)
 	timeoutHeight := clienttypes.NewHeight(1, 300)
 	coinToSendToB := sdk.NewCoin(sdk.DefaultBondDenom, transferAmount)
 
@@ -120,7 +120,7 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	sourceBalanceAfter := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
-	require.Equal(t, originalCelestiaBalalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
+	require.Equal(t, originalCelestiaBalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
 
 	ibcDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
 	destinationBalanceAfter := chainB.App.(*SimApp).BankKeeper.GetBalance(chainB.GetContext(), chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
