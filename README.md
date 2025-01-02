@@ -42,7 +42,8 @@ node            |  |                               |  |
     ```shell
     make install
     ```
-## Docker Installation
+
+### Docker
 
 1. Prerequisites
 - Ensure you have Docker version **20.10** or higher installed. You can download it from [Docker's official website](https://www.docker.com/get-started).
