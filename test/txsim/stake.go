@@ -18,7 +18,7 @@ var _ Sequence = &StakeSequence{}
 // to a single validator at a time. TODO: Allow for multiple delegations
 type StakeSequence struct {
 	initialStake          int
-	redelegatePropability int
+	redelegateProbability int
 	delegatedTo           string
 	account               types.AccAddress
 }
@@ -26,7 +26,7 @@ type StakeSequence struct {
 func NewStakeSequence(initialStake int) *StakeSequence {
 	return &StakeSequence{
 		initialStake:          initialStake,
-		redelegatePropability: 10, // 1 in every 10
+		redelegateProbability: 10, // 1 in every 10
 	}
 }
 
@@ -68,7 +68,7 @@ func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand 
 	}
 
 	// occasionally redelegate the initial stake to another validator at random
-	if rand.Intn(s.redelegatePropability) == 0 {
+	if rand.Intn(s.redelegateProbability) == 0 {
 		val, err := getRandomValidator(ctx, querier, rand)
 		if err != nil {
 			return Operation{}, err

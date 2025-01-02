@@ -127,11 +127,11 @@ func MinorVersionCompatibility(logger *log.Logger) error {
 	}
 
 	logger.Println("checking that all nodes are at the same height")
-	const maxPermissableDiff = 2
+	const maxPermissibleDiff = 2
 	for i := 0; i < len(heights); i++ {
 		for j := i + 1; j < len(heights); j++ {
 			diff := heights[i] - heights[j]
-			if diff > maxPermissableDiff {
+			if diff > maxPermissibleDiff {
 				logger.Fatalf("node %d is behind node %d by %d blocks", j, i, diff)
 			}
 		}
