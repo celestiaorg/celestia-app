@@ -53,7 +53,7 @@ node            |  |                               |  |
     docker pull ghcr.io/celestiaorg/celestia-app:latest
     ```
 
-3. Running the Application
+3. Run the application
 To start the application using Docker Compose, navigate to the directory containing your `docker-compose.yml` file and run:
 
     ```bash 
