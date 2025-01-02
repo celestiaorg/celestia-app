@@ -172,7 +172,7 @@ func TestTxSimUpgrade(t *testing.T) {
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	// updrade to v3 at height 20
+	// upgrade to v3 at height 20
 	sequences := []txsim.Sequence{
 		txsim.NewUpgradeSequence(v3.Version, 20),
 	}

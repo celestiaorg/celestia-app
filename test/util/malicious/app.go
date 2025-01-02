@@ -60,8 +60,8 @@ func New(
 	badApp := &App{App: goodApp}
 
 	// set the malicious prepare proposal handler if it is set in the app options
-	if malHanderName := appOpts.Get(BehaviorConfigKey); malHanderName != nil {
-		badApp.SetMaliciousBehavior(malHanderName.(BehaviorConfig))
+	if malHandlerName := appOpts.Get(BehaviorConfigKey); malHandlerName != nil {
+		badApp.SetMaliciousBehavior(malHandlerName.(BehaviorConfig))
 	}
 
 	return badApp
