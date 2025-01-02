@@ -47,7 +47,6 @@ node            |  |                               |  |
 
 1. Prerequisites
 - Install [Docker](https://www.docker.com/get-started) 20.10 or higher
-- Allocate at least **2 CPU cores** and **4 GB of RAM** to Docker for optimal performance. This can be configured in Docker Desktop settings.
 
 2. Fetching the Latest Tagged Release
 To pull the latest tagged release of the `celestia-app` Docker image, run the following command:
