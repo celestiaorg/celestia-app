@@ -54,11 +54,25 @@ node            |  |                               |  |
     ```
 
 3. Run the application
-To start the application using Docker Compose, navigate to the directory containing your `docker-compose.yml` file and run:
-
+To start the application using Docker Compose:
+1. Create a `docker-compose.yml` file with the following content:
+   ```yaml
+   version: '3'
+   services:
+     celestia-app:
+       image: ghcr.io/celestiaorg/celestia-app:latest
+       volumes:
+         - ./data:/root/.celestia-app
+       ports:
+         - "26657:26657"  # RPC
+         - "26656:26656"  # P2P
+       command: ["celestia-appd", "start"]
+    ```
+2. Start the application:     
     ```bash 
     docker-compose up
     ```
+
 ### Prebuilt binary
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
