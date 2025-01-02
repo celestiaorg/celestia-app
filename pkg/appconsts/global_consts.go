@@ -11,7 +11,7 @@ import (
 //
 // They cannot change throughout the lifetime of a network.
 const (
-	// DefaultShareVersion is the defacto share version. Use this if you are
+	// DefaultShareVersion is the de facto share version. Use this if you are
 	// unsure of which version to use.
 	DefaultShareVersion = share.ShareVersionZero
 
