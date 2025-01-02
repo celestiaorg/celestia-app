@@ -48,7 +48,7 @@ node            |  |                               |  |
 1. Prerequisites
 - Install [Docker](https://www.docker.com/get-started) 20.10 or higher
 
-2. Fetching the Latest Tagged Release
+2. Fetch the latest tagged release
 To pull the latest tagged release of the `celestia-app` Docker image, run the following command:
     ```bash
     docker pull ghcr.io/celestiaorg/celestia-app:latest
