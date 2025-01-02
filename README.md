@@ -46,7 +46,7 @@ node            |  |                               |  |
 ### Docker
 
 1. Prerequisites
-- Ensure you have Docker version **20.10** or higher installed. You can download it from [Docker's official website](https://www.docker.com/get-started).
+- Install [Docker](https://www.docker.com/get-started) 20.10 or higher
 - Allocate at least **2 CPU cores** and **4 GB of RAM** to Docker for optimal performance. This can be configured in Docker Desktop settings.
 
 2. Fetching the Latest Tagged Release
