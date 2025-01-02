@@ -129,7 +129,7 @@ func WithDefaultAccount(name string) Option {
 
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
-// try use the default account.
+// try to use the default account.
 // TxClient is thread-safe.
 type TxClient struct {
 	mtx      sync.Mutex

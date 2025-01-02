@@ -37,7 +37,7 @@ Finally, if there are no validator set updates for the unbonding window, the bri
 
 ### Message types
 
-We added the following messages types:
+We added the following message types:
 
 #### Bridge Validator
 

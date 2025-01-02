@@ -21,7 +21,7 @@ While this functions as a message inclusion check, the light client has to assum
 
 The main issue with that requirement is that users must know the relevant subtree roots before they sign, which is problematic considering that if the block is not organized perfectly, the subtree roots will include data unknown to the user at the time of signing.
 
-To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub-tree roots of the data hash, and those sub-tree roots are to be generated only from the message itself (so that the user can sign something “non-interactively”).
+To fix this, the spec outlines the "non-interactive default rules". These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub-tree roots of the data hash, and those sub-tree roots are to be generated only from the message itself (so that the user can sign something "non-interactively").
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 

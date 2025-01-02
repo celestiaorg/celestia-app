@@ -151,7 +151,7 @@ If you import celestia-app as a Go module, you may need to add some Go module `r
 If you are running celestia-app in tests, you may want to override the `timeout_commit` to produce blocks faster. By default, a celestia-app chain with app version >= 3 will produce blocks every ~6 seconds. To produce blocks faster, you can override the `timeout_commit` with the `--timeout-commit` flag.
 
 ```shell
-# Start celestia-appd with a one second timeout commit.
+# Start celestia-appd with a one-second timeout commit.
 celestia-appd start --timeout-commit 1s
 ```
 
