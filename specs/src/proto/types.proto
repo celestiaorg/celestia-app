@@ -4,7 +4,7 @@ import "google/protobuf/timestamp.proto";
 
 // Define data structures.
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#header
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#header
 message Header {
   ConsensusVersion version = 1;
   string chain_id = 2;
@@ -24,13 +24,13 @@ message Header {
   bytes proposer_address = 11;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#consensusversion
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#consensusversion
 message ConsensusVersion {
   uint64 block = 1;
   uint64 app = 2;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#availabledataheader
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#availabledataheader
 message AvailableDataHeader {
   // array of 32-byte hashes
   repeated bytes row_roots = 1;
@@ -172,7 +172,7 @@ message MessagePaidHead {
 
 //Protobuf definitions for the contents of fraud proofs
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#namespacemerkletreeinclusionproof
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#namespacemerkletreeinclusionproof
 message NamespaceMerkleTreeInclusionProof {
   // sibling hash values, ordered starting from the leaf's neighbor
   // array of 32-byte hashes
@@ -185,7 +185,7 @@ message NamespaceMerkleTreeInclusionProof {
   repeated bytes siblingMaxes = 3;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#sparsemerkletreeinclusionproof
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#sparsemerkletreeinclusionproof
 message SparseMerkleTreeInclusionProof {
   // depth of the leaf node, must be <= 256
   // The root node is at depth 0. 
@@ -198,7 +198,7 @@ message SparseMerkleTreeInclusionProof {
   bytes includedSiblings = 3;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#share
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#share
 message Share {
   // namespace ID of the share
   // NAMESPACE_ID_BYTES-bytes
@@ -208,7 +208,7 @@ message Share {
   bytes rawData = 2;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#stateelement
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#stateelement
 message StateElement {
   // key of the state element
   // 32-bytes
