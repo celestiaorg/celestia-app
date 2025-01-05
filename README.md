@@ -45,31 +45,16 @@ node            |  |                               |  |
 
 ### Docker
 
-1. Prerequisites
-- Install [Docker](https://www.docker.com/get-started) 20.10 or higher
+1. Install [Docker](https://www.docker.com/get-started) 20.10 or higher
 
-2. Fetch the latest tagged release
+2. Pull the latest celestia-app Docker image
     ```bash
     docker pull ghcr.io/celestiaorg/celestia-app:latest
     ```
 
 3. Run the application
-To start the application using Docker Compose:
-1. Create a `docker-compose.yml` file with the following content:
-   ```yaml
-   version: '3'
-   services:
-     celestia-app:
-       image: ghcr.io/celestiaorg/celestia-app:latest
-       volumes:
-         - ./data:/root/.celestia-app
-       ports:
-         - "26657:26657"  # RPC
-         - "26656:26656"  # P2P
-       command: ["celestia-appd", "start"]
-    ```
-2. Start the application:     
-    ```bash 
+- Navigate to `docker` directory, run:
+    ```bash
     docker-compose up
     ```
 
