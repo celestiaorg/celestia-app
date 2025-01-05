@@ -71,7 +71,7 @@ func NewDefaultValidator(name string) Validator {
 	}
 }
 
-// ValidateBasic performs stateless validation on the validitor
+// ValidateBasic performs stateless validation on the validator
 func (v *Validator) ValidateBasic() error {
 	if err := v.KeyringAccount.ValidateBasic(); err != nil {
 		return err
