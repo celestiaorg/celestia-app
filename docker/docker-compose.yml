@@ -1,0 +1,10 @@
+version: '3'
+   services:
+     celestia-app:
+       image: ghcr.io/celestiaorg/celestia-app:latest
+       volumes:
+         - ./data:/root/.celestia-app
+       ports:
+         - "26657:26657"  # RPC
+         - "26656:26656"  # P2P
+       command: ["celestia-appd", "start"]
