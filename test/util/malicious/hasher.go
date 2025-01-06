@@ -29,7 +29,7 @@ var (
 	ErrInvalidNodeNamespaceOrder = errors.New("invalid NMT node namespace order")
 )
 
-// Hasher describes the interface nmts use to hash leafs and nodes.
+// Hasher describes the interface nmts use to hash leaves and nodes.
 //
 // Note: it is not advised to create alternative hashers if following the
 // specification is desired. The main reason this exists is to not follow the
