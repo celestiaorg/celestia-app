@@ -78,7 +78,7 @@ Note: the blue nodes are additional nodes that are needed for the Merkle proofs.
 
 ![PFB Merkle Proof](./assets/adr011/pfd-merkle-proof.png)
 
-Let's assume a square size of k. The amount of blue nodes from the shares to ROW1 is O(log(k)). The amount of blue nodes from ROW1 to the `DataRoot` is also O(log(k). You will have to include the shares themselves in the proof.
+Let's assume a square size of k. The amount of blue nodes from the shares to ROW1 is O(log(k)). The amount of blue nodes from ROW1 to the `DataRoot` is also O(log(k)). You will have to include the shares themselves in the proof.
 Share size := 512 bytes
 NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
 MT-Node size := 32 bytes
