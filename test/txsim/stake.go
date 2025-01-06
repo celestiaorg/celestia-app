@@ -80,7 +80,7 @@ func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand 
 						DelegatorAddress:    s.account.String(),
 						ValidatorSrcAddress: s.delegatedTo,
 						ValidatorDstAddress: val.OperatorAddress,
-						// NOTE: only the initial stake is redelgated (not the entire balance)
+						// NOTE: only the initial stake is redelegated (not the entire balance)
 						Amount: types.NewInt64Coin(appconsts.BondDenom, int64(s.initialStake)),
 					},
 				},
