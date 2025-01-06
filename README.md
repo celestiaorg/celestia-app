@@ -46,15 +46,16 @@ node            |  |                               |  |
 ### Docker
 
 1. Install [Docker](https://www.docker.com/get-started) 20.10 or higher
+1. Pull the latest celestia-app Docker image
 
-2. Pull the latest celestia-app Docker image
     ```bash
     docker pull ghcr.io/celestiaorg/celestia-app:latest
     ```
 
-3. Run the application
-- Navigate to `docker` directory, run:
+1. Run the application
+
     ```bash
+    cd docker
     docker-compose up
     ```
 
