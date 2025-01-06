@@ -14,7 +14,7 @@ import (
 
 // BlindTree is a wrapper around the erasured NMT that skips verification of
 // namespace ordering when hashing and adding leaves to the tree. It does this
-// by using a custom malicious hahser and wraps using the ForceAddLeaf method
+// by using a custom malicious hasher and wraps using the ForceAddLeaf method
 // instead of the normal Push.
 type BlindTree struct {
 	*nmt.NamespacedMerkleTree

@@ -83,7 +83,7 @@ func (m *BridgeValidator) GetEvmAddress() string {
 	return ""
 }
 
-// Valset is the EVM Bridge Multsig Set, each Blobstream validator also
+// Valset is the EVM Bridge Multisig Set, each Blobstream validator also
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 type Valset struct {
