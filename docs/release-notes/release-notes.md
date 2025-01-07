@@ -15,7 +15,7 @@ if using linux in docker, kubernetes, a vm or baremetal, this can be done by cal
 make enable-bbr
 ```
 
-command on the host machine.
+Command on the host machine.
 
 #### Configure Node for V3
 
@@ -48,7 +48,7 @@ The following command can be used, if you are a validator in the active set, to 
 celestia-appd tx signal signal 3 <plus transaction flags>
 ```
 
-You can track the tally of signalling by validators using the following query
+You can track the tally of signaling by validators using the following query
 
 ```bash
 celestia-appd query signal tally 3
