@@ -39,9 +39,9 @@ All upgrades (barring social hard forks) are to be rolling upgrades. That is nod
 
 ## Detailed Design
 
-The design depends on a versioned state machine whereby the app version displayed in each block and agreed upon by all validators is the version that the transactions are both validated and executed against. If the celestia state machine is given a block at version 1 it will execute it with the v1 state machine if consensus provides a v2 block, all the transactions will be executed against the v2 state machine.
+The design depends on a versioned state machine whereby the app version displayed in each block and agreed upon by all validators is the version that the transactions are both validated and executed against. If the celestia state machine is given a block at version 1, it will execute it with the v1 state machine if consensus provides a v2 block, all the transactions will be executed against the v2 state machine.
 
-Given this, a node can at any time spin up a v2 binary which will immediately be able to continue validating and executing v1 blocks as if it were a v1 machine.
+Given this, a node can at any time spin up a v2 binary, which will immediately be able to continue validating and executing v1 blocks as if it were a v1 machine.
 
 ### Configured Upgrade Height
 
