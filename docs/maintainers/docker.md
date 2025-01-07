@@ -10,7 +10,7 @@ Github Actions should automatically build and publish a Docker image for each re
 
 ## Steps
 
-1. Verify that a Docker image with the correct tag doesn't already exist for the release you're trying to create publish on [GHCR](https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app/versions)
+1. Verify that a Docker image with the correct tag doesn't already exist for the release you're trying to publish on [GHCR](https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app/versions)
 
 1. In a new terminal
 
