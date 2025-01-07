@@ -130,4 +130,4 @@ Consider an incremental approach for this and related changes:
 
 ## References
 
-- [ADR 080: square size independent message commitments](./adr-008-square-size-independent-message-commitments.md)
+- [ADR 008: square size independent message commitments](./adr-008-square-size-independent-message-commitments.md)
