@@ -9,7 +9,7 @@ This guide provides notes for major version releases. These notes may be helpful
 #### Enabling BBR and MCTCP
 
 Consensus node operators must enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3774](https://github.com/celestiaorg/celestia-app/pull/3774).
-If using Linux in Docker, Kubernetes, a VM or baremetal, this can be done by calling
+If using Linux in Docker, Kubernetes, a VM or bare-metal, this can be done by calling
 
 ```sh
 make enable-bbr
