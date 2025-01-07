@@ -1,10 +1,29 @@
-version: '3'
-   services:
-     celestia-app:
-       image: ghcr.io/celestiaorg/celestia-app:latest
-       volumes:
-         - ./data:/root/.celestia-app
-       ports:
-         - "26657:26657"  # RPC
-         - "26656:26656"  # P2P
-       command: ["celestia-appd", "start"]
+
+services:
+  celestia-app:
+    image: ghcr.io/celestiaorg/celestia-app:latest
+    container_name: celestia-app
+    volumes:
+      - celestia-data:/root/.celestia-app
+    ports:
+      - "26657:26657"  # RPC
+      - "26656:26656"  # P2P
+      - "1317:1317"    # REST API
+      - "9090:9090"    # gRPC
+    environment:
+      - MONIKER=my-celestia-node
+      - CHAIN_ID=celestia
+    command: >
+      sh -c "
+        if [ ! -f /root/.celestia-app/config/genesis.json ]; then
+          celestia-appd init $MONIKER --chain-id $CHAIN_ID &&
+          celestia-appd keys add validator --keyring-backend test &&
+          celestia-appd add-genesis-account $$(celestia-appd keys show validator -a --keyring-backend test) 10000000000utia &&
+          celestia-appd gentx validator 1000000000utia --chain-id $CHAIN_ID --keyring-backend test &&
+          celestia-appd collect-gentxs
+        fi &&
+        celestia-appd start --rpc.laddr tcp://0.0.0.0:26657"
+    restart: unless-stopped
+
+volumes:
+  celestia-data:
