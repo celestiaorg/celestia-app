@@ -1,4 +1,3 @@
-
 services:
   celestia-app:
     image: ghcr.io/celestiaorg/celestia-app:latest
