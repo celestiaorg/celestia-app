@@ -36,7 +36,7 @@ This way, we will always have a fixed-sized state, issue defining this: [Prune t
 
 ### Separate P2P network
 
-This would mean gossiping about the confirmations and attestations in a separate P2P network.
+This would mean gossiping about the confirms and attestations in a separate P2P network.
 The pros of this approach are that it will be cheaper and wouldn't involve any state changes.
 However, slashing will be very difficult, especially for liveness, i.e. an orchestrator not signing an attestation and then slashing them after a certain period.
 
