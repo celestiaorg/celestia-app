@@ -22,7 +22,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-// OutOfOrderNamesapceConfig returns a testnode config that will start producing
+// OutOfOrderNamespaceConfig returns a testnode config that will start producing
 // blocks with out of order namespaces at the provided height.
 //
 // Note: per the OutOfOrder go docs, the first two blobs with different
