@@ -64,7 +64,7 @@ The commitment is still the same but we need to use the bottom subtree roots for
 
 Given a square size k, the biggest message that you can construct that is affected by the proposed non-interactive default rules has a size (k/2)². If you construct a message that is bigger than (k/2)² the `minSquareSize` will be k. If the minSquareSize is k in a square of size k then the current non-interactive default rules are equivalent to the proposed non-interactive default rules, because the message starts always at the beginning of a row. In other words, if you have k² shares in a message the worst constructible message is a quarter of that k²/4, because that is the size of the next smaller square.
 
-If you choose k²/4 as the worst constructible message it would still have O(sqrt(n)) subtree roots. This is because the size of the message is k²/4 with a width of k and a length of k/4. This means the number of rows the message fills approaches O(sqrt(n)). Therefore we need to find a message where the number of rows is log(n) of the size of the message.
+If you choose k²/4 as the worst constructible message it would still have O(sqrt(n)) subtree roots. This is because the size of the message is k²/4 with a width of k and a length of k/4. This means the number of rows the message fills approaches O(sqrt(n)). Therefore, we need to find a message where the number of rows is log(n) of the size of the message.
 
 With k being the square size and n being the number of shares and r being the number of rows, we want to find a message so that:
 k * r = n & log(n) = r => k = n/log(n)
