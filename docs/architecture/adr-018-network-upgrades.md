@@ -39,9 +39,9 @@ All upgrades (barring social hard forks) are to be rolling upgrades. That is nod
 
 ## Detailed Design
 
-The design depends on a versioned state machine whereby the app version displayed in each block and agreed upon by all validators is the version that the transactions are both validated and executed against. If the celestia state machine is given a block at version 1 it will execute it with the v1 state machine if consensus provides a v2 block, all the transactions will be executed against the v2 state machine.
+The design depends on a versioned state machine whereby the app version displayed in each block and agreed upon by all validators is the version that the transactions are both validated and executed against. If the celestia state machine is given a block at version 1, it will execute it with the v1 state machine if consensus provides a v2 block, all the transactions will be executed against the v2 state machine.
 
-Given this, a node can at any time spin up a v2 binary which will immediately be able to continue validating and executing v1 blocks as if it were a v1 machine.
+Given this, a node can at any time spin up a v2 binary, which will immediately be able to continue validating and executing v1 blocks as if it were a v1 machine.
 
 ### Configured Upgrade Height
 
@@ -56,7 +56,7 @@ The height of the v1 -> v2 upgrade will initially be supplied via CLI flag (i.e.
 
 ### Future Work: Signaled Upgrade Height
 
-Preconfigured upgrade paths are vulnerable to halts. There is no indication that a quorum has in fact upgraded and that when the proposer proposes a block with the message to change version, that consensus will be reached. To mitigate this risk, the upgrade height can instead be signaled by validators. A version of `VoteExtension`s may be the most effective at ensuring this. Validators upon start up will automatically signal a version upgrade when they go to vote (i.e. `ExtendedVote`) so long as the latest supported version differs from the current network version. In `VerifyVoteExtension`, the version will be parsed and persisted (although not part of state). There is no verification. Upon a certain threshold which must be at least 2/3+ but could possibly be greater, the next proposer, who can support this version will propose a block with the `MsgVersionChange` that the quorum have agreed to. The rest works as before.
+Preconfigured upgrade paths are vulnerable to halts. There is no indication that a quorum has in fact upgraded and that when the proposer proposes a block with the message to change version, that consensus will be reached. To mitigate this risk, the upgrade height can instead be signaled by validators. A version of `VoteExtension`s may be the most effective at ensuring this. Validators upon start-up will automatically signal a version upgrade when they go to vote (i.e. `ExtendedVote`), so long as the latest supported version differs from the current network version. In `VerifyVoteExtension`, the version will be parsed and persisted (although not part of state). There is no verification. Upon a certain threshold which must be at least 2/3+ but could possibly be greater, the next proposer, who can support this version will propose a block with the `MsgVersionChange` that the quorum have agreed to. The rest works as before.
 
 For better performance, `VoteExtensions` should be modified such that empty messages don't require a signature (which is currently the case for v0.38 of [CometBFT](https://github.com/cometbft/cometbft/blob/91ffbf9e45afb49d34a4af91b031e14653ee5bd8/privval/file.go#L324))
 

@@ -31,18 +31,18 @@ If the config file is not in the default spot, it can be provided using:
 make configure-v3 CONFIG_FILE=path/to/other/config.toml
 ```
 
-**Alternatively**, the configurations can be changed manually. This involves updating the mempool TTLs and the send and the receive rates.
+**Alternatively**, the configurations can be changed manually. This involves updating the mempool TTLs and the send and receive rates.
 
 - Configuring Bandwidth Settings
-  - update `recv_rate` and `send_rate` in your TOML config file to 10MiB (10485760).
+  - Update `recv_rate` and `send_rate` in your TOML config file to 10MiB (10485760)
 - Extend TTLs
-  - update `ttl-num-blocks` in your TOML config file to 12.
+  - Update `ttl-num-blocks` in your TOML config file to 12
 
 #### Signaling Upgrades
 
 - Upgrades now use the `x/signal` module to coordinate the network to an upgrade height.
 
-The following command can be used, if you are a validator in the active set, to signal to upgrade to v3
+The following command can be used, if you are a validator in the active set, to signal to upgrade to v3:
 
 ```bash
 celestia-appd tx signal signal 3 <plus transaction flags>
