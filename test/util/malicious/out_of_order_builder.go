@@ -15,7 +15,7 @@ import (
 
 type ExportFn func(builder *square.Builder) (square.Square, error)
 
-// Build takes an arbitrary long list of (prioritized) transactions and builds a square that is never
+// Build takes an arbitrarily long list of (prioritized) transactions and builds a square that is never
 // greater than maxSquareSize. It also returns the ordered list of transactions that are present
 // in the square and which have all PFBs trailing regular transactions. Note, this function does
 // not check the underlying validity of the transactions.
