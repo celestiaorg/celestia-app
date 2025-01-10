@@ -294,5 +294,8 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
+
+	const mebibyte = 1048576
+	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
 	return cfg
 }
