@@ -10,19 +10,20 @@ services:
       - "1317:1317"    # REST API
       - "9090:9090"    # gRPC
     environment:
-      - MONIKER=my-celestia-node
-      - CHAIN_ID=test  # Changed from 'celestia' to 'test'
+      MONIKER: "my-test-node"
+      CHAIN_ID: "test"
+    
+    entrypoint: /bin/sh
     command: >
-      sh -c "
-        if [ ! -f /root/.celestia-app/config/genesis.json ]; then
-          celestia-appd init $MONIKER --chain-id $CHAIN_ID &&
-          celestia-appd keys add validator --keyring-backend test &&
-          celestia-appd add-genesis-account $$(celestia-appd keys show validator -a --keyring-backend test) 10000000000utia &&
-          celestia-appd gentx validator 1000000000utia --chain-id $CHAIN_ID --keyring-backend test &&
-          celestia-appd collect-gentxs
-        fi &&
-        celestia-appd start --rpc.laddr tcp://0.0.0.0:26657"
-    restart: unless-stopped
-
+      -c "
+      if [ ! -f /root/.celestia-app/config/genesis.json ]; then
+        celestia-appd init $$MONIKER --chain-id $$CHAIN_ID &&
+        celestia-appd keys add validator --keyring-backend test &&
+        celestia-appd add-genesis-account $$(celestia-appd keys show validator -a --keyring-backend test) 10000000000utia &&
+        celestia-appd gentx validator 1000000000utia --chain-id $$CHAIN_ID --keyring-backend test &&
+        celestia-appd collect-gentxs
+      fi &&
+      celestia-appd start --rpc.laddr tcp://0.0.0.0:26657"
+    
 volumes:
   celestia-data:
