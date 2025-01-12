@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
+	"slices"
 	"strings"
 	"time"
 
@@ -132,7 +133,7 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 				serverCtx.Logger.Info(fmt.Sprintf("No default value exists for the v2 upgrade height when the chainID is %v", clientCtx.ChainID))
 			}
 
-			if contains(appconsts.PublicNetworks, clientCtx.ChainID) && serverCtx.Viper.GetDuration(TimeoutCommitFlag) != 0 {
+			if slices.Contains(appconsts.PublicNetworks, clientCtx.ChainID) && serverCtx.Viper.GetDuration(TimeoutCommitFlag) != 0 {
 				return fmt.Errorf("the --timeout-commit flag was used on %v but it is unsupported on public networks: %v. The --timeout-commit flag should only be used on private testnets", clientCtx.ChainID, strings.Join(appconsts.PublicNetworks, ", "))
 			}
 
