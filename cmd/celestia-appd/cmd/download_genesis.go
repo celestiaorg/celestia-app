@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/server"
@@ -90,12 +91,7 @@ func chainIDs() string {
 
 // contains checks if a string is present in a slice.
 func contains(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 // downloadFile will download a URL to a local file.
