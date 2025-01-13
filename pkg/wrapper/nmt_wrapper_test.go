@@ -88,7 +88,7 @@ func TestErasuredNamespacedMerkleTreeEmptyRoot(t *testing.T) {
 	assert.True(t, bytes.Equal(r1, r2))
 }
 
-func TestErasureNamespacedMerkleTreePushErrors(t *testing.T) {
+func TestErasuredNamespacedMerkleTreePushErrors(t *testing.T) {
 	squareSize := 16
 
 	dataOverSquareSize := generateErasuredData(t, squareSize+1, appconsts.DefaultCodec())
@@ -150,9 +150,9 @@ func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]b
 
 // TestErasuredNamespacedMerkleTree_ProveRange checks that the proof returned by the ProveRange for all the shares within the erasured data is non-empty.
 func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
-	for sqaureSize := 1; sqaureSize <= 16; sqaureSize++ {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(sqaureSize), 0, nmt.IgnoreMaxNamespace(true))
-		data := generateErasuredData(t, sqaureSize, appconsts.DefaultCodec())
+	for squareSize := 1; squareSize <= 16; squareSize++ {
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), 0, nmt.IgnoreMaxNamespace(true))
+		data := generateErasuredData(t, squareSize, appconsts.DefaultCodec())
 		for _, d := range data {
 			err := tree.Push(d)
 			assert.NoError(t, err)
@@ -168,7 +168,7 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 			assert.False(t, proof.IsEmptyProof())
 
 			var namespaceID nmtnamespace.ID
-			if i < sqaureSize {
+			if i < squareSize {
 				namespaceID = data[i][:share.NamespaceSize]
 			} else {
 				namespaceID = share.ParitySharesNamespace.Bytes()
