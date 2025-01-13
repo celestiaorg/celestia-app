@@ -91,8 +91,8 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	})
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
-		assert.Equal(t, int64(10*mebibyte), *&got.P2P.SendRate)
-		assert.Equal(t, int64(10*mebibyte), *&got.P2P.RecvRate)
+		assert.Equal(t, int64(10*mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(10*mebibyte), got.P2P.RecvRate)
 	})
 }
 
