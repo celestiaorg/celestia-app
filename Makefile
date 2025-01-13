@@ -334,6 +334,7 @@ mptcp-disable: disable-mptcp
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
 SEND_RECV_RATE ?= 10485760  # 10 MiB
 
+## configure-v3: Modifies config file in-place to conform to v3.x recommendations.
 configure-v3:
 	@echo "Using config file at: $(CONFIG_FILE)"
 	@if [ "$$(uname)" = "Darwin" ]; then \
