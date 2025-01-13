@@ -462,7 +462,10 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 		case core.TxStatusEvicted:
 			return nil, client.handleEvictions(txHash)
 		default:
-			client.deleteFromTxTracker(txHash)
+			err := client.handleUnknownStatus(txHash)
+			if err != nil {
+				return nil, fmt.Errorf("handling unknown status: %w", err)
+			}
 			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
@@ -672,4 +675,24 @@ func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (fl
 		}
 	}
 	return networkMinPrice, nil
+}
+
+// handleUnknownStatus handles transactions that return an unknown status.
+// It reverts the sequence number and removes the transaction from tracking.
+func (client *TxClient) handleUnknownStatus(txHash string) error {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+	
+	txInfo, exists := client.txTracker[txHash]
+	if !exists {
+		return fmt.Errorf("tx: %s not found in tx client txTracker", txHash)
+	}
+	
+	// Revert the sequence to allow resubmission
+	if err := client.signer.SetSequence(txInfo.signer, txInfo.sequence); err != nil {
+		return fmt.Errorf("setting sequence: %w", err)
+	}
+	
+	delete(client.txTracker, txHash)
+	return nil
 }
