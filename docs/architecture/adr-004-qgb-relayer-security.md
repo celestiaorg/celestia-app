@@ -18,7 +18,7 @@ In fact, the QGB smart contract is designed to update the data commitments as fo
 - Check if the data commitment is signed using the current valset _(this is the problematic check)_
 - Then, other checks + commit
 
-So, if a relayer is up to date, it will submit data commitment and will pass the above checks.
+So, if a relayer is up-to-date, it will submit data commitment and will pass the above checks.
 
 Now, if the relayer is missing some data commitments or valset updates, then it will start catching up the following way:
 
