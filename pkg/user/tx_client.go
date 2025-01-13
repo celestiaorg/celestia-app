@@ -463,6 +463,9 @@ func (client *TxClient) ConfirmTx(ctx context.Context, txHash string) (*TxRespon
 			return nil, client.handleEvictions(txHash)
 		default:
 			client.deleteFromTxTracker(txHash)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			return nil, fmt.Errorf("transaction with hash %s not found; it was likely rejected", txHash)
 		}
 	}
