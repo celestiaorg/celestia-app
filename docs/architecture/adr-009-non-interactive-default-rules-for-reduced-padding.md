@@ -179,7 +179,7 @@ Light Nodes have additional access to row and column roots from the Data Availab
 
 ### Total Proof Size for Partial Nodes
 
-Partial nodes in this context are light clients that may download all of the data in the reserved namespace. They check that the data behind the PFB was included in the `DataRoot`, via blob inclusion proofs.
+Partial nodes in this context are light clients that may download all the data in the reserved namespace. They check that the data behind the PFB was included in the `DataRoot`, via blob inclusion proofs.
 
 For this analysis, we take the result from the light nodes and scale them up to fill the whole square. We ignore for now the reserved namespace and what space it might occupy.
 For the proposed non-interactive default rules we are also creating 1 more message that could practically fit into a square. This is because the current non-interactive default rules fit one more message if we construct it this way and don't adjust the first and last messages.
