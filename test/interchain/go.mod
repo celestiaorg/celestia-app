@@ -227,5 +227,9 @@ replace (
 	github.com/docker/docker => github.com/docker/docker v24.0.1+incompatible
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+<<<<<<< HEAD
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.40.0-tm-v0.34.29
+=======
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.44.2-tm-v0.34.35
+>>>>>>> 885c317 (chore(deps): upgrade to celestia-core v1.44.2 (#4197))
 )
