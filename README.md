@@ -43,6 +43,22 @@ node            |  |                               |  |
     make install
     ```
 
+### Docker
+
+1. Install [Docker](https://www.docker.com/get-started) 20.10 or higher
+1. Pull the latest celestia-app Docker image
+
+    ```bash
+    docker pull ghcr.io/celestiaorg/celestia-app:latest
+    ```
+
+1. Run the application
+
+    ```bash
+    cd docker
+    docker-compose up
+    ```
+
 ### Prebuilt binary
 
 If you'd rather not install from source, you can download a prebuilt binary from the [releases](https://github.com/celestiaorg/celestia-app/releases) page.
