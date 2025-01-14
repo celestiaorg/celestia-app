@@ -90,7 +90,7 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	})
 }
 
-// stakingModule wraps the x/staking module in order to overwrite specific
+// slashingModule wraps the x/slashing module in order to overwrite specific
 // ModuleManager APIs.
 type slashingModule struct {
 	slashing.AppModuleBasic
