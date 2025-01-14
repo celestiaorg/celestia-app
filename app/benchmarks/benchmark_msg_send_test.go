@@ -307,9 +307,6 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 	return testApp, rawTxs
 }
 
-// mebibyte the number of bytes in a mebibyte
-const mebibyte = 1048576
-
 // calculateBlockSizeInMb returns the block size in mb given a set
 // of raw transactions.
 func calculateBlockSizeInMb(txs [][]byte) float64 {
@@ -317,7 +314,7 @@ func calculateBlockSizeInMb(txs [][]byte) float64 {
 	for _, tx := range txs {
 		numberOfBytes += len(tx)
 	}
-	mb := float64(numberOfBytes) / mebibyte
+	mb := float64(numberOfBytes) / app.Mebibyte
 	return mb
 }
 

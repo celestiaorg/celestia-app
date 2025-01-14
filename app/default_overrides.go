@@ -36,6 +36,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const Mebibyte = 1048576
+
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
 // implementation to provide custom default genesis state.
 type bankModule struct {
@@ -274,9 +276,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true
 
-	const mebibyte = 1048576
-	cfg.P2P.SendRate = 10 * mebibyte
-	cfg.P2P.RecvRate = 10 * mebibyte
+	cfg.P2P.SendRate = 10 * Mebibyte
+	cfg.P2P.RecvRate = 10 * Mebibyte
 
 	return cfg
 }
@@ -295,7 +296,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
 
-	const mebibyte = 1048576
-	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
+	cfg.GRPC.MaxRecvMsgSize = 20 * Mebibyte
 	return cfg
 }
