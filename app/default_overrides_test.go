@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -65,8 +66,7 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
 	assert.Equal(t, "0.002utia", cfg.MinGasPrices)
 
-	mebibyte := 1048576
-	assert.Equal(t, 20*mebibyte, cfg.GRPC.MaxRecvMsgSize)
+	assert.Equal(t, 20*app.Mebibyte, cfg.GRPC.MaxRecvMsgSize)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
@@ -93,9 +93,8 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, want, *got.Mempool)
 	})
 	t.Run("p2p overrides", func(t *testing.T) {
-		const mebibyte = 1048576
-		assert.Equal(t, int64(10*mebibyte), got.P2P.SendRate)
-		assert.Equal(t, int64(10*mebibyte), got.P2P.RecvRate)
+		assert.Equal(t, int64(10*app.Mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(10*app.Mebibyte), got.P2P.RecvRate)
 	})
 }
 

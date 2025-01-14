@@ -39,10 +39,10 @@ func (s *BigBlobSuite) SetupSuite() {
 	s.accounts = testfactory.GenerateAccounts(1)
 
 	tmConfig := testnode.DefaultTendermintConfig()
-	tmConfig.Mempool.MaxTxBytes = 10 * mebibyte
+	tmConfig.Mempool.MaxTxBytes = 10 * app.Mebibyte
 
 	cParams := testnode.DefaultConsensusParams()
-	cParams.Block.MaxBytes = 10 * mebibyte
+	cParams.Block.MaxBytes = 10 * app.Mebibyte
 
 	cfg := testnode.DefaultConfig().
 		WithFundedAccounts(s.accounts...).

@@ -22,7 +22,7 @@ import (
 
 const (
 	kibibyte                    = 1024      // bytes
-	mebibyte                    = 1_048_576 // bytes
+	Mebibyte                    = 1_048_576 // bytes
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
 )

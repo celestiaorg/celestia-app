@@ -46,7 +46,7 @@ func customTendermintConfig() *tmconfig.Config {
 	// Override the MaxBodyBytes to allow the testnode to accept very large
 	// transactions and respond to queries with large responses (200 MiB was
 	// chosen only as an arbitrary large number).
-	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
+	tmCfg.RPC.MaxBodyBytes = 200 * Mebibyte
 
 	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
 	return tmCfg

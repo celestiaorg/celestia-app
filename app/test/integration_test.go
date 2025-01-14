@@ -128,7 +128,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for i, tx := range txs {
 				// The default CometBFT mempool MaxTxBytes is 1 MiB so the generators in
 				// this test must create transactions that are smaller than that.
-				require.LessOrEqual(t, len(tx), 1*mebibyte)
+				require.LessOrEqual(t, len(tx), 1*app.Mebibyte)
 
 				res, err := s.cctx.Context.BroadcastTxSync(tx)
 				require.NoError(t, err)
