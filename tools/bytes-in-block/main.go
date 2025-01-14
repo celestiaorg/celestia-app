@@ -22,7 +22,6 @@ type Block struct {
 }
 
 func main() {
-	// We want to fetch blocks from height=4156770 up to height=4158208
 	start := 4170798
 	end := 4170898
 	limit := 100
@@ -59,7 +58,7 @@ func main() {
 			log.Fatalf("JSON unmarshal error (offset=%d): %v", offset, err)
 		}
 
-		// If we got zero blocks back, there's no more data to fetch—break out of the loop
+		// If we got zero blocks back, there's no more data to fetch.
 		if len(blocks) == 0 {
 			fmt.Printf("No more blocks returned at offset %d. Stopping.\n", offset)
 			break
@@ -95,14 +94,10 @@ func main() {
 
 	// Convert bytes to MiB
 	avgBytesMiB := avgBytes / (1024.0 * 1024.0)
-
-	// Convert ms to seconds
+	// Convert milliseconds to seconds
 	avgBlockTimeSec := avgBlockTimeMs / 1000.0
 
-	// Print results
 	fmt.Printf("Fetched a total of %d blocks (from ~%d up to ~%d).\n", totalBlocks, start, end)
 	fmt.Printf("Average bytes_in_block: %.2f bytes (~%.2f MiB)\n", avgBytes, avgBytesMiB)
-
-	// If you want an integer rounding or more decimal control, adjust here
 	fmt.Printf("Average block_time:     %.2f ms (~%.2f seconds)\n", avgBlockTimeMs, avgBlockTimeSec)
 }
