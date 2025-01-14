@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
@@ -23,8 +23,8 @@ type Block struct {
 
 func main() {
 	// We want to fetch blocks from height=4156770 up to height=4158208
-	start := 4156770
-	end := 4158132
+	start := 4170798
+	end := 4170898
 	limit := 100
 
 	var totalBlocks int64
@@ -47,7 +47,7 @@ func main() {
 			log.Fatalf("Failed to GET %s: %v", url, err)
 		}
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
 			log.Fatalf("Failed to read response body: %v", err)
