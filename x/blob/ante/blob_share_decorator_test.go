@@ -25,6 +25,7 @@ import (
 
 const (
 	squareSize = 64
+	mebibyte   = 1_048_576 // bytes
 )
 
 func TestBlobShareDecorator(t *testing.T) {
@@ -41,7 +42,7 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name:        "want no error if appVersion v1 and 8 MiB blob",
 			blobsPerPFB: 1,
-			blobSize:    8 * testnode.Mebibyte,
+			blobSize:    8 * mebibyte,
 			appVersion:  v1.Version,
 		},
 		{
@@ -53,13 +54,13 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name:        "PFB with 1 blob that is 1 MiB",
 			blobsPerPFB: 1,
-			blobSize:    1 * testnode.Mebibyte,
+			blobSize:    1 * mebibyte,
 			appVersion:  v2.Version,
 		},
 		{
 			name:        "PFB with 1 blob that is 2 MiB",
 			blobsPerPFB: 1,
-			blobSize:    2 * testnode.Mebibyte,
+			blobSize:    2 * mebibyte,
 			appVersion:  v2.Version,
 			// This test case should return an error because a square size of 64
 			// has exactly 2 MiB of total capacity so the total blob capacity
@@ -75,7 +76,7 @@ func TestBlobShareDecorator(t *testing.T) {
 		{
 			name:        "PFB with 2 blobs that are 1 MiB each",
 			blobsPerPFB: 2,
-			blobSize:    1 * testnode.Mebibyte,
+			blobSize:    1 * mebibyte,
 			appVersion:  v2.Version,
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
