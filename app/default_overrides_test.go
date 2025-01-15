@@ -64,6 +64,9 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, uint64(1500), cfg.StateSync.SnapshotInterval)
 	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
 	assert.Equal(t, "0.002utia", cfg.MinGasPrices)
+
+	mebibyte := 1048576
+	assert.Equal(t, 20*mebibyte, cfg.GRPC.MaxRecvMsgSize)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
@@ -88,6 +91,11 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			Version:      "v1",
 		}
 		assert.Equal(t, want, *got.Mempool)
+	})
+	t.Run("p2p overrides", func(t *testing.T) {
+		const mebibyte = 1048576
+		assert.Equal(t, int64(10*mebibyte), got.P2P.SendRate)
+		assert.Equal(t, int64(10*mebibyte), got.P2P.RecvRate)
 	})
 }
 
