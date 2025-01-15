@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
@@ -18,7 +19,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 )

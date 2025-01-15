@@ -7,15 +7,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/simapp"
 	"github.com/celestiaorg/celestia-app/v3/x/mint/simulation"
 	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/kv"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 )
 
 func TestDecodeStore(t *testing.T) {
-	cdc := simapp.MakeTestEncodingConfig().Codec
+	cdc := moduletestutil.MakeTestEncodingConfig().Codec
 	decoder := simulation.NewDecodeStore(cdc)
 	minter := types.NewMinter(sdk.OneDec(), sdk.NewDec(15), sdk.DefaultBondDenom)
 	unixEpoch := time.Unix(0, 0).UTC()

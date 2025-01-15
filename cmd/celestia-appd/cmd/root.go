@@ -3,7 +3,6 @@ package cmd
 import (
 	"os"
 
-	simdcmd "cosmossdk.io/simapp/simd/cmd"
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	blobstreamclient "github.com/celestiaorg/celestia-app/v3/x/blobstream/client"
@@ -109,7 +108,7 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
 		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.MigrateGenesisCmd(),
-		simdcmd.AddGenesisAccountCmd(app.DefaultNodeHome),
+		// simdcmd.AddGenesisAccountCmd(app.DefaultNodeHome),
 		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
 		tmcli.NewCompletionCmd(rootCommand, true),

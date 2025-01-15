@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/simapp"
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -51,7 +50,7 @@ var (
 
 // Get flags every time the simulator is run
 func init() {
-	simapp.GetSimulatorFlags()
+	// simapp.GetSimulatorFlags()
 }
 
 type EmptyAppOptions struct{}

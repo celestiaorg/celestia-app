@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
@@ -18,7 +19,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ibctypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
 	ibctmtypes "github.com/cosmos/ibc-go/v9/modules/light-clients/07-tendermint/types"
 	"github.com/stretchr/testify/assert"
