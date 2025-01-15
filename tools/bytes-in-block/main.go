@@ -22,9 +22,9 @@ type Block struct {
 }
 
 func main() {
-	start := 4170798
-	end := 4170898
-	limit := 100
+	startHeight := 4170798
+	endHeight := 4170898
+	numberOfBlocksPerRequest := 100
 
 	var totalBlocks int64
 	var sumBytes int64
@@ -33,13 +33,12 @@ func main() {
 	// We'll loop offset in increments of `limit`.
 	// For each iteration, we do a GET request with the given offset + limit=100
 	// until we've covered the range [start, end).
-	for offset := start; offset <= end; offset += limit {
+	for offset := startHeight; offset <= endHeight; offset += numberOfBlocksPerRequest {
 		// Use the min of `offset+limit-1` or `end` if you want to ensure
 		// you don't exceed the last block. But the endpoint might just return fewer
 		// blocks if you overshoot. In practice, `offset` is just how many items to skip.
 		// We'll keep it simple:
-		url := fmt.Sprintf("https://api-mocha.celenium.io/v1/block?limit=%d&offset=%d&sort=asc&stats=true",
-			limit, offset)
+		url := fmt.Sprintf("https://api-mocha.celenium.io/v1/block?limit=%d&offset=%d&sort=asc&stats=true", numberOfBlocksPerRequest, offset)
 
 		resp, err := http.Get(url)
 		if err != nil {
@@ -67,7 +66,7 @@ func main() {
 		// Accumulate sums
 		for _, b := range blocks {
 			// If the block height is beyond `end`, we can optionally skip it:
-			if b.Height > end {
+			if b.Height > endHeight {
 				break
 			}
 			sumBytes += b.Stats.BytesInBlock
@@ -78,7 +77,7 @@ func main() {
 
 		// Optional: if the last block we received has a height >= end, we can break.
 		lastHeight := blocks[len(blocks)-1].Height
-		if lastHeight >= end {
+		if lastHeight >= endHeight {
 			break
 		}
 	}
@@ -97,7 +96,7 @@ func main() {
 	// Convert milliseconds to seconds
 	avgBlockTimeSec := avgBlockTimeMs / 1000.0
 
-	fmt.Printf("Fetched a total of %d blocks (from ~%d up to ~%d).\n", totalBlocks, start, end)
+	fmt.Printf("Fetched a total of %d blocks (from ~%d up to ~%d).\n", totalBlocks, startHeight, endHeight)
 	fmt.Printf("Average bytes_in_block: %.2f bytes (~%.2f MiB)\n", avgBytes, avgBytesMiB)
 	fmt.Printf("Average block_time:     %.2f ms (~%.2f seconds)\n", avgBlockTimeMs, avgBlockTimeSec)
 }
