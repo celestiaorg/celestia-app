@@ -314,7 +314,7 @@ func calculateBlockSizeInMb(txs [][]byte) float64 {
 	for _, tx := range txs {
 		numberOfBytes += len(tx)
 	}
-	mb := float64(numberOfBytes) / app.Mebibyte
+	mb := float64(numberOfBytes) / Mebibyte
 	return mb
 }
 
