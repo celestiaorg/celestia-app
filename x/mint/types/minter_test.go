@@ -156,14 +156,14 @@ func TestCalculateBlockProvisionError(t *testing.T) {
 }
 
 func randomBlockInterval() time.Duration {
-	min := (14 * time.Second).Nanoseconds()
-	max := (16 * time.Second).Nanoseconds()
-	return time.Duration(randInRange(min, max))
+	minimum := (14 * time.Second).Nanoseconds()
+	maximum := (16 * time.Second).Nanoseconds()
+	return time.Duration(randInRange(minimum, maximum))
 }
 
 // randInRange returns a random number in the range (min, max) inclusive.
-func randInRange(min int64, max int64) int64 {
-	return rand.Int63n(max-min) + min
+func randInRange(minimum int64, maximum int64) int64 {
+	return rand.Int63n(maximum-minimum) + minimum
 }
 
 func BenchmarkCalculateBlockProvision(b *testing.B) {
