@@ -13,10 +13,10 @@ require (
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft-db v1.0.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
-	github.com/cosmos/cosmos-sdk v0.46.16
+	github.com/cosmos/cosmos-sdk v0.50.11
 	github.com/cosmos/gogoproto v1.7.0
-	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v6 v6.1.2
-	github.com/cosmos/ibc-go/v6 v6.2.2
+	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.1.0
+	github.com/cosmos/ibc-go/v9 v9.0.2
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
@@ -254,7 +254,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.26.1-sdk-v0.46.16
+	// github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.26.1-sdk-v0.46.16
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.44.2-tm-v0.34.35

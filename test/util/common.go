@@ -8,6 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
 
 	cosmosmath "cosmossdk.io/math"
+	"cosmossdk.io/store"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
@@ -18,8 +20,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	ccrypto "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/std"
-	"github.com/cosmos/cosmos-sdk/store"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"

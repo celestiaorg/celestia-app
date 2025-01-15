@@ -3,9 +3,9 @@ package module
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
-	exported "github.com/cosmos/ibc-go/v6/modules/core/exported"
+	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v9/modules/core/05-port/types"
+	exported "github.com/cosmos/ibc-go/v9/modules/core/exported"
 )
 
 func NewVersionedIBCModule(
