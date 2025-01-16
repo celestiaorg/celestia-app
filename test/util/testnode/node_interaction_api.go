@@ -238,7 +238,7 @@ func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, bl
 		return nil, err
 	}
 
-	// use the key for accounts[i] to create a singer used for a single PFB
+	// use the key for accounts[i] to create a signer used for a single PFB
 	signer, err := user.NewSigner(c.Keyring, c.TxConfig, c.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc, seq))
 	if err != nil {
 		return nil, err

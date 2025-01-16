@@ -52,7 +52,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 	}
 
 	// erasure the data square which we use to create the data root. Note: this
-	// is using a modified version of nmt where the order of the namepspaces is
+	// is using a modified version of nmt where the order of the namespaces is
 	// not enforced.
 	eds, err := ExtendShares(share.ToBytes(dataSquare))
 	if err != nil {
