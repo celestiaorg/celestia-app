@@ -18,7 +18,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	types3 "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
 	types2 "github.com/cosmos/ibc-go/v9/modules/core/23-commitment/types"
-	types4 "github.com/cosmos/ibc-go/v9/modules/light-clients/07-tendermint/types"
+	types4 "github.com/cosmos/ibc-go/v9/modules/light-clients/07-tendermint"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto"

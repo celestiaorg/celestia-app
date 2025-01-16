@@ -15,12 +15,11 @@ import (
 	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
 	feegrantmodule "cosmossdk.io/x/feegrant/module"
 	"cosmossdk.io/x/upgrade"
-	upgradeclient "cosmossdk.io/x/upgrade/client"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -44,20 +43,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/capability"
-	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distr "github.com/cosmos/cosmos-sdk/x/distribution"
-	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -69,7 +63,6 @@ import (
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	paramproposal "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
@@ -79,6 +72,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/cosmos/ibc-go/modules/capability"
+	capabilitykeeper "github.com/cosmos/ibc-go/modules/capability/keeper"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -95,16 +91,12 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v9/modules/core"
 	ibcclient "github.com/cosmos/ibc-go/v9/modules/core/02-client"
-	ibcclientclient "github.com/cosmos/ibc-go/v9/modules/core/02-client/client"
 	ibcclienttypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
 	porttypes "github.com/cosmos/ibc-go/v9/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v9/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v9/modules/core/keeper"
 	ibcmock "github.com/cosmos/ibc-go/v9/testing/mock"
 	simapp "github.com/cosmos/ibc-go/v9/testing/simapp"
-	simappparams "github.com/cosmos/ibc-go/v9/testing/simapp/params"
-	simappupgrades "github.com/cosmos/ibc-go/v9/testing/simapp/upgrades"
-	v6 "github.com/cosmos/ibc-go/v9/testing/simapp/upgrades/v6"
 	ibctestingtypes "github.com/cosmos/ibc-go/v9/testing/types"
 )
 
@@ -159,16 +151,7 @@ var (
 		staking.AppModuleBasic{},
 		mint.AppModuleBasic{},
 		distr.AppModuleBasic{},
-		gov.NewAppModuleBasic(
-			[]govclient.ProposalHandler{
-				paramsclient.ProposalHandler,
-				distrclient.ProposalHandler,
-				upgradeclient.LegacyProposalHandler,
-				upgradeclient.LegacyCancelProposalHandler,
-				ibcclientclient.UpdateClientProposalHandler,
-				ibcclientclient.UpgradeProposalHandler,
-			},
-		),
+		gov.AppModuleBasic{},
 		groupmodule.AppModuleBasic{},
 		params.AppModuleBasic{},
 		crisis.AppModuleBasic{},
@@ -271,7 +254,7 @@ func init() {
 // NewSimApp returns a reference to an initialized SimApp.
 func NewSimApp(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest bool, skipUpgradeHeights map[int64]bool,
-	homePath string, invCheckPeriod uint, encodingConfig simappparams.EncodingConfig,
+	homePath string, invCheckPeriod uint, encodingConfig any, // BB-NOTE: must be updated to the correct type from github.com/cosmos/ibc-go/v6/testing/simapp/params.EncodingConfig
 	appOpts servertypes.AppOptions, baseAppOptions ...func(*baseapp.BaseApp),
 ) *SimApp {
 	appCodec := encodingConfig.Marshaler
@@ -833,24 +816,27 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 
 // setupUpgradeHandlers sets all necessary upgrade handlers for testing purposes
 func (app *SimApp) setupUpgradeHandlers() {
-	app.UpgradeKeeper.SetUpgradeHandler(
-		simappupgrades.DefaultUpgradeName,
-		simappupgrades.CreateDefaultUpgradeHandler(app.mm, app.configurator),
-	)
+	// BB-NOTE: To be re-enabled; comented out for go mod tidy to suceed as these package paths no longer exist in ibc-go/v9:
+	// simappupgrades "github.com/cosmos/ibc-go/v9/testing/simapp/upgrades"
+	// v6 "github.com/cosmos/ibc-go/v9/testing/simapp/upgrades/v6"
+	// app.UpgradeKeeper.SetUpgradeHandler(
+	// 	simappupgrades.DefaultUpgradeName,
+	// 	simappupgrades.CreateDefaultUpgradeHandler(app.mm, app.configurator),
+	// )
 
 	// NOTE: The moduleName arg of v6.CreateUpgradeHandler refers to the auth module ScopedKeeper name to which the channel capability should be migrated from.
 	// This should be the same string value provided upon instantiation of the ScopedKeeper with app.CapabilityKeeper.ScopeToModule()
 	// TODO: update git tag in link below
 	// See: https://github.com/cosmos/ibc-go/blob/v5.0.0-rc2/testing/simapp/app.go#L304
-	app.UpgradeKeeper.SetUpgradeHandler(
-		v6.UpgradeName,
-		v6.CreateUpgradeHandler(
-			app.mm,
-			app.configurator,
-			app.appCodec,
-			app.keys[capabilitytypes.ModuleName],
-			app.CapabilityKeeper,
-			ibcmock.ModuleName,
-		),
-	)
+	// app.UpgradeKeeper.SetUpgradeHandler(
+	// 	v6.UpgradeName,
+	// 	v6.CreateUpgradeHandler(
+	// 		app.mm,
+	// 		app.configurator,
+	// 		app.appCodec,
+	// 		app.keys[capabilitytypes.ModuleName],
+	// 		app.CapabilityKeeper,
+	// 		ibcmock.ModuleName,
+	// 	),
+	// )
 }

@@ -15,15 +15,15 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/tests/mocks"
+	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestManagerOrderSetters(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	t.Cleanup(mockCtrl.Finish)
-	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
-	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+	mockAppModule1 := mock.NewMockAppModule(mockCtrl)
+	mockAppModule2 := mock.NewMockAppModule(mockCtrl)
 
 	mockAppModule1.EXPECT().Name().Times(6).Return("module1")
 	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
@@ -58,8 +58,8 @@ func TestManager_RegisterInvariants(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	t.Cleanup(mockCtrl.Finish)
 
-	mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
-	mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
+	mockAppModule1 := mock.NewMockAppModule(mockCtrl)
+	mockAppModule2 := mock.NewMockAppModule(mockCtrl)
 	mockAppModule1.EXPECT().Name().Times(2).Return("module1")
 	mockAppModule1.EXPECT().ConsensusVersion().Times(1).Return(uint64(1))
 	mockAppModule2.EXPECT().Name().Times(2).Return("module2")
@@ -73,7 +73,7 @@ func TestManager_RegisterInvariants(t *testing.T) {
 	require.Equal(t, 2, len(mm.ModuleNames(1)))
 
 	// test RegisterInvariants
-	mockInvariantRegistry := mocks.NewMockInvariantRegistry(mockCtrl)
+	mockInvariantRegistry := mock.NewMockInvariantRegistry(mockCtrl)
 	mockAppModule1.EXPECT().RegisterInvariants(gomock.Eq(mockInvariantRegistry)).Times(1)
 	mockAppModule2.EXPECT().RegisterInvariants(gomock.Eq(mockInvariantRegistry)).Times(1)
 	mm.RegisterInvariants(mockInvariantRegistry)

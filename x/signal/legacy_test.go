@@ -20,7 +20,7 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	ibctypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
-	ibctmtypes "github.com/cosmos/ibc-go/v9/modules/light-clients/07-tendermint/types"
+	ibctmtypes "github.com/cosmos/ibc-go/v9/modules/light-clients/07-tendermint"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

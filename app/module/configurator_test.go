@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
-	"github.com/cosmos/cosmos-sdk/tests/mocks"
+	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +25,7 @@ func TestConfigurator(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		t.Cleanup(mockCtrl.Finish)
 
-		mockServer := mocks.NewMockServer(mockCtrl)
+		mockServer := mock.NewMockServer(mockCtrl)
 		mockServer.EXPECT().RegisterService(gomock.Any(), gomock.Any()).Times(2).Return()
 
 		config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -60,9 +60,9 @@ func TestConfigurator(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		t.Cleanup(mockCtrl.Finish)
 
-		mockAppModule1 := mocks.NewMockAppModule(mockCtrl)
-		mockAppModule2 := mocks.NewMockAppModule(mockCtrl)
-		mockAppModule3 := mocks.NewMockAppModule(mockCtrl)
+		mockAppModule1 := mock.NewMockAppModule(mockCtrl)
+		mockAppModule2 := mock.NewMockAppModule(mockCtrl)
+		mockAppModule3 := mock.NewMockAppModule(mockCtrl)
 
 		mockAppModule1.EXPECT().Name().Return("testModule").AnyTimes()
 		mockAppModule2.EXPECT().Name().Return("testModule").AnyTimes()
@@ -83,7 +83,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, manager)
 
-		mockServer := mocks.NewMockServer(mockCtrl)
+		mockServer := mock.NewMockServer(mockCtrl)
 		config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 		isCalled := false

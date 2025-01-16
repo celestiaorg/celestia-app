@@ -16,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution"
-	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
@@ -29,7 +28,6 @@ import (
 	ica "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts"
 	icagenesistypes "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/genesis/types"
 	ibc "github.com/cosmos/ibc-go/v9/modules/core"
-	ibcclientclient "github.com/cosmos/ibc-go/v9/modules/core/02-client/client"
 	ibctypes "github.com/cosmos/ibc-go/v9/modules/core/types"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -204,9 +202,10 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 	result = append(result,
 		paramsclient.ProposalHandler,
-		distrclient.ProposalHandler,
-		ibcclientclient.UpdateClientProposalHandler,
-		ibcclientclient.UpgradeProposalHandler,
+		// BB-NOTE: absent in ibc-go/v9, replace with what?
+		// distrclient.ProposalHandler,
+		// ibcclientclient.UpdateClientProposalHandler,
+		// ibcclientclient.UpgradeProposalHandler,
 	)
 
 	return result

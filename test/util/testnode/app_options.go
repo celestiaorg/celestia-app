@@ -1,7 +1,7 @@
 package testnode
 
 import (
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
+	pruningtypes "cosmossdk.io/store/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 )
 

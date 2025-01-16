@@ -14,17 +14,15 @@ import (
 	"strings"
 	"time"
 
+	pruningtypes "cosmossdk.io/store/pruning/types"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
-	"github.com/cosmos/cosmos-sdk/server/rosetta"
-	crgserver "github.com/cosmos/cosmos-sdk/server/rosetta/lib/server"
 	srvrtypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -436,6 +434,8 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 		return server.WaitForQuitSignals()
 	}
 
+	/*
+	// BB-NOTE: Rosetta is disabled for now.
 	var rosettaSrv crgserver.Server
 	if config.Rosetta.Enable {
 		offlineMode := config.Rosetta.Offline
@@ -478,6 +478,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 				errCh <- err
 			}
 		}()
+*/
 
 		select {
 		case err := <-errCh:
