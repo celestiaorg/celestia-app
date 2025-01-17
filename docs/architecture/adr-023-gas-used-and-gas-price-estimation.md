@@ -47,9 +47,9 @@ A z-score or a standard score represents the number of standard deviations a dat
 
 Provided the z-scores table, we can see that:
 
-- High priority: corresponds to `mean + 1.28 standard_deviation` value.
+- High priority: corresponds to `mean + 1.28 * standard_deviation` value.
 - Medium priority: is the `mean` value.
-- Low priority: corresponds to `mean - 1.28 standard_deviation`
+- Low priority: corresponds to `mean - 1.28 * standard_deviation` value.
 - None priority: is the `mean` value.
 
 Note: if the last 5 blocks are all empty, we will return the node's min gas price.
