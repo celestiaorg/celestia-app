@@ -10,7 +10,7 @@ Proposed
 
 ## Context
 
-As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md), we will provide a base implementation for the gas and fee estimation in celestia-app so it can be used when building transactions.
+As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md), celestia-app will provide a base implementation for the gas and fee estimation so it can be used when building transactions.
 
 ## Decision
 
