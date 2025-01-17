@@ -4,7 +4,7 @@ import "time"
 
 const (
 	Version              uint64 = 2
-	SquareSizeUpperBound int    = 128
+	SquareSizeUpperBound int    = 256
 	SubtreeRootThreshold int    = 64
 	// TimeoutPropose is deprecated because it was not a constant
 	// in v2, it was the default for a user-configurable timeout.

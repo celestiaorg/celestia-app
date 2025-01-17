@@ -34,6 +34,7 @@ func SquareSizeUpperBound(_ uint64) int {
 		}
 		return parsedValue
 	}
+	
 	return v3.SquareSizeUpperBound
 }
 
