@@ -59,6 +59,9 @@ The following is a basic implementation of the standard deviation that we can us
 ```go
 // mean calculates the mean value of the provided gas prices.
 func mean(gasPrices []float64) float64 {
+    if len(gasPrices) == 0 {
+		return 0
+	}
 	sum := 0.0
 	for _, gasPrice := range gasPrices {
 		sum += gasPrice
@@ -68,6 +71,9 @@ func mean(gasPrices []float64) float64 {
 
 // standardDeviation calculates the standard deviation of the provided gas prices.
 func standardDeviation(gasPrices []float64) float64 {
+    if len(gasPrices) < 2 {
+		return 0
+	}
 	meanGasPrice := mean(gasPrices)
 	var variance float64
 	for _, gasPrice := range gasPrices {
