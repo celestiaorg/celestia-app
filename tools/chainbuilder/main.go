@@ -467,14 +467,20 @@ func generateSquareRoutine(
 
 		account := signer.Accounts()[0]
 
-		blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(cfg.BlockSize))
-		if err != nil {
-			return err
+		blobCount := cfg.BlockSize / appconsts.MaxTxSize(cfg.AppVersion)
+
+		blobs := make([]*share.Blob, blobCount)
+		for i := 0; i < blobCount; i++ {
+			blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(appconsts.MaxTxSize(cfg.AppVersion)))
+			if err != nil {
+				return err
+			}
+			blobs[i] = blob
 		}
 
 		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
 		fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
-		tx, _, err := signer.CreatePayForBlobs(account.Name(), []*share.Blob{blob}, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
+		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
 		if err != nil {
 			return err
 		}
