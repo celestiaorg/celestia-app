@@ -32,10 +32,10 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) Modifier {
 }
 
 // SetSlashingParams will set the provided slashing params as genesis state.
-func SetSlashingParams(codec codec.Codec, parans slashingtypes.Params) Modifier {
+func SetSlashingParams(codec codec.Codec, params slashingtypes.Params) Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		slashingGenState := slashingtypes.DefaultGenesisState()
-		slashingGenState.Params = parans
+		slashingGenState.Params = params
 		state[slashingtypes.ModuleName] = codec.MustMarshalJSON(slashingGenState)
 		return state
 	}
