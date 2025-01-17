@@ -40,19 +40,31 @@ func TestVersionedConsts(t *testing.T) {
 			name:             "SquareSizeUpperBound v1",
 			version:          v1.Version,
 			expectedConstant: v1.SquareSizeUpperBound,
-			got:              appconsts.SquareSizeUpperBound(v1.Version),
+			got:              appconsts.SquareSizeUpperBound(appconsts.MainnetChainID, v1.Version),
 		},
 		{
 			name:             "SquareSizeUpperBound v2",
 			version:          v2.Version,
 			expectedConstant: v2.SquareSizeUpperBound,
-			got:              appconsts.SquareSizeUpperBound(v2.Version),
+			got:              appconsts.SquareSizeUpperBound(appconsts.MainnetChainID, v2.Version),
 		},
 		{
 			name:             "SquareSizeUpperBound v3",
 			version:          v3.Version,
 			expectedConstant: v3.SquareSizeUpperBound,
-			got:              appconsts.SquareSizeUpperBound(v3.Version),
+			got:              appconsts.SquareSizeUpperBound(appconsts.MainnetChainID, v3.Version),
+		},
+		{
+			name:             "SquareSizeUpperBound v3",
+			version:          v3.Version,
+			expectedConstant: v3.SquareSizeUpperBound,
+			got:              appconsts.SquareSizeUpperBound(appconsts.MainnetChainID, v3.Version),
+		},
+		{
+			name:             "SquareSizeUpperBound test chainID",
+			version:          v3.Version,
+			expectedConstant: appconsts.TestSquareSizeUpperBound,
+			got:              appconsts.SquareSizeUpperBound(appconsts.TestChainID, v3.Version),
 		},
 		{
 			name:             "TxSizeCostPerByte v3",
@@ -102,7 +114,7 @@ func TestUpgradeHeightDelay(t *testing.T) {
 		},
 		{
 			name:                       "v2 upgrade delay on non-arabica chain",
-			chainID:                    "celestia",
+			chainID:                    appconsts.MainnetChainID,
 			version:                    v2.Version,
 			expectedUpgradeHeightDelay: v2.UpgradeHeightDelay,
 		},

@@ -69,7 +69,7 @@ func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	upperBound := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
+	upperBound := appconsts.SquareSizeUpperBound(ctx.ChainID(), ctx.BlockHeader().Version.App)
 	govParam := d.k.GovMaxSquareSize(ctx)
 	return min(upperBound, int(govParam))
 }

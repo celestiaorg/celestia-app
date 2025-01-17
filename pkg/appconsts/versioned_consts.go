@@ -1,7 +1,6 @@
 package appconsts
 
 import (
-	"strconv"
 	"time"
 
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
@@ -26,14 +25,11 @@ func SubtreeRootThreshold(_ uint64) int {
 }
 
 // SquareSizeUpperBound imposes an upper bound on the max effective square size.
-func SquareSizeUpperBound(_ uint64) int {
-	if OverrideSquareSizeUpperBoundStr != "" {
-		parsedValue, err := strconv.Atoi(OverrideSquareSizeUpperBoundStr)
-		if err != nil {
-			panic("Invalid OverrideSquareSizeUpperBoundStr value")
-		}
-		return parsedValue
+func SquareSizeUpperBound(chainID string, _ uint64) int {
+	if chainID == TestChainID {
+		return TestSquareSizeUpperBound
 	}
+
 	return v3.SquareSizeUpperBound
 }
 
@@ -51,7 +47,7 @@ func MaxTxSize(_ uint64) int {
 
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
-	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
+	DefaultSquareSizeUpperBound = SquareSizeUpperBound("celestia", LatestVersion)
 	DefaultTxSizeCostPerByte    = TxSizeCostPerByte(LatestVersion)
 	DefaultGasPerBlobByte       = GasPerBlobByte(LatestVersion)
 )
@@ -81,7 +77,7 @@ func GetTimeoutCommit(v uint64) time.Duration {
 // UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
 func UpgradeHeightDelay(chainID string, v uint64) int64 {
 	if chainID == TestChainID {
-		return 3
+		return TestUpgradeHeightDelay
 	}
 	switch v {
 	case v1.Version:

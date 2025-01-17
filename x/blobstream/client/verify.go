@@ -83,7 +83,7 @@ func txCmd() *cobra.Command {
 			}
 
 			version := blockRes.Block.Header.Version.App
-			maxSquareSize := appconsts.SquareSizeUpperBound(version)
+			maxSquareSize := appconsts.SquareSizeUpperBound(appconsts.MainnetChainID, version)
 			subtreeRootThreshold := appconsts.SubtreeRootThreshold(version)
 
 			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index), maxSquareSize, subtreeRootThreshold)
@@ -153,7 +153,7 @@ func blobCmd() *cobra.Command {
 			}
 
 			version := blockRes.Block.Header.Version.App
-			maxSquareSize := appconsts.SquareSizeUpperBound(version)
+			maxSquareSize := appconsts.SquareSizeUpperBound(appconsts.MainnetChainID, version)
 			subtreeRootThreshold := appconsts.SubtreeRootThreshold(version)
 			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), blobIndexInt, maxSquareSize, subtreeRootThreshold)
 			if err != nil {

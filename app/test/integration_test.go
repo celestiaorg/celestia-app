@@ -263,7 +263,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 // ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
 func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
+	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App, appconsts.MainnetChainID)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)

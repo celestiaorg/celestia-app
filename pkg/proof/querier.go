@@ -25,7 +25,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 //
 // example path for proving the third transaction in that block:
 // custom/txInclusionProof/3
-func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryTxInclusionProof(ctx sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
 		return nil, fmt.Errorf("expected query path length: 1 actual: %d ", len(path))
@@ -50,7 +50,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index), pbb.Header.Version.App)
+	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index), pbb.Header.Version.App, ctx.ChainID())
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ const ShareInclusionQueryPath = "shareInclusionProof"
 // inclusion proofs of a set of shares to the data root. The share range should
 // be appended to the path. Example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
-func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryShareInclusionProof(ctx sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the share range from the path
 	if len(path) != 2 {
 		return nil, fmt.Errorf("expected query path length: 2 actual: %d ", len(path))
@@ -93,7 +93,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	// construct the data square from the block data. As we don't have
 	// access to the application's state machine we use the upper bound
 	// square size instead of the square size dictated from governance
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound(pbb.Header.Version.App), appconsts.SubtreeRootThreshold(pbb.Header.Version.App))
+	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound(ctx.ChainID(), pbb.Header.Version.App), appconsts.SubtreeRootThreshold(pbb.Header.Version.App))
 	if err != nil {
 		return nil, err
 	}
