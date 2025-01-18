@@ -481,7 +481,7 @@ func skipEvent(dAtA []byte) (n int, err error) {
 }
 
 var (
-	ErrInvalidLengthEvent        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrInvalidLengthEvent        = fmt.Errorf("proto: negative length found during unmarshalling")
 	ErrIntOverflowEvent          = fmt.Errorf("proto: integer overflow")
 	ErrUnexpectedEndOfGroupEvent = fmt.Errorf("proto: unexpected end of group")
 )
