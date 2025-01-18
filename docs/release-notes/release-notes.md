@@ -73,9 +73,9 @@ For more information refer to the module [docs](../../x/signal/README.md)
 
 ### Node Operators (v2.0.0)
 
-If you are a consensus node operator, please follow the communication channels listed under [network upgrades](https://docs.celestia.org/nodes/participate#network-upgrades) to learn when this release is recommended for each network (e.g. Mocha, Mainnet Beta).
+If you are a consensus node operator, please follow the communication channels listed under [network upgrades](https://docs.celestia.org/how-to-guides/participate#network-upgrades) to learn when this release is recommended for each network (e.g. Mocha, Mainnet Beta).
 
-Consensus node operators are expected to upgrade to this release _prior_ to the Lemongrass hardfork if they intend to continue participating in the network. The command used to start the [consensus node](https://docs.celestia.org/nodes/consensus-node#start-the-consensus-node) or [validator node](https://docs.celestia.org/nodes/validator-node#run-the-validator-node) will accept an additional `--v2-upgrade-height` flag. See [this table](https://docs.celestia.org/nodes/network-upgrade-process#lemongrass-network-upgrade) for upgrade heights for each network.
+Consensus node operators are expected to upgrade to this release _prior_ to the Lemongrass hardfork if they intend to continue participating in the network. The command used to start the [consensus node](https://docs.celestia.org/how-to-guides/consensus-node#start-the-consensus-node) or [validator node](https://docs.celestia.org/how-to-guides/validator-node#run-the-validator-node) will accept an additional `--v2-upgrade-height` flag. See [this table](https://docs.celestia.org/how-to-guides/network-upgrade-process#lemongrass-network-upgrade) for upgrade heights for each network.
 
 Consensus node operators should enable the BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion control algorithm. See [#3812](https://github.com/celestiaorg/celestia-app/pull/3812).
 
