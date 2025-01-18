@@ -335,7 +335,7 @@ func skipUpgrade(dAtA []byte) (n int, err error) {
 }
 
 var (
-	ErrInvalidLengthUpgrade        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrInvalidLengthUpgrade        = fmt.Errorf("proto: negative length found during unmarshalling")
 	ErrIntOverflowUpgrade          = fmt.Errorf("proto: integer overflow")
 	ErrUnexpectedEndOfGroupUpgrade = fmt.Errorf("proto: unexpected end of group")
 )
