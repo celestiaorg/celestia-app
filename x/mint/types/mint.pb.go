@@ -668,7 +668,7 @@ func skipMint(dAtA []byte) (n int, err error) {
 }
 
 var (
-	ErrInvalidLengthMint        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrInvalidLengthMint        = fmt.Errorf("proto: negative length found during unmarshalling")
 	ErrIntOverflowMint          = fmt.Errorf("proto: integer overflow")
 	ErrUnexpectedEndOfGroupMint = fmt.Errorf("proto: unexpected end of group")
 )
