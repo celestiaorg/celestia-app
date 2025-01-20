@@ -44,7 +44,7 @@ func TestRun(t *testing.T) {
 
 	// First run
 	err := Run(context.Background(), cfg, dir)
-	require.NoError(t, err)
+	require.NoError(t, err) // wait for the node to stop
 
 	// Second run with existing directory
 	cfg.ExistingDir = filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))

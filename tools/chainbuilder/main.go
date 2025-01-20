@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/celestiaorg/go-square/v2"
@@ -41,7 +44,6 @@ var defaultNamespace share.Namespace
 
 const (
 	defaultNamespaceStr = "test"
-	maxSquareSize       = 512
 )
 
 func init() {
@@ -112,6 +114,69 @@ func main() {
 	}
 }
 
+func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
+	var (
+		errCh     = make(chan error, 3)
+		dataCh    = make(chan *tmproto.Data, 10)
+		persistCh = make(chan persistData, 10)
+		wg        = &sync.WaitGroup{}
+	)
+
+	// Create a cancelable context
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Capture system signals (e.g., Ctrl+C)
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-signalCh
+		fmt.Println("Received interrupt signal. Shutting down gracefully...")
+		cancel()
+	}()
+
+	cb, err := NewChainBuilder(ctx, cfg, dir)
+	if err != nil {
+		return fmt.Errorf("failed to create chain builder: %w", err)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		errCh <- generateSquareRoutine(ctx, cb.signer, cfg, dataCh)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		errCh <- createBlock(cb, dataCh, persistCh)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		errCh <- persistDataRoutine(ctx, cb.stateStore, cb.blockStore, persistCh)
+	}()
+
+	var firstErr error
+
+	go func() {
+		for err := range errCh {
+			if err != nil {
+				firstErr = err
+				cancel()
+			}
+		}
+	}()
+
+	wg.Wait()
+	err = cb.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close chain builder: %w %w", err, firstErr)
+	}
+	return firstErr
+}
+
 type BuilderConfig struct {
 	NumBlocks     int
 	BlockSize     int
@@ -123,7 +188,38 @@ type BuilderConfig struct {
 	UpToTime      bool
 }
 
-func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
+type ChainBuilder struct {
+	cfg         BuilderConfig
+	blockStore  *store.BlockStore
+	stateStore  sm.Store
+	appDB       tmdbm.DB
+	app         *app.App
+	signer      *user.Signer
+	state       sm.State
+	startTime   time.Time
+	currentTime time.Time
+	proposer    []byte
+	valKey      *privval.FilePV
+	valPower    int64
+}
+
+func (cb ChainBuilder) Close() error {
+	if err := cb.blockStore.Close(); err != nil {
+		return fmt.Errorf("failed to close block database: %w", err)
+	}
+	if err := cb.stateStore.Close(); err != nil {
+		return fmt.Errorf("failed to close state database: %w", err)
+	}
+	if err := cb.app.Close(); err != nil {
+		return fmt.Errorf("failed to close application: %w", err)
+	}
+	if err := cb.appDB.Close(); err != nil {
+		return fmt.Errorf("failed to close application database: %w", err)
+	}
+	return nil
+}
+
+func NewChainBuilder(ctx context.Context, cfg BuilderConfig, dir string) (ChainBuilder, error) {
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
@@ -138,7 +234,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		dir = filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
 		kr, err = keyring.New(app.Name, keyring.BackendTest, dir, nil, encCfg.Codec)
 		if err != nil {
-			return fmt.Errorf("failed to create keyring: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to create keyring: %w", err)
 		}
 
 		validator := genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)
@@ -156,19 +252,19 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			WithValidators(validator)
 
 		if err := genesis.InitFiles(dir, tmCfg, appCfg, gen, 0); err != nil {
-			return fmt.Errorf("failed to initialize genesis files: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to initialize genesis files: %w", err)
 		}
 		fmt.Println("Creating chain from scratch with Chain ID:", gen.ChainID)
 	} else {
 		cfgPath := filepath.Join(cfg.ExistingDir, "config/config.toml")
 		if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
-			return fmt.Errorf("config file for existing chain not found at %s", cfgPath)
+			return ChainBuilder{}, fmt.Errorf("config file for existing chain not found at %s", cfgPath)
 		}
 		fmt.Println("Loading chain from existing directory:", cfg.ExistingDir)
 		tmCfg.SetRoot(cfg.ExistingDir)
 		kr, err = keyring.New(app.Name, keyring.BackendTest, cfg.ExistingDir, nil, encCfg.Codec)
 		if err != nil {
-			return fmt.Errorf("failed to load keyring: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to load keyring: %w", err)
 		}
 	}
 
@@ -177,14 +273,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	blockDB, err := dbm.NewDB("blockstore", dbm.GoLevelDBBackend, tmCfg.DBDir())
 	if err != nil {
-		return fmt.Errorf("failed to create block database: %w", err)
+		return ChainBuilder{}, fmt.Errorf("failed to create block database: %w", err)
 	}
 
 	blockStore := store.NewBlockStore(blockDB)
 
 	stateDB, err := dbm.NewDB("state", dbm.GoLevelDBBackend, tmCfg.DBDir())
 	if err != nil {
-		return fmt.Errorf("failed to create state database: %w", err)
+		return ChainBuilder{}, fmt.Errorf("failed to create state database: %w", err)
 	}
 
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
@@ -193,7 +289,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
 	if err != nil {
-		return fmt.Errorf("failed to create application database: %w", err)
+		return ChainBuilder{}, fmt.Errorf("failed to create application database: %w", err)
 	}
 
 	simApp := app.New(
@@ -212,22 +308,22 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	lastHeight := blockStore.Height()
 	if infoResp.LastBlockHeight != lastHeight {
-		return fmt.Errorf("last application height is %d, but the block store height is %d", infoResp.LastBlockHeight, lastHeight)
+		return ChainBuilder{}, fmt.Errorf("last application height is %d, but the block store height is %d", infoResp.LastBlockHeight, lastHeight)
 	}
 
 	if lastHeight == 0 {
 		if gen == nil {
-			return fmt.Errorf("non empty directory but no blocks found")
+			return ChainBuilder{}, fmt.Errorf("non empty directory but no blocks found")
 		}
 
 		genDoc, err := gen.Export()
 		if err != nil {
-			return fmt.Errorf("failed to export genesis document: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to export genesis document: %w", err)
 		}
 
 		state, err := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		if err != nil {
-			return fmt.Errorf("failed to load state from database or genesis document: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to load state from database or genesis document: %w", err)
 		}
 
 		validators := make([]*types.Validator, len(genDoc.Validators))
@@ -248,14 +344,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 		vals, err := types.PB2TM.ValidatorUpdates(res.Validators)
 		if err != nil {
-			return fmt.Errorf("failed to convert validator updates: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to convert validator updates: %w", err)
 		}
 		state.Validators = types.NewValidatorSet(vals)
 		state.NextValidators = types.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
 		state.AppHash = res.AppHash
 		state.LastResultsHash = merkle.HashFromByteSlices(nil)
 		if err := stateStore.Save(state); err != nil {
-			return fmt.Errorf("failed to save initial state: %w", err)
+			return ChainBuilder{}, fmt.Errorf("failed to save initial state: %w", err)
 		}
 		currentTime = currentTime.Add(cfg.BlockInterval)
 	} else {
@@ -263,7 +359,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	}
 	state, err := stateStore.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load state: %w", err)
+		return ChainBuilder{}, fmt.Errorf("failed to load state: %w", err)
 	}
 	if cfg.ExistingDir != "" {
 		// if this is extending an existing chain, we want to start
@@ -272,11 +368,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	}
 
 	if state.ConsensusParams.Version.AppVersion != cfg.AppVersion {
-		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
+		return ChainBuilder{}, fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
 	}
 
 	if state.LastBlockHeight != lastHeight {
-		return fmt.Errorf("last block height mismatch: state has %d, but block store has %d", state.LastBlockHeight, lastHeight)
+		return ChainBuilder{}, fmt.Errorf("last block height mismatch: state has %d, but block store has %d", state.LastBlockHeight, lastHeight)
 	}
 
 	validatorPower := state.Validators.Validators[0].VotingPower
@@ -289,167 +385,140 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		user.NewAccount(testnode.DefaultValidatorAccountName, 0, uint64(lastHeight)+1),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create new signer: %w", err)
+		return ChainBuilder{}, fmt.Errorf("failed to create new signer: %w", err)
 	}
 
+	return ChainBuilder{
+		cfg:         cfg,
+		blockStore:  blockStore,
+		stateStore:  stateStore,
+		appDB:       appDB,
+		app:         simApp,
+		signer:      signer,
+		startTime:   startTime,
+		currentTime: currentTime,
+		state:       state,
+		proposer:    validatorAddr,
+		valKey:      validatorKey,
+		valPower:    validatorPower,
+	}, nil
+}
+
+func createBlock(cb ChainBuilder, dataCh chan *tmproto.Data, persistCh chan<- persistData) error {
 	var (
-		errCh     = make(chan error, 2)
-		dataCh    = make(chan *tmproto.Data, 100)
-		persistCh = make(chan persistData, 100)
-		commit    = types.NewCommit(0, 0, types.BlockID{}, nil)
+		commit = types.NewCommit(0, 0, types.BlockID{}, nil)
 	)
+
+	lastHeight := cb.blockStore.Height()
 	if lastHeight > 0 {
-		commit = blockStore.LoadSeenCommit(lastHeight)
+		commit = cb.blockStore.LoadSeenCommit(lastHeight)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func() {
-		errCh <- generateSquareRoutine(ctx, signer, cfg, dataCh)
-	}()
-
-	go func() {
-		errCh <- persistDataRoutine(ctx, stateStore, blockStore, persistCh)
-	}()
-
-	lastBlock := blockStore.LoadBlock(blockStore.Height())
-
-	for height := lastHeight + 1; height <= int64(cfg.NumBlocks)+lastHeight; height++ {
-		if cfg.UpToTime && lastBlock != nil && lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
-			fmt.Printf("blocks cannot be generated into the future, stopping at height %d\n", lastBlock.Height)
-			break
+	defer close(persistCh)
+	for dataPB := range dataCh {
+		lastHeight++
+		data, err := types.DataFromProto(dataPB)
+		if err != nil {
+			return fmt.Errorf("failed to convert data from protobuf: %w", err)
 		}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case dataPB := <-dataCh:
-			data, err := types.DataFromProto(dataPB)
-			if err != nil {
-				return fmt.Errorf("failed to convert data from protobuf: %w", err)
-			}
-			block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
-			blockID := types.BlockID{
-				Hash:          block.Hash(),
-				PartSetHeader: blockParts.Header(),
-			}
+		block, blockParts := cb.state.MakeBlock(lastHeight, data, commit, nil, cb.proposer)
+		blockID := types.BlockID{
+			Hash:          block.Hash(),
+			PartSetHeader: blockParts.Header(),
+		}
 
-			precommitVote := &tmproto.Vote{
-				Height:           height,
-				Round:            0,
-				Type:             tmproto.PrecommitType,
-				BlockID:          blockID.ToProto(),
-				ValidatorAddress: validatorAddr,
-				Timestamp:        currentTime,
-				Signature:        nil,
-			}
+		precommitVote := &tmproto.Vote{
+			Height:           lastHeight,
+			Round:            0,
+			Type:             tmproto.PrecommitType,
+			BlockID:          blockID.ToProto(),
+			ValidatorAddress: cb.proposer,
+			Timestamp:        cb.startTime,
+			Signature:        nil,
+		}
 
-			if err := validatorKey.SignVote(state.ChainID, precommitVote); err != nil {
-				return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
-			}
+		if err := cb.valKey.SignVote(cb.state.ChainID, precommitVote); err != nil {
+			return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
+		}
 
-			commitSig := types.CommitSig{
-				BlockIDFlag:      types.BlockIDFlagCommit,
-				ValidatorAddress: validatorAddr,
-				Timestamp:        currentTime,
-				Signature:        precommitVote.Signature,
-			}
-			commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
+		commitSig := types.CommitSig{
+			BlockIDFlag:      types.BlockIDFlagCommit,
+			ValidatorAddress: cb.proposer,
+			Timestamp:        cb.currentTime,
+			Signature:        precommitVote.Signature,
+		}
+		commit = types.NewCommit(lastHeight, 0, blockID, []types.CommitSig{commitSig})
 
-			var lastCommitInfo abci.LastCommitInfo
-			if height > 1 {
-				lastCommitInfo = abci.LastCommitInfo{
-					Round: 0,
-					Votes: []abci.VoteInfo{
-						{
-							Validator: abci.Validator{
-								Address: validatorAddr,
-								Power:   validatorPower,
-							},
-							SignedLastBlock: true,
+		var lastCommitInfo abci.LastCommitInfo
+		if lastHeight > 1 {
+			lastCommitInfo = abci.LastCommitInfo{
+				Round: 0,
+				Votes: []abci.VoteInfo{
+					{
+						Validator: abci.Validator{
+							Address: cb.proposer,
+							Power:   cb.valPower,
 						},
+						SignedLastBlock: true,
 					},
-				}
-			}
-
-			beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
-				Hash:           block.Hash(),
-				Header:         *block.Header.ToProto(),
-				LastCommitInfo: lastCommitInfo,
-			})
-
-			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
-
-			for idx, tx := range block.Data.Txs {
-				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
-				if isBlobTx {
-					tx = blobTx.Tx
-				}
-				deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{
-					Tx: tx,
-				})
-				if deliverTxResponse.Code != abci.CodeTypeOK {
-					return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
-				}
-				deliverTxResponses[idx] = &deliverTxResponse
-			}
-
-			endBlockResp := simApp.EndBlock(abci.RequestEndBlock{
-				Height: block.Height,
-			})
-
-			commitResp := simApp.Commit()
-			state.LastBlockHeight = height
-			state.LastBlockID = blockID
-			state.LastBlockTime = block.Time
-			state.LastValidators = state.Validators
-			state.Validators = state.NextValidators
-			state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
-			state.AppHash = commitResp.Data
-			state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
-				DeliverTxs: deliverTxResponses,
-				BeginBlock: &beginBlockResp,
-				EndBlock:   &endBlockResp,
-			})
-			currentTime = currentTime.Add(cfg.BlockInterval)
-			persistCh <- persistData{
-				state: state.Copy(),
-				block: block,
-				seenCommit: &types.Commit{
-					Height:     commit.Height,
-					Round:      commit.Round,
-					BlockID:    commit.BlockID,
-					Signatures: []types.CommitSig{commitSig},
 				},
 			}
 		}
-	}
 
-	close(dataCh)
-	close(persistCh)
+		beginBlockResp := cb.app.BeginBlock(abci.RequestBeginBlock{
+			Hash:           block.Hash(),
+			Header:         *block.Header.ToProto(),
+			LastCommitInfo: lastCommitInfo,
+		})
 
-	var firstErr error
-	for i := 0; i < cap(errCh); i++ {
-		err := <-errCh
-		if err != nil && firstErr == nil {
-			firstErr = err
+		deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
+
+		for idx, tx := range block.Data.Txs {
+			blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+			if isBlobTx {
+				tx = blobTx.Tx
+			}
+			deliverTxResponse := cb.app.DeliverTx(abci.RequestDeliverTx{
+				Tx: tx,
+			})
+			if deliverTxResponse.Code != abci.CodeTypeOK {
+				return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
+			}
+			deliverTxResponses[idx] = &deliverTxResponse
+		}
+
+		endBlockResp := cb.app.EndBlock(abci.RequestEndBlock{
+			Height: block.Height,
+		})
+
+		commitResp := cb.app.Commit()
+		cb.state.LastBlockHeight = lastHeight
+		cb.state.LastBlockID = blockID
+		cb.state.LastBlockTime = block.Time
+		cb.state.LastValidators = cb.state.Validators
+		cb.state.Validators = cb.state.NextValidators
+		cb.state.NextValidators = cb.state.NextValidators.CopyIncrementProposerPriority(1)
+		cb.state.AppHash = commitResp.Data
+		cb.state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
+			DeliverTxs: deliverTxResponses,
+			BeginBlock: &beginBlockResp,
+			EndBlock:   &endBlockResp,
+		})
+		cb.currentTime = cb.currentTime.Add(cb.cfg.BlockInterval)
+		persistCh <- persistData{
+			state: cb.state.Copy(),
+			block: block,
+			seenCommit: &types.Commit{
+				Height:     commit.Height,
+				Round:      commit.Round,
+				BlockID:    commit.BlockID,
+				Signatures: []types.CommitSig{commitSig},
+			},
 		}
 	}
 
-	if err := blockDB.Close(); err != nil {
-		return fmt.Errorf("failed to close block database: %w", err)
-	}
-	if err := stateDB.Close(); err != nil {
-		return fmt.Errorf("failed to close state database: %w", err)
-	}
-	if err := appDB.Close(); err != nil {
-		return fmt.Errorf("failed to close application database: %w", err)
-	}
-
-	fmt.Println("Chain built successfully", state.LastBlockHeight)
-
-	return firstErr
+	return nil
 }
 
 func generateSquareRoutine(
@@ -458,6 +527,7 @@ func generateSquareRoutine(
 	cfg BuilderConfig,
 	dataCh chan<- *tmproto.Data,
 ) error {
+	defer close(dataCh)
 	for i := 0; i < cfg.NumBlocks; i++ {
 		select {
 		case <-ctx.Done():
@@ -467,18 +537,20 @@ func generateSquareRoutine(
 
 		account := signer.Accounts()[0]
 
-		blobCount := cfg.BlockSize / appconsts.MaxTxSize(cfg.AppVersion)
-
+		blobCount := cfg.BlockSize / (appconsts.MaxTxSize(cfg.AppVersion) + 100000)
+		if blobCount == 0 {
+			blobCount = 1
+		}
 		blobs := make([]*share.Blob, blobCount)
 		for i := 0; i < blobCount; i++ {
-			blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(appconsts.MaxTxSize(cfg.AppVersion)))
+			blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes((appconsts.MaxTxSize(cfg.AppVersion))-100000))
 			if err != nil {
 				return err
 			}
 			blobs[i] = blob
 		}
 
-		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
+		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)}) * 2
 		fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
 		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
 		if err != nil {
@@ -490,7 +562,7 @@ func generateSquareRoutine(
 
 		dataSquare, txs, err := square.Build(
 			[][]byte{tx},
-			maxSquareSize,
+			512,
 			appconsts.SubtreeRootThreshold(1),
 		)
 		if err != nil {
@@ -507,14 +579,10 @@ func generateSquareRoutine(
 			return err
 		}
 
-		select {
-		case dataCh <- &tmproto.Data{
+		dataCh <- &tmproto.Data{
 			Txs:        txs,
 			Hash:       dah.Hash(),
 			SquareSize: uint64(dataSquare.Size()),
-		}:
-		case <-ctx.Done():
-			return ctx.Err()
 		}
 	}
 	return nil
@@ -532,23 +600,16 @@ func persistDataRoutine(
 	blockStore *store.BlockStore,
 	dataCh <-chan persistData,
 ) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case data, ok := <-dataCh:
-			if !ok {
-				return nil
-			}
-			blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
-			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
-			if blockStore.Height()%100 == 0 {
-				fmt.Println("Reached height", blockStore.Height())
-			}
+	for data := range dataCh {
+		blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
+		blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
+		if blockStore.Height()%100 == 0 {
+			fmt.Println("Reached height", blockStore.Height())
+		}
 
-			if err := stateStore.Save(data.state); err != nil {
-				return err
-			}
+		if err := stateStore.Save(data.state); err != nil {
+			return err
 		}
 	}
+	return nil
 }
