@@ -40,9 +40,9 @@ Clients using this endpoint are responsible for accounting for any necessary mul
 
 There are multiple ways to have a gas price estimation for a priority level. For a first implementation, we will use the following:
 
-- High Priority: The gas price is the median of the top 10% of transactions' gas prices from the last 5 blocks.
+- High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last 5 blocks.
 - Medium Priority: The gas price is the median of all gas prices from the last 5 blocks.
-- Low Priority: The gas price is the median of the lowest 10% of gas prices from the last 5 blocks.
+- Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
 - None Priority: This is equivalent to the Medium priority, using the median of all gas prices from the last 5 blocks.
 
 The calculation of the top 10% and bottom 10% will be done using the [standard deviation and z-scores](https://en.wikipedia.org/wiki/Standard_normal_table#Cumulative_(less_than_Z)).
