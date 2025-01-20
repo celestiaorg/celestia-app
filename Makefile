@@ -351,6 +351,6 @@ configure-v3:
 		sed -i "s/^ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 		sed -i "s/^ttl-duration = .*/ttl-duration = \"1m15s\"/" $(CONFIG_FILE); \
 		sed -i "s/^max_tx_bytes = .*/max_tx_bytes = 7897088/" $(CONFIG_FILE); \
-		sed -i '' "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
+		sed -i "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
 	fi
 .PHONY: configure-v3
