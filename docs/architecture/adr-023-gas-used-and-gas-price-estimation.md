@@ -33,6 +33,9 @@ The gas used estimation will be calculated using the baseapp simulation mode:
 	}
 ```
 
+_Note:_ The returned result will exactly match the output of the state machine, without any gas multiplier applied to adjust the values.
+Clients using this endpoint are responsible for accounting for any necessary multipliers.
+
 ### Gas price estimation
 
 There are multiple ways to have a gas price estimation for a priority level. For a first implementation, we will use the following:
