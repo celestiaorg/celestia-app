@@ -16,7 +16,7 @@ As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://githu
 
 We will proceed with the implementation in celestia-app.
 
-The fee estimation mechanism is TBD.
+The fee estimation mechanism is described below.
 
 ## Detailed Design
 
