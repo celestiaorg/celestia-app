@@ -333,14 +333,10 @@ configure-v3:
 	else \
 		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-<<<<<<< HEAD
-		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-=======
 		sed -i "s/^ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 		sed -i "s/^ttl-duration = .*/ttl-duration = \"1m15s\"/" $(CONFIG_FILE); \
 		sed -i "s/^max_tx_bytes = .*/max_tx_bytes = 7897088/" $(CONFIG_FILE); \
-		sed -i '' "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
->>>>>>> 8093218 (Update Makefile: Fix typo max_txs_bytes (#4250))
+		sed -i "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
 	fi
 .PHONY: configure-v3
 
