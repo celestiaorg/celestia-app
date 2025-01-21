@@ -30,6 +30,12 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// TxPriority is the priority level of the requested gas price.
+// The following priority levels are defined:
+// - High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last 5 blocks.
+// - Medium Priority: The gas price is the median of all gas prices from the last 5 blocks.
+// - Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
+// - None Priority (default): This is equivalent to the Medium priority, using the median of all gas prices from the last 5 blocks.
 type TxPriority int32
 
 const (
