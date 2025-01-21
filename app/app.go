@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gas_estimation"
 	"io"
 	"slices"
 	"time"
@@ -753,6 +754,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
 	celestiatx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
+	gas_estimation.RegisterGasEstimationService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

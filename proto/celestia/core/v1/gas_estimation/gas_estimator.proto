@@ -1,0 +1,38 @@
+syntax = "proto3";
+package celestia.core.v1.gas_estimation;
+
+import "google/api/annotations.proto";
+import "cosmos_proto/cosmos.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/app/grpc/gas_estimation";
+
+service GasEstimator {
+  rpc EstimateGasPrice(EstimateGasPriceRequest) returns (EstimateGasPriceResponse) {}
+  rpc EstimateGasPriceAndUsage(EstimateGasPriceAndUsageRequest) returns (EstimateGasPriceAndUsageResponse) {}
+}
+
+enum TxPriority {
+  // add comments
+  NONE = 0;
+  LOW = 1;
+  MEDIUM = 2;
+  HIGH = 3;
+}
+
+message EstimateGasPriceRequest {
+  TxPriority tx_priority = 1;
+}
+
+message EstimateGasPriceResponse {
+  double estimated_gas_price = 1;
+}
+
+message EstimateGasPriceAndUsageRequest {
+  TxPriority tx_priority = 1;
+  bytes tx_bytes = 2;
+}
+
+message EstimateGasPriceAndUsageResponse {
+  double estimated_gas_price = 1;
+  uint64 estimated_gas_used = 2;
+}
