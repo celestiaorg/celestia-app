@@ -196,7 +196,7 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 			log.NewNopLogger(),
 			tmdb.NewMemDB(),
 			nil, // trace store
-			0,   // invCheckPerid
+			0,   // invCheckPeriod
 			encodingConfig,
 			0, // v2 upgrade height
 			0, // timeout commit
