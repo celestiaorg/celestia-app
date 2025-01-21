@@ -12,6 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -34,10 +36,17 @@ func TestEstimateGasPrice(t *testing.T) {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	require.NoError(t, cctx.WaitForNextBlock())
 
+	// create the gas estimation client
+	gasEstimationAPI := gas_estimation.NewGasEstimatorClient(cctx.GRPCClient)
+
+	// test getting the gas price for an empty blockchain
+	resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gas_estimation.EstimateGasPriceRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.EstimatedGasPrice)
+
 	encfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	rand := tmrand.NewRand()
 
-	var err error
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, encfg)
 	require.NoError(t, err)
 
@@ -72,8 +81,6 @@ func TestEstimateGasPrice(t *testing.T) {
 		gasPrices = append(gasPrices, price)
 	}
 
-	// create the gas estimation client
-	gasEstimationAPI := gas_estimation.NewGasEstimatorClient(cctx.GRPCClient)
 	meanGasPrice := gas_estimation.Mean(gasPrices)
 	stDev := gas_estimation.StandardDeviation(meanGasPrice, gasPrices)
 	tests := []struct {
@@ -133,15 +140,42 @@ func TestEstimateGasUsed(t *testing.T) {
 	encfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, encfg)
 	require.NoError(t, err)
+	txClient.SetGasMultiplier(1)
+	addr := testfactory.GetAddress(cctx.Keyring, "test")
 
+	// create a transfer transaction
+	msg := banktypes.NewMsgSend(
+		addr,
+		testnode.RandomAddress().(sdk.AccAddress),
+		sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+	)
+	rawTx, err := txClient.Signer().CreateTx(
+		[]sdk.Msg{msg},
+		user.SetGasLimit(0), // set to 0 to mimic txClient behavior
+		user.SetFee(1),
+	)
+	require.NoError(t, err)
+
+	gasEstimationAPI := gas_estimation.NewGasEstimatorClient(cctx.GRPCClient)
+
+	// calculate the expected gas used
+	expectedGasEstimate, err := txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{msg})
+	require.NoError(t, err)
+	// calculate the actual gas used
+	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gas_estimation.EstimateGasPriceAndUsageRequest{TxBytes: rawTx})
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedGasEstimate, actualGasEstimate.EstimatedGasUsed)
+
+	// create a PFB
 	blobSize := 100
 	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), blobSize)
 	pfbTx, _, err := txClient.Signer().CreatePayForBlobs("test", blobs)
 
-	expectedGasEstimate := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
-
-	gasEstimationAPI := gas_estimation.NewGasEstimatorClient(cctx.GRPCClient)
-	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gas_estimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})
+	// calculate the expected gas used
+	expectedGasEstimate = blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
+	// calculate the actual gas used
+	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gas_estimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedGasEstimate, actualGasEstimate.EstimatedGasUsed)
