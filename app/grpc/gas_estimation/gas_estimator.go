@@ -66,7 +66,18 @@ func (s *gasEstimatorServer) EstimateGasPrice(ctx context.Context, request *Esti
 	return &EstimateGasPriceResponse{EstimatedGasPrice: gasPrice}, nil
 }
 
+// EstimateGasPriceAndUsage takes a transaction priority and a transaction bytes
+// and estimates the gas price based on the gas prices of the transactions in the last five blocks.
+// If no transaction is found in the last five blocks, return the network
+// min gas price.
+// It's up to the light client to set the gas price in this case
+// to the minimum gas price set by that node.
+// The gas used is estimated as follows:
+// - PFB: using the default PFB gas estimator.
+// - other transaction types: using the state machine simulation.
 func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, request *EstimateGasPriceAndUsageRequest) (*EstimateGasPriceAndUsageResponse, error) {
+
+	// TODO handle PFB case
 	gasUsedInfo, _, err := s.simulateFn(request.TxBytes)
 	if err != nil {
 		return nil, err
@@ -83,8 +94,10 @@ func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, reque
 
 // estimateGasPrice takes a transaction priority and estimates the gas price based
 // on the gas prices of the transactions in the last five blocks.
-// If no transaction is found in the last five blocks, returns the network
+// If no transaction is found in the last five blocks, return the network
 // min gas price.
+// It's up to the light client to set the gas price in this case
+// to the minimum gas price set by that node.
 func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPriority) (float64, error) {
 	status, err := s.clientCtx.Client.Status(ctx)
 	if err != nil {
@@ -142,19 +155,19 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 // - High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last five blocks.
 // - Medium Priority: The gas price is the median of all gas prices from the last five blocks.
 // - Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last five blocks.
-// - None Priority: This is equivalent to the Medium priority, using the median of all gas prices from the last five blocks.
+// - Unspecified Priority (default): This is equivalent to the Medium priority, using the median of all gas prices from the last five blocks.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	meanGasPrice := Mean(gasPrices)
 	switch priority {
-	case TxPriority_NONE:
+	case TxPriority_TX_PRIORITY_UNSPECIFIED:
 		return meanGasPrice, nil
-	case TxPriority_LOW:
+	case TxPriority_TX_PRIORITY_LOW:
 		stDev := StandardDeviation(meanGasPrice, gasPrices)
 		return meanGasPrice - EstimationZScore*stDev, nil
-	case TxPriority_MEDIUM:
+	case TxPriority_TX_PRIORITY_MEDIUM:
 		return meanGasPrice, nil
-	case TxPriority_HIGH:
+	case TxPriority_TX_PRIORITY_HIGH:
 		stDev := StandardDeviation(meanGasPrice, gasPrices)
 		return meanGasPrice + EstimationZScore*stDev, nil
 	default:

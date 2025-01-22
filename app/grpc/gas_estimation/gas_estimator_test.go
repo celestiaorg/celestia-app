@@ -100,22 +100,22 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 	}{
 		{
 			name:     "NONE -> same as MEDIUM (mean)",
-			priority: TxPriority_NONE,
+			priority: TxPriority_TX_PRIORITY_UNSPECIFIED,
 			want:     meanGasPrices,
 		},
 		{
 			name:     "LOW -> mean - ZScore * stDev",
-			priority: TxPriority_LOW,
+			priority: TxPriority_TX_PRIORITY_LOW,
 			want:     meanGasPrices - EstimationZScore*stDev,
 		},
 		{
 			name:     "MEDIUM -> mean",
-			priority: TxPriority_MEDIUM,
+			priority: TxPriority_TX_PRIORITY_MEDIUM,
 			want:     meanGasPrices,
 		},
 		{
 			name:     "HIGH -> mean + ZScore * stDev",
-			priority: TxPriority_HIGH,
+			priority: TxPriority_TX_PRIORITY_HIGH,
 			want:     meanGasPrices + EstimationZScore*stDev,
 		},
 		{

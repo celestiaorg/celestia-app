@@ -6,8 +6,26 @@ import "cosmos_proto/cosmos.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/app/grpc/gas_estimation";
 
+// GasEstimator estimation service for gas price and gas used.
 service GasEstimator {
+  // estimateGasPrice takes a transaction priority and estimates the gas price based
+  // on the gas prices of the transactions in the last five blocks.
+  // If no transaction is found in the last five blocks, return the network
+  // min gas price.
+  // It's up to the light client to set the gas price in this case
+  // to the minimum gas price set by that node.
   rpc EstimateGasPrice(EstimateGasPriceRequest) returns (EstimateGasPriceResponse) {}
+
+  // EstimateGasPriceAndUsage takes a transaction priority and a transaction bytes
+  // and estimates the gas price and the gas used for that transaction.
+  // The gas price estimation is based on the gas prices of the transactions in the last five blocks.
+  // If no transaction is found in the last five blocks, return the network
+  // min gas price.
+  // It's up to the light client to set the gas price in this case
+  // to the minimum gas price set by that node.
+  // The gas used is estimated as follows:
+  // - PFB: using the default PFB gas estimator.
+  // - other transaction types: using the state machine simulation.
   rpc EstimateGasPriceAndUsage(EstimateGasPriceAndUsageRequest) returns (EstimateGasPriceAndUsageResponse) {}
 }
 
@@ -16,27 +34,39 @@ service GasEstimator {
 // - High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last 5 blocks.
 // - Medium Priority: The gas price is the median of all gas prices from the last 5 blocks.
 // - Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
-// - None Priority (default): This is equivalent to the Medium priority, using the median of all gas prices from the last 5 blocks.
+// - Unspecified Priority (default): This is equivalent to the Medium priority, using the median of all gas prices from the last 5 blocks.
 enum TxPriority {
-  NONE = 0;
-  LOW = 1;
-  MEDIUM = 2;
-  HIGH = 3;
+  // TX_PRIORITY_UNSPECIFIED none priority, the default priority level, which is equivalent to
+  // the TX_PRIORITY_MEDIUM priority.
+  TX_PRIORITY_UNSPECIFIED = 0;
+  // TX_PRIORITY_LOW low priority.
+  TX_PRIORITY_LOW = 1;
+  // TX_PRIORITY_MEDIUM medium priority.
+  TX_PRIORITY_MEDIUM = 2;
+  // TX_PRIORITY_HIGH high priority.
+  TX_PRIORITY_HIGH = 3;
 }
 
+// EstimateGasPriceRequest the request to estimate the gas price of the network.
+// Takes a priority enum to define the priority level.
 message EstimateGasPriceRequest {
   TxPriority tx_priority = 1;
 }
 
+// EstimateGasPriceResponse the response of the gas price estimation.
 message EstimateGasPriceResponse {
   double estimated_gas_price = 1;
 }
 
+// EstimateGasPriceAndUsageRequest the request to estimate the gas price of the network
+// and also the gas used for the provided transaction.
 message EstimateGasPriceAndUsageRequest {
   TxPriority tx_priority = 1;
   bytes tx_bytes = 2;
 }
 
+// EstimateGasPriceAndUsageResponse the response of the gas price and used
+// estimation.
 message EstimateGasPriceAndUsageResponse {
   double estimated_gas_price = 1;
   uint64 estimated_gas_used = 2;
