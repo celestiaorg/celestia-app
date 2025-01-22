@@ -195,7 +195,6 @@ func extractGasPriceFromTransactions(txs []*coretypes.ResultTx) ([]float64, erro
 	for _, tx := range txs {
 		var feeWithDenom string
 		for _, event := range tx.TxResult.Events {
-			// resp.TxResult.Events[4].Attributes[0].Key
 			if event.GetType() == "tx" {
 				for _, attr := range event.Attributes {
 					if string(attr.Key) == "fee" {
