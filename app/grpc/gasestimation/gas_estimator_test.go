@@ -1,4 +1,4 @@
-package gas_estimation
+package gasestimation
 
 import (
 	"math"
@@ -36,7 +36,6 @@ func TestMean(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got := Mean(tt.gasPrices)
 			if got != tt.want {
@@ -76,7 +75,6 @@ func TestStandardDeviation(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			meanVal := Mean(tt.gasPrices)
 			got := StandardDeviation(meanVal, tt.gasPrices)
@@ -127,7 +125,6 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := estimateGasPriceForTransactions(gasPrices, tt.priority)
 			if (err != nil) != tt.wantErr {

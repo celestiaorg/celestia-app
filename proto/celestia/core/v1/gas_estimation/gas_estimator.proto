@@ -4,7 +4,7 @@ package celestia.core.v1.gas_estimation;
 import "google/api/annotations.proto";
 import "cosmos_proto/cosmos.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/app/grpc/gas_estimation";
+option go_package = "github.com/celestiaorg/celestia-app/app/grpc/gasestimation";
 
 // GasEstimator estimation service for gas price and gas used.
 service GasEstimator {

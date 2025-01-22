@@ -1,4 +1,4 @@
-package gas_estimation
+package gasestimation
 
 import (
 	"context"

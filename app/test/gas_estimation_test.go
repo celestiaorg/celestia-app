@@ -8,7 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/gas_estimation"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
@@ -38,10 +38,10 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, cctx.WaitForNextBlock())
 
 	// create the gas estimation client
-	gasEstimationAPI := gas_estimation.NewGasEstimatorClient(cctx.GRPCClient)
+	gasEstimationAPI := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 
 	// test getting the gas price for an empty blockchain
-	resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gas_estimation.EstimateGasPriceRequest{})
+	resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.EstimatedGasPrice)
 
@@ -82,39 +82,39 @@ func TestEstimateGasPrice(t *testing.T) {
 		gasPrices = append(gasPrices, price)
 	}
 
-	meanGasPrice := gas_estimation.Mean(gasPrices)
-	stDev := gas_estimation.StandardDeviation(meanGasPrice, gasPrices)
+	meanGasPrice := gasestimation.Mean(gasPrices)
+	stDev := gasestimation.StandardDeviation(meanGasPrice, gasPrices)
 	tests := []struct {
 		name             string
-		priority         gas_estimation.TxPriority
+		priority         gasestimation.TxPriority
 		expectedGasPrice float64
 	}{
 		{
 			name:     "NONE -> same as MEDIUM (mean)",
-			priority: gas_estimation.TxPriority_TX_PRIORITY_UNSPECIFIED,
+			priority: gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED,
 			expectedGasPrice: func() float64 {
 				return meanGasPrice
 			}(),
 		},
 		{
 			name:     "LOW -> mean - ZScore * stDev",
-			priority: gas_estimation.TxPriority_TX_PRIORITY_LOW,
+			priority: gasestimation.TxPriority_TX_PRIORITY_LOW,
 			expectedGasPrice: func() float64 {
-				return meanGasPrice - gas_estimation.EstimationZScore*stDev
+				return meanGasPrice - gasestimation.EstimationZScore*stDev
 			}(),
 		},
 		{
 			name:     "MEDIUM -> mean",
-			priority: gas_estimation.TxPriority_TX_PRIORITY_MEDIUM,
+			priority: gasestimation.TxPriority_TX_PRIORITY_MEDIUM,
 			expectedGasPrice: func() float64 {
 				return meanGasPrice
 			}(),
 		},
 		{
 			name:     "HIGH -> mean + ZScore * stDev",
-			priority: gas_estimation.TxPriority_TX_PRIORITY_HIGH,
+			priority: gasestimation.TxPriority_TX_PRIORITY_HIGH,
 			expectedGasPrice: func() float64 {
-				return meanGasPrice + gas_estimation.EstimationZScore*stDev
+				return meanGasPrice + gasestimation.EstimationZScore*stDev
 			}(),
 		},
 	}
@@ -122,7 +122,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gas_estimation.EstimateGasPriceRequest{TxPriority: tt.priority})
+			resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: tt.priority})
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%.2f", tt.expectedGasPrice), fmt.Sprintf("%.2f", resp.EstimatedGasPrice))
 		})
@@ -157,13 +157,13 @@ func TestEstimateGasUsed(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	gasEstimationAPI := gas_estimation.NewGasEstimatorClient(cctx.GRPCClient)
+	gasEstimationAPI := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
 
 	// calculate the expected gas used
 	expectedGasEstimate, err := txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(t, err)
 	// calculate the actual gas used
-	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gas_estimation.EstimateGasPriceAndUsageRequest{TxBytes: rawTx})
+	actualGasEstimate, err := gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: rawTx})
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedGasEstimate, actualGasEstimate.EstimatedGasUsed)
@@ -177,6 +177,7 @@ func TestEstimateGasUsed(t *testing.T) {
 		user.SetGasLimit(0), // set to 0 to mimic txClient behavior
 		user.SetFee(1),
 	)
+	require.NoError(t, err)
 	pfbMsg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blobs...)
 	require.NoError(t, err)
 
@@ -184,7 +185,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	expectedGasEstimate, err = txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{pfbMsg})
 	require.NoError(t, err)
 	// calculate the actual gas used
-	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gas_estimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})
+	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedGasEstimate, actualGasEstimate.EstimatedGasUsed)
