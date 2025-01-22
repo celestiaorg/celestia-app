@@ -214,6 +214,9 @@ func extractGasPriceFromTransactions(txs []*coretypes.ResultTx) ([]float64, erro
 		if err != nil {
 			return nil, fmt.Errorf("couldn't parse fee for transaction %s: %w", tx.Hash, err)
 		}
+		if tx.TxResult.GasWanted == 0 {
+			return nil, fmt.Errorf("zero gas wanted for transaction %s", tx.Hash)
+		}
 		gasPrices = append(gasPrices, fee/float64(tx.TxResult.GasWanted))
 	}
 	return gasPrices, nil
