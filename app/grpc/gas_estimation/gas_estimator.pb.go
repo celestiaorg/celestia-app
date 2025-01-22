@@ -343,9 +343,7 @@ type GasEstimatorClient interface {
 	// min gas price.
 	// It's up to the light client to set the gas price in this case
 	// to the minimum gas price set by that node.
-	// The gas used is estimated as follows:
-	// - PFB: using the default PFB gas estimator.
-	// - other transaction types: using the state machine simulation.
+	// The gas used is estimated using the state machine simulation.
 	EstimateGasPriceAndUsage(ctx context.Context, in *EstimateGasPriceAndUsageRequest, opts ...grpc.CallOption) (*EstimateGasPriceAndUsageResponse, error)
 }
 
@@ -391,9 +389,7 @@ type GasEstimatorServer interface {
 	// min gas price.
 	// It's up to the light client to set the gas price in this case
 	// to the minimum gas price set by that node.
-	// The gas used is estimated as follows:
-	// - PFB: using the default PFB gas estimator.
-	// - other transaction types: using the state machine simulation.
+	// The gas used is estimated using the state machine simulation.
 	EstimateGasPriceAndUsage(context.Context, *EstimateGasPriceAndUsageRequest) (*EstimateGasPriceAndUsageResponse, error)
 }
 
