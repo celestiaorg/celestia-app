@@ -127,14 +127,11 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := estimateGasPriceForTransactions(gasPrices, tt.priority)
-			if (err != nil) != tt.wantErr {
-				// If we expect an error, don't bother checking the numeric result.
-				if tt.wantErr {
-					assert.Error(t, err)
-				} else {
-					assert.NoError(t, err)
-					assert.Equal(t, tt.want, got)
-				}
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
 			}
 		})
 	}
