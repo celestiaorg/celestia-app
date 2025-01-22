@@ -2,10 +2,11 @@ package app
 
 import (
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/gas_estimation"
 	"io"
 	"slices"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gas_estimation"
 
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"

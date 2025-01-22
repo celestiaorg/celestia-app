@@ -2,6 +2,10 @@ package app
 
 import (
 	"fmt"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/gas_estimation"
@@ -18,9 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestEstimateGasPrice(t *testing.T) {
