@@ -166,9 +166,9 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 // and returns a gas price estimation.
 // The priority sets the estimation as follows:
 // - High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last five blocks.
-// - Medium Priority: The gas price is the median of all gas prices from the last five blocks.
+// - Medium Priority: The gas price is the mean of all gas prices from the last five blocks.
 // - Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last five blocks.
-// - Unspecified Priority (default): This is equivalent to the Medium priority, using the median of all gas prices from the last five blocks.
+// - Unspecified Priority (default): This is equivalent to the Medium priority, using the mean of all gas prices from the last five blocks.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	meanGasPrice := Mean(gasPrices)
