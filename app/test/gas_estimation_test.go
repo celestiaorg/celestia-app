@@ -170,10 +170,18 @@ func TestEstimateGasUsed(t *testing.T) {
 	// create a PFB
 	blobSize := 100
 	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), blobSize)
-	pfbTx, _, err := txClient.Signer().CreatePayForBlobs("test", blobs)
+	pfbTx, _, err := txClient.Signer().CreatePayForBlobs(
+		"test",
+		blobs,
+		user.SetGasLimit(0), // set to 0 to mimic txClient behavior
+		user.SetFee(1),
+	)
+	pfbMsg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.LatestVersion, blobs...)
+	require.NoError(t, err)
 
 	// calculate the expected gas used
-	expectedGasEstimate = blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
+	expectedGasEstimate, err = txClient.EstimateGas(cctx.GoContext(), []sdk.Msg{pfbMsg})
+	require.NoError(t, err)
 	// calculate the actual gas used
 	actualGasEstimate, err = gasEstimationAPI.EstimateGasPriceAndUsage(cctx.GoContext(), &gas_estimation.EstimateGasPriceAndUsageRequest{TxBytes: pfbTx})
 	require.NoError(t, err)

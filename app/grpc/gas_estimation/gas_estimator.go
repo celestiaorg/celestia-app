@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -74,9 +73,7 @@ func (s *gasEstimatorServer) EstimateGasPrice(ctx context.Context, request *Esti
 // min gas price.
 // It's up to the light client to set the gas price in this case
 // to the minimum gas price set by that node.
-// The gas used is estimated as follows:
-// - PFB: using the default PFB gas estimator.
-// - other transaction types: using the state machine simulation.
+// The gas used is estimated using the state machine simulation.
 func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, request *EstimateGasPriceAndUsageRequest) (*EstimateGasPriceAndUsageResponse, error) {
 	// estimate the gas price
 	gasPrice, err := s.estimateGasPrice(ctx, request.TxPriority)
@@ -89,24 +86,15 @@ func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, reque
 	if isBlob && err != nil {
 		return nil, err
 	}
+
+	var txBytes []byte
 	if isBlob {
-		tx, err := s.clientCtx.TxConfig.TxDecoder()(btx.Tx)
-		if err != nil {
-			return nil, err
-		}
-		messages := tx.GetMsgs()
-		gasUsed, err := estimatePFBGasUsed(messages)
-		if err != nil {
-			return nil, err
-		}
-		return &EstimateGasPriceAndUsageResponse{
-			EstimatedGasPrice: gasPrice,
-			EstimatedGasUsed:  gasUsed,
-		}, nil
+		txBytes = btx.Tx
+	} else {
+		txBytes = request.TxBytes
 	}
 
-	// if it's not a PFB, then we use the state machine transaction simulation.
-	gasUsedInfo, _, err := s.simulateFn(request.TxBytes)
+	gasUsedInfo, _, err := s.simulateFn(txBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -114,20 +102,6 @@ func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, reque
 		EstimatedGasPrice: gasPrice,
 		EstimatedGasUsed:  gasUsedInfo.GasUsed,
 	}, nil
-}
-
-// estimatePFBGasUsed takes a list of PFBs and returns their cumulative gas used.
-// It uses the default PFB gas estimator.
-func estimatePFBGasUsed(messages []sdk.Msg) (uint64, error) {
-	blobSizes := make([]uint32, 0)
-	for _, msg := range messages {
-		pfb, is := msg.(*types.MsgPayForBlobs)
-		if !is {
-			return 0, fmt.Errorf("expected types.MsgPayForBlobs, got %T", msg)
-		}
-		blobSizes = append(blobSizes, pfb.BlobSizes...)
-	}
-	return types.DefaultEstimateGas(blobSizes), nil
 }
 
 // estimateGasPrice takes a transaction priority and estimates the gas price based
