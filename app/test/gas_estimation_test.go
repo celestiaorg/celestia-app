@@ -104,14 +104,14 @@ func TestEstimateGasPrice(t *testing.T) {
 		},
 		{
 			name:     "MEDIUM -> mean",
-			priority: gas_estimation.TxPriority_MEDIUM,
+			priority: gas_estimation.TxPriority_TX_PRIORITY_MEDIUM,
 			expectedGasPrice: func() float64 {
 				return meanGasPrice
 			}(),
 		},
 		{
 			name:     "HIGH -> mean + ZScore * stDev",
-			priority: gas_estimation.TxPriority_HIGH,
+			priority: gas_estimation.TxPriority_TX_PRIORITY_HIGH,
 			expectedGasPrice: func() float64 {
 				return meanGasPrice + gas_estimation.EstimationZScore*stDev
 			}(),
