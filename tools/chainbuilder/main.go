@@ -502,7 +502,7 @@ func generateSquareRoutine(
 			return err
 		}
 
-		fmt.Printf("generated block size %d", dah.SquareSize())
+		fmt.Printf("generated block size %d\n", dah.SquareSize())
 		select {
 		case dataCh <- &tmproto.Data{
 			Txs:        txs,
