@@ -459,6 +459,7 @@ func generateSquareRoutine(
 	dataCh chan<- *tmproto.Data,
 ) error {
 	for i := 0; i < cfg.NumBlocks; i++ {
+		fmt.Printf("generating block %d\n", i)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -501,6 +502,7 @@ func generateSquareRoutine(
 			return err
 		}
 
+		fmt.Printf("generated block size %d", dah.SquareSize())
 		select {
 		case dataCh <- &tmproto.Data{
 			Txs:        txs,
