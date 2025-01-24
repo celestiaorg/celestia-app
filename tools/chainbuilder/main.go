@@ -321,8 +321,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		commit = blockStore.LoadSeenCommit(lastHeight)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	//ctx, cancel := context.WithCancel(ctx)
+	//defer cancel()
 
 	// Number of blocks to produce
 	totalBlocks := cfg.NumBlocks
@@ -357,7 +357,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	// Feed jobs
 	go func() {
 		defer close(resultsCh)
-		defer cancel() // ensure workers get canceled once done
+		//defer cancel() // ensure workers get canceled once done
 		for i := 0; i < totalBlocks; i++ {
 			select {
 			case <-ctx.Done():
@@ -389,7 +389,7 @@ mainLoop:
 				// capture the first error
 				errCh <- res.Err
 				errCh = nil
-				cancel()
+				//cancel()
 				continue
 			}
 			pending[res.Index] = res.Data
