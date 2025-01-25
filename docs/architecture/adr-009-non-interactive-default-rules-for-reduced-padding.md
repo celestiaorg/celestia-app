@@ -149,7 +149,7 @@ Proof size = 48 \* (sqrt(n) + log(k) + log(n)) + 64 \*log(k)
 ### Proposed Non-Interactive Default Rules for k/4
 
 Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
-Proof size = (**k/2** + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size
+Proof size = (3k/4 + log(k)) * NMT-Node size + 2*log(k) * MT-Node size
 Proof size = 48 \* (3k/4 + log(k)) + 64 \*log(k)
 
 ## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
