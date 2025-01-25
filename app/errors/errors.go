@@ -4,9 +4,12 @@ import (
 	"cosmossdk.io/errors"
 )
 
+// AppErrorsCodespace defines the unique identifier of the application error space
+// used to separate app-specific errors from other modules
 const AppErrorsCodespace = "app"
 
-// general application errors
+// Application error codes start from 11000 to avoid conflicts with other modules
 var (
-	ErrTxExceedsMaxSize = errors.Register(AppErrorsCodespace, 11142, "exceeds max tx size limit")
+	// ErrTxExceedsMaxSize is returned when a transaction size exceeds the maximum allowed limit
+	ErrTxExceedsMaxSize = errors.Register(AppErrorsCodespace, 11142, "transaction size exceeds maximum allowed limit")
 )
