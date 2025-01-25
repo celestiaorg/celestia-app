@@ -145,10 +145,10 @@ Regardless of the option chosen, end-users must explicitly specify the namespace
 
 Since the NMT needs to be aware of the version byte, Option A is equivalent to increasing the namespace ID size to `9` bytes and then constraining the namespaces available for use to namespaces that have a leading `0` byte. In other words:
 
-- MinReservedNamespace: []byte{0, 0, 0, 0, 0, 0, 0, 0, 1}
-- MaxReservedNamespace: []byte{0, 0, 0, 0, 0, 0, 0, 0, 255}
-- MinBlobNamespace: []byte{0, 0, 0, 0, 0, 0, 0, 1, 0}
-- MaxBlobNamespace: []byte{0, 255, 255, 255, 255, 255, 255, 255, 255}
+- MinReservedNamespace: []byte{0, 0, 0, 0, 0, 0, 0, 1}
+- MaxReservedNamespace: []byte{0, 0, 0, 0, 0, 0, 0, 255}
+- MinBlobNamespace: []byte{0, 0, 0, 0, 0, 0, 1, 0}
+- MaxBlobNamespace: []byte{0, 255, 255, 255, 255, 255, 255, 255}
 
 When a user creates a PFB, concatenate the namespace version with the namespace ID to derive the namespace that is pushed to the NMT. Option C is similar to Option A, if we constrain the available share versions at mainnet to `0`.
 
