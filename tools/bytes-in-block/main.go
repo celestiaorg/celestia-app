@@ -38,7 +38,7 @@ func main() {
 		// you don't exceed the last block. But the endpoint might just return fewer
 		// blocks if you overshoot. In practice, `offset` is just how many items to skip.
 		// We'll keep it simple:
-		url := fmt.Sprintf("https://api-mocha.celenium.io/v1/block?limit=%d&offset=%d&sort=asc&stats=true", numberOfBlocksPerRequest, offset)
+		url := fmt.Sprintf("https://api-mocha.celenium.io/v1/block?limit=%d&offset=%d&sort=asc&stats=true", numberOfBlocksPerRequest, offset-startHeight)
 
 		resp, err := http.Get(url)
 		if err != nil {
