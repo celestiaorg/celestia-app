@@ -1,15 +1,17 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"fmt"
-
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"google.golang.org/grpc"
 
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
@@ -297,4 +299,47 @@ func (s *Signer) getSignatureV2(sequence uint64, pubKey cryptotypes.PubKey, sign
 		sigV2.PubKey = pubKey
 	}
 	return sigV2
+}
+
+// QueryGasPrice takes a priority and an app gRPC client.
+// Returns the current network gas price corresponding to the provided priority.
+// More on the gas price estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
+func (s *Signer) QueryGasPrice(
+	ctx context.Context,
+	grpcClient *grpc.ClientConn,
+	priority gasestimation.TxPriority,
+) (float64, error) {
+	estimator := gasestimation.NewGasEstimatorClient(grpcClient)
+	gasPrice, err := estimator.EstimateGasPrice(
+		ctx,
+		&gasestimation.EstimateGasPriceRequest{TxPriority: priority},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return gasPrice.EstimatedGasPrice, nil
+}
+
+// QueryGasUsedAndPrice takes a priority, an app gRPC client, and a transaction bytes.
+// Returns the current network gas price corresponding to the provided priority,
+// and the gas used estimation for the provided transaction bytes.
+// More on the gas estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
+func (s *Signer) QueryGasUsedAndPrice(
+	ctx context.Context,
+	grpcClient *grpc.ClientConn,
+	priority gasestimation.TxPriority,
+	txBytes []byte,
+) (float64, uint64, error) {
+	estimator := gasestimation.NewGasEstimatorClient(grpcClient)
+	gasEstimation, err := estimator.EstimateGasPriceAndUsage(
+		ctx,
+		&gasestimation.EstimateGasPriceAndUsageRequest{
+			TxPriority: priority,
+			TxBytes:    txBytes,
+		},
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+	return gasEstimation.EstimatedGasPrice, gasEstimation.EstimatedGasUsed, nil
 }
