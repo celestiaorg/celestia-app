@@ -175,14 +175,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	validatorKey := privval.LoadFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile())
 	validatorAddr := validatorKey.Key.Address
 
-	blockDB, err := dbm.NewDB("blockstore", dbm.PebbleDBBackend, tmCfg.DBDir())
+	blockDB, err := dbm.NewDB("blockstore", dbm.CLevelDBBackend, tmCfg.DBDir())
 	if err != nil {
 		return fmt.Errorf("failed to create block database: %w", err)
 	}
 
 	blockStore := store.NewBlockStore(blockDB)
 
-	stateDB, err := dbm.NewDB("state", dbm.PebbleDBBackend, tmCfg.DBDir())
+	stateDB, err := dbm.NewDB("state", dbm.CLevelDBBackend, tmCfg.DBDir())
 	if err != nil {
 		return fmt.Errorf("failed to create state database: %w", err)
 	}
