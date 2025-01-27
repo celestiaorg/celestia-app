@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/celestiaorg/go-square/v2"
@@ -62,8 +61,6 @@ func main() {
 			upToTime, _ := cmd.Flags().GetBool("up-to-now")
 			appVersion, _ := cmd.Flags().GetUint64("app-version")
 			chainID, _ := cmd.Flags().GetString("chain-id")
-			numWorkers, _ := cmd.Flags().GetInt("num-workers")
-
 			var namespace share.Namespace
 			if namespaceStr == "" {
 				namespace = defaultNamespace
@@ -84,7 +81,6 @@ func main() {
 				ChainID:       tmrand.Str(6),
 				UpToTime:      upToTime,
 				AppVersion:    appVersion,
-				NumWorkers:    numWorkers,
 			}
 
 			if chainID != "" {
@@ -108,8 +104,6 @@ func main() {
 	rootCmd.Flags().Bool("up-to-now", false, "Tool will terminate if the block time reaches the current time")
 	rootCmd.Flags().Uint64("app-version", appconsts.LatestVersion, "App version to use for the chain")
 	rootCmd.Flags().String("chain-id", "", "Chain ID to use for the chain. Defaults to a random 6 character string")
-	rootCmd.Flags().Int("num-workers", 1, "Number of goroutines to use in parallel for block-data generation")
-
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
@@ -127,9 +121,6 @@ type BuilderConfig struct {
 	ChainID       string
 	AppVersion    uint64
 	UpToTime      bool
-
-	// Added for parallel generation
-	NumWorkers int
 }
 
 func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
@@ -138,13 +129,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	encCfg := encoding.MakeConfig(app.ModuleBasics)
 	tmCfg := app.DefaultConsensusConfig()
-
 	var (
 		gen *genesis.Genesis
 		kr  keyring.Keyring
 		err error
 	)
-
 	if cfg.ExistingDir == "" {
 		dir = filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
 		kr, err = keyring.New(app.Name, keyring.BackendTest, dir, nil, encCfg.Codec)
@@ -158,9 +147,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg.StateSync.SnapshotInterval = 0
 		cp := app.DefaultConsensusParams()
 
-		// Set the app version
-		cp.Version.AppVersion = cfg.AppVersion
-
+		cp.Version.AppVersion = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
 			WithKeyring(kr).
@@ -192,7 +179,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create block database: %w", err)
 	}
-	defer blockDB.Close()
 
 	blockStore := store.NewBlockStore(blockDB)
 
@@ -200,7 +186,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create state database: %w", err)
 	}
-	defer stateDB.Close()
 
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: true,
@@ -210,7 +195,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create application database: %w", err)
 	}
-	defer appDB.Close()
 
 	simApp := app.New(
 		log.NewNopLogger(),
@@ -218,7 +202,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		nil,
 		0,
 		encCfg,
-		0, // upgrade height
+		0, // upgrade height v2
 		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
@@ -232,7 +216,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	}
 
 	if lastHeight == 0 {
-		// brand new chain
 		if gen == nil {
 			return fmt.Errorf("non empty directory but no blocks found")
 		}
@@ -271,7 +254,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		state.NextValidators = types.NewValidatorSet(vals).CopyIncrementProposerPriority(1)
 		state.AppHash = res.AppHash
 		state.LastResultsHash = merkle.HashFromByteSlices(nil)
-
 		if err := stateStore.Save(state); err != nil {
 			return fmt.Errorf("failed to save initial state: %w", err)
 		}
@@ -279,28 +261,26 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	} else {
 		fmt.Println("Starting from height", lastHeight)
 	}
-
 	state, err := stateStore.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
 	if cfg.ExistingDir != "" {
-		// extending an existing chain, start from the chain's last known block time
+		// if this is extending an existing chain, we want to start
+		// the time to be where the existing chain left off
 		currentTime = state.LastBlockTime.Add(cfg.BlockInterval)
 	}
 
 	if state.ConsensusParams.Version.AppVersion != cfg.AppVersion {
-		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d",
-			state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
+		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
 	}
+
 	if state.LastBlockHeight != lastHeight {
 		return fmt.Errorf("last block height mismatch: state has %d, but block store has %d", state.LastBlockHeight, lastHeight)
 	}
 
 	validatorPower := state.Validators.Validators[0].VotingPower
 
-	// We retrieve the current account for the validator
-	// We'll assume account number = 0, and the sequence starts at (lastHeight + 1).
 	signer, err := user.NewSigner(
 		kr,
 		encCfg.TxConfig,
@@ -312,11 +292,12 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		return fmt.Errorf("failed to create new signer: %w", err)
 	}
 
-	// We'll generate data in parallel, but we still build blocks sequentially.
-	// The code below sets up the concurrency pipeline.
-
-	// commit at lastHeight
-	commit := types.NewCommit(0, 0, types.BlockID{}, nil)
+	var (
+		errCh     = make(chan error, 2)
+		dataCh    = make(chan *tmproto.Data, 100)
+		persistCh = make(chan persistData, 100)
+		commit    = types.NewCommit(0, 0, types.BlockID{}, nil)
+	)
 	if lastHeight > 0 {
 		commit = blockStore.LoadSeenCommit(lastHeight)
 	}
@@ -324,290 +305,244 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Number of blocks to produce
-	totalBlocks := cfg.NumBlocks
-
-	// We will generate results in random completion order, so we’ll store them
-	// in a map and process them sequentially (by index) in the main loop.
-	resultsCh := make(chan generatedBlockData, cfg.NumWorkers)
-	errCh := make(chan error, 1)
-
-	// We set the base sequence to the signer's current sequence
-	baseSequence := signer.Accounts()[0].Sequence()
-
-	// Launch worker pool
-	var wg sync.WaitGroup
-	jobCh := make(chan int) // block index for each job
-
-	for w := 0; w < cfg.NumWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobCh {
-				data, err := generateBlockData(i, baseSequence+uint64(i), cfg, kr, encCfg, state)
-				select {
-				case <-ctx.Done():
-					return
-				case resultsCh <- generatedBlockData{Index: i, Data: data, Err: err}:
-				}
-			}
-		}()
-	}
-
-	// Feed jobs
 	go func() {
-		defer close(resultsCh)
-		defer cancel() // ensure workers get canceled once done
-		for i := 0; i < totalBlocks; i++ {
-			select {
-			case <-ctx.Done():
-				return
-			case jobCh <- i:
-			}
-		}
-		close(jobCh)
-		wg.Wait()
+		errCh <- generateSquareRoutine(ctx, signer, cfg, dataCh)
 	}()
 
-	// Main loop: read from resultsCh, build blocks in sequential order
-	nextIndex := 0
-	pending := make(map[int]*tmproto.Data)
-	lastBlock := blockStore.LoadBlock(lastHeight)
+	go func() {
+		errCh <- persistDataRoutine(ctx, stateStore, blockStore, persistCh)
+	}()
 
-mainLoop:
-	for nextIndex < totalBlocks {
+	lastBlock := blockStore.LoadBlock(blockStore.Height())
+
+	for height := lastHeight + 1; height <= int64(cfg.NumBlocks)+lastHeight; height++ {
+		if cfg.UpToTime && lastBlock != nil && lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
+			fmt.Printf("blocks cannot be generated into the future, stopping at height %d\n", lastBlock.Height)
+			break
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-
-		case res, ok := <-resultsCh:
-			if !ok {
-				// no more results will arrive
-				break mainLoop
+		case dataPB := <-dataCh:
+			data, err := types.DataFromProto(dataPB)
+			if err != nil {
+				return fmt.Errorf("failed to convert data from protobuf: %w", err)
 			}
-			if res.Err != nil && errCh != nil {
-				// capture the first error
-				errCh <- res.Err
-				errCh = nil
-				cancel()
-				continue
+			block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
+			blockID := types.BlockID{
+				Hash:          block.Hash(),
+				PartSetHeader: blockParts.Header(),
 			}
-			pending[res.Index] = res.Data
 
-			// See if we can build any consecutive blocks now
-			for {
-				dataProto, ok := pending[nextIndex]
-				if !ok {
-					break
-				}
-				delete(pending, nextIndex)
+			precommitVote := &tmproto.Vote{
+				Height:           height,
+				Round:            0,
+				Type:             tmproto.PrecommitType,
+				BlockID:          blockID.ToProto(),
+				ValidatorAddress: validatorAddr,
+				Timestamp:        currentTime,
+				Signature:        nil,
+			}
 
-				// If we might be generating blocks "up to now"
-				if cfg.UpToTime && lastBlock != nil && lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
-					fmt.Printf("Cannot generate block %d into the future, stopping.\n", lastBlock.Height+1)
-					break mainLoop
-				}
+			if err := validatorKey.SignVote(state.ChainID, precommitVote); err != nil {
+				return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
+			}
 
-				// Build the next block
-				height := lastHeight + 1 + int64(nextIndex)
-				data, err := types.DataFromProto(dataProto)
-				if err != nil {
-					return fmt.Errorf("failed to convert data from protobuf: %w", err)
-				}
+			commitSig := types.CommitSig{
+				BlockIDFlag:      types.BlockIDFlagCommit,
+				ValidatorAddress: validatorAddr,
+				Timestamp:        currentTime,
+				Signature:        precommitVote.Signature,
+			}
+			commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
 
-				block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
-				blockID := types.BlockID{
-					Hash:          block.Hash(),
-					PartSetHeader: blockParts.Header(),
-				}
-
-				precommitVote := &tmproto.Vote{
-					Height:           height,
-					Round:            0,
-					Type:             tmproto.PrecommitType,
-					BlockID:          blockID.ToProto(),
-					ValidatorAddress: validatorAddr,
-					Timestamp:        currentTime,
-					Signature:        nil,
-				}
-				if err := validatorKey.SignVote(state.ChainID, precommitVote); err != nil {
-					return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
-				}
-				commitSig := types.CommitSig{
-					BlockIDFlag:      types.BlockIDFlagCommit,
-					ValidatorAddress: validatorAddr,
-					Timestamp:        currentTime,
-					Signature:        precommitVote.Signature,
-				}
-				commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
-
-				var lastCommitInfo abci.LastCommitInfo
-				if height > 1 {
-					lastCommitInfo = abci.LastCommitInfo{
-						Round: 0,
-						Votes: []abci.VoteInfo{
-							{
-								Validator: abci.Validator{
-									Address: validatorAddr,
-									Power:   validatorPower,
-								},
-								SignedLastBlock: true,
+			var lastCommitInfo abci.LastCommitInfo
+			if height > 1 {
+				lastCommitInfo = abci.LastCommitInfo{
+					Round: 0,
+					Votes: []abci.VoteInfo{
+						{
+							Validator: abci.Validator{
+								Address: validatorAddr,
+								Power:   validatorPower,
 							},
+							SignedLastBlock: true,
 						},
-					}
+					},
 				}
-				beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
-					Hash:           block.Hash(),
-					Header:         *block.Header.ToProto(),
-					LastCommitInfo: lastCommitInfo,
-				})
+			}
 
-				deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
-				for idx, tx := range block.Data.Txs {
-					blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
-					if isBlobTx {
-						tx = blobTx.Tx
-					}
-					deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{Tx: tx})
-					if deliverTxResponse.Code != abci.CodeTypeOK {
-						return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
-					}
-					deliverTxResponses[idx] = &deliverTxResponse
+			beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
+				Hash:           block.Hash(),
+				Header:         *block.Header.ToProto(),
+				LastCommitInfo: lastCommitInfo,
+			})
+
+			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
+
+			for idx, tx := range block.Data.Txs {
+				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+				if isBlobTx {
+					tx = blobTx.Tx
 				}
-
-				endBlockResp := simApp.EndBlock(abci.RequestEndBlock{Height: block.Height})
-				commitResp := simApp.Commit()
-
-				// Update state
-				state.LastBlockHeight = height
-				state.LastBlockID = blockID
-				state.LastBlockTime = block.Time
-				state.LastValidators = state.Validators
-				state.Validators = state.NextValidators
-				state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
-				state.AppHash = commitResp.Data
-				state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
-					DeliverTxs: deliverTxResponses,
-					BeginBlock: &beginBlockResp,
-					EndBlock:   &endBlockResp,
+				deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{
+					Tx: tx,
 				})
+				if deliverTxResponse.Code != abci.CodeTypeOK {
+					return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
+				}
+				deliverTxResponses[idx] = &deliverTxResponse
+			}
 
-				// Persist block and state
-				ps := &types.Commit{
+			endBlockResp := simApp.EndBlock(abci.RequestEndBlock{
+				Height: block.Height,
+			})
+
+			commitResp := simApp.Commit()
+			state.LastBlockHeight = height
+			state.LastBlockID = blockID
+			state.LastBlockTime = block.Time
+			state.LastValidators = state.Validators
+			state.Validators = state.NextValidators
+			state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
+			state.AppHash = commitResp.Data
+			state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
+				DeliverTxs: deliverTxResponses,
+				BeginBlock: &beginBlockResp,
+				EndBlock:   &endBlockResp,
+			})
+			currentTime = currentTime.Add(cfg.BlockInterval)
+			persistCh <- persistData{
+				state: state.Copy(),
+				block: block,
+				seenCommit: &types.Commit{
 					Height:     commit.Height,
 					Round:      commit.Round,
 					BlockID:    commit.BlockID,
 					Signatures: []types.CommitSig{commitSig},
-				}
-				blockParts = block.MakePartSet(types.BlockPartSizeBytes)
-				blockStore.SaveBlock(block, blockParts, ps)
-				if blockStore.Height()%100 == 0 {
-					fmt.Println("Reached height", blockStore.Height())
-				}
-				if err := stateStore.Save(state); err != nil {
-					return fmt.Errorf("failed to save state at height %d: %w", blockStore.Height(), err)
-				}
-
-				lastBlock = block
-				currentTime = currentTime.Add(cfg.BlockInterval)
-				nextIndex++
+				},
 			}
 		}
 	}
 
-	// If there was an error in the generation goroutines, retrieve it
-	close(errCh)
-	if len(errCh) > 0 {
+	close(dataCh)
+	close(persistCh)
+
+	var firstErr error
+	for i := 0; i < cap(errCh); i++ {
 		err := <-errCh
-		if err != nil {
-			return err
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
 
-	fmt.Println("Chain built successfully at height", state.LastBlockHeight)
+	if err := blockDB.Close(); err != nil {
+		return fmt.Errorf("failed to close block database: %w", err)
+	}
+	if err := stateDB.Close(); err != nil {
+		return fmt.Errorf("failed to close state database: %w", err)
+	}
+	if err := appDB.Close(); err != nil {
+		return fmt.Errorf("failed to close application database: %w", err)
+	}
+
+	fmt.Println("Chain built successfully", state.LastBlockHeight)
+
+	return firstErr
+}
+
+func generateSquareRoutine(
+	ctx context.Context,
+	signer *user.Signer,
+	cfg BuilderConfig,
+	dataCh chan<- *tmproto.Data,
+) error {
+	for i := 0; i < cfg.NumBlocks; i++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		account := signer.Accounts()[0]
+
+		blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(cfg.BlockSize))
+		if err != nil {
+			return err
+		}
+
+		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
+		fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
+		tx, _, err := signer.CreatePayForBlobs(account.Name(), []*share.Blob{blob}, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
+		if err != nil {
+			return err
+		}
+		if err := signer.IncrementSequence(account.Name()); err != nil {
+			return err
+		}
+
+		dataSquare, txs, err := square.Build(
+			[][]byte{tx},
+			maxSquareSize,
+			appconsts.SubtreeRootThreshold(1),
+		)
+		if err != nil {
+			return err
+		}
+
+		eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+		if err != nil {
+			return err
+		}
+
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		if err != nil {
+			return err
+		}
+
+		select {
+		case dataCh <- &tmproto.Data{
+			Txs:        txs,
+			Hash:       dah.Hash(),
+			SquareSize: uint64(dataSquare.Size()),
+		}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return nil
 }
 
-// generatedBlockData holds the result of a parallel “generate block data” job.
-type generatedBlockData struct {
-	Index int
-	Data  *tmproto.Data
-	Err   error
+type persistData struct {
+	state      sm.State
+	block      *types.Block
+	seenCommit *types.Commit
 }
 
-// generateBlockData performs the same logic that was originally in
-// generateSquareRoutine, but for a single block index. We allow specifying the
-// sequence number directly instead of calling IncrementSequence on the signer.
-func generateBlockData(
-	blockIndex int,
-	seq uint64,
-	cfg BuilderConfig,
-	kr keyring.Keyring,
-	encCfg encoding.Config,
-	state sm.State,
-) (*tmproto.Data, error) {
-	fmt.Printf("[Worker] generating block data %d\n", blockIndex)
+func persistDataRoutine(
+	ctx context.Context,
+	stateStore sm.Store,
+	blockStore *store.BlockStore,
+	dataCh <-chan persistData,
+) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case data, ok := <-dataCh:
+			if !ok {
+				return nil
+			}
+			blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
+			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
+			if blockStore.Height()%100 == 0 {
+				fmt.Println("Reached height", blockStore.Height())
+			}
 
-	signer, err := user.NewSigner(
-		kr,
-		encCfg.TxConfig,
-		state.ChainID,
-		state.ConsensusParams.Version.AppVersion,
-		user.NewAccount(testnode.DefaultValidatorAccountName, 0, seq),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new signer: %w", err)
+			if err := stateStore.Save(data.state); err != nil {
+				return err
+			}
+		}
 	}
-
-	// We only use a single account:
-	account := signer.Accounts()[0] // default validator account
-	accountName := account.Name()
-
-	// Create a random blob
-	blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(cfg.BlockSize))
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the single transaction with PFB
-	blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
-	fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
-
-	err = signer.SetSequence(accountName, seq)
-	if err != nil {
-		return nil, err
-	}
-	// Instead of signer.IncrementSequence, we directly set the sequence.
-	tx, _, err := signer.CreatePayForBlobs(
-		accountName,
-		[]*share.Blob{blob},
-		user.SetGasLimit(blobGas),
-		user.SetFee(uint64(fee)),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build data square for the single TX
-	dataSquare, txs, err := square.Build([][]byte{tx}, maxSquareSize, appconsts.SubtreeRootThreshold(1))
-	if err != nil {
-		return nil, err
-	}
-
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
-	if err != nil {
-		return nil, err
-	}
-
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("[Worker] generated block data %d with square size %d\n", blockIndex, dah.SquareSize())
-	return &tmproto.Data{
-		Txs:        txs,
-		Hash:       dah.Hash(),
-		SquareSize: uint64(dataSquare.Size()),
-	}, nil
 }
