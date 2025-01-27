@@ -452,6 +452,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	return firstErr
 }
 
+const blobSize = 2_000_000
+
 func generateSquareRoutine(
 	ctx context.Context,
 	signer *user.Signer,
@@ -467,23 +469,27 @@ func generateSquareRoutine(
 
 		account := signer.Accounts()[0]
 
-		blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(cfg.BlockSize))
-		if err != nil {
-			return err
-		}
+		blobTxs := make([][]byte, 0)
+		for size := 0; size < cfg.BlockSize; size += blobSize {
+			blob, err := share.NewV0Blob(cfg.Namespace, crypto.CRandBytes(blobSize))
+			if err != nil {
+				return err
+			}
 
-		blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(cfg.BlockSize)})
-		fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
-		tx, _, err := signer.CreatePayForBlobs(account.Name(), []*share.Blob{blob}, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
-		if err != nil {
-			return err
-		}
-		if err := signer.IncrementSequence(account.Name()); err != nil {
-			return err
+			blobGas := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
+			fee := float64(blobGas) * appconsts.DefaultMinGasPrice * 2
+			tx, _, err := signer.CreatePayForBlobs(account.Name(), []*share.Blob{blob}, user.SetGasLimit(blobGas), user.SetFee(uint64(fee)))
+			if err != nil {
+				return err
+			}
+			if err := signer.IncrementSequence(account.Name()); err != nil {
+				return err
+			}
+			blobTxs = append(blobTxs, tx)
 		}
 
 		dataSquare, txs, err := square.Build(
-			[][]byte{tx},
+			blobTxs,
 			maxSquareSize,
 			appconsts.SubtreeRootThreshold(1),
 		)
