@@ -4,11 +4,11 @@ import "time"
 
 const (
 	Version              uint64 = 3
-	SquareSizeUpperBound int    = 128
+	SquareSizeUpperBound int    = 512
 	SubtreeRootThreshold int    = 64
 	TxSizeCostPerByte    uint64 = 10
 	GasPerBlobByte       uint32 = 8
-	MaxTxSize            int    = 2097152 // 2 MiB in bytes
+	MaxTxSize            int    = 209715200 // 2 MiB in bytes
 	TimeoutPropose              = time.Millisecond * 3500
 	TimeoutCommit               = time.Millisecond * 4200
 	// UpgradeHeightDelay is the number of blocks after a quorum has been
