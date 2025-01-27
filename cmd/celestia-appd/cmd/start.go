@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	db "github.com/cometbft/cometbft-db"
 	"io"
 	"net"
 	"net/http"
@@ -257,6 +258,14 @@ func startStandAlone(ctx *server.Context, appCreator srvrtypes.AppCreator) error
 	return server.WaitForQuitSignals()
 }
 
+func dbProvider(ctx *node.DBContext) (db.DB, error) {
+	blockDB, err := db.NewDB(ctx.ID, db.PebbleDBBackend, ctx.Config.DBDir())
+	if err != nil {
+		return nil, err
+	}
+	return blockDB, nil
+}
+
 func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator srvrtypes.AppCreator) error {
 	cfg := ctx.Config
 	home := cfg.RootDir
@@ -307,7 +316,7 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 			nodeKey,
 			proxy.NewLocalClientCreator(app),
 			genDocProvider,
-			node.DefaultDBProvider,
+			dbProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			ctx.Logger,
 		)
