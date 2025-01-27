@@ -19,18 +19,22 @@ import (
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
 
+	fmt.Println("received transaction")
 	// all txs must be less than or equal to the max tx size limit
 	maxTxSize := appconsts.MaxTxSize(app.AppVersion())
 	currentTxSize := len(tx)
 	if currentTxSize > maxTxSize {
 		return sdkerrors.ResponseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()), 0, 0, []abci.Event{}, false)
 	}
+	fmt.Println("not more than max tx size")
 
 	// check if the transaction contains blobs
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
 		return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 	}
+
+	fmt.Println("unmarshalling tx")
 
 	if !isBlob {
 		// reject transactions that can't be decoded
