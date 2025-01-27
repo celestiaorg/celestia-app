@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -349,4 +352,30 @@ func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *u
 	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithGasMultiplier(1.2))
 	require.NoError(t, err)
 	return encCfg, txClient, ctx
+}
+
+func (suite *TxClientTestSuite) TestGasPriceAndUsedEstimate() {
+	t := suite.T()
+	ctx := context.Background()
+	signer := suite.txClient.Signer()
+
+	t.Run("query the gas price from the app gRPC", func(t *testing.T) {
+		gasPrice, err := signer.QueryGasPrice(ctx, suite.ctx.GRPCClient, gasestimation.TxPriority_TX_PRIORITY_HIGH)
+		assert.NoError(t, err)
+		assert.Greater(t, gasPrice, float64(0))
+	})
+
+	t.Run("query the gas price and gas used from the app gRPC", func(t *testing.T) {
+		msg := bank.NewMsgSend(
+			suite.txClient.DefaultAddress(),
+			testnode.RandomAddress().(sdk.AccAddress),
+			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+		)
+		rawTx, err := signer.CreateTx([]sdk.Msg{msg})
+		require.NoError(t, err)
+		gasPrice, gasUsed, err := signer.QueryGasUsedAndPrice(ctx, suite.ctx.GRPCClient, gasestimation.TxPriority_TX_PRIORITY_HIGH, rawTx)
+		assert.NoError(t, err)
+		assert.Greater(t, gasPrice, float64(0))
+		assert.Greater(t, gasUsed, uint64(0))
+	})
 }
