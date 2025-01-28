@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/node"
@@ -59,7 +61,7 @@ func TestRun(t *testing.T) {
 
 	encCfg := encoding.MakeConfig(app.ModuleBasics)
 
-	app := app.New(
+	testApp := app.New(
 		log.NewNopLogger(),
 		appDB,
 		nil,
@@ -74,12 +76,14 @@ func TestRun(t *testing.T) {
 	nodeKey, err := p2p.LoadNodeKey(tmCfg.NodeKeyFile())
 	require.NoError(t, err)
 
+	genProvider := node.DefaultGenesisDocProviderFunc(tmCfg)
+
 	cometNode, err := node.NewNode(
 		tmCfg,
 		privval.LoadOrGenFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile()),
 		nodeKey,
-		proxy.NewLocalClientCreator(app),
-		node.DefaultGenesisDocProviderFunc(tmCfg),
+		proxy.NewLocalClientCreator(testApp),
+		genProvider,
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(tmCfg.Instrumentation),
 		log.NewNopLogger(),
@@ -97,8 +101,80 @@ func TestRun(t *testing.T) {
 	require.Eventually(t, func() bool {
 		status, err := client.Status(context.Background())
 		require.NoError(t, err)
-		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks*2)
+		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks+2)
 	}, time.Second*10, time.Millisecond*100)
+
+	// third: require that another node can sync up on the same blockchain
+	appDB2, err := tmdbm.NewDB("application2", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
+	require.NoError(t, err)
+
+	testApp2 := app.New(
+		log.NewTMJSONLogger(os.Stdout),
+		appDB2,
+		nil,
+		0,
+		encCfg,
+		0, // upgrade height v2
+		0, // timeout commit
+		util.EmptyAppOptions{},
+		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
+	)
+
+	gen, err := genProvider()
+	require.NoError(t, err)
+
+	abciParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			MaxBytes: gen.ConsensusParams.Block.MaxBytes,
+			MaxGas:   gen.ConsensusParams.Block.MaxGas,
+		},
+		Evidence:  &gen.ConsensusParams.Evidence,
+		Validator: &gen.ConsensusParams.Validator,
+		Version:   &gen.ConsensusParams.Version,
+	}
+
+	testApp2.InitChain(abci.RequestInitChain{
+		Time:            gen.GenesisTime,
+		ChainId:         gen.ChainID,
+		Validators:      []abci.ValidatorUpdate{},
+		ConsensusParams: abciParams,
+		AppStateBytes:   gen.AppState,
+	})
+
+	testApp2.Info(proxy.RequestInfo)
+
+	for height := int64(1); height <= int64(numBlocks); height++ {
+		block, err := client.Block(context.Background(), &height)
+		require.NoError(t, err)
+		require.NotNil(t, block)
+
+		h := block.Block.Header.ToProto()
+		data := block.Block.Data.ToProto()
+
+		resp := testApp2.ProcessProposal(abci.RequestProcessProposal{
+			Header:    *h,
+			BlockData: &data,
+		})
+		require.True(t, resp.IsOK(), height)
+
+		testApp2.BeginBlock(abci.RequestBeginBlock{
+			Header: *h,
+		})
+
+		for _, tx := range block.Block.Data.Txs {
+			res := testApp2.DeliverTx(abci.RequestDeliverTx{
+				Tx: tx,
+			})
+			require.True(t, res.IsOK())
+		}
+
+		testApp2.EndBlock(abci.RequestEndBlock{
+			Height: height,
+		})
+		testApp2.Commit()
+	}
+
 	require.NoError(t, cometNode.Stop())
 	cometNode.Wait()
+
 }
