@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"os"
 	"path/filepath"
 	"testing"
@@ -177,4 +178,54 @@ func TestRun(t *testing.T) {
 	require.NoError(t, cometNode.Stop())
 	cometNode.Wait()
 
+}
+
+func TestRunAuthParams(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping chainbuilder tool test")
+	}
+
+	numBlocks := 10
+
+	cfg := BuilderConfig{
+		NumBlocks:     numBlocks,
+		BlockSize:     appconsts.DefaultMaxBytes,
+		BlockInterval: time.Second,
+		ChainID:       tmrand.Str(6),
+		Namespace:     defaultNamespace,
+	}
+
+	dir := t.TempDir()
+
+	// First run
+	err := Run(context.Background(), cfg, dir)
+	require.NoError(t, err)
+
+	// Second run with existing directory
+	cfg.ExistingDir = filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
+	err = Run(context.Background(), cfg, dir)
+	require.NoError(t, err)
+
+	tmCfg := testnode.DefaultTendermintConfig()
+	tmCfg.SetRoot(cfg.ExistingDir)
+
+	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
+	require.NoError(t, err)
+
+	encCfg := encoding.MakeConfig(app.ModuleBasics)
+
+	testApp := app.New(
+		log.NewNopLogger(),
+		appDB,
+		nil,
+		0,
+		encCfg,
+		0, // upgrade height v2
+		0, // timeout commit
+		util.EmptyAppOptions{},
+		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
+	)
+
+	param := testApp.BlobKeeper.GetParams(testApp.NewContext(false, tmproto.Header{}))
+	fmt.Println(param)
 }
