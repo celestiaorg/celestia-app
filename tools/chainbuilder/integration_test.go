@@ -226,6 +226,37 @@ func TestRunAuthParams(t *testing.T) {
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
 	)
 
+	nodeKey, err := p2p.LoadNodeKey(tmCfg.NodeKeyFile())
+	require.NoError(t, err)
+
+	genProvider := node.DefaultGenesisDocProviderFunc(tmCfg)
+
+	cometNode, err := node.NewNode(
+		tmCfg,
+		privval.LoadOrGenFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile()),
+		nodeKey,
+		proxy.NewLocalClientCreator(testApp),
+		genProvider,
+		node.DefaultDBProvider,
+		node.DefaultMetricsProvider(tmCfg.Instrumentation),
+		log.NewNopLogger(),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, cometNode.Start())
+	defer func() { _ = cometNode.Stop() }()
+
+	client := local.New(cometNode)
+	status, err := client.Status(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	// assert that the new node eventually makes progress in the chain
+	require.Eventually(t, func() bool {
+		status, err := client.Status(context.Background())
+		require.NoError(t, err)
+		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks+2)
+	}, time.Second*10, time.Millisecond*100)
+
 	param := testApp.BlobKeeper.GetParams(testApp.NewContext(false, tmproto.Header{}))
 	fmt.Println(param)
 }
