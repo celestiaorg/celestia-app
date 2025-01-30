@@ -321,116 +321,120 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			break
 		}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case dataPB := <-dataCh:
-			if height == 1 {
-				fmt.Println("generating empty block")
-				d, err := emptyData()
-				if err != nil {
-					return err
-				}
-				dataPB = d
-			}
-			data, err := types.DataFromProto(dataPB)
+		var dd *tmproto.Data
+		if height == 1 {
+			fmt.Println("generating empty block")
+			d, err := emptyData()
 			if err != nil {
-				return fmt.Errorf("failed to convert data from protobuf: %w", err)
+				return err
 			}
-			block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
-			blockID := types.BlockID{
-				Hash:          block.Hash(),
-				PartSetHeader: blockParts.Header(),
+			dd = d
+		} else {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case dataPB := <-dataCh:
+				dd = dataPB
 			}
+		}
 
-			precommitVote := &tmproto.Vote{
-				Height:           height,
-				Round:            0,
-				Type:             tmproto.PrecommitType,
-				BlockID:          blockID.ToProto(),
-				ValidatorAddress: validatorAddr,
-				Timestamp:        currentTime,
-				Signature:        nil,
-			}
+		data, err := types.DataFromProto(dd)
+		if err != nil {
+			return fmt.Errorf("failed to convert data from protobuf: %w", err)
+		}
+		block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
+		blockID := types.BlockID{
+			Hash:          block.Hash(),
+			PartSetHeader: blockParts.Header(),
+		}
 
-			if err := validatorKey.SignVote(state.ChainID, precommitVote); err != nil {
-				return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
-			}
+		precommitVote := &tmproto.Vote{
+			Height:           height,
+			Round:            0,
+			Type:             tmproto.PrecommitType,
+			BlockID:          blockID.ToProto(),
+			ValidatorAddress: validatorAddr,
+			Timestamp:        currentTime,
+			Signature:        nil,
+		}
 
-			commitSig := types.CommitSig{
-				BlockIDFlag:      types.BlockIDFlagCommit,
-				ValidatorAddress: validatorAddr,
-				Timestamp:        currentTime,
-				Signature:        precommitVote.Signature,
-			}
-			commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
+		if err := validatorKey.SignVote(state.ChainID, precommitVote); err != nil {
+			return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
+		}
 
-			var lastCommitInfo abci.LastCommitInfo
-			if height > 1 {
-				lastCommitInfo = abci.LastCommitInfo{
-					Round: 0,
-					Votes: []abci.VoteInfo{
-						{
-							Validator: abci.Validator{
-								Address: validatorAddr,
-								Power:   validatorPower,
-							},
-							SignedLastBlock: true,
+		commitSig := types.CommitSig{
+			BlockIDFlag:      types.BlockIDFlagCommit,
+			ValidatorAddress: validatorAddr,
+			Timestamp:        currentTime,
+			Signature:        precommitVote.Signature,
+		}
+		commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
+
+		var lastCommitInfo abci.LastCommitInfo
+		if height > 1 {
+			lastCommitInfo = abci.LastCommitInfo{
+				Round: 0,
+				Votes: []abci.VoteInfo{
+					{
+						Validator: abci.Validator{
+							Address: validatorAddr,
+							Power:   validatorPower,
 						},
+						SignedLastBlock: true,
 					},
-				}
-			}
-
-			beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
-				Hash:           block.Hash(),
-				Header:         *block.Header.ToProto(),
-				LastCommitInfo: lastCommitInfo,
-			})
-
-			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
-
-			for idx, tx := range block.Data.Txs {
-				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
-				if isBlobTx {
-					tx = blobTx.Tx
-				}
-				deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{
-					Tx: tx,
-				})
-				if deliverTxResponse.Code != abci.CodeTypeOK {
-					return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
-				}
-				deliverTxResponses[idx] = &deliverTxResponse
-			}
-
-			endBlockResp := simApp.EndBlock(abci.RequestEndBlock{
-				Height: block.Height,
-			})
-
-			commitResp := simApp.Commit()
-			state.LastBlockHeight = height
-			state.LastBlockID = blockID
-			state.LastBlockTime = block.Time
-			state.LastValidators = state.Validators
-			state.Validators = state.NextValidators
-			state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
-			state.AppHash = commitResp.Data
-			state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
-				DeliverTxs: deliverTxResponses,
-				BeginBlock: &beginBlockResp,
-				EndBlock:   &endBlockResp,
-			})
-			currentTime = currentTime.Add(cfg.BlockInterval)
-			persistCh <- persistData{
-				state: state.Copy(),
-				block: block,
-				seenCommit: &types.Commit{
-					Height:     commit.Height,
-					Round:      commit.Round,
-					BlockID:    commit.BlockID,
-					Signatures: []types.CommitSig{commitSig},
 				},
 			}
+		}
+
+		beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
+			Hash:           block.Hash(),
+			Header:         *block.Header.ToProto(),
+			LastCommitInfo: lastCommitInfo,
+		})
+
+		deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
+
+		for idx, tx := range block.Data.Txs {
+			blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+			if isBlobTx {
+				tx = blobTx.Tx
+			}
+			deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{
+				Tx: tx,
+			})
+			if deliverTxResponse.Code != abci.CodeTypeOK {
+				return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
+			}
+			deliverTxResponses[idx] = &deliverTxResponse
+		}
+
+		endBlockResp := simApp.EndBlock(abci.RequestEndBlock{
+			Height: block.Height,
+		})
+
+		commitResp := simApp.Commit()
+		state.LastBlockHeight = height
+		state.LastBlockID = blockID
+		state.LastBlockTime = block.Time
+		state.LastValidators = state.Validators
+		state.Validators = state.NextValidators
+		state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
+		state.AppHash = commitResp.Data
+		state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
+			DeliverTxs: deliverTxResponses,
+			BeginBlock: &beginBlockResp,
+			EndBlock:   &endBlockResp,
+		})
+		currentTime = currentTime.Add(cfg.BlockInterval)
+		persistCh <- persistData{
+			state: state.Copy(),
+			block: block,
+			seenCommit: &types.Commit{
+				Height:     commit.Height,
+				Round:      commit.Round,
+				BlockID:    commit.BlockID,
+				Signatures: []types.CommitSig{commitSig},
+			},
 		}
 	}
 
