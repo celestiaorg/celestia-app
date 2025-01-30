@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"os"
 	"path/filepath"
 	"time"
@@ -34,7 +35,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 )
 
 var defaultNamespace share.Namespace
@@ -325,6 +325,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case dataPB := <-dataCh:
+			if height == 1 {
+				fmt.Println("generating empty block")
+				d, err := emptyData()
+				if err != nil {
+					return err
+				}
+				dataPB = d
+			}
 			data, err := types.DataFromProto(dataPB)
 			if err != nil {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
@@ -512,6 +520,32 @@ func generateSquareRoutine(
 		}
 	}
 	return nil
+}
+
+func emptyData() (*tmproto.Data, error) {
+	dataSquare, txs, err := square.Build(
+		[][]byte{},
+		maxSquareSize,
+		appconsts.SubtreeRootThreshold(1),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	if err != nil {
+		return nil, err
+	}
+
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		return nil, err
+	}
+	return &tmproto.Data{
+		Txs:        txs,
+		Hash:       dah.Hash(),
+		SquareSize: uint64(dataSquare.Size()),
+	}, nil
 }
 
 type persistData struct {
