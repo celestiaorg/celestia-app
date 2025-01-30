@@ -470,7 +470,7 @@ func generateSquareRoutine(
 	cfg BuilderConfig,
 	dataCh chan<- *tmproto.Data,
 ) error {
-	for i := 0; i < cfg.NumBlocks; i++ {
+	for i := 0; i < cfg.NumBlocks-1; i++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
