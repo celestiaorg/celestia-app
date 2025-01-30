@@ -514,13 +514,13 @@ func generateSquareRoutine(
 		}
 
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case dataCh <- &tmproto.Data{
 			Txs:        txs,
 			Hash:       dah.Hash(),
 			SquareSize: uint64(dataSquare.Size()),
 		}:
-		case <-ctx.Done():
-			return ctx.Err()
 		}
 	}
 	return nil
