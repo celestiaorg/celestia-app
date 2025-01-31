@@ -506,7 +506,7 @@ func generateSquareRoutine(
 		account := signer.Accounts()[0]
 
 		blobTxs := make([][]byte, 0)
-		numberOfBlobs := rand.Intn(100)
+		numberOfBlobs := rand.Intn(100) + 1
 		blobSize := cfg.BlockSize / numberOfBlobs
 		for size := 0; size < cfg.BlockSize; size += blobSize {
 			blob, err := share.NewV0Blob(share.RandomNamespace(), crypto.CRandBytes(blobSize))
