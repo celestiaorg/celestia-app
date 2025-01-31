@@ -39,6 +39,33 @@ import (
 
 var defaultNamespace share.Namespace
 
+// emptyBlockData contains the protobuf block data for a block without transactions.
+var emptyBlockData = func() tmproto.Data {
+	dataSquare, txs, err := square.Build(
+		[][]byte{},
+		maxSquareSize,
+		appconsts.SubtreeRootThreshold(1),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
+	if err != nil {
+		panic(err)
+	}
+
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		panic(err)
+	}
+	return tmproto.Data{
+		Txs:        txs,
+		Hash:       dah.Hash(),
+		SquareSize: uint64(dataSquare.Size()),
+	}
+}()
+
 const (
 	defaultNamespaceStr = "test"
 	maxSquareSize       = 512
@@ -323,12 +350,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 		var dd *tmproto.Data
 		if height == 1 {
-			fmt.Println("generating empty block")
-			d, err := emptyData()
-			if err != nil {
-				return err
-			}
-			dd = d
+			// generating an empty block for height 1
+			dd = &emptyBlockData
 		} else {
 			select {
 			case <-ctx.Done():
@@ -470,6 +493,7 @@ func generateSquareRoutine(
 	cfg BuilderConfig,
 	dataCh chan<- *tmproto.Data,
 ) error {
+	// cfg.NumBlocks-1 because block 0 is genesis and block 1 shouldn't contain any transaction
 	for i := 0; i < cfg.NumBlocks-1; i++ {
 		select {
 		case <-ctx.Done():
@@ -514,42 +538,16 @@ func generateSquareRoutine(
 		}
 
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
 		case dataCh <- &tmproto.Data{
 			Txs:        txs,
 			Hash:       dah.Hash(),
 			SquareSize: uint64(dataSquare.Size()),
 		}:
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
 	return nil
-}
-
-func emptyData() (*tmproto.Data, error) {
-	dataSquare, txs, err := square.Build(
-		[][]byte{},
-		maxSquareSize,
-		appconsts.SubtreeRootThreshold(1),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
-	if err != nil {
-		return nil, err
-	}
-
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		return nil, err
-	}
-	return &tmproto.Data{
-		Txs:        txs,
-		Hash:       dah.Hash(),
-		SquareSize: uint64(dataSquare.Size()),
-	}, nil
 }
 
 type persistData struct {
