@@ -296,6 +296,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
 
 	const mebibyte = 1048576
-	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
+	cfg.GRPC.MaxRecvMsgSize = 40 * mebibyte
 	return cfg
 }
