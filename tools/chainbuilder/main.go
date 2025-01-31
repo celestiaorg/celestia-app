@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"os"
 	"path/filepath"
 	"time"
+
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
