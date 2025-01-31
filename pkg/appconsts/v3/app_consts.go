@@ -8,7 +8,7 @@ const (
 	SubtreeRootThreshold int    = 64
 	TxSizeCostPerByte    uint64 = 10
 	GasPerBlobByte       uint32 = 8
-	MaxTxSize            int    = 209715200 // 2 MiB in bytes
+	MaxTxSize            int    = 409715200 // 2 MiB in bytes
 	TimeoutPropose              = time.Millisecond * 3500
 	TimeoutCommit               = time.Millisecond * 4200
 	// UpgradeHeightDelay is the number of blocks after a quorum has been
