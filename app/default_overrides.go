@@ -259,7 +259,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	cfg.RPC.MaxBodyBytes = int64(83886080) // 8 MiB
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second
