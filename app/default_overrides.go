@@ -263,8 +263,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 	cfg.Mempool.TTLNumBlocks = 12
 	cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 7_897_088
-	cfg.Mempool.MaxTxsBytes = 39_485_440
+	cfg.Mempool.MaxTxBytes = 7_897_088_000
+	cfg.Mempool.MaxTxsBytes = 39_485_440_000
 	cfg.Mempool.Version = "v1" // prioritized mempool
 
 	cfg.Consensus.TimeoutPropose = appconsts.GetTimeoutPropose(appconsts.LatestVersion)
