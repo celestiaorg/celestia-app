@@ -275,8 +275,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Storage.DiscardABCIResponses = true
 
 	const mebibyte = 1048576
-	cfg.P2P.SendRate = 10 * mebibyte
-	cfg.P2P.RecvRate = 10 * mebibyte
+	cfg.P2P.SendRate = 1000 * mebibyte
+	cfg.P2P.RecvRate = 1000 * mebibyte
 
 	return cfg
 }
