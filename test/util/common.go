@@ -141,7 +141,7 @@ var (
 		sdk.ValAddress(AccPubKeys[4].Address()),
 	}
 
-	// EVMAddrs holds etheruem addresses
+	// EVMAddrs holds ethereum addresses
 	EVMAddrs = initEVMAddrs(100)
 
 	// InitTokens holds the number of tokens to initialize an account with
