@@ -90,7 +90,7 @@ message MsgPayForBlobs {
 
 The share commitment is the commitment to share encoded blobs. It can be used
 for cheap inclusion checks for some data by light clients. More information and
-rational can be found in the [data square layout](../../specs/src/data_square_layout.md) specification.
+rationale can be found in the [data square layout](../../specs/src/data_square_layout.md) specification.
 
 1. Split the blob into shares of size [`shareSize`](../../specs/src/data_structures.md#consensus-parameters)
 1. Determine the
@@ -108,7 +108,7 @@ See
 [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/types/payforblob.go#L169-L236)
 for an implementation. See [data square layout](../../specs/src/data_square_layout.md) and
 [ADR013](../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md)
-for details on the rational of the square layout.
+for details on the rationale of the square layout.
 
 ## Validity Rules
 
