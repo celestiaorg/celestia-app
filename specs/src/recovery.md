@@ -1,4 +1,4 @@
- # Vacuum! Part I: High Throughput Recovery
+# Vacuum! Part I: High Throughput Recovery
 
 ## Summary
 
@@ -12,16 +12,17 @@ Lastly, we suggest a simpler design that makes better use of the validator overl
 
 The Celestia protocol will likely separate block propagation into two phases. "Preparation", for distributing data *before* the block is created, and "recovery" for distributing data *after* the block has been created. This document focuses on recovery.
 
-![edited final map](https://hackmd.io/_uploads/ryD-gvZuJl.png)
+![vacumm! map](./figures/recovery/vacuum!_map.png)
 
 In order to use the data propagated during the preparation phase, the recovery phase has to use some form of pull based gossip.
 
 Recovery has the following constraints:
+
 - **100% of the Block data MUST be delivered to >2/3 of the voting power before the `ProposalTimeout` is reached**
 - **MUST be able to utilize the data already distributed during preparation**
 
-
 Given these constraints, we can isolate the different bottlenecks to throughput:
+
 - **efficiency:** the overhead % of the block the validators must download (0% == downloading the block exactly once)
 - **speed:** the rate at which the block data is delivered to a % of validators
 - **broadcaster's bandwidth:** The % of the block the proposer must upload
@@ -29,6 +30,7 @@ Given these constraints, we can isolate the different bottlenecks to throughput:
 Enter the Pull Based Broadcast Tree (PBBT).
 
 PBBT addresses:
+
 - **efficiency:** by utilizing pull based logic
 - **speed:** by pipelining `Have` and `Want` messages, and by finding the optimal path for distributing data in JIT fashion
 - **broadcaster's bandwidth:** by distributing the burden of propagation to the broadcaster's peers via only sending portions of a block data to each
@@ -66,9 +68,9 @@ sequenceDiagram
 The rules below goal is to facilitate safe pull based propagation.
 
 - **Nodes MUST only propagate validated messages**
-    - `Commitment` messages MUST originate from the Proposer
-    - `Have` messages MUST match those committed to in the `Commitment` message
-    - `Data` messages MUST match their corresponding `Have` and `Commitment`
+  - `Commitment` messages MUST originate from the Proposer
+  - `Have` messages MUST match those committed to in the `Commitment` message
+  - `Data` messages MUST match their corresponding `Have` and `Commitment`
 - **Nodes MUST Send the `Commitment` message before sending `Have` messages**
 - **Nodes MUST only send `Data` messages if that data has been requested**
 - **Nodes MUST avoid sending the same `Have` or `Want` message to the same peer more than once**
@@ -121,18 +123,18 @@ In order to increase the "recovery" throughput substantially, the network must c
 The first bottleneck for throughput with a single broadcaster is the broadcaster's upload bandwidth.
 
 Where:
+
 - **T**: Max Theoretical Throughput (e.g., in bytes per second)
 - **B**: Upload bandwidth of the broadcaster (e.g., in bytes per second)
 - **n**: Number of times the block has to be uploaded
 
-```
+```python
 T = B / n
 ```
 
-Therefore, for recovery, to increase throughput the network should attempt to limit the number of times each proposer is required to upload the block data. 
+Therefore, for recovery, to increase throughput the network should attempt to limit the number of times each proposer is required to upload the block data.
 
 This can be done simply by the proposer uploading only a portion to each of its peers. Instead of the proposer using its bandwidth to upload the same parts to different peers, the peers can gossip each portion to each other.
-
 
 ```mermaid
 sequenceDiagram
@@ -167,9 +169,10 @@ sequenceDiagram
 One of the benefits of generating the route of data on fly instead of pre-planning the route is that the plan can incorporate real time data. 
 
 This inherently includes:
+
 - network latency
-- as timely as possible info on the node's status 
-- already distributed data 
+- as timely as possible info on the node's status
+- already distributed data
 
 However, it can also include congestion if the `Have` messages and entered into the send queue in a FIFO fashion as `Data`. This ensures that a haves take longer to be delivered to a congested connection, making it more likely peers will recieve that same `Have` message first from a different peer. 
 
@@ -181,8 +184,6 @@ Lastly, there's still a chance that a peer could already have all `Data` include
 - **Nodes MUST have fewer than `PerPeerConcurrentRequestCap` concurrent requests to a single peer**
 
 If this value is set to 2 for example, then there will be a max of two concurrent requests open to each peer. After the first request is fullfilled, then the second is sent.
-
-
 
 ## Security
 
@@ -219,6 +220,7 @@ The problem arises when applications have less time to distribute data than they
 > Side note: its easy to confuse a congested peer as a malicious one. This makes peer scoring incredibly difficult for pull based systems. If timeouts for scoring or addional requests are too agressive, feedback loops emerge. Congested nodes can hit timeouts, resulting in requesting more duplicate data, which causes more congestion. 
 
 **Conclusions:**
+
 - Time sensitive applications require additional mechanisms in order to use pull based gossip.
 
 #### Broadcast Trees
@@ -226,6 +228,7 @@ The problem arises when applications have less time to distribute data than they
 Using the most naive design of broadcast trees, where the broadcaster distributes equal amounts of block data to each of its peers, a single faulty peer will break the first constraint of recovery. Even if parity data is added, determined attackers can simply spin up a large majority of nodes in the network and not propagate data.
 
 **Conclusions:**
+
 1) The usage of broadcast trees requires mechanisms that allow for faulty nodes to exist.
 2) Validators must be able to differentiate between themselves and non-validators. Without this, attackers can also increase the number of nodes in the network and poison the tree.
 
@@ -262,6 +265,7 @@ While additional mechanisms are still needed, adding parity data to the recovery
 #### Overlay Networks
 
 An overlay network for validators means that:
+
 - **Validators can verifiably connect to and find other validators in the network**
 
 We do not specify an overlay network further here. The benefit of an overlay network is simply that validators can avoiding sybil nodes to the best of their knowledge.
@@ -285,7 +289,6 @@ Alone, none of the mechanisms listed above are sufficient for preventing sybil a
 - If parity data is also gossiped, then the acceptable number of failures is raised relative to the erasure encoding factor.
 - If an overlay network is added, then validators are able to avoid sybil attacks from non-validators
 - If some portion of the proposed block is already distributed to a majority of validators, then it has already been sufficiently distributed to bypass sybil.
-
 
 ## Messages
 
@@ -314,6 +317,7 @@ The `BlobMetaData` contains the hash of the PFB for the blob transaction that it
 The `pbbt_root` is generated by taking the merkle root over of each of the blob transactions in `BlobMetaData` and `Have` messasges.
 
 Verification:
+
 - The signature MUST be valid and from the expected proposer for that height and round
 
 ### Have
@@ -329,6 +333,7 @@ message HavePart {
 ```
 
 Verification:
+
 - The merkle proof must be verified using the `pbbt_root` in the `CompactBlock` for that height and round.
 
 ### Want
@@ -353,4 +358,5 @@ message Part {
 ```
 
 Verification
+
 - The hash of the bytes in the data field MUST match that of the `Have` message.
