@@ -65,7 +65,6 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, uint32(2), cfg.StateSync.SnapshotKeepRecent)
 	assert.Equal(t, "0.002utia", cfg.MinGasPrices)
 
-	mebibyte := 1048576
 	assert.Equal(t, 20*mebibyte, cfg.GRPC.MaxRecvMsgSize)
 }
 
@@ -86,9 +85,9 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			// Overrides
 			MaxTxBytes:   7_897_088,
 			MaxTxsBytes:  39_485_440,
-			TTLDuration:  75 * time.Second,
-			TTLNumBlocks: 12,
-			Version:      "v1",
+			TTLDuration:  150 * time.Second,
+			TTLNumBlocks: 24,
+			Version:      "v2",
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
