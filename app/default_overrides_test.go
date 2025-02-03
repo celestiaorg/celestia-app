@@ -83,8 +83,8 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			WalPath:               tmcfg.DefaultMempoolConfig().WalPath,
 
 			// Overrides
-			MaxTxBytes:   7_897_088,
-			MaxTxsBytes:  39_485_440,
+			MaxTxBytes:   2 * mebibyte,
+			MaxTxsBytes:  80 * mebibyte,
 			TTLDuration:  150 * time.Second,
 			TTLNumBlocks: 24,
 			Version:      "v2",
