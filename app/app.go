@@ -355,8 +355,8 @@ func New(
 	// PacketForwardMiddleware is used only for version >= 2.
 	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v3)
 	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
-	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v3)
+	tokenFilterMiddleware := tokenfilter.NewIBCMiddleware(transferStack)
+	transferStack = module.NewVersionedIBCModule(tokenFilterMiddleware, transferStack, v1, v3)
 
 	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
 		appCodec,
