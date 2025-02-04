@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Define the raw content from the file input.
+// Defines the raw content from the file input.
 type blobs struct {
 	Blobs []blobJSON
 }
