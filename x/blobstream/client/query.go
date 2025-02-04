@@ -53,7 +53,7 @@ func CmdQueryAttestationByNonce() *cobra.Command {
 			if res.Attestation == nil {
 				return types.ErrNilAttestation
 			}
-			att, err := unmarshallAttestation(res.Attestation)
+			att, err := unmarshalAttestation(res.Attestation)
 			if err != nil {
 				return err
 			}
@@ -105,8 +105,8 @@ func CmdQueryEVMAddress() *cobra.Command {
 	return cmd
 }
 
-// unmarshallAttestation unmarshal a wrapper protobuf `Any` type to an `AttestationRequestI`.
-func unmarshallAttestation(attestation *codectypes.Any) (types.AttestationRequestI, error) {
+// unmarshalAttestation unmarshal a wrapper protobuf `Any` type to an `AttestationRequestI`.
+func unmarshalAttestation(attestation *codectypes.Any) (types.AttestationRequestI, error) {
 	var unmarshalledAttestation types.AttestationRequestI
 	err := makeInterfaceRegistry().UnpackAny(attestation, &unmarshalledAttestation)
 	if err != nil {
