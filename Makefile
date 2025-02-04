@@ -25,7 +25,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.23.1
+GOLANG_CROSS_VERSION  ?= v1.23.5
 # Set this to override the max square size of the binary
 OVERRIDE_MAX_SQUARE_SIZE ?=
 # Set this to override the upgrade height delay of the binary
