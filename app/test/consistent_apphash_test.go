@@ -318,8 +318,8 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 
 	// NewMsgCreatePermanentLockedAccount - creates a permanent locked account
 	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress2")).PubKey().Address())
-	msgCreatePermamentLockedAccount := vestingtypes.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
-	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePermamentLockedAccount)
+	msgCreatePermanentLockedAccount := vestingtypes.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
+	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePermanentLockedAccount)
 
 	// NewMsgCreateVestingAccount - creates a vesting account
 	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress3")).PubKey().Address())
