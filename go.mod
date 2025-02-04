@@ -9,7 +9,7 @@ require (
 	github.com/celestiaorg/go-square v1.1.1
 	github.com/celestiaorg/go-square/v2 v2.1.0
 	github.com/celestiaorg/knuu v0.16.2
-	github.com/celestiaorg/nmt v0.22.2
+	github.com/celestiaorg/nmt v0.23.0
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft-db v1.0.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
