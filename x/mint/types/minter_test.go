@@ -77,6 +77,31 @@ func TestCalculateInflationRate(t *testing.T) {
 			assert.Equal(t, tc.want, got, "want %v got %v year %v blockTime %v", tc.want, got, tc.year, blockTime)
 		}
 	})
+	t.Run("app version 4", func(t *testing.T) {
+		minter := DefaultMinter()
+		genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+
+		type testCase struct {
+			year int64
+			want float64
+		}
+
+		testCases := []testCase{
+			{0, 0.0536}, // note this value won't be used in production because celestia-app was on app version 3 in year 0.
+			{1, 0.0500088},
+			{2, 0.0466582104},
+		}
+
+		for _, tc := range testCases {
+			years := time.Duration(tc.year * NanosecondsPerYear * int64(time.Nanosecond))
+			blockTime := genesisTime.Add(years)
+			ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime).WithConsensusParams(&abcitypes.ConsensusParams{Version: &tmproto.VersionParams{AppVersion: 4}})
+			inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
+			got, err := inflationRate.Float64()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got, "want %v got %v year %v blockTime %v", tc.want, got, tc.year, blockTime)
+		}
+	})
 }
 
 func TestCalculateBlockProvision(t *testing.T) {
