@@ -9,71 +9,74 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	abcitypes "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func TestCalculateInflationRate(t *testing.T) {
-	minter := DefaultMinter()
-	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Run("app version 3", func(t *testing.T) {
+		minter := DefaultMinter()
+		genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	type testCase struct {
-		year int64
-		want float64
-	}
+		type testCase struct {
+			year int64
+			want float64
+		}
 
-	testCases := []testCase{
-		{0, 0.08},
-		{1, 0.072},
-		{2, 0.0648},
-		{3, 0.05832},
-		{4, 0.052488},
-		{5, 0.0472392},
-		{6, 0.04251528},
-		{7, 0.038263752},
-		{8, 0.0344373768},
-		{9, 0.03099363912},
-		{10, 0.027894275208},
-		{11, 0.0251048476872},
-		{12, 0.02259436291848},
-		{13, 0.020334926626632},
-		{14, 0.0183014339639688},
-		{15, 0.01647129056757192},
-		{16, 0.0150},
-		{17, 0.0150},
-		{18, 0.0150},
-		{19, 0.0150},
-		{20, 0.0150},
-		{21, 0.0150},
-		{22, 0.0150},
-		{23, 0.0150},
-		{24, 0.0150},
-		{25, 0.0150},
-		{26, 0.0150},
-		{27, 0.0150},
-		{28, 0.0150},
-		{29, 0.0150},
-		{30, 0.0150},
-		{31, 0.0150},
-		{32, 0.0150},
-		{33, 0.0150},
-		{34, 0.0150},
-		{35, 0.0150},
-		{36, 0.0150},
-		{37, 0.0150},
-		{38, 0.0150},
-		{39, 0.0150},
-		{40, 0.0150},
-	}
+		testCases := []testCase{
+			{0, 0.08},
+			{1, 0.072},
+			{2, 0.0648},
+			{3, 0.05832},
+			{4, 0.052488},
+			{5, 0.0472392},
+			{6, 0.04251528},
+			{7, 0.038263752},
+			{8, 0.0344373768},
+			{9, 0.03099363912},
+			{10, 0.027894275208},
+			{11, 0.0251048476872},
+			{12, 0.02259436291848},
+			{13, 0.020334926626632},
+			{14, 0.0183014339639688},
+			{15, 0.01647129056757192},
+			{16, 0.0150},
+			{17, 0.0150},
+			{18, 0.0150},
+			{19, 0.0150},
+			{20, 0.0150},
+			{21, 0.0150},
+			{22, 0.0150},
+			{23, 0.0150},
+			{24, 0.0150},
+			{25, 0.0150},
+			{26, 0.0150},
+			{27, 0.0150},
+			{28, 0.0150},
+			{29, 0.0150},
+			{30, 0.0150},
+			{31, 0.0150},
+			{32, 0.0150},
+			{33, 0.0150},
+			{34, 0.0150},
+			{35, 0.0150},
+			{36, 0.0150},
+			{37, 0.0150},
+			{38, 0.0150},
+			{39, 0.0150},
+			{40, 0.0150},
+		}
 
-	for _, tc := range testCases {
-		years := time.Duration(tc.year * NanosecondsPerYear * int64(time.Nanosecond))
-		blockTime := genesisTime.Add(years)
-		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
-		inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
-		got, err := inflationRate.Float64()
-		assert.NoError(t, err)
-		assert.Equal(t, tc.want, got, "want %v got %v year %v blockTime %v", tc.want, got, tc.year, blockTime)
-	}
+		for _, tc := range testCases {
+			years := time.Duration(tc.year * NanosecondsPerYear * int64(time.Nanosecond))
+			blockTime := genesisTime.Add(years)
+			ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime).WithConsensusParams(&abcitypes.ConsensusParams{Version: &tmproto.VersionParams{AppVersion: 3}})
+			inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
+			got, err := inflationRate.Float64()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got, "want %v got %v year %v blockTime %v", tc.want, got, tc.year, blockTime)
+		}
+	})
 }
 
 func TestCalculateBlockProvision(t *testing.T) {
