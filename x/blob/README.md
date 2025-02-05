@@ -24,7 +24,7 @@ in a block via a blob inclusion proof. A blob inclusion proof uses the
 block's data square to prove to the user that the shares that compose their
 original data do in fact exist in a particular block.
 
-For detailed information about blob inclusion proofs and fraud proofs, see the [Fraud Proofs specification](../specs/src/fraud_proofs.md) and [ADR-011: Optimistic Blob Size Independent Inclusion Proofs and PFB Fraud Proofs](../docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md).
+For detailed information about blob inclusion proofs and fraud proofs, see the [Fraud Proofs specification](../../specs/src/fraud_proofs.md) and [ADR-011: Optimistic Blob Size Independent Inclusion Proofs and PFB Fraud Proofs](../../docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md).
 
 ## State
 
