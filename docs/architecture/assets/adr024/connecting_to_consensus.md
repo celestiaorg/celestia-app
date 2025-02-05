@@ -10,12 +10,12 @@ mechanisms need to be hotswapple. This can be challenging due to the consensus
 reactor and state having their own propagation mechanism, and that they were not
 designed to be easily modifiable.
 
-### Compatability
+## Compatability with the Consensus Reactor
 
 Minimally invasive modularity can be added by not touching the consensus state,
 and utilizing the same entry points that exist now. That is, the consenus
 reactors internal message channel to the consensus state. While far from optimal
-from an engineering or performance perspective, by simply adding (yet another)
+from an engineering or even performance perspective, by simply adding (yet another)
 syncing routine, we can sync the data from the block propagation reactor to the
 consensus.
 
@@ -102,3 +102,18 @@ func legacyPropagation(peer p2p.Peer) (bool, error) {
 	return legacyblockProp, nil
 }
 ```
+
+## Compatability with Parity Data
+
+Adding parity data is highly advantageous for broadcast trees and pull based
+gossip. However, the added parity data also requires being committed to by the
+proposer. At the moment, the proposer commits over the block data via the
+`PartSetHeader`. In order to be backwards compatible, we can't break this.
+Simulataneously, we don't want to add excessive overhead via requiring
+commitments computed twice. In order to solve this dilemma, we can simply reuse
+the first commitment, add a second parity commitment computed identically to the
+original `PartSetHeader` hash.
+
+Setting the `PartSetHeader` hash to the zero value and not using it is an
+option. Since this is a consensus breaking change, changing the commitment in
+the `CompactBlock` can be done at the same time.
