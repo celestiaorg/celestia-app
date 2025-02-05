@@ -83,8 +83,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 // TestGetCmdQueryAnnualProvisions tests that the CLI query command for annual-provisions
 // returns the correct value. This test assumes that the initial inflation
 // rate is 0.08 and the initial total supply is 500_000_000 utia.
-//
-// TODO assert that total supply is 500_000_000 utia.
 func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 	// Verify that the initial total supply is 500_000_000 utia
 	bankClient := banktypes.NewQueryClient(s.cctx.Context)
