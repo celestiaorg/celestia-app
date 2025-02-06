@@ -13,8 +13,10 @@ import (
 	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	"github.com/celestiaorg/celestia-app/v3/app/posthandler"
@@ -353,8 +355,8 @@ func New(
 	// PacketForwardMiddleware is used only for version >= 2.
 	transferStack = module.NewVersionedIBCModule(packetForwardMiddleware, transferStack, v2, v3)
 	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
-	tokenFilterMiddelware := tokenfilter.NewIBCMiddleware(transferStack)
-	transferStack = module.NewVersionedIBCModule(tokenFilterMiddelware, transferStack, v1, v3)
+	tokenFilterMiddleware := tokenfilter.NewIBCMiddleware(transferStack)
+	transferStack = module.NewVersionedIBCModule(tokenFilterMiddleware, transferStack, v1, v3)
 
 	app.EvidenceKeeper = *evidencekeeper.NewKeeper(
 		appCodec,
@@ -753,6 +755,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
 	celestiatx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
+	gasestimation.RegisterGasEstimationService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

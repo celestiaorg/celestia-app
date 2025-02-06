@@ -2,7 +2,7 @@
 
 `blocktime` is a simple tool to analyze block production rates of a chain. It scrapes the latest headers through the RPC endpoint of a provided node and calculates the average, min, max and standard deviation of the intervals between the last `n` blocks (default: 100).
 
-To start a consensus node and expose the RPC endpoint, see the [docs](https://docs.celestia.org/nodes/consensus-node).
+To start a consensus node and expose the RPC endpoint, see the [docs](https://docs.celestia.org/how-to-guides/consensus-node).
 
 ## Usage
 
