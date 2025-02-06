@@ -10,8 +10,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	mint "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 func (s *IntegrationTestSuite) TestQueryGRPC() {

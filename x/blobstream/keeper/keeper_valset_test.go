@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
+	"github.com/celestiaorg/celestia-app/v4/x/blobstream"
 
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	gethcommon "github.com/ethereum/go-ethereum/common"

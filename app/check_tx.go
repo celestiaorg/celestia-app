@@ -5,9 +5,9 @@ import (
 
 	"cosmossdk.io/errors"
 
-	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"

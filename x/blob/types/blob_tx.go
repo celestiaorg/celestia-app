@@ -3,7 +3,7 @@ package types
 import (
 	"bytes"
 
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"

@@ -3,9 +3,9 @@ package test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/x/paramfilter"
 	tmlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

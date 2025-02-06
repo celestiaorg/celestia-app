@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	tmtypes "github.com/cometbft/cometbft/types"
 )

@@ -3,8 +3,8 @@ package ante
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

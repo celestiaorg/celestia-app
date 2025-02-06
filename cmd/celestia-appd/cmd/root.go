@@ -3,9 +3,9 @@ package cmd
 import (
 	"os"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	blobstreamclient "github.com/celestiaorg/celestia-app/v3/x/blobstream/client"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	blobstreamclient "github.com/celestiaorg/celestia-app/v4/x/blobstream/client"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	"github.com/cometbft/cometbft/libs/log"

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	bstypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	bstypes "github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"

@@ -13,9 +13,9 @@ import (
 	"github.com/cometbft/cometbft/types"
 	"golang.org/x/exp/constraints"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/v3/proto/celestia/core/v1/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/v4/proto/celestia/core/v1/da"
 )
 
 var (

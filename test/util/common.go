@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream"
+	"github.com/celestiaorg/celestia-app/v4/x/blobstream"
 
 	cosmosmath "cosmossdk.io/math"
 	"cosmossdk.io/store"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/x/blobstream/keeper"
+	blobstreamtypes "github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	tmed "github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"

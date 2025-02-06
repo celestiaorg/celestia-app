@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )

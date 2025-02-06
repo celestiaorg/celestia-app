@@ -3,8 +3,8 @@ package module_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/app/module"
-	mocks "github.com/celestiaorg/celestia-app/v3/app/module/mocks"
+	"github.com/celestiaorg/celestia-app/v4/app/module"
+	mocks "github.com/celestiaorg/celestia-app/v4/app/module/mocks"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"

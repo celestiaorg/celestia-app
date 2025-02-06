@@ -15,11 +15,11 @@ import (
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	paycli "github.com/celestiaorg/celestia-app/v3/x/blob/client/cli"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	paycli "github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 )

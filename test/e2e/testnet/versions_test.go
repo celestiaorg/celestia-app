@@ -3,7 +3,7 @@ package testnet_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/stretchr/testify/require"
 )
 
