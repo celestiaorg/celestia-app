@@ -98,7 +98,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	if latestValset != nil {
 		vs, err := k.GetCurrentValset(ctx)
 		if err != nil {
-			// this condition should only occur in the simulator ref :
+			// this condition should only occur in the simulator ref:
 			// https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
 			if errors.Is(err, types.ErrNoValidators) {
 				ctx.Logger().Error("no bonded validators",
