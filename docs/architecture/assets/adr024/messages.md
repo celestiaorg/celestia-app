@@ -80,4 +80,63 @@ message Part {
 ```
 
 Verification
-- The hash of the bytes in the data field MUST match that of the `Have` message. 
+- The hash of the bytes in the data field MUST match that of the `Have` message.
+
+### Parity Data
+
+Parity data is required for all practical broadcast trees. This becomes
+problematic mainly due to the requirement that transactions downloaded before
+the block is created need to be used during recovery. Using erasure encoding
+means that the data must be chunked in an even size. All transactions in that
+chunk must have been downloaded in order to use it alongside parity data to
+reconstruct the block. Most scenarios would likely be fine, however it would be
+possible for a node to have downloaded a large portion of the block, but have no
+complete parts, rendering all of the parity data useless. The way to fix this
+while remaining backwards compatible is to still commit over and propagate
+parts, but to erasure encode smaller chunks of those parts, aka `SubParts`.
+
+```go
+const (
+	SubPartsPerPart uint32 = 32
+	SubPartSize            = BlockPartSizeBytes / SubPartsPerPart
+)
+
+type Part struct {
+	Index uint32            `json:"index"`
+	Bytes cmtbytes.HexBytes `json:"bytes"`
+	Proof merkle.Proof      `json:"proof"`
+}
+
+// SubPart is a portion of a part and block that is used for generating parity
+// data.
+type SubPart struct {
+	Index uint32            `json:"index"`
+	Bytes cmtbytes.HexBytes `json:"bytes"`
+}
+
+// SubPart breaks a block part into smaller equal sized subparts.
+func (p *Part) SubParts() []SubPart {
+	sps := make([]SubPart, SubPartsPerPart)
+	for i := uint32(0); i < SubPartsPerPart; i++ {
+		sps[i] = SubPart{
+			Index: uint32(i),
+			Bytes: p.Bytes[i*SubPartSize : (i+1)*SubPartSize],
+		}
+	}
+	return sps
+}
+
+func PartFromSubParts(index uint32, sps []SubPart) *Part {
+	if len(sps) != int(SubPartsPerPart) {
+		panic(fmt.Sprintf("invalid number of subparts: %d", len(sps)))
+	}
+	b := make([]byte, 0, BlockPartSizeBytes)
+	for _, sp := range sps {
+		b = append(b, sp.Bytes...)
+	}
+	return &Part{
+		Index: index,
+		Bytes: b,
+	}
+}
+```
