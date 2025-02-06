@@ -310,56 +310,47 @@ func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts 
 	return client.ConfirmTx(ctx, resp.TxHash)
 }
 
+// estimateAndSetGas estimates the gas for a transaction and sets it in the builder
+func (client *TxClient) estimateAndSetGas(ctx context.Context, txBuilder client.TxBuilder, opts *TxOptions) error {
+	// If gas is already set in options, skip estimation
+	if opts != nil && opts.Gas != 0 {
+		txBuilder.SetGasLimit(opts.Gas)
+		return nil
+	}
+
+	// Estimate gas
+	gasLimit, err := client.estimateGas(ctx, txBuilder)
+	if err != nil {
+		return fmt.Errorf("estimating gas: %w", err)
+	}
+
+	// Set the estimated gas limit
+	txBuilder.SetGasLimit(gasLimit)
+	return nil
+}
+
 func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
-
-	// prune transactions that are older than 10 minutes
-	// pruning has to be done in broadcast, since users
-	// might not always call ConfirmTx().
-	client.pruneTxTracker()
-
-	account, err := client.getAccountNameFromMsgs(msgs)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := client.checkAccountLoaded(ctx, account); err != nil {
-		return nil, err
-	}
 
 	txBuilder, err := client.signer.txBuilder(msgs, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	hasUserSetFee := false
-	for _, coin := range txBuilder.GetTx().GetFee() {
-		if coin.Denom == appconsts.BondDenom {
-			hasUserSetFee = true
-			break
-		}
+	// Get options for gas estimation
+	txOpts := DefaultTxOptions()
+	for _, opt := range opts {
+		opt(txOpts)
 	}
 
-	gasLimit := txBuilder.GetTx().GetGas()
-	if gasLimit == 0 {
-		if !hasUserSetFee {
-			// add at least 1utia as fee to builder as it affects gas calculation.
-			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
-		}
-		gasLimit, err = client.estimateGas(ctx, txBuilder)
-		if err != nil {
-			return nil, err
-		}
-		txBuilder.SetGasLimit(gasLimit)
+	// Estimate and set gas if not explicitly provided
+	if err := client.estimateAndSetGas(ctx, txBuilder, txOpts); err != nil {
+		return nil, err
 	}
 
-	if !hasUserSetFee {
-		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
-		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(fee))))
-	}
-
-	account, _, err = client.signer.signTransaction(txBuilder)
+	// Sign the transaction
+	signer, sequence, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +360,20 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 		return nil, err
 	}
 
-	return client.broadcastTx(ctx, txBytes, account)
+	resp, err := client.broadcastTx(ctx, txBytes, signer)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.TxHash != "" {
+		client.txTracker[resp.TxHash] = txInfo{
+			sequence:  sequence,
+			signer:    signer,
+			timestamp: time.Now(),
+		}
+	}
+
+	return resp, nil
 }
 
 func (client *TxClient) broadcastTx(ctx context.Context, txBytes []byte, signer string) (*sdktypes.TxResponse, error) {
