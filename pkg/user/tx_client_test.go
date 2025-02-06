@@ -379,3 +379,51 @@ func (suite *TxClientTestSuite) TestGasPriceAndUsedEstimate() {
 		assert.Greater(t, gasUsed, uint64(0))
 	})
 }
+
+func (s *TxClientTestSuite) TestEstimateAndSetGas() {
+	ctx := context.Background()
+	
+	// Create a test message
+	msg := sdk.NewTestMsg()
+	
+	// Test case 1: Gas not set in options
+	txBuilder, err := s.txClient.signer.txBuilder([]sdk.Msg{msg})
+	s.Require().NoError(err)
+	
+	opts := DefaultTxOptions()
+	err = s.txClient.estimateAndSetGas(ctx, txBuilder, opts)
+	s.Require().NoError(err)
+	s.Require().Greater(txBuilder.GetTx().GetGas(), uint64(0), "Gas limit should be set after estimation")
+	
+	// Test case 2: Gas already set in options
+	txBuilder, err = s.txClient.signer.txBuilder([]sdk.Msg{msg})
+	s.Require().NoError(err)
+	
+	predefinedGas := uint64(100000)
+	opts = DefaultTxOptions()
+	opts.Gas = predefinedGas
+	
+	err = s.txClient.estimateAndSetGas(ctx, txBuilder, opts)
+	s.Require().NoError(err)
+	s.Require().Equal(predefinedGas, txBuilder.GetTx().GetGas(), "Gas limit should match predefined value")
+}
+
+func (s *TxClientTestSuite) TestBroadcastTxWithGasEstimation() {
+	ctx := context.Background()
+	
+	// Create a test message
+	msg := sdk.NewTestMsg()
+	
+	// Test broadcasting without explicit gas setting
+	resp, err := s.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	s.Require().NoError(err)
+	s.Require().NotNil(resp)
+	s.Require().Greater(resp.GasUsed, int64(0), "Transaction should use gas")
+	
+	// Test broadcasting with explicit gas setting
+	predefinedGas := uint64(100000)
+	resp, err = s.txClient.BroadcastTx(ctx, []sdk.Msg{msg}, WithGas(predefinedGas))
+	s.Require().NoError(err)
+	s.Require().NotNil(resp)
+	s.Require().Equal(int64(predefinedGas), resp.GasUsed, "Transaction should use predefined gas")
+}
