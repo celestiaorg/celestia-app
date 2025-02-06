@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/tx"
-	"github.com/cometbft/cometbft/proto/tendermint/blockchain"
+	bcproto "github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -60,7 +60,7 @@ func TestDecodeBlobTx(t *testing.T) {
 }
 
 // getTestdataBlockResponse gets the block response from the testdata directory.
-func getTestdataBlockResponse(t *testing.T) (resp blockchain.BlockResponse) {
+func getTestdataBlockResponse(t *testing.T) (resp bcproto.BlockResponse) {
 	// block_response.json is the JSON response from the API endpoint:
 	// https://api.celestia.pops.one/cosmos/base/tendermint/v1beta1/blocks/408
 	// The response was persisted to block_response.json so that this test

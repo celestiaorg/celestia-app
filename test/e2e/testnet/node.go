@@ -11,8 +11,6 @@ import (
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/p2p"
-	"github.com/cometbft/cometbft/pkg/trace"
-	"github.com/cometbft/cometbft/pkg/trace/schema"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cometbft/cometbft/types"
@@ -61,29 +59,31 @@ type Node struct {
 
 // PullRoundStateTraces retrieves the round state traces from a node.
 // It will save them to the provided path.
-func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error) {
-	addr := n.AddressTracing()
-	n.logger.Println("Pulling round state traces", "address", addr)
+// TODOv4: pending implementation of "github.com/cometbft/cometbft/pkg/trace" in cometbft fork
+// func (n *Node) PullRoundStateTraces(path string) ([]trace.Event[schema.RoundState], error) {
+// 	addr := n.AddressTracing()
+// 	n.logger.Println("Pulling round state traces", "address", addr)
 
-	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
-	if err != nil {
-		return nil, fmt.Errorf("getting table: %w", err)
-	}
-	return nil, nil
-}
+// 	err := trace.GetTable(addr, schema.RoundState{}.Table(), path)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("getting table: %w", err)
+// 	}
+// 	return nil, nil
+// }
 
 // PullBlockSummaryTraces retrieves the block summary traces from a node.
 // It will save them to the provided path.
-func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error) {
-	addr := n.AddressTracing()
-	n.logger.Println("Pulling block summary traces", "address", addr)
+// TODOv4: pending implementation of "github.com/cometbft/cometbft/pkg/trace" in cometbft fork
+// func (n *Node) PullBlockSummaryTraces(path string) ([]trace.Event[schema.BlockSummary], error) {
+// 	addr := n.AddressTracing()
+// 	n.logger.Println("Pulling block summary traces", "address", addr)
 
-	err := trace.GetTable(addr, schema.BlockSummary{}.Table(), path)
-	if err != nil {
-		return nil, fmt.Errorf("getting table: %w", err)
-	}
-	return nil, nil
-}
+// 	err := trace.GetTable(addr, schema.BlockSummary{}.Table(), path)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("getting table: %w", err)
+// 	}
+// 	return nil, nil
+// }
 
 // Resources defines the resource requirements for a Node.
 type Resources struct {
