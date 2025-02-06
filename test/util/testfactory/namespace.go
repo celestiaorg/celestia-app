@@ -4,7 +4,7 @@ import (
 	"slices"
 
 	"github.com/celestiaorg/go-square/v2/share"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 )
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).

@@ -12,11 +12,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestMsgTypeURLParity(t *testing.T) {

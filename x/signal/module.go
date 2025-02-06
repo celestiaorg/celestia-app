@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/celestiaorg/celestia-app/v3/x/signal/cli"
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"

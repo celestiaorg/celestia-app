@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	version "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 func TestAfterValidatorBeginUnbonding(t *testing.T) {

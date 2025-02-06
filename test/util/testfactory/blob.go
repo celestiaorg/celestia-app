@@ -6,7 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 )
 
 func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {

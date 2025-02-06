@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
 func TestPriorityTestSuite(t *testing.T) {

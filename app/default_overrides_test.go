@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icagenesistypes "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/genesis/types"
 	"github.com/stretchr/testify/assert"
-	tmcfg "github.com/tendermint/tendermint/config"
 )
 
 // Test_newGovModule verifies that the gov module's genesis state has defaults

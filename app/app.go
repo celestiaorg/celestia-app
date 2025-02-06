@@ -36,6 +36,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/celestiaorg/celestia-app/v3/x/tokenfilter"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmjson "github.com/cometbft/cometbft/libs/json"
+	"github.com/cometbft/cometbft/libs/log"
+	tmos "github.com/cometbft/cometbft/libs/os"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
@@ -53,6 +58,7 @@ import (
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -89,11 +95,6 @@ import (
 	ibctesting "github.com/cosmos/ibc-go/v9/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v9/testing/types"
 	"github.com/spf13/cast"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmjson "github.com/tendermint/tendermint/libs/json"
-	"github.com/tendermint/tendermint/libs/log"
-	tmos "github.com/tendermint/tendermint/libs/os"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -145,6 +146,7 @@ type App struct {
 	AccountKeeper       authkeeper.AccountKeeper
 	BankKeeper          bankkeeper.Keeper
 	AuthzKeeper         authzkeeper.Keeper
+	ConsensusKeeper     consensuskeeper.Keeper
 	CapabilityKeeper    *capabilitykeeper.Keeper
 	StakingKeeper       stakingkeeper.Keeper
 	SlashingKeeper      slashingkeeper.Keeper
@@ -528,21 +530,29 @@ func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) e
 // store.
 //
 // Side-effect: calls baseapp.Init()
-func (app *App) Info(req abci.RequestInfo) abci.ResponseInfo {
+func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	if height := app.LastBlockHeight(); height > 0 {
 		ctx, err := app.CreateQueryContext(height, false)
 		if err != nil {
 			panic(err)
 		}
-		appVersion := app.GetAppVersionFromParamStore(ctx)
+		params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		appVersion := params.Version.App
 		if appVersion > 0 {
-			app.SetAppVersion(ctx, appVersion)
+			app.SetProtocolVersion(appVersion)
 		} else {
-			app.SetAppVersion(ctx, v1)
+			app.SetProtocolVersion(v1)
 		}
 	}
 
-	resp := app.BaseApp.Info(req)
+	resp, err := app.BaseApp.Info(req)
+	if err != nil {
+		return nil, err
+	}
+
 	// mount the stores for the provided app version
 	if resp.AppVersion > 0 && !app.IsSealed() {
 		app.mountKeysAndInit(resp.AppVersion)

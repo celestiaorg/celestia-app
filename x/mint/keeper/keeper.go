@@ -2,7 +2,7 @@ package keeper
 
 import (
 	"cosmossdk.io/math"
-	"github.com/tendermint/tendermint/libs/log"
+	"github.com/cometbft/cometbft/libs/log"
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v3/x/mint/types"

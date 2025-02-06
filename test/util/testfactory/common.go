@@ -5,12 +5,12 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/go-square/v2/share"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 const (

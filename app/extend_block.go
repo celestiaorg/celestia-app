@@ -6,7 +6,7 @@ import (
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	coretypes "github.com/tendermint/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 )
 
 // ExtendBlock extends the given block data into a data square for a given app

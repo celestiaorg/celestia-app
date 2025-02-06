@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/go-square/v2/share"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -20,8 +22,6 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/rpc/core"
 	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v3/app"

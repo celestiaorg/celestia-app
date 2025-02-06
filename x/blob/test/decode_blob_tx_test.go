@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/tx"
+	"github.com/cometbft/cometbft/proto/tendermint/blockchain"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/proto/tendermint/blockchain"
 )
 
 // TestDecodeBlobTx demonstrates how one can take the response from the

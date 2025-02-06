@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/cometbft/cometbft/pkg/trace"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"

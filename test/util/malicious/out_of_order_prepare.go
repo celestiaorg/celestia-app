@@ -5,9 +5,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	"github.com/celestiaorg/go-square/v2/share"
-	abci "github.com/tendermint/tendermint/abci/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
+	abci "github.com/cometbft/cometbft/abci/types"
+	core "github.com/cometbft/cometbft/proto/tendermint/types"
+	version "github.com/cometbft/cometbft/proto/tendermint/version"
 )
 
 // OutOfOrderPrepareProposal fulfills the celestia-core version of the ABCI

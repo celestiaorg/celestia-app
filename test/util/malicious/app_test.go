@@ -11,9 +11,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // TestOutOfOrderNMT tests that the malicious NMT implementation is able to

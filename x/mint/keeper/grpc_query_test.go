@@ -4,8 +4,8 @@ import (
 	gocontext "context"
 	"testing"
 
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/stretchr/testify/suite"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"

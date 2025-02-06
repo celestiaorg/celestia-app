@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 
+	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func QueryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {

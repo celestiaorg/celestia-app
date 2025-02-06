@@ -21,7 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	paycli "github.com/celestiaorg/celestia-app/v3/x/blob/client/cli"
 	"github.com/celestiaorg/go-square/v2/share"
-	abci "github.com/tendermint/tendermint/abci/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 )
 
 // username is used to create a funded genesis account under this name

@@ -10,10 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/stretchr/testify/require"
 
+	tmlog "github.com/cometbft/cometbft/libs/log"
+	tmtypes "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // TestUpgradeIntegration uses the real application including the upgrade keeper (and staking keeper). It

@@ -5,12 +5,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app/module"
 	mocks "github.com/celestiaorg/celestia-app/v3/app/module/mocks"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // TestVersionedIBCModule sets up a new VersionedIBCModule with versions

@@ -12,16 +12,16 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmdb "github.com/tendermint/tm-db"
 )
 

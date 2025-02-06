@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/p2p"
+	"github.com/cometbft/cometbft/p2p/pex"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/p2p/pex"
 )
 
 func MakeConfig(node *Node, peers []string, opts ...Option) (*config.Config, error) {

@@ -10,10 +10,10 @@ import (
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/tendermint/tendermint/rpc/client/http"
-	"github.com/tendermint/tendermint/types"
 )
 
 func main() {

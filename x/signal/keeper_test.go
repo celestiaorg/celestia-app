@@ -23,9 +23,9 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
+	"github.com/cometbft/cometbft/libs/log"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmdb "github.com/tendermint/tm-db"
 )
 

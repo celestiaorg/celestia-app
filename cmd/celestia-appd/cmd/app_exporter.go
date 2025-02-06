@@ -5,8 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/cometbft/cometbft/libs/log"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 )
 

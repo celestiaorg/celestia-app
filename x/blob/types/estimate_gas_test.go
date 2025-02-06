@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	abci "github.com/cometbft/cometbft/abci/types"
+	tmrand "github.com/cometbft/cometbft/libs/rand"
 )
 
 func TestPFBGasEstimation(t *testing.T) {

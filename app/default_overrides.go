@@ -8,6 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	tmcfg "github.com/cometbft/cometbft/config"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,9 +32,6 @@ import (
 	icagenesistypes "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/genesis/types"
 	ibc "github.com/cosmos/ibc-go/v9/modules/core"
 	ibctypes "github.com/cosmos/ibc-go/v9/modules/core/types"
-	tmcfg "github.com/tendermint/tendermint/config"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (

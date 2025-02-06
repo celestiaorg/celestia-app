@@ -7,9 +7,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func TestQueryNetworkMinGasPrice(t *testing.T) {

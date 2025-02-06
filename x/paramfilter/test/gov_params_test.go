@@ -10,6 +10,7 @@ import (
 	bsmoduletypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/celestiaorg/celestia-app/v3/x/paramfilter"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -25,7 +26,6 @@ import (
 	ibcclienttypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v9/modules/core/03-connection/types"
 	"github.com/stretchr/testify/suite"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 type GovParamsTestSuite struct {

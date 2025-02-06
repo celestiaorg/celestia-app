@@ -9,8 +9,8 @@ import (
 	"github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/types"
+	"github.com/cometbft/cometbft/crypto/merkle"
+	"github.com/cometbft/cometbft/types"
 	"golang.org/x/exp/constraints"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
