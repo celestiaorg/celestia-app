@@ -136,7 +136,7 @@ func (icaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 }
 
 type mintModule struct {
-	mint.AppModuleBasic
+	mint.AppModule
 }
 
 // DefaultGenesis returns custom x/mint module genesis state.

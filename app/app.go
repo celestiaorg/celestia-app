@@ -174,6 +174,7 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 
+	BasicManager  module.BasicManager
 	ModuleManager *module.Manager
 	configurator  module.Configurator
 	// timeoutCommit is used to override the default timeoutCommit. This is
@@ -283,7 +284,7 @@ func New(
 		app.GetSubspace(icahosttypes.SubModuleName),
 		app.IBCKeeper.ChannelKeeper, // ICS4Wrapper
 		app.IBCKeeper.ChannelKeeper,
-		&app.IBCKeeper.PortKeeper,
+		app.IBCKeeper.PortKeeper,
 		app.AccountKeeper,
 		app.ScopedICAHostKeeper,
 		app.MsgServiceRouter(),
@@ -348,6 +349,8 @@ func New(
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
 	// we prefer to be more strict in what arguments the modules expect.
 
+	app.BasicManager = nil // TODO
+
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
 	app.ModuleManager = module.NewManager(
 		genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app, encodingConfig.TxConfig),
@@ -380,8 +383,8 @@ func New(
 	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
 	app.configurator = module.NewConfigurator(encodingConfig.Codec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.ModuleManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
-	app.ModuleManager.RegisterLegacyAminoCodec(encodingConfig.Amino)
+	app.BasicManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
+	app.BasicManager.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	app.ModuleManager.RegisterServices(app.configurator)
 
 	// extract the accepted message list from the configurator and create a gatekeeper
@@ -402,7 +405,6 @@ func New(
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,
-		app.ConsensusKeeper,
 		app.FeeGrantKeeper,
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
@@ -457,11 +459,6 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 
 // InitChainer is middleware that gets invoked part-way through the baseapp's InitChain invocation.
 func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
-	// set the initial version
-	if err := app.SetAppVersion(ctx, DefaultInitialVersion); err != nil {
-		return nil, err
-	}
-
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		return nil, err
@@ -583,7 +580,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 	// Register new celestia routes from grpc-gateway.
 	celestiatx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	// Register grpc-gateway routes for all modules.
-	app.ModuleManager.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
+	app.BasicManager.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 }
 
 // RegisterTxService implements the Application.RegisterTxService method.

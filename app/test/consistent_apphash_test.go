@@ -215,7 +215,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 		ToAddress:   accountAddresses[1].String(),
 		Amount:      amount,
 	}
-	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&msgSend}, amount, accountAddresses[0].String(), "")
+	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&msgSend}, amount, accountAddresses[0].String(), "", "title", "summary", false)
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, proposal)
 

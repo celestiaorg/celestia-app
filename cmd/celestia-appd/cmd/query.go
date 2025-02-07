@@ -1,15 +1,16 @@
 package cmd
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/spf13/cobra"
 )
 
-func queryCommand() *cobra.Command {
+func queryCommand(basicManager *module.BasicManager) *cobra.Command {
 	command := &cobra.Command{
 		Use:                        "query",
 		Aliases:                    []string{"q"},
@@ -20,14 +21,15 @@ func queryCommand() *cobra.Command {
 	}
 
 	command.AddCommand(
-		authcmd.GetAccountCmd(),
-		rpc.ValidatorCommand(),
-		rpc.BlockCommand(),
+		rpc.QueryEventForTxCmd(),
+		server.QueryBlockCmd(),
 		authcmd.QueryTxsByEventsCmd(),
+		server.QueryBlocksCmd(),
 		authcmd.QueryTxCmd(),
+		server.QueryBlockResultsCmd(),
 	)
 
-	app.ModuleBasics.AddQueryCommands(command)
+	basicManager.AddQueryCommands(command)
 	command.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")
 
 	return command

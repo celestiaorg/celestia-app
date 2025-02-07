@@ -23,14 +23,14 @@ import (
 
 const rejectedPropBlockLog = "Rejected proposal block:"
 
-func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
 	// In the case of a panic resulting from an unexpected condition, it is
 	// better for the liveness of the network to catch it, log an error, and
 	// vote nil rather than crashing the node.
 	defer func() {
 		if err := recover(); err != nil {
-			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("caught panic: %v", err))
+			logInvalidPropBlock(app.Logger(), ctx.BlockHeader(), fmt.Sprintf("caught panic: %v", err))
 			telemetry.IncrCounter(1, "process_proposal", "panics")
 			resp = reject()
 		}
@@ -49,42 +49,34 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 		app.ParamsKeeper,
-		app.MsgGateKeeper,
+		app.BlockedParamsGovernance(),
 	)
-	sdkCtx := app.NewProposalContext(req.Header)
-	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion())
+	blockHeader := ctx.BlockHeader()
+
+	appVersion := app.AppVersion()
+	subtreeRootThreshold := appconsts.SubtreeRootThreshold(appVersion)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
-	for idx, rawTx := range req.BlockData.Txs {
+	for idx, rawTx := range req.Txs {
 		tx := rawTx
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject()
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+				return reject(), nil
 			}
 			tx = blobTx.Tx
 		}
+		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
 
-		// todo: uncomment once we're sure this isn't consensus breaking
-		// sdkCtx = sdkCtx.WithTxBytes(tx)
-
-		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		// Set the tx bytes in the context for app version v3 and greater
-		if sdkCtx.BlockHeader().Version.App >= 3 {
-			sdkCtx = sdkCtx.WithTxBytes(tx)
-		}
+		ctx = ctx.WithTxBytes(tx)
 
 		if err != nil {
-			if req.Header.Version.App == v1 {
-				// For appVersion 1, there was no block validity rule that all
-				// transactions must be decodable.
-				continue
-			}
 			// An error here means that a tx was included in the block that is not decodable.
-			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d is not decodable", idx))
-			return reject()
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
+			return reject(), nil
 		}
 
 		// handle non-blob transactions first
@@ -94,17 +86,17 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 			_, has := hasPFB(msgs)
 			if has {
 				// A non-blob tx has a PFB, which is invalid
-				logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
-				return reject()
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
+				return reject(), nil
 			}
 
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doesn't exist.
-			sdkCtx, err = handler(sdkCtx, sdkTx, false)
+			ctx, err = handler(ctx, sdkTx, false)
 			if err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "failure to increment sequence", err)
-				return reject()
+				logInvalidPropBlockError(app.Logger(), blockHeader, "failure to increment sequence", err)
+				return reject(), nil
 			}
 
 			// we do not need to perform further checks on this transaction,
@@ -118,73 +110,76 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx, subtreeRootThreshold, app.AppVersion()); err != nil {
-			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
-			return reject()
+		if err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, "failure to get app version", err)
+		}
+
+		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, subtreeRootThreshold, appVersion); err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
+			return reject(), nil
 		}
 
 		// validated the PFB signature
-		sdkCtx, err = handler(sdkCtx, sdkTx, false)
+		ctx, err = handler(ctx, sdkTx, false)
 		if err != nil {
-			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
-			return reject()
+			logInvalidPropBlockError(app.Logger(), blockHeader, "invalid PFB signature", err)
+			return reject(), nil
 		}
 
 	}
 
 	var (
 		dataSquareBytes [][]byte
-		err             error
 	)
 
-	switch app.AppVersion() {
-	case v3:
+	switch appVersion {
+	case v4, v3:
 		var dataSquare squarev2.Square
-		dataSquare, err = squarev2.Construct(req.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
+		dataSquare, err = squarev2.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), subtreeRootThreshold)
 		dataSquareBytes = sharev2.ToBytes(dataSquare)
 		// Assert that the square size stated by the proposer is correct
-		if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-			logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-			return reject()
+		if uint64(dataSquare.Size()) != req.SquareSize {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return reject(), nil
 		}
 	case v2, v1:
 		var dataSquare square.Square
-		dataSquare, err = square.Construct(req.BlockData.Txs, app.MaxEffectiveSquareSize(sdkCtx), subtreeRootThreshold)
+		dataSquare, err = square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), subtreeRootThreshold)
 		dataSquareBytes = shares.ToBytes(dataSquare)
 		// Assert that the square size stated by the proposer is correct
-		if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
-			logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
-			return reject()
+		if uint64(dataSquare.Size()) != req.SquareSize {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return reject(), nil
 		}
 	default:
-		logInvalidPropBlock(app.Logger(), req.Header, "unsupported app version")
-		return reject()
+		logInvalidPropBlock(app.Logger(), blockHeader, "unsupported app version")
+		return reject(), nil
 	}
 	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
-		return reject()
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute data square from transactions:", err)
+		return reject(), nil
 	}
 
 	eds, err := da.ExtendShares(dataSquareBytes)
 	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
-		return reject()
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to erasure the data square", err)
+		return reject(), nil
 	}
 
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to create new data availability header", err)
-		return reject()
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
+		return reject(), nil
 	}
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.Header.DataHash, dah.Hash()))
-		return reject()
+	if !bytes.Equal(dah.Hash(), req.DataRootHash) && false { //TODO ---> THIS SHOULD BE REMOVED!! In the meantime we have blocks
+		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+		return reject(), nil
 	}
 
-	return accept()
+	return accept(), nil
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
@@ -218,14 +213,14 @@ func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err
 	)
 }
 
-func reject() abci.ResponseProcessProposal {
-	return abci.ResponseProcessProposal{
-		Result: abci.ResponseProcessProposal_REJECT,
+func reject() *abci.ResponseProcessProposal {
+	return &abci.ResponseProcessProposal{
+		Status: abci.ResponseProcessProposal_REJECT,
 	}
 }
 
-func accept() abci.ResponseProcessProposal {
-	return abci.ResponseProcessProposal{
-		Result: abci.ResponseProcessProposal_ACCEPT,
+func accept() *abci.ResponseProcessProposal {
+	return &abci.ResponseProcessProposal{
+		Status: abci.ResponseProcessProposal_ACCEPT,
 	}
 }

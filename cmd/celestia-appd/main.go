@@ -11,7 +11,7 @@ import (
 
 func main() {
 	rootCmd := cmd.NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, cmd.EnvPrefix, app.DefaultNodeHome); err != nil {
+	if err := svrcmd.Execute(rootCmd, app.EnvPrefix, app.DefaultNodeHome); err != nil {
 		os.Exit(1)
 	}
 }

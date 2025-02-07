@@ -17,7 +17,7 @@ func TestPanicHandlerDecorator(t *testing.T) {
 	decorator := ante.NewHandlePanicDecorator()
 	anteHandler := sdk.ChainAnteDecorators(decorator, mockPanicDecorator{})
 	ctx := sdk.Context{}
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig()
 	builder := encCfg.TxConfig.NewTxBuilder()
 	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10))))
 	require.NoError(t, err)

@@ -11,10 +11,10 @@ import (
 	square "github.com/celestiaorg/go-square/square"
 	squarev2 "github.com/celestiaorg/go-square/v2"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
+
 	abci "github.com/cometbft/cometbft/abci/types"
-	core "github.com/cometbft/cometbft/proto/tendermint/types"
-	version "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cosmos/cosmos-sdk/telemetry"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -22,16 +22,9 @@ import (
 // the proposal block and passes it back to tendermint via the BlockData. Panics
 // indicate a developer error and should immediately halt the node for
 // visibility and so they can be quickly resolved.
-func (app *App) PrepareProposal(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
-	sdkCtx := app.NewProposalContext(core.Header{
-		Height: req.Height,
-		Time:   req.Time,
-		Version: version.Consensus{
-			App: app.AppVersion(),
-		},
-	})
 	handler := ante.NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
@@ -45,34 +38,36 @@ func (app *App) PrepareProposal(req *abci.RequestPrepareProposal) (*abci.Respons
 	)
 
 	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.encodingConfig.TxConfig, req.Txs)
+	txs := FilterTxs(app.Logger(), ctx, handler, app.encodingConfig.TxConfig, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
 	var (
 		dataSquareBytes [][]byte
-		err             error
 		size            uint64
+		err             error
 	)
-	switch app.AppVersion() {
-	case v3:
+
+	appVersion := app.GetBaseApp().AppVersion()
+	switch appVersion {
+	case v4, v3:
 		var dataSquare squarev2.Square
 		dataSquare, txs, err = squarev2.Build(txs,
-			app.MaxEffectiveSquareSize(sdkCtx),
-			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
+			app.MaxEffectiveSquareSize(ctx),
+			appconsts.SubtreeRootThreshold(appVersion),
 		)
 		dataSquareBytes = sharev2.ToBytes(dataSquare)
 		size = uint64(dataSquare.Size())
 	case v2, v1:
 		var dataSquare square.Square
 		dataSquare, txs, err = square.Build(txs,
-			app.MaxEffectiveSquareSize(sdkCtx),
-			appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion()),
+			app.MaxEffectiveSquareSize(ctx),
+			appconsts.SubtreeRootThreshold(appVersion),
 		)
 		dataSquareBytes = shares.ToBytes(dataSquare)
 		size = uint64(dataSquare.Size())
 	default:
-		err = fmt.Errorf("unsupported app version: %d", app.AppVersion())
+		err = fmt.Errorf("unsupported app version: %d", appVersion)
 	}
 	if err != nil {
 		panic(err)
@@ -105,10 +100,8 @@ func (app *App) PrepareProposal(req *abci.RequestPrepareProposal) (*abci.Respons
 	// protobuf encoded version of the block data is gossiped. Therefore, the
 	// eds is not returned here.
 	return &abci.ResponsePrepareProposal{
-		Txs: txs,
-		BlockData: &core.Data{
-			SquareSize: size,
-			Hash:       dah.Hash(), // also known as the data root
-		},
+		Txs:          txs,
+		SquareSize:   size,
+		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
 }
