@@ -3,21 +3,22 @@ package module_test
 import (
 	"testing"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/store"
+	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/module"
 	"github.com/celestiaorg/celestia-app/v4/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
 )
 
 func TestConfigurator(t *testing.T) {
@@ -30,10 +31,10 @@ func TestConfigurator(t *testing.T) {
 
 		config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		configurator := module.NewConfigurator(config.Codec, mockServer, mockServer)
-		storeKey := sdk.NewKVStoreKey(signaltypes.StoreKey)
+		storeKey := storetypes.NewKVStoreKey(signaltypes.StoreKey)
 
 		db := dbm.NewMemDB()
-		stateStore := store.NewCommitMultiStore(db)
+		stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NoOpMetrics{})
 		stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 		require.NoError(t, stateStore.LoadLatestVersion())
 

@@ -3,12 +3,11 @@ package cmd
 import (
 	"os"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	blobstreamclient "github.com/celestiaorg/celestia-app/v4/x/blobstream/client"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
-	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/client"
 	clientconfig "github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/debug"
@@ -122,7 +121,6 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
-		blobstreamclient.VerifyCmd(),
 		snapshot.Cmd(NewAppServer),
 	)
 

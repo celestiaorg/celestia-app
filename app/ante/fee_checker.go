@@ -62,7 +62,7 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.C
 			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "NetworkMinGasPrice")
 		}
 
-		var networkMinGasPrice sdk.Dec
+		var networkMinGasPrice math.LegacyDec
 		// Gets the network minimum gas price from the param store.
 		// Panics if not configured properly.
 		subspace.Get(ctx, minfee.KeyNetworkMinGasPrice, &networkMinGasPrice)
@@ -78,10 +78,10 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.C
 }
 
 // verifyMinFee validates that the provided transaction fee is sufficient given the provided minimum gas price.
-func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) error {
+func verifyMinFee(fee math.Int, gas uint64, minGasPrice math.LegacyDec, errMsg string) error {
 	// Determine the required fee by multiplying required minimum gas
 	// price by the gas limit, where fee = minGasPrice * gas.
-	minFee := minGasPrice.MulInt(sdk.NewIntFromUint64(gas)).Ceil()
+	minFee := minGasPrice.MulInt(math.NewIntFromUint64(gas)).Ceil()
 	if fee.LT(minFee.TruncateInt()) {
 		return errors.Wrapf(sdkerror.ErrInsufficientFee, "%s; got: %s required at least: %s", errMsg, fee, minFee)
 	}
@@ -94,7 +94,7 @@ func verifyMinFee(fee math.Int, gas uint64, minGasPrice sdk.Dec, errMsg string) 
 func getTxPriority(fee sdk.Coins, gas int64) int64 {
 	var priority int64
 	for _, c := range fee {
-		p := c.Amount.Mul(sdk.NewInt(priorityScalingFactor)).QuoRaw(gas)
+		p := c.Amount.Mul(math.NewInt(priorityScalingFactor)).QuoRaw(gas)
 		if !p.IsInt64() {
 			continue
 		}

@@ -3,11 +3,11 @@ package cmd
 import (
 	"io"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/cometbft/cometbft/libs/log"
+	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	dbm "github.com/tendermint/tm-db"
 )
 
 func appExporter(

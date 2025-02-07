@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
-	tmlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ var oneYear = time.Duration(minttypes.NanosecondsPerYear)
 
 func TestInflationRate(t *testing.T) {
 	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, log.NewNopLogger())
 	genesisTime := app.MintKeeper.GetGenesisTime(ctx).GenesisTime
 
 	yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
@@ -32,39 +33,39 @@ func TestInflationRate(t *testing.T) {
 	type testCase struct {
 		name string
 		ctx  sdk.Context
-		want sdk.Dec
+		want math.LegacyDec
 	}
 
 	testCases := []testCase{
 		{
 			name: "inflation rate is 0.08 for year zero",
 			ctx:  ctx.WithBlockHeight(1).WithBlockTime(*genesisTime),
-			want: sdk.MustNewDecFromStr("0.08"),
+			want: math.LegacyMustNewDecFromStr("0.08"),
 		},
 		{
 			name: "inflation rate is 0.08 for year one minus one second",
 			ctx:  ctx.WithBlockTime(yearOneMinusOneSecond),
-			want: sdk.MustNewDecFromStr("0.08"),
+			want: math.LegacyMustNewDecFromStr("0.08"),
 		},
 		{
 			name: "inflation rate is 0.072 for year one",
 			ctx:  ctx.WithBlockTime(yearOne),
-			want: sdk.MustNewDecFromStr("0.072"),
+			want: math.LegacyMustNewDecFromStr("0.072"),
 		},
 		{
 			name: "inflation rate is 0.0648 for year two",
 			ctx:  ctx.WithBlockTime(yearTwo),
-			want: sdk.MustNewDecFromStr("0.0648"),
+			want: math.LegacyMustNewDecFromStr("0.0648"),
 		},
 		{
 			name: "inflation rate is 0.01647129056757192 for year fifteen",
 			ctx:  ctx.WithBlockTime(yearFifteen),
-			want: sdk.MustNewDecFromStr("0.01647129056757192"),
+			want: math.LegacyMustNewDecFromStr("0.01647129056757192"),
 		},
 		{
 			name: "inflation rate is 0.015 for year twenty",
 			ctx:  ctx.WithBlockTime(yearTwenty),
-			want: sdk.MustNewDecFromStr("0.015"),
+			want: math.LegacyMustNewDecFromStr("0.015"),
 		},
 	}
 
@@ -81,7 +82,7 @@ func TestInflationRate(t *testing.T) {
 func TestAnnualProvisions(t *testing.T) {
 	t.Run("annual provisions are set when originally zero", func(t *testing.T) {
 		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, log.NewNopLogger())
 
 		assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
 		mint.BeginBlocker(ctx, a.MintKeeper)
@@ -90,13 +91,15 @@ func TestAnnualProvisions(t *testing.T) {
 
 	t.Run("annual provisions are not updated more than once per year", func(t *testing.T) {
 		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, log.NewNopLogger())
 		genesisTime := a.MintKeeper.GetGenesisTime(ctx).GenesisTime
 		yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
 
-		initialSupply := sdk.NewInt(100_000_001_000_000)
+		initialSupply := math.NewInt(100_000_001_000_000)
 		require.Equal(t, initialSupply, a.MintKeeper.StakingTokenSupply(ctx))
-		require.Equal(t, a.MintKeeper.GetMinter(ctx).BondDenom, a.StakingKeeper.BondDenom(ctx))
+		bondDenom, err := a.StakingKeeper.BondDenom(ctx)
+		require.NoError(t, err)
+		require.Equal(t, a.MintKeeper.GetMinter(ctx).BondDenom, bondDenom)
 		require.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
 
 		blockInterval := time.Second * 15

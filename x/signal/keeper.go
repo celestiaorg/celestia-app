@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 
+	"cosmossdk.io/math"
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -28,7 +29,7 @@ var (
 // between 2/3 and 3/3 providing 1/6 fault tolerance to halting the
 // network during an upgrade period. It can be modified through a
 // hard fork change that modified the app version
-func Threshold(_ uint64) sdk.Dec {
+func Threshold(_ uint64) math.LegacyDec {
 	return defaultSignalThreshold
 }
 
@@ -118,7 +119,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRequest) (*types.QueryVersionTallyResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	totalVotingPower := k.stakingKeeper.GetLastTotalPower(sdkCtx)
-	currentVotingPower := sdk.NewInt(0)
+	currentVotingPower := math.NewInt(0)
 	store := sdkCtx.KVStore(k.storeKey)
 	iterator := store.Iterator(types.FirstSignalKey, nil)
 	defer iterator.Close()

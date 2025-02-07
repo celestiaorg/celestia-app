@@ -12,8 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/module"
 	"github.com/celestiaorg/celestia-app/v4/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v4/x/blobstream"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
@@ -79,7 +77,6 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		blob.AppModuleBasic{},
-		blobstream.AppModuleBasic{},
 		signal.AppModuleBasic{},
 		minfee.AppModuleBasic{},
 		packetforward.AppModuleBasic{},
@@ -167,10 +164,6 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 			FromVersion: v1, ToVersion: v3,
 		},
 		{
-			Module:      blobstream.NewAppModule(app.appCodec, app.BlobstreamKeeper),
-			FromVersion: v1, ToVersion: v1,
-		},
-		{
 			Module:      signal.NewAppModule(app.SignalKeeper),
 			FromVersion: v2, ToVersion: v3,
 		},
@@ -214,7 +207,6 @@ func (app *App) setModuleOrder() {
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -240,7 +232,6 @@ func (app *App) setModuleOrder() {
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
@@ -273,7 +264,6 @@ func (app *App) setModuleOrder() {
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		blobtypes.ModuleName,
-		blobstreamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
@@ -290,7 +280,6 @@ func allStoreKeys() []string {
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		blobstreamtypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
 		packetforwardtypes.StoreKey,
@@ -307,7 +296,6 @@ func versionedStoreKeys() map[uint64][]string {
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
-			blobstreamtypes.StoreKey,
 			blobtypes.StoreKey,
 			capabilitytypes.StoreKey,
 			distrtypes.StoreKey,

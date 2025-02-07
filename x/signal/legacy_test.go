@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -107,7 +108,7 @@ func (s *LegacyUpgradeTestSuite) unusedAccount() string {
 func (s *LegacyUpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	t := s.T()
 
-	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000)))
+	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000000000)))
 	acc := s.unusedAccount()
 	accAddr := getAddress(acc, s.cctx.Keyring)
 
@@ -143,7 +144,7 @@ func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 			Info:   "rough social consensus",
 		},
 	}
-	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000)))
+	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000000000)))
 	acc := s.unusedAccount()
 	accAddr := getAddress(acc, s.cctx.Keyring)
 	msg, err := v1.NewMsgSubmitProposal([]sdk.Msg{&sss}, dep, accAddr.String(), "")
@@ -173,7 +174,7 @@ func (s *LegacyUpgradeTestSuite) TestIBCUpgradeFailure() {
 	upgradeMsg, err := ibctypes.NewUpgradeProposal("Upgrade to v2!", "Upgrade to v2!", plan, upgradedClientState)
 	require.NoError(t, err)
 
-	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000)))
+	dep := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000000000)))
 	acc := s.unusedAccount()
 	accAddr := getAddress(acc, s.cctx.Keyring)
 	msg, err := v1beta1.NewMsgSubmitProposal(upgradeMsg, dep, accAddr)

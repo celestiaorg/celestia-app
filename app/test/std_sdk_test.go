@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
@@ -105,7 +106,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
@@ -118,7 +119,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000000000))),
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
@@ -130,7 +131,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				valopAddr := sdk.ValAddress(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName))
 				account1 := s.unusedAccount()
 				account1Addr := testfactory.GetAddress(s.cctx.Keyring, account1)
-				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, math.NewInt(1000000)))
 				return []sdk.Msg{msg}, account1
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -140,7 +141,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccAddr := testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName)
 				valopAddr := sdk.ValAddress(valAccAddr)
-				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, math.NewInt(1000000)))
 				return []sdk.Msg{msg}, testnode.DefaultValidatorAccountName
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -155,10 +156,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := stakingtypes.NewMsgCreateValidator(
 					valopAddr,
 					pv.PrivKey.PubKey(),
-					sdk.NewCoin(app.BondDenom, sdk.NewInt(1)),
+					sdk.NewCoin(app.BondDenom, math.NewInt(1)),
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
-					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
-					sdk.NewInt(1),
+					stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(6, 0o2), math.LegacyNewDecWithPrec(12, 0o2), math.LegacyNewDecWithPrec(1, 0o2)),
+					math.NewInt(1),
 				)
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
@@ -177,7 +178,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000))),
 					time.Now().Add(time.Hour).Unix(),
 					time.Now().Add(time.Hour*2).Unix(),
 					false,
@@ -195,7 +196,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				// to inflation so if 1 coin is not present in the community
 				// pool, consider expanding the block interval or waiting for
 				// more blocks to be produced prior to executing this test case.
-				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
+				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1)))
 				content := disttypes.NewCommunityPoolSpendProposal(
 					"title",
 					"description",
@@ -206,7 +207,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
 					addr,
 				)
 				require.NoError(t, err)
@@ -224,7 +225,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
 					addr,
 				)
 				require.NoError(t, err)
@@ -241,13 +242,13 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend1 := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1))),
 				)
 				account3 := s.unusedAccount()
 				msgSend2 := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account3),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
 			},
@@ -263,7 +264,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
 					addr,
 				)
 				require.NoError(t, err)
@@ -285,7 +286,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg, err := oldgov.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
 					addr,
 				)
 				require.NoError(t, err)

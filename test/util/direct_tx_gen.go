@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"cosmossdk.io/math"
 	tmrand "github.com/cometbft/cometbft/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -215,7 +216,7 @@ func SendTxWithManualSequence(
 	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(fromAcc, accountNum, sequence))
 	require.NoError(t, err)
 
-	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
+	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(amount))))
 	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
 

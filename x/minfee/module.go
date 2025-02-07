@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"cosmossdk.io/math"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
@@ -126,9 +127,9 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.Ra
 	subspace = RegisterMinFeeParamTable(subspace)
 
 	// Set the network min gas price initial value
-	networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", genesisState.NetworkMinGasPrice))
+	networkMinGasPriceDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", genesisState.NetworkMinGasPrice))
 	if err != nil {
-		panic("failed to convert NetworkMinGasPrice to sdk.Dec")
+		panic("failed to convert NetworkMinGasPrice to math.LegacyDec")
 	}
 
 	subspace.SetParamSet(ctx, &Params{NetworkMinGasPrice: networkMinGasPriceDec})

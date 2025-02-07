@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	bsmoduletypes "github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee"
 	"github.com/celestiaorg/celestia-app/v4/x/paramfilter"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -151,19 +151,6 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			},
 		},
 		{
-			"blobstream.DataCommitmentWindow",
-			testProposal(proposal.ParamChange{
-				Subspace: bsmoduletypes.ModuleName,
-				Key:      string(bsmoduletypes.ParamsStoreKeyDataCommitmentWindow),
-				Value:    `"100"`,
-			}),
-			func() {
-				got := suite.app.BlobstreamKeeper.GetParams(suite.ctx).DataCommitmentWindow
-				want := uint64(100)
-				assert.Equal(want, got)
-			},
-		},
-		{
 			"consensus.block",
 			testProposal(proposal.ParamChange{
 				Subspace: baseapp.Paramspace,
@@ -279,7 +266,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				assert.Equal(wantMaxDepositPeriod, gotMaxDepositPeriod)
 
 				gotMinDeposit := suite.app.GovKeeper.GetDepositParams(suite.ctx).MinDeposit
-				wantMinDeposit := []sdk.Coin{{Denom: "test", Amount: sdk.NewInt(2)}}
+				wantMinDeposit := []sdk.Coin{{Denom: "test", Amount: math.NewInt(2)}}
 				assert.Equal(wantMinDeposit, gotMinDeposit)
 			},
 		},
@@ -520,11 +507,11 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `"0.1"`,
 			}),
 			func() {
-				var got sdk.Dec
+				var got math.LegacyDec
 				subspace := suite.app.GetSubspace(minfeetypes.ModuleName)
 				subspace.Get(suite.ctx, minfeetypes.KeyNetworkMinGasPrice, &got)
 
-				want, err := sdk.NewDecFromStr("0.1")
+				want, err := math.LegacyNewDecFromStr("0.1")
 				assert.NoError(err)
 				assert.Equal(want, got)
 			},

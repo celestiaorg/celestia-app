@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmprotoversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -23,7 +24,6 @@ import (
 	"github.com/cosmos/ibc-go/v9/testing/mock"
 	"github.com/cosmos/ibc-go/v9/testing/simapp"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
 )
 
 // NewTestChain initializes a new test chain with a default of 4 validators.
@@ -61,7 +61,7 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 	for i := 0; i < ibctesting.MaxAccounts; i++ {
 		senderPrivKey := secp256k1.GenPrivKey()
 		acc := authtypes.NewBaseAccount(senderPrivKey.PubKey().Address().Bytes(), senderPrivKey.PubKey(), uint64(i), 0)
-		amount, ok := sdk.NewIntFromString("10000000000000000000")
+		amount, ok := math.NewIntFromString("10000000000000000000")
 		require.True(t, ok)
 
 		// add sender account
@@ -153,7 +153,7 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
-			Commission:        stakingtypes.NewCommission(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec()),
+			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
 			MinSelfDelegation: sdk.ZeroInt(),
 		}
 
@@ -170,7 +170,7 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 	// add bonded amount to bonded pool module account
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(bondDenom, bondAmt.Mul(sdk.NewInt(int64(len(valSet.Validators)))))},
+		Coins:   sdk.Coins{sdk.NewCoin(bondDenom, bondAmt.Mul(math.NewInt(int64(len(valSet.Validators)))))},
 	})
 
 	// set validators and delegations

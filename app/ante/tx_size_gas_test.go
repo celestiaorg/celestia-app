@@ -5,13 +5,12 @@ import (
 	"strings"
 	"testing"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -29,11 +28,13 @@ const TxSizeCostPerByte = 8
 
 func setup() (*app.App, sdk.Context, client.Context, error) {
 	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := app.NewContext(false, tmproto.Header{})
+	ctx := app.NewContext(false)
 	params := authtypes.DefaultParams()
 	// Override default with a different TxSizeCostPerByte value for testing
 	params.TxSizeCostPerByte = TxSizeCostPerByte
-	app.AccountKeeper.SetParams(ctx, params)
+	if err := app.AccountKeeper.Params.Set(ctx, params); err != nil {
+		return nil, sdk.Context{}, client.Context{}, err
+	}
 	ctx = ctx.WithBlockHeight(1)
 
 	// Set up TxConfig.
@@ -78,9 +79,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// set the version
-			ctx = app.NewContext(false, tmproto.Header{Version: version.Consensus{
-				App: tc.version,
-			}})
+			ctx = app.NewContext(false)
 
 			txBuilder = clientCtx.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(msg))
@@ -103,7 +102,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 				txSizeCostPerByte = appconsts.TxSizeCostPerByte(tc.version)
 			}
 
-			expectedGas := sdk.Gas(len(txBytes)) * txSizeCostPerByte
+			expectedGas := storetypes.Gas(len(txBytes)) * txSizeCostPerByte
 
 			// set suite.ctx with TxBytes manually
 			ctx = ctx.WithTxBytes(txBytes)
@@ -158,7 +157,7 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 		sigV2 := signing.SignatureV2{
 			PubKey: priv.PubKey(),
 			Data: &signing.SingleSignatureData{
-				SignMode:  clientCtx.TxConfig.SignModeHandler().DefaultMode(),
+				SignMode:  signing.SignMode(clientCtx.TxConfig.SignModeHandler().DefaultMode()),
 				Signature: nil,
 			},
 			Sequence: accSeqs[i],
@@ -179,8 +178,8 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 			AccountNumber: accNums[i],
 			Sequence:      accSeqs[i],
 		}
-		sigV2, err := tx.SignWithPrivKey(
-			clientCtx.TxConfig.SignModeHandler().DefaultMode(), signerData,
+		sigV2, err := tx.SignWithPrivKey(clientCtx.CmdContext,
+			signing.SignMode(clientCtx.TxConfig.SignModeHandler().DefaultMode()), signerData,
 			txBuilder, priv, clientCtx.TxConfig, accSeqs[i])
 		if err != nil {
 			return nil, err

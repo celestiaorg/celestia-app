@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
@@ -107,7 +108,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			expectErr:    false,
@@ -119,7 +120,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			args: []string{
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, validPropFile.Name()),
 			},
@@ -132,7 +133,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			args: []string{
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(1000))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, invalidPropFile.Name()),
 			},

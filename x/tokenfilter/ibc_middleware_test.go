@@ -3,6 +3,7 @@ package tokenfilter_test
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 
@@ -15,7 +16,7 @@ import (
 )
 
 func TestOnRecvPacket(t *testing.T) {
-	data := transfertypes.NewFungibleTokenPacketData("portid/channelid/utia", sdk.NewInt(100).String(), "alice", "bob", "gm")
+	data := transfertypes.NewFungibleTokenPacketData("portid/channelid/utia", math.NewInt(100).String(), "alice", "bob", "gm")
 	packet := channeltypes.NewPacket(data.GetBytes(), 1, "portid", "channelid", "counterpartyportid", "counterpartychannelid", clienttypes.Height{}, 0)
 	packetFromOtherChain := channeltypes.NewPacket(data.GetBytes(), 1, "counterpartyportid", "counterpartychannelid", "portid", "channelid", clienttypes.Height{}, 0)
 	randomPacket := channeltypes.NewPacket([]byte{1, 2, 3, 4}, 1, "portid", "channelid", "counterpartyportid", "counterpartychannelid", clienttypes.Height{}, 0)

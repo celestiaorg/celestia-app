@@ -3,10 +3,10 @@ package test
 import (
 	"testing"
 
+	tmlog "cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/paramfilter"
-	tmlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"cosmossdk.io/x/feegrant"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -16,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	signal "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
@@ -38,7 +38,6 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -159,10 +158,10 @@ func getAccountsAndCreateSigner(t *testing.T, kr keyring.Keyring, enc client.TxC
 func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genValidators []stakingtypes.Validator, testApp *app.App, signer *user.Signer, valSigner *user.Signer) ([][]byte, [][]byte, [][]byte) {
 	// ----------- Create v1 SDK Messages ------------
 
-	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1_000)))
+	amount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(1_000)))
 	// Minimum deposit required for a gov proposal to become active
-	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(10000000000)))
-	twoInt := sdk.NewInt(2)
+	depositAmount := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(10000000000)))
+	twoInt := math.NewInt(2)
 
 	// ---------------- First Block ------------
 	var firstBlockSdkMsgs []sdk.Msg
@@ -204,7 +203,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 
 	// MsgGrantAllowance - creates a grant allowance for account-1
 	basicAllowance := feegrant.BasicAllowance{
-		SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1000))),
+		SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(1000))),
 	}
 	feegrantMsg, err := feegrant.NewMsgGrantAllowance(&basicAllowance, accountAddresses[0], accountAddresses[1])
 	require.NoError(t, err)
@@ -230,7 +229,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 		ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey(),
 		amount[0],
 		stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
-		stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
+		stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(6, 0o2), math.LegacyNewDecWithPrec(12, 0o2), math.LegacyNewDecWithPrec(1, 0o2)),
 		sdk.OneInt())
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgCreateValidator)
@@ -338,13 +337,6 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	// NewMsgUnjail - unjails validator-3
 	msgUnjail := slashingtypes.NewMsgUnjail(genValidators[3].GetOperator())
 	thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgUnjail)
-
-	// NewMsgRegisterEVMAddress - registers an EVM address
-	// This message was removed in v2
-	if testApp.AppVersion() == v1.Version {
-		msgRegisterEVMAddress := blobstreamtypes.NewMsgRegisterEVMAddress(genValidators[1].GetOperator(), gethcommon.HexToAddress("hi"))
-		thirdBlockSdkMsgs = append(thirdBlockSdkMsgs, msgRegisterEVMAddress)
-	}
 
 	firstBlockTxs, err := processSdkMessages(signer, firstBlockSdkMsgs)
 	require.NoError(t, err)

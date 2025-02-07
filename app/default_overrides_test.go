@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
@@ -28,7 +29,7 @@ func Test_newGovModule(t *testing.T) {
 
 	want := []types.Coin{{
 		Denom:  BondDenom,
-		Amount: types.NewInt(10_000_000_000),
+		Amount: math.NewInt(10_000_000_000),
 	}}
 
 	assert.Equal(t, want, govGenesisState.DepositParams.MinDeposit)
@@ -46,8 +47,8 @@ func TestDefaultGenesis(t *testing.T) {
 	encCfg.Codec.MustUnmarshalJSON(raw, &distributionGenesisState)
 
 	// Verify that BaseProposerReward and BonusProposerReward were overridden to 0%.
-	assert.Equal(t, types.ZeroDec(), distributionGenesisState.Params.BaseProposerReward)
-	assert.Equal(t, types.ZeroDec(), distributionGenesisState.Params.BonusProposerReward)
+	assert.Equal(t, math.LegacyZeroDec(), distributionGenesisState.Params.BaseProposerReward)
+	assert.Equal(t, math.LegacyZeroDec(), distributionGenesisState.Params.BonusProposerReward)
 
 	// Verify that other params weren't overridden.
 	assert.Equal(t, distributiontypes.DefaultParams().WithdrawAddrEnabled, distributionGenesisState.Params.WithdrawAddrEnabled)

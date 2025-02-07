@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -98,7 +99,7 @@ func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.Ge
 		hasMap[addr.String()] = struct{}{}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(appconsts.BondDenom, sdk.NewInt(account.Balance)),
+			sdk.NewCoin(appconsts.BondDenom, math.NewInt(account.Balance)),
 		)
 
 		genBals[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}

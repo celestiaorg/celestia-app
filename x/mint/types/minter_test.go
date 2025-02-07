@@ -5,6 +5,7 @@ import (
 	"testing"
 	time "time"
 
+	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -85,7 +86,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 
 	type testCase struct {
 		name             string
-		annualProvisions sdk.Dec
+		annualProvisions math.LegacyDec
 		current          time.Time
 		previous         time.Time
 		want             sdk.Coin
@@ -99,7 +100,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 			current:          current,
 			previous:         current.Add(-blockInterval),
 			// 80 billion utia (annual provisions) * 15 (seconds) / 31,556,952 (seconds per year) = 38026.48620817 which truncates to 38026 utia
-			want: sdk.NewCoin(DefaultBondDenom, sdk.NewInt(38026)),
+			want: sdk.NewCoin(DefaultBondDenom, math.NewInt(38026)),
 		},
 		{
 			name:             "one 30 second block during the first year",
@@ -107,7 +108,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 			current:          current,
 			previous:         current.Add(-2 * blockInterval),
 			// 80 billion utia (annual provisions) * 30 (seconds) / 31,556,952 (seconds per year) = 76052.97241635 which truncates to 76052 utia
-			want: sdk.NewCoin(DefaultBondDenom, sdk.NewInt(76052)),
+			want: sdk.NewCoin(DefaultBondDenom, math.NewInt(76052)),
 		},
 		{
 			name:             "want error when current time is before previous time",
@@ -151,7 +152,7 @@ func TestCalculateBlockProvisionError(t *testing.T) {
 	}
 
 	gotError := totalBlockProvisions.Sub(annualProvisions).Abs().Quo(annualProvisions)
-	wantError := sdk.NewDecWithPrec(1, 2) // .01
+	wantError := math.LegacyNewDecWithPrec(1, 2) // .01
 	assert.True(t, gotError.LTE(wantError))
 }
 

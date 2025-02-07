@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/rpc/client/local"
 	"github.com/cosmos/cosmos-sdk/codec"

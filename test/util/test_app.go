@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -18,10 +20,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -35,7 +37,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
 
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -295,8 +296,8 @@ func AddAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec)
 	var genAccount authtypes.GenesisAccount
 
 	coins := sdk.Coins{
-		sdk.NewCoin("token", sdk.NewInt(1000000)),
-		sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)),
+		sdk.NewCoin("token", math.NewInt(1000000)),
+		sdk.NewCoin(app.BondDenom, math.NewInt(1000000)),
 	}
 
 	balances := banktypes.Balance{Address: addr.String(), Coins: coins.Sort()}
@@ -370,7 +371,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	balances := make([]banktypes.Balance, 0, len(genAccounts)+1)
 	balances = append(balances, banktypes.Balance{
 		Address: acc.GetAddress().String(),
-		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
+		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(100000000000000))),
 	})
 
 	kr, fundedBankAccs, fundedAuthAccs := testnode.FundKeyringAccounts(genAccounts...)
@@ -419,7 +420,7 @@ func genesisStateWithValSet(
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
-			Commission:        stakingtypes.NewCommission(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec()),
+			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
 			MinSelfDelegation: sdk.ZeroInt(),
 		}
 		validators = append(validators, validator)

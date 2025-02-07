@@ -3,6 +3,7 @@ package ante_test
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -19,7 +20,7 @@ func TestGovDecorator(t *testing.T) {
 	decorator := ante.NewGovProposalDecorator()
 	anteHandler := types.ChainAnteDecorators(decorator)
 	accounts := testfactory.GenerateAccounts(1)
-	coins := types.NewCoins(types.NewCoin(appconsts.BondDenom, types.NewInt(10)))
+	coins := types.NewCoins(types.NewCoin(appconsts.BondDenom, math.NewInt(10)))
 
 	msgSend := banktypes.NewMsgSend(
 		testnode.RandomAddress().(types.AccAddress),
@@ -28,9 +29,9 @@ func TestGovDecorator(t *testing.T) {
 	)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	msgProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{msgSend}, coins, accounts[0], "")
+	msgProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{msgSend}, coins, accounts[0], "metadata", "title", "summary", false)
 	require.NoError(t, err)
-	msgEmptyProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{}, coins, accounts[0], "do nothing")
+	msgEmptyProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{}, coins, accounts[0], "metadata", "title", "summary", false)
 	require.NoError(t, err)
 
 	testCases := []struct {

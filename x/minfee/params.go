@@ -3,8 +3,8 @@ package minfee
 import (
 	"fmt"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
@@ -14,11 +14,11 @@ var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
 	KeyNetworkMinGasPrice     = []byte("NetworkMinGasPrice")
-	DefaultNetworkMinGasPrice sdk.Dec
+	DefaultNetworkMinGasPrice math.LegacyDec
 )
 
 func init() {
-	DefaultNetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
+	DefaultNetworkMinGasPriceDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
 	if err != nil {
 		panic(err)
 	}
@@ -26,7 +26,7 @@ func init() {
 }
 
 type Params struct {
-	NetworkMinGasPrice sdk.Dec
+	NetworkMinGasPrice math.LegacyDec
 }
 
 // RegisterMinFeeParamTable returns a subspace with a key table attached.
@@ -51,7 +51,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 
 // Validate validates the param type
 func ValidateMinGasPrice(i interface{}) error {
-	_, ok := i.(sdk.Dec)
+	_, ok := i.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}

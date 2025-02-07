@@ -1,11 +1,11 @@
 package ante
 
 import (
+	txsigning "cosmossdk.io/x/tx/signing"
 	blobante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	ibcante "github.com/cosmos/ibc-go/v9/modules/core/ante"
@@ -17,7 +17,7 @@ func NewAnteHandler(
 	bankKeeper authtypes.BankKeeper,
 	blobKeeper blob.Keeper,
 	feegrantKeeper ante.FeegrantKeeper,
-	signModeHandler signing.SignModeHandler,
+	signModeHandler *txsigning.HandlerMap,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
 	paramKeeper paramkeeper.Keeper,

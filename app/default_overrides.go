@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
@@ -85,7 +86,7 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := stakingtypes.DefaultParams()
 	params.UnbondingTime = appconsts.DefaultUnbondingTime
 	params.BondDenom = BondDenom
-	params.MinCommissionRate = sdk.NewDecWithPrec(5, 2) // 5%
+	params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
 
 	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
 		Params: params,
@@ -101,11 +102,11 @@ type slashingModule struct {
 // DefaultGenesis returns custom x/staking module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := slashingtypes.DefaultParams()
-	params.MinSignedPerWindow = sdk.NewDecWithPrec(75, 2) // 75%
+	params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
 	params.SignedBlocksWindow = 5000
 	params.DowntimeJailDuration = time.Minute * 1
-	params.SlashFractionDoubleSign = sdk.NewDecWithPrec(2, 2) // 2%
-	params.SlashFractionDowntime = sdk.ZeroDec()              // 0%
+	params.SlashFractionDoubleSign = math.LegacyNewDecWithPrec(2, 2) // 2%
+	params.SlashFractionDowntime = math.LegacyZeroDec()              // 0%
 
 	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
 		Params: params,
@@ -119,7 +120,7 @@ type crisisModule struct {
 // DefaultGenesis returns custom x/crisis module genesis state.
 func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
-		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
+		ConstantFee: sdk.NewCoin(BondDenom, math.NewInt(1000)),
 	})
 }
 
@@ -130,8 +131,8 @@ type distributionModule struct {
 // DefaultGenesis returns custom x/distribution module genesis state.
 func (distributionModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := distributiontypes.DefaultParams()
-	params.BaseProposerReward = sdk.ZeroDec()  // 0%
-	params.BonusProposerReward = sdk.ZeroDec() // 0%
+	params.BaseProposerReward = math.LegacyZeroDec()  // 0%
+	params.BonusProposerReward = math.LegacyZeroDec() // 0%
 	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{
 		Params: params,
 	})
@@ -196,7 +197,7 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	day := time.Hour * 24
 	oneWeek := day * 7
 
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10_000_000_000))) // 10,000 TIA
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
 	genState.DepositParams.MaxDepositPeriod = &oneWeek
 	genState.VotingParams.VotingPeriod = &oneWeek
 

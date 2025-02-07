@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
@@ -27,7 +26,7 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	minGasPrice, err := sdk.ParseDecCoins(fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom))
 	require.NoError(t, err)
-	ctx := testApp.NewContext(true, tmproto.Header{}).WithMinGasPrices(minGasPrice)
+	ctx := testApp.NewContext(true).WithMinGasPrices(minGasPrice)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)

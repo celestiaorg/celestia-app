@@ -3,7 +3,7 @@ package testnode
 import (
 	"os"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 )
 
 func NewLogger(config *UniversalTestingConfig) log.Logger {

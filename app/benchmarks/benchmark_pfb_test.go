@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/libs/log"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"

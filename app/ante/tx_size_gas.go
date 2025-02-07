@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"cosmossdk.io/errors"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/cosmos/cosmos-sdk/codec/legacy"
@@ -64,7 +65,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 	}
 	params := cgts.ak.GetParams(ctx)
 
-	consumeGasForTxSize(ctx, sdk.Gas(len(ctx.TxBytes())), params)
+	consumeGasForTxSize(ctx, storetypes.Gas(len(ctx.TxBytes())), params)
 
 	// simulate gas cost for signatures in simulate mode
 	if simulate {
@@ -75,7 +76,12 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 		}
 		n := len(sigs)
 
-		for i, signer := range sigTx.GetSigners() {
+		signers, err := sigTx.GetSigners()
+		if err != nil {
+			return ctx, err
+		}
+
+		for i, signer := range signers {
 			// if signature is already filled in, no need to simulate gas cost
 			if i < n && !isIncompleteSignature(sigs[i].Data) {
 				continue
@@ -99,7 +105,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 			}
 
 			sigBz := legacy.Cdc.MustMarshal(simSig)
-			txBytes := sdk.Gas(len(sigBz) + 6)
+			txBytes := storetypes.Gas(len(sigBz) + 6)
 
 			// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
 			// number of signers.

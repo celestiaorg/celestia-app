@@ -36,7 +36,7 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/rpc/client/local"
-	dbm "github.com/tendermint/tm-db"
+	dbm "github.com/cosmos/cosmos-db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

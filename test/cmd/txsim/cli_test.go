@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -69,7 +70,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 		WithConsensusParams(cparams).
 		WithFundedAccounts(testfactory.TestAccName).
 		WithModifiers(
-			genesis.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(1e15))),
+			genesis.FundAccounts(cdc, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(1e15))),
 		)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)

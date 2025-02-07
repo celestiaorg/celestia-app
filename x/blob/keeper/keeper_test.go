@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/store"
+	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -20,9 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
+	tmdb "github.com/cosmos/cosmos-db"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 // TestPayForBlobs verifies the attributes on the emitted event.
@@ -73,11 +75,11 @@ func createMsgPayForBlob(t *testing.T, signer string, namespace share.Namespace,
 }
 
 func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMultiStore, sdk.Context) {
-	storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
+	storeKey := storetypes.NewKVStoreKey(paramtypes.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
 	db := tmdb.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
+	stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NoOpMetrics{})
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
@@ -92,7 +94,7 @@ func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMul
 	}, false, nil)
 
 	paramsSubspace := paramtypes.NewSubspace(cdc,
-		testutil.MakeTestCodec(),
+		testutil.MakeAminoCodec(),
 		storeKey,
 		tStoreKey,
 		types.ModuleName,

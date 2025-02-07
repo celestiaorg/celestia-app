@@ -5,7 +5,10 @@ import (
 	"math"
 	"testing"
 
+	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
 	"cosmossdk.io/store"
+	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
@@ -15,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	version "github.com/cometbft/cometbft/proto/tendermint/version"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,7 +26,6 @@ import (
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestValidateTxFee(t *testing.T) {
@@ -38,7 +41,7 @@ func TestValidateTxFee(t *testing.T) {
 
 	// Set the validator's fee
 	validatorMinGasPrice := 0.8
-	validatorMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", validatorMinGasPrice))
+	validatorMinGasPriceDec, err := sdkmath.LegacyNewDecFromStr(fmt.Sprintf("%f", validatorMinGasPrice))
 	require.NoError(t, err)
 	validatorMinGasPriceCoin := sdk.NewDecCoinFromDec(appconsts.BondDenom, validatorMinGasPriceDec)
 
@@ -142,7 +145,7 @@ func TestValidateTxFee(t *testing.T) {
 
 			ctx = ctx.WithMinGasPrices(sdk.DecCoins{validatorMinGasPriceCoin})
 
-			networkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
+			networkMinGasPriceDec, err := sdkmath.LegacyNewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
 			require.NoError(t, err)
 
 			subspace, _ := paramsKeeper.GetSubspace(minfee.ModuleName)
@@ -160,12 +163,12 @@ func TestValidateTxFee(t *testing.T) {
 }
 
 func setUp(t *testing.T) (paramkeeper.Keeper, storetypes.CommitMultiStore) {
-	storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
+	storeKey := storetypes.NewKVStoreKey(paramtypes.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
 	// Create the state store
-	db := tmdb.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
+	db := dbm.NewMemDB()
+	stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())

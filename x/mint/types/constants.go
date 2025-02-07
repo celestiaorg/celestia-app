@@ -1,6 +1,8 @@
 package types
 
-import sdk "github.com/cosmos/cosmos-sdk/types"
+import (
+	"cosmossdk.io/math"
+)
 
 const (
 	NanosecondsPerSecond = 1_000_000_000
@@ -25,19 +27,19 @@ const (
 )
 
 var (
-	initialInflationRateAsDec = sdk.NewDecWithPrec(InitialInflationRate*1000, 3)
-	disinflationRateAsDec     = sdk.NewDecWithPrec(DisinflationRate*1000, 3)
-	targetInflationRateAsDec  = sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
+	initialInflationRateAsDec = math.LegacyNewDecWithPrec(InitialInflationRate*1000, 3)
+	disinflationRateAsDec     = math.LegacyNewDecWithPrec(DisinflationRate*1000, 3)
+	targetInflationRateAsDec  = math.LegacyNewDecWithPrec(TargetInflationRate*1000, 3)
 )
 
-func InitialInflationRateAsDec() sdk.Dec {
+func InitialInflationRateAsDec() math.LegacyDec {
 	return initialInflationRateAsDec
 }
 
-func DisinflationRateAsDec() sdk.Dec {
+func DisinflationRateAsDec() math.LegacyDec {
 	return disinflationRateAsDec
 }
 
-func TargetInflationRateAsDec() sdk.Dec {
+func TargetInflationRateAsDec() math.LegacyDec {
 	return targetInflationRateAsDec
 }

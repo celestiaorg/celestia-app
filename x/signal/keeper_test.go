@@ -21,12 +21,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	tmdb "github.com/tendermint/tm-db"
+	tmdb "github.com/cosmos/cosmos-db"
 )
 
 func TestGetVotingPowerThreshold(t *testing.T) {
@@ -467,9 +468,9 @@ func TestTallyAfterTryUpgrade(t *testing.T) {
 }
 
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
-	signalStore := sdk.NewKVStoreKey(types.StoreKey)
+	signalStore := storetypes.NewKVStoreKey(types.StoreKey)
 	db := tmdb.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
+	stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NoOpMetrics{})
 	stateStore.MountStoreWithDB(signalStore, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
 	mockCtx := sdk.NewContext(stateStore, tmproto.Header{

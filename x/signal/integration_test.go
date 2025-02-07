@@ -10,7 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 	"github.com/stretchr/testify/require"
 
-	tmlog "github.com/cometbft/cometbft/libs/log"
+	tmlog "cosmossdk.io/log"
 	tmtypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"

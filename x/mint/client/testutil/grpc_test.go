@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/testutil"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 
 	"github.com/gogo/protobuf/proto"
@@ -17,7 +17,7 @@ import (
 func (s *IntegrationTestSuite) TestQueryGRPC() {
 	baseURL := s.cctx.APIAddress()
 	baseURL = strings.Replace(baseURL, "tcp", "http", 1)
-	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(sdk.NewInt(testnode.DefaultInitialBalance))
+	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(math.NewInt(testnode.DefaultInitialBalance))
 	testCases := []struct {
 		name     string
 		url      string
@@ -31,7 +31,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			map[string]string{},
 			&mint.QueryInflationRateResponse{},
 			&mint.QueryInflationRateResponse{
-				InflationRate: sdk.NewDecWithPrec(8, 2),
+				InflationRate: math.LegacyNewDecWithPrec(8, 2),
 			},
 		},
 		{

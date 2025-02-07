@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
@@ -108,7 +109,7 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 	path := NewTransferPath(suite.celestiaChain, suite.otherChain)
 	suite.coordinator.Setup(path)
 
-	amount, ok := sdk.NewIntFromString("1000")
+	amount, ok := math.NewIntFromString("1000")
 	suite.Require().True(ok)
 	timeoutHeight := clienttypes.NewHeight(1, 110)
 	coinToSendToA := sdk.NewCoin(sdk.DefaultBondDenom, amount)

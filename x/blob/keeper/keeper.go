@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"

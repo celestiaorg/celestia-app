@@ -6,6 +6,7 @@ import (
 	mrand "math/rand"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/cometbft/cometbft/crypto"
@@ -101,7 +102,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	commission, err := sdk.NewDecFromStr("0.5")
+	commission, err := math.LegacyNewDecFromStr("0.5")
 	if err != nil {
 		return nil, err
 	}
@@ -114,16 +115,16 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
 		sdk.ValAddress(addr),
 		pk,
-		sdk.NewCoin(app.BondDenom, sdk.NewInt(v.Stake)),
+		sdk.NewCoin(app.BondDenom, math.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
 		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
-		sdk.NewInt(v.Stake/2),
+		math.NewInt(v.Stake/2),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(20000)))
+	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(20000)))
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)
 	if err != nil {

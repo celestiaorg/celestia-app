@@ -14,6 +14,7 @@ import (
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
@@ -27,8 +28,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	blobstreamkeeper "github.com/celestiaorg/celestia-app/v4/x/blobstream/keeper"
-	blobstreamtypes "github.com/celestiaorg/celestia-app/v4/x/blobstream/types"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
@@ -38,9 +37,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
-	"github.com/cometbft/cometbft/libs/log"
 	tmos "github.com/cometbft/cometbft/libs/os"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
@@ -95,7 +94,6 @@ import (
 	ibctesting "github.com/cosmos/ibc-go/v9/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v9/testing/types"
 	"github.com/spf13/cast"
-	dbm "github.com/tendermint/tm-db"
 )
 
 // maccPerms is short for module account permissions. It is a map from module
@@ -164,7 +162,6 @@ type App struct {
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	BlobKeeper          blobkeeper.Keeper
-	BlobstreamKeeper    blobstreamkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -274,20 +271,12 @@ func New(
 	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
-	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
-		appCodec,
-		keys[blobstreamtypes.StoreKey],
-		app.GetSubspace(blobstreamtypes.ModuleName),
-		&stakingKeeper,
-	)
-
 	// Register the staking hooks. NOTE: stakingKeeper is passed by reference
 	// above so that it will contain these hooks.
 	app.StakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
 			app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
-			app.BlobstreamKeeper.Hooks(),
 		),
 	)
 
@@ -469,22 +458,8 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	res := app.manager.EndBlock(ctx, req)
 	currentVersion := app.AppVersion()
-	// For v1 only we upgrade using an agreed upon height known ahead of time
-	if currentVersion == v1 {
-		// check that we are at the height before the upgrade
-		if req.Height == app.upgradeHeightV2-1 {
-			app.BaseApp.Logger().Info(fmt.Sprintf("upgrading from app version %v to 2", currentVersion))
-			app.SetInitialAppVersionInConsensusParams(ctx, v2)
-			app.SetAppVersion(ctx, v2)
-
-			// The blobstream module was disabled in v2 so the following line
-			// removes the params subspace for blobstream.
-			if err := app.ParamsKeeper.DeleteSubspace(blobstreamtypes.ModuleName); err != nil {
-				panic(err)
-			}
-		}
-		// from v2 to v3 and onwards we use a signaling mechanism
-	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
+	// from v2 to v3 and onwards we use a signaling mechanism
+	if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
@@ -808,7 +783,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
-	paramsKeeper.Subspace(blobstreamtypes.ModuleName)
 	paramsKeeper.Subspace(minfee.ModuleName)
 	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
