@@ -17,14 +17,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/crisis"
-	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	distribution "github.com/cosmos/cosmos-sdk/x/distribution"
-	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
@@ -83,14 +77,12 @@ type stakingModule struct {
 
 // DefaultGenesis returns custom x/staking module genesis state.
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	params := stakingtypes.DefaultParams()
-	params.UnbondingTime = appconsts.DefaultUnbondingTime
-	params.BondDenom = BondDenom
-	params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
+	genesis := stakingtypes.DefaultGenesisState()
+	genesis.Params.UnbondingTime = appconsts.DefaultUnbondingTime
+	genesis.Params.BondDenom = BondDenom
+	genesis.Params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
 
-	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
-		Params: params,
-	})
+	return cdc.MustMarshalJSON(genesis)
 }
 
 // slashingModule wraps the x/slashing module in order to overwrite specific
@@ -101,41 +93,14 @@ type slashingModule struct {
 
 // DefaultGenesis returns custom x/staking module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	params := slashingtypes.DefaultParams()
-	params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
-	params.SignedBlocksWindow = 5000
-	params.DowntimeJailDuration = time.Minute * 1
-	params.SlashFractionDoubleSign = math.LegacyNewDecWithPrec(2, 2) // 2%
-	params.SlashFractionDowntime = math.LegacyZeroDec()              // 0%
+	genesis := slashingtypes.DefaultGenesisState()
+	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
+	genesis.Params.SignedBlocksWindow = 5000
+	genesis.Params.DowntimeJailDuration = time.Minute * 1
+	genesis.Params.SlashFractionDoubleSign = math.LegacyNewDecWithPrec(2, 2) // 2%
+	genesis.Params.SlashFractionDowntime = math.LegacyZeroDec()              // 0%
 
-	return cdc.MustMarshalJSON(&slashingtypes.GenesisState{
-		Params: params,
-	})
-}
-
-type crisisModule struct {
-	crisis.AppModuleBasic
-}
-
-// DefaultGenesis returns custom x/crisis module genesis state.
-func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
-		ConstantFee: sdk.NewCoin(BondDenom, math.NewInt(1000)),
-	})
-}
-
-type distributionModule struct {
-	distribution.AppModuleBasic
-}
-
-// DefaultGenesis returns custom x/distribution module genesis state.
-func (distributionModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
-	params := distributiontypes.DefaultParams()
-	params.BaseProposerReward = math.LegacyZeroDec()  // 0%
-	params.BonusProposerReward = math.LegacyZeroDec() // 0%
-	return cdc.MustMarshalJSON(&distributiontypes.GenesisState{
-		Params: params,
-	})
+	return cdc.MustMarshalJSON(genesis)
 }
 
 type ibcModule struct {
@@ -151,6 +116,7 @@ func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs := ibctypes.DefaultGenesisState()
 	gs.ClientGenesis.Params.AllowedClients = []string{"06-solomachine", "07-tendermint"}
 	gs.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64(maxBlockTime.Nanoseconds())
+
 	return cdc.MustMarshalJSON(gs)
 }
 
@@ -181,10 +147,6 @@ func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(genState)
 }
 
-func newGovModule() govModule {
-	return govModule{gov.NewAppModuleBasic(getLegacyProposalHandlers())}
-}
-
 // govModule is a custom wrapper around the x/gov module's AppModuleBasic
 // implementation to provide custom default genesis state.
 type govModule struct {
@@ -197,66 +159,60 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	day := time.Hour * 24
 	oneWeek := day * 7
 
-	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
-	genState.DepositParams.MaxDepositPeriod = &oneWeek
-	genState.VotingParams.VotingPeriod = &oneWeek
+	genState.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
+	genState.Params.MaxDepositPeriod = &oneWeek
+	genState.Params.VotingPeriod = &oneWeek
 
 	return cdc.MustMarshalJSON(genState)
-}
-
-func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
-	result = append(result,
-		paramsclient.ProposalHandler,
-		// BB-NOTE: absent in ibc-go/v9, replace with what?
-		// distrclient.ProposalHandler,
-		// ibcclientclient.UpdateClientProposalHandler,
-		// ibcclientclient.UpgradeProposalHandler,
-	)
-
-	return result
 }
 
 // DefaultConsensusParams returns a ConsensusParams with a MaxBytes
 // determined using a goal square size.
 func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
-		Block:     DefaultBlockParams(),
-		Evidence:  DefaultEvidenceParams(),
-		Validator: coretypes.DefaultValidatorParams(),
-		Version: tmproto.VersionParams{
-			AppVersion: appconsts.LatestVersion,
+		Block:    DefaultBlockParams(),
+		Evidence: DefaultEvidenceParams(),
+		Validator: &tmproto.ValidatorParams{
+			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
+		}, Version: &tmproto.VersionParams{
+			App: appconsts.LatestVersion,
 		},
 	}
 }
 
 func DefaultInitialConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
-		Block:     DefaultBlockParams(),
-		Evidence:  DefaultEvidenceParams(),
-		Validator: coretypes.DefaultValidatorParams(),
-		Version: tmproto.VersionParams{
-			AppVersion: DefaultInitialVersion,
+		Block:    DefaultBlockParams(),
+		Evidence: DefaultEvidenceParams(),
+		Validator: &tmproto.ValidatorParams{
+			PubKeyTypes: coretypes.DefaultValidatorParams().PubKeyTypes,
+		},
+		Version: &tmproto.VersionParams{
+			App: DefaultInitialVersion,
 		},
 	}
 }
 
 // DefaultBlockParams returns a default BlockParams with a MaxBytes determined
 // using a goal square size.
-func DefaultBlockParams() tmproto.BlockParams {
-	return tmproto.BlockParams{
-		MaxBytes:   appconsts.DefaultMaxBytes,
-		MaxGas:     -1,
-		TimeIotaMs: 1, // 1ms
+func DefaultBlockParams() *tmproto.BlockParams {
+	return &tmproto.BlockParams{
+		MaxBytes: appconsts.DefaultMaxBytes,
+		MaxGas:   -1,
 	}
 }
 
 // DefaultEvidenceParams returns a default EvidenceParams with a MaxAge
 // determined using a goal block time.
-func DefaultEvidenceParams() tmproto.EvidenceParams {
+func DefaultEvidenceParams() *tmproto.EvidenceParams {
 	evdParams := coretypes.DefaultEvidenceParams()
 	evdParams.MaxAgeDuration = appconsts.DefaultUnbondingTime
 	evdParams.MaxAgeNumBlocks = int64(appconsts.DefaultUnbondingTime.Seconds())/int64(appconsts.GoalBlockTime.Seconds()) + 1
-	return evdParams
+	return &tmproto.EvidenceParams{
+		MaxAgeNumBlocks: evdParams.MaxAgeNumBlocks,
+		MaxAgeDuration:  evdParams.MaxAgeDuration,
+		MaxBytes:        evdParams.MaxBytes,
+	}
 }
 
 func DefaultConsensusConfig() *tmcfg.Config {
@@ -265,11 +221,12 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 
-	cfg.Mempool.TTLNumBlocks = 12
-	cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 2 * mebibyte
-	cfg.Mempool.MaxTxsBytes = 80 * mebibyte
-	cfg.Mempool.Version = "v2" // Content Addressable Transaction (CAT) mempool
+	// TODO: check if priority mempool needed
+	// cfg.Mempool.TTLNumBlocks = 12
+	// cfg.Mempool.TTLDuration = 75 * time.Second
+	cfg.Mempool.MaxTxBytes = 7_897_088
+	cfg.Mempool.MaxTxsBytes = 39_485_440
+	cfg.Mempool.Type = "flood" // flood mempool
 
 	cfg.Consensus.TimeoutPropose = appconsts.GetTimeoutPropose(appconsts.LatestVersion)
 	cfg.Consensus.TimeoutCommit = appconsts.GetTimeoutCommit(appconsts.LatestVersion)
@@ -297,8 +254,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
-
-	const mebibyte = 1048576
 	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
 	return cfg
 }

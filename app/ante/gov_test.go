@@ -4,34 +4,42 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	gogoproto "github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGovDecorator(t *testing.T) {
-	decorator := ante.NewGovProposalDecorator()
+	blockedParams := map[string][]string{
+		gogoproto.MessageName(&banktypes.MsgUpdateParams{}):      {"send_enabled"},
+		gogoproto.MessageName(&stakingtypes.MsgUpdateParams{}):   {"params.bond_denom", "params.unbonding_time"},
+		gogoproto.MessageName(&consensustypes.MsgUpdateParams{}): {"validator"},
+	}
+
+	decorator := ante.NewGovProposalDecorator(blockedParams)
 	anteHandler := types.ChainAnteDecorators(decorator)
-	accounts := testfactory.GenerateAccounts(1)
+	accountStr := testnode.RandomAddress().String()
 	coins := types.NewCoins(types.NewCoin(appconsts.BondDenom, math.NewInt(10)))
 
-	msgSend := banktypes.NewMsgSend(
-		testnode.RandomAddress().(types.AccAddress),
-		testnode.RandomAddress().(types.AccAddress),
-		coins,
-	)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig()
+	banktypes.RegisterInterfaces(encCfg.InterfaceRegistry)
+	from := testnode.RandomAddress().Bytes()
+	to := testnode.RandomAddress().Bytes()
+	msgSend := banktypes.NewMsgSend(from, to, coins)
 
-	msgProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{msgSend}, coins, accounts[0], "metadata", "title", "summary", false)
+	msgProposal, err := govtypes.NewMsgSubmitProposal(
+		[]types.Msg{msgSend}, coins, accountStr, "", "", "", false)
 	require.NoError(t, err)
-	msgEmptyProposal, err := govtypes.NewMsgSubmitProposal([]types.Msg{}, coins, accounts[0], "metadata", "title", "summary", false)
+	msgEmptyProposal, err := govtypes.NewMsgSubmitProposal(
+		[]types.Msg{}, coins, accountStr, "do nothing", "", "", false)
 	require.NoError(t, err)
 
 	testCases := []struct {

@@ -135,7 +135,6 @@ func allStoreKeys() []string {
 		icahosttypes.StoreKey,
 		signaltypes.StoreKey,
 		blobtypes.StoreKey,
-		consensustypes.StoreKey,     // added in v4
-		icacontrollertypes.StoreKey, // added in v4
+		consensustypes.StoreKey, // added in v4
 	}
 }

@@ -21,14 +21,11 @@ func NewAnteHandler(
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
 	paramKeeper paramkeeper.Keeper,
-	msgVersioningGateKeeper *MsgVersioningGateKeeper,
+	forbiddenGovUpdateParams map[string][]string,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
 		NewHandlePanicDecorator(),
-		// Prevents messages that don't belong to the correct app version
-		// from being executed
-		msgVersioningGateKeeper,
 		// Set up the context with a gas meter.
 		// Must be called before gas consumption occurs in any other decorator.
 		ante.NewSetUpContextDecorator(),
@@ -75,7 +72,7 @@ func NewAnteHandler(
 		blobante.NewBlobShareDecorator(blobKeeper),
 		// Ensure that tx's with a MsgSubmitProposal have at least one proposal
 		// message.
-		NewGovProposalDecorator(),
+		NewGovProposalDecorator(forbiddenGovUpdateParams),
 		// Side effect: increment the nonce for all tx signers.
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
