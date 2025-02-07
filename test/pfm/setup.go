@@ -149,16 +149,16 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 			Jailed:            false,
 			Status:            stakingtypes.Bonded,
 			Tokens:            bondAmt,
-			DelegatorShares:   sdk.OneDec(),
+			DelegatorShares:   math.LegacyOneDec(),
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
 			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
-			MinSelfDelegation: sdk.ZeroInt(),
+			MinSelfDelegation: math.ZeroInt(),
 		}
 
 		validators = append(validators, validator)
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), sdk.OneDec()))
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), math.LegacyOneDec()))
 	}
 
 	// set validators and delegations
@@ -204,7 +204,7 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 		abci.RequestBeginBlock{
 			Header: tmproto.Header{
 				Version: tmprotoversion.Consensus{
-					App: consensusParams.Version.AppVersion,
+					App: consensusParams.Version.App,
 				},
 				ChainID:            chainID,
 				Height:             app.LastBlockHeight() + 1,

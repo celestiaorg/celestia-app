@@ -2,11 +2,15 @@ syntax = "proto3";
 package celestia.signal.v1;
 
 import "google/api/annotations.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/signal/types";
 
 // Msg defines the signal Msg service.
 service Msg {
+  option (cosmos.msg.v1.service) = true;
+
   // SignalVersion allows a validator to signal for a version.
   rpc SignalVersion(MsgSignalVersion) returns (MsgSignalVersionResponse) {
     option (google.api.http).post = "/signal/v1/signal";
@@ -21,7 +25,9 @@ service Msg {
 
 // MsgSignalVersion signals for an upgrade.
 message MsgSignalVersion {
-  string validator_address = 1;
+  option (cosmos.msg.v1.signer) = "validator_address";
+
+  string validator_address = 1 [ (cosmos_proto.scalar) = "cosmos.ValidatorAddressString" ];
   uint64 version = 2;
 }
 
@@ -29,7 +35,11 @@ message MsgSignalVersion {
 message MsgSignalVersionResponse {}
 
 // MsgTryUpgrade tries to upgrade the chain.
-message MsgTryUpgrade { string signer = 1; }
+message MsgTryUpgrade {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  string signer = 1 [ (cosmos_proto.scalar) = "cosmos.AddressString" ];
+}
 
 // MsgTryUpgradeResponse is the response type for the TryUpgrade method.
 message MsgTryUpgradeResponse {}

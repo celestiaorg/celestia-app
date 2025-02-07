@@ -2,11 +2,14 @@ syntax = "proto3";
 package celestia.blob.v1;
 
 import "google/api/annotations.proto";
+import "cosmos/msg/v1/msg.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // Msg defines the blob Msg service.
 service Msg {
+  option (cosmos.msg.v1.service) = true;
+
   // PayForBlobs allows the user to pay for the inclusion of one or more blobs
   rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
     option (google.api.http) = { post: "/blob/v1/payforblobs", body: "*" };
@@ -15,6 +18,8 @@ service Msg {
 
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
 message MsgPayForBlobs {
+  option (cosmos.msg.v1.signer) = "signer";
+
   // signer is the bech32 encoded signer address. See
   // https://en.bitcoin.it/wiki/Bech32.
   string signer = 1;

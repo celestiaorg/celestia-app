@@ -1,12 +1,9 @@
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git rev-parse --short HEAD)
 DOCKER := $(shell which docker)
-DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
-IMAGE := ghcr.io/tendermint/docker-build-proto:latest
-DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v3
+PACKAGE_NAME          := github.com/celestiaorg/celestia-app/v4
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.23.5
@@ -18,7 +15,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X github.com/celestiaorg/celestia-app/v3/pkg/appconsts.OverrideSquareSizeUpperBoundStr=$(OVERRIDE_MAX_SQUARE_SIZE)
+		  -X github.com/celestiaorg/celestia-app/v4/pkg/appconsts.OverrideSquareSizeUpperBoundStr=$(OVERRIDE_MAX_SQUARE_SIZE)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
 
@@ -56,28 +53,43 @@ mod-verify: mod
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
 
+# Use this target if you do not want to use Ignite for generating proto files
+GOLANG_PROTOBUF_VERSION=1.28.1
+GRPC_GATEWAY_VERSION=1.16.0
+GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
+
+proto-deps:
+	@echo "Installing proto deps"
+	@go install github.com/bufbuild/buf/cmd/buf@v1.50.0
+	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@latest
+	@go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
+	@go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION)
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 ## proto-gen: Generate protobuf files. Requires docker.
-proto-gen:
+proto-gen: proto-deps
 	@echo "--> Generating Protobuf files"
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:v0.7 sh ./scripts/protocgen.sh
+	@sh ./scripts/protocgen.sh
 .PHONY: proto-gen
 
 ## proto-lint: Lint protobuf files. Requires docker.
-proto-lint:
+proto-lint: proto-deps
 	@echo "--> Linting Protobuf files"
-	@$(DOCKER_BUF) lint --error-format=json
+	@buf lint --error-format=json
 .PHONY: proto-lint
 
 ## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
-proto-check-breaking:
+proto-check-breaking: proto-deps
 	@echo "--> Checking if Protobuf definitions have any breaking changes"
-	@$(DOCKER_BUF) breaking --against $(HTTPS_GIT)#branch=main
+	@buf breaking --against $(HTTPS_GIT)#branch=main
 .PHONY: proto-check-breaking
 
 ## proto-format: Format protobuf files. Requires Docker.
-proto-format:
+proto-format: proto-deps
 	@echo "--> Formatting Protobuf files"
-	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
+	@find ./ -name "*.proto" -exec clang-format -i {} \;
 .PHONY: proto-format
 
 build-docker:
@@ -165,7 +177,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions|TestEstimateGasUsed|TestEstimateGasPrice"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestMintIntegrationTestSuite|TestUpgrade|TestMaliciousTestNode|TestBigBlobSuite|TestQGBIntegrationSuite|TestSignerTestSuite|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestCLITestSuite|TestLegacyUpgrade|TestSignerTwins|TestConcurrentTxSubmission|TestTxClientTestSuite|Test_testnode|TestEvictions"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
@@ -332,25 +344,17 @@ disable-mptcp:
 mptcp-disable: disable-mptcp
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
-# SEND_RECV_RATE is 10 MiB
-SEND_RECV_RATE ?= 10485760
+SEND_RECV_RATE ?= 10485760  # 10 MiB
 
-## configure-v3: Modifies config file in-place to conform to v3.x recommendations.
 configure-v3:
-	@echo "Modifying the config file at: $(CONFIG_FILE)"
+	@echo "Using config file at: $(CONFIG_FILE)"
 	@if [ "$$(uname)" = "Darwin" ]; then \
 		sed -i '' "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i '' "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i '' "s/^ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-		sed -i '' "s/^ttl-duration = .*/ttl-duration = \"1m15s\"/" $(CONFIG_FILE); \
-		sed -i '' "s/^max_tx_bytes = .*/max_tx_bytes = 7897088/" $(CONFIG_FILE); \
-		sed -i '' "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
+		sed -i '' "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	else \
 		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
 		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i "s/^ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-		sed -i "s/^ttl-duration = .*/ttl-duration = \"1m15s\"/" $(CONFIG_FILE); \
-		sed -i "s/^max_tx_bytes = .*/max_tx_bytes = 7897088/" $(CONFIG_FILE); \
-		sed -i "s/^max_txs_bytes = .*/max_txs_bytes = 39485440/" $(CONFIG_FILE); \
+		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
 	fi
 .PHONY: configure-v3

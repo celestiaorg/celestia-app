@@ -117,7 +117,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		pk,
 		sdk.NewCoin(app.BondDenom, math.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
-		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
+		stakingtypes.NewCommissionRates(commission, math.LegacyOneDec(), math.LegacyOneDec()),
 		math.NewInt(v.Stake/2),
 	)
 	if err != nil {

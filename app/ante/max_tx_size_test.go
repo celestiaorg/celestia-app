@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	version "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"

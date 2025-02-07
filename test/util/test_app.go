@@ -88,7 +88,7 @@ func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet, cparams *
 		ValidatorsHash:     valSet.Hash(),
 		NextValidatorsHash: valSet.Hash(),
 		Version: tmversion.Consensus{
-			App: cparams.Version.AppVersion,
+			App: cparams.Version.App,
 		},
 	}})
 }
@@ -114,7 +114,7 @@ func NewTestApp() *app.App {
 
 // SetupDeterministicGenesisState sets genesis on initialized testApp with the provided arguments.
 func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
-	slashingParams := slashingtypes.NewParams(2, sdk.OneDec(), time.Minute, sdk.OneDec(), sdk.OneDec())
+	slashingParams := slashingtypes.NewParams(2, math.LegacyOneDec(), time.Minute, math.LegacyOneDec(), math.LegacyOneDec())
 
 	// Create genesis
 	gen := genesis.NewDefaultGenesis().
@@ -181,7 +181,7 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 		ValidatorsHash:     genDoc.ValidatorHash(),
 		NextValidatorsHash: genDoc.ValidatorHash(),
 		Version: tmversion.Consensus{
-			App: cparams.Version.AppVersion,
+			App: cparams.Version.App,
 		},
 	}})
 
@@ -416,15 +416,15 @@ func genesisStateWithValSet(
 			Jailed:            false,
 			Status:            stakingtypes.Bonded,
 			Tokens:            bondAmt,
-			DelegatorShares:   sdk.OneDec(),
+			DelegatorShares:   math.LegacyOneDec(),
 			Description:       stakingtypes.Description{},
 			UnbondingHeight:   int64(0),
 			UnbondingTime:     time.Unix(0, 0).UTC(),
 			Commission:        stakingtypes.NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
-			MinSelfDelegation: sdk.ZeroInt(),
+			MinSelfDelegation: math.ZeroInt(),
 		}
 		validators = append(validators, validator)
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), sdk.OneDec()))
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), math.LegacyOneDec()))
 
 	}
 	// set validators and delegations
@@ -497,7 +497,7 @@ func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App,
 
 	// assert that the chain starts with version provided in genesis
 	infoResp = testApp.Info(abci.RequestInfo{})
-	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.AppVersion, infoResp.AppVersion)
+	require.EqualValues(t, app.DefaultInitialConsensusParams().Version.App, infoResp.AppVersion)
 
 	_ = testApp.Commit()
 	supportedVersions := []uint64{v1.Version, v2.Version}

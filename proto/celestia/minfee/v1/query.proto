@@ -22,7 +22,7 @@ message QueryNetworkMinGasPrice {}
 message QueryNetworkMinGasPriceResponse {
   string network_min_gas_price = 1 [
     (cosmos_proto.scalar) = "cosmos.Dec",
-    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
     (gogoproto.nullable) = false
   ];
 }

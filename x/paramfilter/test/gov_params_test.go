@@ -38,7 +38,7 @@ type GovParamsTestSuite struct {
 
 func (suite *GovParamsTestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
+	suite.ctx = suite.app.BaseApp.NewContext(false)
 	suite.govHandler = paramfilter.NewParamBlockList(suite.app.BlockedParams()...).GovHandler(suite.app.ParamsKeeper)
 }
 
@@ -189,7 +189,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			},
 		},
 		{
-			"consensus.Version.AppVersion",
+			"consensus.Version.App",
 			testProposal(proposal.ParamChange{
 				Subspace: baseapp.Paramspace,
 				Key:      string(baseapp.ParamStoreKeyVersionParams),

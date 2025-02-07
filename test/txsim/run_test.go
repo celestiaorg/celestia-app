@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -163,7 +163,7 @@ func TestTxSimUpgrade(t *testing.T) {
 		t.Skip("skipping TestTxSimUpgrade in short mode.")
 	}
 	cp := app.DefaultConsensusParams()
-	cp.Version.AppVersion = v2.Version
+	cp.Version.App = v2.Version
 	cfg := testnode.DefaultConfig().
 		WithTimeoutCommit(300 * time.Millisecond).
 		WithConsensusParams(cp).

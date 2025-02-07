@@ -44,7 +44,7 @@ func (m Minter) Validate() error {
 // decrease every year according to the schedule specified in the README.
 func (m Minter) CalculateInflationRate(ctx sdk.Context, genesis time.Time) math.LegacyDec {
 	years := yearsSinceGenesis(genesis, ctx.BlockTime())
-	inflationRate := InitialInflationRateAsDec().Mul(sdk.OneDec().Sub(DisinflationRateAsDec()).Power(uint64(years)))
+	inflationRate := InitialInflationRateAsDec().Mul(math.LegacyOneDec().Sub(DisinflationRateAsDec()).Power(uint64(years)))
 
 	if inflationRate.LT(TargetInflationRateAsDec()) {
 		return TargetInflationRateAsDec()

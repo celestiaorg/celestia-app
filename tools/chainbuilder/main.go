@@ -147,7 +147,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		appCfg.StateSync.SnapshotInterval = 0
 		cp := app.DefaultConsensusParams()
 
-		cp.Version.AppVersion = cfg.AppVersion // set the app version
+		cp.Version.App = cfg.AppVersion // set the app version
 		gen = genesis.NewDefaultGenesis().
 			WithConsensusParams(cp).
 			WithKeyring(kr).
@@ -208,7 +208,10 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
 	)
 
-	infoResp := simApp.Info(abci.RequestInfo{})
+	infoResp, err := simApp.Info(&abci.RequestInfo{})
+	if err != nil {
+		return fmt.Errorf("failed to get app info: %w", err)
+	}
 
 	lastHeight := blockStore.Height()
 	if infoResp.LastBlockHeight != lastHeight {
@@ -271,8 +274,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		currentTime = state.LastBlockTime.Add(cfg.BlockInterval)
 	}
 
-	if state.ConsensusParams.Version.AppVersion != cfg.AppVersion {
-		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.AppVersion, cfg.AppVersion)
+	if state.ConsensusParams.Version.App != cfg.AppVersion {
+		return fmt.Errorf("app version mismatch: state has %d, but cfg has %d", state.ConsensusParams.Version.App, cfg.AppVersion)
 	}
 
 	if state.LastBlockHeight != lastHeight {
@@ -285,7 +288,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		kr,
 		encCfg.TxConfig,
 		state.ChainID,
-		state.ConsensusParams.Version.AppVersion,
+		state.ConsensusParams.Version.App,
 		user.NewAccount(testnode.DefaultValidatorAccountName, 0, uint64(lastHeight)+1),
 	)
 	if err != nil {

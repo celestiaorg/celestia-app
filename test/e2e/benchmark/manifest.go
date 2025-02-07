@@ -99,7 +99,7 @@ func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 func (m *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = m.MaxBlockBytes
-	cparams.Version.AppVersion = m.GenesisAppVersion
+	cparams.Version.App = m.GenesisAppVersion
 	return cparams
 }
 

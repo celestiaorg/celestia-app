@@ -48,7 +48,7 @@ func TestCircuitBreaker(t *testing.T) {
 	authorization := authz.NewGenericAuthorization(signaltypes.URLMsgTryUpgrade)
 	msg, err := authz.NewMsgGrant(granterAddress, granteeAddress, authorization, &expiration)
 	require.NoError(t, err)
-	ctx := testApp.NewContext(true, header)
+	ctx := testApp.NewContext(true).WithBlockHeader(header)
 	_, err = testApp.AuthzKeeper.Grant(ctx, msg)
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "/celestia.signal.v1.Msg/TryUpgrade doesn't exist.: invalid type")

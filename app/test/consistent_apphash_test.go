@@ -103,7 +103,7 @@ func TestConsistentAppHash(t *testing.T) {
 			// Create deterministic keys
 			kr, pubKeys := deterministicKeyRing(enc.Codec)
 			consensusParams := app.DefaultConsensusParams()
-			consensusParams.Version.AppVersion = tt.version
+			consensusParams.Version.App = tt.version
 			// Apply genesis state to the app.
 			valKeyRing, _, err := testutil.SetupDeterministicGenesisState(testApp, pubKeys, 20_000_000_000, consensusParams)
 			require.NoError(t, err)
@@ -111,7 +111,8 @@ func TestConsistentAppHash(t *testing.T) {
 			// Get account names and addresses from the keyring and create signer
 			signer, accountAddresses := getAccountsAndCreateSigner(t, kr, enc.TxConfig, testutil.ChainID, tt.version, testApp)
 			// Validators from genesis state
-			genValidators := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false, tmproto.Header{}))
+			genValidators, err := testApp.StakingKeeper.GetAllValidators(testApp.NewContext(false))
+			require.NoError(t, err)
 			valSigner, _ := getAccountsAndCreateSigner(t, valKeyRing, enc.TxConfig, testutil.ChainID, tt.version, testApp)
 
 			// Convert validators to ABCI validators
@@ -171,12 +172,10 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, sendFundsMsg)
 
 	// MultiSend - creates a multi-send transaction from account-0 to account-1
-	multiSendFundsMsg := banktypes.NewMsgMultiSend([]banktypes.Input{
-		banktypes.NewInput(
-			accountAddresses[0],
-			amount,
-		),
-	},
+	multiSendFundsMsg := banktypes.NewMsgMultiSend(banktypes.NewInput(
+		accountAddresses[0],
+		amount,
+	),
 		[]banktypes.Output{
 			banktypes.NewOutput(
 				accountAddresses[1],
@@ -210,7 +209,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, feegrantMsg)
 
 	// NewMsgSubmitProposal - submits a proposal to send funds from the governance account to account-1
-	govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false, tmproto.Header{})).GetAddress()
+	govAccount := testApp.GovKeeper.GetGovernanceAccount(testApp.NewContext(false)).GetAddress()
 	msgSend := banktypes.MsgSend{
 		FromAddress: govAccount.String(),
 		ToAddress:   accountAddresses[1].String(),

@@ -4,7 +4,6 @@ import (
 	gocontext "context"
 	"testing"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -24,7 +23,7 @@ type MintTestSuite struct {
 
 func (suite *MintTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	ctx := testApp.NewContext(false, tmproto.Header{})
+	ctx := testApp.NewContext(false)
 
 	queryHelper := baseapp.NewQueryServerTestHelper(ctx, testApp.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, testApp.MintKeeper)

@@ -21,7 +21,7 @@ import (
 // has been reached and then calls TryUpgrade, asserting that the upgrade module returns the new app version
 func TestUpgradeIntegration(t *testing.T) {
 	cp := app.DefaultConsensusParams()
-	cp.Version.AppVersion = v2.Version
+	cp.Version.App = v2.Version
 	app, _ := testutil.SetupTestAppWithGenesisValSet(cp)
 	ctx := sdk.NewContext(app.CommitMultiStore(), tmtypes.Header{
 		Version: tmversion.Consensus{
@@ -38,7 +38,8 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, res.VotingPower)
 
-	validators := app.StakingKeeper.GetAllValidators(ctx)
+	validators, err := app.StakingKeeper.GetAllValidators(ctx)
+	require.NoError(t, err)
 	valAddr, err := sdk.ValAddressFromBech32(validators[0].OperatorAddress)
 	require.NoError(t, err)
 

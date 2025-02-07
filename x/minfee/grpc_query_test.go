@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +15,7 @@ func TestQueryNetworkMinGasPrice(t *testing.T) {
 	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
 	queryServer := minfee.NewQueryServerImpl(testApp.ParamsKeeper)
 
-	sdkCtx := testApp.NewContext(false, tmproto.Header{Height: 1})
+	sdkCtx := testApp.NewContext(false).WithBlockHeight(1)
 	ctx := sdk.WrapSDKContext(sdkCtx)
 
 	// Perform a query for the network minimum gas price

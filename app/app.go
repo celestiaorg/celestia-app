@@ -24,7 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	appv1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -38,7 +38,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmos "github.com/cometbft/cometbft/libs/os"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -546,15 +545,18 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 // Side-effect: calls baseapp.Init()
 func (app *App) InitChain(req abci.RequestInitChain) (res abci.ResponseInitChain) {
 	req = setDefaultAppVersion(req)
-	appVersion := req.ConsensusParams.Version.AppVersion
+	appVersion := req.ConsensusParams.Version.App
 	// mount the stores for the provided app version if it has not already been mounted
 	if app.AppVersion() == 0 && !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
 	}
 
-	res = app.BaseApp.InitChain(req)
+	res, err := app.BaseApp.InitChain(req)
+	if err != nil {
+		panic(err)
+	}
 
-	ctx := app.NewContext(false, tmproto.Header{})
+	ctx := app.NewContext(false)
 	if appVersion != v1 {
 		app.SetInitialAppVersionInConsensusParams(ctx, appVersion)
 		app.SetAppVersion(ctx, appVersion)
@@ -574,8 +576,8 @@ func setDefaultAppVersion(req abci.RequestInitChain) abci.RequestInitChain {
 	if req.ConsensusParams.Version == nil {
 		panic("no version set in consensus params")
 	}
-	if req.ConsensusParams.Version.AppVersion == 0 {
-		req.ConsensusParams.Version.AppVersion = v1
+	if req.ConsensusParams.Version.App == 0 {
+		req.ConsensusParams.Version.App = v1
 	}
 	return req
 }
@@ -598,7 +600,7 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	appVersion := req.ConsensusParams.Version.AppVersion
+	appVersion := req.ConsensusParams.Version.App
 	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.manager.GetVersionMap(appVersion))
 	return app.manager.InitGenesis(ctx, app.appCodec, genesisState, appVersion)
 }

@@ -37,7 +37,7 @@ message QueryInflationRateRequest {}
 message QueryInflationRateResponse {
   // InflationRate is the current inflation rate.
   bytes inflation_rate = 1 [
-    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.customtype) =  "cosmossdk.io/math.LegacyDec",
     (gogoproto.nullable) = false
   ];
 }
@@ -51,7 +51,7 @@ message QueryAnnualProvisionsRequest {}
 message QueryAnnualProvisionsResponse {
   // AnnualProvisions is the current annual provisions.
   bytes annual_provisions = 1 [
-    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.customtype) =  "cosmossdk.io/math.LegacyDec",
     (gogoproto.nullable) = false
   ];
 }

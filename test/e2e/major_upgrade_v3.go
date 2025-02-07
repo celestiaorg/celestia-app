@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	tmtypes "github.com/cometbft/cometbft/types"
@@ -45,7 +45,7 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 	testnet.NoError("failed to get latest version", err)
 
 	consensusParams := app.DefaultConsensusParams()
-	consensusParams.Version.AppVersion = v2.Version // Start the test on v2
+	consensusParams.Version.App = v2.Version // Start the test on v2
 	testNet.SetConsensusParams(consensusParams)
 
 	preloader, err := testNet.NewPreloader()
