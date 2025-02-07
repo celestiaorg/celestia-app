@@ -21,7 +21,7 @@ func NewMinter(inflationRate math.LegacyDec, annualProvisions math.LegacyDec, bo
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
-	annualProvisions := sdk.NewDec(0)
+	annualProvisions := math.LegacyNewDec(0)
 	return NewMinter(InitialInflationRateAsDec(), annualProvisions, DefaultBondDenom)
 }
 
@@ -59,7 +59,7 @@ func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) (
 		return sdk.Coin{}, fmt.Errorf("current time %v cannot be before previous time %v", current, previous)
 	}
 	timeElapsed := current.Sub(previous).Nanoseconds()
-	portionOfYear := sdk.NewDec(timeElapsed).Quo(sdk.NewDec(NanosecondsPerYear))
+	portionOfYear := math.LegacyNewDec(timeElapsed).Quo(math.LegacyNewDec(NanosecondsPerYear))
 	blockProvision := m.AnnualProvisions.Mul(portionOfYear)
 	return sdk.NewCoin(m.BondDenom, blockProvision.TruncateInt()), nil
 }

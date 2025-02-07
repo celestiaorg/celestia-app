@@ -21,7 +21,7 @@ var (
 	_ types.QueryServer = Keeper{}
 
 	// defaultSignalThreshold is 5/6 or approximately 83.33%
-	defaultSignalThreshold = sdk.NewDec(5).Quo(sdk.NewDec(6))
+	defaultSignalThreshold = math.LegacyNewDec(5).Quo(math.LegacyNewDec(6))
 )
 
 // Threshold is the fraction of voting power that is required

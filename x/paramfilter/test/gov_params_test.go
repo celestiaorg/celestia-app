@@ -210,7 +210,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				got := suite.app.DistrKeeper.GetParams(suite.ctx).BaseProposerReward
-				want := sdk.NewDec(1)
+				want := math.LegacyNewDec(1)
 				assert.Equal(want, got)
 			},
 		},
@@ -223,7 +223,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				got := suite.app.DistrKeeper.GetParams(suite.ctx).BonusProposerReward
-				want := sdk.NewDec(1)
+				want := math.LegacyNewDec(1)
 				assert.Equal(want, got)
 			},
 		},
@@ -236,7 +236,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				want := suite.app.DistrKeeper.GetParams(suite.ctx).CommunityTax
-				got := sdk.NewDec(1)
+				got := math.LegacyNewDec(1)
 				assert.Equal(got, want)
 			},
 		},
@@ -404,7 +404,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				got := suite.app.SlashingKeeper.GetParams(suite.ctx).MinSignedPerWindow
-				want := sdk.NewDec(1)
+				want := math.LegacyNewDec(1)
 				assert.Equal(want, got)
 			},
 		},
@@ -430,7 +430,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				got := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDoubleSign
-				want := sdk.NewDec(1)
+				want := math.LegacyNewDec(1)
 				assert.Equal(want, got)
 			},
 		},
@@ -443,7 +443,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				got := suite.app.SlashingKeeper.GetParams(suite.ctx).SlashFractionDowntime
-				want := sdk.NewDec(1)
+				want := math.LegacyNewDec(1)
 				assert.Equal(want, got)
 			},
 		},
@@ -495,7 +495,7 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 			}),
 			func() {
 				got := suite.app.StakingKeeper.GetParams(suite.ctx).MinCommissionRate
-				want := sdk.NewDec(1)
+				want := math.LegacyNewDec(1)
 				assert.Equal(want, got)
 			},
 		},

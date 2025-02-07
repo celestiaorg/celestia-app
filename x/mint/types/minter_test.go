@@ -81,7 +81,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
 	blockInterval := 15 * time.Second
-	totalSupply := sdk.NewDec(1_000_000_000_000)                     // 1 trillion utia
+	totalSupply := math.LegacyNewDec(1_000_000_000_000)              // 1 trillion utia
 	annualProvisions := totalSupply.Mul(InitialInflationRateAsDec()) // 80 billion utia
 
 	type testCase struct {
@@ -138,17 +138,17 @@ func TestCalculateBlockProvisionError(t *testing.T) {
 	oneYear := time.Duration(NanosecondsPerYear)
 	end := current.Add(oneYear)
 
-	totalSupply := sdk.NewDec(1_000_000_000_000)                     // 1 trillion utia
+	totalSupply := math.LegacyNewDec(1_000_000_000_000)              // 1 trillion utia
 	annualProvisions := totalSupply.Mul(InitialInflationRateAsDec()) // 80 billion utia
 	minter.AnnualProvisions = annualProvisions
-	totalBlockProvisions := sdk.NewDec(0)
+	totalBlockProvisions := math.LegacyNewDec(0)
 	for current.Before(end) {
 		blockInterval := randomBlockInterval()
 		previous := current
 		current = current.Add(blockInterval)
 		got, err := minter.CalculateBlockProvision(current, previous)
 		require.NoError(t, err)
-		totalBlockProvisions = totalBlockProvisions.Add(sdk.NewDecFromInt(got.Amount))
+		totalBlockProvisions = totalBlockProvisions.Add(math.LegacyNewDecFromInt(got.Amount))
 	}
 
 	gotError := totalBlockProvisions.Sub(annualProvisions).Abs().Quo(annualProvisions)
@@ -173,7 +173,7 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 
 	s1 := rand.NewSource(100)
 	r1 := rand.New(s1)
-	minter.AnnualProvisions = sdk.NewDec(r1.Int63n(1000000))
+	minter.AnnualProvisions = math.LegacyNewDec(r1.Int63n(1000000))
 	current := time.Unix(r1.Int63n(1000000), 0)
 	previous := current.Add(-time.Second * 15)
 

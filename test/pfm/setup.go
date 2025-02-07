@@ -97,7 +97,6 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 
 	// create an account to send transactions from
 	chain := &ibctesting.TestChain{
-		T:              t,
 		Coordinator:    coord,
 		ChainID:        chainID,
 		App:            app,
@@ -158,7 +157,7 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 		}
 
 		validators = append(validators, validator)
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), math.LegacyOneDec()))
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), val.Address.String(), math.LegacyOneDec()))
 	}
 
 	// set validators and delegations
@@ -189,14 +188,15 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 	require.NoError(t, err)
 
 	// init chain will set the validator set and initialize the genesis accounts
-	app.InitChain(
-		abci.RequestInitChain{
+	_, err = app.InitChain(
+		&abci.RequestInitChain{
 			ChainId:         chainID,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: consensusParams,
 			AppStateBytes:   stateBytes,
 		},
 	)
+	require.NoError(t, err)
 
 	// commit genesis changes
 	app.Commit()
