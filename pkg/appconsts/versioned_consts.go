@@ -6,11 +6,12 @@ import (
 
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	v4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 )
 
 const (
-	LatestVersion = v3.Version
+	LatestVersion = v4.Version
 )
 
 // SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -22,7 +23,7 @@ const (
 //
 // The rationale for this value is described in more detail in ADR-013.
 func SubtreeRootThreshold(_ uint64) int {
-	return v3.SubtreeRootThreshold
+	return v4.SubtreeRootThreshold
 }
 
 // SquareSizeUpperBound imposes an upper bound on the max effective square size.
@@ -34,19 +35,19 @@ func SquareSizeUpperBound(_ uint64) int {
 		}
 		return parsedValue
 	}
-	return v3.SquareSizeUpperBound
+	return v4.SquareSizeUpperBound
 }
 
 func TxSizeCostPerByte(_ uint64) uint64 {
-	return v3.TxSizeCostPerByte
+	return v4.TxSizeCostPerByte
 }
 
 func GasPerBlobByte(_ uint64) uint32 {
-	return v3.GasPerBlobByte
+	return v4.GasPerBlobByte
 }
 
 func MaxTxSize(_ uint64) int {
-	return v3.MaxTxSize
+	return v4.MaxTxSize
 }
 
 var (
@@ -62,8 +63,10 @@ func GetTimeoutPropose(v uint64) time.Duration {
 		return v1.TimeoutPropose
 	case v2.Version:
 		return v2.TimeoutPropose
-	default:
+	case v3.Version:
 		return v3.TimeoutPropose
+	default:
+		return v4.TimeoutPropose
 	}
 }
 
@@ -73,8 +76,10 @@ func GetTimeoutCommit(v uint64) time.Duration {
 		return v1.TimeoutCommit
 	case v2.Version:
 		return v2.TimeoutCommit
-	default:
+	case v3.Version:
 		return v3.TimeoutCommit
+	default:
+		return v4.TimeoutCommit
 	}
 }
 
@@ -91,10 +96,12 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 		// v2 on arabica. This is due to a bug that was shipped on arabica, where
 		// the next version was used.
 		if chainID == ArabicaChainID {
-			return v3.UpgradeHeightDelay
+			return v4.UpgradeHeightDelay
 		}
 		return v2.UpgradeHeightDelay
-	default:
+	case v3.Version:
 		return v3.UpgradeHeightDelay
+	default:
+		return v4.UpgradeHeightDelay
 	}
 }

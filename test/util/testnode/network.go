@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/stretchr/testify/require"
 )
@@ -38,10 +39,10 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, config.AppConfig, cctx)
+	grpcServer, cctx, cleanupGRPC, err := StartGRPCServer(log.NewTestLogger(t), app, config.AppConfig, cctx)
 	require.NoError(t, err)
 
-	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx)
+	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx, grpcServer)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {

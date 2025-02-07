@@ -3,8 +3,10 @@ package blobfactory
 import (
 	"bytes"
 	"context"
+	"math/rand"
 	"testing"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -12,7 +14,6 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/go-square/v2/tx"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -101,20 +102,20 @@ func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs,
 	return msg, blob
 }
 
-func RandBlobTxsRandomlySized(signer *user.Signer, rand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
+func RandBlobTxsRandomlySized(signer *user.Signer, tmrand *tmrand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
 	opts := DefaultTxOpts()
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
 		// pick a random non-zero size of max maxSize
-		size := tmrand.Intn(maxSize)
+		size := rand.Intn(maxSize)
 		if size == 0 {
 			size = 1
 		}
-		blobCount := tmrand.Intn(maxBlobs)
+		blobCount := rand.Intn(maxBlobs)
 		if blobCount == 0 {
 			blobCount = 1
 		}
-		_, blobs := RandMsgPayForBlobsWithSigner(rand, testfactory.TestAccName, size, blobCount)
+		_, blobs := RandMsgPayForBlobsWithSigner(tmrand, testfactory.TestAccName, size, blobCount)
 		cTx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, opts...)
 		if err != nil {
 			panic(err)
@@ -131,7 +132,7 @@ func RandBlobTxsRandomlySized(signer *user.Signer, rand *tmrand.Rand, count, max
 // provided.
 func RandBlobTxsWithAccounts(
 	enc encoding.Config,
-	rand *tmrand.Rand,
+	tmrand *tmrand.Rand,
 	kr keyring.Keyring,
 	conn *grpc.ClientConn,
 	size int,
@@ -173,7 +174,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		_, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), randomizedSize, randomizedBlobCount)
+		_, blobs := RandMsgPayForBlobsWithSigner(tmrand, addr.String(), randomizedSize, randomizedBlobCount)
 		cTx, _, err := client.Signer().CreatePayForBlobs(accounts[i], blobs, opts...)
 		if err != nil {
 			panic(err)
@@ -321,7 +322,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, rand *tmrand.Rand, signer *user.Si
 	return btx
 }
 
-func GenerateRandomBlobCount(rand *tmrand.Rand) int {
+func GenerateRandomBlobCount() int {
 	v := rand.Intn(TestMaxBlobCount)
 	if v == 0 {
 		v = 1
@@ -329,7 +330,7 @@ func GenerateRandomBlobCount(rand *tmrand.Rand) int {
 	return v
 }
 
-func GenerateRandomBlobSize(rand *tmrand.Rand) int {
+func GenerateRandomBlobSize() int {
 	v := rand.Intn(TestMaxBlobSize)
 	if v == 0 {
 		v = 1
@@ -338,10 +339,10 @@ func GenerateRandomBlobSize(rand *tmrand.Rand) int {
 }
 
 // GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
-func GenerateRandomBlobSizes(count int, rand *tmrand.Rand) []int {
+func GenerateRandomBlobSizes(count int) []int {
 	sizes := make([]int, count)
 	for i := range sizes {
-		sizes[i] = GenerateRandomBlobSize(rand)
+		sizes[i] = GenerateRandomBlobSize()
 	}
 	return sizes
 }
@@ -351,8 +352,8 @@ func RandMultiBlobTxsSameSigner(t *testing.T, rand *tmrand.Rand, signer *user.Si
 	pfbTxs := make([]coretypes.Tx, pfbCount)
 	var err error
 	for i := 0; i < pfbCount; i++ {
-		blobsPerPfb := GenerateRandomBlobCount(rand)
-		blobSizes := GenerateRandomBlobSizes(blobsPerPfb, rand)
+		blobsPerPfb := GenerateRandomBlobCount()
+		blobSizes := GenerateRandomBlobSizes(blobsPerPfb)
 		blobs := ManyRandBlobs(rand, blobSizes...)
 		pfbTxs[i], _, err = signer.CreatePayForBlobs(testfactory.TestAccName, blobs)
 		require.NoError(t, err)

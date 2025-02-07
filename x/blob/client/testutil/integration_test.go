@@ -107,7 +107,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				hex.EncodeToString(share.RandomBlobNamespaceID()),
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
@@ -119,7 +119,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			name: "multiple blobs valid transaction",
 			args: []string{
 				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, validPropFile.Name()),
@@ -132,7 +132,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			name: "multiple blobs with invalid file path extension",
 			args: []string{
 				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", paycli.FlagFileInput, invalidPropFile.Name()),

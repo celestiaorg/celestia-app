@@ -9,10 +9,10 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	tmlog "github.com/cometbft/cometbft/libs/log"
 	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -57,15 +57,10 @@ func TestRun(t *testing.T) {
 	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
 	require.NoError(t, err)
 
-	encCfg := encoding.MakeConfig(app.ModuleBasics)
-
 	app := app.New(
 		log.NewNopLogger(),
 		appDB,
 		nil,
-		0,
-		encCfg,
-		0, // upgrade height v2
 		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
@@ -82,7 +77,7 @@ func TestRun(t *testing.T) {
 		node.DefaultGenesisDocProviderFunc(tmCfg),
 		node.DefaultDBProvider,
 		node.DefaultMetricsProvider(tmCfg.Instrumentation),
-		log.NewNopLogger(),
+		tmlog.NewNopLogger(),
 	)
 	require.NoError(t, err)
 

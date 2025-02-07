@@ -145,10 +145,15 @@ func PrintBlock(block *types.Block) error {
 
 func PrintTx(tx authsigning.Tx) {
 	msgs := tx.GetMsgs()
+	signers, err := tx.GetSigners()
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Printf(`Tx - Signer: %s, Fee: %s {
 %s
 }
-`, tx.GetSigners(), tx.GetFee(), printMessages(msgs))
+`, signers, tx.GetFee(), printMessages(msgs))
 }
 
 func printMessages(msgs []sdk.Msg) string {

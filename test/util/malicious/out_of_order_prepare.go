@@ -15,15 +15,14 @@ import (
 // used to create malicious block proposals that fraud proofs can be created
 // for. It will swap the order of two blobs in the square and then use the
 // modified nmt to create a commitment over the modified square.
-func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
 	sdkCtx := a.NewProposalContext(core.Header{
-		ChainID: req.ChainId,
-		Height:  req.Height,
-		Time:    req.Time,
+		Height: req.Height,
+		Time:   req.Time,
 		Version: version.Consensus{
-			App: a.BaseApp.AppVersion(),
+			App: a.AppVersion(),
 		},
 	})
 	// filter out invalid transactions.
@@ -39,10 +38,10 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 		ante.DefaultSigVerificationGasConsumer,
 		a.IBCKeeper,
 		a.ParamsKeeper,
-		a.MsgGateKeeper,
+		a.BlockedParamsGovernance(),
 	)
 
-	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.BlockData.Txs)
+	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
@@ -73,11 +72,9 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
-	return abci.ResponsePrepareProposal{
-		BlockData: &core.Data{
-			Txs:        txs,
-			SquareSize: uint64(dataSquare.Size()),
-			Hash:       dah.Hash(),
-		},
-	}
+	return &abci.ResponsePrepareProposal{
+		Txs:          txs,
+		SquareSize:   uint64(dataSquare.Size()),
+		DataRootHash: dah.Hash(),
+	}, nil
 }

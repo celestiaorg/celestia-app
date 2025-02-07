@@ -3,17 +3,16 @@ package signal_test
 import (
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	"github.com/stretchr/testify/require"
-
-	tmlog "cosmossdk.io/log"
-	tmtypes "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestUpgradeIntegration uses the real application including the upgrade keeper (and staking keeper). It
@@ -23,16 +22,14 @@ func TestUpgradeIntegration(t *testing.T) {
 	cp := app.DefaultConsensusParams()
 	cp.Version.App = v2.Version
 	app, _ := testutil.SetupTestAppWithGenesisValSet(cp)
-	ctx := sdk.NewContext(app.CommitMultiStore(), tmtypes.Header{
+	ctx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{
 		Version: tmversion.Consensus{
 			App: v2.Version,
 		},
 		ChainID: appconsts.TestChainID,
-	}, false, tmlog.NewNopLogger())
-	goCtx := sdk.WrapSDKContext(ctx)
-	ctx = sdk.UnwrapSDKContext(goCtx)
+	}, false, log.NewNopLogger())
 
-	res, err := app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+	res, err := app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
 		Version: 3,
 	})
 	require.NoError(t, err)
@@ -49,7 +46,7 @@ func TestUpgradeIntegration(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	res, err = app.SignalKeeper.VersionTally(goCtx, &types.QueryVersionTallyRequest{
+	res, err = app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
 		Version: 3,
 	})
 	require.NoError(t, err)

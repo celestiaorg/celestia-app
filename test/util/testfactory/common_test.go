@@ -3,7 +3,6 @@ package testfactory_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestTestAccount(t *testing.T) {
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeConfig()
 	kr := testfactory.TestKeyring(enc.Codec)
 	record, err := kr.Key(testfactory.TestAccName)
 	require.NoError(t, err)

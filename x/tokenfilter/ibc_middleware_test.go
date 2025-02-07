@@ -6,7 +6,6 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-
 	transfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
@@ -52,6 +51,7 @@ func TestOnRecvPacket(t *testing.T) {
 			ctx = ctx.WithEventManager(sdk.NewEventManager())
 			ack := middleware.OnRecvPacket(
 				ctx,
+				"channelid",
 				tc.packet,
 				[]byte{},
 			)
@@ -144,6 +144,7 @@ func (m *MockIBCModule) OnChanCloseConfirm(
 
 func (m *MockIBCModule) OnRecvPacket(
 	_ sdk.Context,
+	_ string,
 	_ channeltypes.Packet,
 	_ sdk.AccAddress,
 ) exported.Acknowledgement {
@@ -153,6 +154,7 @@ func (m *MockIBCModule) OnRecvPacket(
 
 func (m *MockIBCModule) OnAcknowledgementPacket(
 	_ sdk.Context,
+	_ string,
 	_ channeltypes.Packet,
 	_ []byte,
 	_ sdk.AccAddress,
@@ -163,6 +165,7 @@ func (m *MockIBCModule) OnAcknowledgementPacket(
 
 func (m *MockIBCModule) OnTimeoutPacket(
 	_ sdk.Context,
+	_ string,
 	_ channeltypes.Packet,
 	_ sdk.AccAddress,
 ) error {

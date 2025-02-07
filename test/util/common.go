@@ -12,6 +12,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	tmed "github.com/cometbft/cometbft/crypto/ed25519"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -21,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	ccrypto "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
@@ -238,8 +240,10 @@ func CreateTestEnv(t *testing.T) TestInput {
 
 	authKeeper := authkeeper.NewAccountKeeper(
 		cdc,
+		runtime.NewKVStoreService(keyAuth),
 		authtypes.ProtoBaseAccount, // prototype
 		moduleAccountPermissions,
+		genesis.AddressCodec,
 		app.Bech32PrefixAccAddr,
 		authority.String(),
 	)
@@ -250,9 +254,11 @@ func CreateTestEnv(t *testing.T) TestInput {
 	}
 	bankKeeper := bankkeeper.NewBaseKeeper(
 		cdc,
+		runtime.NewKVStoreService(keyBank),
 		authKeeper,
 		blockedAddr,
 		authority.String(),
+		log.NewNopLogger(),
 	)
 	bankKeeper.SetParams(
 		ctx,
@@ -264,14 +270,18 @@ func CreateTestEnv(t *testing.T) TestInput {
 
 	stakingKeeper := stakingkeeper.NewKeeper(
 		cdc,
+		runtime.NewKVStoreService(keyStaking),
 		authKeeper,
 		bankKeeper,
 		authority.String(),
+		genesis.ValidatorAddressCodec,
+		genesis.ConsensusAddressCodec,
 	)
 	stakingKeeper.SetParams(ctx, TestingStakeParams)
 
 	distKeeper := distrkeeper.NewKeeper(
 		cdc,
+		runtime.NewKVStoreService(keyDistribution),
 		authKeeper,
 		bankKeeper,
 		stakingKeeper,
@@ -308,6 +318,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 	slashingKeeper := slashingkeeper.NewKeeper(
 		cdc,
 		aminoCdc,
+		runtime.NewKVStoreService(keySlashing),
 		stakingKeeper,
 		authority.String(),
 	)

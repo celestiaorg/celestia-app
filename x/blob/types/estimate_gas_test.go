@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -14,13 +15,13 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/stretchr/testify/require"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 )
 
 func TestPFBGasEstimation(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig()
 	rand := tmrand.NewRand()
 
 	testCases := []struct {
@@ -47,11 +48,13 @@ func TestPFBGasEstimation(t *testing.T) {
 			blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
 			require.NoError(t, err)
 			require.True(t, ok)
-			resp := testApp.DeliverTx(abci.RequestDeliverTx{
-				Tx: blobTx.Tx,
+			resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+				Txs: [][]byte{blobTx.Tx},
 			})
-			require.EqualValues(t, 0, resp.Code, resp.Log)
-			require.Less(t, resp.GasUsed, int64(gas))
+			require.NoError(t, err)
+			result := resp.TxResults[0]
+			require.EqualValues(t, 0, result.Code, result.Log)
+			require.Less(t, result.GasUsed, int64(gas))
 		})
 	}
 }
@@ -70,20 +73,21 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		maxBlobSize = 418
 		seed        = int64(9001)
 	)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig()
 	f.Add(numBlobs, maxBlobSize, seed)
 	f.Fuzz(func(t *testing.T, numBlobs, maxBlobSize int, seed int64) {
 		if numBlobs <= 0 || maxBlobSize <= 0 {
 			t.Skip()
 		}
-		rand := tmrand.NewRand()
-		rand.Seed(seed)
-		blobSizes := randBlobSize(rand, numBlobs, maxBlobSize)
+		blobSizes := randBlobSize(seed, numBlobs, maxBlobSize)
 
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
 		require.NoError(t, err)
+
+		rand := tmrand.NewRand()
+		rand.Seed(seed)
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
 		tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
@@ -91,22 +95,24 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
 		require.NoError(t, err)
 		require.True(t, ok)
-		resp := testApp.DeliverTx(abci.RequestDeliverTx{
-			Tx: blobTx.Tx,
+		resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+			Txs: [][]byte{blobTx.Tx},
 		})
-		require.EqualValues(t, 0, resp.Code, resp.Log)
-		require.Less(t, resp.GasUsed, int64(gas))
+		require.NoError(t, err)
+		result := resp.TxResults[0]
+		require.EqualValues(t, 0, result.Code, result.Log)
+		require.Less(t, result.GasUsed, int64(gas))
 	})
 }
 
-func randBlobSize(rand *tmrand.Rand, numBlobs, maxBlobSize int) []int {
+func randBlobSize(seed int64, numBlobs, maxBlobSize int) []int {
 	res := make([]int, numBlobs)
 	for i := 0; i < numBlobs; i++ {
 		if maxBlobSize == 1 {
 			res[i] = 1
 			continue
 		}
-		res[i] = rand.Intn(maxBlobSize-1) + 1
+		res[i] = rand.New(rand.NewSource(seed)).Intn(maxBlobSize-1) + 1
 	}
 	return res
 }

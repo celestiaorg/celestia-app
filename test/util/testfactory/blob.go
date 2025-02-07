@@ -3,16 +3,17 @@ package testfactory
 import (
 	"bytes"
 	"encoding/binary"
+	"math/rand"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 )
 
 func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {
 	blobs := make([]*share.Blob, count)
 	for i := 0; i < count; i++ {
-		blobs[i] = GenerateRandomBlob(tmrand.Intn(maxBlobSize))
+		blobs[i] = GenerateRandomBlob(rand.Intn(maxBlobSize))
 		if len(blobs[i].Data()) == 0 {
 			i--
 		}

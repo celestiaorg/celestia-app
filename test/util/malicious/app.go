@@ -5,7 +5,6 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -32,7 +31,7 @@ type BehaviorConfig struct {
 	StartHeight int64 `json:"start_height"`
 }
 
-type PrepareProposalHandler func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal
+type PrepareProposalHandler func(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error)
 
 // PrepareProposalHandlerMap is a map of all the known prepare proposal handlers.
 func (a *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
@@ -51,12 +50,10 @@ func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
-	invCheckPeriod uint,
-	encodingConfig encoding.Config,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	goodApp := app.New(logger, db, traceStore, invCheckPeriod, encodingConfig, 0, 0, appOpts, baseAppOptions...)
+	goodApp := app.New(logger, db, traceStore, 0, appOpts, baseAppOptions...)
 	badApp := &App{App: goodApp}
 
 	// set the malicious prepare proposal handler if it is set in the app options
@@ -78,17 +75,18 @@ func (a *App) SetMaliciousBehavior(mcfg BehaviorConfig) {
 
 // PrepareProposal overwrites the default app's method to use the configured
 // malicious behavior after a given height.
-func (a *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+func (a *App) PrepareProposal(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	if a.LastBlockHeight()+1 >= a.maliciousStartHeight {
 		return a.malPrepareProposalHandler(req)
 	}
+
 	return a.App.PrepareProposal(req)
 }
 
 // ProcessProposal overwrites the default app's method to auto accept any
 // proposal.
-func (a *App) ProcessProposal(_ abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
-	return abci.ResponseProcessProposal{
-		Result: abci.ResponseProcessProposal_ACCEPT,
-	}
+func (a *App) ProcessProposal(_ *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
+	return &abci.ResponseProcessProposal{
+		Status: abci.ResponseProcessProposal_ACCEPT,
+	}, nil
 }

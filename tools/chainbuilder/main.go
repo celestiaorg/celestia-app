@@ -200,9 +200,6 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		log.NewNopLogger(),
 		appDB,
 		nil,
-		0,
-		encCfg,
-		0, // upgrade height v2
 		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
@@ -240,7 +237,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		validatorSet := types.NewValidatorSet(validators)
 		nextVals := types.TM2PB.ValidatorUpdates(validatorSet)
 		csParams := types.TM2PB.ConsensusParams(genDoc.ConsensusParams)
-		res := simApp.InitChain(abci.RequestInitChain{
+		res, err := simApp.InitChain(&abci.RequestInitChain{
 			ChainId:         genDoc.ChainID,
 			Time:            genDoc.GenesisTime,
 			ConsensusParams: csParams,
@@ -248,6 +245,9 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			AppStateBytes:   genDoc.AppState,
 			InitialHeight:   genDoc.InitialHeight,
 		})
+		if err != nil {
+			return err
+		}
 
 		vals, err := types.PB2TM.ValidatorUpdates(res.Validators)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
@@ -13,7 +14,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/inclusion"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -32,10 +32,10 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) Modifier {
 }
 
 // SetSlashingParams will set the provided slashing params as genesis state.
-func SetSlashingParams(codec codec.Codec, params slashingtypes.Params) Modifier {
+func SetSlashingParams(codec codec.Codec, parans slashingtypes.Params) Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		slashingGenState := slashingtypes.DefaultGenesisState()
-		slashingGenState.Params = params
+		slashingGenState.Params = parans
 		state[slashingtypes.ModuleName] = codec.MustMarshalJSON(slashingGenState)
 		return state
 	}
@@ -46,11 +46,11 @@ func SetSlashingParams(codec codec.Codec, params slashingtypes.Params) Modifier 
 func ImmediateProposals(codec codec.Codec) Modifier {
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		gs := v1.DefaultGenesisState()
-		gs.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1)))
-		gs.TallyParams.Quorum = "0.000001"
-		gs.TallyParams.Threshold = "0.000001"
+		gs.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1)))
+		gs.Params.Quorum = "0.000001"
+		gs.Params.Threshold = "0.000001"
 		vp := time.Second * 5
-		gs.VotingParams.VotingPeriod = &vp
+		gs.Params.VotingPeriod = &vp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state
 	}

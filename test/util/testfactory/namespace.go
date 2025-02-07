@@ -3,8 +3,8 @@ package testfactory
 import (
 	"slices"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 )
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).
@@ -17,9 +17,9 @@ func RandomBlobNamespace() share.Namespace {
 }
 
 // RandomBlobNamespaceWithPRG generates and returns a random blob namespace using the supplied Pseudo-Random number Generator (PRG).
-func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) share.Namespace {
+func RandomBlobNamespaceWithPRG(rand *tmrand.Rand) share.Namespace {
 	for {
-		id := RandomBlobNamespaceIDWithPRG(prg)
+		id := RandomBlobNamespaceIDWithPRG(rand)
 		namespace := share.MustNewV0Namespace(id)
 		if isBlobNamespace(namespace) {
 			return namespace

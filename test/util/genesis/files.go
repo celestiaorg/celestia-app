@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
-	tmos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -45,19 +44,21 @@ func InitFiles(
 	}
 
 	pvStateFile := tmConfig.PrivValidatorStateFile()
-	if err := tmos.EnsureDir(filepath.Dir(pvStateFile), 0o777); err != nil {
-		return err
+	if err := os.MkdirAll(filepath.Dir(pvStateFile), 0o777); err != nil {
+		return fmt.Errorf("could not create directory %q: %w", filepath.Dir(pvStateFile), err)
 	}
+
 	pvKeyFile := tmConfig.PrivValidatorKeyFile()
-	if err := tmos.EnsureDir(filepath.Dir(pvKeyFile), 0o777); err != nil {
-		return err
+	if err := os.MkdirAll(filepath.Dir(pvKeyFile), 0o777); err != nil {
+		return fmt.Errorf("could not create directory %q: %w", filepath.Dir(pvKeyFile), err)
 	}
+
 	filePV := privval.NewFilePV(val.ConsensusKey, pvKeyFile, pvStateFile)
 	filePV.Save()
 
 	nodeKeyFile := tmConfig.NodeKeyFile()
-	if err := tmos.EnsureDir(filepath.Dir(nodeKeyFile), 0o777); err != nil {
-		return err
+	if err := os.MkdirAll(filepath.Dir(nodeKeyFile), 0o777); err != nil {
+		return fmt.Errorf("could not create directory %q: %w", filepath.Dir(nodeKeyFile), err)
 	}
 	nodeKey := &p2p.NodeKey{
 		PrivKey: val.NetworkKey,

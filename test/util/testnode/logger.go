@@ -4,20 +4,21 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
+	"github.com/rs/zerolog"
 )
 
 func NewLogger(config *UniversalTestingConfig) log.Logger {
 	if config.SuppressLogs {
 		return log.NewNopLogger()
 	}
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logger := log.NewLogger(os.Stdout)
 	switch config.TmConfig.LogLevel {
 	case "error":
-		return log.NewFilter(logger, log.AllowError())
+		return log.NewLogger(os.Stdout, log.LevelOption(zerolog.ErrorLevel))
 	case "info":
-		return log.NewFilter(logger, log.AllowInfo())
+		return log.NewLogger(os.Stdout, log.LevelOption(zerolog.InfoLevel))
 	case "debug":
-		return log.NewFilter(logger, log.AllowDebug())
+		return log.NewLogger(os.Stdout, log.LevelOption(zerolog.DebugLevel))
 	default:
 		return logger
 	}

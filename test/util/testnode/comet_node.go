@@ -3,12 +3,15 @@ package testnode
 import (
 	"path/filepath"
 
+	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
-	tmdb "github.com/cosmos/cosmos-db"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	sdkserver "github.com/cosmos/cosmos-sdk/server"
+	servercmtlog "github.com/cosmos/cosmos-sdk/server/log"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 )
 
@@ -18,13 +21,13 @@ import (
 func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, servertypes.Application, error) {
 	logger := NewLogger(config)
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	db, err := tmdb.NewGoLevelDB("application", dbPath)
+
+	db, err := dbm.NewGoLevelDB("application", dbPath, dbm.OptionsMap{})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	config.AppOptions.Set(flags.FlagHome, baseDir)
-
 	app := config.AppCreator(logger, db, nil, config.AppOptions)
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.TmConfig.NodeKeyFile())
@@ -32,15 +35,20 @@ func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, s
 		return nil, nil, err
 	}
 
+	prival := privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile())
+	if err != nil {
+		return nil, nil, err
+	}
+	cmtApp := sdkserver.NewCometABCIWrapper(app)
 	cometNode, err := node.NewNode(
 		config.TmConfig,
-		privval.LoadOrGenFilePV(config.TmConfig.PrivValidatorKeyFile(), config.TmConfig.PrivValidatorStateFile()),
+		prival,
 		nodeKey,
-		proxy.NewLocalClientCreator(app),
+		proxy.NewLocalClientCreator(cmtApp),
 		node.DefaultGenesisDocProviderFunc(config.TmConfig),
-		node.DefaultDBProvider,
+		tmconfig.DefaultDBProvider,
 		node.DefaultMetricsProvider(config.TmConfig.Instrumentation),
-		logger,
+		servercmtlog.CometLoggerWrapper{Logger: logger},
 	)
 
 	return cometNode, app, err

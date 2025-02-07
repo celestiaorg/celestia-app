@@ -1,6 +1,7 @@
 package genesis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	mrand "math/rand"
@@ -107,13 +108,13 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	pk, err := cryptocodec.FromTmPubKeyInterface(v.ConsensusKey.PubKey())
+	pk, err := cryptocodec.FromCmtPubKeyInterface(v.ConsensusKey.PubKey())
 	if err != nil {
 		return nil, fmt.Errorf("converting public key for node %s: %w", v.Name, err)
 	}
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
-		sdk.ValAddress(addr),
+		sdk.ValAddress(addr).String(),
 		pk,
 		sdk.NewCoin(app.BondDenom, math.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
@@ -139,7 +140,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		WithKeybase(kr).
 		WithTxConfig(ecfg.TxConfig)
 
-	err = tx.Sign(txFactory, v.Name, txBuilder, true)
+	err = tx.Sign(context.TODO(), txFactory, v.Name, txBuilder, true)
 	if err != nil {
 		return nil, err
 	}

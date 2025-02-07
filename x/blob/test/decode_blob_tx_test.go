@@ -9,11 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/tx"
-	bcproto "github.com/cometbft/cometbft/proto/tendermint/blocksync"
+	"github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,10 +43,6 @@ func TestDecodeBlobTx(t *testing.T) {
 			assert.Equal(t, wantHash, gotHash)
 
 			msg := tx.GetMsgs()[0]
-			wantSigner := "celestia18y3ydyn7uslhuxu4lcm2x83gkdhrrcyaqvg6gk"
-			gotSigner := msg.GetSigners()[0].String()
-			assert.Equal(t, gotSigner, wantSigner)
-
 			msgPayForBlobs, ok := msg.(*blobtypes.MsgPayForBlobs)
 			if !ok {
 				t.Errorf("expected MsgPayForBlobs, got %T", msg)
@@ -60,7 +55,7 @@ func TestDecodeBlobTx(t *testing.T) {
 }
 
 // getTestdataBlockResponse gets the block response from the testdata directory.
-func getTestdataBlockResponse(t *testing.T) (resp bcproto.BlockResponse) {
+func getTestdataBlockResponse(t *testing.T) (resp blocksync.BlockResponse) {
 	// block_response.json is the JSON response from the API endpoint:
 	// https://api.celestia.pops.one/cosmos/base/tendermint/v1beta1/blocks/408
 	// The response was persisted to block_response.json so that this test
@@ -71,7 +66,7 @@ func getTestdataBlockResponse(t *testing.T) (resp bcproto.BlockResponse) {
 		t.Fatalf("reading json file: %v", err)
 	}
 
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encodingConfig := encoding.MakeConfig()
 	if err = encodingConfig.Codec.UnmarshalJSON(fileContents, &resp); err != nil {
 		t.Fatalf("error unmarshal JSON block response: %v", err)
 	}
@@ -90,7 +85,7 @@ func getTxBytes(txBytes []byte) []byte {
 }
 
 func decodeTx(txBytes []byte) (types.Tx, error) {
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encodingConfig := encoding.MakeConfig()
 	decoder := encodingConfig.TxConfig.TxDecoder()
 	tx, err := decoder(txBytes)
 	if err != nil {

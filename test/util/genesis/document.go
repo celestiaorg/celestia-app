@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -18,8 +18,15 @@ import (
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 )
 
+var (
+	AddressCodec          = addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	ValidatorAddressCodec = addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix())
+	ConsensusAddressCodec = addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix())
+)
+
 // Document will create a valid genesis doc with funded addresses.
 func Document(
+	defaultGenesis map[string]json.RawMessage,
 	ecfg encoding.Config,
 	params *tmproto.ConsensusParams,
 	chainID string,
@@ -54,11 +61,11 @@ func Document(
 	if err := bankGenState.Validate(); err != nil {
 		return nil, err
 	}
-	if err := genutiltypes.ValidateGenesis(genutilGenState, ecfg.TxConfig.TxJSONDecoder()); err != nil {
+	if err := genutiltypes.ValidateGenesis(genutilGenState, ecfg.TxConfig.TxJSONDecoder(), genutiltypes.DefaultMessageValidator); err != nil {
 		return nil, err
 	}
 
-	state := app.ModuleBasics.DefaultGenesis(ecfg.Codec)
+	state := defaultGenesis
 	state[authtypes.ModuleName] = ecfg.Codec.MustMarshalJSON(authGenState)
 	state[banktypes.ModuleName] = ecfg.Codec.MustMarshalJSON(bankGenState)
 	state[genutiltypes.ModuleName] = ecfg.Codec.MustMarshalJSON(genutilGenState)
@@ -73,10 +80,11 @@ func Document(
 	}
 
 	// Create the genesis doc
+	cp := coretypes.ConsensusParamsFromProto(*params)
 	genesisDoc := &coretypes.GenesisDoc{
 		ChainID:         chainID,
 		GenesisTime:     genesisTime,
-		ConsensusParams: params,
+		ConsensusParams: &cp,
 		AppState:        stateBz,
 	}
 

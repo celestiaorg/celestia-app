@@ -2,7 +2,6 @@ package ante
 
 import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 
 	"cosmossdk.io/errors"
@@ -31,16 +30,12 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 	var gasPerByte uint32
 	txGas := ctx.GasMeter().GasRemaining()
+
 	for _, m := range tx.GetMsgs() {
 		// NOTE: here we assume only one PFB per transaction
 		if pfb, ok := m.(*types.MsgPayForBlobs); ok {
 			if gasPerByte == 0 {
-				if ctx.BlockHeader().Version.App <= v2.Version {
-					// lazily fetch the gas per byte param
-					gasPerByte = d.k.GasPerBlobByte(ctx)
-				} else {
-					gasPerByte = appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App)
-				}
+				gasPerByte = appconsts.GasPerBlobByte(0)
 			}
 			gasToConsume := pfb.Gas(gasPerByte)
 			if gasToConsume > txGas {

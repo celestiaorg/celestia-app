@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"sort"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"

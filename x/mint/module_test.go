@@ -5,8 +5,10 @@ import (
 )
 
 func TestItCreatesModuleAccountOnInitBlock(t *testing.T) {
+	// TODO: rewrite without simapp
+
 	// db := dbm.NewMemDB()
-	// encCdc := .MakeTestEncodingConfig()
+	// encCdc := simapp.MakeTestEncodingConfig()
 	// app := simapp.NewSimApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, simapp.DefaultNodeHome, 5, encCdc, simapp.EmptyAppOptions{})
 
 	// genesisState := simapp.GenesisStateWithSingleValidator(t, app)
@@ -20,7 +22,7 @@ func TestItCreatesModuleAccountOnInitBlock(t *testing.T) {
 	// 	},
 	// )
 
-	// ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+	// ctx := app.BaseApp.NewContext(false)
 	// acc := app.AccountKeeper.GetAccount(ctx, authtypes.NewModuleAddress(types.ModuleName))
 	// require.NotNil(t, acc)
 }

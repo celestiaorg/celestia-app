@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -19,6 +21,7 @@ import (
 // Genesis manages the creation of the genesis state of a network. It is meant
 // to be used as the first step to any test that requires a network.
 type Genesis struct {
+	// ecfg is the encoding configuration of the app.
 	ecfg encoding.Config
 	// ConsensusParams are the consensus parameters of the network.
 	ConsensusParams *tmproto.ConsensusParams
@@ -61,11 +64,11 @@ func (g *Genesis) Validators() []Validator {
 
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
-	ecfg := encoding.MakeConfig(app.ModuleBasics)
+	ecfg := encoding.MakeConfig()
 	g := &Genesis{
 		ecfg:            ecfg,
 		ConsensusParams: app.DefaultConsensusParams(),
-		ChainID:         tmrand.Str(6),
+		ChainID:         unsafe.Str(6),
 		GenesisTime:     time.Now(),
 		kr:              keyring.NewInMemory(ecfg.Codec),
 		genOps:          []Modifier{},
@@ -207,7 +210,10 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		gentxs = append(gentxs, json.RawMessage(bz))
 	}
 
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, nil)
+
 	return Document(
+		tempApp.DefaultGenesis(),
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,

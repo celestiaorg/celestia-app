@@ -25,7 +25,7 @@ func (suite *MintTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(false)
 
-	queryHelper := baseapp.NewQueryServerTestHelper(ctx, testApp.InterfaceRegistry())
+	queryHelper := baseapp.NewQueryServerTestHelper(ctx, testApp.GetEncodingConfig().InterfaceRegistry)
 	types.RegisterQueryServer(queryHelper, testApp.MintKeeper)
 	queryClient := types.NewQueryClient(queryHelper)
 

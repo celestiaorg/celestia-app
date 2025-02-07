@@ -13,6 +13,7 @@ import (
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	"cosmossdk.io/x/feegrant"
 	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
+	feegrantmodule "cosmossdk.io/x/feegrant/module"
 	"cosmossdk.io/x/upgrade"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -187,11 +188,12 @@ func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
-	encodingConfig encoding.Config,
 	timeoutCommit time.Duration,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	encodingConfig := encoding.MakeConfig()
+
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
@@ -306,7 +308,7 @@ func New(
 
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		encodingConfig.Codec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
-		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
+		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, app.ScopedTransferKeeper, govModuleAddr,
 	)
 	// Transfer stack contains (from top to bottom):
@@ -353,7 +355,7 @@ func New(
 		vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
 		bank.NewAppModule(encodingConfig.Codec, app.BankKeeper, app.AccountKeeper, app.GetSubspace(banktypes.ModuleName)),
 		feegrantmodule.NewAppModule(encodingConfig.Codec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, encodingConfig.InterfaceRegistry),
-		gov.NewAppModule(encodingConfig.Codec, &app.GovKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(govtypes.ModuleName)),
+		gov.NewAppModule(encodingConfig.Codec, app.GovKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(govtypes.ModuleName)),
 		mint.NewAppModule(encodingConfig.Codec, app.MintKeeper, app.AccountKeeper),
 		slashing.NewAppModule(encodingConfig.Codec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.GetSubspace(slashingtypes.ModuleName), encodingConfig.InterfaceRegistry),
 		distr.NewAppModule(encodingConfig.Codec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.GetSubspace(distrtypes.ModuleName)),
@@ -369,7 +371,6 @@ func New(
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(app.ParamsKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper),
-		ica.NewAppModule(&app.ICAControllerKeeper, &app.ICAHostKeeper),
 	)
 
 	// order begin block, end block and init genesis
@@ -470,7 +471,11 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	return app.ModuleManager.InitGenesis(ctx, genesisState)
+	return app.ModuleManager.InitGenesis(ctx, app.AppCodec(), genesisState)
+}
+
+func (app *App) DefaultGenesis() GenesisState {
+	panic("not implemented")
 }
 
 // LoadHeight loads a particular height

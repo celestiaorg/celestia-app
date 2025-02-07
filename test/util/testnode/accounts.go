@@ -1,6 +1,6 @@
 package testnode
 
-import tmrand "github.com/cometbft/cometbft/libs/rand"
+import tmrand "cosmossdk.io/math/unsafe"
 
 // RandomAccounts returns a list of n random accounts
 func RandomAccounts(n int) (accounts []string) {

@@ -21,11 +21,11 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 
 	registry.RegisterInterface(
 		"cosmos.auth.v1beta1.BaseAccount",
-		(*authtypes.AccountI)(nil),
+		(*sdk.AccountI)(nil),
 	)
 
 	registry.RegisterImplementations(
-		(*authtypes.AccountI)(nil),
+		(*sdk.AccountI)(nil),
 		&authtypes.BaseAccount{},
 	)
 

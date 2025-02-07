@@ -91,7 +91,6 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 	txConfig := app.GetTxConfig()
 
 	chain := &ibctesting.TestChain{
-		T:              t,
 		Coordinator:    coord,
 		ChainID:        chainID,
 		App:            app,

@@ -10,7 +10,6 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -29,7 +28,7 @@ import (
 )
 
 func TestValidateTxFee(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig()
 
 	builder := encCfg.TxConfig.NewTxBuilder()
 	err := builder.SetMsgs(banktypes.NewMsgSend(

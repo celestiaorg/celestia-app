@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"testing"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
@@ -51,8 +52,8 @@ func TestPayForBlobGas(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
-			ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
-			_, err := k.PayForBlobs(sdk.WrapSDKContext(ctx), &tc.msg)
+			ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
+			_, err := k.PayForBlobs(ctx, &tc.msg)
 			require.NoError(t, err)
 			if tc.wantGasConsumed != ctx.GasMeter().GasConsumed() {
 				t.Errorf("Gas consumed by %s: %d, want: %d", tc.name, ctx.GasMeter().GasConsumed(), tc.wantGasConsumed)
@@ -64,18 +65,18 @@ func TestPayForBlobGas(t *testing.T) {
 func TestChangingGasParam(t *testing.T) {
 	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
 	k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
-	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
 
-	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
-	_, err := k.PayForBlobs(sdk.WrapSDKContext(ctx1), &msg)
+	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
+	_, err := k.PayForBlobs(ctx1, &msg)
 	require.NoError(t, err)
 
 	params := k.GetParams(tempCtx)
 	params.GasPerBlobByte++
 	k.SetParams(tempCtx, params)
 
-	ctx2 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
-	_, err = k.PayForBlobs(sdk.WrapSDKContext(ctx2), &msg)
+	ctx2 := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
+	_, err = k.PayForBlobs(ctx2, &msg)
 	require.NoError(t, err)
 
 	if ctx1.GasMeter().GasConsumed() >= ctx2.GasMeter().GasConsumedToLimit() {

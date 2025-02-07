@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmrand "cosmossdk.io/math/unsafe"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -13,14 +14,12 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v2/tx"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,6 +44,7 @@ func RandBlobTxsWithAccounts(
 	require.Greater(t, blobCount, 0)
 
 	txs := make([]coretypes.Tx, len(accounts))
+
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
@@ -77,7 +77,7 @@ func RandBlobTxsWithAccounts(
 }
 
 func DirectQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
-	ctx := app.NewContext(true, tmproto.Header{})
+	ctx := app.NewContext(true)
 	return app.AccountKeeper.GetAccount(ctx, addr)
 }
 

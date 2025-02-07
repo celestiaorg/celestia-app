@@ -5,12 +5,13 @@ import (
 	"testing"
 	time "time"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	v1 "github.com/cometbft/cometbft/proto/tendermint/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestCalculateInflationRate(t *testing.T) {
@@ -69,7 +70,9 @@ func TestCalculateInflationRate(t *testing.T) {
 	for _, tc := range testCases {
 		years := time.Duration(tc.year * NanosecondsPerYear * int64(time.Nanosecond))
 		blockTime := genesisTime.Add(years)
-		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
+		ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger()).WithBlockHeader(v1.Header{
+			Time: blockTime,
+		})
 		inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
 		got, err := inflationRate.Float64()
 		assert.NoError(t, err)
@@ -189,7 +192,7 @@ func BenchmarkCalculateInflationRate(b *testing.B) {
 	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for n := 0; n < b.N; n++ {
-		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(n)}, false, nil)
+		ctx := sdk.NewContext(nil, tmproto.Header{}, false, log.NewNopLogger())
 		minter.CalculateInflationRate(ctx, genesisTime)
 	}
 }

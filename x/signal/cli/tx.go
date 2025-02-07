@@ -45,7 +45,7 @@ func CmdSignalVersion() *cobra.Command {
 
 			addr := clientCtx.GetFromAddress().Bytes()
 			valAddr := sdk.ValAddress(addr)
-			msg := types.NewMsgSignalVersion(valAddr, version)
+			msg := types.NewMsgSignalVersion(valAddr.String(), version)
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}

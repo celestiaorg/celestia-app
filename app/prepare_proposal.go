@@ -22,13 +22,12 @@ import (
 // the proposal block and passes it back to tendermint via the BlockData. Panics
 // indicate a developer error and should immediately halt the node for
 // visibility and so they can be quickly resolved.
-func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+func (app *App) PrepareProposal(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
 	sdkCtx := app.NewProposalContext(core.Header{
-		ChainID: req.ChainId,
-		Height:  req.Height,
-		Time:    req.Time,
+		Height: req.Height,
+		Time:   req.Time,
 		Version: version.Consensus{
 			App: app.AppVersion(),
 		},
@@ -42,11 +41,11 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 		app.ParamsKeeper,
-		app.MsgGateKeeper,
+		app.BlockedParamsGovernance(),
 	)
 
 	// Filter out invalid transactions.
-	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	txs := FilterTxs(app.Logger(), sdkCtx, handler, app.encodingConfig.TxConfig, req.Txs)
 
 	// Build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block.
@@ -105,11 +104,11 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// Tendermint doesn't need to use any of the erasure data because only the
 	// protobuf encoded version of the block data is gossiped. Therefore, the
 	// eds is not returned here.
-	return abci.ResponsePrepareProposal{
+	return &abci.ResponsePrepareProposal{
+		Txs: txs,
 		BlockData: &core.Data{
-			Txs:        txs,
 			SquareSize: size,
 			Hash:       dah.Hash(), // also known as the data root
 		},
-	}
+	}, nil
 }

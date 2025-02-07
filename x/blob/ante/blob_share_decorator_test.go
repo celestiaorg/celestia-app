@@ -3,7 +3,7 @@ package ante_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
@@ -15,9 +15,6 @@ import (
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	version "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,7 +129,7 @@ func TestBlobShareDecorator(t *testing.T) {
 		},
 	}
 
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	ecfg := encoding.MakeConfig()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -158,7 +155,6 @@ func TestBlobShareDecorator(t *testing.T) {
 			decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
 			ctx := sdk.Context{}.
 				WithIsCheckTx(true).
-				WithBlockHeader(tmproto.Header{Version: version.Consensus{App: tc.appVersion}}).
 				WithTxBytes(btx.Tx)
 			_, err = decorator.AnteHandle(ctx, sdkTx, false, mockNext)
 			assert.ErrorIs(t, tc.wantErr, err)

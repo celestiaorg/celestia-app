@@ -5,17 +5,15 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParamsQuery(t *testing.T) {
 	keeper, _, ctx := CreateKeeper(t, appconsts.LatestVersion)
-	wctx := sdk.WrapSDKContext(ctx)
 	params := types.DefaultParams()
 	keeper.SetParams(ctx, params)
 
-	response, err := keeper.Params(wctx, &types.QueryParamsRequest{})
+	response, err := keeper.Params(ctx, &types.QueryParamsRequest{})
 	require.NoError(t, err)
 	require.Equal(t, &types.QueryParamsResponse{Params: params}, response)
 }

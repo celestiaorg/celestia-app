@@ -1,8 +1,10 @@
 package malicious
 
 import (
+	"math/rand"
 	"testing"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
@@ -12,7 +14,6 @@ import (
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +47,7 @@ func TestOutOfOrderNMT(t *testing.T) {
 
 	// test the new tree with unordered data
 	for i := range data {
-		j := tmrand.Intn(len(data))
+		j := rand.Intn(len(data))
 		data[i], data[j] = data[j], data[i]
 	}
 

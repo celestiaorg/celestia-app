@@ -216,7 +216,12 @@ func broadcastPFB(cmd *cobra.Command, b ...*share.Blob) error {
 		return err
 	}
 
-	txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
+	factoryCLI, err := sdktx.NewFactoryCLI(clientCtx, cmd.Flags())
+	if err != nil {
+		return err
+	}
+
+	txBytes, err := writeTx(clientCtx, factoryCLI, pfbMsg)
 	if err != nil {
 		return err
 	}
@@ -289,7 +294,7 @@ func writeTx(clientCtx client.Context, txf sdktx.Factory, msgs ...sdk.Msg) ([]by
 		}
 	}
 
-	err = sdktx.Sign(txf, clientCtx.GetFromName(), tx, true)
+	err = sdktx.Sign(clientCtx.CmdContext, txf, clientCtx.FromName, tx, true)
 	if err != nil {
 		return nil, err
 	}
