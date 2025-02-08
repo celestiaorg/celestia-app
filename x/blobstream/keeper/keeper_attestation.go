@@ -120,7 +120,7 @@ func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.Atte
 	var at types.AttestationRequestI
 	err := k.cdc.UnmarshalInterface(bz, &at)
 	if err != nil {
-		return nil, false, types.ErrUnmarshalllAttestation
+		return nil, false, types.ErrUnmarshallAttestation
 	}
 	return at, true, nil
 }
