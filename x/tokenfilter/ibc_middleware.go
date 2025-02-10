@@ -1,9 +1,6 @@
 package tokenfilter
 
 import (
-	"fmt"
-	"strings"
-
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -44,6 +41,7 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) exported.Acknowledgement {
+	// TODO(damian/cian): update to transfertypes.UnmarshalPacketData and handle ics20 v2
 	var data transfertypes.FungibleTokenPacketData
 	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
 		// If this happens either a) a user has crafted an invalid packet, b) a
@@ -54,27 +52,23 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 		return m.IBCModule.OnRecvPacket(ctx, channelVersion, packet, relayer)
 	}
 
-	// This checks the first channel and port in the denomination path. If it matches
-	// our channel and port it means that the token was originally sent from this
-	// chain. Note that this firewall prevents routing of other transactions through
-	// the chain so from this logic, the denom has to be a native denom.
-
-	// https://github.com/cosmos/ibc-go/pull/6426/files#diff-048f44256481b95254f968db1f10df41934ef594d6e196fb863289b41aa53056L22-L38
-	voucherPrefix := fmt.Sprintf("%s/%s/", packet.GetSourcePort(), packet.GetSourceChannel())
-	if strings.HasPrefix(data.Denom, voucherPrefix) {
+	// Note, this firewall prevents receiving of any non-native token denominations as we only
+	// accept ibc tokens which were minted on behalf of this chain.
+	denom := transfertypes.ExtractDenomFromPath(data.Denom)
+	if receiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), denom) {
 		return m.IBCModule.OnRecvPacket(ctx, channelVersion, packet, relayer)
 	}
 
 	ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", data.Denom)
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	sdkCtx.EventManager().EmitEvent(
+	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			transfertypes.EventTypePacket,
 			sdk.NewAttribute(sdk.AttributeKeyModule, ModuleName),
 			sdk.NewAttribute(sdk.AttributeKeySender, data.Sender),
 			sdk.NewAttribute(transfertypes.AttributeKeyReceiver, data.Receiver),
 			sdk.NewAttribute(transfertypes.AttributeKeyDenom, data.Denom),
+			// TODO(damian/cian): update event attributes when correctly unmarshalling v2 packet data.
 			// sdk.NewAttribute(transfertypes.AttributeKeyAmount, data.Amount),
 			sdk.NewAttribute(transfertypes.AttributeKeyMemo, data.Memo),
 			sdk.NewAttribute(transfertypes.AttributeKeyAckSuccess, "false"),
@@ -83,4 +77,11 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 	)
 
 	return channeltypes.NewErrorAcknowledgement(ackErr)
+}
+
+// receiverChainIsSource checks the first denomination prefix in the ibc transfer denom provided against the packet source port and channel.
+// If the prefix matches it means that the token was originally sent from this chain.
+// This is because OnRecvPacket prefixes the destination port and channel to the token denomination when first sent.
+func receiverChainIsSource(srcPort, srcChannel string, denom transfertypes.Denom) bool {
+	return denom.HasPrefix(srcPort, srcChannel)
 }
