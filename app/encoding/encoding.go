@@ -9,6 +9,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/cosmos/gogoproto/proto"
 )
@@ -28,7 +29,7 @@ type Config struct {
 }
 
 // MakeConfig returns an encoding config for the app.
-func MakeConfig() Config {
+func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	addressPrefix, validatorPrefix := sdk.GetConfig().GetBech32AccountAddrPrefix(), sdk.GetConfig().GetBech32ValidatorAddrPrefix()
 	addressCodec := address.NewBech32Codec(addressPrefix)
 	validatorAddressCodec := address.NewBech32Codec(validatorPrefix)
@@ -48,6 +49,10 @@ func MakeConfig() Config {
 	// amino.
 	std.RegisterInterfaces(interfaceRegistry)
 	std.RegisterLegacyAminoCodec(amino)
+	for _, module := range moduleBasics {
+		module.RegisterInterfaces(interfaceRegistry)
+		module.RegisterLegacyAminoCodec(amino)
+	}
 
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
 	txDecoder := authtx.DefaultTxDecoder(protoCodec)

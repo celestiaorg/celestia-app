@@ -1,10 +1,11 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
-	ibc "github.com/cosmos/ibc-go/v9/modules/core"
 	"io"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
+	ibc "github.com/cosmos/ibc-go/v9/modules/core"
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
@@ -332,7 +333,7 @@ func New(
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
-		0, // retries on timeout
+		0,                                                                // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
 
@@ -385,7 +386,7 @@ func New(
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
-		minfee.NewAppModule(app.ParamsKeeper),
+		minfee.NewAppModule(encodingConfig.Codec, app.ParamsKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName)),
 	)
 
@@ -458,9 +459,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
-			if err = app.SetAppVersion(ctx, newVersion); err != nil {
-				return sdk.EndBlock{}, err
-			}
+			app.SetProtocolVersion(newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}

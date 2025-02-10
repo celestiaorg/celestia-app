@@ -252,7 +252,7 @@ func TestValidateBlobTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx(), appconsts.DefaultSubtreeRootThreshold, appconsts.LatestVersion)
+			err := types.ValidateBlobTx(encCfg.TxConfig.TxDecoder(), tt.getTx(), appconsts.DefaultSubtreeRootThreshold, appconsts.LatestVersion)
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, err, tt.expectedErr, tt.name)
 			}
