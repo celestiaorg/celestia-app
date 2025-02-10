@@ -294,7 +294,7 @@ Alone, none of the mechanisms listed above are sufficient for preventing sybil a
 
 ### Commitment
 
-```protobuf=
+```proto
 message TxMetaData {
   bytes  hash  = 1;
   uint32 start = 2;
@@ -323,12 +323,17 @@ Verification:
 
 ### Have
 
-```protobuf=
+```proto
+message PartMetaData {
+  uint32 index                   = 1;
+  bytes  hash                    = 2;
+  proof  tendermint.crypto.Proof = 3 [(gogoproto.nullable) = false];
+}
+
 message HaveParts {
-  bytes                   hash   = 1;
-  int64                   height = 2;
-  int32                   round  = 3;
-  tendermint.crypto.Proof proof  = 4 [(gogoproto.nullable) = false];
+  int64                 height = 1;
+  int32                 round  = 2;
+  repeated PartMetaData parts  = 3;
 }
 ```
 
@@ -338,7 +343,7 @@ Verification:
 
 ### Want
 
-```protobuf
+```proto
 message WantParts {
   tendermint.libs.bits.BitArray parts  = 1 [(gogoproto.nullable) = false];
   int64                         height = 2;
@@ -352,7 +357,7 @@ Verification
 
 ### Data
 
-```protobuf
+```proto
 message RecoveryPart {
   int64  height = 1;
   int32  round  = 2;
