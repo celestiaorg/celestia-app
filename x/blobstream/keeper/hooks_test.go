@@ -23,7 +23,7 @@ func TestAfterValidatorBeginUnbonding(t *testing.T) {
 		got := testEnv.BlobstreamKeeper.GetLatestUnBondingBlockHeight(ctx)
 		assert.Equal(t, uint64(0), got)
 	})
-	t.Run("should set latest unboding height if app version is 1", func(t *testing.T) {
+	t.Run("should set latest unbonding height if app version is 1", func(t *testing.T) {
 		ctx := testEnv.Context.WithBlockHeader(tmproto.Header{Version: version.Consensus{App: 1}, Height: height})
 		err := testEnv.BlobstreamKeeper.Hooks().AfterValidatorBeginUnbonding(ctx, sdk.ConsAddress{}, sdk.ValAddress{})
 		assert.NoError(t, err)
