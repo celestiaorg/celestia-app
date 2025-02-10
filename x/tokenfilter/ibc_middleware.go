@@ -1,6 +1,9 @@
 package tokenfilter
 
 import (
+	"encoding/json"
+	"strconv"
+
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -41,9 +44,8 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) exported.Acknowledgement {
-	// TODO(damian/cian): update to transfertypes.UnmarshalPacketData and handle ics20 v2
-	var data transfertypes.FungibleTokenPacketData
-	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
+	data, err := transfertypes.UnmarshalPacketData(packet.GetData(), channelVersion)
+	if err != nil {
 		// If this happens either a) a user has crafted an invalid packet, b) a
 		// software developer has connected the middleware to a stack that does
 		// not have a transfer module, or c) the transfer module has been modified
@@ -52,36 +54,55 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 		return m.IBCModule.OnRecvPacket(ctx, channelVersion, packet, relayer)
 	}
 
+	if len(data.Tokens) != 1 {
+		ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "expected exactly one token, got %d", len(data.Tokens))
+		return createErrorAcknowledgement(ctx, data, ackErr)
+	}
+
 	// Note, this firewall prevents receiving of any non-native token denominations as we only
 	// accept ibc tokens which were minted on behalf of this chain.
-	denom := transfertypes.ExtractDenomFromPath(data.Denom)
+	denom := data.Tokens[0].Denom
 	if receiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), denom) {
 		return m.IBCModule.OnRecvPacket(ctx, channelVersion, packet, relayer)
 	}
 
-	ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", data.Denom)
+	ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", denom.Path())
+	return createErrorAcknowledgement(ctx, data, ackErr)
+}
 
+// receiverChainIsSource checks the first denomination prefix in the ibc transfer denom provided against the packet source port and channel.
+// If the prefix matches it means that the token was originally sent from this chain.
+// This is because ibc transfer prefixes the destination port and channel to the token denomination when minting vouchers in recv packet.
+func receiverChainIsSource(srcPort, srcChannel string, denom transfertypes.Denom) bool {
+	return denom.HasPrefix(srcPort, srcChannel)
+}
+
+// createErrorAcknowledgement emits an ibc transfer event and creates an ibc error acknowledgement.
+func createErrorAcknowledgement(ctx sdk.Context, data transfertypes.FungibleTokenPacketDataV2, ackErr error) exported.Acknowledgement {
+	ack := channeltypes.NewErrorAcknowledgement(ackErr)
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			transfertypes.EventTypePacket,
 			sdk.NewAttribute(sdk.AttributeKeyModule, ModuleName),
 			sdk.NewAttribute(sdk.AttributeKeySender, data.Sender),
 			sdk.NewAttribute(transfertypes.AttributeKeyReceiver, data.Receiver),
-			sdk.NewAttribute(transfertypes.AttributeKeyDenom, data.Denom),
-			// TODO(damian/cian): update event attributes when correctly unmarshalling v2 packet data.
-			// sdk.NewAttribute(transfertypes.AttributeKeyAmount, data.Amount),
 			sdk.NewAttribute(transfertypes.AttributeKeyMemo, data.Memo),
-			sdk.NewAttribute(transfertypes.AttributeKeyAckSuccess, "false"),
+			sdk.NewAttribute(transfertypes.AttributeKeyTokens, mustMarshalJSON(data.Tokens)),
+			sdk.NewAttribute(transfertypes.AttributeKeyForwardingHops, mustMarshalJSON(data.Forwarding)),
+			sdk.NewAttribute(transfertypes.AttributeKeyMemo, data.Memo),
+			sdk.NewAttribute(transfertypes.AttributeKeyAckSuccess, strconv.FormatBool(ack.Success())),
 			sdk.NewAttribute(transfertypes.AttributeKeyAckError, ackErr.Error()),
 		),
 	)
 
-	return channeltypes.NewErrorAcknowledgement(ackErr)
+	return ack
 }
 
-// receiverChainIsSource checks the first denomination prefix in the ibc transfer denom provided against the packet source port and channel.
-// If the prefix matches it means that the token was originally sent from this chain.
-// This is because OnRecvPacket prefixes the destination port and channel to the token denomination when first sent.
-func receiverChainIsSource(srcPort, srcChannel string, denom transfertypes.Denom) bool {
-	return denom.HasPrefix(srcPort, srcChannel)
+func mustMarshalJSON(v any) string {
+	bz, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(bz)
 }

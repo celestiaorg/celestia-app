@@ -51,7 +51,7 @@ func TestOnRecvPacket(t *testing.T) {
 			ctx = ctx.WithEventManager(sdk.NewEventManager())
 			ack := middleware.OnRecvPacket(
 				ctx,
-				"channelid",
+				transfertypes.V1,
 				tc.packet,
 				[]byte{},
 			)
