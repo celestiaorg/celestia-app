@@ -88,8 +88,9 @@ func TestCalculateInflationRate(t *testing.T) {
 
 		testCases := []testCase{
 			{0, 0.0536}, // note this value won't be used in production because celestia-app was on app version 3 in year 0.
-			{1, 0.0500088},
-			{2, 0.0466582104},
+			{1, 0.04824},
+			{2, 0.040507128},
+			{3, 0.0364564152},
 		}
 
 		for _, tc := range testCases {
