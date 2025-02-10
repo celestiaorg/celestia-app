@@ -5,20 +5,20 @@ At a high level, all flavors of PBBT have four message types. `Commitment`,
 
 ## Commitment
 
-```protobuf=
+```proto
 message TxMetaData {
-  repeated bytes hash  = 1;
+  bytes  hash  = 1;
   uint32 start = 2;
   uint32 end   = 3;
 }
 
 // CompactBlock commits to the transaction included in a proposal.
 message CompactBlock {
-  int64                 height    = 1;
-  int32                 round     = 2;
-  bytes                 bp_hash   = 3;
-  repeated BlobMetaData blobs     = 4;
-  bytes                 signature = 5;
+  int64               height    = 1;
+  int32               round     = 2;
+  bytes               bp_hash   = 3;
+  repeated TxMetaData blobs     = 4;
+  bytes               signature = 5;
 }
 ```
 
@@ -40,23 +40,26 @@ transactions in `BlobMetaData` and `Have` messasges.
 
 Verification:
 
-- The signature MUST be valid and from the expected proposer for that height and
-  round
+- The signature MUST be valid using the sign bytes of the compact block and the public key of the expected proposer for that height and
+  round.
 
 ## Have
 
 ```protobuf=
-message HavePart {
+message HaveParts {
   bytes                   hash   = 1;
   int64                   height = 2;
   int32                   round  = 3;
   tendermint.crypto.Proof proof  = 4 [(gogoproto.nullable) = false];
 }
-
 ```
 
 Verification:
-- The merkle proof must be verified using the `pbbt_root` in the `CompactBlock` for that height and round.
+
+- The merkle proof MUST be verified using the roots included in the
+  `CompactBlock` for that height and round. If the data is parity data, then it
+  MUST use the `parity_root`, if the data is original block data, then it MUST
+  use the `PartSetHeaderRoot`.
 
 ### Want
 
@@ -71,7 +74,7 @@ message WantParts {
 ## Data
 
 ```protobuf
-message Part {
+message RecoveryPart {
   int64  height = 1;
   int32  round  = 2;
   uint32 index  = 3;
@@ -80,6 +83,7 @@ message Part {
 ```
 
 Verification
+
 - The hash of the bytes in the data field MUST match that of the `Have` message.
 
 ### Parity Data
@@ -116,27 +120,27 @@ type SubPart struct {
 
 // SubPart breaks a block part into smaller equal sized subparts.
 func (p *Part) SubParts() []SubPart {
-	sps := make([]SubPart, SubPartsPerPart)
-	for i := uint32(0); i < SubPartsPerPart; i++ {
-		sps[i] = SubPart{
-			Index: uint32(i),
-			Bytes: p.Bytes[i*SubPartSize : (i+1)*SubPartSize],
-		}
-	}
-	return sps
+  sps := make([]SubPart, SubPartsPerPart)
+  for i := uint32(0); i < SubPartsPerPart; i++ {
+    sps[i] = SubPart{
+      Index: uint32(i),
+      Bytes: p.Bytes[i*SubPartSize : (i+1)*SubPartSize],
+    }
+  }
+  return sps
 }
 
 func PartFromSubParts(index uint32, sps []SubPart) *Part {
-	if len(sps) != int(SubPartsPerPart) {
-		panic(fmt.Sprintf("invalid number of subparts: %d", len(sps)))
-	}
-	b := make([]byte, 0, BlockPartSizeBytes)
-	for _, sp := range sps {
-		b = append(b, sp.Bytes...)
-	}
-	return &Part{
-		Index: index,
-		Bytes: b,
-	}
+  if len(sps) != int(SubPartsPerPart) {
+    panic(fmt.Sprintf("invalid number of subparts: %d", len(sps)))
+  }
+  b := make([]byte, 0, BlockPartSizeBytes)
+  for _, sp := range sps {
+    b = append(b, sp.Bytes...)
+  }
+  return &Part{
+    Index: index,
+    Bytes: b,
+  }
 }
 ```
