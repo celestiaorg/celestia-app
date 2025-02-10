@@ -1,6 +1,8 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
+	ibc "github.com/cosmos/ibc-go/v9/modules/core"
 	"io"
 	"time"
 
@@ -89,9 +91,9 @@ import (
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/proto"
-	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
-	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/keeper"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9/packetforward/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9/packetforward/types"
 	capabilitykeeper "github.com/cosmos/ibc-go/modules/capability/keeper"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 	icahost "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/host"
@@ -288,7 +290,7 @@ func New(
 		app.AccountKeeper,
 		app.ScopedICAHostKeeper,
 		app.MsgServiceRouter(),
-		app.QueryRouter(),
+		app.GRPCQueryRouter(),
 		govModuleAddr,
 	)
 
@@ -307,6 +309,17 @@ func New(
 	// Set legacy router for backwards compatibility with gov v1beta1
 	app.GovKeeper.SetLegacyRouter(govRouter)
 
+	// Create packet forward keeper
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		encodingConfig.Codec,
+		keys[packetforwardtypes.StoreKey],
+		app.TransferKeeper, // will be zero-value here, reference is set later on with SetTransferKeeper.
+		app.IBCKeeper.ChannelKeeper,
+		app.BankKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		govModuleAddr,
+	)
+
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		encodingConfig.Codec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
 		app.PacketForwardKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.PortKeeper,
@@ -318,13 +331,13 @@ func New(
 	// - Transfer
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	packetForwardMiddleware := packetforward.NewIBCMiddleware(
-		transferStack,
-		app.PacketForwardKeeper,
+	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
 		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
-		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,  // refund timeout
 	)
+
+	// Token filter wraps packet forward middleware and is thus the first module in the transfer stack.
+	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
 
 	// create evidence keeper with router
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -373,7 +386,7 @@ func New(
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(app.ParamsKeeper),
-		packetforward.NewAppModule(app.PacketForwardKeeper),
+		packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName)),
 	)
 
 	// order begin block, end block and init genesis
