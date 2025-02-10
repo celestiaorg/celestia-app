@@ -57,13 +57,13 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
 
-	initalSupply := s.getTotalSupply(initialHeight)
+	initialSupply := s.getTotalSupply(initialHeight)
 
 	_, err = s.cctx.WaitForHeight(laterHeight + 1)
 	require.NoError(err)
 	laterSupply := s.getTotalSupply(laterHeight)
 
-	require.True(initalSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
+	require.True(initialSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
 }
 
 // TestInflationRate verifies that the inflation rate each year matches the
