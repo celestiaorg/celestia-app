@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	utils "github.com/celestiaorg/celestia-app/v4/test/tokenfilter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
+	transfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
 	host "github.com/cosmos/ibc-go/v9/modules/core/24-host"
@@ -54,13 +55,13 @@ func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting
 	path1 := ibctesting.NewPath(chain1, chain2)
 	path1.EndpointA.ChannelConfig.PortID = ibctesting.TransferPort
 	path1.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
-	path1.EndpointA.ChannelConfig.Version = types.Version
-	path1.EndpointB.ChannelConfig.Version = types.Version
+	path1.EndpointA.ChannelConfig.Version = transfertypes.V1
+	path1.EndpointB.ChannelConfig.Version = transfertypes.V1
 	path2 := ibctesting.NewPath(chain2, chain3)
 	path2.EndpointA.ChannelConfig.PortID = ibctesting.TransferPort
 	path2.EndpointB.ChannelConfig.PortID = ibctesting.TransferPort
-	path2.EndpointA.ChannelConfig.Version = types.Version
-	path2.EndpointB.ChannelConfig.Version = types.Version
+	path2.EndpointA.ChannelConfig.Version = transfertypes.V1
+	path2.EndpointB.ChannelConfig.Version = transfertypes.V1
 
 	return path1, path2
 }
@@ -108,7 +109,17 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Transfer path: Celestia -> ChainA -> Celestia -> ChainB
-	msg := types.NewMsgTransfer(path1.EndpointB.ChannelConfig.PortID, path1.EndpointB.ChannelID, coinToSendToB, celestia.SenderAccount.GetAddress().String(), chainA.SenderAccount.GetAddress().String(), timeoutHeight, 0, string(memo))
+	msg := transfertypes.NewMsgTransfer(
+		path1.EndpointB.ChannelConfig.PortID,
+		path1.EndpointB.ChannelID,
+		sdk.NewCoins(coinToSendToB),
+		celestia.SenderAccount.GetAddress().String(),
+		chainA.SenderAccount.GetAddress().String(),
+		timeoutHeight,
+		0,
+		string(memo),
+		nil,
+	)
 
 	res, err := celestia.SendMsgs(msg)
 	require.NoError(t, err)
@@ -122,8 +133,8 @@ func TestPacketForwardMiddlewareTransfer(t *testing.T) {
 	sourceBalanceAfter := celestiaApp.BankKeeper.GetBalance(celestia.GetContext(), celestia.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
 	require.Equal(t, originalCelestiaBalance.Amount.Sub(transferAmount), sourceBalanceAfter.Amount)
 
-	ibcDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	destinationBalanceAfter := chainB.App.(*SimApp).BankKeeper.GetBalance(chainB.GetContext(), chainB.SenderAccount.GetAddress(), ibcDenomTrace.IBCDenom())
+	ibcDenom := transfertypes.NewDenom(sdk.DefaultBondDenom, transfertypes.NewHop(packet.GetDestPort(), packet.GetDestChannel()))
+	destinationBalanceAfter := chainB.App.(*SimApp).BankKeeper.GetBalance(chainB.GetContext(), chainB.SenderAccount.GetAddress(), ibcDenom.IBCDenom())
 
 	require.Equal(t, transferAmount, destinationBalanceAfter.Amount)
 }
@@ -228,7 +239,7 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 }
 
 // AcknowledgePacket acknowledges a packet and returns the result
-func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (*sdk.Result, error) {
+func AcknowledgePacket(endpoint *ibctesting.Endpoint, packet channeltypes.Packet, ack []byte) (*abci.ExecTxResult, error) {
 	packetKey := host.PacketAcknowledgementKey(packet.GetDestPort(), packet.GetDestChannel(), packet.GetSequence())
 	proof, proofHeight := endpoint.Counterparty.QueryProof(packetKey)
 	ackMsg := channeltypes.NewMsgAcknowledgement(packet, ack, proof, proofHeight, endpoint.Chain.SenderAccount.GetAddress().String())
