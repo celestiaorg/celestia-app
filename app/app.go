@@ -28,7 +28,6 @@ import (
 	appv2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
 	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v4/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -394,8 +393,9 @@ func New(
 	// order begin block, end block and init genesis
 	app.setModuleOrder()
 
-	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
-	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
+	// TODO(CEL-27): Determine solution for custom abci query requests
+	// app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
+	// app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
 	app.configurator = module.NewConfigurator(encodingConfig.Codec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.BasicManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
