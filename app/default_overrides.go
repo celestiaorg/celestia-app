@@ -23,10 +23,10 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	ica "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts"
-	icagenesistypes "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/genesis/types"
-	ibc "github.com/cosmos/ibc-go/v9/modules/core"
-	ibctypes "github.com/cosmos/ibc-go/v9/modules/core/types"
+	ica "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts"
+	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
+	ibc "github.com/cosmos/ibc-go/v8/modules/core"
+	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 )
 
 const (

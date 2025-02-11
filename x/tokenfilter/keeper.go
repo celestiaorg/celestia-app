@@ -1,7 +1,7 @@
 package tokenfilter
 
 import (
-	porttypes "github.com/cosmos/ibc-go/v9/modules/core/05-port/types"
+	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
 )
 
 // Keeper is so far a noop as the tokenfilter doesn't have any need to

@@ -83,21 +83,21 @@ import (
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
 
-	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9/packetforward"
-	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9/packetforward/keeper"
-	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9/packetforward/types"
-	transfer "github.com/cosmos/ibc-go/v9/modules/apps/transfer"
-	ibctransferkeeper "github.com/cosmos/ibc-go/v9/modules/apps/transfer/keeper"
-	ibctransfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
-	ibc "github.com/cosmos/ibc-go/v9/modules/core"
-	ibcclient "github.com/cosmos/ibc-go/v9/modules/core/02-client"
-	ibcclienttypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
-	porttypes "github.com/cosmos/ibc-go/v9/modules/core/05-port/types"
-	ibchost "github.com/cosmos/ibc-go/v9/modules/core/24-host"
-	ibckeeper "github.com/cosmos/ibc-go/v9/modules/core/keeper"
-	ibcmock "github.com/cosmos/ibc-go/v9/testing/mock"
-	simapp "github.com/cosmos/ibc-go/v9/testing/simapp"
-	ibctestingtypes "github.com/cosmos/ibc-go/v9/testing/types"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/keeper"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
+	transfer "github.com/cosmos/ibc-go/v8/modules/apps/transfer"
+	ibctransferkeeper "github.com/cosmos/ibc-go/v8/modules/apps/transfer/keeper"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	ibc "github.com/cosmos/ibc-go/v8/modules/core"
+	ibcclient "github.com/cosmos/ibc-go/v8/modules/core/02-client"
+	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
+	ibchost "github.com/cosmos/ibc-go/v8/modules/core/24-host"
+	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
+	ibcmock "github.com/cosmos/ibc-go/v8/testing/mock"
+	simapp "github.com/cosmos/ibc-go/v8/testing/simapp"
+	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
 )
 
 // App implements the common methods for a Cosmos SDK-based application
@@ -817,8 +817,8 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // setupUpgradeHandlers sets all necessary upgrade handlers for testing purposes
 func (app *SimApp) setupUpgradeHandlers() {
 	// BB-NOTE: To be re-enabled; comented out for go mod tidy to suceed as these package paths no longer exist in ibc-go/v9:
-	// simappupgrades "github.com/cosmos/ibc-go/v9/testing/simapp/upgrades"
-	// v6 "github.com/cosmos/ibc-go/v9/testing/simapp/upgrades/v6"
+	// simappupgrades "github.com/cosmos/ibc-go/v8/testing/simapp/upgrades"
+	// v6 "github.com/cosmos/ibc-go/v8/testing/simapp/upgrades/v6"
 	// app.UpgradeKeeper.SetUpgradeHandler(
 	// 	simappupgrades.DefaultUpgradeName,
 	// 	simappupgrades.CreateDefaultUpgradeHandler(app.mm, app.configurator),

@@ -1,16 +1,13 @@
 package tokenfilter
 
 import (
-	"encoding/json"
-	"strconv"
-
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	transfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v9/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v9/modules/core/exported"
+	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v8/modules/core/exported"
 )
 
 const ModuleName = "tokenfilter"
@@ -40,69 +37,42 @@ func NewIBCMiddleware(ibcModule porttypes.IBCModule) porttypes.IBCModule {
 // If not, it returns an ErrorAcknowledgement.
 func (m *tokenFilterMiddleware) OnRecvPacket(
 	ctx sdk.Context,
-	channelVersion string,
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) exported.Acknowledgement {
-	data, err := transfertypes.UnmarshalPacketData(packet.GetData(), channelVersion)
-	if err != nil {
+	var data transfertypes.FungibleTokenPacketData
+	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
 		// If this happens either a) a user has crafted an invalid packet, b) a
 		// software developer has connected the middleware to a stack that does
 		// not have a transfer module, or c) the transfer module has been modified
 		// to accept other Packets. The best thing we can do here is pass the packet
 		// on down the stack.
-		return m.IBCModule.OnRecvPacket(ctx, channelVersion, packet, relayer)
+		return m.IBCModule.OnRecvPacket(ctx, packet, relayer)
 	}
 
-	if len(data.Tokens) != 1 {
-		ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "expected exactly one token, got %d", len(data.Tokens))
-		return createErrorAcknowledgement(ctx, data, ackErr)
+	// This checks the first channel and port in the denomination path. If it matches
+	// our channel and port it means that the token was originally sent from this
+	// chain. Note that this firewall prevents routing of other transactions through
+	// the chain so from this logic, the denom has to be a native denom.
+	if transfertypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+		return m.IBCModule.OnRecvPacket(ctx, packet, relayer)
 	}
 
-	// Note, this firewall prevents receiving of any non-native token denominations as we only
-	// accept ibc tokens which were minted on behalf of this chain.
-	denom := data.Tokens[0].Denom
-	if receiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), denom) {
-		return m.IBCModule.OnRecvPacket(ctx, channelVersion, packet, relayer)
-	}
+	ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", data.Denom)
 
-	ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", denom.Path())
-	return createErrorAcknowledgement(ctx, data, ackErr)
-}
-
-// receiverChainIsSource checks the first denomination prefix in the ibc transfer denom provided against the packet source port and channel.
-// If the prefix matches it means that the token was originally sent from this chain.
-// This is because ibc transfer prefixes the destination port and channel to the token denomination when minting vouchers in recv packet.
-func receiverChainIsSource(srcPort, srcChannel string, denom transfertypes.Denom) bool {
-	return denom.HasPrefix(srcPort, srcChannel)
-}
-
-// createErrorAcknowledgement emits an ibc transfer event and creates an ibc error acknowledgement.
-func createErrorAcknowledgement(ctx sdk.Context, data transfertypes.FungibleTokenPacketDataV2, ackErr error) exported.Acknowledgement {
-	ack := channeltypes.NewErrorAcknowledgement(ackErr)
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			transfertypes.EventTypePacket,
 			sdk.NewAttribute(sdk.AttributeKeyModule, ModuleName),
 			sdk.NewAttribute(sdk.AttributeKeySender, data.Sender),
 			sdk.NewAttribute(transfertypes.AttributeKeyReceiver, data.Receiver),
+			sdk.NewAttribute(transfertypes.AttributeKeyDenom, data.Denom),
+			sdk.NewAttribute(transfertypes.AttributeKeyAmount, data.Amount),
 			sdk.NewAttribute(transfertypes.AttributeKeyMemo, data.Memo),
-			sdk.NewAttribute(transfertypes.AttributeKeyTokens, mustMarshalJSON(data.Tokens)),
-			sdk.NewAttribute(transfertypes.AttributeKeyForwardingHops, mustMarshalJSON(data.Forwarding)),
-			sdk.NewAttribute(transfertypes.AttributeKeyMemo, data.Memo),
-			sdk.NewAttribute(transfertypes.AttributeKeyAckSuccess, strconv.FormatBool(ack.Success())),
+			sdk.NewAttribute(transfertypes.AttributeKeyAckSuccess, "false"),
 			sdk.NewAttribute(transfertypes.AttributeKeyAckError, ackErr.Error()),
 		),
 	)
 
-	return ack
-}
-
-func mustMarshalJSON(v any) string {
-	bz, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-
-	return string(bz)
+	return channeltypes.NewErrorAcknowledgement(ackErr)
 }
