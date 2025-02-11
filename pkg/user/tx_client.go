@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
@@ -345,7 +346,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if gasLimit == 0 {
 		if !hasUserSetFee {
 			// add at least 1utia as fee to builder as it affects gas calculation.
-			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
@@ -356,7 +357,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 
 	if !hasUserSetFee {
 		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
-		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(fee))))
+		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(fee))))
 	}
 
 	account, _, err = client.signer.signTransaction(txBuilder)
@@ -514,7 +515,7 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
 	// add at least 1utia as fee to builder as it affects gas calculation.
-	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 
 	_, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {

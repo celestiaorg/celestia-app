@@ -37,7 +37,7 @@ func TestNewV0Blob(t *testing.T) {
 }
 
 func TestValidateBlobTx(t *testing.T) {
-	encCfg := encoding.MakeConfig()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))

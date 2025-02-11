@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"

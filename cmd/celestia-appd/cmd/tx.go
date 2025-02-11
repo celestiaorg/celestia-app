@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func txCommand(basicManager *module.BasicManager) *cobra.Command {
+func txCommand(basicManager module.BasicManager) *cobra.Command {
 	command := &cobra.Command{
 		Use:                        "tx",
 		Short:                      "Transactions subcommands",

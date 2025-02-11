@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	apisigning "cosmossdk.io/api/cosmos/tx/signing/v1beta1"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -160,13 +162,17 @@ func (s *Signer) Accounts() []*Account {
 }
 
 func (s *Signer) findAccount(txbuilder client.TxBuilder) (*Account, error) {
-	signers := txbuilder.GetTx().GetSigners()
+	signers, err := txbuilder.GetTx().GetSigners()
+	if err != nil {
+		return nil, fmt.Errorf("error getting signers: %w", err)
+	}
+
 	if len(signers) == 0 {
 		return nil, fmt.Errorf("message has no signer")
 	}
-	accountName, exists := s.addressToAccountMap[signers[0].String()]
+	accountName, exists := s.addressToAccountMap[sdk.AccAddress(signers[0]).String()]
 	if !exists {
-		return nil, fmt.Errorf("account %s not found", signers[0].String())
+		return nil, fmt.Errorf("account %s not found", sdk.AccAddress(signers[0]).String())
 	}
 	return s.accounts[accountName], nil
 }
@@ -259,7 +265,8 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 	}
 
 	bytesToSign, err := s.enc.SignModeHandler().GetSignBytes(
-		signing.SignMode_SIGN_MODE_DIRECT,
+		context.TODO(),
+		apisigning.SignMode_SIGN_MODE_DIRECT,
 		signerData,
 		builder.GetTx(),
 	)
@@ -267,7 +274,7 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 		return nil, fmt.Errorf("error getting sign bytes: %w", err)
 	}
 
-	signature, _, err := s.keys.Sign(account.name, bytesToSign)
+	signature, _, err := s.keys.Sign(account.name, bytesToSign, signing.SignMode_SIGN_MODE_DIRECT)
 	if err != nil {
 		return nil, fmt.Errorf("error signing bytes: %w", err)
 	}

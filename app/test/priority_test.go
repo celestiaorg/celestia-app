@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/hex"
+	"math/rand"
 	"sort"
 	"sync"
 	"testing"
@@ -16,14 +17,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+
+	tmrand "cosmossdk.io/math/unsafe"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
@@ -57,7 +58,6 @@ func (s *PriorityTestSuite) SetupSuite() {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	s.rand = tmrand.NewRand()
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
@@ -83,7 +83,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 		go func() {
 			defer wg.Done()
 			// ensure that it is greater than the min gas price
-			gasPrice := float64(s.rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
+			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
 			blobs := blobfactory.ManyBlobs(s.rand, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
 			resp, err := s.txClient.BroadcastPayForBlobWithAccount(
 				s.cctx.GoContext(),

@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func queryCommand(basicManager *module.BasicManager) *cobra.Command {
+func queryCommand(basicManager module.BasicManager) *cobra.Command {
 	command := &cobra.Command{
 		Use:                        "query",
 		Aliases:                    []string{"q"},

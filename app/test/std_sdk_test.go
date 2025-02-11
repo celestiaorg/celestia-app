@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
@@ -18,7 +19,6 @@ import (
 	signal "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -131,7 +131,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				valopAddr := sdk.ValAddress(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName))
 				account1 := s.unusedAccount()
 				account1Addr := testfactory.GetAddress(s.cctx.Keyring, account1)
-				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, math.NewInt(1000000)))
+				msg := stakingtypes.NewMsgDelegate(account1Addr.String(), valopAddr.String(), sdk.NewCoin(app.BondDenom, math.NewInt(1000000)))
 				return []sdk.Msg{msg}, account1
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -141,7 +141,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccAddr := testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName)
 				valopAddr := sdk.ValAddress(valAccAddr)
-				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, math.NewInt(1000000)))
+				msg := stakingtypes.NewMsgUndelegate(valAccAddr.String(), valopAddr.String(), sdk.NewCoin(app.BondDenom, math.NewInt(1000000)))
 				return []sdk.Msg{msg}, testnode.DefaultValidatorAccountName
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -154,7 +154,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				valopAccAddr := testfactory.GetAddress(s.cctx.Keyring, account)
 				valopAddr := sdk.ValAddress(valopAccAddr)
 				msg, err := stakingtypes.NewMsgCreateValidator(
-					valopAddr,
+					valopAddr.String(),
 					pv.PrivKey.PubKey(),
 					sdk.NewCoin(app.BondDenom, math.NewInt(1)),
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
@@ -308,7 +308,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "signal a version change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccount := s.getValidatorAccount()
-				msg := signal.NewMsgSignalVersion(valAccount, appconsts.LatestVersion+1)
+				msg := signal.NewMsgSignalVersion(valAccount.String(), appconsts.LatestVersion+1)
 				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,

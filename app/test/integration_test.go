@@ -27,8 +27,8 @@ import (
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmrand "github.com/cometbft/cometbft/libs/rand"
 	coretypes "github.com/cometbft/cometbft/types"
 )
 

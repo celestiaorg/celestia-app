@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tmrand "cosmossdk.io/math/unsafe"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
@@ -18,7 +19,7 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	pfbCount := 10
 	signer, err := testnode.NewOfflineSigner()
 	require.NoError(t, err)
-	encCfg := encoding.MakeConfig()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.TxConfig.TxDecoder()
 
 	rand1 := tmrand.NewRand()

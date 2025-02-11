@@ -199,8 +199,10 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 	var address types.AccAddress
 	for _, msg := range op.Msgs {
-		if err := msg.ValidateBasic(); err != nil {
-			return fmt.Errorf("error validating message: %w", err)
+		if m, ok := msg.(types.HasValidateBasic); ok {
+			if err := m.ValidateBasic(); err != nil {
+				return fmt.Errorf("error validating message: %w", err)
+			}
 		}
 
 		signers := msg.GetSigners()

@@ -196,7 +196,7 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	encodingConfig := encoding.MakeConfig()
+	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
@@ -333,7 +333,7 @@ func New(
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
-		0,                                                                // retries on timeout
+		0, // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
 
@@ -363,7 +363,7 @@ func New(
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
 	// we prefer to be more strict in what arguments the modules expect.
 
-	app.BasicManager = nil // TODO
+	app.BasicManager = module.NewBasicManager(ModuleEncodingRegisters...)
 
 	// NOTE: Modules can't be modified or else must be passed by reference to the module manager
 	app.ModuleManager = module.NewManager(
