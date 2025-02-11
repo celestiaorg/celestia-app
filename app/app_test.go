@@ -122,7 +122,7 @@ func TestOfferSnapshot(t *testing.T) {
 	t.Run("should ACCEPT a snapshot with app version 1", func(t *testing.T) {
 		app := createTestApp(t)
 		request := createRequest()
-		request.Ve = 1
+		request.AppVersion = 1
 		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got, err := app.OfferSnapshot(&request)
 		assert.NoError(t, err)

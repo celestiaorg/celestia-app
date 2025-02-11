@@ -3,7 +3,6 @@ module github.com/celestiaorg/celestia-app/v4
 go 1.23.5
 
 require (
-	cosmossdk.io/api v0.7.6
 	cosmossdk.io/client/v2 v2.0.0-beta.6
 	cosmossdk.io/core v0.11.1
 	cosmossdk.io/errors v1.0.1
@@ -55,6 +54,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
 	cloud.google.com/go/iam v1.1.13 // indirect
 	cloud.google.com/go/storage v1.43.0 // indirect
+	cosmossdk.io/api v0.7.6 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/depinject v1.1.0 // indirect
 	cosmossdk.io/x/circuit v0.1.1 // indirect
@@ -253,7 +253,7 @@ require (
 )
 
 replace (
-	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.38.17
+	github.com/cometbft/cometbft => github.com/01builders/cometbft v0.0.0-20250210143127-2aabfed4f2a2
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
