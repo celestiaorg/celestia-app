@@ -1,0 +1,15 @@
+[Unit]
+Description=TxSim Service
+After=network.target
+
+[Service]
+Type=simple
+Environment="PATH=/usr/local/go/bin:/root/go/bin:/usr/bin:/bin"
+ExecStart=/root/go/bin/txsim --blob-sizes 3000000-30000000 --grpc-endpoint localhost:9090 --blob 10 --key-path /root/chainbuilder/generated/celestia-app/testnode-32mb-100k --master validator
+Restart=always
+RestartSec=3
+User=root
+WorkingDirectory=/home/ubuntu
+
+[Install]
+WantedBy=multi-user.target

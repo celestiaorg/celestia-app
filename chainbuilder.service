@@ -1,0 +1,14 @@
+[Unit]
+Description=Generate chain and run
+After=network.target
+
+[Service]
+Type=simple
+Environment="PATH=/usr/local/go/bin:/root/go/bin:/usr/bin:/bin"
+ExecStart=/root/chainbuilder/generated/celestia-app/run.sh
+User=root
+WorkingDirectory=/root/chainbuilder/generated/celestia-app
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

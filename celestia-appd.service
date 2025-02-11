@@ -1,0 +1,15 @@
+[Unit]
+Description=Generate chain and run
+After=network.target
+
+[Service]
+Type=simple
+Environment="PATH=/usr/local/go/bin:/root/go/bin:/usr/bin:/bin"
+ExecStart=/root/go/bin/celestia-appd start  --minimum-gas-prices 0.000001utia --home /root/chainbuilder/generated/celestia-app/testnode-32mb-100k --grpc.enable
+User=root
+Restart=always
+RestartSec=3
+WorkingDirectory=/root/chainbuilder/generated/celestia-app
+
+[Install]
+WantedBy=multi-user.target
