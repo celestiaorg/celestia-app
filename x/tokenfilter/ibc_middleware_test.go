@@ -15,10 +15,10 @@ import (
 )
 
 func TestOnRecvPacket(t *testing.T) {
-	data := transfertypes.NewFungibleTokenPacketData("portid/channelid/utia", math.NewInt(100).String(), "alice", "bob", "gm")
-	packet := channeltypes.NewPacket(data.GetBytes(), 1, "portid", "channelid", "counterpartyportid", "counterpartychannelid", clienttypes.Height{}, 0)
-	packetFromOtherChain := channeltypes.NewPacket(data.GetBytes(), 1, "counterpartyportid", "counterpartychannelid", "portid", "channelid", clienttypes.Height{}, 0)
-	randomPacket := channeltypes.NewPacket([]byte{1, 2, 3, 4}, 1, "portid", "channelid", "counterpartyportid", "counterpartychannelid", clienttypes.Height{}, 0)
+	data := transfertypes.NewFungibleTokenPacketData("transfer/channel-0/utia", math.NewInt(100).String(), "alice", "bob", "gm")
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "transfer", "channel-0", "transfer", "channel-1", clienttypes.Height{}, 10000)
+	packetFromOtherChain := channeltypes.NewPacket(data.GetBytes(), 1, "transfer", "channel-1", "transfer", "channel-0", clienttypes.Height{}, 10000)
+	randomPacket := channeltypes.NewPacket([]byte{1, 2, 3, 4}, 1, "port", "channel-99", "port", "channel-100", clienttypes.Height{}, 10000)
 
 	testCases := []struct {
 		name   string
@@ -51,7 +51,6 @@ func TestOnRecvPacket(t *testing.T) {
 			ctx = ctx.WithEventManager(sdk.NewEventManager())
 			ack := middleware.OnRecvPacket(
 				ctx,
-				transfertypes.V1,
 				tc.packet,
 				[]byte{},
 			)
@@ -144,7 +143,6 @@ func (m *MockIBCModule) OnChanCloseConfirm(
 
 func (m *MockIBCModule) OnRecvPacket(
 	_ sdk.Context,
-	_ string,
 	_ channeltypes.Packet,
 	_ sdk.AccAddress,
 ) exported.Acknowledgement {
@@ -154,7 +152,6 @@ func (m *MockIBCModule) OnRecvPacket(
 
 func (m *MockIBCModule) OnAcknowledgementPacket(
 	_ sdk.Context,
-	_ string,
 	_ channeltypes.Packet,
 	_ []byte,
 	_ sdk.AccAddress,
@@ -165,7 +162,6 @@ func (m *MockIBCModule) OnAcknowledgementPacket(
 
 func (m *MockIBCModule) OnTimeoutPacket(
 	_ sdk.Context,
-	_ string,
 	_ channeltypes.Packet,
 	_ sdk.AccAddress,
 ) error {
