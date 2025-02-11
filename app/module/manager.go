@@ -386,7 +386,7 @@ func (m *Manager) checkUpgradeSchedule() error {
 	return nil
 }
 
-// assertMatchingModules performs a sanity check that the basic module manager
+// AssertMatchingModules performs a sanity check that the basic module manager
 // contains all the same modules present in the module manager
 func (m *Manager) AssertMatchingModules(basicModuleManager sdkmodule.BasicManager) error {
 	for _, module := range m.allModules {
