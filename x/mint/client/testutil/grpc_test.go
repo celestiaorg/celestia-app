@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/cosmos/gogoproto/proto"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"

@@ -24,8 +24,6 @@ type Config struct {
 	AddressCodec          addresscodec.Codec
 	ValidatorAddressCodec addresscodec.Codec
 	ConsensusAddressCodec addresscodec.Codec
-	AddressPrefix         string
-	ValidatorPrefix       string
 }
 
 // MakeConfig returns an encoding config for the app.
@@ -75,7 +73,6 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 		Codec:                 protoCodec,
 		TxConfig:              txConfig,
 		Amino:                 amino,
-		AddressPrefix:         addressPrefix,
 		AddressCodec:          addressCodec,
 		ValidatorAddressCodec: validatorAddressCodec,
 		ConsensusAddressCodec: consensusAddressCodec,

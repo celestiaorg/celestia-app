@@ -13,7 +13,7 @@ import (
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	gogogrpc "github.com/gogo/protobuf/grpc"
+	gogogrpc "github.com/cosmos/gogoproto/grpc"
 )
 
 // EstimationZScore is the z-score corresponding to 10% and 90% of the gas prices distribution.

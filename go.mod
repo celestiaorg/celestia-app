@@ -30,7 +30,6 @@ require (
 	github.com/cosmos/ibc-go/v9 v9.0.2
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/go-kit/log v0.2.1
-	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
@@ -119,6 +118,7 @@ require (
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
@@ -256,6 +256,5 @@ replace (
 
 	// replace PFM with 01Builders fork which uses sdk 50 and ibc-go v9
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v9 => github.com/01builders/ibc-apps/middleware/packet-forward-middleware/v9 v9.0.0-20250207155031-1908080ef804
-	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

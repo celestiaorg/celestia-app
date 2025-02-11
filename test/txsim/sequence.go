@@ -7,7 +7,7 @@ import (
 
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/gogo/protobuf/grpc"
+	"github.com/cosmos/gogoproto/grpc"
 )
 
 // Sequence is the basic unit for programmatic transaction generation.

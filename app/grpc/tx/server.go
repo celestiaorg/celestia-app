@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	gogogrpc "github.com/gogo/protobuf/grpc"
+	gogogrpc "github.com/cosmos/gogoproto/grpc"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -62,12 +63,17 @@ func (s *txServer) TxStatus(ctx context.Context, req *TxStatusRequest) (*TxStatu
 		return nil, err
 	}
 
+	nodeTxStatus, ok := node.(rpcclient.SignClient)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "node does not support tx status")
+	}
+
 	txID, err := hex.DecodeString(req.TxId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tx id: %s", err)
 	}
 
-	resTx, err := node.TxStatus(ctx, txID)
+	resTx, err := nodeTxStatus.TxStatus(ctx, txID)
 	if err != nil {
 		return nil, err
 	}

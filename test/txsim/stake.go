@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/gogo/protobuf/grpc"
+	"github.com/cosmos/gogoproto/grpc"
 )
 
 var _ Sequence = &StakeSequence{}

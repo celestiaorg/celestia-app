@@ -10,7 +10,7 @@ import (
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/gogo/protobuf/grpc"
+	"github.com/cosmos/gogoproto/grpc"
 )
 
 var _ Sequence = &BlobSequence{}

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	tmrand "github.com/cometbft/cometbft/libs/rand"
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
