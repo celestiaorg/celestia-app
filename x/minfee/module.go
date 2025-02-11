@@ -63,7 +63,7 @@ func (a AppModuleBasic) GetTxCmd() *cobra.Command {
 	return &cobra.Command{}
 }
 
-// GetQueryCmd returns the a dummy command.
+// GetQueryCmd returns a dummy command.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 	// Return a dummy command
 	return &cobra.Command{}
