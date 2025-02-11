@@ -13,11 +13,12 @@ import (
 // NewClientProposalHandler defines the 02-client proposal handler. It disables the
 // UpgradeProposalType. Handling of updating the IBC Client will be done in v2 of the
 // app.
+// TODO(review): This can be removed completely in favor of govv1 messaging.
 func NewClientProposalHandler(k keeper.Keeper) govtypes.Handler {
 	return func(ctx sdk.Context, content govtypes.Content) error {
 		switch c := content.(type) {
 		case *types.ClientUpdateProposal:
-			return k.ClientUpdateProposal(ctx, c)
+			return k.RecoverClient(ctx, c.SubjectClientId, c.SubstituteClientId)
 		case *types.UpgradeProposal:
 			return errors.Wrap(sdkerrors.ErrInvalidRequest, "ibc upgrade proposal not supported")
 
