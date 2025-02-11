@@ -19,7 +19,6 @@ import (
 	tmrand "cosmossdk.io/math/unsafe"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -69,16 +68,14 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	height := testApp.LastBlockHeight() + 1
 	blockTime := time.Now()
 
-	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: txs,
-		},
-		ChainId: testutil.ChainID,
-		Height:  height,
-		Time:    blockTime,
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    txs,
+		Height: height,
+		Time:   blockTime,
 	})
-	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
-	for idx, txBytes := range resp.BlockData.Txs {
+	require.NoError(t, err)
+	require.Len(t, resp.Txs, numBlobTxs+numNormalTxs)
+	for idx, txBytes := range resp.Txs {
 		_, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
 		if idx < numNormalTxs {
 			require.False(t, isBlobTx)
@@ -236,17 +233,17 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			height := testApp.LastBlockHeight() + 1
 			blockTime := time.Now()
 
-			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-				BlockData: &tmproto.Data{Txs: tt.txs()},
-				ChainId:   testutil.ChainID,
-				Height:    height,
-				Time:      blockTime,
+			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    tt.txs(),
+				Height: height,
+				Time:   blockTime,
 			})
+			require.NoError(t, err)
 			// check that we have the expected number of transactions
-			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
+			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.Txs))
 			// check that the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
-				require.NotContains(t, resp.BlockData.Txs, ptx)
+				require.NotContains(t, resp.Txs, ptx)
 			}
 		})
 	}
@@ -307,7 +304,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			msgs = append(msgs, msg)
 			blobs = append(blobs, blob)
 		}
-		txBytes, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
+		txBytes, _, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(t, err)
 		blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
 		require.NoError(t, err)
@@ -323,7 +320,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(t, err)
 		msgSendTxs = append(msgSendTxs, rawTx)
 		accountIndex++
@@ -382,14 +379,12 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-				BlockData: &tmproto.Data{
-					Txs: testCase.inputTransactions,
-				},
-				ChainId: testApp.GetChainID(),
-				Height:  10,
+			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    testCase.inputTransactions,
+				Height: 10,
 			})
-			assert.Equal(t, testCase.expectedTransactions, resp.BlockData.Txs)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expectedTransactions, resp.Txs)
 		})
 	}
 }

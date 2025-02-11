@@ -298,7 +298,7 @@ func generateMsgSendTransactions(b *testing.B, count int) (*app.App, [][]byte) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(b, err)
 		rawTxs = append(rawTxs, rawTx)
 		err = signer.IncrementSequence(account)

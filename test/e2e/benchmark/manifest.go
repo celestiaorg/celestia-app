@@ -85,7 +85,7 @@ type Manifest struct {
 }
 
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
-	ecfg := encoding.MakeConfig(app.ModuleBasics)
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	var modifiers []genesis.Modifier
 
 	blobParams := blobtypes.DefaultParams()

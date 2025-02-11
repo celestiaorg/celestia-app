@@ -72,7 +72,7 @@ func newTryUpgradeTx(t *testing.T, signer *user.Signer, senderAddress sdk.AccAdd
 	msg := signaltypes.NewMsgTryUpgrade(senderAddress)
 	options := blobfactory.FeeTxOpts(1e9)
 
-	rawTx, err := signer.CreateTx([]sdk.Msg{msg}, options...)
+	rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, options...)
 	require.NoError(t, err)
 
 	return rawTx
@@ -84,7 +84,7 @@ func newNestedTx(t *testing.T, signer *user.Signer, granterAddress sdk.AccAddres
 
 	options := blobfactory.FeeTxOpts(1e9)
 
-	rawTx, err := signer.CreateTx([]sdk.Msg{&msg}, options...)
+	rawTx, _, err := signer.CreateTx([]sdk.Msg{&msg}, options...)
 	require.NoError(t, err)
 
 	return rawTx

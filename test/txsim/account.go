@@ -204,17 +204,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 				return fmt.Errorf("error validating message: %w", err)
 			}
 		}
-
-		signers := msg.GetSigners()
-		if len(signers) != 1 {
-			return fmt.Errorf("only a single signer is supported got: %d", len(signers))
-		}
-
-		if address == nil {
-			address = signers[0]
-		} else if !address.Equals(signers[0]) {
-			return fmt.Errorf("all messages must be signed by the same account")
-		}
 	}
 
 	// If a delay is set, wait for that many blocks to have been produced

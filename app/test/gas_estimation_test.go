@@ -149,7 +149,7 @@ func TestEstimateGasUsed(t *testing.T) {
 		testnode.RandomAddress().(sdk.AccAddress),
 		sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 	)
-	rawTx, err := txClient.Signer().CreateTx(
+	rawTx, _, err := txClient.Signer().CreateTx(
 		[]sdk.Msg{msg},
 		user.SetGasLimit(0), // set to 0 to mimic txClient behavior
 		user.SetFee(1),

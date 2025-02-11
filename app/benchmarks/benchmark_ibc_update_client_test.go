@@ -274,7 +274,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	require.NoError(b, err)
 	rawTxs := make([][]byte, 0, numberOfMessages)
 	for i := 0; i < numberOfMessages; i++ {
-		rawTx, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(25497600000), user.SetFee(100000))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msgs[i]}, user.SetGasLimit(25497600000), user.SetFee(100000))
 		require.NoError(b, err)
 		rawTxs = append(rawTxs, rawTx)
 		accountSequence++
@@ -386,7 +386,7 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 	for index := 0; index < numberOfMsgs; index++ {
 		createClientMsg, err := types3.NewMsgCreateClient(&clientState, &consensusState, signerAddr)
 		require.NoError(b, err)
-		rawTx, err := signer.CreateTx([]sdk.Msg{createClientMsg}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{createClientMsg}, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(b, err)
 		resp := app.DeliverTx(types.RequestDeliverTx{Tx: rawTx})
 		var clientName string

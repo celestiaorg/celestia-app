@@ -304,7 +304,7 @@ func TestProcessProposal(t *testing.T) {
 				require.NoError(t, err)
 				msg.Signer = addr.String()
 
-				rawTx, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(100000))
+				rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(100000), user.SetFee(100000))
 				require.NoError(t, err)
 
 				blobTxBytes, err := tx.MarshalBlobTx(rawTx, blob)

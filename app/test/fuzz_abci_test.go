@@ -124,20 +124,20 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					blockTime := time.Now()
 					height := testApp.LastBlockHeight() + 1
 
-					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+					resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
 						BlockData: &core.Data{
 							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 						},
-						ChainId: testutil.ChainID,
-						Time:    blockTime,
-						Height:  height,
+						Time:   blockTime,
+						Height: height,
 					})
+					require.NoError(t, err)
 
 					// check that the square size is smaller than or equal to
 					// the specified size
 					require.LessOrEqual(t, resp.BlockData.SquareSize, uint64(size.govMaxSquareSize))
 
-					res := testApp.ProcessProposal(abci.RequestProcessProposal{
+					res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
 						BlockData: resp.BlockData,
 						Header: core.Header{
 							DataHash: resp.BlockData.Hash,
@@ -152,7 +152,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// should make it into the block. This should be expected to
 					// change if PFB transactions are not separated and put into
 					// their own namespace
-					require.GreaterOrEqual(t, len(resp.BlockData.Txs), sendTxCount+1)
+					require.GreaterOrEqual(t, len(resp.Txs), sendTxCount+1)
 				}
 			})
 		}

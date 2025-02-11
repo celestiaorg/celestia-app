@@ -22,7 +22,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -30,10 +29,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	crisisTypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -99,7 +96,7 @@ func TestConsistentAppHash(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			testApp := testutil.NewTestApp()
-			enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			enc := encoding.MakeConfig()
 			// Create deterministic keys
 			kr, pubKeys := deterministicKeyRing(enc.Codec)
 			consensusParams := app.DefaultConsensusParams()
@@ -196,10 +193,6 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgGrant)
 
-	// MsgVerifyInvariant - verifies the nonnegative-outstanding invariant within the bank module for the account-0
-	msgVerifyInvariant := crisisTypes.NewMsgVerifyInvariant(accountAddresses[0], banktypes.ModuleName, "nonnegative-outstanding")
-	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgVerifyInvariant)
-
 	// MsgGrantAllowance - creates a grant allowance for account-1
 	basicAllowance := feegrant.BasicAllowance{
 		SpendLimit: sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(1000))),
@@ -215,7 +208,7 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 		ToAddress:   accountAddresses[1].String(),
 		Amount:      amount,
 	}
-	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&msgSend}, amount, accountAddresses[0].String(), "", "title", "summary", false)
+	proposal, err := govtypes.NewMsgSubmitProposal([]sdk.Msg{&msgSend}, amount, accountAddresses[0].String(), "metadata", "title", "summary", false)
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, proposal)
 
@@ -224,21 +217,21 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgDeposit)
 
 	// NewMsgCreateValidator - creates a new validator
-	msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[6]),
+	msgCreateValidator, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(accountAddresses[6]).String(),
 		ed25519.GenPrivKeyFromSecret([]byte("validator")).PubKey(),
 		amount[0],
 		stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
 		stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(6, 0o2), math.LegacyNewDecWithPrec(12, 0o2), math.LegacyNewDecWithPrec(1, 0o2)),
-		sdk.OneInt())
+		math.OneInt())
 	require.NoError(t, err)
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgCreateValidator)
 
 	// NewMsgDelegate - delegates funds to validator-0
-	msgDelegate := stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
+	msgDelegate := stakingtypes.NewMsgDelegate(accountAddresses[0].String(), genValidators[0].GetOperator(), amount[0])
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgDelegate)
 
 	// NewMsgBeginRedelegate - re-delegates funds from validator-0 to validator-1
-	msgBeginRedelegate := stakingtypes.NewMsgBeginRedelegate(accountAddresses[0], genValidators[0].GetOperator(), genValidators[1].GetOperator(), amount[0])
+	msgBeginRedelegate := stakingtypes.NewMsgBeginRedelegate(accountAddresses[0].String(), genValidators[0].GetOperator(), genValidators[1].GetOperator(), amount[0])
 	firstBlockSdkMsgs = append(firstBlockSdkMsgs, msgBeginRedelegate)
 
 	// ------------ Second Block ------------
@@ -270,21 +263,21 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgVoteWeighted)
 
 	// NewMsgEditValidator - edits the newly created validator's description
-	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[6]), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &twoInt)
+	msgEditValidator := stakingtypes.NewMsgEditValidator(sdk.ValAddress(accountAddresses[6]).String(), stakingtypes.NewDescription("add", "new", "val", "desc", "."), nil, &twoInt)
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgEditValidator)
 
 	// NewMsgUndelegate - undelegates funds from validator-1
-	msgUndelegate := stakingtypes.NewMsgUndelegate(accountAddresses[0], genValidators[1].GetOperator(), amount[0])
+	msgUndelegate := stakingtypes.NewMsgUndelegate(accountAddresses[0].String(), genValidators[1].GetOperator(), amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgUndelegate)
 
 	// NewMsgDelegate - delegates funds to validator-0
-	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0], genValidators[0].GetOperator(), amount[0])
+	msgDelegate = stakingtypes.NewMsgDelegate(accountAddresses[0].String(), genValidators[0].GetOperator(), amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgDelegate)
 
 	// Block 2 height
 	blockHeight := testApp.LastBlockHeight() + 2
 	// NewMsgCancelUnbondingDelegation - cancels unbonding delegation from validator-1
-	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0], genValidators[1].GetOperator(), blockHeight, amount[0])
+	msgCancelUnbondingDelegation := stakingtypes.NewMsgCancelUnbondingDelegation(accountAddresses[0].String(), genValidators[1].GetOperator(), blockHeight, amount[0])
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCancelUnbondingDelegation)
 
 	// NewMsgSetWithdrawAddress - sets the withdraw address for account-0
@@ -296,33 +289,12 @@ func encodedSdkMessagesV1(t *testing.T, accountAddresses []sdk.AccAddress, genVa
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, &msgRevokeAllowance)
 
 	// NewMsgFundCommunityPool - funds the community pool
-	msgFundCommunityPool := distribution.NewMsgFundCommunityPool(amount, accountAddresses[0])
+	msgFundCommunityPool := distribution.NewMsgFundCommunityPool(amount, accountAddresses[0].String())
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgFundCommunityPool)
 
 	// NewMsgWithdrawDelegatorReward - withdraws delegator rewards
-	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0], genValidators[0].GetOperator())
+	msgWithdrawDelegatorReward := distribution.NewMsgWithdrawDelegatorReward(accountAddresses[0].String(), genValidators[0].GetOperator())
 	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgWithdrawDelegatorReward)
-
-	// NewMsgCreatePeriodicVestingAccount - creates a periodic vesting account
-	newAddress := sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress")).PubKey().Address())
-	vestingPeriod := []vestingtypes.Period{
-		{
-			Length: 3600,
-			Amount: amount,
-		},
-	}
-	msgCreatePeriodicVestingAccount := vestingtypes.NewMsgCreatePeriodicVestingAccount(accountAddresses[3], newAddress, 2, vestingPeriod)
-	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePeriodicVestingAccount)
-
-	// NewMsgCreatePermanentLockedAccount - creates a permanent locked account
-	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress2")).PubKey().Address())
-	msgCreatePermanentLockedAccount := vestingtypes.NewMsgCreatePermanentLockedAccount(accountAddresses[3], newAddress, amount)
-	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreatePermanentLockedAccount)
-
-	// NewMsgCreateVestingAccount - creates a vesting account
-	newAddress = sdk.AccAddress(ed25519.GenPrivKeyFromSecret([]byte("anotherAddress3")).PubKey().Address())
-	msgCreateVestingAccount := vestingtypes.NewMsgCreateVestingAccount(accountAddresses[3], newAddress, amount, 1, 2, false)
-	secondBlockSdkMsgs = append(secondBlockSdkMsgs, msgCreateVestingAccount)
 
 	// ------------ Third Block ------------
 
@@ -424,13 +396,17 @@ func deterministicKeyRing(cdc codec.Codec) (keyring.Keyring, []types.PubKey) {
 func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, error) {
 	encodedTxs := make([][]byte, 0, len(sdkMessages))
 	for _, msg := range sdkMessages {
-		encodedTx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
+		encodedTx, tx, err := signer.CreateTx([]sdk.Msg{msg}, DefaultTxOpts()...)
 		if err != nil {
 			return nil, err
 		}
 
-		signerAddress := msg.GetSigners()[0]
-		signerAccount := signer.AccountByAddress(signerAddress)
+		signers, err := tx.GetSigners()
+		if err != nil {
+			return nil, err
+		}
+
+		signerAccount := signer.AccountByAddress(signers[0])
 		err = signer.SetSequence(signerAccount.Name(), signerAccount.Sequence()+1)
 		if err != nil {
 			return nil, err
@@ -444,95 +420,100 @@ func processSdkMessages(signer *user.Signer, sdkMessages []sdk.Msg) ([][]byte, e
 // executeTxs executes a set of transactions and returns the data hash and app hash
 func executeTxs(testApp *app.App, encodedBlobTx []byte, encodedSdkTxs [][]byte, validators []abci.Validator, lastCommitHash []byte) ([]byte, []byte, error) {
 	height := testApp.LastBlockHeight() + 1
-	chainID := testApp.GetChainID()
 
 	genesisTime := testutil.GenesisTime
 
 	// Prepare Proposal
-	resPrepareProposal := testApp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: encodedSdkTxs,
-		},
-		ChainId: chainID,
-		Height:  height,
+	resPrepareProposal, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    encodedSdkTxs,
+		Height: height,
 		// Dynamically increase time so the validator can be unjailed (1m duration)
 		Time: genesisTime.Add(time.Duration(height) * time.Minute),
 	})
-	if len(resPrepareProposal.BlockData.Txs) != len(encodedSdkTxs) {
-		return nil, nil, fmt.Errorf("PrepareProposal removed transactions. Was %d, now %d", len(encodedSdkTxs), len(resPrepareProposal.BlockData.Txs))
+	if err != nil {
+		return nil, nil, fmt.Errorf("PrepareProposal failed: %w", err)
 	}
 
-	dataHash := resPrepareProposal.BlockData.Hash
-
-	header := tmproto.Header{
-		Version:        version.Consensus{App: testApp.AppVersion()},
-		DataHash:       resPrepareProposal.BlockData.Hash,
-		ChainID:        chainID,
-		Time:           genesisTime.Add(time.Duration(height) * time.Minute),
-		Height:         height,
-		LastCommitHash: lastCommitHash,
+	if len(resPrepareProposal.Txs) != len(encodedSdkTxs) {
+		return nil, nil, fmt.Errorf("PrepareProposal removed transactions. Was %d, now %d", len(encodedSdkTxs), len(resPrepareProposal.Txs))
 	}
+
+	dataHash := resPrepareProposal.DataRootHash
 
 	// Process Proposal
-	resProcessProposal := testApp.ProcessProposal(abci.RequestProcessProposal{
-		BlockData: resPrepareProposal.BlockData,
-		Header:    header,
+
+	resProcessProposal, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Time:         genesisTime.Add(time.Duration(height) * time.Minute),
+		Height:       height,
+		DataRootHash: dataHash,
+		Txs:          resPrepareProposal.Txs,
+		SquareSize:   resPrepareProposal.SquareSize,
 	},
 	)
-	if abci.ResponseProcessProposal_ACCEPT != resProcessProposal.Result {
-		return nil, nil, fmt.Errorf("ProcessProposal failed: %v", resProcessProposal.Result)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ProcessProposal failed: %w", err)
 	}
 
-	// Begin block
-	validator3Signed := height == 2 // Validator 3 signs only the first block
-	testApp.BeginBlock(abci.RequestBeginBlock{
-		Header: header,
-		LastCommitInfo: abci.LastCommitInfo{
-			Votes: []abci.VoteInfo{
-				// In order to withdraw commission for this validator
-				{
-					Validator:       validators[0],
-					SignedLastBlock: true,
-				},
-				// In order to jail this validator
-				{
-					Validator:       validators[3],
-					SignedLastBlock: validator3Signed,
-				},
-			},
-		},
-	})
+	if abci.ResponseProcessProposal_ACCEPT != resProcessProposal.Status {
+		return nil, nil, fmt.Errorf("ProcessProposal failed: %v", resProcessProposal.Status)
+	}
 
-	// Deliver SDK Txs
-	for i, tx := range encodedSdkTxs {
-		resp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: tx})
-		if resp.Code != abci.CodeTypeOK {
-			return nil, nil, fmt.Errorf("DeliverTx failed for the message at index %d: %s", i, resp.Log)
+	// process block
+	var validator3Signed = func() tmproto.BlockIDFlag {
+		if height == 2 {
+			return tmproto.BlockIDFlagCommit
 		}
+		return tmproto.BlockIDFlagAbsent
 	}
 
-	// Deliver Blob Txs
+	blobTxs := make([]byte, 0)
 	if len(encodedBlobTx) != 0 {
-		// Deliver Blob Tx
 		blob, isBlobTx, err := tx.UnmarshalBlobTx(encodedBlobTx)
 		if !isBlobTx {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx")
 		}
+
 		if err != nil {
 			return nil, nil, fmt.Errorf("Not a valid BlobTx: %w", err)
 		}
 
-		respDeliverTx := testApp.DeliverTx(abci.RequestDeliverTx{Tx: blob.Tx})
-		if respDeliverTx.Code != uint32(0) {
-			return nil, nil, fmt.Errorf("DeliverTx failed for the BlobTx: %s", respDeliverTx.Log)
+		blobTxs = blob.Tx
+	}
+
+	// Validator 3 signs only the first block
+	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: height,
+		DecidedLastCommit: abci.CommitInfo{
+			Votes: []abci.VoteInfo{
+				// In order to withdraw commission for this validator
+				{
+					Validator:   validators[0],
+					BlockIdFlag: tmproto.BlockIDFlagCommit,
+				},
+				// In order to jail this validator
+				{
+					Validator:   validators[3],
+					BlockIdFlag: validator3Signed(),
+				},
+			},
+		},
+		Txs: append(encodedSdkTxs, blobTxs),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("FinalizeBlock failed: %w", err)
+	}
+
+	for i, resp := range resp.TxResults {
+		if resp.Code != uint32(0) {
+			return nil, nil, fmt.Errorf("DeliverTx failed for the message at index %d: %s", i, resp.Log)
 		}
 	}
 
-	// EndBlock
-	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
-
 	// Commit the state
-	testApp.Commit()
+	_, err = testApp.Commit()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Commit failed: %w", err)
+	}
 
 	// Get the app hash
 	appHash := testApp.LastCommitID().Hash

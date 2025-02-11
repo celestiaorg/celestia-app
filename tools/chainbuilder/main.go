@@ -127,7 +127,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
-	encCfg := encoding.MakeConfig(app.ModuleBasics)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	tmCfg := app.DefaultConsensusConfig()
 	var (
 		gen *genesis.Genesis
@@ -537,7 +537,11 @@ func persistDataRoutine(
 			if !ok {
 				return nil
 			}
-			blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
+			blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
+			if err != nil {
+				return err
+			}
+
 			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
 			if blockStore.Height()%100 == 0 {
 				fmt.Println("Reached height", blockStore.Height())
