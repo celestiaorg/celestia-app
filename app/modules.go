@@ -161,6 +161,7 @@ func (app *App) setModuleOrder() {
 		signaltypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
+		upgradetypes.ModuleName,
 	)
 }
 
