@@ -394,7 +394,6 @@ func New(
 	// order begin block, end block and init genesis
 	app.setModuleOrder()
 
-	// TODO(CEL-27): Determine solution for custom abci query requests
 	app.CustomQueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
 	app.CustomQueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
