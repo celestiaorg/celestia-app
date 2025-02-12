@@ -223,6 +223,13 @@ func New(
 	app.ConsensusKeeper = consensuskeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[consensustypes.StoreKey]), govModuleAddr, runtime.EventService{})
 	baseApp.SetParamStore(app.ConsensusKeeper.ParamsStore)
 
+	// add capability keeper and ScopeToModule for ibc module
+	app.CapabilityKeeper = capabilitykeeper.NewKeeper(encodingConfig.Codec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
+
+	app.ScopedIBCKeeper = app.CapabilityKeeper.ScopeToModule(ibcexported.ModuleName)
+	app.ScopedTransferKeeper = app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
+	app.ScopedICAHostKeeper = app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
+
 	app.AccountKeeper = authkeeper.NewAccountKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[authtypes.StoreKey]), authtypes.ProtoBaseAccount, maccPerms, encodingConfig.AddressCodec, encodingConfig.AddressPrefix, govModuleAddr)
 
 	app.BankKeeper = bankkeeper.NewBaseKeeper(
@@ -334,7 +341,7 @@ func New(
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
-		0, // retries on timeout
+		0,                                                                // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
 
