@@ -100,7 +100,7 @@ func TestProcessProposal(t *testing.T) {
 		input          *tmproto.Data
 		mutator        func(*tmproto.Data)
 		appVersion     uint64
-		expectedResult abci.ResponseProcessProposal_Result
+		expectedResult abci.ResponseProcessProposal_ProposalStatus
 	}
 
 	tests := []test{
@@ -172,7 +172,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = [][]byte{blobTx}
 
 				// Erasure code the data to update the data root so this doesn't fail on an incorrect data root.
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -203,7 +203,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
 				// Update the data hash so that the test doesn't fail due to an incorrect data root.
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     v1.Version,
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
@@ -214,7 +214,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
 				// Update the data hash so that the test doesn't fail due to an incorrect data root.
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     v2.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -234,7 +234,7 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, badSigBlobTx)
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -244,7 +244,7 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -272,7 +272,7 @@ func TestProcessProposal(t *testing.T) {
 				require.NoError(t, err)
 				// replace the hash of the prepare proposal response with the hash of a data
 				// square with a tampered sequence start indicator
-				d.Hash = dah.Hash()
+				d.DataRootHash = dah.Hash()
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -287,7 +287,7 @@ func TestProcessProposal(t *testing.T) {
 				rawTx, _, err := signer.CreatePayForBlobs(accounts[0], []*share.Blob{blob}, user.SetGasLimit(100000), user.SetFee(100000))
 				require.NoError(t, err)
 				d.Txs[0] = rawTx
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
@@ -310,7 +310,7 @@ func TestProcessProposal(t *testing.T) {
 				blobTxBytes, err := tx.MarshalBlobTx(rawTx, blob)
 				require.NoError(t, err)
 				d.Txs[0] = blobTxBytes
-				d.Hash = calculateNewDataHash(t, d.Txs)
+				d.DataRootHash = calculateNewDataHash(t, d.Txs)
 			},
 			appVersion:     appconsts.LatestVersion,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -335,15 +335,17 @@ func TestProcessProposal(t *testing.T) {
 			height := testApp.LastBlockHeight() + 1
 			blockTime := time.Now()
 
-			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
 				BlockData: tt.input,
 				ChainId:   testutil.ChainID,
 				Height:    height,
 				Time:      blockTime,
 			})
-			require.Equal(t, len(tt.input.Txs), len(resp.BlockData.Txs))
+			require.NoError(t, err)
+
+			require.Equal(t, len(tt.input.Txs), len(resp.Txs))
 			tt.mutator(resp.BlockData)
-			res := testApp.ProcessProposal(abci.RequestProcessProposal{
+			res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
 				BlockData: resp.BlockData,
 				Header: tmproto.Header{
 					Height:   1,
@@ -354,6 +356,7 @@ func TestProcessProposal(t *testing.T) {
 					},
 				},
 			})
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
 		})
 	}

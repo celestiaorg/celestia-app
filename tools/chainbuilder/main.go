@@ -16,7 +16,6 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/privval"
-	smproto "github.com/cometbft/cometbft/proto/tendermint/state"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/store"
@@ -299,7 +298,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		errCh     = make(chan error, 2)
 		dataCh    = make(chan *tmproto.Data, 100)
 		persistCh = make(chan persistData, 100)
-		commit    = types.NewCommit(0, 0, types.BlockID{}, nil)
+		commit    = &types.Commit{}
 	)
 	if lastHeight > 0 {
 		commit = blockStore.LoadSeenCommit(lastHeight)
@@ -332,7 +331,12 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			if err != nil {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
 			}
-			block, blockParts := state.MakeBlock(height, data, commit, nil, validatorAddr)
+
+			block := state.MakeBlock(height, data.Txs, commit, nil, validatorAddr)
+			blockParts, err := block.MakePartSet(types.BlockPartSizeBytes)
+			if err != nil {
+				return fmt.Errorf("failed to make block part set: %w", err)
+			}
 			blockID := types.BlockID{
 				Hash:          block.Hash(),
 				PartSetHeader: blockParts.Header(),
@@ -358,11 +362,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				Timestamp:        currentTime,
 				Signature:        precommitVote.Signature,
 			}
-			commit = types.NewCommit(height, 0, blockID, []types.CommitSig{commitSig})
+			commit = &types.Commit{BlockID: blockID, Signatures: []types.CommitSig{commitSig}}
 
-			var lastCommitInfo abci.LastCommitInfo
+			var lastCommitInfo abci.CommitInfo
 			if height > 1 {
-				lastCommitInfo = abci.LastCommitInfo{
+				lastCommitInfo = abci.CommitInfo{
 					Round: 0,
 					Votes: []abci.VoteInfo{
 						{
@@ -370,51 +374,50 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 								Address: validatorAddr,
 								Power:   validatorPower,
 							},
-							SignedLastBlock: true,
+							BlockIdFlag: tmproto.BlockIDFlagCommit,
 						},
 					},
 				}
 			}
 
-			beginBlockResp := simApp.BeginBlock(abci.RequestBeginBlock{
-				Hash:           block.Hash(),
-				Header:         *block.Header.ToProto(),
-				LastCommitInfo: lastCommitInfo,
-			})
-
-			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
-
+			txs := make([][]byte, len(block.Data.Txs))
 			for idx, tx := range block.Data.Txs {
 				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
 				if isBlobTx {
 					tx = blobTx.Tx
 				}
-				deliverTxResponse := simApp.DeliverTx(abci.RequestDeliverTx{
-					Tx: tx,
-				})
-				if deliverTxResponse.Code != abci.CodeTypeOK {
-					return fmt.Errorf("failed to deliver tx: %s", deliverTxResponse.Log)
-				}
-				deliverTxResponses[idx] = &deliverTxResponse
+				txs[idx] = tx
 			}
 
-			endBlockResp := simApp.EndBlock(abci.RequestEndBlock{
-				Height: block.Height,
+			resp, err := simApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+				Height:            block.Height,
+				Hash:              block.Hash(),
+				DecidedLastCommit: lastCommitInfo,
+				Txs:               txs,
 			})
+			if err != nil {
+				return fmt.Errorf("failed to finalize block: %w", err)
+			}
 
-			commitResp := simApp.Commit()
+			for _, tx := range resp.TxResults {
+				if tx.Code != abci.CodeTypeOK {
+					return fmt.Errorf("failed to deliver tx: %s", tx.Log)
+				}
+			}
+
+			_, err = simApp.Commit()
+			if err != nil {
+				return fmt.Errorf("failed to commit block: %w", err)
+			}
+
 			state.LastBlockHeight = height
 			state.LastBlockID = blockID
 			state.LastBlockTime = block.Time
 			state.LastValidators = state.Validators
 			state.Validators = state.NextValidators
 			state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
-			state.AppHash = commitResp.Data
-			state.LastResultsHash = sm.ABCIResponsesResultsHash(&smproto.ABCIResponses{
-				DeliverTxs: deliverTxResponses,
-				BeginBlock: &beginBlockResp,
-				EndBlock:   &endBlockResp,
-			})
+			state.AppHash = resp.AppHash
+			state.LastResultsHash = sm.TxResultsHash(resp.TxResults)
 			currentTime = currentTime.Add(cfg.BlockInterval)
 			persistCh <- persistData{
 				state: state.Copy(),
@@ -506,9 +509,9 @@ func generateSquareRoutine(
 
 		select {
 		case dataCh <- &tmproto.Data{
-			Txs:        txs,
-			Hash:       dah.Hash(),
-			SquareSize: uint64(dataSquare.Size()),
+			Txs:          txs,
+			DataRootHash: dah.Hash(),
+			SquareSize:   uint64(dataSquare.Size()),
 		}:
 		case <-ctx.Done():
 			return ctx.Err()
@@ -539,7 +542,7 @@ func persistDataRoutine(
 			}
 			blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to make block part set: %w", err)
 			}
 
 			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)

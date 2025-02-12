@@ -8,28 +8,25 @@ import (
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/cosmos/cosmos-sdk/client"
-
-	"github.com/stretchr/testify/suite"
-
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
-
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -56,7 +53,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	s.ecfg = encoding.MakeConfig()
 
 	require.NoError(t, cctx.WaitForNextBlock())
 
@@ -249,7 +246,9 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.NoError(t, err)
 
 		// verify the blob shares proof
-		blobProof, err := node.ProveShares(
+		rpcNode, ok := node.(rpcclient.SignClient)
+		require.True(t, ok)
+		blobProof, err := rpcNode.ProveShares(
 			context.Background(),
 			uint64(txResp.Height),
 			uint64(shareRange.Start),

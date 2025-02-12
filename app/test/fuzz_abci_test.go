@@ -12,8 +12,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
-	core "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +26,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
 	}
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encConf := encoding.MakeConfig()
 	accounts := make([]string, 1100) // 1000 for creating blob txs, 100 for creating send txs
 	for i := range accounts {
 		accounts[i] = tmrand.Str(20)
@@ -125,9 +123,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					height := testApp.LastBlockHeight() + 1
 
 					resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
-						BlockData: &core.Data{
-							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
-						},
+						Txs:    coretypes.Txs(txs).ToSliceOfBytes(),
 						Time:   blockTime,
 						Height: height,
 					})
@@ -135,19 +131,18 @@ func TestPrepareProposalConsistency(t *testing.T) {
 
 					// check that the square size is smaller than or equal to
 					// the specified size
-					require.LessOrEqual(t, resp.BlockData.SquareSize, uint64(size.govMaxSquareSize))
+					require.LessOrEqual(t, resp.SquareSize, uint64(size.govMaxSquareSize))
 
 					res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-						BlockData: resp.BlockData,
-						Header: core.Header{
-							DataHash: resp.BlockData.Hash,
-							ChainID:  testutil.ChainID,
-							Version:  version.Consensus{App: appconsts.LatestVersion},
-							Height:   height,
-						},
+						Height:       height,
+						DataRootHash: resp.DataRootHash,
+						SquareSize:   resp.SquareSize,
+						Txs:          resp.Txs,
 					},
 					)
-					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
+					require.NoError(t, err)
+
+					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status)
 					// At least all of the send transactions and one blob tx
 					// should make it into the block. This should be expected to
 					// change if PFB transactions are not separated and put into
