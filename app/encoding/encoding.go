@@ -21,6 +21,7 @@ type Config struct {
 	Codec                 codec.Codec
 	TxConfig              client.TxConfig
 	Amino                 *codec.LegacyAmino
+	AddressPrefix         string
 	AddressCodec          addresscodec.Codec
 	ValidatorAddressCodec addresscodec.Codec
 	ConsensusAddressCodec addresscodec.Codec
@@ -73,6 +74,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 		Codec:                 protoCodec,
 		TxConfig:              txConfig,
 		Amino:                 amino,
+		AddressPrefix:         addressPrefix,
 		AddressCodec:          addressCodec,
 		ValidatorAddressCodec: validatorAddressCodec,
 		ConsensusAddressCodec: consensusAddressCodec,

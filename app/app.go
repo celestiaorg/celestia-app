@@ -223,7 +223,7 @@ func New(
 	app.ConsensusKeeper = consensuskeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[consensustypes.StoreKey]), govModuleAddr, runtime.EventService{})
 	baseApp.SetParamStore(app.ConsensusKeeper.ParamsStore)
 
-	app.AccountKeeper = authkeeper.NewAccountKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[authtypes.StoreKey]), authtypes.ProtoBaseAccount, maccPerms, authcodec.NewBech32Codec(sdk.Bech32MainPrefix), sdk.Bech32MainPrefix, govModuleAddr)
+	app.AccountKeeper = authkeeper.NewAccountKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[authtypes.StoreKey]), authtypes.ProtoBaseAccount, maccPerms, encodingConfig.AddressCodec, encodingConfig.AddressPrefix, govModuleAddr)
 
 	app.BankKeeper = bankkeeper.NewBaseKeeper(
 		encodingConfig.Codec,
@@ -237,7 +237,7 @@ func New(
 	app.AuthzKeeper = authzkeeper.NewKeeper(runtime.NewKVStoreService(keys[authzkeeper.StoreKey]), encodingConfig.Codec, app.MsgServiceRouter(), app.AccountKeeper)
 
 	app.StakingKeeper = stakingkeeper.NewKeeper(
-		encodingConfig.Codec, runtime.NewKVStoreService(keys[stakingtypes.StoreKey]), app.AccountKeeper, app.BankKeeper, govModuleAddr, authcodec.NewBech32Codec(sdk.Bech32PrefixValAddr), authcodec.NewBech32Codec(sdk.Bech32PrefixConsAddr),
+		encodingConfig.Codec, runtime.NewKVStoreService(keys[stakingtypes.StoreKey]), app.AccountKeeper, app.BankKeeper, govModuleAddr, encodingConfig.ValidatorAddressCodec, encodingConfig.ConsensusAddressCodec,
 	)
 
 	app.MintKeeper = mintkeeper.NewKeeper(encodingConfig.Codec, keys[minttypes.StoreKey], app.StakingKeeper, app.AccountKeeper, app.BankKeeper, authtypes.FeeCollectorName)
