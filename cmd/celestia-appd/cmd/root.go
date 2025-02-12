@@ -41,7 +41,7 @@ const (
 // NewRootCmd creates a new root command for celestia-appd.
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
-	// note, this is not necessary when using app wiring, as depinject can be directly used (see root_v2.go)
+	// note, this is not necessary when using app wiring, as depinject can be directly used.
 	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 	encodingConfig := tempApp.GetEncodingConfig()
 
