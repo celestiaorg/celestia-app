@@ -14,7 +14,34 @@ comparing the data root found in the header.
 
 ## Blob Inclusion
 
-TODO
+Blob inclusion fraud proofs allow light clients to verify that Pay-for-Blob (PFB) transactions in a block correctly correspond to their associated blobs. These proofs consist of two main components:
+
+1. A PFB transaction inclusion proof that demonstrates the PFB transaction exists in the block
+2. A blob inclusion proof that verifies the blob data matches the commitment in the PFB transaction
+
+The fraud proof mechanism works as follows:
+
+1. The PFB inclusion proof contains:
+   - The shares containing the PFB transaction
+   - NMT proofs showing these shares exist in their respective row roots
+   - Merkle proofs showing the row roots exist in the block's data root
+
+2. The blob inclusion proof contains:
+   - The subtree roots of the blob data
+   - Merkle proofs showing these subtree roots exist in the correct position specified by the PFB
+
+If a validator includes a PFB transaction but the corresponding blob data either doesn't exist or doesn't match the commitment, a fraud proof can be constructed to prove this violation. This allows light clients to detect and reject blocks containing invalid blob commitments without having to download the entire blob data.
+
+The fraud proof verification process:
+1. Verifies the PFB transaction inclusion and extracts:
+   - The blob's starting index
+   - The blob's length
+   - The blob's commitment
+2. Verifies the blob inclusion proof using the extracted information
+3. Calculates the commitment over the proven blob data
+4. Compares the calculated commitment with the one in the PFB transaction
+
+If the commitments don't match, the fraud proof is valid and indicates the block is invalid. This mechanism ensures that validators cannot include PFB transactions without their corresponding valid blob data.
 
 ## State
 
