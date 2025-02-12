@@ -224,6 +224,7 @@ func New(
 	// only consensus keeper is global scope
 	app.ConsensusKeeper = consensuskeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[consensustypes.StoreKey]), govModuleAddr, runtime.EventService{})
 	baseApp.SetParamStore(app.ConsensusKeeper.ParamsStore)
+	baseApp.SetVersionModifier(consensus.ProvideAppVersionModifier(app.ConsensusKeeper))
 
 	// add capability keeper and ScopeToModule for ibc module
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(encodingConfig.Codec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
@@ -427,6 +428,7 @@ func New(
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
 	app.MountKVStores(app.keys) // TODO: this was using previously baseKeys, but we want to start from a v4 app
+	app.MountMemoryStores(app.memKeys)
 	app.MountTransientStores(tkeys)
 
 	app.SetInitChainer(app.InitChainer)
