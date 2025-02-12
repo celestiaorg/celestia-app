@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	// "github.com/cometbft/cometbft/pkg/trace"
+	"github.com/cometbft/cometbft/libs/trace"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
@@ -100,27 +100,27 @@ func (b *BenchmarkTest) SetupNodes() error {
 		testnet.WithMempoolMaxTxsBytes(1*testnet.GiB),
 		testnet.WithMempoolMaxTxBytes(8*testnet.MiB),
 	))
-	// TODOv4: pending trace implementation in cometbft fork
-	// if b.manifest.PushTrace {
-	// 	log.Println("reading trace push config")
-	// 	if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
-	// 		log.Print("Setting up trace push config")
-	// 		envVars := map[string]string{
-	// 			trace.PushBucketName: pushConfig.BucketName,
-	// 			trace.PushRegion:     pushConfig.Region,
-	// 			trace.PushAccessKey:  pushConfig.AccessKey,
-	// 			trace.PushKey:        pushConfig.SecretKey,
-	// 			trace.PushDelay:      fmt.Sprintf("%d", pushConfig.PushDelay),
-	// 		}
-	// 		for _, node := range b.Nodes() {
-	// 			for key, value := range envVars {
-	// 				if err = node.Instance.Build().SetEnvironmentVariable(key, value); err != nil {
-	// 					return fmt.Errorf("failed to set %s: %v", key, err)
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
+
+	if b.manifest.PushTrace {
+		log.Println("reading trace push config")
+		if pushConfig, err := trace.GetPushConfigFromEnv(); err == nil {
+			log.Print("Setting up trace push config")
+			envVars := map[string]string{
+				trace.PushBucketName: pushConfig.BucketName,
+				trace.PushRegion:     pushConfig.Region,
+				trace.PushAccessKey:  pushConfig.AccessKey,
+				trace.PushKey:        pushConfig.SecretKey,
+				trace.PushDelay:      fmt.Sprintf("%d", pushConfig.PushDelay),
+			}
+			for _, node := range b.Nodes() {
+				for key, value := range envVars {
+					if err = node.Instance.Build().SetEnvironmentVariable(key, value); err != nil {
+						return fmt.Errorf("failed to set %s: %v", key, err)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -176,20 +176,19 @@ func (b *BenchmarkTest) CheckResults(expectedBlockSizeBytes int64) error {
 		}
 	}
 
-	// TODOv4: pending trace implementation in cometbft fork
 	// download traces from S3, if enabled
-	// if b.manifest.PushTrace && b.manifest.DownloadTraces {
-	// 	// download traces from S3
-	// 	pushConfig, err := trace.GetPushConfigFromEnv()
-	// 	if err != nil {
-	// 		return fmt.Errorf("failed to get push config: %w", err)
-	// 	}
-	// 	err = trace.S3Download("./traces/", b.manifest.ChainID,
-	// 		pushConfig)
-	// 	if err != nil {
-	// 		return fmt.Errorf("failed to download traces from S3: %w", err)
-	// 	}
-	// }
+	if b.manifest.PushTrace && b.manifest.DownloadTraces {
+		// download traces from S3
+		pushConfig, err := trace.GetPushConfigFromEnv()
+		if err != nil {
+			return fmt.Errorf("failed to get push config: %w", err)
+		}
+		err = trace.S3Download("./traces/", b.manifest.ChainID,
+			pushConfig)
+		if err != nil {
+			return fmt.Errorf("failed to download traces from S3: %w", err)
+		}
+	}
 
 	log.Println("Reading blockchain headers")
 	blockchain, err := testnode.ReadBlockchainHeaders(context.Background(),

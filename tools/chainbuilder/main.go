@@ -235,11 +235,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		}
 		validatorSet := types.NewValidatorSet(validators)
 		nextVals := types.TM2PB.ValidatorUpdates(validatorSet)
-		csParams := types.TM2PB.ConsensusParams(genDoc.ConsensusParams)
+		cparams := genDoc.ConsensusParams.ToProto()
 		res, err := simApp.InitChain(&abci.RequestInitChain{
 			ChainId:         genDoc.ChainID,
 			Time:            genDoc.GenesisTime,
-			ConsensusParams: csParams,
+			ConsensusParams: &cparams,
 			Validators:      nextVals,
 			AppStateBytes:   genDoc.AppState,
 			InitialHeight:   genDoc.InitialHeight,
@@ -332,7 +332,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
 			}
 
-			block := state.MakeBlock(height, data.Txs, commit, nil, validatorAddr)
+			block := state.MakeBlock(height, data, commit, nil, validatorAddr)
 			blockParts, err := block.MakePartSet(types.BlockPartSizeBytes)
 			if err != nil {
 				return fmt.Errorf("failed to make block part set: %w", err)

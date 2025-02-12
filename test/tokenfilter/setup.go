@@ -5,22 +5,22 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-
-	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -29,7 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/ibc-go/v8/testing/mock"
-	"github.com/cosmos/ibc-go/v8/testing/simapp"
 )
 
 // NewTestChainWithValSet initializes a new TestChain instance with the given validator set
@@ -145,7 +144,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	db := dbm.NewMemDB()
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	genesisState := app.NewDefaultGenesisState(encCdc.Codec)
-	app := app.New(log.NewNopLogger(), db, nil, 5, encCdc, 0, 0, simapp.EmptyAppOptions{})
+	app := app.New(log.NewNopLogger(), db, nil, 5, simtestutil.EmptyAppOptions{})
 
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
@@ -176,7 +175,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 		}
 
 		validators = append(validators, validator)
-		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress(), val.Address.Bytes(), math.LegacyOneDec()))
+		delegations = append(delegations, stakingtypes.NewDelegation(genAccs[0].GetAddress().String(), val.Address.String(), math.LegacyOneDec()))
 	}
 
 	// set validators and delegations
@@ -196,7 +195,7 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	genesisState[stakingtypes.ModuleName] = app.AppCodec().MustMarshalJSON(&stakingGenesis)
 
 	// update total supply
-	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, sdk.NewCoins(), []banktypes.Metadata{})
+	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, sdk.NewCoins(), []banktypes.Metadata{}, []banktypes.SendEnabled{})
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
@@ -205,37 +204,22 @@ func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs 
 	params := testnode.DefaultConsensusParams()
 
 	// init chain will set the validator set and initialize the genesis accounts
-	app.InitChain(
-		abci.RequestInitChain{
-			ChainId:    chainID,
-			Validators: []abci.ValidatorUpdate{},
-			ConsensusParams: &abci.ConsensusParams{
-				Block: &abci.BlockParams{
-					MaxBytes: params.Block.MaxBytes,
-					MaxGas:   params.Block.MaxGas,
-				},
-				Evidence:  &params.Evidence,
-				Validator: &params.Validator,
-				Version:   &params.Version,
-			},
-			AppStateBytes: stateBytes,
+	_, _ = app.InitChain(
+		&abci.RequestInitChain{
+			ChainId:         chainID,
+			Validators:      []abci.ValidatorUpdate{},
+			ConsensusParams: params,
+			AppStateBytes:   stateBytes,
 		},
 	)
 
 	// commit genesis changes
-	app.Commit()
-	app.BeginBlock(
-		abci.RequestBeginBlock{
-			Header: tmproto.Header{
-				ChainID: chainID,
-				Version: tmversion.Consensus{
-					App: appconsts.LatestVersion,
-				},
-				Height:             app.LastBlockHeight() + 1,
-				AppHash:            app.LastCommitID().Hash,
-				ValidatorsHash:     valSet.Hash(),
-				NextValidatorsHash: valSet.Hash(),
-			},
+	_, _ = app.Commit()
+	_, _ = app.FinalizeBlock(
+		&abci.RequestFinalizeBlock{
+			Height:             app.LastBlockHeight() + 1,
+			Hash:               app.LastCommitID().Hash,
+			NextValidatorsHash: valSet.Hash(),
 		},
 	)
 
