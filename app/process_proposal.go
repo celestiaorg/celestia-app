@@ -53,7 +53,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
-	appVersion := app.AppVersion()
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to get app version", err)
+		return reject(), nil
+	}
+
 	subtreeRootThreshold := appconsts.SubtreeRootThreshold(appVersion)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non

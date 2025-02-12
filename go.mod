@@ -21,7 +21,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.14.0
 	github.com/cometbft/cometbft v0.38.12
 	github.com/cometbft/cometbft-db v1.0.1
-	github.com/cosmos/cosmos-db v1.1.0
+	github.com/cosmos/cosmos-db v1.1.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.50.11
 	github.com/cosmos/gogoproto v1.7.0
@@ -254,6 +254,7 @@ require (
 
 replace (
 	github.com/cometbft/cometbft => github.com/01builders/cometbft v0.0.0-20250210143127-2aabfed4f2a2
+	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250212120257-926f94b828d0 // https://github.com/01builders/cosmos-sdk/tree/release/v0.50.x-celestia
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

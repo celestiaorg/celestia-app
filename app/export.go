@@ -21,7 +21,11 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 		return servertypes.ExportedApp{}, err
 	}
 
-	appVersion := app.AppVersion()
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return servertypes.ExportedApp{}, err
+	}
+
 	if !app.IsSealed() {
 		app.mountKeysAndInit(appVersion)
 	}

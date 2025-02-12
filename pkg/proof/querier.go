@@ -25,7 +25,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 //
 // example path for proving the third transaction in that block:
 // custom/txInclusionProof/3
-func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
 		return nil, fmt.Errorf("expected query path length: 1 actual: %d ", len(path))
@@ -69,7 +69,7 @@ const ShareInclusionQueryPath = "shareInclusionProof"
 // inclusion proofs of a set of shares to the data root. The share range should
 // be appended to the path. Example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
-func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery) ([]byte, error) {
 	// parse the share range from the path
 	if len(path) != 2 {
 		return nil, fmt.Errorf("expected query path length: 2 actual: %d ", len(path))

@@ -28,6 +28,7 @@ import (
 	appv2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
 	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v4/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -394,8 +395,8 @@ func New(
 	app.setModuleOrder()
 
 	// TODO(CEL-27): Determine solution for custom abci query requests
-	// app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
-	// app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
+	app.CustomQueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
+	app.CustomQueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
 	app.configurator = module.NewConfigurator(encodingConfig.Codec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.BasicManager.RegisterInterfaces(encodingConfig.InterfaceRegistry)
@@ -454,13 +455,17 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	if err != nil {
 		return sdk.EndBlock{}, err
 	}
-	currentVersion := app.AppVersion()
+	currentVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return sdk.EndBlock{}, err
+	}
+
 	// use a signaling mechanism for upgrade
 	if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
-			app.SetProtocolVersion(newVersion)
+			app.SetAppVersion(ctx, newVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}

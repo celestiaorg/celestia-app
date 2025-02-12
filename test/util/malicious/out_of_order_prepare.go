@@ -16,13 +16,19 @@ import (
 // for. It will swap the order of two blobs in the square and then use the
 // modified nmt to create a commitment over the modified square.
 func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	ctx := a.NewContext(false)
+	appVersion, err := a.AppVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
 	sdkCtx := a.NewProposalContext(core.Header{
 		Height: req.Height,
 		Time:   req.Time,
 		Version: version.Consensus{
-			App: a.AppVersion(),
+			App: appVersion,
 		},
 	})
 	// filter out invalid transactions.
@@ -45,7 +51,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
+	dataSquare, txs, err := Build(txs, appVersion, a.MaxEffectiveSquareSize(sdkCtx), OutOfOrderExport)
 	if err != nil {
 		panic(err)
 	}

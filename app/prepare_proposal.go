@@ -48,7 +48,11 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		err             error
 	)
 
-	appVersion := app.GetBaseApp().AppVersion()
+	appVersion, err := app.AppVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	switch appVersion {
 	case v4, v3:
 		var dataSquare squarev2.Square
