@@ -115,10 +115,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err != nil {
-			logInvalidPropBlockError(app.Logger(), blockHeader, "failure to get app version", err)
-		}
-
 		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, subtreeRootThreshold, appVersion); err != nil {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject(), nil

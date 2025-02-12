@@ -5,6 +5,7 @@ import (
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	"cosmossdk.io/x/feegrant"
 	feegrantmodule "cosmossdk.io/x/feegrant/module"
+	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v4/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -12,7 +13,7 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v4/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	sdkmodule "github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
@@ -21,6 +22,7 @@ import (
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	authzmodule "github.com/cosmos/cosmos-sdk/x/authz/module"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/consensus"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	"github.com/cosmos/cosmos-sdk/x/distribution"
@@ -45,10 +47,9 @@ import (
 )
 
 var (
-	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
-	// non-dependant module elements, such as codec registration
-	// and genesis verification.
-	ModuleBasics = sdkmodule.NewBasicManager(
+	// ModuleEncodingRegisters keeps track of all the module methods needed to
+	// register interfaces and specific type to encoding config
+	ModuleEncodingRegisters = []module.AppModuleBasic{
 		auth.AppModuleBasic{},
 		genutil.AppModuleBasic{},
 		bankModule{},
@@ -70,12 +71,10 @@ var (
 		signal.AppModule{},
 		minfee.AppModule{},
 		packetforward.AppModuleBasic{},
+		consensus.AppModuleBasic{},
+		upgrade.AppModuleBasic{},
 		icaModule{},
-	)
-
-	// ModuleEncodingRegisters keeps track of all the module methods needed to
-	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = extractRegisters(ModuleBasics)
+	}
 )
 
 func (app *App) setModuleOrder() {
@@ -188,11 +187,4 @@ func allStoreKeys() []string {
 		blobtypes.StoreKey,
 		consensustypes.StoreKey, // added in v4
 	}
-}
-
-func extractRegisters(basicManager sdkmodule.BasicManager) (modules []sdkmodule.AppModuleBasic) {
-	for _, module := range basicManager {
-		modules = append(modules, module)
-	}
-	return modules
 }

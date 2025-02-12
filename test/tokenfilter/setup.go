@@ -22,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -143,7 +144,9 @@ func NewTestChain(t *testing.T, coord *ibctesting.Coordinator, chainID string) *
 func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, chainID string, powerReduction math.Int, balances ...banktypes.Balance) ibctesting.TestingApp {
 	db := dbm.NewMemDB()
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	genesisState := app.NewDefaultGenesisState(encCdc.Codec)
+	genesisState := module.
+		NewBasicManager(app.ModuleEncodingRegisters...).
+		DefaultGenesis(encCdc.Codec)
 	app := app.New(log.NewNopLogger(), db, nil, 5, simtestutil.EmptyAppOptions{})
 
 	// set genesis accounts

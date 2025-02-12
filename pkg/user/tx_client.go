@@ -583,8 +583,9 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 
 func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
 	var addr sdktypes.AccAddress
+	encodingCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	for _, msg := range msgs {
-		encodingCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		signers, _, err := encodingCfg.Codec.GetMsgV1Signers(msg)
 		if err != nil {
 			return "", fmt.Errorf("getting signers from message: %w", err)

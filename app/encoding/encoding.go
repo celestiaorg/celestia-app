@@ -44,14 +44,9 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	amino := codec.NewLegacyAmino()
 	signingCtx := interfaceRegistry.SigningContext()
 
-	// Register the standard types from the Cosmos SDK on interfaceRegistry and
-	// amino.
+	// Register the standard types from the Cosmos SDK on interfaceRegistry and amino.
 	std.RegisterInterfaces(interfaceRegistry)
 	std.RegisterLegacyAminoCodec(amino)
-	for _, module := range moduleBasics {
-		module.RegisterInterfaces(interfaceRegistry)
-		module.RegisterLegacyAminoCodec(amino)
-	}
 
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
 	txDecoder := authtx.DefaultTxDecoder(protoCodec)

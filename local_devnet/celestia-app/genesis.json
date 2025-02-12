@@ -138,8 +138,7 @@
                 "withdraw_addr_enabled": true
             },
             "fee_pool": {
-                "community_pool": [],
-                "decimal_pool": []
+                "community_pool": []
             },
             "delegator_withdraw_infos": [],
             "outstanding_rewards": [],
@@ -260,13 +259,7 @@
                 "burn_vote_quorum": false,
                 "burn_proposal_deposit_prevote": false,
                 "burn_vote_veto": true,
-                "min_deposit_ratio": "0.010000000000000000",
-                "proposal_cancel_max_period": "0.500000000000000000",
-                "optimistic_authorized_addresses": [],
-                "optimistic_rejected_threshold": "0.100000000000000000",
-                "yes_quorum": "0.000000000000000000",
-                "expedited_quorum": "0.500000000000000000",
-                "proposal_execution_gas": "10000000"
+                "min_deposit_ratio": "0.010000000000000000"
             },
             "constitution": ""
         },
@@ -350,6 +343,9 @@
         "mint": {
             "bond_denom": "utia"
         },
+        "packetfowardmiddleware": {
+            "in_flight_packets": {}
+        },
         "params": {},
         "qgb": {
             "params": {
@@ -375,11 +371,7 @@
                 "max_entries": 7,
                 "historical_entries": 10000,
                 "bond_denom": "utia",
-                "min_commission_rate": "0.050000000000000000",
-                "key_rotation_fee": {
-                    "denom": "utia",
-                    "amount": "1000000"
-                }
+                "min_commission_rate": "0.050000000000000000"
             },
             "last_total_power": "0",
             "last_validator_powers": [],
@@ -387,20 +379,15 @@
             "delegations": [],
             "unbonding_delegations": [],
             "redelegations": [],
-            "exported": false,
-            "rotation_index_records": [],
-            "rotation_history": [],
-            "rotation_queue": []
+            "exported": false
         },
         "transfer": {
             "port_id": "transfer",
-            "denoms": [],
+            "denom_traces": [],
             "params": {
                 "send_enabled": true,
                 "receive_enabled": true
-            },
-            "total_escrowed": [],
-            "forwarded_packets": []
+            }
         },
         "vesting": {}
     },
