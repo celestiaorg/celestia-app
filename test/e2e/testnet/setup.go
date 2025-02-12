@@ -58,7 +58,7 @@ func WithPrometheus(prometheus bool) Option {
 
 func WithMempool(mempool string) Option {
 	return func(cfg *config.Config) {
-		cfg.Mempool.Version = mempool
+		cfg.Mempool.Type = mempool
 	}
 }
 

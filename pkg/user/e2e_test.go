@@ -24,12 +24,12 @@ func TestConcurrentTxSubmission(t *testing.T) {
 	}
 
 	// Iterate over all mempool versions
-	mempools := []string{config.MempoolV0, config.MempoolV1, config.MempoolV2}
+	mempools := []string{config.MempoolTypeFlood, config.MempoolTypeFlood, config.MempoolTypeCAT}
 	for _, mempool := range mempools {
 		t.Run(fmt.Sprintf("mempool %s", mempool), func(t *testing.T) {
 			// Setup network
 			tmConfig := testnode.DefaultTendermintConfig()
-			tmConfig.Mempool.Version = mempool
+			tmConfig.Mempool.Type = mempool
 			tmConfig.Consensus.TimeoutCommit = 10 * time.Second
 			ctx, _, _ := testnode.NewNetwork(t, testnode.DefaultConfig().WithTendermintConfig(tmConfig))
 			_, err := ctx.WaitForHeight(1)

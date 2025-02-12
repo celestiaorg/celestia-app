@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +47,6 @@ func TestEstimateGasPrice(t *testing.T) {
 	assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.EstimatedGasPrice)
 
 	encfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	rand := tmrand.NewRand()
 
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, encfg)
 	require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestEstimateGasPrice(t *testing.T) {
 			defer wg.Done()
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
-			blobs := blobfactory.ManyBlobs(rand, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
+			blobs := blobfactory.ManyBlobs(tmrand.NewRand(), []share.Namespace{share.RandomBlobNamespace()}, []int{100})
 			resp, err := txClient.BroadcastPayForBlobWithAccount(
 				cctx.GoContext(),
 				accName,

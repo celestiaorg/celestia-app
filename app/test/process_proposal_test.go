@@ -9,7 +9,6 @@ import (
 	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -336,28 +335,26 @@ func TestProcessProposal(t *testing.T) {
 			blockTime := time.Now()
 
 			resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
-				BlockData: tt.input,
-				ChainId:   testutil.ChainID,
-				Height:    height,
-				Time:      blockTime,
+				Txs:    tt.input.Txs,
+				Height: height,
+				Time:   blockTime,
 			})
 			require.NoError(t, err)
-
 			require.Equal(t, len(tt.input.Txs), len(resp.Txs))
-			tt.mutator(resp.BlockData)
+			blockData := &tmproto.Data{
+				Txs:          resp.Txs,
+				DataRootHash: resp.DataRootHash,
+				SquareSize:   resp.SquareSize,
+			}
+			tt.mutator(blockData)
+
 			res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-				BlockData: resp.BlockData,
-				Header: tmproto.Header{
-					Height:   1,
-					DataHash: resp.BlockData.Hash,
-					ChainID:  testutil.ChainID,
-					Version: version.Consensus{
-						App: tt.appVersion,
-					},
-				},
+				Txs:          blockData.Txs,
+				DataRootHash: blockData.DataRootHash,
+				SquareSize:   blockData.SquareSize,
 			})
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
+			assert.Equal(t, tt.expectedResult, res.Status, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Status))
 		})
 	}
 }

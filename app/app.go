@@ -469,8 +469,9 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		}
 	}
 
-	res.Timeouts.TimeoutCommit = app.getTimeoutCommit(currentVersion)
-	res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(currentVersion)
+	// TODO: check if needed, it is no more there
+	// res.Timeouts.TimeoutCommit = app.getTimeoutCommit(currentVersion)
+	// res.Timeouts.TimeoutPropose = appconsts.GetTimeoutPropose(currentVersion)
 	return res, nil
 }
 

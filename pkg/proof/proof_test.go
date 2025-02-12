@@ -270,9 +270,8 @@ func TestAllSharesInclusionProof(t *testing.T) {
 // https://github.com/celestiaorg/celestia-app/issues/3140
 func TestQueryTxInclusionProofRejectsNegativeValues(t *testing.T) {
 	path := []string{"-2"}
-	req := abci.RequestQuery{Data: []byte{}}
 	ctx := sdk.Context{}
-	rawProof, err := proof.QueryTxInclusionProof(ctx, path, req)
+	rawProof, err := proof.QueryTxInclusionProof(ctx, path, &abci.RequestQuery{Data: []byte{}})
 	if err == nil {
 		t.Fatal("expected a non-nil error")
 	}

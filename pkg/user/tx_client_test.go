@@ -42,7 +42,8 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
+	// suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), 0) // TODO: check ttl duration
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
@@ -341,7 +342,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, e
 func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLDuration = ttlDuration
+	// defaultTmConfig.Mempool.TTLDuration = ttlDuration TODO: check ttl duration
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts("a", "b", "c").
