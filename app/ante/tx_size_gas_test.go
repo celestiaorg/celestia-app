@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -44,7 +43,8 @@ func setup() (*app.App, sdk.Context, client.Context, error) {
 	testdata.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 
 	clientCtx := client.Context{}.
-		WithTxConfig(encodingConfig.TxConfig)
+		WithTxConfig(encodingConfig.TxConfig).
+		WithInterfaceRegistry(encodingConfig.InterfaceRegistry)
 
 	return app, ctx, clientCtx, nil
 }
@@ -70,8 +70,6 @@ func TestConsumeGasForTxSize(t *testing.T) {
 		name    string
 		sigV2   signing.SignatureV2
 	}{
-		{v2.Version, "SingleSignatureData v2", signing.SignatureV2{PubKey: priv1.PubKey()}},
-		{v2.Version, "MultiSignatureData v2", signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
 		{appconsts.LatestVersion, fmt.Sprintf("SingleSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey()}},
 		{appconsts.LatestVersion, fmt.Sprintf("MultiSignatureData v%d", appconsts.LatestVersion), signing.SignatureV2{PubKey: priv1.PubKey(), Data: multisig.NewMultisig(2)}},
 	}
@@ -95,13 +93,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
 			// expected TxSizeCostPerByte is different for each version
-			var txSizeCostPerByte uint64
-			if tc.version == v2.Version {
-				txSizeCostPerByte = TxSizeCostPerByte
-			} else {
-				txSizeCostPerByte = appconsts.TxSizeCostPerByte(tc.version)
-			}
-
+			txSizeCostPerByte := appconsts.TxSizeCostPerByte(tc.version)
 			expectedGas := storetypes.Gas(len(txBytes)) * txSizeCostPerByte
 
 			// set suite.ctx with TxBytes manually

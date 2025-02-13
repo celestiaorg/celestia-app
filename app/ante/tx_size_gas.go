@@ -6,7 +6,6 @@ import (
 	"cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -17,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var (
@@ -63,9 +61,8 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 	if !ok {
 		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "invalid tx type")
 	}
-	params := cgts.ak.GetParams(ctx)
 
-	consumeGasForTxSize(ctx, storetypes.Gas(len(ctx.TxBytes())), params)
+	consumeGasForTxSize(ctx, storetypes.Gas(len(ctx.TxBytes())))
 
 	// simulate gas cost for signatures in simulate mode
 	if simulate {
@@ -109,11 +106,12 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 
 			// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
 			// number of signers.
+			params := cgts.ak.GetParams(ctx)
 			if _, ok := pubkey.(*multisig.LegacyAminoPubKey); ok {
 				txBytes *= params.TxSigLimit
 			}
 
-			consumeGasForTxSize(ctx, txBytes, params)
+			consumeGasForTxSize(ctx, txBytes)
 		}
 	}
 
@@ -144,14 +142,7 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 }
 
 // consumeGasForTxSize consumes gas based on the size of the transaction.
-// It uses different parameters depending on the app version.
-func consumeGasForTxSize(ctx sdk.Context, txBytes uint64, params auth.Params) {
-	// For app v2 and below we should get txSizeCostPerByte from auth module
-	if ctx.BlockHeader().Version.App <= v2.Version {
-		ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*txBytes, "txSize")
-	} else {
-		// From v3 onwards, we should get txSizeCostPerByte from appconsts
-		txSizeCostPerByte := appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)
-		ctx.GasMeter().ConsumeGas(txSizeCostPerByte*txBytes, "txSize")
-	}
+func consumeGasForTxSize(ctx sdk.Context, txBytes uint64) {
+	txSizeCostPerByte := appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)
+	ctx.GasMeter().ConsumeGas(txSizeCostPerByte*txBytes, "txSize")
 }
