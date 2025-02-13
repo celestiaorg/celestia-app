@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
@@ -14,7 +15,6 @@ import (
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -54,7 +54,7 @@ func NewSigner(
 		keys:                keys,
 		chainID:             chainID,
 		enc:                 encCfg,
-		addressCodec:        addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix()),
+		addressCodec:        addresscodec.NewBech32Codec(app.Bech32PrefixAccAddr),
 		accounts:            make(map[string]*Account),
 		addressToAccountMap: make(map[string]string),
 		appVersion:          appVersion,
@@ -102,7 +102,12 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts
 		return nil, 0, fmt.Errorf("account %s not found", accountName)
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(acc.address.String(), s.appVersion, blobs...)
+	addr, err := s.addressCodec.BytesToString(acc.address)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	msg, err := blobtypes.NewMsgPayForBlobs(addr, s.appVersion, blobs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -149,7 +154,12 @@ func (s *Signer) Account(name string) *Account {
 
 // AccountByAddress returns the account associated with the given address
 func (s *Signer) AccountByAddress(address sdktypes.AccAddress) *Account {
-	accountName, exists := s.addressToAccountMap[address.String()]
+	addrStr, err := s.addressCodec.BytesToString(address)
+	if err != nil {
+		return nil
+	}
+
+	accountName, exists := s.addressToAccountMap[addrStr]
 	if !exists {
 		return nil
 	}
@@ -230,7 +240,13 @@ func (s *Signer) AddAccount(acc *Account) error {
 	acc.address = addr
 	acc.pubKey = pk
 	s.accounts[acc.name] = acc
-	s.addressToAccountMap[addr.String()] = acc.name
+
+	addrStr, err := s.addressCodec.BytesToString(addr)
+	if err != nil {
+		return nil
+	}
+
+	s.addressToAccountMap[addrStr] = acc.name
 	return nil
 }
 
@@ -267,8 +283,13 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 }
 
 func (s *Signer) createSignature(builder client.TxBuilder, account *Account, sequence uint64) ([]byte, error) {
+	addrStr, err := s.addressCodec.BytesToString(account.address)
+	if err != nil {
+		return nil, fmt.Errorf("error converting address to string: %w", err)
+	}
+
 	signerData := authsigning.SignerData{
-		Address:       account.address.String(),
+		Address:       addrStr,
 		ChainID:       s.ChainID(),
 		AccountNumber: account.accountNumber,
 		Sequence:      sequence,

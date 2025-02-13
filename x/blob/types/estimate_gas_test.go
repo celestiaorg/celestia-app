@@ -5,23 +5,22 @@ import (
 	"math/rand"
 	"testing"
 
+	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-	"github.com/stretchr/testify/require"
-
-	tmrand "cosmossdk.io/math/unsafe"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPFBGasEstimation(t *testing.T) {
-	encCfg := encoding.MakeConfig()
+	encCfg := moduletestutil.MakeTestEncodingConfig()
 	rand := tmrand.NewRand()
 
 	testCases := []struct {
@@ -73,7 +72,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		maxBlobSize = 418
 		seed        = int64(9001)
 	)
-	encCfg := encoding.MakeConfig()
+	encCfg := moduletestutil.MakeTestEncodingConfig()
 	f.Add(numBlobs, maxBlobSize, seed)
 	f.Fuzz(func(t *testing.T, numBlobs, maxBlobSize int, seed int64) {
 		if numBlobs <= 0 || maxBlobSize <= 0 {

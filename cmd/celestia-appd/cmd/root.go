@@ -102,10 +102,6 @@ func NewRootCmd() *cobra.Command {
 
 	autoCliOpts := tempApp.AutoCliOpts()
 	autoCliOpts.ClientCtx = initClientContext
-	autoCliOpts.AddressCodec = encodingConfig.AddressCodec
-	autoCliOpts.ValidatorAddressCodec = encodingConfig.ValidatorAddressCodec
-	autoCliOpts.ConsensusAddressCodec = encodingConfig.ConsensusAddressCodec
-
 	if err := autoCliOpts.EnhanceRootCommand(rootCommand); err != nil {
 		panic(fmt.Errorf("failed to enhance root command: %w", err))
 	}

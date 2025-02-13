@@ -12,19 +12,17 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/signal"
 	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
-	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	dbm "github.com/cosmos/cosmos-db"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +66,7 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config := encoding.MakeConfig()
+			config := moduletestutil.MakeTestEncodingConfig()
 			stakingKeeper := newMockStakingKeeper(tc.validators)
 			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
 			got := k.GetVotingPowerThreshold(sdk.Context{})
@@ -191,7 +189,7 @@ func TestTallyingLogic(t *testing.T) {
 	upgradeKeeper.ResetTally(ctx)
 
 	// update the version to 2
-	ctx = ctx.WithBlockHeader(cmtproto.Header{
+	ctx = ctx.WithBlockHeader(tmproto.Header{
 		Version: cmtversion.Consensus{
 			Block: 1,
 			App:   2,
@@ -464,7 +462,7 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	stateStore.MountStoreWithDB(signalStore, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
 	mockCtx := sdk.NewContext(stateStore, tmproto.Header{
-		Version: tmversion.Consensus{
+		Version: cmtversion.Consensus{
 			Block: 1,
 			App:   1,
 		},
@@ -478,7 +476,7 @@ func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 			testutil.ValAddrs[3].String(): 20,
 		},
 	)
-	config := encoding.MakeConfig()
+	config := moduletestutil.MakeTestEncodingConfig()
 	upgradeKeeper := signal.NewKeeper(config.Codec, signalStore, mockStakingKeeper)
 	return upgradeKeeper, mockCtx, mockStakingKeeper
 }

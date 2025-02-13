@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	tmrand "cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -16,6 +15,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,6 +34,7 @@ func TestBlobShareDecorator(t *testing.T) {
 	}
 
 	rand := tmrand.NewRand()
+	ecfg := moduletestutil.MakeTestEncodingConfig()
 
 	testCases := []testCase{
 		{
@@ -128,8 +129,6 @@ func TestBlobShareDecorator(t *testing.T) {
 			wantErr:     blob.ErrBlobsTooLarge,
 		},
 	}
-
-	ecfg := encoding.MakeConfig()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

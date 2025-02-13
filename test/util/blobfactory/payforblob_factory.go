@@ -3,6 +3,7 @@ package blobfactory
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -189,6 +190,7 @@ func RandBlobTxs(signer *user.Signer, rand *tmrand.Rand, count, blobsPerTx, size
 	addr := signer.Account(testfactory.TestAccName).Address()
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
+		fmt.Println(addr.String())
 		_, blobs := RandMsgPayForBlobsWithSigner(rand, addr.String(), size, blobsPerTx)
 		tx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, DefaultTxOpts()...)
 		if err != nil {

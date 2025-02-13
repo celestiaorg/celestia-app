@@ -72,7 +72,7 @@ func QueryAccount(ctx context.Context, conn *grpc.ClientConn, registry codectype
 		return accNum, seqNum, err
 	}
 
-	var acc authtypes.AccountI
+	var acc types.AccountI
 	err = registry.UnpackAny(resp.Account, &acc)
 	if err != nil {
 		return accNum, seqNum, err
