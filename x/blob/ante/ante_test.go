@@ -71,7 +71,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			wantErr:     true,
 		},
 		{
-			name: "pfb mulit blob not enough gas",
+			name: "pfb multi blob not enough gas",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1)), uint32(share.AvailableBytesFromSparseShares(2))},
 			},

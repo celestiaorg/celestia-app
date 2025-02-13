@@ -291,9 +291,9 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `{"quorum": "0.1", "threshold": "0.2", "veto_threshold": "0.3"}`,
 			}),
 			func() {
-				gotQuroum := suite.app.GovKeeper.GetTallyParams(suite.ctx).Quorum
+				gotQuorum := suite.app.GovKeeper.GetTallyParams(suite.ctx).Quorum
 				wantQuorum := "0.1"
-				assert.Equal(wantQuorum, gotQuroum)
+				assert.Equal(wantQuorum, gotQuorum)
 
 				gotThreshold := suite.app.GovKeeper.GetTallyParams(suite.ctx).Threshold
 				wantThreshold := "0.2"

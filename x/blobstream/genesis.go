@@ -11,7 +11,7 @@ const (
 	// nonce value in store.
 	InitialLatestAttestationNonce = uint64(0)
 	// InitialEarliestAvailableAttestationNonce the initial value set in genesis of the earliest
-	/// available attestation nonce in store.
+	// available attestation nonce in store.
 	InitialEarliestAvailableAttestationNonce = uint64(1)
 )
 

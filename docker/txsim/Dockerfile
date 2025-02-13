@@ -1,5 +1,5 @@
 # Stage 1: generate txsim binary
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.1-alpine3.20 as builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.23.6-alpine3.20 as builder
 
 ARG TARGETOS
 ARG TARGETARCH

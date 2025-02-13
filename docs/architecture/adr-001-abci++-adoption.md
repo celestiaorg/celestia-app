@@ -237,7 +237,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
    for _, rawTx := range data.Txs {
        ... // decode the transaction
 
-       // write the tx to the square if it normal
+       // write the tx to the square if it is normal
        if !hasWirePayForBlob(authTx) {
            success, err := sqwr.writeTx(rawTx)
            if err != nil {
