@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/server"
@@ -81,21 +82,11 @@ func getChainIDOrDefault(args []string) string {
 // isKnownChainID returns true if the chainID is known.
 func isKnownChainID(chainID string) bool {
 	knownChainIDs := getKeys(chainIDToSha256)
-	return contains(knownChainIDs, chainID)
+	return slices.Contains(knownChainIDs, chainID)
 }
 
 func chainIDs() string {
 	return strings.Join(getKeys(chainIDToSha256), ", ")
-}
-
-// contains checks if a string is present in a slice.
-func contains(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 
 // downloadFile will download a URL to a local file.
