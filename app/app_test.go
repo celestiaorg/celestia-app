@@ -114,7 +114,7 @@ func TestOfferSnapshot(t *testing.T) {
 		// Snapshots taken before the app version field was introduced to RequestOfferSnapshot should still be accepted.
 		app := createTestApp(t)
 		request := createRequest()
-		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got, err := app.OfferSnapshot(&request)
 		assert.NoError(t, err)
 		assert.Equal(t, want, got)
@@ -123,7 +123,7 @@ func TestOfferSnapshot(t *testing.T) {
 		app := createTestApp(t)
 		request := createRequest()
 		request.AppVersion = 1
-		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got, err := app.OfferSnapshot(&request)
 		assert.NoError(t, err)
 		assert.Equal(t, want, got)
@@ -132,7 +132,7 @@ func TestOfferSnapshot(t *testing.T) {
 		app := createTestApp(t)
 		request := createRequest()
 		request.AppVersion = 2
-		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got, err := app.OfferSnapshot(&request)
 		assert.NoError(t, err)
 		assert.Equal(t, want, got)
@@ -141,7 +141,16 @@ func TestOfferSnapshot(t *testing.T) {
 		app := createTestApp(t)
 		request := createRequest()
 		request.AppVersion = 3
-		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
+		got, err := app.OfferSnapshot(&request)
+		assert.NoError(t, err)
+		assert.Equal(t, want, got)
+	})
+	t.Run("should ACCEPT a snapshot with app version 4", func(t *testing.T) {
+		app := createTestApp(t)
+		request := createRequest()
+		request.AppVersion = 4
+		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
 		got, err := app.OfferSnapshot(&request)
 		assert.NoError(t, err)
 		assert.Equal(t, want, got)
@@ -149,8 +158,8 @@ func TestOfferSnapshot(t *testing.T) {
 	t.Run("should REJECT a snapshot with unsupported app version", func(t *testing.T) {
 		app := createTestApp(t)
 		request := createRequest()
-		request.AppVersion = 4 // unsupported app version
-		want := abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}
+		request.AppVersion = 5 // unsupported app version
+		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}
 		got, err := app.OfferSnapshot(&request)
 		assert.NoError(t, err)
 		assert.Equal(t, want, got)

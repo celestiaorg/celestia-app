@@ -18,7 +18,7 @@ import (
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	tx := req.Tx
 
-	appVersion, err := app.AppVersion(app.NewContext(false))
+	appVersion, err := app.AppVersion(app.NewContext(true))
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}

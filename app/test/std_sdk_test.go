@@ -29,6 +29,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -188,7 +189,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create legacy community spend governance proposal",
+			name: "create community spend governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				// Note: this test depends on at least one coin being present
@@ -197,20 +198,24 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				// pool, consider expanding the block interval or waiting for
 				// more blocks to be produced prior to executing this test case.
 				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1)))
-				content := disttypes.NewCommunityPoolSpendProposal(
-					"title",
-					"description",
-					testfactory.GetAddress(s.cctx.Keyring, s.unusedAccount()),
-					coins,
-				)
+
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
-					addr,
+				msg, err := govv1.NewMsgSubmitProposal(
+					[]sdk.Msg{
+						disttypes.NewMsgFundCommunityPool(
+							coins,
+							testfactory.GetAddress(s.cctx.Keyring, s.unusedAccount()).String(),
+						),
+					},
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
+					addr.String(),
+					"metadata",
+					"title",
+					"summary",
+					false,
 				)
 				require.NoError(t, err)
+
 				return []sdk.Msg{msg}, account
 			},
 			expectedCode: abci.CodeTypeOK,
