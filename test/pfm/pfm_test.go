@@ -2,14 +2,16 @@ package pfm
 
 import (
 	"bytes"
+	"cosmossdk.io/log"
 	"encoding/json"
 	"errors"
 	abci "github.com/cometbft/cometbft/abci/types"
+	dbm "github.com/cosmos/cosmos-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	utils "github.com/celestiaorg/celestia-app/v4/test/tokenfilter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	transfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
@@ -42,9 +44,23 @@ func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 		CurrentTime: time.Now(),
 		Chains:      chains,
 	}
-	celestiaChain := utils.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
-	chainA := NewTestChain(t, coordinator, ibctesting.GetChainID(2))
-	chainB := NewTestChain(t, coordinator, ibctesting.GetChainID(3))
+
+	// modify ibctesting package to return celestia as the next app when calling ibctesting.NewTestChain
+	ibctesting.DefaultTestingAppInit = func() (ibctesting.TestingApp, map[string]json.RawMessage) {
+		db := dbm.NewMemDB()
+		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, simtestutil.EmptyAppOptions{})
+		return celestiaApp, celestiaApp.DefaultGenesis()
+	}
+
+	celestiaChain := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(1))
+
+	// modify the testing package to return the pfm app which does not have a token filter wired up on subsequent
+	// NewTestChain calls.
+	ibctesting.DefaultTestingAppInit = SetupTestingApp
+
+	chainA := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(2))
+	chainB := ibctesting.NewTestChain(t, coordinator, ibctesting.GetChainID(3))
+
 	coordinator.Chains[ibctesting.GetChainID(1)] = celestiaChain
 	coordinator.Chains[ibctesting.GetChainID(2)] = chainA
 	coordinator.Chains[ibctesting.GetChainID(3)] = chainB

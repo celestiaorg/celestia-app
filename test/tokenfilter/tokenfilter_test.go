@@ -1,6 +1,12 @@
 package tokenfilter
 
 import (
+	"cosmossdk.io/log"
+	"encoding/json"
+	"github.com/celestiaorg/celestia-app/v4/test/pfm"
+	dbm "github.com/cosmos/cosmos-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -32,11 +38,28 @@ func (suite *TokenFilterTestSuite) SetupTest() {
 		CurrentTime: time.Now(),
 		Chains:      chains,
 	}
-	suite.celestiaChain = NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
+
+	ibctesting.DefaultTestingAppInit = func() (ibctesting.TestingApp, map[string]json.RawMessage) {
+		db := dbm.NewMemDB()
+		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, simtestutil.EmptyAppOptions{})
+		return celestiaApp, celestiaApp.DefaultGenesis()
+	}
+
+	suite.celestiaChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
+
+	ibctesting.DefaultTestingAppInit = pfm.SetupTestingApp
+
 	suite.otherChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(2))
 
 	suite.coordinator.Chains[ibctesting.GetChainID(1)] = suite.celestiaChain
 	suite.coordinator.Chains[ibctesting.GetChainID(2)] = suite.otherChain
+}
+
+// GetSimapp is a helper function which performs the correct cast on the underlying chain.App
+func (suite *TokenFilterTestSuite) GetSimapp(chain *ibctesting.TestChain) *pfm.SimApp {
+	app, ok := chain.App.(*pfm.SimApp)
+	require.True(suite.T(), ok)
+	return app
 }
 
 func NewTransferPath(celestiaChain, otherChain *ibctesting.TestChain) *ibctesting.Path {
@@ -77,7 +100,7 @@ func (suite *TokenFilterTestSuite) TestHandleOutboundTransfer() {
 
 	// check that the token exists on chain B
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	balance := suite.otherChain.GetSimApp().BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
+	balance := suite.GetSimapp(suite.otherChain).BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
 	coinSentFromAToB := types.GetTransferCoin(path.EndpointB.ChannelConfig.PortID, path.EndpointB.ChannelID, sdk.DefaultBondDenom, amount)
 	suite.Require().Equal(coinSentFromAToB, balance)
 
@@ -128,7 +151,7 @@ func (suite *TokenFilterTestSuite) TestHandleInboundTransfer() {
 
 	// check that the token does not exist on chain A (was rejected)
 	voucherDenomTrace := types.ParseDenomTrace(types.GetPrefixedDenom(packet.GetDestPort(), packet.GetDestChannel(), sdk.DefaultBondDenom))
-	balance := suite.otherChain.GetSimApp().BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
+	balance := suite.GetSimapp(suite.otherChain).BankKeeper.GetBalance(suite.otherChain.GetContext(), suite.otherChain.SenderAccount.GetAddress(), voucherDenomTrace.IBCDenom())
 	emptyCoin := sdk.NewInt64Coin(voucherDenomTrace.IBCDenom(), 0)
 	suite.Require().Equal(emptyCoin, balance)
 }
