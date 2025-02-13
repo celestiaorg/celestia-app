@@ -51,7 +51,7 @@ func TestCircuitBreaker(t *testing.T) {
 	ctx := testApp.NewContext(true, header)
 	_, err = testApp.AuthzKeeper.Grant(ctx, msg)
 	assert.Error(t, err)
-	assert.ErrorContains(t, err, "/celestia.signal.v1.Msg/TryUpgrade doesn't exist.: invalid type")
+	assert.ErrorContains(t, err, "/celestia.signal.v1.Msg/TryUpgrade doesn't exist: invalid type")
 
 	testApp.BeginBlocker(ctx, abci.RequestBeginBlock{Header: header})
 
