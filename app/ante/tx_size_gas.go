@@ -41,11 +41,12 @@ func init() {
 // in or empty.
 // CONTRACT: To use this decorator, signatures of transaction must be represented
 // as legacytx.StdSignature otherwise simulate mode will incorrectly estimate gas cost.
-
+//
 // The code was copied from celestia's fork of the cosmos-sdk:
 // https://github.com/celestiaorg/cosmos-sdk/blob/release/v0.46.x-celestia/x/auth/ante/basic.go
 // In app versions v2 and below, the txSizeCostPerByte used for gas cost estimation is taken from the auth module.
 // In app v3 and above, the versioned constant appconsts.TxSizeCostPerByte is used.
+// In app v4 getting the account has been removed, which is in line with the cosmos-sdk v0.52.x.
 type ConsumeTxSizeGasDecorator struct {
 	ak ante.AccountKeeper
 }
@@ -73,12 +74,7 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 		}
 		n := len(sigs)
 
-		signers, err := sigTx.GetSigners()
-		if err != nil {
-			return ctx, err
-		}
-
-		for i, signer := range signers {
+		for i, signer := range sigs {
 			// if signature is already filled in, no need to simulate gas cost
 			if i < n && !isIncompleteSignature(sigs[i].Data) {
 				continue
@@ -86,13 +82,11 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 
 			var pubkey cryptotypes.PubKey
 
-			acc := cgts.ak.GetAccount(ctx, signer)
-
 			// use placeholder simSecp256k1Pubkey if sig is nil
-			if acc == nil || acc.GetPubKey() == nil {
+			if signer.PubKey == nil {
 				pubkey = simSecp256k1Pubkey
 			} else {
-				pubkey = acc.GetPubKey()
+				pubkey = signer.PubKey
 			}
 
 			// use stdsignature to mock the size of a full signature
@@ -142,6 +136,7 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 }
 
 // consumeGasForTxSize consumes gas based on the size of the transaction.
+// It uses different parameters depending on the app version.
 func consumeGasForTxSize(ctx sdk.Context, txBytes uint64) {
 	txSizeCostPerByte := appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)
 	ctx.GasMeter().ConsumeGas(txSizeCostPerByte*txBytes, "txSize")

@@ -8,6 +8,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -16,7 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -36,15 +36,13 @@ func setup() (*app.App, sdk.Context, client.Context, error) {
 	}
 	ctx = ctx.WithBlockHeight(1)
 
-	// Set up TxConfig.
-	encodingConfig := moduletestutil.MakeTestEncodingConfig()
+	encodingConfig := encoding.MakeConfig()
 	// We're using TestMsg encoding in the test, so register it here.
 	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
 	testdata.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 
 	clientCtx := client.Context{}.
-		WithTxConfig(encodingConfig.TxConfig).
-		WithInterfaceRegistry(encodingConfig.InterfaceRegistry)
+		WithTxConfig(encodingConfig.TxConfig)
 
 	return app, ctx, clientCtx, nil
 }
@@ -78,7 +76,8 @@ func TestConsumeGasForTxSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// set the version
 			ctx = app.NewContext(false)
-
+			err = app.SetAppVersion(ctx, tc.version)
+			require.NoError(t, err)
 			txBuilder = clientCtx.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(msg))
 			txBuilder.SetFeeAmount(feeAmount)
@@ -101,12 +100,12 @@ func TestConsumeGasForTxSize(t *testing.T) {
 
 			// track how much gas is necessary to retrieve parameters
 			beforeGas := ctx.GasMeter().GasConsumed()
-			app.AccountKeeper.GetParams(ctx)
 			afterGas := ctx.GasMeter().GasConsumed()
 			expectedGas += afterGas - beforeGas
 
 			beforeGas = ctx.GasMeter().GasConsumed()
 			ctx, err = antehandler(ctx, tx, false)
+			require.NoError(t, err)
 			require.Nil(t, err, "ConsumeTxSizeGasDecorator returned error: %v", err)
 
 			// require that decorator consumes expected amount of gas
@@ -125,12 +124,13 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			require.True(t, len(simTxBytes) < len(txBytes), "simulated tx still has signatures")
 
 			// Set suite.ctx with smaller simulated TxBytes manually
-			ctx = ctx.WithTxBytes(simTxBytes)
+			ctx = ctx.WithTxBytes(simTxBytes).WithExecMode(sdk.ExecModeSimulate)
 
 			beforeSimGas := ctx.GasMeter().GasConsumed()
 
 			// run antehandler with simulate=true
 			ctx, err = antehandler(ctx, tx, true)
+			require.NoError(t, err)
 			consumedSimGas := ctx.GasMeter().GasConsumed() - beforeSimGas
 
 			// require that antehandler passes and does not underestimate decorator cost
@@ -145,6 +145,7 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	sigsV2 := make([]signing.SignatureV2, 0, len(privs))
+
 	for i, priv := range privs {
 		sigV2 := signing.SignatureV2{
 			PubKey: priv.PubKey(),
@@ -157,8 +158,8 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 
 		sigsV2 = append(sigsV2, sigV2)
 	}
-	err := txBuilder.SetSignatures(sigsV2...)
-	if err != nil {
+
+	if err := txBuilder.SetSignatures(sigsV2...); err != nil {
 		return nil, err
 	}
 
@@ -179,8 +180,8 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 
 		sigsV2 = append(sigsV2, sigV2)
 	}
-	err = txBuilder.SetSignatures(sigsV2...)
-	if err != nil {
+
+	if err := txBuilder.SetSignatures(sigsV2...); err != nil {
 		return nil, err
 	}
 
