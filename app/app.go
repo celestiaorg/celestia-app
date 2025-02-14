@@ -1,7 +1,6 @@
 package app
 
 import (
-	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 	"io"
 	"time"
 
@@ -109,6 +108,7 @@ import (
 	ibcporttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
+	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
 	"github.com/spf13/cast"
@@ -510,6 +510,24 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 	}
 
 	return app.ModuleManager.InitGenesis(ctx, app.AppCodec(), genesisState)
+}
+
+func (app *App) OfferSnapshot(req *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
+	app.Logger().Info("offering snapshot", "height", req.Snapshot.Height, "app_version", req.AppVersion)
+	if req.AppVersion != 0 {
+		if !isSupportedAppVersion(req.AppVersion) {
+			app.Logger().Info("rejecting snapshot because unsupported app version", "app_version", req.AppVersion)
+			return &abci.ResponseOfferSnapshot{
+				Result: abci.ResponseOfferSnapshot_REJECT,
+			}, nil
+		}
+	}
+
+	return app.BaseApp.OfferSnapshot(req)
+}
+
+func isSupportedAppVersion(appVersion uint64) bool {
+	return appVersion == v1 || appVersion == v2 || appVersion == v3 || appVersion == v4
 }
 
 func (app *App) DefaultGenesis() GenesisState {
