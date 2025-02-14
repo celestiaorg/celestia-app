@@ -43,7 +43,7 @@ halt-time = 0
 # It has no bearing on application state pruning which is determined by the
 # "pruning-*" configurations.
 #
-# Note: Tendermint block pruning is dependant on this parameter in conjunction
+# Note: Tendermint block pruning is dependent on this parameter in conjunction
 # with the unbonding (safety threshold) period, state pruning and state sync
 # snapshot parameters to determine the correct minimum value of
 # ResponseCommit.RetainHeight.
@@ -166,7 +166,7 @@ retries = 3
 offline = false
 
 # EnableDefaultSuggestedFee defines if the server should suggest fee by default.
-# If 'construction/medata' is called without gas limit and gas price,
+# If 'construction/metadata' is called without gas limit and gas price,
 # suggested fee based on gas-to-suggest and denom-to-suggest will be given.
 enable-fee-suggestion = false
 
