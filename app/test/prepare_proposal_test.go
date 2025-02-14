@@ -144,7 +144,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	)).ToSliceOfBytes()
 
 	// create a transaction with an account that doesn't exist. This will cause the increment nonce
-	nilAccount := "carmon san diego"
+	nilAccount := "carmen san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
