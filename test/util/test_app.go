@@ -74,13 +74,13 @@ func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusPar
 
 func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
 	// commit genesis changes
-	testApp.Commit()
 	testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Time:               time.Now(),
 		Height:             testApp.LastBlockHeight() + 1,
 		Hash:               testApp.LastCommitID().Hash,
 		NextValidatorsHash: valSet.Hash(),
 	})
+	testApp.Commit()
 }
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
