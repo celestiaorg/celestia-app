@@ -224,8 +224,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// TODO: check if priority mempool needed
 	// cfg.Mempool.TTLNumBlocks = 12
 	// cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 7_897_088
-	cfg.Mempool.MaxTxsBytes = 39_485_440
+	cfg.Mempool.MaxTxBytes = 2 * mebibyte
+	cfg.Mempool.MaxTxsBytes = 80 * mebibyte
 	cfg.Mempool.Type = "flood" // flood mempool
 
 	cfg.Consensus.TimeoutPropose = appconsts.GetTimeoutPropose(appconsts.LatestVersion)
