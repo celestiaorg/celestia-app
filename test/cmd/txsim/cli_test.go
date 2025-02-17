@@ -53,6 +53,29 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestTxsimDefaultKeypath(t *testing.T) {
+	_, _, grpcAddr := setup(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	t.Log("start test")
+	t.Log(grpcAddr)
+
+	cmd := command()
+
+	cmd.SetArgs([]string{
+		"--blob", "1",
+		"--grpc-endpoint", grpcAddr,
+		"--seed", "1223",
+		"--poll-time", "1s",
+		"--feegrant",
+	})
+
+	err := cmd.ExecuteContext(ctx)
+	require.NoError(t, err)
+}
+
 func setup(t testing.TB) (keyring.Keyring, string, string) {
 	if testing.Short() {
 		t.Skip("skipping tx sim in short mode.")

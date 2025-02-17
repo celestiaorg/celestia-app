@@ -2,9 +2,11 @@ package txsim
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -13,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -23,6 +26,8 @@ const (
 	grpcMaxRecvMsgSize = 128 * MiB
 	grpcMaxSendMsgSize = 128 * MiB
 )
+
+var defaultTLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
 // through the context. At least one grpc and rpc endpoint must be provided. The client relies on a
@@ -45,11 +50,9 @@ func Run(
 	opts.Fill()
 	r := rand.New(rand.NewSource(opts.seed))
 
-	conn, err := grpc.NewClient(grpcEndpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
+	conn, err := buildGrpcConn(grpcEndpoint, defaultTLSConfig)
 	if err != nil {
-		return fmt.Errorf("dialing %s: %w", grpcEndpoint, err)
+		return fmt.Errorf("error connecting to %s: %w", grpcEndpoint, err)
 	}
 
 	if opts.suppressLogger {
@@ -169,4 +172,35 @@ func (o *Options) WithSeed(seed int64) *Options {
 func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	o.pollTime = pollTime
 	return o
+}
+
+// GRPC applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
+func buildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
+	netConn, err := net.Dial("tcp", grpcEndpoint)
+	if err != nil {
+		log.Error().Str("errorMessage", err.Error()).Msg("grpc server is not reachable via tcp")
+		return nil, err
+	}
+
+	tlsConn := tls.Client(netConn, config)
+	err = tlsConn.Handshake()
+	if err != nil {
+		log.Warn().Str("errorMessage", err.Error()).Msg(
+			"failed to connect with the config to grpc server; proceeding with insecure connection",
+		)
+
+		conn, err := grpc.NewClient(grpcEndpoint,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
+
+		return conn, err
+	}
+
+	conn, err := grpc.NewClient(grpcEndpoint,
+		grpc.WithTransportCredentials(credentials.NewTLS(config)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMaxRecvMsgSize), grpc.MaxCallSendMsgSize(grpcMaxSendMsgSize)))
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to %s: %w", grpcEndpoint, err)
+	}
+	return conn, err
 }
