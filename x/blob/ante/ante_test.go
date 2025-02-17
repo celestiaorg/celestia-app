@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	ante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
@@ -14,6 +14,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,8 @@ const (
 )
 
 func TestPFBAnteHandler(t *testing.T) {
-	txConfig := encoding.MakeConfig().TxConfig
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	txConfig := enc.TxConfig
 	testCases := []struct {
 		name        string
 		pfb         *blob.MsgPayForBlobs

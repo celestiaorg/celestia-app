@@ -3,12 +3,13 @@ package blobfactory_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,11 +17,11 @@ import (
 // TestGenerateManyRandomRawSendTxsSameSigner_Deterministic tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	normalTxCount := 10
-	encCfg := encoding.MakeConfig()
-	TxDecoder := encCfg.TxConfig.TxDecoder()
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	TxDecoder := enc.TxConfig.TxDecoder()
 
 	kr, _ := testnode.NewKeyring(testfactory.TestAccName)
-	signer, err := user.NewSigner(kr, encCfg.TxConfig, testfactory.ChainID, appconsts.LatestVersion, user.NewAccount(testfactory.TestAccName, 1, 0))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testfactory.ChainID, appconsts.LatestVersion, user.NewAccount(testfactory.TestAccName, 1, 0))
 	require.NoError(t, err)
 
 	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(signer, normalTxCount)

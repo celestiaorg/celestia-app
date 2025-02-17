@@ -9,9 +9,9 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/crypto"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -359,7 +359,7 @@ func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 	accountSequence := acc.GetSequence()
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))

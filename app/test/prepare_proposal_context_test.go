@@ -6,14 +6,15 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -34,7 +35,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	vestAccName := "vesting"
 	cfg := testnode.DefaultConfig().WithFundedAccounts(sendAccName)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := testenc.MakeTestConfig()
 
 	type test struct {
 		name    string
@@ -77,7 +78,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	// sign and submit the transactions
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, ecfg)
+			txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 			require.NoError(t, err)
 			msgs, _ := tt.msgFunc()
 			res, err := txClient.SubmitTx(cctx.GoContext(), msgs, user.SetGasLimit(1000000), user.SetFee(2000))

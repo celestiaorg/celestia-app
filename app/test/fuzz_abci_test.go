@@ -6,13 +6,13 @@ import (
 
 	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +26,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
 	}
-	encConf := encoding.MakeConfig()
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	accounts := make([]string, 1100) // 1000 for creating blob txs, 100 for creating send txs
 	for i := range accounts {
 		accounts[i] = tmrand.Str(20)
@@ -96,7 +96,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					txs := testutil.RandBlobTxsWithAccounts(
 						t,
 						testApp,
-						encConf.TxConfig,
+						enc.TxConfig,
 						kr,
 						tt.size,
 						tt.count,
@@ -109,7 +109,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					sendTxs := testutil.SendTxsWithAccounts(
 						t,
 						testApp,
-						encConf.TxConfig,
+						enc.TxConfig,
 						kr,
 						1000,
 						accounts[0],

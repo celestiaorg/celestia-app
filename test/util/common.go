@@ -12,7 +12,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	tmed "github.com/cometbft/cometbft/crypto/ed25519"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -238,12 +238,13 @@ func CreateTestEnv(t *testing.T) TestInput {
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 	}
 
+	enc := testenc.MakeTestConfig()
 	authKeeper := authkeeper.NewAccountKeeper(
 		cdc,
 		runtime.NewKVStoreService(keyAuth),
 		authtypes.ProtoBaseAccount, // prototype
 		moduleAccountPermissions,
-		genesis.AddressCodec,
+		enc.AddressCodec,
 		app.Bech32PrefixAccAddr,
 		authority.String(),
 	)
@@ -274,8 +275,8 @@ func CreateTestEnv(t *testing.T) TestInput {
 		authKeeper,
 		bankKeeper,
 		authority.String(),
-		genesis.ValidatorAddressCodec,
-		genesis.ConsensusAddressCodec,
+		enc.ValidatorAddressCodec,
+		enc.ConsensusAddressCodec,
 	)
 	stakingKeeper.SetParams(ctx, TestingStakeParams)
 

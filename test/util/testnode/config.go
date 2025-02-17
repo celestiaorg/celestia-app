@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/server"
 	"io"
 	"time"
 
@@ -166,14 +167,17 @@ func WithTimeoutCommit(d time.Duration) AppCreationOptions {
 }
 
 func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
-	return func(log.Logger, dbm.DB, io.Writer, srvtypes.AppOptions) srvtypes.Application {
+	return func(_ log.Logger, _ dbm.DB, _ io.Writer, appOptions srvtypes.AppOptions) srvtypes.Application {
+		baseAppOptions := server.DefaultBaseappOptions(appOptions)
+		baseAppOptions = append(baseAppOptions, baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)))
+
 		app := app.New(
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
 			0,   // timeout commit
 			simtestutil.EmptyAppOptions{},
-			baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, app.BondDenom)),
+			baseAppOptions...,
 		)
 
 		for _, opt := range opts {

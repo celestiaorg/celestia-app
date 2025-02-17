@@ -10,11 +10,13 @@ import (
 	"cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -64,13 +66,13 @@ func (g *Genesis) Validators() []Validator {
 
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
-	ecfg := encoding.MakeConfig()
+	enc := testenc.MakeTestConfig()
 	g := &Genesis{
-		ecfg:            ecfg,
+		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         unsafe.Str(6),
 		GenesisTime:     time.Now(),
-		kr:              keyring.NewInMemory(ecfg.Codec),
+		kr:              keyring.NewInMemory(enc.Codec),
 		genOps:          []Modifier{},
 	}
 	return g
@@ -210,7 +212,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		gentxs = append(gentxs, json.RawMessage(bz))
 	}
 
-	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, nil)
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 
 	return Document(
 		tempApp.DefaultGenesis(),

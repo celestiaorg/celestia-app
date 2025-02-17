@@ -8,7 +8,7 @@ import (
 
 	"cosmossdk.io/math"
 	tmrand "cosmossdk.io/math/unsafe"
-	"cosmossdk.io/x/upgrade/types"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -33,9 +33,11 @@ func TestLegacyUpgrade(t *testing.T) {
 
 // TestRemoval verifies that no handler exists for msg-based software upgrade
 // proposals.
+// TODO: This was being removed by msg gate keeper previously. Think we can remove the test.
+// Gatekeeper functionality should be replaced by something else??
 func TestRemoval(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	msgSoftwareUpgrade := types.MsgSoftwareUpgrade{}
+	msgSoftwareUpgrade := upgradetypes.MsgSoftwareUpgrade{}
 	router := app.MsgServiceRouter()
 	handler := router.Handler(&msgSoftwareUpgrade)
 	require.Nil(t, handler)
@@ -103,9 +105,9 @@ func (s *LegacyUpgradeTestSuite) unusedAccount() string {
 // MsgSoftwareUpgrade fails to execute.
 func (s *LegacyUpgradeTestSuite) TestNewGovUpgradeFailure() {
 	t := s.T()
-	sss := types.MsgSoftwareUpgrade{
+	sss := upgradetypes.MsgSoftwareUpgrade{
 		Authority: s.govModuleAddress,
-		Plan: types.Plan{
+		Plan: upgradetypes.Plan{
 			Name:   "v1",
 			Height: 20,
 			Info:   "rough social consensus",

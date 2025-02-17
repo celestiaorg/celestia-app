@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tmrand "cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -14,6 +14,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -53,13 +54,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	s.accounts = RandomAccounts(10)
 
-	ecfg := encoding.MakeConfig()
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
 	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 
 	cfg := DefaultConfig().
 		WithFundedAccounts(s.accounts...).
-		WithModifiers(genesis.SetBlobParams(ecfg.Codec, blobGenState.Params)).
+		WithModifiers(genesis.SetBlobParams(enc.Codec, blobGenState.Params)).
 		WithTendermintConfig(customTendermintConfig())
 
 	cctx, _, _ := NewNetwork(t, cfg)

@@ -10,8 +10,8 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
@@ -21,6 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -28,9 +29,9 @@ import (
 )
 
 func TestValidateTxFee(t *testing.T) {
-	encCfg := encoding.MakeConfig()
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
-	builder := encCfg.TxConfig.NewTxBuilder()
+	builder := enc.TxConfig.NewTxBuilder()
 	err := builder.SetMsgs(banktypes.NewMsgSend(
 		testnode.RandomAddress().(sdk.AccAddress),
 		testnode.RandomAddress().(sdk.AccAddress),

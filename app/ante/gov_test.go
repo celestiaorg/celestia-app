@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -29,8 +30,7 @@ func TestGovDecorator(t *testing.T) {
 	accountStr := testnode.RandomAddress().String()
 	coins := types.NewCoins(types.NewCoin(appconsts.BondDenom, math.NewInt(10)))
 
-	encCfg := encoding.MakeConfig()
-	banktypes.RegisterInterfaces(encCfg.InterfaceRegistry)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	from := testnode.RandomAddress().Bytes()
 	to := testnode.RandomAddress().Bytes()
 	msgSend := banktypes.NewMsgSend(from, to, coins)
@@ -72,7 +72,7 @@ func TestGovDecorator(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := types.Context{}
-			builder := encCfg.TxConfig.NewTxBuilder()
+			builder := enc.TxConfig.NewTxBuilder()
 			require.NoError(t, builder.SetMsgs(tc.msg...))
 			tx := builder.GetTx()
 			_, err := anteHandler(ctx, tx, false)

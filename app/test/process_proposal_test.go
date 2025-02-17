@@ -11,11 +11,11 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
@@ -33,17 +33,17 @@ import (
 )
 
 func TestProcessProposal(t *testing.T) {
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
-	signer, err := user.NewSigner(kr, enc, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(t, err)
 
 	// create 4 single blob blobTxs that are signed with valid account numbers
 	// and sequences
 	blobTxs := blobfactory.ManyMultiBlobTx(
-		t, enc, kr, testutil.ChainID, accounts[:4], infos[:4],
+		t, enc.TxConfig, kr, testutil.ChainID, accounts[:4], infos[:4],
 		blobfactory.NestedBlobs(
 			t,
 			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
@@ -54,7 +54,7 @@ func TestProcessProposal(t *testing.T) {
 	// create 3 MsgSend transactions that are signed with valid account numbers
 	// and sequences
 	sendTxs := testutil.SendTxsWithAccounts(
-		t, testApp, enc, kr, 1000, accounts[0], accounts[len(accounts)-3:], testutil.ChainID,
+		t, testApp, enc.TxConfig, kr, 1000, accounts[0], accounts[len(accounts)-3:], testutil.ChainID,
 	)
 
 	// block with all blobs included
@@ -70,11 +70,11 @@ func TestProcessProposal(t *testing.T) {
 	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
-		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 1, true,
+		t, enc.TxConfig, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 1, true,
 	)[0]
 
 	blobTxWithInvalidNonce := testutil.RandBlobTxsWithManualSequence(
-		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
+		t, enc.TxConfig, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
 	)[0]
 
 	ns1 := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
@@ -82,7 +82,7 @@ func TestProcessProposal(t *testing.T) {
 
 	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
 		t,
-		enc,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accounts[3:4],

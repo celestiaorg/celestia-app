@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
@@ -37,14 +37,14 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
 	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
 	protoBlob, err := share.NewBlob(share.RandomBlobNamespace(), []byte{1}, appconsts.DefaultShareVersion, nil)
 	require.NoError(t, err)
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		encCfg.TxConfig,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accnts[:numBlobTxs],
@@ -55,7 +55,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	normalTxs := testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encCfg.TxConfig,
+		enc.TxConfig,
 		kr,
 		1000,
 		accnts[0],
@@ -86,7 +86,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 }
 
 func TestPrepareProposalFiltering(t *testing.T) {
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
@@ -95,7 +95,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// and sequences
 	blobTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accounts[:3],
@@ -112,7 +112,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		1000,
 		accounts[0],
@@ -132,7 +132,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		1000,
 		accounts[0],
@@ -144,13 +144,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	nilAccount := "carmon san diego"
 	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
-	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
+	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, enc.TxConfig, kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
 	// create a tx that can't be included in a 64 x 64 when accounting for the
 	// pfb along with the shares
 	tooManyShareBtx := blobfactory.ManyMultiBlobTx(
 		t,
-		encConf.TxConfig,
+		enc.TxConfig,
 		kr,
 		testutil.ChainID,
 		accounts[3:4],
@@ -166,7 +166,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	largeString := strings.Repeat("a", 2*1024*1024)
 
 	// 3 transactions over MaxTxSize limit
-	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, encConf.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
+	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, enc.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
 	type test struct {
 		name      string
@@ -261,7 +261,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	accounts := testnode.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 
 	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
 	accs := make([]types.AccountI, 0, numberOfAccounts)

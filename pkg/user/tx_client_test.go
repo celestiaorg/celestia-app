@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -340,7 +341,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, e
 }
 
 func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := testenc.MakeTestConfig()
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	// defaultTmConfig.Mempool.TTLDuration = ttlDuration TODO: check ttl duration
 	testnodeConfig := testnode.DefaultConfig().
@@ -350,9 +351,9 @@ func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *u
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithGasMultiplier(1.2))
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, user.WithGasMultiplier(1.2))
 	require.NoError(t, err)
-	return encCfg, txClient, ctx
+	return enc, txClient, ctx
 }
 
 func (suite *TxClientTestSuite) TestGasPriceAndUsedEstimate() {

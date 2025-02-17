@@ -8,7 +8,6 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -17,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -26,29 +26,29 @@ import (
 const TxSizeCostPerByte = 8
 
 func setup() (*app.App, sdk.Context, client.Context, error) {
-	app, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := app.NewContext(false)
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false)
 	params := authtypes.DefaultParams()
 	// Override default with a different TxSizeCostPerByte value for testing
 	params.TxSizeCostPerByte = TxSizeCostPerByte
-	if err := app.AccountKeeper.Params.Set(ctx, params); err != nil {
+	if err := testApp.AccountKeeper.Params.Set(ctx, params); err != nil {
 		return nil, sdk.Context{}, client.Context{}, err
 	}
 	ctx = ctx.WithBlockHeight(1)
 
-	encodingConfig := encoding.MakeConfig()
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	// We're using TestMsg encoding in the test, so register it here.
-	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
-	testdata.RegisterInterfaces(encodingConfig.InterfaceRegistry)
+	enc.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
+	testdata.RegisterInterfaces(enc.InterfaceRegistry)
 
 	clientCtx := client.Context{}.
-		WithTxConfig(encodingConfig.TxConfig)
+		WithTxConfig(enc.TxConfig)
 
-	return app, ctx, clientCtx, nil
+	return testApp, ctx, clientCtx, nil
 }
 
 func TestConsumeGasForTxSize(t *testing.T) {
-	app, ctx, clientCtx, err := setup()
+	testApp, ctx, clientCtx, err := setup()
 	require.NoError(t, err)
 	var txBuilder client.TxBuilder
 
@@ -60,7 +60,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	feeAmount := testdata.NewTestFeeAmount()
 	gasLimit := testdata.NewTestGasLimit()
 
-	cgtsd := ante.NewConsumeGasForTxSizeDecorator(app.AccountKeeper)
+	cgtsd := ante.NewConsumeGasForTxSizeDecorator(testApp.AccountKeeper)
 	antehandler := sdk.ChainAnteDecorators(cgtsd)
 
 	testCases := []struct {
@@ -75,8 +75,8 @@ func TestConsumeGasForTxSize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// set the version
-			ctx = app.NewContext(false)
-			err = app.SetAppVersion(ctx, tc.version)
+			ctx = testApp.NewContext(false)
+			err = testApp.SetAppVersion(ctx, tc.version)
 			require.NoError(t, err)
 			txBuilder = clientCtx.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(msg))

@@ -3,14 +3,15 @@ package testfactory_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTestAccount(t *testing.T) {
-	enc := encoding.MakeConfig()
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	kr := testfactory.TestKeyring(enc.Codec)
 	record, err := kr.Key(testfactory.TestAccName)
 	require.NoError(t, err)

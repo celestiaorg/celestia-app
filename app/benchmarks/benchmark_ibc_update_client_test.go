@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -23,6 +22,7 @@ import (
 	tmprotoversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	types3 "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	types2 "github.com/cosmos/ibc-go/v8/modules/core/23-commitment/types"
 	types4 "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
@@ -254,7 +254,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)

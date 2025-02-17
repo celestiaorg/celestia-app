@@ -10,7 +10,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -22,6 +21,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,14 +29,14 @@ import (
 // Here we only need to check the functionality that is added to CheckTx. We
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	ns1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
 	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
 
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
-	testApp.Commit()
+	// testApp.Commit() // TODO: Commit() shouldn't be called here? SetupTestAppWithGen calls InitChain, FinalizeBlock, Commit in order
 
 	opts := blobfactory.FeeTxOpts(1e9)
 
@@ -52,7 +52,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal transaction, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[0], encCfg.TxConfig, 1)
+				signer := createSigner(t, kr, accs[0], enc.TxConfig, 1)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
 					[]share.Namespace{ns1},
@@ -66,7 +66,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal transaction, CheckTxType_Recheck",
 			checkType: abci.CheckTxType_Recheck,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[1], encCfg.TxConfig, 2)
+				signer := createSigner(t, kr, accs[1], enc.TxConfig, 2)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
 					[]share.Namespace{ns1},
@@ -80,7 +80,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "invalid transaction, mismatched namespace",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[2], encCfg.TxConfig, 3)
+				signer := createSigner(t, kr, accs[2], enc.TxConfig, 3)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
 					[]share.Namespace{ns1},
@@ -102,7 +102,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "PFB with no blob, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[3], encCfg.TxConfig, 4)
+				signer := createSigner(t, kr, accs[3], enc.TxConfig, 4)
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
 					[]share.Namespace{ns1},
@@ -117,7 +117,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[4], encCfg.TxConfig, 5)
+				signer := createSigner(t, kr, accs[4], enc.TxConfig, 5)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[4]).Address().String(), 10_000, 10)
 				tx, _, err := signer.CreatePayForBlobs(accs[4], blobs, opts...)
 				require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[5], encCfg.TxConfig, 6)
+				signer := createSigner(t, kr, accs[5], enc.TxConfig, 6)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[5]).Address().String(), 1_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[5], blobs, opts...)
 				require.NoError(t, err)
@@ -141,7 +141,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "10,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[6], encCfg.TxConfig, 7)
+				signer := createSigner(t, kr, accs[6], enc.TxConfig, 7)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[6]).Address().String(), 10_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[6], blobs, opts...)
 				require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "100,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[7], encCfg.TxConfig, 8)
+				signer := createSigner(t, kr, accs[7], enc.TxConfig, 8)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[7]).Address().String(), 100_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[7], blobs, opts...)
 				require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[8], encCfg.TxConfig, 9)
+				signer := createSigner(t, kr, accs[8], enc.TxConfig, 9)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[8]).Address().String(), 1_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[8], blobs, opts...)
 				require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "2,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[9], encCfg.TxConfig, 10)
+				signer := createSigner(t, kr, accs[9], enc.TxConfig, 10)
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 2_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[9], blobs, opts...)
 				require.NoError(t, err)
@@ -189,7 +189,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob with invalid signer",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
+				signer := createSigner(t, kr, accs[10], enc.TxConfig, 11)
 				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
@@ -209,7 +209,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob with valid signer",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[10], encCfg.TxConfig, 11)
+				signer := createSigner(t, kr, accs[10], enc.TxConfig, 11)
 				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
@@ -222,7 +222,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob over 2MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[11], encCfg.TxConfig, 12)
+				signer := createSigner(t, kr, accs[11], enc.TxConfig, 12)
 				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accs[11]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[11], []*share.Blob{blob}, opts...)
@@ -235,7 +235,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "v0 blob over 2MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[12], encCfg.TxConfig, 13)
+				signer := createSigner(t, kr, accs[12], enc.TxConfig, 13)
 				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[12], []*share.Blob{blob}, opts...)

@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
@@ -69,7 +70,7 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	s.cfg = testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
 	s.accounts = accounts
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	s.ecfg = testenc.MakeTestConfig()
 }
 
 func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {

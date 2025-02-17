@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
 	"github.com/stretchr/testify/assert"
@@ -16,15 +16,15 @@ import (
 // Test_newGovModule verifies that the gov module's genesis state has defaults
 // overridden.
 func Test_newGovModule(t *testing.T) {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(ModuleEncodingRegisters...)
 	day := time.Hour * 24
 	oneWeek := day * 7
 
 	gm := govModule{}
-	raw := gm.DefaultGenesis(encCfg.Codec)
+	raw := gm.DefaultGenesis(enc.Codec)
 	govGenesisState := govtypes.GenesisState{}
 
-	encCfg.Codec.MustUnmarshalJSON(raw, &govGenesisState)
+	enc.Codec.MustUnmarshalJSON(raw, &govGenesisState)
 
 	want := []types.Coin{{
 		Denom:  BondDenom,
@@ -83,11 +83,11 @@ func TestDefaultConsensusConfig(t *testing.T) {
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
+	enc := moduletestutil.MakeTestEncodingConfig(ModuleEncodingRegisters...)
 	ica := icaModule{}
-	raw := ica.DefaultGenesis(encCfg.Codec)
+	raw := ica.DefaultGenesis(enc.Codec)
 	got := icagenesistypes.GenesisState{}
-	encCfg.Codec.MustUnmarshalJSON(raw, &got)
+	enc.Codec.MustUnmarshalJSON(raw, &got)
 
 	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)

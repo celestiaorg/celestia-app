@@ -327,11 +327,10 @@ func (s *Signer) getSignatureV2(sequence uint64, pubKey cryptotypes.PubKey, sign
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: signature,
 		},
+		PubKey:   pubKey,
 		Sequence: sequence,
 	}
-	if sequence == 0 {
-		sigV2.PubKey = pubKey
-	}
+
 	return sigV2
 }
 
