@@ -7,22 +7,22 @@ NUMBLOCKS=$3
 NODEADDR=$4
 
 if [ -z "$1" ]; then
-  echo "Need to input number of iterations to run..."
+  echo "Need to input the number of iterations to run..."
   exit 1
 fi
 
 if [ -z "$2" ]; then
-  echo "Need to input number of seconds to sleep between iterations"
+  echo "Need to input the number of seconds to sleep between iterations"
   exit 1
 fi
 
 if [ -z "$3" ]; then
-  echo "Need to input block height to declare completion..."
+  echo "Need to input the block height to declare completion..."
   exit 1
 fi
 
 if [ -z "$4" ]; then
-  echo "Need to input node address to poll..."
+  echo "Need to input the node address to poll..."
   exit 1
 fi
 
