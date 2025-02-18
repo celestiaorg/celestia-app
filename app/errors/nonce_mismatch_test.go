@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -13,7 +14,6 @@ import (
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
 )
@@ -23,12 +23,12 @@ import (
 func TestNonceMismatchIntegration(t *testing.T) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
-	encCfg := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	minGasPrice, err := sdk.ParseDecCoins(fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom))
 	require.NoError(t, err)
 	ctx := testApp.NewContext(true).WithMinGasPrices(minGasPrice)
 	addr := testfactory.GetAddress(kr, account)
-	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 
 	// set the sequence to an incorrect value

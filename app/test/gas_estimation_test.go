@@ -8,11 +8,12 @@ import (
 	"time"
 
 	tmrand "cosmossdk.io/math/unsafe"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -45,7 +46,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.EstimatedGasPrice)
 
-	enc := testenc.MakeTestConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 
@@ -135,7 +136,7 @@ func TestEstimateGasUsed(t *testing.T) {
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	require.NoError(t, cctx.WaitForNextBlock())
 
-	enc := testenc.MakeTestConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 	txClient.SetGasMultiplier(1)

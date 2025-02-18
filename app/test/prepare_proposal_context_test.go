@@ -6,8 +6,8 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -35,7 +35,7 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	vestAccName := "vesting"
 	cfg := testnode.DefaultConfig().WithFundedAccounts(sendAccName)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	enc := testenc.MakeTestConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	type test struct {
 		name    string

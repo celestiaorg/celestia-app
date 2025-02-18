@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -15,7 +16,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +36,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	addr := testfactory.GetAddress(kr, account)
 	acc := testutil.DirectQueryAccount(testApp, addr)
 
-	encodingCfg := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	encodingCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	signer, err := user.NewSigner(kr, encodingCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(t, err)

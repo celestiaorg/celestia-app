@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
@@ -14,7 +15,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,7 +33,7 @@ var expiration = time.Now().Add(time.Hour)
 // message that contains a MsgTryUpgrade if the MsgTryUpgrade is not supported
 // in the current version.
 func TestCircuitBreaker(t *testing.T) { // TODO: we need to pass a find a way to update the app version easily
-	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	testApp, keyRing := util.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), granter, grantee)
 
 	signer, err := user.NewSigner(keyRing, enc.TxConfig, util.ChainID, appVersion, user.NewAccount(granter, 1, 0))

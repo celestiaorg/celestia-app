@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -58,7 +57,7 @@ func (s *PriorityTestSuite) SetupSuite() {
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
-	s.ecfg = testenc.MakeTestConfig()
+	s.ecfg = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	require.NoError(t, cctx.WaitForNextBlock())
 

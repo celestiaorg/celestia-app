@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	"github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,7 +67,7 @@ func getTestdataBlockResponse(t *testing.T) (resp blocksync.BlockResponse) {
 		t.Fatalf("reading json file: %v", err)
 	}
 
-	encCfg := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	if err = encCfg.Codec.UnmarshalJSON(fileContents, &resp); err != nil {
 		t.Fatalf("error unmarshal JSON block response: %v", err)
 	}
@@ -86,7 +86,7 @@ func getTxBytes(txBytes []byte) []byte {
 }
 
 func decodeTx(txBytes []byte) (types.Tx, error) {
-	encCfg := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.TxConfig.TxDecoder()
 	tx, err := decoder(txBytes)
 	if err != nil {

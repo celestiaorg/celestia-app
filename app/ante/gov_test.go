@@ -6,10 +6,10 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -30,7 +30,7 @@ func TestGovDecorator(t *testing.T) {
 	accountStr := testnode.RandomAddress().String()
 	coins := types.NewCoins(types.NewCoin(appconsts.BondDenom, math.NewInt(10)))
 
-	enc := moduletestutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	from := testnode.RandomAddress().Bytes()
 	to := testnode.RandomAddress().Bytes()
 	msgSend := banktypes.NewMsgSend(from, to, coins)

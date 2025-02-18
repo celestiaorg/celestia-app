@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
@@ -54,7 +54,7 @@ func NewSigner(
 		keys:                keys,
 		chainID:             chainID,
 		enc:                 encCfg,
-		addressCodec:        addresscodec.NewBech32Codec(app.Bech32PrefixAccAddr),
+		addressCodec:        addresscodec.NewBech32Codec(params.Bech32PrefixAccAddr),
 		accounts:            make(map[string]*Account),
 		addressToAccountMap: make(map[string]string),
 		appVersion:          appVersion,

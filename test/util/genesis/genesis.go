@@ -10,7 +10,6 @@ import (
 	"cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -66,7 +65,7 @@ func (g *Genesis) Validators() []Validator {
 
 // NewDefaultGenesis creates a new default genesis with no accounts or validators.
 func NewDefaultGenesis() *Genesis {
-	enc := testenc.MakeTestConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	g := &Genesis{
 		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),

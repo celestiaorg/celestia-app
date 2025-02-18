@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
-	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -119,7 +119,7 @@ func TestTxSimulator(t *testing.T) {
 				ctx,
 				grpcAddr,
 				keyring,
-				testenc.MakeTestConfig(),
+				encoding.MakeTestConfig(app.ModuleEncodingRegisters...),
 				opts,
 				tc.sequences...,
 			)
@@ -185,7 +185,7 @@ func TestTxSimUpgrade(t *testing.T) {
 		cctx.GoContext(),
 		grpcAddr,
 		cctx.Keyring,
-		testenc.MakeTestConfig(),
+		encoding.MakeTestConfig(app.ModuleEncodingRegisters...),
 		opts,
 		sequences...,
 	)

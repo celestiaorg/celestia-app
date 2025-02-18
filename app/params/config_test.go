@@ -1,4 +1,4 @@
-package app
+package params
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_setCosmosSDKConfig(t *testing.T) {
+func TestSetCosmosSDKConfig(t *testing.T) {
 	config := sdk.GetConfig()
 	assert.Equal(t, Bech32PrefixAccAddr, config.GetBech32AccountAddrPrefix())
 	assert.Equal(t, Bech32PrefixAccPub, config.GetBech32AccountPubPrefix())

@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
-	testenc "github.com/celestiaorg/celestia-app/v4/test/util/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -341,7 +340,7 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, e
 }
 
 func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
-	enc := testenc.MakeTestConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	defaultTmConfig := testnode.DefaultTendermintConfig()
 	// defaultTmConfig.Mempool.TTLDuration = ttlDuration TODO: check ttl duration
 	testnodeConfig := testnode.DefaultConfig().
