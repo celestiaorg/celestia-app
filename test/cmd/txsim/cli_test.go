@@ -59,9 +59,6 @@ func TestTxsimDefaultKeypath(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	t.Log("start test")
-	t.Log(grpcAddr)
-
 	cmd := command()
 
 	cmd.SetArgs([]string{
