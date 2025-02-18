@@ -3,6 +3,7 @@ package pfm
 import (
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -805,11 +806,7 @@ func RegisterSwaggerAPI(_ client.Context, rtr *mux.Router) {
 
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {
-	dupMaccPerms := make(map[string][]string)
-	for k, v := range maccPerms {
-		dupMaccPerms[k] = v
-	}
-	return dupMaccPerms
+	return maps.Clone(maccPerms)
 }
 
 // initParamsKeeper init params keeper and its subspaces
