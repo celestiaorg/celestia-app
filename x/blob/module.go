@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
 	"cosmossdk.io/core/appmodule"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
@@ -22,8 +21,10 @@ import (
 )
 
 var (
-	_ module.AppModuleBasic = AppModule{}
-	_ module.HasGenesis     = AppModule{}
+	_ module.AppModuleBasic      = AppModule{}
+	_ module.HasGenesis          = AppModule{}
+	_ module.HasConsensusVersion = AppModule{}
+	_ module.HasName             = AppModule{}
 
 	_ appmodule.HasServices = AppModule{}
 	_ appmodule.AppModule   = AppModule{}

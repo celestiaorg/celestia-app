@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	"time"
 
 	"cosmossdk.io/math"
@@ -33,10 +34,19 @@ const (
 	mebibyte = 1048576
 )
 
+var (
+	_ module.HasGenesisBasics = bankModule{}
+	_ module.HasGenesisBasics = govModule{}
+	_ module.HasGenesisBasics = stakingModule{}
+	_ module.HasGenesisBasics = slashingModule{}
+	_ module.HasGenesisBasics = icaModule{}
+	_ module.HasGenesisBasics = mintModule{}
+)
+
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
 // implementation to provide custom default genesis state.
 type bankModule struct {
-	bank.AppModuleBasic
+	bank.AppModule
 }
 
 // DefaultGenesis returns custom x/bank module genesis state.
@@ -72,7 +82,7 @@ func (bankModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 // stakingModule wraps the x/staking module in order to overwrite specific
 // ModuleManager APIs.
 type stakingModule struct {
-	staking.AppModuleBasic
+	staking.AppModule
 }
 
 // DefaultGenesis returns custom x/staking module genesis state.
@@ -88,7 +98,7 @@ func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 // slashingModule wraps the x/slashing module in order to overwrite specific
 // ModuleManager APIs.
 type slashingModule struct {
-	slashing.AppModuleBasic
+	slashing.AppModule
 }
 
 // DefaultGenesis returns custom x/staking module genesis state.
@@ -104,7 +114,7 @@ func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 }
 
 type ibcModule struct {
-	ibc.AppModuleBasic
+	ibc.AppModule
 }
 
 // DefaultGenesis returns custom x/ibc module genesis state.
@@ -123,7 +133,7 @@ func (ibcModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 // icaModule defines a custom wrapper around the ica module to provide custom
 // default genesis state.
 type icaModule struct {
-	ica.AppModuleBasic
+	ica.AppModule
 }
 
 // DefaultGenesis returns custom ica module genesis state.
@@ -150,7 +160,7 @@ func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 // govModule is a custom wrapper around the x/gov module's AppModuleBasic
 // implementation to provide custom default genesis state.
 type govModule struct {
-	gov.AppModuleBasic
+	gov.AppModule
 }
 
 // DefaultGenesis returns custom x/gov module genesis state.

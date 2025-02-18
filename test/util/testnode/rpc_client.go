@@ -66,10 +66,12 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 		return nil, Context{}, emptycleanup, err
 	}
 
-	err = srvgrpc.StartGRPCServer(cctx.goContext, logger, appCfg.GRPC, grpcSrv)
-	if err != nil {
-		return nil, Context{}, emptycleanup, err
-	}
+	go func() {
+		// StartGRPCServer is a blocking function, we need to run it in a go routine.
+		if err := srvgrpc.StartGRPCServer(cctx.goContext, logger, appCfg.GRPC, grpcSrv); err != nil {
+			panic(err)
+		}
+	}()
 
 	nodeGRPCAddr := strings.Replace(appCfg.GRPC.Address, "0.0.0.0", "localhost", 1)
 	conn, err := grpc.NewClient(

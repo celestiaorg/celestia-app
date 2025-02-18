@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"strings"
 	"time"
 
 	tmrand "cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
@@ -37,7 +38,7 @@ type Context struct {
 }
 
 func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tmconfig.Config, chainID, apiAddress string) Context {
-	config := encoding.MakeConfig()
+	config := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
 	clientContext := client.Context{}.
 		WithKeyring(keyring).
 		WithHomeDir(tmConfig.RootDir).
