@@ -87,7 +87,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			MaxTxsBytes:  80 * mebibyte,
 			TTLDuration:  75 * time.Second,
 			TTLNumBlocks: 12,
-			Version:      "v2",
+			Version:      "v1",
 		}
 		assert.Equal(t, want, *got.Mempool)
 	})
