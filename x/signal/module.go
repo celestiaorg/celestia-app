@@ -26,7 +26,8 @@ var (
 	_ module.AppModuleBasic   = AppModule{}
 	_ module.HasGenesisBasics = AppModule{}
 
-	_ appmodule.AppModule = AppModule{}
+	_ appmodule.AppModule   = AppModule{}
+	_ appmodule.HasServices = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the blobstream module.
@@ -87,9 +88,10 @@ func (am AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig
 
 // RegisterServices registers a GRPC query service to respond to the
 // module-specific GRPC queries.
-func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) {
+func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	types.RegisterMsgServer(registrar, &am.keeper)
 	types.RegisterQueryServer(registrar, &am.keeper)
+	return nil
 }
 
 // ConsensusVersion returns the consensus version of this module.

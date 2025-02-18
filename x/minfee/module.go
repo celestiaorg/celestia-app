@@ -22,7 +22,8 @@ var (
 	_ module.AppModule      = AppModule{}
 	_ module.HasGenesis     = AppModule{}
 
-	_ appmodule.AppModule = AppModule{}
+	_ appmodule.HasServices = AppModule{}
+	_ appmodule.AppModule   = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the minfee module.
@@ -65,8 +66,9 @@ func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {}
 func (am AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {}
 
 // RegisterServices registers module services.
-func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) {
+func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	RegisterQueryServer(registrar, NewQueryServerImpl(am.paramsKeeper))
+	return nil
 }
 
 // DefaultGenesis returns default genesis state as raw bytes for the minfee module.

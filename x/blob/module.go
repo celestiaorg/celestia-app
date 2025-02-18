@@ -25,7 +25,8 @@ var (
 	_ module.AppModuleBasic = AppModule{}
 	_ module.HasGenesis     = AppModule{}
 
-	_ appmodule.AppModule = AppModule{}
+	_ appmodule.HasServices = AppModule{}
+	_ appmodule.AppModule   = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the blob module.
@@ -95,9 +96,10 @@ func (AppModule) GetQueryCmd() *cobra.Command {
 
 // RegisterServices registers a GRPC query service to respond to the
 // module-specific GRPC queries.
-func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) {
+func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	types.RegisterMsgServer(registrar, keeper.NewMsgServerImpl(am.keeper))
 	types.RegisterQueryServer(registrar, am.keeper)
+	return nil
 }
 
 // InitGenesis performs the blob module's genesis initialization.

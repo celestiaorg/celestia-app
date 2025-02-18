@@ -26,6 +26,7 @@ var (
 
 	_ appmodule.AppModule       = AppModule{}
 	_ appmodule.HasBeginBlocker = AppModule{}
+	_ appmodule.HasServices     = AppModule{}
 )
 
 // AppModule implements an application module for the mint module.
@@ -93,8 +94,9 @@ func (AppModule) GetQueryCmd() *cobra.Command {
 
 // RegisterServices registers a gRPC query service to respond to the
 // module-specific gRPC queries.
-func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) {
+func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
 	types.RegisterQueryServer(registrar, am.keeper)
+	return nil
 }
 
 // InitGenesis performs genesis initialization for the mint module.
