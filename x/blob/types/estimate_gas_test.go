@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/celestiaorg/celestia-app/v4/app"
@@ -48,7 +49,9 @@ func TestPFBGasEstimation(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ok)
 			resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-				Txs: [][]byte{blobTx.Tx},
+				Txs:    [][]byte{blobTx.Tx},
+				Time:   time.Now(),
+				Height: 2, // height 1 is genesis
 			})
 			require.NoError(t, err)
 			result := resp.TxResults[0]
@@ -95,7 +98,9 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		require.NoError(t, err)
 		require.True(t, ok)
 		resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-			Txs: [][]byte{blobTx.Tx},
+			Txs:    [][]byte{blobTx.Tx},
+			Time:   time.Now(),
+			Height: 2, // height 1 is genesis
 		})
 		require.NoError(t, err)
 		result := resp.TxResults[0]
