@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v2"
 	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
 	"github.com/stretchr/testify/assert"
 	tmcfg "github.com/tendermint/tendermint/config"
