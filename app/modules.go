@@ -44,6 +44,8 @@ import (
 	"github.com/cosmos/ibc-go/v8/modules/apps/transfer"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	solomachine "github.com/cosmos/ibc-go/v8/modules/light-clients/06-solomachine"
+	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 )
 
 var (
@@ -74,6 +76,8 @@ var (
 		consensus.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		icaModule{},
+		ibctm.AppModuleBasic{},
+		solomachine.AppModuleBasic{},
 	}
 )
 
