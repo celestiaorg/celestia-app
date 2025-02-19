@@ -80,7 +80,7 @@ type TxStatusResponse struct {
 	Index  uint32 `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
 	// execution_code is returned when the transaction has been committed
 	// and returns whether it was successful or errored. A non zero
-	// execution code indicates an error.
+	// execution code indicated an error.
 	ExecutionCode uint32 `protobuf:"varint,3,opt,name=execution_code,json=executionCode,proto3" json:"execution_code,omitempty"`
 	// error log for failed transactions.
 	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
