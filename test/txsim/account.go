@@ -1,6 +1,7 @@
 package txsim
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -203,6 +204,20 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 			if err := m.ValidateBasic(); err != nil {
 				return fmt.Errorf("error validating message: %w", err)
 			}
+		}
+		signers, _, err := am.encCfg.Codec.GetMsgV1Signers(msg)
+		if err != nil {
+			return fmt.Errorf("error getting signers for message: %w", err)
+		}
+
+		if len(signers) != 1 {
+			return fmt.Errorf("only a single signer is supported got: %d", len(signers))
+		}
+
+		if address == nil {
+			address = signers[0]
+		} else if !bytes.Equal(address, signers[0]) {
+			return fmt.Errorf("all messages must be signed by the same account")
 		}
 	}
 

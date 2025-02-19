@@ -177,7 +177,7 @@ well funded account that can act as the master account. The command runs until a
 				opts.SuppressLogs()
 			}
 
-			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+			encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
 				grpcEndpoint,
