@@ -8,6 +8,9 @@ import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
+	"cosmossdk.io/x/circuit"
+	circuitkeeper "cosmossdk.io/x/circuit/keeper"
+	circuittypes "cosmossdk.io/x/circuit/types"
 	"cosmossdk.io/x/evidence"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	evidencetypes "cosmossdk.io/x/evidence/types"
@@ -79,7 +82,6 @@ import (
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	govv1beta2 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
@@ -176,6 +178,7 @@ type App struct {
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	BlobKeeper          blobkeeper.Keeper
+	CircuitKeeper       circuitkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -262,9 +265,15 @@ func New(
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[feegrant.StoreKey]), app.AccountKeeper)
 
+	// the circuit keeper is used as a replacement of the gate message keeper
+	// in order to block upgrade msg proposals
+	app.CircuitKeeper = circuitkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[circuittypes.StoreKey]), govModuleAddr, app.AccountKeeper.AddressCodec())
+	app.BaseApp.SetCircuitBreaker(&app.CircuitKeeper)
+
 	// The upgrade keeper is initialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
 	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
 	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
+
 	// get skipUpgradeHeights from the app options
 	skipUpgradeHeights := map[int64]bool{}
 	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
@@ -399,6 +408,7 @@ func New(
 		// ensure the light client module types are registered.
 		ibctm.NewAppModule(),
 		solomachine.NewAppModule(),
+		circuitModule{circuit.NewAppModule(app.encodingConfig.Codec, app.CircuitKeeper)},
 	)
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
@@ -427,14 +437,13 @@ func New(
 	app.configurator = module.NewConfigurator(encodingConfig.Codec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	app.ModuleManager.RegisterServices(app.configurator)
 
-	// extract the accepted message list from the configurator and create a gatekeeper
-	// which will be used both as the antehandler and as part of the circuit breaker in
-	// the msg service router
+	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
+	app.RegisterUpgradeHandlers() // must be called after module manager & configuator are initialized
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
-	app.MountKVStores(app.keys) // TODO: this was using previously baseKeys, but we want to start from a v4 app
+	app.MountKVStores(app.keys)
 	app.MountMemoryStores(app.memKeys)
-	app.MountTransientStores(tkeys)
+	app.MountTransientStores(app.tkeys)
 
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
@@ -533,6 +542,7 @@ func isSupportedAppVersion(appVersion uint64) bool {
 	return appVersion == v1 || appVersion == v2 || appVersion == v3 || appVersion == v4
 }
 
+// DefaultGenesis returns the default genesis state
 func (app *App) DefaultGenesis() GenesisState {
 	return app.BasicManager.DefaultGenesis(app.encodingConfig.Codec)
 }
@@ -676,7 +686,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(minttypes.ModuleName)
 	paramsKeeper.Subspace(distrtypes.ModuleName)
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
-	paramsKeeper.Subspace(govtypes.ModuleName).WithKeyTable(govv1beta2.ParamKeyTable())
+	paramsKeeper.Subspace(govtypes.ModuleName)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibcexported.ModuleName)
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)

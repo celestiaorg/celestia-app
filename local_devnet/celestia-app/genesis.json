@@ -389,7 +389,14 @@
                 "receive_enabled": true
             }
         },
-        "vesting": {}
+        "vesting": {},
+        "circuit": {
+            "account_permissions": [],
+            "disabled_type_urls": [
+                "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+                "/cosmos.upgrade.v1beta1.MsgCancelUpgrade"
+            ]
+        }
     },
     "consensus": {
         "params": {

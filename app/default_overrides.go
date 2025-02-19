@@ -3,10 +3,14 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/types/module"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/types/module"
+
 	"cosmossdk.io/math"
+	"cosmossdk.io/x/circuit"
+	circuittypes "cosmossdk.io/x/circuit/types"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
@@ -172,6 +176,23 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
 	genState.Params.MaxDepositPeriod = &oneWeek
 	genState.Params.VotingPeriod = &oneWeek
+
+	return cdc.MustMarshalJSON(genState)
+}
+
+type circuitModule struct {
+	circuit.AppModule
+}
+
+// DefaultGenesis returns custom x/circuit module genesis state.
+func (circuitModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	genState := circuittypes.DefaultGenesisState()
+
+	// block upgrade modules by default
+	genState.DisabledTypeUrls = []string{
+		sdk.MsgTypeURL(&upgradetypes.MsgSoftwareUpgrade{}),
+		sdk.MsgTypeURL(&upgradetypes.MsgCancelUpgrade{}),
+	}
 
 	return cdc.MustMarshalJSON(genState)
 }

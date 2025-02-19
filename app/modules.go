@@ -1,6 +1,7 @@
 package app
 
 import (
+	circuittypes "cosmossdk.io/x/circuit/types"
 	"cosmossdk.io/x/evidence"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	"cosmossdk.io/x/feegrant"
@@ -95,15 +96,10 @@ func (app *App) setModuleOrder() {
 		stakingtypes.ModuleName,
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
-		feegrant.ModuleName,
-		authtypes.ModuleName,
-		banktypes.ModuleName,
-		govtypes.ModuleName,
 		genutiltypes.ModuleName,
 		blobtypes.ModuleName,
 		paramstypes.ModuleName,
 		authz.ModuleName,
-		vestingtypes.ModuleName,
 		signaltypes.ModuleName,
 		minfee.ModuleName,
 		icatypes.ModuleName,
@@ -165,6 +161,7 @@ func (app *App) setModuleOrder() {
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
 		upgradetypes.ModuleName,
+		circuittypes.ModuleName,
 	)
 }
 
@@ -190,5 +187,6 @@ func allStoreKeys() []string {
 		signaltypes.StoreKey,
 		blobtypes.StoreKey,
 		consensustypes.StoreKey, // added in v4
+		circuittypes.StoreKey,   // added in v4
 	}
 }
