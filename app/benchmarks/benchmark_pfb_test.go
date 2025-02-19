@@ -9,9 +9,9 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/crypto"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"

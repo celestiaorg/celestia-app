@@ -10,6 +10,7 @@ import (
 	tmrand "cosmossdk.io/math/unsafe"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
@@ -17,7 +18,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/require"
@@ -48,7 +48,7 @@ type LegacyUpgradeTestSuite struct {
 
 	accounts []string
 	cctx     testnode.Context
-	ecfg     moduletestutil.TestEncodingConfig
+	ecfg     encoding.Config
 
 	govModuleAddress string
 
@@ -61,7 +61,7 @@ type LegacyUpgradeTestSuite struct {
 func (s *LegacyUpgradeTestSuite) SetupSuite() {
 	t := s.T()
 
-	s.ecfg = moduletestutil.MakeTestEncodingConfig()
+	s.ecfg = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	// we create an arbitrary number of funded accounts
 	accounts := make([]string, 3)

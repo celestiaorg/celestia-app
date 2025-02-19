@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -22,7 +23,6 @@ import (
 	tmprotoversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	types3 "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	types2 "github.com/cosmos/ibc-go/v8/modules/core/23-commitment/types"
 	types4 "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"

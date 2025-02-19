@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	tmrand "cosmossdk.io/math/unsafe"
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
@@ -15,7 +17,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +35,7 @@ func TestBlobShareDecorator(t *testing.T) {
 	}
 
 	rand := tmrand.NewRand()
-	ecfg := moduletestutil.MakeTestEncodingConfig()
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	testCases := []testCase{
 		{
@@ -135,7 +136,7 @@ func TestBlobShareDecorator(t *testing.T) {
 			kr, _ := testnode.NewKeyring(testfactory.TestAccName)
 			signer, err := user.NewSigner(
 				kr,
-				ecfg.TxConfig,
+				enc.TxConfig,
 				testfactory.ChainID,
 				tc.appVersion,
 				user.NewAccount(testfactory.TestAccName, 1, 0),
@@ -148,7 +149,7 @@ func TestBlobShareDecorator(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, isBlob)
 
-			sdkTx, err := ecfg.TxConfig.TxDecoder()(btx.Tx)
+			sdkTx, err := enc.TxConfig.TxDecoder()(btx.Tx)
 			require.NoError(t, err)
 
 			decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})

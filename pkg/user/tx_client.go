@@ -18,6 +18,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
+	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -134,6 +135,7 @@ func WithDefaultAccount(name string) Option {
 // TxClient is thread-safe.
 type TxClient struct {
 	mtx      sync.Mutex
+	cdc      codec.Codec
 	signer   *Signer
 	registry codectypes.InterfaceRegistry
 	grpc     *grpc.ClientConn
@@ -152,6 +154,7 @@ type TxClient struct {
 
 // NewTxClient returns a new signer using the provided keyring
 func NewTxClient(
+	cdc codec.Codec,
 	signer *Signer,
 	conn *grpc.ClientConn,
 	registry codectypes.InterfaceRegistry,
@@ -242,7 +245,7 @@ func SetupTxClient(
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(signer, conn, encCfg.InterfaceRegistry, options...)
+	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
 }
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
@@ -583,10 +586,8 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 
 func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
 	var addr sdktypes.AccAddress
-	encodingCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
 	for _, msg := range msgs {
-		signers, _, err := encodingCfg.Codec.GetMsgV1Signers(msg)
+		signers, _, err := client.cdc.GetMsgV1Signers(msg)
 		if err != nil {
 			return "", fmt.Errorf("getting signers from message: %w", err)
 		}
