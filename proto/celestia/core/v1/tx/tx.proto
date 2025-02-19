@@ -31,7 +31,7 @@ message TxStatusResponse {
     uint32 index = 2;
     // execution_code is returned when the transaction has been committed
     // and returns whether it was successful or errored. A non zero
-    // execution code indicated an error.
+    // execution code indicates an error.
     uint32 execution_code = 3;
     // error log for failed transactions.
     string error = 4;
