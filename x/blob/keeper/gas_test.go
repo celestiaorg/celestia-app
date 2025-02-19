@@ -19,33 +19,31 @@ func TestPayForBlobGas(t *testing.T) {
 		wantGasConsumed uint64
 	}
 
-	paramLookUpCost := uint32(1060)
-
 	testCases := []testCase{
 		{
 			name:            "1 byte blob", // occupies 1 share
 			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{1}},
-			wantGasConsumed: uint64(1*share.ShareSize*appconsts.GasPerBlobByte(appconsts.LatestVersion) + paramLookUpCost), // 1 share * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 5156 gas
+			wantGasConsumed: uint64(1 * share.ShareSize * appconsts.GasPerBlobByte(appconsts.LatestVersion)), // 1 share * 512 bytes per share * 8 gas per byte= 4096 gas
 		},
 		{
 			name:            "100 byte blob", // occupies 1 share
 			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{100}},
-			wantGasConsumed: uint64(1*share.ShareSize*appconsts.GasPerBlobByte(appconsts.LatestVersion) + paramLookUpCost),
+			wantGasConsumed: uint64(1 * share.ShareSize * appconsts.GasPerBlobByte(appconsts.LatestVersion)),
 		},
 		{
 			name:            "1024 byte blob", // occupies 3 shares because share prefix (e.g. namespace, info byte)
 			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{1024}},
-			wantGasConsumed: uint64(3*share.ShareSize*appconsts.GasPerBlobByte(appconsts.LatestVersion) + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
+			wantGasConsumed: uint64(3 * share.ShareSize * appconsts.GasPerBlobByte(appconsts.LatestVersion)), // 3 shares * 512 bytes per share * 8 gas per byte = 12288 gas
 		},
 		{
 			name:            "3 blobs, 1 share each",
 			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{1, 1, 1}},
-			wantGasConsumed: uint64(3*share.ShareSize*appconsts.GasPerBlobByte(appconsts.LatestVersion) + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
+			wantGasConsumed: uint64(3 * share.ShareSize * appconsts.GasPerBlobByte(appconsts.LatestVersion)), // 3 shares * 512 bytes per share * 8 gas per byte = 12288 gas
 		},
 		{
 			name:            "3 blobs, 6 shares total",
 			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{1024, 800, 100}},
-			wantGasConsumed: uint64(6*share.ShareSize*appconsts.GasPerBlobByte(appconsts.LatestVersion) + paramLookUpCost), // 6 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 25636 gas
+			wantGasConsumed: uint64(6 * share.ShareSize * appconsts.GasPerBlobByte(appconsts.LatestVersion)), // 6 shares * 512 bytes per share * 8 gas per byte = 24576 gas
 		},
 	}
 
@@ -62,6 +60,7 @@ func TestPayForBlobGas(t *testing.T) {
 	}
 }
 
+// TODO: can we just remove this test now... are we using params in x/blob for gas costs or is it just versioned params using appconsts
 func TestChangingGasParam(t *testing.T) {
 	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
 	k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
