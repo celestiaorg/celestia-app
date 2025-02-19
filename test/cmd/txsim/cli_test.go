@@ -56,18 +56,22 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 
 func TestTxsimDefaultKeypath(t *testing.T) {
 	_, _, grpcAddr := setup(t)
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-
 	kr, err := keyring.New(app.Name, keyring.BackendTest, app.DefaultNodeHome, nil, cdc)
 	if err != nil {
-		t.Fatal("Keyring failed with", err)
+		t.Fatal("Keyring failed with ", err)
 	}
-	_, err = kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1)
-	if err != nil {
-		t.Fatal("NewAccount failed with", err)
+	defer func() {
+		if err := kr.Delete(testfactory.TestAccName); err != nil {
+			t.Error("Failed to delete test account: ", err)
+		}
+	}()
+
+	if _, err = kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1); err != nil {
+		t.Error("NewAccount failed with", err)
 	}
 
 	cmd := command()
@@ -81,8 +85,6 @@ func TestTxsimDefaultKeypath(t *testing.T) {
 
 	err = cmd.ExecuteContext(ctx)
 
-	// NewAccount is not idempotent, Delete handles teardown
-	kr.Delete(testfactory.TestAccName)
 	require.NoError(t, err)
 }
 
