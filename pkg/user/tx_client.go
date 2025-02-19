@@ -184,6 +184,7 @@ func NewTxClient(
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
 		txTracker:       make(map[string]txInfo),
+		cdc:             cdc,
 	}
 
 	for _, opt := range options {
