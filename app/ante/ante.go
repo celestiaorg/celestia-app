@@ -1,6 +1,8 @@
 package ante
 
 import (
+	circuitante "cosmossdk.io/x/circuit/ante"
+	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
 	blobante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
@@ -21,6 +23,7 @@ func NewAnteHandler(
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
 	paramKeeper paramkeeper.Keeper,
+	circuitkeeper *circuitkeeper.Keeper,
 	forbiddenGovUpdateParams map[string][]string,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
@@ -77,6 +80,8 @@ func NewAnteHandler(
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
+		// Wire circuit breaker decorator.
+		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 	)
 }
 

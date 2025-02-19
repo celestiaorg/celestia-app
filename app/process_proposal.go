@@ -49,6 +49,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 		app.ParamsKeeper,
+		&app.CircuitKeeper,
 		app.BlockedParamsGovernance(),
 	)
 	blockHeader := ctx.BlockHeader()

@@ -460,6 +460,7 @@ func New(
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 		app.ParamsKeeper,
+		&app.CircuitKeeper,
 		app.BlockedParamsGovernance(),
 	))
 
