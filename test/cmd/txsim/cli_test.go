@@ -65,7 +65,7 @@ func TestTxsimDefaultKeypath(t *testing.T) {
 	if err != nil {
 		t.Fatal("Keyring failed with", err)
 	}
-	kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1)
+	_, err = kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1)
 	if err != nil {
 		t.Fatal("NewAccount failed with", err)
 	}
