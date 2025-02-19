@@ -174,7 +174,7 @@ func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	return o
 }
 
-// GRPC applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
+// buildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.
 func buildGrpcConn(grpcEndpoint string, config *tls.Config) (*grpc.ClientConn, error) {
 	netConn, err := net.Dial("tcp", grpcEndpoint)
 	if err != nil {

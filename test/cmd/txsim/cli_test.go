@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -55,12 +56,21 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 
 func TestTxsimDefaultKeypath(t *testing.T) {
 	_, _, grpcAddr := setup(t)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := command()
+	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 
+	kr, err := keyring.New(app.Name, keyring.BackendTest, app.DefaultNodeHome, nil, cdc)
+	if err != nil {
+		t.Fatal("Keyring failed with", err)
+	}
+	kr.NewAccount(testfactory.TestAccName, testfactory.TestAccMnemo, "", "", hd.Secp256k1)
+	if err != nil {
+		t.Fatal("NewAccount failed with", err)
+	}
+
+	cmd := command()
 	cmd.SetArgs([]string{
 		"--blob", "1",
 		"--grpc-endpoint", grpcAddr,
@@ -69,7 +79,10 @@ func TestTxsimDefaultKeypath(t *testing.T) {
 		"--feegrant",
 	})
 
-	err := cmd.ExecuteContext(ctx)
+	err = cmd.ExecuteContext(ctx)
+
+	// NewAccount is not idempotent, Delete handles teardown
+	kr.Delete(testfactory.TestAccName)
 	require.NoError(t, err)
 }
 
