@@ -70,7 +70,8 @@ func TestGetVotingPowerThreshold(t *testing.T) {
 			config := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 			stakingKeeper := newMockStakingKeeper(tc.validators)
 			k := signal.NewKeeper(config.Codec, nil, stakingKeeper)
-			got := k.GetVotingPowerThreshold(sdk.Context{})
+			got, err := k.GetVotingPowerThreshold(sdk.Context{})
+			assert.NoError(t, err)
 			assert.Equal(t, tc.want, got, fmt.Sprintf("want %v, got %v", tc.want.String(), got.String()))
 		})
 	}
@@ -305,7 +306,8 @@ func TestThresholdVotingPower(t *testing.T) {
 		{total: 59, threshold: 50},
 	} {
 		mockStakingKeeper.totalVotingPower = sdkmath.NewInt(tc.total)
-		threshold := upgradeKeeper.GetVotingPowerThreshold(ctx)
+		threshold, err := upgradeKeeper.GetVotingPowerThreshold(ctx)
+		assert.NoError(t, err)
 		require.EqualValues(t, tc.threshold, threshold.Int64())
 	}
 }

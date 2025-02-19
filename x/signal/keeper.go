@@ -97,8 +97,16 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		return &types.MsgTryUpgradeResponse{}, types.ErrUpgradePending.Wrapf("can not try upgrade")
 	}
 
-	threshold := k.GetVotingPowerThreshold(sdkCtx)
-	hasQuorum, version := k.TallyVotingPower(sdkCtx, threshold.Int64())
+	threshold, err := k.GetVotingPowerThreshold(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	hasQuorum, version, err := k.TallyVotingPower(sdkCtx, threshold.Int64())
+	if err != nil {
+		return nil, err
+	}
+
 	if hasQuorum {
 		appVersion := sdkCtx.BlockHeader().Version.App
 		if version <= appVersion {
@@ -140,7 +148,12 @@ func (k Keeper) VersionTally(ctx context.Context, req *types.QueryVersionTallyRe
 			currentVotingPower = currentVotingPower.AddRaw(power)
 		}
 	}
-	threshold := k.GetVotingPowerThreshold(sdkCtx)
+
+	threshold, err := k.GetVotingPowerThreshold(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &types.QueryVersionTallyResponse{
 		VotingPower:      currentVotingPower.Uint64(),
 		ThresholdPower:   threshold.Uint64(),
@@ -163,7 +176,7 @@ func (k Keeper) DeleteValidatorVersion(ctx sdk.Context, valAddress sdk.ValAddres
 // TallyVotingPower tallies the voting power for each version and returns true
 // and the version if any version has reached the quorum in voting power.
 // Returns false and 0 otherwise.
-func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64) {
+func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64, error) {
 	versionToPower := make(map[uint64]int64)
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(types.FirstSignalKey, nil)
@@ -181,7 +194,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 				k.DeleteValidatorVersion(ctx, valAddress)
 				found = false
 			} else {
-				panic(err)
+				return false, 0, err
 			}
 		}
 		// if the validator is not bonded, skip it's voting power
@@ -190,7 +203,7 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 		}
 		power, err := k.stakingKeeper.GetLastValidatorPower(ctx, valAddress)
 		if err != nil {
-			panic(err)
+			return false, 0, err
 		}
 		version := VersionFromBytes(iterator.Value())
 		if _, ok := versionToPower[version]; !ok {
@@ -199,22 +212,22 @@ func (k Keeper) TallyVotingPower(ctx sdk.Context, threshold int64) (bool, uint64
 			versionToPower[version] += power
 		}
 		if versionToPower[version] >= threshold {
-			return true, version
+			return true, version, nil
 		}
 	}
-	return false, 0
+	return false, 0, nil
 }
 
 // GetVotingPowerThreshold returns the voting power threshold required to
 // upgrade to a new version.
-func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) math.Int {
+func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) (math.Int, error) {
 	totalVotingPower, err := k.stakingKeeper.GetLastTotalPower(ctx)
 	if err != nil {
-		panic(err)
+		return math.ZeroInt(), err
 	}
 
 	thresholdFraction := Threshold(ctx.BlockHeader().Version.App)
-	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt()
+	return thresholdFraction.MulInt(totalVotingPower).Ceil().TruncateInt(), nil
 }
 
 // ShouldUpgrade returns whether the signalling mechanism has concluded that the

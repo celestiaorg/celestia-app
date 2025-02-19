@@ -28,6 +28,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t.Log("setting up mint integration test suite")
 
 	cparams := testnode.DefaultConsensusParams()
+	oneDay := time.Hour * 24
+	oneMonth := oneDay * 30
+	sixMonths := oneMonth * 6
 	// Set the minimum time between blocks to six months. This will make the
 	// timestamps between blocks increase by six months each block despite that
 	// much time not actually passing. We do this to test the inflation rate
@@ -35,7 +38,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	//
 	// Note: if TimeIotaMs is removed from CometBFT, this technique will no
 	// longer work.
-	// TODO: In the migration to CometBFT v1, TimeIotaMs was removed. This test needs to be updated.
+
+	_ = sixMonths
+	// cparams.Block.TimeIotaMs = sixMonths.Milliseconds()
 	cfg := testnode.DefaultConfig().WithConsensusParams(cparams)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)

@@ -17,7 +17,10 @@ func (k Keeper) BeginBlocker(ctx context.Context) error {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
 	maybeUpdateMinter(sdkCtx, k)
-	mintBlockProvision(sdkCtx, k)
+	if err := mintBlockProvision(sdkCtx, k); err != nil {
+		return err
+	}
+
 	setPreviousBlockTime(sdkCtx, k)
 
 	return nil
@@ -48,28 +51,28 @@ func maybeUpdateMinter(ctx sdk.Context, k Keeper) {
 }
 
 // mintBlockProvision mints the block provision for the current block.
-func mintBlockProvision(ctx sdk.Context, k Keeper) {
+func mintBlockProvision(ctx sdk.Context, k Keeper) error {
 	minter := k.GetMinter(ctx)
 	if minter.PreviousBlockTime == nil {
 		// exit early if previous block time is nil
 		// this is expected to happen for block height = 1
-		return
+		return nil
 	}
 
 	toMintCoin, err := minter.CalculateBlockProvision(ctx.BlockTime(), *minter.PreviousBlockTime)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	toMintCoins := sdk.NewCoins(toMintCoin)
 
 	err = k.MintCoins(ctx, toMintCoins)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	err = k.SendCoinsToFeeCollector(ctx, toMintCoins)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	if toMintCoin.Amount.IsInt64() {
@@ -84,11 +87,14 @@ func mintBlockProvision(ctx sdk.Context, k Keeper) {
 			sdk.NewAttribute(sdk.AttributeKeyAmount, toMintCoin.Amount.String()),
 		),
 	)
+
+	return nil
 }
 
 func setPreviousBlockTime(ctx sdk.Context, k Keeper) {
 	minter := k.GetMinter(ctx)
 	blockTime := ctx.BlockTime()
+
 	minter.PreviousBlockTime = &blockTime
 	k.SetMinter(ctx, minter)
 }

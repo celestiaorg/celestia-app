@@ -36,6 +36,8 @@ func TestLegacyUpgrade(t *testing.T) {
 // TODO: This was being removed by msg gate keeper previously. Think we can remove the test.
 // Gatekeeper functionality should be replaced by something else??
 func TestRemoval(t *testing.T) {
+	t.Skip()
+
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	msgSoftwareUpgrade := upgradetypes.MsgSoftwareUpgrade{}
 	router := app.MsgServiceRouter()

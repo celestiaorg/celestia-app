@@ -34,6 +34,7 @@ import (
 	simulationcli "github.com/cosmos/cosmos-sdk/x/simulation/client/cli"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +42,11 @@ const ChainID = testfactory.ChainID
 
 var (
 	GenesisTime   = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	TestAppLogger = log.NewLogger(os.Stdout)
+	TestAppLogger = log.NewLogger(
+		os.Stdout,
+		log.ColorOption(false),
+		log.LevelOption(zerolog.WarnLevel),
+	)
 )
 
 // Get flags every time the simulator is run
@@ -73,14 +78,21 @@ func SetupTestAppWithGenesisValSetAndMaxSquareSize(cparams *tmproto.ConsensusPar
 }
 
 func initialiseTestApp(testApp *app.App, valSet *tmtypes.ValidatorSet) {
-	// commit genesis changes
-	testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:               time.Now(),
+	// first block
+	_, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:               GenesisTime,
 		Height:             testApp.LastBlockHeight() + 1,
 		Hash:               testApp.LastCommitID().Hash,
 		NextValidatorsHash: valSet.Hash(),
 	})
-	testApp.Commit()
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = testApp.Commit()
+	if err != nil {
+		panic(err)
+	}
 }
 
 // NewTestApp creates a new app instance with an empty memDB and a no-op logger.
@@ -165,12 +177,20 @@ func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubK
 	}
 
 	// Commit genesis changes
-	testApp.Commit()
-	testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height:             testApp.LastBlockHeight() + 1,
 		Hash:               testApp.LastCommitID().Hash,
 		NextValidatorsHash: genDoc.ValidatorHash(),
+		Time:               gen.GenesisTime,
 	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to finalize block: %w", err)
+	}
+
+	_, err = testApp.Commit()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to commit: %w", err)
+	}
 
 	return gen.Keyring(), gen.Accounts(), nil
 }
@@ -476,7 +496,7 @@ func SetupTestApp(t *testing.T) (*app.App, keyring.Keyring) {
 
 	_, err = testApp.InitChain(
 		&abci.RequestInitChain{
-			Time:            time.Now(),
+			Time:            GenesisTime,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: abciParams,
 			AppStateBytes:   stateBytes,
@@ -488,7 +508,7 @@ func SetupTestApp(t *testing.T) (*app.App, keyring.Keyring) {
 	// assert that the chain starts with version provided in genesis
 	// because Info only fetch store if height > 0 (where the version is set from the consensus keeper)
 	// we just override the default baseapp height
-	// baseapp.InitialAppVersion = app.DefaultInitialConsensusParams().Version.App
+	baseapp.InitialAppVersion = app.DefaultInitialConsensusParams().Version.App
 
 	infoResp, err = testApp.Info(&abci.RequestInfo{})
 	require.NoError(t, err)
