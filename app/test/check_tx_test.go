@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"testing"
 
 	tmrand "cosmossdk.io/math/unsafe"
@@ -52,7 +53,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal transaction, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[0], enc.TxConfig, 1)
+				addr := testfactory.GetAddress(kr, accs[0])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[0], enc.TxConfig, acc.GetAccountNumber())
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					signer,
 					[]share.Namespace{ns1},
@@ -117,7 +120,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[4], enc.TxConfig, 5)
+				addr := testfactory.GetAddress(kr, accs[4])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[4], enc.TxConfig, acc.GetAccountNumber())
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[4]).Address().String(), 10_000, 10)
 				tx, _, err := signer.CreatePayForBlobs(accs[4], blobs, opts...)
 				require.NoError(t, err)
@@ -129,7 +134,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[5], enc.TxConfig, 6)
+				addr := testfactory.GetAddress(kr, accs[5])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[5], enc.TxConfig, acc.GetAccountNumber())
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[5]).Address().String(), 1_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[5], blobs, opts...)
 				require.NoError(t, err)
@@ -141,7 +148,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "10,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[6], enc.TxConfig, 7)
+				addr := testfactory.GetAddress(kr, accs[6])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[6], enc.TxConfig, acc.GetAccountNumber())
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[6]).Address().String(), 10_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[6], blobs, opts...)
 				require.NoError(t, err)
@@ -153,7 +162,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "100,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[7], enc.TxConfig, 8)
+				addr := testfactory.GetAddress(kr, accs[7])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[7], enc.TxConfig, acc.GetAccountNumber())
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[7]).Address().String(), 100_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[7], blobs, opts...)
 				require.NoError(t, err)
@@ -165,7 +176,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[8], enc.TxConfig, 9)
+				addr := testfactory.GetAddress(kr, accs[8])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[8], enc.TxConfig, acc.GetAccountNumber())
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[8]).Address().String(), 1_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[8], blobs, opts...)
 				require.NoError(t, err)
@@ -177,7 +190,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "2,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[9], enc.TxConfig, 10)
+				addr := testfactory.GetAddress(kr, accs[9])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[9], enc.TxConfig, acc.GetAccountNumber())
 				_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), signer.Account(accs[9]).Address().String(), 2_000_000, 1)
 				tx, _, err := signer.CreatePayForBlobs(accs[9], blobs, opts...)
 				require.NoError(t, err)
@@ -189,7 +204,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob with invalid signer",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[10], enc.TxConfig, 11)
+				addr := testfactory.GetAddress(kr, accs[10])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[10], enc.TxConfig, acc.GetAccountNumber())
 				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
@@ -209,7 +226,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob with valid signer",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[10], enc.TxConfig, 11)
+				addr := testfactory.GetAddress(kr, accs[10])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[10], enc.TxConfig, acc.GetAccountNumber())
 				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), []byte("data"), signer.Account(accs[10]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[10], []*share.Blob{blob}, opts...)
@@ -222,7 +241,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "v1 blob over 2MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[11], enc.TxConfig, 12)
+				addr := testfactory.GetAddress(kr, accs[11])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[11], enc.TxConfig, acc.GetAccountNumber())
 				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152), signer.Account(accs[11]).Address())
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[11], []*share.Blob{blob}, opts...)
@@ -235,7 +256,9 @@ func TestCheckTx(t *testing.T) {
 			name:      "v0 blob over 2MiB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				signer := createSigner(t, kr, accs[12], enc.TxConfig, 13)
+				addr := testfactory.GetAddress(kr, accs[12])
+				acc := testutil.DirectQueryAccount(testApp, addr)
+				signer := createSigner(t, kr, accs[12], enc.TxConfig, acc.GetAccountNumber())
 				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), bytes.Repeat([]byte{1}, 2097152))
 				require.NoError(t, err)
 				blobTx, _, err := signer.CreatePayForBlobs(accs[12], []*share.Blob{blob}, opts...)
