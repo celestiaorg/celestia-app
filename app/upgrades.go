@@ -86,6 +86,7 @@ func (app App) RegisterUpgradeHandlers() {
 			// block by default msg upgrade proposal from circuit breaker
 			app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgSoftwareUpgrade{}))
 			app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgCancelUpgrade{}))
+			app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&ibcclienttypes.MsgIBCSoftwareUpgrade{}))
 
 			// run module migrations
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)

@@ -31,6 +31,7 @@ import (
 	ica "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts"
 	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
 	ibc "github.com/cosmos/ibc-go/v8/modules/core"
+	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 )
 
@@ -192,6 +193,7 @@ func (circuitModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState.DisabledTypeUrls = []string{
 		sdk.MsgTypeURL(&upgradetypes.MsgSoftwareUpgrade{}),
 		sdk.MsgTypeURL(&upgradetypes.MsgCancelUpgrade{}),
+		sdk.MsgTypeURL(&ibcclienttypes.MsgIBCSoftwareUpgrade{}),
 	}
 
 	return cdc.MustMarshalJSON(genState)
