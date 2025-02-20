@@ -3,6 +3,7 @@ package celestia.blob.v1;
 
 import "google/api/annotations.proto";
 import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
@@ -22,7 +23,7 @@ message MsgPayForBlobs {
 
   // signer is the bech32 encoded signer address. See
   // https://en.bitcoin.it/wiki/Bech32.
-  string signer = 1;
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   // namespaces is a list of namespaces that the blobs are associated with. A
   // namespace is a byte slice of length 29 where the first byte is the
   // namespaceVersion and the subsequent 28 bytes are the namespaceId.

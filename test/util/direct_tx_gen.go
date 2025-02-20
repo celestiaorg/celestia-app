@@ -19,7 +19,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,7 +78,7 @@ func RandBlobTxsWithAccounts(
 	return txs
 }
 
-func DirectQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
+func DirectQueryAccount(app *app.App, addr sdk.AccAddress) sdk.AccountI {
 	ctx := app.NewContext(true)
 	return app.AccountKeeper.GetAccount(ctx, addr)
 }

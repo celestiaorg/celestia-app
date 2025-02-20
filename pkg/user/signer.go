@@ -14,12 +14,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"google.golang.org/grpc"
 )
+
+var defaultSignMode = signing.SignMode_SIGN_MODE_DIRECT
 
 // Signer is struct for building and signing Celestia transactions
 // It supports multiple accounts wrapping a Keyring.
@@ -261,20 +262,19 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 		return "", 0, err
 	}
 
-	// To ensure we have the correct bytes to sign over we produce
-	// a dry run of the signing data
-	err = builder.SetSignatures(s.getSignatureV2(account.sequence, account.pubKey, nil))
-	if err != nil {
-		return "", 0, fmt.Errorf("error setting draft signatures: %w", err)
-	}
-
-	// now we can use the data to produce the signature from the signer
 	signature, err := s.createSignature(builder, account, account.sequence)
 	if err != nil {
 		return "", 0, fmt.Errorf("error creating signature: %w", err)
 	}
 
-	err = builder.SetSignatures(s.getSignatureV2(account.sequence, account.pubKey, signature))
+	err = builder.SetSignatures(signing.SignatureV2{
+		Data: &signing.SingleSignatureData{
+			SignMode:  defaultSignMode,
+			Signature: signature,
+		},
+		PubKey:   account.pubKey,
+		Sequence: account.sequence,
+	})
 	if err != nil {
 		return "", 0, fmt.Errorf("error setting signatures: %w", err)
 	}
@@ -296,11 +296,11 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 		PubKey:        account.pubKey,
 	}
 
-	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), signing.SignMode_SIGN_MODE_DIRECT, signerData, builder.GetTx())
+	bytesToSign, err := authsigning.GetSignBytesAdapter(context.Background(), s.enc.SignModeHandler(), defaultSignMode, signerData, builder.GetTx())
 	if err != nil {
 		return nil, fmt.Errorf("error getting sign bytes: %w", err)
 	}
-	signature, _, err := s.keys.Sign(account.name, bytesToSign, signing.SignMode_SIGN_MODE_DIRECT)
+	signature, _, err := s.keys.Sign(account.name, bytesToSign, defaultSignMode)
 	if err != nil {
 		return nil, fmt.Errorf("error signing bytes: %w", err)
 	}
@@ -319,19 +319,6 @@ func (s *Signer) txBuilder(msgs []sdktypes.Msg, opts ...TxOption) (client.TxBuil
 		builder = opt(builder)
 	}
 	return builder, nil
-}
-
-func (s *Signer) getSignatureV2(sequence uint64, pubKey cryptotypes.PubKey, signature []byte) signing.SignatureV2 {
-	sigV2 := signing.SignatureV2{
-		Data: &signing.SingleSignatureData{
-			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-			Signature: signature,
-		},
-		PubKey:   pubKey,
-		Sequence: sequence,
-	}
-
-	return sigV2
 }
 
 // QueryGasPrice takes a priority and an app gRPC client.
