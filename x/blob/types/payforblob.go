@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	fmt "fmt"
+	"slices"
 
 	"cosmossdk.io/errors"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"golang.org/x/exp/slices"
 )
 
 const (

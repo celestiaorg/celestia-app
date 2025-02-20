@@ -66,7 +66,7 @@ func (s *BigBlobSuite) TestErrBlobsTooLarge() {
 		{
 			name: "~ 1.9 MiB blob",
 			blob: newBlobWithSize(2_000_000),
-			want: blobtypes.ErrBlobsTooLarge.ABCICode(),
+			want: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
 		},
 	}
 
