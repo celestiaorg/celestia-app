@@ -262,6 +262,20 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 		return "", 0, err
 	}
 
+	// a dry run of the signing data
+	err = builder.SetSignatures(signing.SignatureV2{
+		Data: &signing.SingleSignatureData{
+			SignMode:  defaultSignMode,
+			Signature: nil,
+		},
+		PubKey:   account.pubKey,
+		Sequence: account.sequence,
+	})
+
+	if err != nil {
+		return "", 0, fmt.Errorf("error setting draft signatures: %w", err)
+	}
+
 	signature, err := s.createSignature(builder, account, account.sequence)
 	if err != nil {
 		return "", 0, fmt.Errorf("error creating signature: %w", err)
