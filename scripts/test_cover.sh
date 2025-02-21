@@ -13,7 +13,7 @@ for DIR in "${EXCLUDE_DIRS[@]}"; do
 done
 
 echo "mode: atomic" > coverage.txt
-for pkg in ${PKGS[@]}; do
+for pkg in "${PKGS[@]}"; do
     go test -v -timeout 30m -test.short -coverprofile=profile.out -covermode=atomic "$pkg"
     if [ -f profile.out ]; then
         tail -n +2 profile.out >> coverage.txt;
