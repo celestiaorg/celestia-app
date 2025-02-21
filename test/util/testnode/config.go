@@ -188,7 +188,9 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 	}
 }
 
-func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
+// CustomAppCreator creates a custom application instance using provided baseapp options.
+// Returns a function that initializes the app.
+func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator {
 	return func(log.Logger, dbm.DB, io.Writer, srvtypes.AppOptions) srvtypes.Application {
 		app := app.New(
 			log.NewNopLogger(),
@@ -196,9 +198,8 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 			nil, // trace store
 			0,   // timeout commit
 			simtestutil.EmptyAppOptions{},
-			baseapp.SetMinGasPrices(minGasPrice),
+			appOptions...,
 		)
-
 		return app
 	}
 }

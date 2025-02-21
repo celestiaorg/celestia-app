@@ -29,9 +29,7 @@ func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr s
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(func() {
-		cancel()
-	})
+	t.Cleanup(cancel)
 
 	cctx = NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 	cctx.tmNode = tmNode
