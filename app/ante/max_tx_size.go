@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -18,11 +17,6 @@ func NewMaxTxSizeDecorator() MaxTxSizeDecorator {
 
 // AnteHandle implements the AnteHandler interface. It ensures that tx size is under application's configured threshold.
 func (d MaxTxSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	// Tx size rule applies to app versions v3 and onwards.
-	if ctx.BlockHeader().Version.App < v3.Version {
-		return next(ctx, tx, simulate)
-	}
-
 	currentTxSize := len(ctx.TxBytes())
 	maxTxSize := appconsts.MaxTxSize(ctx.BlockHeader().Version.App)
 	if currentTxSize > maxTxSize {

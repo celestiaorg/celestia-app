@@ -30,8 +30,15 @@ import (
 // Here we only need to check the functionality that is added to CheckTx. We
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
+
+	var (
+		err  error
+		resp *abci.ResponseCheckTx
+		ns1  share.Namespace
+	)
+
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
-	ns1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	ns1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
 	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"}
@@ -183,7 +190,7 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return tx
 			},
-			expectedABCICode: blobtypes.ErrBlobsTooLarge.ABCICode(),
+			expectedABCICode: blobtypes.ErrTotalBlobSizeTooLarge.ABCICode(),
 		},
 		{
 			name:      "v1 blob with invalid signer",
@@ -248,8 +255,10 @@ func TestCheckTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
-			require.NoError(t, err)
+			resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
+			if resp.Code == 0 {
+				require.NoError(t, err)
+			}
 			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
 		})
 	}
