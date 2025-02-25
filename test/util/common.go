@@ -227,7 +227,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 	ctx := sdk.NewContext(ms, header, false, log.NewTestLogger(t))
 
 	aminoCdc := MakeAminoCodec()
-	cdc := encoding.MakeConfig().Codec
+	cdc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...).Codec
 	authority := authtypes.NewModuleAddress("gov")
 
 	// this is also used to initialize module accounts for all the map keys
