@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"strings"
 	"time"
 
@@ -38,7 +38,7 @@ type Context struct {
 }
 
 func NewContext(goContext context.Context, keyring keyring.Keyring, tmConfig *tmconfig.Config, chainID, apiAddress string) Context {
-	config := testutil.MakeTestEncodingConfig(app.ModuleEncodingRegisters...)
+	config := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	clientContext := client.Context{}.
 		WithKeyring(keyring).
 		WithHomeDir(tmConfig.RootDir).
