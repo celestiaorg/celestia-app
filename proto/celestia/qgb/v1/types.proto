@@ -28,7 +28,7 @@ message Valset {
   // Current chain height
   uint64 height = 3;
   // Block time where this valset was created
-  google.protobuf.Timestamp time = 4
+  google.protobuf.Timestamp time = 4;
       [ (gogoproto.nullable) = false, (gogoproto.stdtime) = true ];
 }
 
@@ -50,6 +50,6 @@ message DataCommitment {
   // the commitment.
   uint64 end_block = 3;
   // Block time where this data commitment was created
-  google.protobuf.Timestamp time = 4
+  google.protobuf.Timestamp time = 4;
       [ (gogoproto.nullable) = false, (gogoproto.stdtime) = true ];
 }
