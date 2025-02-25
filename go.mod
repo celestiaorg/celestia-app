@@ -277,7 +277,7 @@ require (
 
 replace (
 	cosmossdk.io/x/upgrade => github.com/01builders/cosmos-sdk/x/upgrade v0.0.0-20250212120257-926f94b828d0
-	github.com/cometbft/cometbft => github.com/01builders/cometbft v0.0.0-20250218103246-295d2910ecf9
+	github.com/cometbft/cometbft => github.com/01builders/cometbft v0.0.0-20250224183951-16a311bfae5e
 	// Celestia SDK fork: https://github.com/01builders/cosmos-sdk/tree/release/v0.50.x-celestia
 	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250219130830-beaf401f7e25
 

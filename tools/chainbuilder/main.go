@@ -510,9 +510,9 @@ func generateSquareRoutine(
 
 		select {
 		case dataCh <- &tmproto.Data{
-			Txs:          txs,
-			DataRootHash: dah.Hash(),
-			SquareSize:   uint64(dataSquare.Size()),
+			Txs:        txs,
+			Hash:       dah.Hash(),
+			SquareSize: uint64(dataSquare.Size()),
 		}:
 		case <-ctx.Done():
 			return ctx.Err()
