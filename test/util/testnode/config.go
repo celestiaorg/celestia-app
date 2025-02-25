@@ -2,9 +2,10 @@ package testnode
 
 import (
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/server"
 	"io"
 	"time"
+
+	"github.com/cosmos/cosmos-sdk/server"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
