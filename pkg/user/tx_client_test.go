@@ -43,7 +43,7 @@ type TxClientTestSuite struct {
 	serviceClient sdktx.ServiceClient
 }
 
-func (suite *TxClientTestSuite) SetupSuite() {
+func (suite *TxClientTestSuite) SetupTest() {
 	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
@@ -322,6 +322,7 @@ func setupTxClient(t *testing.T) (encoding.Config, *user.TxClient, testnode.Cont
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts("a", "b", "c").
 		WithChainID(chainID).
+		WithTimeoutCommit(100 * time.Millisecond).
 		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
 
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)

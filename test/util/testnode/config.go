@@ -188,7 +188,7 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 // Returns a function that initializes the app.
 func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator {
 	return func(log.Logger, dbm.DB, io.Writer, srvtypes.AppOptions) srvtypes.Application {
-		app := app.New(
+		return app.New(
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
@@ -196,7 +196,6 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 			simtestutil.EmptyAppOptions{},
 			appOptions...,
 		)
-		return app
 	}
 }
 
