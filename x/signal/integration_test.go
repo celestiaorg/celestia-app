@@ -3,6 +3,7 @@ package signal_test
 import (
 	"testing"
 
+	"cosmossdk.io/core/header"
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -27,7 +28,7 @@ func TestUpgradeIntegration(t *testing.T) {
 			App: v2.Version,
 		},
 		ChainID: appconsts.TestChainID,
-	}, false, log.NewNopLogger())
+	}, false, log.NewNopLogger()).WithHeaderInfo(header.Info{ChainID: appconsts.TestChainID})
 
 	res, err := app.SignalKeeper.VersionTally(ctx, &types.QueryVersionTallyRequest{
 		Version: 3,
