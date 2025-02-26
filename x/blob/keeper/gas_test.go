@@ -60,8 +60,11 @@ func TestPayForBlobGas(t *testing.T) {
 	}
 }
 
-// TODO: can we just remove this test now... are we using params in x/blob for gas costs or is it just versioned params using appconsts
 func TestChangingGasParam(t *testing.T) {
+	// TODO: can we just remove this test now... are we using params in x/blob for gas costs or is it just versioned params using appconsts??
+	// Test errors because k.PayForBlobs uses a constant gas price from appconsts now rather than params.
+	t.Skip("skipping x/blob gas param change test - x/blob keeper is using appconsts gas value")
+
 	msg := types.MsgPayForBlobs{BlobSizes: []uint32{1024}}
 	k, stateStore, _ := CreateKeeper(t, appconsts.LatestVersion)
 	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, log.NewNopLogger())
