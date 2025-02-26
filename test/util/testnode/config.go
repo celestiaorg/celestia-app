@@ -86,7 +86,8 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
 // the Config.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
-	return c.WithAppCreator(DefaultAppCreator(WithTimeoutCommit(d)))
+	c.TmConfig.Consensus.TimeoutCommit = d
+	return c
 }
 
 // WithFundedAccounts sets the genesis accounts and returns the Config.
@@ -131,9 +132,9 @@ func DefaultConfig() *Config {
 				WithConsensusParams(DefaultConsensusParams()),
 		).
 		WithTendermintConfig(DefaultTendermintConfig()).
+		WithAppCreator(DefaultAppCreator()).
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
-		WithTimeoutCommit(time.Millisecond * 30).
 		WithSuppressLogs(true)
 }
 
@@ -160,12 +161,6 @@ func DefaultTendermintConfig() *tmconfig.Config {
 }
 
 type AppCreationOptions func(app *app.App)
-
-func WithTimeoutCommit(d time.Duration) AppCreationOptions {
-	return func(app *app.App) {
-		// TODO: Update the timeout commit in the cometBFT config.
-	}
-}
 
 func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 	return func(_ log.Logger, _ dbm.DB, _ io.Writer, appOptions srvtypes.AppOptions) srvtypes.Application {

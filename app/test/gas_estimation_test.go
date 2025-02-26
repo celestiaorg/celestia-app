@@ -32,9 +32,8 @@ func TestEstimateGasPrice(t *testing.T) {
 
 	// test setup: create a test chain, submit a few PFBs to it, keep track of their gas
 	// price, then test the gas estimator API.
-	accountNames := testfactory.GenerateAccounts(150) // using 150 to have 2 pages of txs
-	cfg := testnode.DefaultConfig().WithFundedAccounts(accountNames...)
-	cfg.TmConfig.Consensus.TimeoutCommit = 10 * time.Second // to have all the transactions in just a few blocks
+	accountNames := testfactory.GenerateAccounts(150)                                                       // using 150 to have 2 pages of txs
+	cfg := testnode.DefaultConfig().WithFundedAccounts(accountNames...).WithTimeoutCommit(10 * time.Second) // to have all the transactions in just a few blocks
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	require.NoError(t, cctx.WaitForNextBlock())
