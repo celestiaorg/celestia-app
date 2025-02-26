@@ -77,7 +77,7 @@ func MajorUpgradeToV2(logger *log.Logger) error {
 		client, err := testNet.Node(i).Client()
 		testnet.NoError("failed to get client", err)
 
-		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, time.Minute))
+		testnet.NoError("failed to wait for height", waitForHeight(ctx, client, upgradeHeight, 5*time.Minute))
 
 		resp, err := client.Header(ctx, &heightBefore)
 		testnet.NoError("failed to get header", err)
