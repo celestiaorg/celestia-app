@@ -3,9 +3,10 @@ package keeper
 import (
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 // Keeper of the mint store

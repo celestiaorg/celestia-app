@@ -1,16 +1,13 @@
 package signal_test
 
 import (
-	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-
 	tmrand "cosmossdk.io/math/unsafe"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
@@ -34,8 +31,8 @@ type LegacyUpgradeTestSuite struct {
 
 	govModuleAddress string
 
-	mut            sync.Mutex
-	accountCounter int
+	// mut            sync.Mutex
+	// accountCounter int
 }
 
 // SetupSuite inits a standard chain, with the only exception being a
@@ -75,25 +72,25 @@ func (s *LegacyUpgradeTestSuite) SetupSuite() {
 	s.govModuleAddress = acc.GetAddress().String()
 }
 
-func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
-	rec, err := kr.Key(account)
-	if err != nil {
-		panic(err)
-	}
-	addr, err := rec.GetAddress()
-	if err != nil {
-		panic(err)
-	}
-	return addr
-}
+// func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
+// 	rec, err := kr.Key(account)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	addr, err := rec.GetAddress()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	return addr
+// }
 
-func (s *LegacyUpgradeTestSuite) unusedAccount() string {
-	s.mut.Lock()
-	acc := s.accounts[s.accountCounter]
-	s.accountCounter++
-	s.mut.Unlock()
-	return acc
-}
+// func (s *LegacyUpgradeTestSuite) unusedAccount() string {
+// 	s.mut.Lock()
+// 	acc := s.accounts[s.accountCounter]
+// 	s.accountCounter++
+// 	s.mut.Unlock()
+// 	return acc
+// }
 
 // TODO: Finish test refactor. The x/circuit AnteHandler does not filter a MsgSubmitProposal's msgs.
 // It is blocked by x/circuit after voting on proposal when its msgs are executed.

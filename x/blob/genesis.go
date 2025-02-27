@@ -1,9 +1,10 @@
 package blob
 
 import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // InitGenesis initializes the capability module's state from a provided genesis

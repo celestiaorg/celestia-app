@@ -4,9 +4,10 @@ import (
 	"io"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v4/app"
 	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 func appExporter(
@@ -17,7 +18,7 @@ func appExporter(
 	forZeroHeight bool,
 	jailWhiteList []string,
 	appOptions servertypes.AppOptions,
-	moduleToExport []string,
+	_ []string,
 ) (servertypes.ExportedApp, error) {
 	application := app.New(logger, db, traceStore, 0, appOptions)
 	if height != -1 {

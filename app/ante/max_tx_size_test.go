@@ -3,12 +3,13 @@ package ante_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	version "github.com/cometbft/cometbft/proto/tendermint/version"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 )
 
 func TestMaxTxSizeDecorator(t *testing.T) {
@@ -49,7 +50,7 @@ func TestMaxTxSizeDecorator(t *testing.T) {
 		//	appVersion:  v2.Version,
 		//	expectError: false,
 		//	isCheckTx:   []bool{true, false},
-		//},
+		// },
 	}
 
 	for _, tc := range testCases {

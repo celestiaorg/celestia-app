@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
+	abci "github.com/cometbft/cometbft/abci/types"
+
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
 
 	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-	abci "github.com/cometbft/cometbft/abci/types"
 )
 
 // CheckTx implements the ABCI interface and executes a tx in CheckTx mode. This

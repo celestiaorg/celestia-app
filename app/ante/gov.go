@@ -14,7 +14,7 @@ import (
 // GovProposalDecorator ensures that a tx with a MsgSubmitProposal has at least one message in the proposal.
 // Additionally it replace the x/paramfilter module that existed in v3 and earlier versions.
 type GovProposalDecorator struct {
-	// forbiddenGovUpdateParams is a map of type_url to a list of parameter fiels that cannot be changed via governance.
+	// forbiddenGovUpdateParams is a map of type_url to a list of parameter fields that cannot be changed via governance.
 	forbiddenGovUpdateParams map[string][]string
 }
 
@@ -87,7 +87,7 @@ func (d GovProposalDecorator) checkNestedMsgs(msgs []*gogoany.Any) error {
 	return nil
 }
 
-func hasForbiddenParams(msg sdk.Msg, typeURL string, forbiddenParams []string) bool {
+func hasForbiddenParams(_ sdk.Msg, _ string, _ []string) bool {
 	// unmarshal msg to go struct
 	// check if any forbidden param is present and different from the default value
 

@@ -11,7 +11,7 @@ import (
 const DefaultBondDenom = "utia"
 
 // NewMinter returns a new Minter object.
-func NewMinter(inflationRate math.LegacyDec, annualProvisions math.LegacyDec, bondDenom string) Minter {
+func NewMinter(inflationRate, annualProvisions math.LegacyDec, bondDenom string) Minter {
 	return Minter{
 		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
@@ -54,7 +54,7 @@ func (m Minter) CalculateInflationRate(ctx sdk.Context, genesis time.Time) math.
 
 // CalculateBlockProvision returns the total number of coins that should be
 // minted due to inflation for the current block.
-func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) (sdk.Coin, error) {
+func (m Minter) CalculateBlockProvision(current, previous time.Time) (sdk.Coin, error) {
 	if current.Before(previous) {
 		return sdk.Coin{}, fmt.Errorf("current time %v cannot be before previous time %v", current, previous)
 	}
@@ -66,7 +66,7 @@ func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) (
 
 // yearsSinceGenesis returns the number of years that have passed between
 // genesis and current (rounded down).
-func yearsSinceGenesis(genesis time.Time, current time.Time) (years int64) {
+func yearsSinceGenesis(genesis, current time.Time) (years int64) {
 	if current.Before(genesis) {
 		return 0
 	}

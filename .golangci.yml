@@ -1,6 +1,7 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
+  # build-tags: bench_abci_methods
 
 linters:
   enable:
@@ -13,8 +14,16 @@ linters:
     - stylecheck
     - unconvert
     - gocritic
+    - gci
 
 linters-settings:
   nakedret:
     # Ban the use of naked returns because they reduce code readability.
     max-func-lines: 0 # override the default: 30
+  gci:
+    custom-order: true
+    sections:
+      - standard # Standard section: captures all standard packages.
+      - default # Default section: contains all imports that could not be matched to another section type.
+      - prefix(github.com/celestiaorg)
+      - prefix(github.com/celestiaorg/celestia-app/v4)

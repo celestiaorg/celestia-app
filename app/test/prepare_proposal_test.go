@@ -6,31 +6,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-
-	"github.com/celestiaorg/celestia-app/v4/pkg/user"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/assert"
-
 	tmrand "cosmossdk.io/math/unsafe"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
-	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
@@ -264,7 +261,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
-	accs := make([]types.AccountI, 0, numberOfAccounts)
+	accs := make([]sdk.AccountI, 0, numberOfAccounts)
 	signers := make([]*user.Signer, 0, numberOfAccounts)
 	for index, account := range accounts {
 		addr := testfactory.GetAddress(kr, account)

@@ -3,10 +3,11 @@ package cli
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func CmdQueryParams() *cobra.Command {

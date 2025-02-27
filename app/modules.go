@@ -8,12 +8,6 @@ import (
 	feegrantmodule "cosmossdk.io/x/feegrant/module"
 	"cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -47,40 +41,45 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 	solomachine "github.com/cosmos/ibc-go/v8/modules/light-clients/06-solomachine"
 	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
+
+	"github.com/celestiaorg/celestia-app/v4/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v4/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
-var (
-	// ModuleEncodingRegisters keeps track of all the module methods needed to
-	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = []module.AppModuleBasic{
-		auth.AppModuleBasic{},
-		genutil.AppModuleBasic{},
-		bankModule{},
-		capability.AppModuleBasic{},
-		stakingModule{},
-		mintModule{},
-		distribution.AppModuleBasic{},
-		gov.AppModuleBasic{},
-		params.AppModuleBasic{},
-		crisis.AppModuleBasic{},
-		slashingModule{},
-		authzmodule.AppModuleBasic{},
-		feegrantmodule.AppModuleBasic{},
-		ibcModule{},
-		evidence.AppModuleBasic{},
-		transfer.AppModuleBasic{},
-		vesting.AppModuleBasic{},
-		blob.AppModule{},
-		signal.AppModule{},
-		minfee.AppModule{},
-		packetforward.AppModuleBasic{},
-		consensus.AppModuleBasic{},
-		upgrade.AppModuleBasic{},
-		icaModule{},
-		ibctm.AppModuleBasic{},
-		solomachine.AppModuleBasic{},
-	}
-)
+// ModuleEncodingRegisters keeps track of all the module methods needed to
+// register interfaces and specific type to encoding config
+var ModuleEncodingRegisters = []module.AppModuleBasic{
+	auth.AppModuleBasic{},
+	genutil.AppModuleBasic{},
+	bankModule{},
+	capability.AppModuleBasic{},
+	stakingModule{},
+	mintModule{},
+	distribution.AppModuleBasic{},
+	gov.AppModuleBasic{},
+	params.AppModuleBasic{},
+	crisis.AppModuleBasic{},
+	slashingModule{},
+	authzmodule.AppModuleBasic{},
+	feegrantmodule.AppModuleBasic{},
+	ibcModule{},
+	evidence.AppModuleBasic{},
+	transfer.AppModuleBasic{},
+	vesting.AppModuleBasic{},
+	blob.AppModule{},
+	signal.AppModule{},
+	minfee.AppModule{},
+	packetforward.AppModuleBasic{},
+	consensus.AppModuleBasic{},
+	upgrade.AppModuleBasic{},
+	icaModule{},
+	ibctm.AppModuleBasic{},
+	solomachine.AppModuleBasic{},
+}
 
 func (app *App) setModuleOrder() {
 	// During begin block slashing happens after distr.BeginBlocker so that

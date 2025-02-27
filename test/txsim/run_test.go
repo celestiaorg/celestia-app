@@ -10,23 +10,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/test/txsim"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/stretchr/testify/require"
 )
 
 func TestTxSimulator(t *testing.T) {

@@ -6,7 +6,6 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -36,7 +35,6 @@ const UpgradeName = "v3-to-v4"
 
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
-		subspace := subspace
 
 		var keyTable paramstypes.KeyTable
 		var set bool
@@ -81,12 +79,20 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 			// migrate consensus params from the legacy params keeper to consensus params module
-			baseapp.MigrateParams(sdkCtx, baseAppLegacySS, &app.ConsensusKeeper.ParamsStore)
+			if err := baseapp.MigrateParams(sdkCtx, baseAppLegacySS, &app.ConsensusKeeper.ParamsStore); err != nil {
+				return nil, err
+			}
 
 			// block by default msg upgrade proposal from circuit breaker
-			app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgSoftwareUpgrade{}))
-			app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgCancelUpgrade{}))
-			app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&ibcclienttypes.MsgIBCSoftwareUpgrade{}))
+			if err := app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgSoftwareUpgrade{})); err != nil {
+				return nil, err
+			}
+			if err := app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&upgradetypes.MsgCancelUpgrade{})); err != nil {
+				return nil, err
+			}
+			if err := app.CircuitKeeper.DisableList.Set(ctx, sdk.MsgTypeURL(&ibcclienttypes.MsgIBCSoftwareUpgrade{})); err != nil {
+				return nil, err
+			}
 
 			// run module migrations
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)

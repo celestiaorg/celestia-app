@@ -3,10 +3,11 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/signal/cli"
 	testutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/x/signal/cli"
 )
 
 func TestCLITestSuite(t *testing.T) {

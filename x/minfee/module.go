@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	grpc "google.golang.org/grpc"
-
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -15,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	grpc "google.golang.org/grpc"
 )
 
 var (
@@ -57,13 +56,13 @@ func (AppModule) Name() string {
 }
 
 // RegisterLegacyAminoCodec registers the blob module's types on the LegacyAmino codec.
-func (AppModule) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {}
+func (AppModule) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 // RegisterInterfaces registers interfaces and implementations of the blob module.
-func (AppModule) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {}
+func (AppModule) RegisterInterfaces(_ cdctypes.InterfaceRegistry) {}
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
-func (am AppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {}
+func (am AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 // RegisterServices registers module services.
 func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {

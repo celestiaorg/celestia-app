@@ -1,12 +1,13 @@
 package ante
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // BlobShareDecorator helps to prevent a PFB from being included in a block but

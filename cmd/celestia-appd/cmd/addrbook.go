@@ -5,10 +5,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/pex"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 func addrbookCommand() *cobra.Command {

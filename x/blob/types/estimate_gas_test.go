@@ -7,6 +7,11 @@ import (
 	"time"
 
 	tmrand "cosmossdk.io/math/unsafe"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/stretchr/testify/require"
+
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
@@ -15,9 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
-	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPFBGasEstimation(t *testing.T) {

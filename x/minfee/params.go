@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 const ModuleName = "minfee"

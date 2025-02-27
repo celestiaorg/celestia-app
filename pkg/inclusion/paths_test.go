@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 func Test_calculateSubTreeRootCoordinates(t *testing.T) {

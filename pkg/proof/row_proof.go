@@ -37,7 +37,7 @@ func (rp RowProof) VerifyProof(root []byte) bool {
 	return true
 }
 
-func (p *Proof) Verify(rootHash []byte, leaf []byte) error {
+func (p *Proof) Verify(rootHash, leaf []byte) error {
 	proof := &merkle.Proof{
 		Total:    p.Total,
 		Index:    p.Index,

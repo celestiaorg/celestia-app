@@ -3,11 +3,12 @@ package minfee_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	"github.com/stretchr/testify/require"
 )
 
 func TestQueryNetworkMinGasPrice(t *testing.T) {

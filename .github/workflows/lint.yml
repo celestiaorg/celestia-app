@@ -22,7 +22,7 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@v6.3.0
         with:
-          version: v1.61.0
+          version: v1.64.5
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF

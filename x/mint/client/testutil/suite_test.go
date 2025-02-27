@@ -8,14 +8,13 @@ import (
 
 	"cosmossdk.io/math"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
-	"github.com/stretchr/testify/suite"
-
-	"github.com/celestiaorg/celestia-app/v4/x/mint/client/cli"
-	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/x/mint/client/cli"
+	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 type IntegrationTestSuite struct {

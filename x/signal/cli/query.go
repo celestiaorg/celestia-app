@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 // GetQueryCmd returns the CLI query commands for this module.

@@ -4,11 +4,12 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	distribution "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/grpc"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 var _ Sequence = &StakeSequence{}

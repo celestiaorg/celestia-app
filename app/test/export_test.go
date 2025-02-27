@@ -3,9 +3,10 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util"
 )
 
 func TestExportAppStateAndValidators(t *testing.T) {

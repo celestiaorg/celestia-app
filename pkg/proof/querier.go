@@ -6,14 +6,15 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/go-square/v2"
-	"github.com/celestiaorg/go-square/v2/share"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/go-square/v2"
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 const TxInclusionQueryPath = "txInclusionProof"
@@ -130,7 +131,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQue
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
 // The provided range, defined by startShare and endShare, is end-exclusive.
-func ParseNamespace(rawShares []share.Share, startShare int, endShare int) (share.Namespace, error) {
+func ParseNamespace(rawShares []share.Share, startShare, endShare int) (share.Namespace, error) {
 	if startShare < 0 {
 		return share.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
 	}

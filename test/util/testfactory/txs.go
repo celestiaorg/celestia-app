@@ -34,14 +34,14 @@ func GenerateRandomTxs(count, size int) types.Txs {
 }
 
 // GetRandomSubSlice returns two integers representing a randomly sized range in the interval [0, size]
-func GetRandomSubSlice(size int) (start int, length int) {
+func GetRandomSubSlice(size int) (start, length int) {
 	length = rand.Intn(size + 1)
 	start = rand.Intn(size - length + 1)
 	return start, length
 }
 
 // CheckSubArray returns whether subTxList is a subarray of txList
-func CheckSubArray(txList []types.Tx, subTxList []types.Tx) bool {
+func CheckSubArray(txList, subTxList []types.Tx) bool {
 	for i := 0; i <= len(txList)-len(subTxList); i++ {
 		j := 0
 		for j = 0; j < len(subTxList); j++ {

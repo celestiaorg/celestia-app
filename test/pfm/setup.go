@@ -1,8 +1,9 @@
 package pfm
 
 import (
-	"cosmossdk.io/log"
 	"encoding/json"
+
+	"cosmossdk.io/log"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"

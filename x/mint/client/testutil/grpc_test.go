@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
-
 	"github.com/cosmos/gogoproto/proto"
 
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"

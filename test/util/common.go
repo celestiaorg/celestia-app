@@ -10,9 +10,6 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	appparams "github.com/celestiaorg/celestia-app/v4/app/params"
 	tmed "github.com/cometbft/cometbft/crypto/ed25519"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -42,6 +39,10 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	appparams "github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 // TODO: This probably should be deleted.
@@ -261,13 +262,15 @@ func CreateTestEnv(t *testing.T) TestInput {
 		authority.String(),
 		log.NewNopLogger(),
 	)
-	bankKeeper.SetParams(
+	if err := bankKeeper.SetParams(
 		ctx,
 		banktypes.Params{
 			SendEnabled:        []*banktypes.SendEnabled{},
 			DefaultSendEnabled: true,
 		},
-	)
+	); err != nil {
+		panic(err)
+	}
 
 	stakingKeeper := stakingkeeper.NewKeeper(
 		cdc,
@@ -278,7 +281,9 @@ func CreateTestEnv(t *testing.T) TestInput {
 		enc.ValidatorAddressCodec,
 		enc.ConsensusAddressCodec,
 	)
-	stakingKeeper.SetParams(ctx, TestingStakeParams)
+	if err := stakingKeeper.SetParams(ctx, TestingStakeParams); err != nil {
+		panic(err)
+	}
 
 	distKeeper := distrkeeper.NewKeeper(
 		cdc,
@@ -289,8 +294,12 @@ func CreateTestEnv(t *testing.T) TestInput {
 		authtypes.FeeCollectorName,
 		authority.String(),
 	)
-	distKeeper.Params.Set(ctx, distrtypes.DefaultParams())
-	distKeeper.FeePool.Set(ctx, distrtypes.InitialFeePool())
+	if err := distKeeper.Params.Set(ctx, distrtypes.DefaultParams()); err != nil {
+		panic(err)
+	}
+	if err := distKeeper.FeePool.Set(ctx, distrtypes.InitialFeePool()); err != nil {
+		panic(err)
+	}
 
 	// set up initial accounts
 	for name, permissions := range moduleAccountPermissions {
@@ -362,7 +371,9 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	input := CreateTestEnv(t)
 
 	// Set the params for our modules
-	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
+	if err := input.StakingKeeper.SetParams(input.Context, TestingStakeParams); err != nil {
+		panic(err)
+	}
 
 	// Initialize each of the validators
 	for i := range []int{0, 1, 2, 3, 4} {
@@ -437,7 +448,9 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 	// Set the params for our modules
 	TestingStakeParams.MaxValidators = 100
-	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
+	if err := input.StakingKeeper.SetParams(input.Context, TestingStakeParams); err != nil {
+		panic(err)
+	}
 
 	// Initialize each of the validators
 	stakingMsgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)

@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	tmrand "cosmossdk.io/math/unsafe"
+
 	"github.com/celestiaorg/go-square/v2/share"
 )
 

@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	kitlog "github.com/go-kit/log"
-
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -23,7 +20,10 @@ import (
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
+	kitlog "github.com/go-kit/log"
 	"github.com/spf13/cobra"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
 )
 
 const (
@@ -151,7 +151,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 // addStartFlags adds flags to the start command.
 func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Int64(UpgradeHeightFlag, 0, "Upgrade height to switch from v1 to v2. Must be coordinated amongst all validators")
-	startCmd.Flags().MarkDeprecated(UpgradeHeightFlag, "This flag is deprecated and was only useful prior to v4.")
+	if err := startCmd.Flags().MarkDeprecated(UpgradeHeightFlag, "This flag is deprecated and was only useful prior to v4."); err != nil {
+		panic(err)
+	}
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")

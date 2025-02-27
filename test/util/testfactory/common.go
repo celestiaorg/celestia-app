@@ -5,12 +5,13 @@ import (
 	"sort"
 
 	tmrand "cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
+
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 const (

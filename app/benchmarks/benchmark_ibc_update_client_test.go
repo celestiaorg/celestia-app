@@ -70,7 +70,8 @@ func benchmarkIBCCheckTxUpdateClient(b *testing.B, numberOfValidators int) {
 	}
 
 	b.ResetTimer()
-	resp := testApp.CheckTx(checkTxRequest)
+	resp, err := testApp.CheckTx(&checkTxRequest)
+	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.Code)
 	require.Equal(b, "", resp.Codespace)
@@ -110,16 +111,17 @@ func BenchmarkIBC_DeliverTx_Update_Client_Multi(b *testing.B) {
 func benchmarkIBCDeliverTxUpdateClient(b *testing.B, numberOfValidators int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, 1, 1)
 
-	deliverTxRequest := types.RequestDeliverTx{
-		Tx: rawTxs[0],
+	deliverTxRequest := types.RequestFinalizeBlock{
+		Txs: rawTxs,
 	}
 
 	b.ResetTimer()
-	resp := testApp.DeliverTx(deliverTxRequest)
+	resp, err := testApp.FinalizeBlock(&deliverTxRequest)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, uint32(0), resp.Code)
-	require.Equal(b, "", resp.Codespace)
-	b.ReportMetric(float64(resp.GasUsed), "gas_used")
+	require.Equal(b, uint32(0), resp.TxResults[0].Code)
+	require.Equal(b, "", resp.TxResults[0].Codespace)
+	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
@@ -155,24 +157,21 @@ func BenchmarkIBC_PrepareProposal_Update_Client_Multi(b *testing.B) {
 func benchmarkIBCPrepareProposalUpdateClient(b *testing.B, numberOfValidators, count int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
-	}
 	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
+		Txs:    rawTxs,
+		Height: 10,
 	}
 
 	b.ResetTimer()
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "prepare_proposal_time(ns)")
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -207,40 +206,31 @@ func BenchmarkIBC_ProcessProposal_Update_Client_Multi(b *testing.B) {
 func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, count int) {
 	testApp, rawTxs := generateIBCUpdateClientTransaction(b, numberOfValidators, count, 0)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
-	}
 	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
+		Txs:    rawTxs,
+		Height: 10,
 	}
 
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+	require.NoError(b, err)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
 
 	processProposalRequest := types.RequestProcessProposal{
-		BlockData: prepareProposalResponse.BlockData,
-		Header: tmproto.Header{
-			Height:   10,
-			DataHash: prepareProposalResponse.BlockData.Hash,
-			ChainID:  testutil.ChainID,
-			Version: tmprotoversion.Consensus{
-				App: testApp.AppVersion(),
-			},
-		},
+		Txs:    prepareProposalResponse.Txs,
+		Height: 10,
 	}
 
 	b.ResetTimer()
-	resp := testApp.ProcessProposal(processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalRequest)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "process_proposal_time(ns)")
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
-	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.BlockData.Txs)), "total_gas_used")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size(mb)")
+	b.ReportMetric(float64(calculateTotalGasUsed(testApp, prepareProposalResponse.Txs)), "total_gas_used")
 	b.ReportMetric(float64(numberOfValidators), "number_of_validators")
 	b.ReportMetric(float64(2*numberOfValidators/3), "number_of_verified_signatures")
 }
@@ -250,7 +240,7 @@ func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, c
 // Note: the number of the verified signatures is: 2 * numberOfValidators / 3
 // the offset is just a hack for transactions to be processed by the needed
 // ABCI method.
-func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, numberOfMessages int, offsetAccountSequence int) (*app.App, [][]byte) {
+func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, numberOfMessages, offsetAccountSequence int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)
@@ -285,11 +275,12 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators int, nu
 	return testApp, rawTxs
 }
 
-func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Signer, signerAddr string, signerName string, numberOfValidators int, numberOfMsgs int) []*types3.MsgUpdateClient {
+func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Signer, signerAddr, signerName string, numberOfValidators, numberOfMsgs int) []*types3.MsgUpdateClient {
 	state, _, privVals := makeState(numberOfValidators, 5)
 	wBefore := time.Now()
 	time.Sleep(time.Second)
 	w := time.Now()
+	chainID := state.ChainID
 	lastResultHash := crypto.CRandBytes(tmhash.Size)
 	lastCommitHash := crypto.CRandBytes(tmhash.Size)
 	lastBlockHash := crypto.CRandBytes(tmhash.Size)
@@ -388,7 +379,8 @@ func generateUpdateClientTransaction(b *testing.B, app *app.App, signer user.Sig
 		require.NoError(b, err)
 		rawTx, _, err := signer.CreateTx([]sdk.Msg{createClientMsg}, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(b, err)
-		resp := app.DeliverTx(types.RequestDeliverTx{Tx: rawTx})
+		resp, err := app.FinalizeBlock(&types.RequestFinalizeBlock{Txs: [][]byte{rawTx}})
+		require.NoError(b, err)
 		var clientName string
 		for _, event := range resp.Events {
 			if event.Type == types3.EventTypeCreateClient {
@@ -496,7 +488,12 @@ func makeValidCommit(
 		}
 		sigs = append(sigs, vote.CommitSig())
 	}
-	return types0.NewCommit(height, 0, blockID, sigs), nil
+	return &types0.Commit{
+		Height:     height,
+		Round:      0,
+		BlockID:    blockID,
+		Signatures: sigs,
+	}, nil
 }
 
 func makeBlockID(hash []byte, partSetSize uint32, partSetHash []byte) types0.BlockID {

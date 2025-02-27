@@ -5,9 +5,10 @@ import (
 	"errors"
 	"math/rand"
 
-	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/grpc"
+
+	"github.com/celestiaorg/go-square/v2/share"
 )
 
 // Sequence is the basic unit for programmatic transaction generation.

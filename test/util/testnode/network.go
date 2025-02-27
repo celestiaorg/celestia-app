@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 )
 
 // NewNetwork starts a single validator celestia-app network using the provided

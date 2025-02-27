@@ -57,9 +57,7 @@ func StartGRPCServer(logger log.Logger, app srvtypes.Application, appCfg *srvcon
 	// Add the tendermint queries service in the gRPC router.
 	app.RegisterTendermintService(cctx.Context)
 
-	if a, ok := app.(srvtypes.Application); ok {
-		a.RegisterNodeService(cctx.Context, *appCfg)
-	}
+	app.RegisterNodeService(cctx.Context, *appCfg)
 
 	grpcSrv, err := srvgrpc.NewGRPCServer(cctx.Context, app, appCfg.GRPC)
 	if err != nil {

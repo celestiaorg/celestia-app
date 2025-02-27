@@ -19,8 +19,6 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cometbft/cometbft/abci/types"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +65,8 @@ func benchmarkCheckTxPFB(b *testing.B, size int) {
 	}
 
 	b.ResetTimer()
-	resp := testApp.CheckTx(checkTxRequest)
+	resp, err := testApp.CheckTx(&checkTxRequest)
+	require.NoError(b, err)
 	b.StopTimer()
 	require.Equal(b, uint32(0), resp.Code)
 	require.Equal(b, "", resp.Codespace)
@@ -111,16 +110,17 @@ func benchmarkDeliverTxPFB(b *testing.B, size int) {
 	require.NoError(b, err)
 	require.True(b, ok)
 
-	deliverTxRequest := types.RequestDeliverTx{
-		Tx: blobTx.Tx,
+	deliverTxRequest := types.RequestFinalizeBlock{
+		Txs: [][]byte{blobTx.Tx},
 	}
 
 	b.ResetTimer()
-	resp := testApp.DeliverTx(deliverTxRequest)
+	resp, err := testApp.FinalizeBlock(&deliverTxRequest)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, uint32(0), resp.Code)
-	require.Equal(b, "", resp.Codespace)
-	b.ReportMetric(float64(resp.GasUsed), "gas_used")
+	require.Equal(b, uint32(0), resp.TxResults[0].Code)
+	require.Equal(b, "", resp.TxResults[0].Codespace)
+	b.ReportMetric(float64(resp.TxResults[0].GasUsed), "gas_used")
 	b.ReportMetric(float64(len(rawTxs[0])), "transaction_size(byte)")
 }
 
@@ -156,23 +156,20 @@ func BenchmarkPrepareProposal_PFB_Multi(b *testing.B) {
 func benchmarkPrepareProposalPFB(b *testing.B, count, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
-	}
 	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
+		Txs:    rawTxs,
+		Height: 10,
 	}
 
 	b.ResetTimer()
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
+	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "prepare_proposal_time(ns)")
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 }
 
@@ -208,39 +205,31 @@ func BenchmarkProcessProposal_PFB_Multi(b *testing.B) {
 func benchmarkProcessProposalPFB(b *testing.B, count, size int) {
 	testApp, rawTxs := generatePayForBlobTransactions(b, count, size)
 
-	blockData := &tmproto.Data{
-		Txs: rawTxs,
-	}
 	prepareProposalRequest := types.RequestPrepareProposal{
-		BlockData: blockData,
-		ChainId:   testApp.GetChainID(),
-		Height:    10,
+		Txs:    rawTxs,
+		Height: 10,
 	}
 
-	prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
-	require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+	prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+	require.NoError(b, err)
+	require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
 
 	processProposalRequest := types.RequestProcessProposal{
-		BlockData: prepareProposalResponse.BlockData,
-		Header: tmproto.Header{
-			Height:   10,
-			DataHash: prepareProposalResponse.BlockData.Hash,
-			ChainID:  testutil.ChainID,
-			Version: version.Consensus{
-				App: testApp.AppVersion(),
-			},
-		},
+		Txs:          prepareProposalResponse.Txs,
+		Height:       10,
+		DataRootHash: prepareProposalResponse.DataRootHash, // TODO: check if this is correct
 	}
 
 	b.ResetTimer()
-	resp := testApp.ProcessProposal(processProposalRequest)
+	resp, err := testApp.ProcessProposal(&processProposalRequest)
+	require.NoError(b, err)
 	b.StopTimer()
-	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+	require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
 	b.ReportMetric(float64(b.Elapsed().Nanoseconds()), "process_proposal_time(ns)")
-	b.ReportMetric(float64(len(prepareProposalResponse.BlockData.Txs)), "number_of_transactions")
+	b.ReportMetric(float64(len(prepareProposalResponse.Txs)), "number_of_transactions")
 	b.ReportMetric(float64(len(rawTxs[0])), "transactions_size(byte)")
-	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs), "block_size(mb)")
+	b.ReportMetric(calculateBlockSizeInMb(prepareProposalResponse.Txs), "block_size(mb)")
 	b.ReportMetric(float64(calculateTotalGasUsed(testApp, rawTxs)), "total_gas_used")
 }
 
@@ -290,31 +279,24 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 		}
 
 		prepareProposalRequest := types.RequestPrepareProposal{
-			BlockData: &tmproto.Data{
-				Txs: rawTxs[start:end],
-			},
-			ChainId: testApp.GetChainID(),
-			Height:  10,
+			Txs:    rawTxs[start:end],
+			Height: 10,
 		}
-		prepareProposalResponse := testApp.PrepareProposal(prepareProposalRequest)
-		require.GreaterOrEqual(b, len(prepareProposalResponse.BlockData.Txs), 1)
+		prepareProposalResponse, err := testApp.PrepareProposal(&prepareProposalRequest)
+		require.NoError(b, err)
+		require.GreaterOrEqual(b, len(prepareProposalResponse.Txs), 1)
 
 		processProposalRequest := types.RequestProcessProposal{
-			BlockData: prepareProposalResponse.BlockData,
-			Header: tmproto.Header{
-				Height:   10,
-				DataHash: prepareProposalResponse.BlockData.Hash,
-				ChainID:  testutil.ChainID,
-				Version: version.Consensus{
-					App: testApp.AppVersion(),
-				},
-			},
+			Txs:          prepareProposalResponse.Txs,
+			Height:       10,
+			DataRootHash: prepareProposalResponse.DataRootHash, // TODO: check if this is correct
 		}
 
 		startTime := time.Now()
-		resp := testApp.ProcessProposal(processProposalRequest)
+		resp, err := testApp.ProcessProposal(&processProposalRequest)
+		require.NoError(b, err)
 		endTime := time.Now()
-		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Result)
+		require.Equal(b, types.ResponseProcessProposal_ACCEPT, resp.Status)
 
 		timeElapsed := float64(endTime.Sub(startTime).Nanoseconds()) / 1e9
 
@@ -345,7 +327,7 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 					"processProposalTime(s)_%d_%d_%f",
 					end-start,
 					size,
-					calculateBlockSizeInMb(prepareProposalResponse.BlockData.Txs[start:end]),
+					calculateBlockSizeInMb(prepareProposalResponse.Txs[start:end]),
 				),
 			)
 		}
@@ -355,7 +337,7 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 
 // generatePayForBlobTransactions creates a test app then generates a number
 // of valid PFB transactions.
-func generatePayForBlobTransactions(b *testing.B, count int, size int) (*app.App, [][]byte) {
+func generatePayForBlobTransactions(b *testing.B, count, size int) (*app.App, [][]byte) {
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
 	addr := testfactory.GetAddress(kr, account)

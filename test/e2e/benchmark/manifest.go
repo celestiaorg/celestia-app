@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 )
 
 type LatencyParams struct {

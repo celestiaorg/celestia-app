@@ -5,7 +5,6 @@ import (
 
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	// "github.com/cometbft/cometbft/pkg/consts"
 )
 
 // These constants were originally sourced from:

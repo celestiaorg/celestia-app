@@ -6,11 +6,6 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/address"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cosmos/cosmos-sdk/client"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -18,6 +13,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/go-square/v2/share"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var defaultSignMode = signing.SignMode_SIGN_MODE_DIRECT
@@ -271,7 +273,6 @@ func (s *Signer) signTransaction(builder client.TxBuilder) (string, uint64, erro
 		PubKey:   account.pubKey,
 		Sequence: account.sequence,
 	})
-
 	if err != nil {
 		return "", 0, fmt.Errorf("error setting draft signatures: %w", err)
 	}

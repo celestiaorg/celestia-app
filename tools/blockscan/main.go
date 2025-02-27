@@ -9,11 +9,12 @@ import (
 	"os/signal"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func main() {

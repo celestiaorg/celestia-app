@@ -4,20 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"google.golang.org/grpc"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/spf13/cobra"
-
-	"github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 var (

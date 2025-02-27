@@ -4,14 +4,15 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
-	blobante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
-	blob "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
+
+	blobante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 )
 
 func NewAnteHandler(

@@ -3,7 +3,6 @@ package encoding
 import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
-	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -15,6 +14,8 @@ import (
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/cosmos/gogoproto/proto"
+
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 // Config specifies the concrete encoding types to use for a given app.

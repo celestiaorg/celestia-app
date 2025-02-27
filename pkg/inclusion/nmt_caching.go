@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
-	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
 )
 
 // WalkInstruction wraps the bool type to indicate the direction that should be

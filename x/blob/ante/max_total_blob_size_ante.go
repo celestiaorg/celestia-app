@@ -2,10 +2,12 @@ package ante
 
 import (
 	"cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // MaxTotalBlobSizeDecorator helps to prevent a PFB from being included in a
@@ -26,11 +28,11 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		return next(ctx, tx, simulate)
 	}
 
-	max := d.maxTotalBlobSize(ctx, ctx.BlockHeader().Version.App)
+	maxSize := d.maxTotalBlobSize(ctx, ctx.BlockHeader().Version.App)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if total := getTotal(pfb.BlobSizes); total > max {
-				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds max %d", total, max)
+			if total := getTotal(pfb.BlobSizes); total > maxSize {
+				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds max %d", total, maxSize)
 			}
 		}
 	}

@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/gogoproto/grpc"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/gogoproto/grpc"
 )
 
 var _ Sequence = &BlobSequence{}
@@ -123,8 +125,8 @@ type Range struct {
 	Max int
 }
 
-func NewRange(min, max int) Range {
-	return Range{Min: min, Max: max}
+func NewRange(rangeMin, rangeMax int) Range {
+	return Range{Min: rangeMin, Max: rangeMax}
 }
 
 // Rand returns a random number between min (inclusive) and max (exclusive).

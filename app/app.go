@@ -20,26 +20,6 @@ import (
 	"cosmossdk.io/x/upgrade"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v4/app/ante"
-	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	appv1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	appv2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
-	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
-	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v4/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
-	"github.com/celestiaorg/celestia-app/v4/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v4/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -116,6 +96,27 @@ import (
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 	ibctestingtypes "github.com/cosmos/ibc-go/v8/testing/types"
 	"github.com/spf13/cast"
+
+	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	appv1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
+	appv2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
+	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
+	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
+	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v4/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	"github.com/celestiaorg/celestia-app/v4/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v4/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v4/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v4/x/tokenfilter"
 )
 
 // maccPerms is short for module account permissions. It is a map from module
@@ -435,7 +436,9 @@ func New(
 	app.CustomQueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
 	app.configurator = module.NewConfigurator(encodingConfig.Codec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.ModuleManager.RegisterServices(app.configurator)
+	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {
+		panic(err)
+	}
 
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 	app.RegisterUpgradeHandlers() // must be called after module manager & configuator are initialized
@@ -500,7 +503,9 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		// Version changes must be increasing. Downgrades are not permitted
 		if newVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
-			app.SetAppVersion(ctx, newVersion)
+			if err := app.SetAppVersion(ctx, newVersion); err != nil {
+				return sdk.EndBlock{}, err
+			}
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
@@ -745,6 +750,8 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 // getTimeoutCommit returns the timeoutCommit if a user has overridden it via the
 // --timeout-commit flag. Otherwise, it returns the default timeout commit based
 // on the app version.
+// TODO: is this still needed?
+// nolint:unused
 func (app *App) getTimeoutCommit(appVersion uint64) time.Duration {
 	if app.timeoutCommit != 0 {
 		return app.timeoutCommit

@@ -10,16 +10,17 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/store/snapshots"
 	snapshottypes "cosmossdk.io/store/snapshots/types"
-	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/test/util"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 )
 
 func TestNew(t *testing.T) {
@@ -103,9 +104,11 @@ func TestInitChain(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			application := app.New(logger, db, traceStore, timeoutCommit, appOptions)
 			if tc.wantPanic {
-				assert.Panics(t, func() { application.InitChain(&tc.request) })
+				_, err := application.InitChain(&tc.request)
+				assert.Error(t, err)
 			} else {
-				assert.NotPanics(t, func() { application.InitChain(&tc.request) })
+				_, err := application.InitChain(&tc.request)
+				assert.NoError(t, err)
 			}
 		})
 	}

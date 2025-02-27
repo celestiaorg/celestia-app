@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"slices"
 
-	"github.com/celestiaorg/go-square/v2/inclusion"
-	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/celestiaorg/go-square/v2/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/go-square/v2/inclusion"
+	"github.com/celestiaorg/go-square/v2/share"
+	"github.com/celestiaorg/go-square/v2/tx"
 )
 
 // NewV0Blob creates a new V0 Blob from a provided namespace and data.
@@ -36,7 +37,7 @@ func NewV1Blob(ns share.Namespace, data []byte, signer sdk.AccAddress) (*share.B
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
 // blobs attached to the transaction are valid.
-func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int, appVersion uint64) error {
+func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootThreshold int, _ uint64) error {
 	if bTx == nil {
 		return ErrNoBlobs
 	}

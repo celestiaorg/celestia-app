@@ -3,8 +3,9 @@ package inclusion
 import (
 	"errors"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/cometbft/cometbft/crypto/merkle"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
 // GetCommitment gets the share commitment for a blob in the original data
