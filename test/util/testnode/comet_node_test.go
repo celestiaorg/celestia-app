@@ -47,6 +47,7 @@ func customTendermintConfig() *tmconfig.Config {
 	tmCfg.RPC.MaxBodyBytes = 200 * mebibyte
 
 	tmCfg.RPC.TimeoutBroadcastTxCommit = time.Minute
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	return tmCfg
 }
 
