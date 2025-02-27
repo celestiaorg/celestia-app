@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/json"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"os"
 	"path/filepath"
 	"testing"
@@ -64,11 +65,11 @@ func TestInitChain(t *testing.T) {
 	traceStore := &NoopWriter{}
 	timeoutCommit := time.Second
 	appOptions := NoopAppOptions{}
-	testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions)
+	testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
 	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
 	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
-	genesis := testnode.DefaultConfig().Genesis
+	genesis := testnode.DefaultConfig().Genesis.WithChainID(testApp.ChainID())
 
 	type testCase struct {
 		name      string
@@ -102,7 +103,7 @@ func TestInitChain(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			application := app.New(logger, db, traceStore, timeoutCommit, appOptions)
+			application := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
 			if tc.wantPanic {
 				_, err := application.InitChain(&tc.request)
 				assert.Error(t, err)

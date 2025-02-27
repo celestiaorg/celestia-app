@@ -1,6 +1,7 @@
 package blobfactory_test
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,7 @@ import (
 // TestGenerateManyRandomRawSendTxsSameSigner_Deterministic tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	normalTxCount := 10
+	seed := int64(1)
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	TxDecoder := enc.TxConfig.TxDecoder()
 
@@ -25,10 +27,10 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testfactory.ChainID, appconsts.LatestVersion, user.NewAccount(testfactory.TestAccName, 1, 0))
 	require.NoError(t, err)
 
-	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(signer, normalTxCount)
+	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand.New(rand.NewSource(seed)), signer, normalTxCount)
 
 	require.NoError(t, signer.SetSequence(testfactory.TestAccName, 0))
-	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(signer, normalTxCount)
+	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand.New(rand.NewSource(seed)), signer, normalTxCount)
 
 	// additional check for the sake of future debugging
 	for i := 0; i < normalTxCount; i++ {
