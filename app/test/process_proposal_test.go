@@ -350,9 +350,10 @@ func TestProcessProposal(t *testing.T) {
 			tt.mutator(blockData)
 
 			res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-				Txs:        blockData.Txs,
-				Hash:       blockData.Hash,
-				SquareSize: blockData.SquareSize,
+				Height:       height,
+				Txs:          blockData.Txs,
+				DataRootHash: blockData.Hash,
+				SquareSize:   blockData.SquareSize,
 			})
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, res.Status, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Status))
