@@ -11,7 +11,7 @@ require (
 	github.com/celestiaorg/knuu v0.16.3
 	github.com/celestiaorg/nmt v0.23.0
 	github.com/celestiaorg/rsmt2d v0.14.0
-	github.com/cometbft/cometbft-db v1.0.3
+	github.com/cometbft/cometbft-db v1.0.4
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.7.0
@@ -217,7 +217,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
-	go.etcd.io/bbolt v1.3.11 // indirect
+	go.etcd.io/bbolt v1.4.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
