@@ -404,8 +404,9 @@ func (t *Testnet) WaitToSync(ctx context.Context) error {
 // For that, use WaitToSync.
 func (t *Testnet) StartNodes(ctx context.Context) error {
 	genesisNodes := make([]*Node, 0)
+	deploymentDelay := 10 * time.Second
 	// identify genesis nodes
-	for _, node := range t.nodes {
+	for i, node := range t.nodes {
 		if node.StartHeight == 0 {
 			genesisNodes = append(genesisNodes, node)
 		}
@@ -413,6 +414,12 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 		err := node.StartAsync(ctx)
 		if err != nil {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
+		}
+
+		// Add delay between starting nodes (except for the last one)
+		if i < len(t.nodes)-1 {
+			t.logger.Println("waiting before starting next node", "delay", deploymentDelay)
+			time.Sleep(deploymentDelay)
 		}
 	}
 
