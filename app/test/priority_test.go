@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -42,7 +41,7 @@ type PriorityTestSuite struct {
 	txClient     *user.TxClient
 	cctx         testnode.Context
 
-	rand *tmrand.Rand
+	rand *rand.Rand
 }
 
 func (s *PriorityTestSuite) SetupSuite() {

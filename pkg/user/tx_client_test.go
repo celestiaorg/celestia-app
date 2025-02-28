@@ -22,6 +22,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
@@ -48,7 +49,7 @@ func (suite *TxClientTestSuite) SetupTest() {
 
 func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	t := suite.T()
-	blobs := blobfactory.ManyRandBlobs(unsafe.NewRand(), 1e3, 1e4)
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4)
 
 	subCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

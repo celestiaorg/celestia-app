@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
-	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +15,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -205,7 +205,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 		{
 			name:   "valid msg PFB with large blob",
 			signer: testfactory.TestAccAddr,
-			blobs:  []*share.Blob{mustNewBlob(t, ns1, tmrand.Bytes(1000000), share.ShareVersionZero, nil)},
+			blobs:  []*share.Blob{mustNewBlob(t, ns1, random.Bytes(1000000), share.ShareVersionZero, nil)},
 		},
 		{
 			name:   "valid msg PFB with two blobs",
@@ -220,7 +220,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			name:   "valid msg PFB with share version 1",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
-				mustNewBlob(t, ns1, tmrand.Bytes(10000), share.ShareVersionOne, address),
+				mustNewBlob(t, ns1, random.Bytes(10000), share.ShareVersionOne, address),
 			},
 			expectedErr: false,
 		},
@@ -228,7 +228,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			name:   "msg PFB with tx namespace returns an error",
 			signer: testfactory.TestAccAddr,
 			blobs: []*share.Blob{
-				mustNewBlob(t, share.TxNamespace, tmrand.Bytes(1000000), share.ShareVersionZero, nil),
+				mustNewBlob(t, share.TxNamespace, random.Bytes(1000000), share.ShareVersionZero, nil),
 			},
 			expectedErr: true,
 		},

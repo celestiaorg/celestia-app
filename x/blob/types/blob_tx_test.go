@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -20,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -93,7 +93,7 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "invalid transaction, no pfb",
 			getTx: func() *tx.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(signer, 1)
-				b, err := types.NewV0Blob(share.RandomBlobNamespace(), tmrand.Bytes(100))
+				b, err := types.NewV0Blob(share.RandomBlobNamespace(), random.Bytes(100))
 				require.NoError(t, err)
 				return &tx.BlobTx{
 					Tx:    sendTx[0],
@@ -108,7 +108,7 @@ func TestValidateBlobTx(t *testing.T) {
 				rawBtx := validRawBtx()
 				btx, _, err := tx.UnmarshalBlobTx(rawBtx)
 				require.NoError(t, err)
-				blob, err := types.NewV0Blob(share.RandomBlobNamespace(), tmrand.Bytes(100))
+				blob, err := types.NewV0Blob(share.RandomBlobNamespace(), random.Bytes(100))
 				require.NoError(t, err)
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
@@ -118,7 +118,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "invalid share commitment",
 			getTx: func() *tx.BlobTx {
-				b, err := types.NewV0Blob(share.RandomBlobNamespace(), tmrand.Bytes(100))
+				b, err := types.NewV0Blob(share.RandomBlobNamespace(), random.Bytes(100))
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					addr.String(),
@@ -127,7 +127,7 @@ func TestValidateBlobTx(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				anotherBlob, err := share.NewV0Blob(share.RandomBlobNamespace(), tmrand.Bytes(99))
+				anotherBlob, err := share.NewV0Blob(share.RandomBlobNamespace(), random.Bytes(99))
 				require.NoError(t, err)
 				badCommit, err := inclusion.CreateCommitment(
 					anotherBlob,
@@ -155,7 +155,7 @@ func TestValidateBlobTx(t *testing.T) {
 				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(10))))
 				transaction := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
-					tmrand.NewRand(),
+					random.New(),
 					signer,
 					sendMsg,
 				)

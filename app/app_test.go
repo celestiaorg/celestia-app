@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"encoding/json"
-	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 )

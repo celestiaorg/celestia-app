@@ -3,7 +3,6 @@ package ante_test
 import (
 	"testing"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +15,7 @@ import (
 	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	ante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
@@ -35,7 +35,7 @@ func TestBlobShareDecorator(t *testing.T) {
 		wantErr               error
 	}
 
-	rand := tmrand.NewRand()
+	rand := random.New()
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
 	testCases := []testCase{

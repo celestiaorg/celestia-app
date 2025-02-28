@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -28,6 +27,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -47,7 +47,7 @@ func TestProcessProposal(t *testing.T) {
 		t, enc.TxConfig, kr, testutil.ChainID, accounts[:4], infos[:4],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4),
+			testfactory.RandomBlobNamespaces(random.New(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
 	)
@@ -90,7 +90,7 @@ func TestProcessProposal(t *testing.T) {
 		infos[3:4],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			testfactory.RandomBlobNamespaces(random.New(), 4000),
 			[][]int{repeat(4000, 1)},
 		),
 	)[0]
@@ -164,7 +164,7 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
 				index := 4
-				transaction, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, tmrand.NewRand(), signer, uint32(index))
+				transaction, b := blobfactory.IndexWrappedTxWithInvalidNamespace(t, random.New(), signer, uint32(index))
 				blobTx, err := tx.MarshalBlobTx(transaction, b)
 				require.NoError(t, err)
 
@@ -201,7 +201,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "undecodable tx with app version 1",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				d.Txs = append([][]byte{random.Bytes(300)}, d.Txs...)
 				// Update the data hash so that the test doesn't fail due to an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
@@ -212,7 +212,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "undecodable tx with app version 2",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				d.Txs = append([][]byte{tmrand.Bytes(300)}, d.Txs...)
+				d.Txs = append([][]byte{random.Bytes(300)}, d.Txs...)
 				// Update the data hash so that the test doesn't fail due to an incorrect data root.
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},

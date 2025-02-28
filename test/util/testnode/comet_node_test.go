@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmconfig "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -18,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
@@ -72,7 +72,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 func (s *IntegrationTestSuite) TestPostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastSync, share.RandomBlobNamespace(), tmrand.Bytes(kibibyte))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastSync, share.RandomBlobNamespace(), random.Bytes(kibibyte))
 	require.NoError(err)
 }
 

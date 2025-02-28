@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	tmrand "cosmossdk.io/math/unsafe"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -20,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 )
 
@@ -70,7 +70,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
+		_, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), randomizedSize, randomizedBlobCount)
 		tx, _, err := signer.CreatePayForBlobs(account.Name(), blobs, opts...)
 		require.NoError(t, err)
 		txs[i] = tx
@@ -127,7 +127,7 @@ func RandBlobTxsWithManualSequence(
 			}
 		}
 
-		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(random.New(), addr.String(), randomizedSize, randomizedBlobCount)
 		transaction, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 		require.NoError(t, err)
 		if invalidSignature {

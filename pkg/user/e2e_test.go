@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/cometbft/cometbft/config"
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
@@ -43,7 +43,7 @@ func TestConcurrentTxSubmission(t *testing.T) {
 
 			// Pregenerate all the blobs
 			numTxs := 100
-			blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), blobfactory.Repeat(2048, numTxs)...)
+			blobs := blobfactory.ManyRandBlobs(random.New(), blobfactory.Repeat(2048, numTxs)...)
 
 			// Prepare transactions
 			var (

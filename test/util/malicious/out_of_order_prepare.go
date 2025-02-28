@@ -1,7 +1,6 @@
 package malicious
 
 import (
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"
 	version "github.com/cometbft/cometbft/proto/tendermint/version"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 

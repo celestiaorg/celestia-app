@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -25,6 +24,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -99,7 +99,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 3),
+			testfactory.RandomBlobNamespaces(random.New(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
@@ -154,7 +154,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[3:4],
 		blobfactory.NestedBlobs(
 			t,
-			testfactory.RandomBlobNamespaces(tmrand.NewRand(), 4000),
+			testfactory.RandomBlobNamespaces(random.New(), 4000),
 			[][]int{repeat(4000, 1)},
 		),
 	)[0]

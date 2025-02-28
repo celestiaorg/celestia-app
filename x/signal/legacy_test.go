@@ -3,7 +3,6 @@ package signal_test
 import (
 	"testing"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
@@ -12,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
@@ -45,7 +45,7 @@ func (s *LegacyUpgradeTestSuite) SetupSuite() {
 	// we create an arbitrary number of funded accounts
 	accounts := make([]string, 3)
 	for i := 0; i < len(accounts); i++ {
-		accounts[i] = tmrand.Str(9)
+		accounts[i] = random.Str(9)
 	}
 
 	cfg := testnode.DefaultConfig().

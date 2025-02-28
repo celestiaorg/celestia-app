@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 
@@ -18,13 +17,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestPFBGasEstimation(t *testing.T) {
 	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
-	rand := tmrand.NewRand()
+	rand := random.New()
 
 	testCases := []struct {
 		blobSizes []int
@@ -90,7 +90,7 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
 		require.NoError(t, err)
 
-		rand := tmrand.NewRand()
+		rand := random.New()
 		rand.Seed(seed)
 		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))

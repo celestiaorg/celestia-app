@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"sort"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -12,6 +11,8 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 const (
@@ -35,7 +36,7 @@ func Repeat[T any](s T, count int) []T {
 // namespace.
 func GenerateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
-		rawData := tmrand.Bytes(share.ShareSize)
+		rawData := random.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)
@@ -52,7 +53,7 @@ func sortByteArrays(src [][]byte) {
 func RandomAccountNames(count int) []string {
 	accounts := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		accounts = append(accounts, tmrand.Str(10))
+		accounts = append(accounts, random.Str(10))
 	}
 	return accounts
 }
@@ -60,7 +61,7 @@ func RandomAccountNames(count int) []string {
 func GenerateAccounts(count int) []string {
 	accs := make([]string, count)
 	for i := 0; i < count; i++ {
-		accs[i] = tmrand.Str(20)
+		accs[i] = random.Str(20)
 	}
 	return accs
 }
@@ -106,7 +107,7 @@ func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
 }
 
 func RandomEVMAddress() gethcommon.Address {
-	return gethcommon.BytesToAddress(tmrand.Bytes(gethcommon.AddressLength))
+	return gethcommon.BytesToAddress(random.Bytes(gethcommon.AddressLength))
 }
 
 func TestKeyring(cdc codec.Codec, accounts ...string) keyring.Keyring {

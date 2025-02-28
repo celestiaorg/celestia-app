@@ -5,7 +5,6 @@ import (
 	"sort"
 	"testing"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 func TestWalkCachedSubTreeRoot(t *testing.T) {
@@ -192,7 +192,7 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 // namespace.
 func generateRandNamespacedRawData(count int) (result [][]byte) {
 	for i := 0; i < count; i++ {
-		rawData := tmrand.Bytes(share.ShareSize)
+		rawData := random.Bytes(share.ShareSize)
 		namespace := share.RandomBlobNamespace().Bytes()
 		copy(rawData, namespace)
 		result = append(result, rawData)

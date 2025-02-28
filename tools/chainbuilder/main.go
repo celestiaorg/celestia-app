@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	tmrand "cosmossdk.io/math/unsafe"
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -33,6 +32,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
@@ -78,7 +78,7 @@ func main() {
 				BlockInterval: blockInterval,
 				ExistingDir:   existingDir,
 				Namespace:     namespace,
-				ChainID:       tmrand.Str(6),
+				ChainID:       random.Str(6),
 				UpToTime:      upToTime,
 				AppVersion:    appVersion,
 			}

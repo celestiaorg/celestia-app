@@ -1,24 +1,25 @@
 package testfactory
 
 import (
+	"math/rand"
 	"slices"
 
-	tmrand "cosmossdk.io/math/unsafe"
-
 	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 // RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).
-func RandomBlobNamespaceIDWithPRG(prg *tmrand.Rand) []byte {
-	return prg.Bytes(share.NamespaceVersionZeroIDSize)
+func RandomBlobNamespaceIDWithPRG(r *rand.Rand) []byte {
+	return random.BytesR(r, share.NamespaceVersionZeroIDSize)
 }
 
 func RandomBlobNamespace() share.Namespace {
-	return RandomBlobNamespaceWithPRG(tmrand.NewRand())
+	return RandomBlobNamespaceWithPRG(random.New())
 }
 
 // RandomBlobNamespaceWithPRG generates and returns a random blob namespace using the supplied Pseudo-Random number Generator (PRG).
-func RandomBlobNamespaceWithPRG(rand *tmrand.Rand) share.Namespace {
+func RandomBlobNamespaceWithPRG(rand *rand.Rand) share.Namespace {
 	for {
 		id := RandomBlobNamespaceIDWithPRG(rand)
 		namespace := share.MustNewV0Namespace(id)
@@ -28,7 +29,7 @@ func RandomBlobNamespaceWithPRG(rand *tmrand.Rand) share.Namespace {
 	}
 }
 
-func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []share.Namespace) {
+func RandomBlobNamespaces(rand *rand.Rand, count int) (namespaces []share.Namespace) {
 	for i := 0; i < count; i++ {
 		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}

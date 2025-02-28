@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	tmrand "cosmossdk.io/math/unsafe"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -26,6 +25,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
@@ -72,7 +72,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	singleBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
-			tmrand.NewRand(),
+			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			600*kibibyte,
@@ -87,7 +87,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	multiBlobTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
-			tmrand.NewRand(),
+			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			200*kibibyte,
@@ -100,7 +100,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	randomTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg,
-			tmrand.NewRand(),
+			random.New(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			50*kibibyte,
@@ -183,7 +183,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg,
-		tmrand.NewRand(),
+		random.New(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		int(100000),
@@ -205,7 +205,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg,
-		tmrand.NewRand(),
+		random.New(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		100*kibibyte,
@@ -272,7 +272,7 @@ func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 		// save block to json file for further debugging if this occurs
 		b, err := json.MarshalIndent(block, "", "  ")
 		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0o644))
+		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", random.Str(6)), b, 0o644))
 	}
 }
 
@@ -300,7 +300,7 @@ func (s *IntegrationTestSuite) TestIsEmptyBlockRef() {
 
 func newBlobWithSize(size int) *share.Blob {
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
-	data := tmrand.Bytes(size)
+	data := random.Bytes(size)
 	blob, err := share.NewBlob(ns, data, share.ShareVersionZero, nil)
 	if err != nil {
 		panic(err)
