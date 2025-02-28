@@ -176,7 +176,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) && false { // TODO ---> THIS SHOULD BE REMOVED!! In the meantime we have blocks
+	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
 		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
 		return reject(), nil
 	}
