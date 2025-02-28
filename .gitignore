@@ -19,3 +19,4 @@ square/testdata
 vendor
 go.work
 go.work.sum
+.envrc
