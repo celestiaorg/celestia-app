@@ -64,7 +64,7 @@ createGenesis() {
     # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
 
     # Override the default RPC server listening address to not conflict with the node started via ./single-node.sh
-    sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26000"#g' "${CELESTIA_APP_HOME}"/config/config.toml
+    sed -i".bak" "s#\"tcp://127.0.0.1:26657\"#\"tcp://0.0.0.0:26000\"#g" "${CELESTIA_APP_HOME}/config/config.toml"
 
     # Override the p2p address to not conflict with the node started via ./single-node.sh
     sed -i'.bak' 's#laddr = "tcp://0.0.0.0:26656"#laddr = "tcp://0.0.0.0:36656"#g' "${CELESTIA_APP_HOME}"/config/config.toml
