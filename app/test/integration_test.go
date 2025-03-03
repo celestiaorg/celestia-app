@@ -250,14 +250,14 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		// verify the blob shares proof
 		rpcNode, ok := node.(rpcclient.SignClient)
 		require.True(t, ok)
-		blobProof, err := rpcNode.ProveShares(
+		blobProof, err := rpcNode.ProveSharesV2(
 			context.Background(),
 			uint64(txResp.Height),
 			uint64(shareRange.Start),
 			uint64(shareRange.End),
 		)
 		require.NoError(t, err)
-		require.NoError(t, blobProof.Validate(blockRes.Block.DataHash))
+		require.NoError(t, blobProof.ShareProof.Validate(blockRes.Block.DataRootHash))
 	}
 }
 
