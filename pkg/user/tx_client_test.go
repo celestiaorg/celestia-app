@@ -42,7 +42,7 @@ type TxClientTestSuite struct {
 	serviceClient sdktx.ServiceClient
 }
 
-func (suite *TxClientTestSuite) SetupTest() {
+func (suite *TxClientTestSuite) SetupSuite() {
 	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
