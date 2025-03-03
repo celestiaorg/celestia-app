@@ -66,8 +66,11 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
 	}
 
-	req.Tx = btx.Tx
-	return app.BaseApp.CheckTx(req)
+	// NOTE: we recreate the reqCheckTx such that we do not mutate the original req.Tx value
+	return app.BaseApp.CheckTx(&abci.RequestCheckTx{
+		Tx:   btx.Tx,
+		Type: req.GetType(),
+	})
 }
 
 func responseCheckTxWithEvents(err error, gw, gu uint64, events []abci.Event, debug bool) *abci.ResponseCheckTx {
