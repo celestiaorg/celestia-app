@@ -31,8 +31,6 @@ type AppModuleBasic struct {
 	cdc codec.Codec
 }
 
-var _ module.AppModuleBasic = AppModuleBasic{}
-
 // Name returns the mint module's name.
 func (AppModuleBasic) Name() string {
 	return types.ModuleName
