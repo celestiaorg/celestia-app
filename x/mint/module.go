@@ -151,7 +151,7 @@ func (AppModule) GenerateGenesisState(_ *module.SimulationState) {
 	// no-op
 }
 
-// ProposalContents doesn't return any content functions for governance proposals.
+// ProposalContents returns nil because the mint module does not support governance proposals.
 func (AppModule) ProposalContents(_ module.SimulationState) []simtypes.WeightedProposalContent {
 	return nil
 }
