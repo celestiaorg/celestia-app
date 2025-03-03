@@ -13,7 +13,7 @@ The target audience for this guide is maintainers of this repo. In general, the 
 
 1. Navigate to <https://github.com/celestiaorg/celestia-app/releases/new>.
 1. Choose a version tag based on [Semantic Versioning](https://semver.org/). Include the `-rc` suffix followed by the next integer. RCs start at 0.
-1. If a minor version branch doex not exist for the release you are about to create, create one. Example: `v3.4.x`.
+1. If a minor version branch does not exist for the release you are about to create, create one. Example: `v3.4.x`.
 1. Change the target branch to a minor version based. Example: `v3.4.x`.
 1. Click **Generate release notes**.
 1. Toggle on the **Set as a pre-release** checkbox.
