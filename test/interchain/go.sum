@@ -247,10 +247,12 @@ github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 h1:q0rUy8C/TYNBQS1+CGKw68tLOF
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1/go.mod h1:7SFka0XMvUgj3hfZtydOrQY2mwhPclbT2snogU7SQQc=
 github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce h1:YtWJF7RHm2pYCvA5t0RPmAaLUhREsKuKd+SLhxFbFeQ=
 github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce/go.mod h1:0DVlHczLPewLcPGEIeUEzfOJhqGPQ0mJJRDBtD307+o=
-github.com/celestiaorg/celestia-core v1.46.0-tm-v0.34.35 h1:2EsDF9Z/mLiyKHyI1iBN52dCYF1wtYAGzWTjxtgl600=
-github.com/celestiaorg/celestia-core v1.46.0-tm-v0.34.35/go.mod h1:FSd32MUffdVUYIXW+m/1v5pHptRQF2RJC88fwsgrKG8=
+github.com/celestiaorg/celestia-core v1.47.0-tm-v0.34.35 h1:K0kSVRlKfsPwfiA4o8GNUNPfZ+wF1MnYajom4CzJxpQ=
+github.com/celestiaorg/celestia-core v1.47.0-tm-v0.34.35/go.mod h1:FSd32MUffdVUYIXW+m/1v5pHptRQF2RJC88fwsgrKG8=
 github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16 h1:qxWiGrDEcg4FzVTpIXU/v3wjP7q1Lz4AMhSBBRABInU=
 github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16/go.mod h1:W30mNt3+2l516HVR8Gt9+Gf4qOrWC9/x18MTEx2GljE=
+github.com/celestiaorg/ibc-go/v6 v6.2.3 h1:INxacgOrRbPLPQVzbGA4QMDdcSLic6Ff5tf3fye3w/E=
+github.com/celestiaorg/ibc-go/v6 v6.2.3/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
 github.com/celestiaorg/nmt v0.23.0 h1:cfYy//hL1HeDSH0ub3CPlJuox5U5xzgg4JGZrw23I/I=
 github.com/celestiaorg/nmt v0.23.0/go.mod h1:kYfIjRq5rmA2mJnv41GLWkxn5KyLNPlma3v5Q68rHdI=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
@@ -311,8 +313,6 @@ github.com/cosmos/gorocksdb v1.2.0 h1:d0l3jJG8M4hBouIZq0mDUHZ+zjOx044J3nGRskwTb4
 github.com/cosmos/gorocksdb v1.2.0/go.mod h1:aaKvKItm514hKfNJpUJXnnOWeBnk2GL4+Qw9NHizILw=
 github.com/cosmos/iavl v0.19.6 h1:XY78yEeNPrEYyNCKlqr9chrwoeSDJ0bV2VjocTk//OU=
 github.com/cosmos/iavl v0.19.6/go.mod h1:X9PKD3J0iFxdmgNLa7b2LYWdsGd90ToV5cAONApkEPw=
-github.com/cosmos/ibc-go/v6 v6.2.2 h1:xVnlfV+IFPMkAEuWdZpRbky1jfGcob9i+T+xQ2LRf48=
-github.com/cosmos/ibc-go/v6 v6.2.2/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
 github.com/cosmos/ledger-cosmos-go v0.14.0 h1:WfCHricT3rPbkPSVKRH+L4fQGKYHuGOK9Edpel8TYpE=
 github.com/cosmos/ledger-cosmos-go v0.14.0/go.mod h1:E07xCWSBl3mTGofZ2QnL4cIUzMbbGVyik84QYKbX3RA=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=

@@ -11,7 +11,7 @@ require (
 	github.com/celestiaorg/knuu v0.16.3
 	github.com/celestiaorg/nmt v0.23.0
 	github.com/celestiaorg/rsmt2d v0.14.0
-	github.com/cometbft/cometbft-db v1.0.3
+	github.com/cometbft/cometbft-db v1.0.4
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.46.16
 	github.com/cosmos/gogoproto v1.7.0
@@ -217,7 +217,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
-	go.etcd.io/bbolt v1.3.11 // indirect
+	go.etcd.io/bbolt v1.4.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
@@ -256,6 +256,8 @@ require (
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16
+	// Replace IBC with celestiaorg fork which includes a fix for https://github.com/cosmos/ibc-go/security/advisories/GHSA-jg6f-48ff-5xrw
+	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.2.3
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.47.0-tm-v0.34.35
