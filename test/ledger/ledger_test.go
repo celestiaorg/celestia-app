@@ -25,7 +25,7 @@ func TestLedgerSupport(t *testing.T) {
 		{
 			name:   "ledger support enabled",
 			ledger: true,
-			want:   "Error: failed to generate ledger key: failed to retrieve device: ledger nano S: LedgerHID device (idx 0) not found. Ledger LOCKED OR Other Program/Web Browser may have control of device.\n",
+			want:   "Error: failed to generate ledger key: failed to retrieve device: ledger nano S: LedgerHID device (idx 0) not found: device may be locked or in use by another application\n",
 		},
 		{
 			name:   "ledger support disabled",
