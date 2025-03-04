@@ -13,12 +13,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
@@ -206,7 +207,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					[]sdk.Msg{
 						disttypes.NewMsgFundCommunityPool(
 							coins,
-							testfactory.GetAddress(s.cctx.Keyring, s.unusedAccount()).String(),
+							authtypes.NewModuleAddress("gov").String(),
 						),
 					},
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
@@ -226,10 +227,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create legacy text governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
+				content, ok := govv1beta1.ContentFromProposalType("title", "description", "text")
 				require.True(t, ok)
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
+				msg, err := govv1beta1.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
 						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
@@ -261,28 +262,29 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
-		{
-			name: "create param change proposal for a blocked parameter",
-			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				account := s.unusedAccount()
-				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
-				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
-				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
-					addr,
-				)
-				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
-			},
-			// this parameter is protected by the paramfilter module, and we
-			// should expect an error. Due to how errors are bubbled up, we get
-			// this code despite wrapping the expected error,
-			// paramfilter.ErrBlockedParameter
-			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
-		},
+		// TODO: paramfilter module is removed, should be replaced by ante handler
+		// {
+		// 	name: "create param change proposal for a blocked parameter",
+		// 	msgFunc: func() (msgs []sdk.Msg, signer string) {
+		// 		account := s.unusedAccount()
+		// 		change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
+		// 		content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+		// 		addr := testfactory.GetAddress(s.cctx.Keyring, account)
+		// 		msg, err := oldgov.NewMsgSubmitProposal(
+		// 			content,
+		// 			sdk.NewCoins(
+		// 				sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),
+		// 			addr,
+		// 		)
+		// 		require.NoError(t, err)
+		// 		return []sdk.Msg{msg}, account
+		// 	},
+		// 	// this parameter is protected by the paramfilter module, and we
+		// 	// should expect an error. Due to how errors are bubbled up, we get
+		// 	// this code despite wrapping the expected error,
+		// 	// paramfilter.ErrBlockedParameter
+		// 	expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
+		// },
 		{
 			name: "create param proposal change for a modifiable parameter",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
@@ -290,7 +292,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
 				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
+				msg, err := govv1beta1.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
 						sdk.NewCoin(app.BondDenom, math.NewInt(1000000000))),

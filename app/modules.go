@@ -24,7 +24,6 @@ import (
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	"github.com/cosmos/cosmos-sdk/x/gov"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -60,7 +59,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	stakingModule{},
 	mintModule{},
 	distribution.AppModuleBasic{},
-	gov.AppModuleBasic{},
+	govModule{},
 	params.AppModuleBasic{},
 	crisis.AppModuleBasic{},
 	slashingModule{},

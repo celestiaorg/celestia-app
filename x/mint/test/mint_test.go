@@ -72,6 +72,8 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 // expected rate of inflation. See the README.md for the expected rate of
 // inflation.
 func (s *IntegrationTestSuite) TestInflationRate() {
+	s.T().Skip("TODO: this test should be rewritten as we no longer have a way to manipulate time at runtime")
+
 	require := s.Require()
 
 	type testCase struct {
