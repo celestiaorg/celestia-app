@@ -1,39 +1,31 @@
-name: protobuf
+name: Protobuf
+# Protobuf runs buf (https://buf.build/) lint and check-breakage
+# This workflow is only run when a .proto file has been changed
 on:
   pull_request:
+    paths:
+      - "proto/**"
+
+permissions:
+  contents: read
+
 jobs:
-  proto-lint:
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: proto-lint
-        run: make proto-lint
-  proto-gen:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - name: "Check protobuf generated code matches committed code"
-        # yamllint disable
-        run: |
-          set -euo pipefail
+      - uses: actions/checkout@v3
+      - uses: bufbuild/buf-setup-action@v1.21.0
+      - uses: bufbuild/buf-lint-action@v1
+        with:
+          input: "proto"
 
-          make proto-gen
-
-          if ! git diff --stat --exit-code ; then
-            echo ">> ERROR:"
-            echo ">>"
-            echo ">> Protobuf generated code requires update (either tools or .proto files may have changed)."
-            echo ">> Ensure your tools are up-to-date, re-run 'make proto-gen' and update this PR."
-            echo ">>"
-            exit 1
-          fi
-        # yamllint enable
-
-  proto-check-breaking:
+  break-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: proto-check-breaking
-        run: make proto-check-breaking
+      - uses: actions/checkout@v3
+      - uses: bufbuild/buf-setup-action@v1.21.0
+      - uses: bufbuild/buf-breaking-action@v1
+        with:
+          input: "proto"
+          against: "https://github.com/${{ github.repository }}.git#branch=${{ github.event.pull_request.base.ref }},ref=HEAD~1,subdir=proto"
