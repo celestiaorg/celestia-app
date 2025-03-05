@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	blobstreamclient "github.com/celestiaorg/celestia-app/v3/x/blobstream/client"
 	"github.com/cosmos/cosmos-sdk/client"
 	clientconfig "github.com/cosmos/cosmos-sdk/client/config"
@@ -44,7 +45,9 @@ const (
 
 // NewRootCmd creates a new root command for celestia-appd.
 func NewRootCmd() *cobra.Command {
-	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	// Use the latest version (v3+) encoding config to ensure proper handling of recursive depth limits
+	// for CLI commands and queries, which aligns with the latest app version behavior
+	encodingConfig := encoding.MakeVersionedConfig(appconsts.LatestVersion, app.ModuleEncodingRegisters...)
 	initClientContext := client.Context{}.
 		WithCodec(encodingConfig.Codec).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).

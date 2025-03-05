@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	appcodec "github.com/celestiaorg/celestia-app/v3/pkg/codec"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -23,6 +24,7 @@ type Config struct {
 }
 
 // MakeConfig returns an encoding config for the app.
+// Deprecated: Use `MakeVersionedConfig` instead.
 func MakeConfig(moduleRegisters ...ModuleRegister) Config {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	amino := codec.NewLegacyAmino()
@@ -46,6 +48,42 @@ func MakeConfig(moduleRegisters ...ModuleRegister) Config {
 
 	return Config{
 		InterfaceRegistry: interfaceRegistry,
+		Codec:             protoCodec,
+		TxConfig:          txConfig,
+		Amino:             amino,
+	}
+}
+
+// MakeVersionedConfig returns an encoding config with a versioned interface registry
+// that conditionally applies recursion and call limits based on the app version.
+func MakeVersionedConfig(appVersion uint64, moduleRegisters ...ModuleRegister) Config {
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
+	amino := codec.NewLegacyAmino()
+
+	// Register the standard types from the Cosmos SDK on interfaceRegistry and amino
+	std.RegisterInterfaces(interfaceRegistry)
+	std.RegisterLegacyAminoCodec(amino)
+
+	// Register types from the moduleRegisters on interfaceRegistry and amino
+	for _, moduleRegister := range moduleRegisters {
+		moduleRegister.RegisterInterfaces(interfaceRegistry)
+		moduleRegister.RegisterLegacyAminoCodec(amino)
+	}
+
+	// Create the versioned interface registry
+	versionedRegistry := appcodec.NewVersionedInterfaceRegistry(interfaceRegistry, appVersion)
+
+	// Create codec using the versioned registry
+	protoCodec := codec.NewProtoCodec(versionedRegistry)
+
+	// Create TxConfig
+	txConfig := tx.NewTxConfig(protoCodec, tx.DefaultSignModes)
+	txDecoder := txConfig.TxDecoder()
+	txDecoder = indexWrapperDecoder(txDecoder)
+	txConfig.SetTxDecoder(txDecoder)
+
+	return Config{
+		InterfaceRegistry: versionedRegistry,
 		Codec:             protoCodec,
 		TxConfig:          txConfig,
 		Amino:             amino,
