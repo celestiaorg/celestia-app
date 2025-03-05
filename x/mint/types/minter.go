@@ -42,9 +42,30 @@ func (m Minter) Validate() error {
 // the current block height in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
 func (m Minter) CalculateInflationRate(ctx sdk.Context, genesis time.Time) sdk.Dec {
+	if ctx.ConsensusParams().Version.AppVersion <= 3 {
+		return calculateInflationRatePreCip29(ctx, genesis)
+	} else {
+		return calculateInflationRatePostCip29(ctx, genesis)
+	}
+}
+
+func calculateInflationRatePreCip29(ctx sdk.Context, genesis time.Time) sdk.Dec {
 	years := yearsSinceGenesis(genesis, ctx.BlockTime())
 	inflationRate := InitialInflationRateAsDec().Mul(sdk.OneDec().Sub(DisinflationRateAsDec()).Power(uint64(years)))
 
+	if inflationRate.LT(TargetInflationRateAsDec()) {
+		return TargetInflationRateAsDec()
+	}
+	return inflationRate
+}
+
+func calculateInflationRatePostCip29(ctx sdk.Context, genesis time.Time) sdk.Dec {
+	if ctx.ConsensusParams().Version.AppVersion <= 3 {
+		panic("calculateInflationRatePostCip29 should not be called with AppVersion <= 3")
+	}
+
+	years := yearsSinceGenesis(genesis, ctx.BlockTime())
+	inflationRate := InitialInflationRateCip29AsDec().Mul(sdk.OneDec().Sub(DisinflationRateCip29AsDec()).Power(uint64(years)))
 	if inflationRate.LT(TargetInflationRateAsDec()) {
 		return TargetInflationRateAsDec()
 	}
