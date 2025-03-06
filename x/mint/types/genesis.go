@@ -1,6 +1,10 @@
 package types
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+)
 
 // NewGenesisState creates a new GenesisState object
 func NewGenesisState(bondDenom string) *GenesisState {
@@ -12,7 +16,7 @@ func NewGenesisState(bondDenom string) *GenesisState {
 // DefaultGenesisState creates a default GenesisState object
 func DefaultGenesisState() *GenesisState {
 	return &GenesisState{
-		BondDenom: DefaultBondDenom,
+		BondDenom: params.BondDenom,
 	}
 }
 

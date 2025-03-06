@@ -17,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
@@ -152,7 +153,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "complex transaction with one send and one pfb",
 			getTx: func() *tx.BlobTx {
-				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(10))))
+				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10))))
 				transaction := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
 					random.New(),

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 // Test_newGovModule verifies that the gov module's genesis state has defaults
@@ -28,7 +29,7 @@ func Test_newGovModule(t *testing.T) {
 	enc.Codec.MustUnmarshalJSON(raw, &govGenesisState)
 
 	want := []types.Coin{{
-		Denom:  BondDenom,
+		Denom:  params.BondDenom,
 		Amount: math.NewInt(10_000_000_000),
 	}}
 

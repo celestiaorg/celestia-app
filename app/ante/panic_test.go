@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
@@ -20,7 +21,7 @@ func TestPanicHandlerDecorator(t *testing.T) {
 	ctx := sdk.Context{}
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	builder := enc.TxConfig.NewTxBuilder()
-	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10))))
+	err := builder.SetMsgs(banktypes.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10))))
 	require.NoError(t, err)
 	tx := builder.GetTx()
 	defer func() {

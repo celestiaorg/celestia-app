@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v4/app/errors"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
@@ -32,7 +33,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	)
 	account := "test"
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), account)
-	minGasPrice, err := sdk.ParseDecCoins(fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom))
+	minGasPrice, err := sdk.ParseDecCoins(fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, params.BondDenom))
 	require.NoError(t, err)
 	ctx := testApp.NewContext(true).WithMinGasPrices(minGasPrice)
 	addr := testfactory.GetAddress(kr, account)

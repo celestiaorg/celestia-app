@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
@@ -65,7 +65,7 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	require.NoError(err)
 	laterSupply := s.getTotalSupply(laterHeight)
 
-	require.True(initalSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
+	require.True(initalSupply.AmountOf(params.BondDenom).LT(laterSupply.AmountOf(params.BondDenom)))
 }
 
 // TestInflationRate verifies that the inflation rate each year matches the
@@ -130,8 +130,8 @@ func (s *IntegrationTestSuite) getTotalSupply(height int64) sdktypes.Coins {
 }
 
 func (s *IntegrationTestSuite) estimateInflationRate(startHeight, endHeight int64) math.LegacyDec {
-	startSupply := s.getTotalSupply(startHeight).AmountOf(app.BondDenom)
-	endSupply := s.getTotalSupply(endHeight).AmountOf(app.BondDenom)
+	startSupply := s.getTotalSupply(startHeight).AmountOf(params.BondDenom)
+	endSupply := s.getTotalSupply(endHeight).AmountOf(params.BondDenom)
 	diffSupply := endSupply.Sub(startSupply)
 
 	return math.LegacyNewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)

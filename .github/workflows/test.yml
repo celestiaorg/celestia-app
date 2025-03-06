@@ -43,7 +43,7 @@ jobs:
       - name: Upload coverage.txt
         uses: codecov/codecov-action@v5.3.1
         with:
-          file: ./coverage.txt
+          files: ./coverage.txt
 
   test-race:
     runs-on: ubuntu-latest

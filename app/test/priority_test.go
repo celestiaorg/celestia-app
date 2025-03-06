@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
@@ -152,7 +153,7 @@ func getGasPrice(t *testing.T, ecfg encoding.Config, resp *rpctypes.ResultTx) fl
 	sdkTx, err := ecfg.TxConfig.TxDecoder()(resp.Tx)
 	require.NoError(t, err)
 	feeTx := sdkTx.(sdk.FeeTx)
-	fee := feeTx.GetFee().AmountOf(app.BondDenom).Uint64()
+	fee := feeTx.GetFee().AmountOf(params.BondDenom).Uint64()
 	gas := feeTx.GetGas()
 	price := float64(fee) / float64(gas)
 	return price

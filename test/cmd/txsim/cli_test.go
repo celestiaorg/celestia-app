@@ -13,6 +13,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
@@ -71,7 +72,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 		WithConsensusParams(cparams).
 		WithFundedAccounts(testfactory.TestAccName).
 		WithModifiers(
-			genesis.FundAccounts(enc.Codec, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(app.BondDenom, math.NewIntFromUint64(1e15))),
+			genesis.FundAccounts(enc.Codec, []sdk.AccAddress{testnode.TestAddress()}, sdk.NewCoin(params.BondDenom, math.NewIntFromUint64(1e15))),
 		)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)

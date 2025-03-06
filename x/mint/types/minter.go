@@ -6,9 +6,9 @@ import (
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-)
 
-const DefaultBondDenom = "utia"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+)
 
 // NewMinter returns a new Minter object.
 func NewMinter(inflationRate, annualProvisions math.LegacyDec, bondDenom string) Minter {
@@ -22,7 +22,7 @@ func NewMinter(inflationRate, annualProvisions math.LegacyDec, bondDenom string)
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
 	annualProvisions := math.LegacyNewDec(0)
-	return NewMinter(InitialInflationRateAsDec(), annualProvisions, DefaultBondDenom)
+	return NewMinter(InitialInflationRateAsDec(), annualProvisions, appconsts.BondDenom)
 }
 
 // Validate returns an error if the minter is invalid.

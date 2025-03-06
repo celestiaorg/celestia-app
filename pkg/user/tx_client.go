@@ -27,9 +27,9 @@ import (
 
 	"github.com/celestiaorg/go-square/v2/share"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
@@ -647,7 +647,7 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 	if err != nil {
 		return 0, err
 	}
-	localMinPrice := localMinCoins.AmountOf(app.BondDenom).MustFloat64()
+	localMinPrice := localMinCoins.AmountOf(params.BondDenom).MustFloat64()
 
 	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
 	if err != nil {

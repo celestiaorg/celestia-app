@@ -15,8 +15,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 const (
@@ -117,7 +117,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
 		sdk.ValAddress(addr).String(),
 		pk,
-		sdk.NewCoin(app.BondDenom, math.NewInt(v.Stake)),
+		sdk.NewCoin(params.BondDenom, math.NewInt(v.Stake)),
 		stakingtypes.NewDescription(v.Name, "", "", "", ""),
 		stakingtypes.NewCommissionRates(commission, math.LegacyOneDec(), math.LegacyOneDec()),
 		math.NewInt(v.Stake/2),
@@ -126,7 +126,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		return nil, err
 	}
 
-	fee := sdk.NewCoins(sdk.NewCoin(app.BondDenom, math.NewInt(20000)))
+	fee := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(20000)))
 	txBuilder := ecfg.TxConfig.NewTxBuilder()
 	err = txBuilder.SetMsgs(createValMsg)
 	if err != nil {

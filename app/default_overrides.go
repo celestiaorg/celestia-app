@@ -30,6 +30,7 @@ import (
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
@@ -58,20 +59,20 @@ type bankModule struct {
 func (bankModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	metadata := banktypes.Metadata{
 		Description: "The native token of the Celestia network.",
-		Base:        BondDenom,
-		Name:        DisplayDenom,
-		Display:     DisplayDenom,
-		Symbol:      DisplayDenom,
+		Base:        params.BondDenom,
+		Name:        params.DisplayDenom,
+		Display:     params.DisplayDenom,
+		Symbol:      params.DisplayDenom,
 		DenomUnits: []*banktypes.DenomUnit{
 			{
-				Denom:    BondDenom,
+				Denom:    params.BondDenom,
 				Exponent: 0,
 				Aliases: []string{
-					BondDenomAlias,
+					params.BondDenomAlias,
 				},
 			},
 			{
-				Denom:    DisplayDenom,
+				Denom:    params.DisplayDenom,
 				Exponent: 6,
 				Aliases:  []string{},
 			},
@@ -94,7 +95,7 @@ type stakingModule struct {
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := stakingtypes.DefaultGenesisState()
 	genesis.Params.UnbondingTime = appconsts.DefaultUnbondingTime
-	genesis.Params.BondDenom = BondDenom
+	genesis.Params.BondDenom = params.BondDenom
 	genesis.Params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2) // 5%
 
 	return cdc.MustMarshalJSON(genesis)
@@ -157,7 +158,7 @@ type mintModule struct {
 // DefaultGenesis returns custom x/mint module genesis state.
 func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := minttypes.DefaultGenesisState()
-	genState.BondDenom = BondDenom
+	genState.BondDenom = params.BondDenom
 
 	return cdc.MustMarshalJSON(genState)
 }
@@ -174,7 +175,7 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	day := time.Hour * 24
 	oneWeek := day * 7
 
-	genState.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
+	genState.Params.MinDeposit = sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(10_000_000_000))) // 10,000 TIA
 	genState.Params.MaxDepositPeriod = &oneWeek
 	genState.Params.VotingPeriod = &oneWeek
 
@@ -286,7 +287,7 @@ func DefaultAppConfig() *serverconfig.Config {
 	// snapshots to nodes that state sync
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
-	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
+	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, params.BondDenom)
 	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
 	return cfg
 }

@@ -11,6 +11,7 @@ import (
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 func MakeConfig(node *Node, peers []string, opts ...Option) (*config.Config, error) {
@@ -113,7 +114,7 @@ func WriteAddressBook(peers []string, file string) error {
 
 func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg := serverconfig.DefaultConfig()
-	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
+	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", params.BondDenom)
 	// updating MaxRecvMsgSize and MaxSendMsgSize allows submission of 128MiB worth of
 	// transactions simultaneously which is useful for big block tests.
 	srvCfg.GRPC.MaxRecvMsgSize = 128 * MiB
