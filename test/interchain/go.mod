@@ -1,6 +1,8 @@
 module github.com/celestiaorg/celestia-app/test/interchain
 
-go 1.23.5
+go 1.23.6
+
+toolchain go1.24.0
 
 require (
 	cosmossdk.io/math v1.3.0
@@ -73,13 +75,8 @@ require (
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/gateway v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
-<<<<<<< HEAD
-	github.com/golang/glog v1.2.1 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-=======
 	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
->>>>>>> a3917ec (fix: v1 mempool data race (#4380))
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/btree v1.1.3 // indirect
