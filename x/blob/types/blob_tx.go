@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"slices"
 
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/go-square/v2/inclusion"
@@ -90,7 +91,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx *tx.BlobTx, subtreeRootTh
 	}
 
 	// check that the sizes in the blobTx match the sizes in the msgPFB
-	if !equalSlices(sizes, msgPFB.BlobSizes) {
+	if !slices.Equal(sizes, msgPFB.BlobSizes) {
 		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
 	}
 
@@ -125,16 +126,4 @@ func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 		sharesUsed += share.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 	return sharesUsed
-}
-
-func equalSlices[T comparable](a, b []T) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
