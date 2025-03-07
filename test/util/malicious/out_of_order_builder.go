@@ -19,7 +19,7 @@ type ExportFn func(builder *square.Builder) (square.Square, error)
 // greater than maxSquareSize. It also returns the ordered list of transactions that are present
 // in the square and which have all PFBs trailing regular transactions. Note, this function does
 // not check the underlying validity of the transactions.
-// Errors should not occur and would reflect a violation in an invariant.
+// Errors should not occur and would reflect a violation of an invariant.
 func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (square.Square, [][]byte, error) {
 	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
