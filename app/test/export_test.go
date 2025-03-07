@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -28,12 +29,14 @@ func TestExportAppStateAndValidators(t *testing.T) {
 
 		testApp, _ := SetupTestAppWithUpgradeHeight(t, 3)
 		upgradeToV2(t, testApp)
-
+		ctx, err := testApp.CreateQueryContext(testApp.LastBlockHeight(), false)
+		require.NoError(t, err)
+		version := testApp.GetAppVersionFromParamStore(ctx)
+		fmt.Println(version)
 		exported, err := testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
 		require.NoError(t, err)
 		assert.NotNil(t, exported)
-		// TODO: the following assertion is commented out because the exported app does not populate consensus params.version
-		// assert.Equal(t, uint64(2), exported.ConsensusParams.Version.AppVersion)
+		assert.Equal(t, uint64(2), exported.ConsensusParams.Version.AppVersion)
 	})
 }
 
@@ -53,4 +56,5 @@ func upgradeToV2(t *testing.T, testApp *app.App) {
 	testApp.EndBlock(abci.RequestEndBlock{Height: 3})
 	testApp.Commit()
 	require.EqualValues(t, 3, testApp.LastBlockHeight())
+	require.Equal(t, uint64(2), testApp.AppVersion())
 }
