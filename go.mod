@@ -18,7 +18,7 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.7
 	cosmossdk.io/x/upgrade v0.1.4
-	github.com/01builders/nova v0.0.0-20250306093605-7ac80b4d39dc
+	github.com/01builders/nova v0.0.0-20250307104540-3cbceaa92bfd
 	github.com/celestiaorg/go-square/v2 v2.1.0
 	github.com/celestiaorg/knuu v0.16.2
 	github.com/celestiaorg/nmt v0.23.0
