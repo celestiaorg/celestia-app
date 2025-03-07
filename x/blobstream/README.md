@@ -24,7 +24,7 @@ When an orchestrator sees a newly generated valset published by the Celestia sta
 A valset is comprised of the following fields:
 
 ```protobuf
-// Valset is the EVM Bridge Multsig Set, each blobstream validator also
+// Valset is the EVM Bridge Multisig Set, each blobstream validator also
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 message Valset {
