@@ -3,6 +3,7 @@ package pfm
 import (
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -149,7 +150,7 @@ var (
 	DefaultNodeHome string
 
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
-	// non-dependant module elements, such as codec registration
+	// non-dependent module elements, such as codec registration
 	// and genesis verification.
 	ModuleBasics = module.NewBasicManager(
 		auth.AppModuleBasic{},
@@ -805,11 +806,7 @@ func RegisterSwaggerAPI(_ client.Context, rtr *mux.Router) {
 
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {
-	dupMaccPerms := make(map[string][]string)
-	for k, v := range maccPerms {
-		dupMaccPerms[k] = v
-	}
-	return dupMaccPerms
+	return maps.Clone(maccPerms)
 }
 
 // initParamsKeeper init params keeper and its subspaces

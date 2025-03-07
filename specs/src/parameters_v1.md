@@ -3,7 +3,7 @@
 The parameters below represent the parameters for app version 1.
 
 Note that not all of these parameters are changeable via governance. This list
-also includes parameter that require a hardfork to change due to being manually
+also includes parameters that require a hardfork to change due to being manually
 hardcoded in the application or they are blocked by the `x/paramfilter` module.
 
 ## Global parameters
