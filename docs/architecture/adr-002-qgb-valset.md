@@ -54,7 +54,7 @@ message BridgeValidator {
 
 #### ValSet
 
-`Valset` is the Ethereum Bridge Multsig Set, each qgb validator also maintains an ETH key to sign messages, these are used to check signatures on ETH because of the significant gas savings.
+`Valset` is the Ethereum Bridge Multisig Set, each qgb validator also maintains an ETH key to sign messages, these are used to check signatures on ETH because of the significant gas savings.
 
 ```protobuf
 message Valset {

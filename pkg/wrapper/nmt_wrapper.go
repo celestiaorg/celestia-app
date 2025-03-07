@@ -54,7 +54,7 @@ type Tree interface {
 // this tree is committing to. squareSize must be greater than zero.
 func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
-		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
+		panic("cannot create an ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
 	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
 	options = append(options, nmt.IgnoreMaxNamespace(true))

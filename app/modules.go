@@ -58,7 +58,7 @@ import (
 
 var (
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
-	// non-dependant module elements, such as codec registration
+	// non-dependent module elements, such as codec registration
 	// and genesis verification.
 	ModuleBasics = sdkmodule.NewBasicManager(
 		auth.AppModuleBasic{},
