@@ -19,16 +19,11 @@ import (
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	tx := req.Tx
 
-	appVersion, err := app.AppVersion(app.NewContext(true))
-	if err != nil {
-		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
-	}
-
 	// all txs must be less than or equal to the max tx size limit
-	maxTxSize := appconsts.MaxTxSize(appVersion)
+	maxTxSize := appconsts.MaxTxSize(appconsts.LatestVersion)
 	currentTxSize := len(tx)
 	if currentTxSize > maxTxSize {
-		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, appVersion), 0, 0, []abci.Event{}, false), nil
+		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, appconsts.LatestVersion), 0, 0, []abci.Event{}, false), nil
 	}
 
 	// check if the transaction contains blobs
@@ -57,7 +52,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		err = blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.SubtreeRootThreshold(appVersion), appVersion)
+		err = blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.DefaultSubtreeRootThreshold, appconsts.LatestVersion)
 		if err != nil {
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}

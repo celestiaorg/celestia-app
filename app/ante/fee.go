@@ -9,7 +9,6 @@ import (
 	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 )
 
@@ -52,26 +51,23 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.C
 	}
 
 	// Ensure that the provided fee meets a network minimum threshold.
-	// Network minimum fee only applies to app versions greater than one.
-	if ctx.BlockHeader().Version.App > v1.Version {
-		subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
-		if !exists {
-			return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
-		}
+	subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
+	if !exists {
+		return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
+	}
 
-		if !subspace.Has(ctx, minfee.KeyNetworkMinGasPrice) {
-			return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "NetworkMinGasPrice")
-		}
+	if !subspace.Has(ctx, minfee.KeyNetworkMinGasPrice) {
+		return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "NetworkMinGasPrice")
+	}
 
-		var networkMinGasPrice math.LegacyDec
-		// Gets the network minimum gas price from the param store.
-		// Panics if not configured properly.
-		subspace.Get(ctx, minfee.KeyNetworkMinGasPrice, &networkMinGasPrice)
+	var networkMinGasPrice math.LegacyDec
+	// Gets the network minimum gas price from the param store.
+	// Panics if not configured properly.
+	subspace.Get(ctx, minfee.KeyNetworkMinGasPrice, &networkMinGasPrice)
 
-		err := verifyMinFee(fee, gas, networkMinGasPrice, "insufficient gas price for the network")
-		if err != nil {
-			return nil, 0, err
-		}
+	err := verifyMinFee(fee, gas, networkMinGasPrice, "insufficient gas price for the network")
+	if err != nil {
+		return nil, 0, err
 	}
 
 	priority := getTxPriority(feeTx.GetFee(), int64(gas))

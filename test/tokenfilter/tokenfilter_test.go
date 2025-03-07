@@ -18,6 +18,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/test/pfm"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 )
 
 type TokenFilterTestSuite struct {
@@ -47,6 +48,7 @@ func (suite *TokenFilterTestSuite) SetupTest() {
 	}
 
 	suite.celestiaChain = ibctesting.NewTestChain(suite.T(), suite.coordinator, ibctesting.GetChainID(1))
+	setMinFeeToZero(suite.T(), suite.celestiaChain)
 
 	ibctesting.DefaultTestingAppInit = pfm.SetupTestingApp
 
@@ -54,6 +56,18 @@ func (suite *TokenFilterTestSuite) SetupTest() {
 
 	suite.coordinator.Chains[ibctesting.GetChainID(1)] = suite.celestiaChain
 	suite.coordinator.Chains[ibctesting.GetChainID(2)] = suite.otherChain
+}
+
+// setMinFeeToZero updates the network minimum gas price to zero.
+// This is a workaround as overriding at genesis will fail in minfee.ValidateGenesis
+func setMinFeeToZero(t *testing.T, celestiaChain *ibctesting.TestChain) {
+	celestiaApp, ok := celestiaChain.App.(*app.App)
+	require.True(t, ok)
+
+	minFeeSubspace, found := celestiaApp.ParamsKeeper.GetSubspace(minfee.ModuleName)
+	require.True(t, found)
+
+	minFeeSubspace.SetParamSet(celestiaChain.GetContext(), &minfee.Params{NetworkMinGasPrice: math.LegacyNewDec(0)})
 }
 
 // GetSimapp is a helper function which performs the correct cast on the underlying chain.App
