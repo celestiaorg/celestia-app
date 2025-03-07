@@ -225,8 +225,8 @@ github.com/01builders/cosmos-sdk v0.0.0-20250305130717-630a3c965f8a h1:Iey/DTc8q
 github.com/01builders/cosmos-sdk v0.0.0-20250305130717-630a3c965f8a/go.mod h1:hrWEFMU1eoXqLJeE6VVESpJDQH67FS1nnMrQIjO2daw=
 github.com/01builders/cosmos-sdk/x/upgrade v0.0.0-20250212120257-926f94b828d0 h1:LeWCjDAA4mBpuOXfpWzl9povApUc9dIXh6TTOcFlywU=
 github.com/01builders/cosmos-sdk/x/upgrade v0.0.0-20250212120257-926f94b828d0/go.mod h1:GdR2F3YQhICk8j5cEHOoSBdsIkKBDUcznPfjgnDHg5U=
-github.com/01builders/nova v0.0.0-20250306093605-7ac80b4d39dc h1:w36Wvt1mJoONNKeav0flFgATyVDFTPdYgTj/VGISMQE=
-github.com/01builders/nova v0.0.0-20250306093605-7ac80b4d39dc/go.mod h1:ftTbRXu7ZRzSfTscQzkYKkXsM5xvZm359UVxD0jm4K8=
+github.com/01builders/nova v0.0.0-20250307104540-3cbceaa92bfd h1:/O6Yax76DDfejHtHH0fVae2+hS5bBygjd/NBhcu8btI=
+github.com/01builders/nova v0.0.0-20250307104540-3cbceaa92bfd/go.mod h1:Klw38zsWBHx2Lf9PgwrW7ejrRvpQxpdvzoUPJ9gow/w=
 github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 h1:/vQbFIOMbk2FiG/kXiLl8BRyzTWDw7gX/Hz7Dd5eDMs=
 github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4/go.mod h1:hN7oaIRCjzsZ2dE+yG5k+rsdt3qcwykqK6HVGcKwsw4=
 github.com/99designs/keyring v1.2.2 h1:pZd3neh/EmUzWONb35LxQfvuY7kiSXAq3HQd97+XBn0=
