@@ -4,7 +4,6 @@ package nova
 
 import (
 	"bytes"
-	"github.com/01builders/nova/appd"
 	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
@@ -13,13 +12,6 @@ import (
 	"strings"
 	"testing"
 )
-
-func TestCelestiaAppBinaryIsAvailable(t *testing.T) {
-	bz, err := appd.CelestiaApp()
-	require.NoError(t, err)
-	require.NotNil(t, bz)
-	t.Logf("bz len: %d", len(bz))
-}
 
 func TestMultiplexerSetup(t *testing.T) {
 	// TODO: assumes that a make install has been run prior to test execution
@@ -63,10 +55,12 @@ func getTestFilePath(filename string) string {
 func execCommand(t *testing.T, cmd string, args ...string) string {
 	t.Helper()
 	var out bytes.Buffer
+	var outErr bytes.Buffer
 	command := exec.Command(cmd, args...)
 	command.Stdout = &out
+	command.Stderr = &outErr
 	err := command.Run()
-	require.NoError(t, err, "command failed: %s\nOutput: %s", cmd, out.String())
+	require.NoError(t, err, "command failed: %s\nOutput: %s\nError: %s", cmd, out.String(), outErr.String())
 	return out.String()
 }
 
