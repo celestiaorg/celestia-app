@@ -192,7 +192,7 @@ type NMTProof struct {
 	// and min namespaces along with the actual hash, resulting in each being 48
 	// bytes each
 	Nodes [][]byte `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	// leafHash are nil if the namespace is present in the NMT. In case the
+	// leafHash is nil if the namespace is present in the NMT. In case the
 	// namespace to be proved is in the min/max range of the tree but absent, this
 	// will contain the leaf hash necessary to verify the proof of absence. Leaf
 	// hashes should consist of the namespace along with the actual hash,
