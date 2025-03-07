@@ -225,8 +225,8 @@ github.com/01builders/cosmos-sdk v0.0.0-20250305130717-630a3c965f8a h1:Iey/DTc8q
 github.com/01builders/cosmos-sdk v0.0.0-20250305130717-630a3c965f8a/go.mod h1:hrWEFMU1eoXqLJeE6VVESpJDQH67FS1nnMrQIjO2daw=
 github.com/01builders/cosmos-sdk/x/upgrade v0.0.0-20250212120257-926f94b828d0 h1:LeWCjDAA4mBpuOXfpWzl9povApUc9dIXh6TTOcFlywU=
 github.com/01builders/cosmos-sdk/x/upgrade v0.0.0-20250212120257-926f94b828d0/go.mod h1:GdR2F3YQhICk8j5cEHOoSBdsIkKBDUcznPfjgnDHg5U=
-github.com/01builders/nova v0.0.0-20250305111054-81278f8d003f h1:K4Hu0aKYUYZXOF2gASmJRdVqmLwaboLo4rNMJZ5ZzSE=
-github.com/01builders/nova v0.0.0-20250305111054-81278f8d003f/go.mod h1:/4EZ23q+Nx5d2bl3kvXKVFDEAZxUWJm3nWYk9N/UlWA=
+github.com/01builders/nova v0.0.0-20250306093605-7ac80b4d39dc h1:w36Wvt1mJoONNKeav0flFgATyVDFTPdYgTj/VGISMQE=
+github.com/01builders/nova v0.0.0-20250306093605-7ac80b4d39dc/go.mod h1:ftTbRXu7ZRzSfTscQzkYKkXsM5xvZm359UVxD0jm4K8=
 github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 h1:/vQbFIOMbk2FiG/kXiLl8BRyzTWDw7gX/Hz7Dd5eDMs=
 github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4/go.mod h1:hN7oaIRCjzsZ2dE+yG5k+rsdt3qcwykqK6HVGcKwsw4=
 github.com/99designs/keyring v1.2.2 h1:pZd3neh/EmUzWONb35LxQfvuY7kiSXAq3HQd97+XBn0=
@@ -1370,8 +1370,8 @@ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJ
 golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
-golang.org/x/sync v0.11.0 h1:GGz8+XQP4FvTTrjZPzNKTMFtSXH80RAzG+5ghFPgK9w=
-golang.org/x/sync v0.11.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+golang.org/x/sync v0.12.0 h1:MHc5BpPuC30uJk597Ri8TV3CNZcTLu6B6z4lJy+g6Jw=
+golang.org/x/sync v0.12.0/go.mod h1:1dzgHSNfp02xaA81J2MS99Qcpr2w7fw1gpm99rleRqA=
 golang.org/x/sys v0.0.0-20180823144017-11551d06cbcc/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20180905080454-ebe1bf3edb33/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

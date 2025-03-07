@@ -1,0 +1,43 @@
+name: test-multiplexer
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  test-multiplexer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Nova repository
+        uses: actions/checkout@v4
+        with:
+          repository: 01builders/nova
+          path: nova
+          lfs: true
+
+      - name: Checkout Celestia-App repository
+        uses: actions/checkout@v4
+        with:
+          repository: 01builders/celestia-app
+          ref: sdk-v0.50.x # TODO: remove once merged to main.
+          path: celestia-app
+
+      - name: Update go.mod in Celestia-App to use local Nova module
+        run: |
+          cd celestia-app
+          go mod edit -replace github.com/01builders/nova=../nova
+          go mod tidy
+
+      - name: Build Celestia-App
+        run: |
+          cd celestia-app
+          make build
+          chmod +x build/celestia-appd
+          mv build/celestia-appd /usr/local/bin/celestia-appd
+
+      - name: Verify Binary Installation
+        run: which celestia-appd && celestia-appd version
+
+      - name: Run Multiplexer tests
+        run: |
+          cd celestia-app
+          make test-multi-plexer

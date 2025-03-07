@@ -172,6 +172,11 @@ test-e2e:
 	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
+test-multi-plexer:
+	@echo "--> Running multi-plexer tests"
+	go test -tags nova -v ./test/nova/...
+.PHONY: test-multi-plexer
+
 ## test-race: Run tests in race mode.
 test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
