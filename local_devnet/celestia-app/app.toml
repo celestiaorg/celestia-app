@@ -166,7 +166,7 @@ retries = 3
 offline = false
 
 # EnableDefaultSuggestedFee defines if the server should suggest fee by default.
-# If 'construction/medata' is called without gas limit and gas price,
+# If 'construction/metadata' is called without gas limit and gas price,
 # suggested fee based on gas-to-suggest and denom-to-suggest will be given.
 enable-fee-suggestion = false
 
