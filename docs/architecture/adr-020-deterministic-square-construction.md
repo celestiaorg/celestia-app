@@ -25,7 +25,7 @@ Square construction is thus to be reduced to the simple deterministic function:
 func ConstructSquare(txs []Tx) []Share
 ```
 
-and it's counterpart
+and its counterpart
 
 ```go
 func DeconstructSquare(shares []Share) []Tx
@@ -67,7 +67,7 @@ The new algorithm will no longer need to check that the blobs are ordered by nam
 ### Positive
 
 - By staging transactions in order of priority, we prevent the removal of a higher priority transaction that had a higher namespace than a transaction with a lower namespace and lower priority. [#1519](https://github.com/celestiaorg/celestia-app/issues/1519)
-- Block proposers aren't able to spam the network with unnecessarily large squares filled with padding as they no longer have control over the size of the square insofar as the amount of transactions included.
+- Block proposers aren't able to spam the network with unnecessarily large squares filled with padding as they no longer have control over the size of the square in so far as the number of transactions included.
 - Gossiping of data can be condensed to just an ordered list of transactions. This more easily enables a compact blocks style of consensus.
 
 ### Negative
