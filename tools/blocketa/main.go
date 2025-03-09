@@ -72,7 +72,7 @@ func Run() error {
 	}
 	diffInBlockHeight := targetBlockHeight - currentHeight
 	diffInSeconds := blockTime * float64(diffInBlockHeight)
-	diffInTime, err := time.ParseDuration(fmt.Sprintf("%.0fs", diffInSeconds))
+	diffInTime := time.Duration(diffInSeconds * float64(time.Second))
 	if err != nil {
 		return err
 	}
