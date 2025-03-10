@@ -53,7 +53,7 @@ With the proposed non-interactive default rules, message 2 must start at an inde
 If you use the current non-interactive default rules then the message begins at a location aligned with the largest power of 2 that is not larger than the message length or k. Because the subtree roots are aligned you can skip some subtree roots and calculate their parents.
 In the example below instead of proving H1, H2, H3, and H4 to the DataRoot you can prove H10. **H10 is part of the commitment generation and part of the Merkle tree to the DataRoot.** That is why you can use it for more efficient proofs. In smaller square sizes, you cannot do this, because H10 does not exist. The nodes in **red** are the subtree nodes that you need to provide for the message inclusion proof. The nodes in **blue** are the additional nodes for the Merkle proof.
 
-![Efficient Merkle Proofs with ADR008](./assets/adr009/effizicient-proof-size-ADR008.png)
+![Efficient Merkle Proofs with ADR008](./assets/adr009/efficient-proof-size-ADR008.png)
 
 So why can you not do it with the proposed non-interactive default rules? This is because H10 is not generated. In the diagram below the first 8 shares are in the row before and therefore the tree structure changes. The previous subtree root H10 is now H23 and cannot be used for the efficiency boost.
 The commitment is still the same but we need to use the bottom subtree roots for the message inclusion proof.
