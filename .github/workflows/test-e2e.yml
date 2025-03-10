@@ -22,7 +22,7 @@ jobs:
           go-version-file: "go.mod"
       - name: Setup kubeconfig
         env:
-          KUBECONFIG_FILE: ${{ secrets.KNUU_KUBECONFIG_FILE }}
+          KUBECONFIG_FILE: ${{ secrets.KNUU_DEV_KUBECONFIG_FILE }}
         run: |
           mkdir -p $HOME/.kube
           echo "${KUBECONFIG_FILE}" > $HOME/.kube/config
