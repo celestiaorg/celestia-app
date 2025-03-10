@@ -29,9 +29,9 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.50.12
 	github.com/cosmos/gogoproto v1.7.0
-	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.1.0
+	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
-	github.com/cosmos/ibc-go/v8 v8.5.2
+	github.com/cosmos/ibc-go/v8 v8.6.1
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/go-kit/log v0.2.1
 	github.com/golang/protobuf v1.5.4
