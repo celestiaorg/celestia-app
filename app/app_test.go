@@ -2,14 +2,10 @@ package app_test
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
-	"cosmossdk.io/store/snapshots"
-	snapshottypes "cosmossdk.io/store/snapshots/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -112,103 +108,6 @@ func TestInitChain(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
-	}
-}
-
-func TestOfferSnapshot(t *testing.T) {
-	t.Run("should ACCEPT a snapshot with app version 0", func(t *testing.T) {
-		// Snapshots taken before the app version field was introduced to RequestOfferSnapshot should still be accepted.
-		app := createTestApp(t)
-		request := createRequest()
-		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
-		got, err := app.OfferSnapshot(&request)
-		assert.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-	t.Run("should ACCEPT a snapshot with app version 1", func(t *testing.T) {
-		app := createTestApp(t)
-		request := createRequest()
-		request.AppVersion = 1
-		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
-		got, err := app.OfferSnapshot(&request)
-		assert.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-	t.Run("should ACCEPT a snapshot with app version 2", func(t *testing.T) {
-		app := createTestApp(t)
-		request := createRequest()
-		request.AppVersion = 2
-		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
-		got, err := app.OfferSnapshot(&request)
-		assert.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-	t.Run("should ACCEPT a snapshot with app version 3", func(t *testing.T) {
-		app := createTestApp(t)
-		request := createRequest()
-		request.AppVersion = 3
-		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
-		got, err := app.OfferSnapshot(&request)
-		assert.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-	t.Run("should ACCEPT a snapshot with app version 4", func(t *testing.T) {
-		app := createTestApp(t)
-		request := createRequest()
-		request.AppVersion = 4
-		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}
-		got, err := app.OfferSnapshot(&request)
-		assert.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-	t.Run("should REJECT a snapshot with unsupported app version", func(t *testing.T) {
-		app := createTestApp(t)
-		request := createRequest()
-		request.AppVersion = 5 // unsupported app version
-		want := &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}
-		got, err := app.OfferSnapshot(&request)
-		assert.NoError(t, err)
-		assert.Equal(t, want, got)
-	})
-}
-
-func createTestApp(t *testing.T) *app.App {
-	db := tmdb.NewMemDB()
-	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
-	t.Cleanup(func() {
-		err := os.RemoveAll(snapshotDir)
-		require.NoError(t, err)
-	})
-	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, snapshotDir)
-	t.Cleanup(func() {
-		err := snapshotDB.Close()
-		require.NoError(t, err)
-	})
-	require.NoError(t, err)
-	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
-	require.NoError(t, err)
-	baseAppOption := baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(10, 10))
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, util.EmptyAppOptions{}, baseAppOption)
-	require.NoError(t, err)
-	response, err := testApp.Info(&abci.RequestInfo{})
-	require.NoError(t, err)
-	require.Equal(t, uint64(0), response.AppVersion)
-	return testApp
-}
-
-func createRequest() abci.RequestOfferSnapshot {
-	return abci.RequestOfferSnapshot{
-		// Snapshot was created by logging the contents of OfferSnapshot on a
-		// node that was syncing via state sync.
-		Snapshot: &abci.Snapshot{
-			Height:   0x1b07ec,
-			Format:   0x3,
-			Chunks:   0x1,
-			Hash:     []uint8{0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
-			Metadata: []uint8{0xa, 0x20, 0xaf, 0xa5, 0xe, 0x16, 0x45, 0x4, 0x2e, 0x45, 0xd3, 0x49, 0xdf, 0x83, 0x2a, 0x57, 0x9d, 0x64, 0xc8, 0xad, 0xa5, 0xb, 0x65, 0x1b, 0x46, 0xd6, 0xc3, 0x85, 0x6, 0x51, 0xd7, 0x45, 0x8e, 0xb8},
-		},
-		AppHash:    []byte("apphash"),
-		AppVersion: 0, // unit tests will override this
 	}
 }
 

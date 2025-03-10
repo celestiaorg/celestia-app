@@ -11,18 +11,15 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	v1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	v2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
 	ante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 	type testCase struct {
-		name       string
-		pfb        *blob.MsgPayForBlobs
-		appVersion uint64
-		wantErr    error
+		name    string
+		pfb     *blob.MsgPayForBlobs
+		wantErr error
 	}
 
 	testCases := []testCase{
@@ -31,28 +28,27 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1},
 			},
-			appVersion: v2.Version,
+			wantErr: nil,
 		},
 		{
 			name: "PFB with 1 blob that is 1 byte",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1},
 			},
-			appVersion: v1.Version,
+			wantErr: nil,
 		},
 		{
 			name: "PFB with 1 blob that is 1 MiB",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{mebibyte},
 			},
-			appVersion: v1.Version,
+			wantErr: nil,
 		},
 		{
 			name: "PFB with 1 blob that is 2 MiB",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{2 * mebibyte},
 			},
-			appVersion: v1.Version,
 			// This test case should return an error because a square size of 64
 			// has exactly 2 MiB of total capacity so the total blob capacity
 			// will be slightly smaller than 2 MiB.
@@ -63,14 +59,12 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1, 1},
 			},
-			appVersion: v1.Version,
 		},
 		{
 			name: "PFB with 2 blobs that are 1 MiB each",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{mebibyte, mebibyte},
 			},
-			appVersion: v1.Version,
 			// This test case should return an error for the same reason a
 			// single blob that is 2 MiB returns an error.
 			wantErr: blob.ErrTotalBlobSizeTooLarge,
@@ -80,21 +74,18 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(1))},
 			},
-			appVersion: v1.Version,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square - 1",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares((squareSize * squareSize) - 1))},
 			},
-			appVersion: v1.Version,
 		},
 		{
 			name: "PFB with 1 blob that occupies total square",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{uint32(share.AvailableBytesFromSparseShares(squareSize * squareSize))},
 			},
-			appVersion: v1.Version,
 			// This test case should return an error because if the blob
 			// occupies the total square, there is no space for the PFB tx
 			// share.
@@ -108,7 +99,7 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 					uint32(share.AvailableBytesFromSparseShares(1)),
 				},
 			},
-			appVersion: v1.Version,
+			wantErr: nil,
 		},
 		{
 			name: "PFB with 2 blobs that occupy half the square each",
@@ -118,8 +109,7 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 					uint32(share.AvailableBytesFromSparseShares(squareSize * squareSize / 2)),
 				},
 			},
-			appVersion: v1.Version,
-			wantErr:    blob.ErrTotalBlobSizeTooLarge,
+			wantErr: blob.ErrTotalBlobSizeTooLarge,
 		},
 	}
 
