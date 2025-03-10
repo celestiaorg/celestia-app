@@ -184,7 +184,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), version)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, version))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID))
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
@@ -421,7 +421,7 @@ func TestGetUpgrade(t *testing.T) {
 		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
 		require.NoError(t, err)
 		assert.Equal(t, v2.Version, got.Upgrade.AppVersion)
-		assert.Equal(t, appconsts.UpgradeHeightDelay(appconsts.TestChainID, v2.Version), got.Upgrade.UpgradeHeight)
+		assert.Equal(t, appconsts.UpgradeHeightDelay(appconsts.TestChainID), got.Upgrade.UpgradeHeight)
 	})
 }
 

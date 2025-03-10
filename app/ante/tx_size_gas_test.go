@@ -93,7 +93,7 @@ func TestConsumeGasForTxSize(t *testing.T) {
 			require.Nil(t, err, "Cannot marshal tx: %v", err)
 
 			// expected TxSizeCostPerByte is different for each version
-			txSizeCostPerByte := appconsts.TxSizeCostPerByte(tc.version)
+			txSizeCostPerByte := appconsts.DefaultTxSizeCostPerByte
 			expectedGas := storetypes.Gas(len(txBytes)) * txSizeCostPerByte
 
 			// set suite.ctx with TxBytes manually

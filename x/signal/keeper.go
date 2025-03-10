@@ -116,7 +116,7 @@ func (k *Keeper) TryUpgrade(ctx context.Context, _ *types.MsgTryUpgrade) (*types
 		header := sdkCtx.HeaderInfo()
 		upgrade := types.Upgrade{
 			AppVersion:    version,
-			UpgradeHeight: header.Height + appconsts.UpgradeHeightDelay(header.ChainID, appVersion),
+			UpgradeHeight: header.Height + appconsts.UpgradeHeightDelay(header.ChainID),
 		}
 		k.setUpgrade(sdkCtx, upgrade)
 	}

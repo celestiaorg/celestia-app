@@ -35,7 +35,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		// NOTE: here we assume only one PFB per transaction
 		if pfb, ok := m.(*types.MsgPayForBlobs); ok {
 			if gasPerByte == 0 {
-				gasPerByte = appconsts.GasPerBlobByte(0)
+				gasPerByte = appconsts.DefaultGasPerBlobByte
 			}
 			gasToConsume := pfb.Gas(gasPerByte)
 			if gasToConsume > txGas {

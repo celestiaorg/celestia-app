@@ -39,7 +39,7 @@ const (
 	BytesPerBlobInfo = 70
 )
 
-func NewMsgPayForBlobs(signer string, appVersion uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
+func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func NewMsgPayForBlobs(signer string, appVersion uint64, blobs ...*share.Blob) (
 		return nil, err
 	}
 
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold(appVersion))
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("creating commitments: %w", err)
 	}

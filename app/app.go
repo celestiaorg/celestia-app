@@ -100,9 +100,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	appv1 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v1"
-	appv2 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v2"
-	appv3 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v3"
 	appv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v4/x/blob"
@@ -131,11 +128,7 @@ var maccPerms = map[string][]string{
 }
 
 const (
-	v1                    = appv1.Version
-	v2                    = appv2.Version
-	v3                    = appv3.Version
-	v4                    = appv4.Version
-	DefaultInitialVersion = v4
+	DefaultInitialVersion = appv4.Version
 )
 
 var (
@@ -726,9 +719,9 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 // on the app version.
 // TODO: is this still needed?
 // nolint:unused
-func (app *App) getTimeoutCommit(appVersion uint64) time.Duration {
+func (app *App) getTimeoutCommit(_ uint64) time.Duration {
 	if app.timeoutCommit != 0 {
 		return app.timeoutCommit
 	}
-	return appconsts.GetTimeoutCommit(appVersion)
+	return appconsts.DefaultTimeoutCommit
 }

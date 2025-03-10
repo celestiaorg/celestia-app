@@ -19,7 +19,7 @@ func NewMaxTxSizeDecorator() MaxTxSizeDecorator {
 // AnteHandle implements the AnteHandler interface. It ensures that tx size is under application's configured threshold.
 func (d MaxTxSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	currentTxSize := len(ctx.TxBytes())
-	maxTxSize := appconsts.MaxTxSize(ctx.BlockHeader().Version.App)
+	maxTxSize := appconsts.DefaultMaxTxSize
 	if currentTxSize > maxTxSize {
 		bytesOverLimit := currentTxSize - maxTxSize
 		return ctx, fmt.Errorf("tx size %d bytes is larger than the application's configured threshold of %d bytes. Please reduce the size by %d bytes", currentTxSize, maxTxSize, bytesOverLimit)

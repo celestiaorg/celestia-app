@@ -139,6 +139,5 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 // consumeGasForTxSize consumes gas based on the size of the transaction.
 // It uses different parameters depending on the app version.
 func consumeGasForTxSize(ctx sdk.Context, txBytes uint64) {
-	txSizeCostPerByte := appconsts.TxSizeCostPerByte(ctx.BlockHeader().Version.App)
-	ctx.GasMeter().ConsumeGas(txSizeCostPerByte*txBytes, "txSize")
+	ctx.GasMeter().ConsumeGas(appconsts.DefaultTxSizeCostPerByte*txBytes, "txSize")
 }

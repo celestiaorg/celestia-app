@@ -32,6 +32,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app/params"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	appconstsv4 "github.com/celestiaorg/celestia-app/v4/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
@@ -262,8 +263,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Mempool.MaxTxsBytes = 80 * mebibyte
 	cfg.Mempool.Type = "flood" // flood mempool
 
-	cfg.Consensus.TimeoutPropose = appconsts.GetTimeoutPropose(appconsts.LatestVersion)
-	cfg.Consensus.TimeoutCommit = appconsts.GetTimeoutCommit(appconsts.LatestVersion)
+	cfg.Consensus.TimeoutPropose = appconstsv4.TimeoutPropose
+	cfg.Consensus.TimeoutCommit = appconstsv4.TimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
 
 	cfg.TxIndex.Indexer = "null"

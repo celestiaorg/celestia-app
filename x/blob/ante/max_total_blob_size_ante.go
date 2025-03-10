@@ -28,7 +28,7 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		return next(ctx, tx, simulate)
 	}
 
-	maxSize := d.maxTotalBlobSize(ctx, ctx.BlockHeader().Version.App)
+	maxSize := d.maxTotalBlobSize(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
 			if total := getTotal(pfb.BlobSizes); total > maxSize {
@@ -44,8 +44,8 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 // data square based on the max square size. Note it is possible that txs with a
 // total blob size less than this max still fail to be included in a block due
 // to overhead from the PFB tx and/or padding shares.
-func (d MaxTotalBlobSizeDecorator) maxTotalBlobSize(ctx sdk.Context, appVersion uint64) int {
-	squareSize := d.getMaxSquareSize(ctx, appVersion)
+func (d MaxTotalBlobSizeDecorator) maxTotalBlobSize(ctx sdk.Context) int {
+	squareSize := d.getMaxSquareSize(ctx)
 	totalShares := squareSize * squareSize
 	// The PFB tx share must occupy at least one share so the # of blob shares
 	// is at least one less than totalShares.
@@ -55,7 +55,7 @@ func (d MaxTotalBlobSizeDecorator) maxTotalBlobSize(ctx sdk.Context, appVersion 
 
 // getMaxSquareSize returns the maximum square size based on the current values
 // for the relevant governance parameter and the versioned constant.
-func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context, appVersion uint64) int {
+func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to our fork of the sdk not initializing state before
 	// BeginBlock of the first block. This is remedied in versions of the sdk
@@ -66,7 +66,7 @@ func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context, appVersion 
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	upperBound := appconsts.SquareSizeUpperBound(appVersion)
+	upperBound := appconsts.DefaultSquareSizeUpperBound
 	govParam := d.k.GovMaxSquareSize(ctx)
 	return min(upperBound, int(govParam))
 }
