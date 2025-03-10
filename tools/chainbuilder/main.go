@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/celestiaorg/go-square/v2"
@@ -124,6 +126,23 @@ type BuilderConfig struct {
 }
 
 func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
+	// Setup signal handling for graceful shutdown
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Goroutine to handle shutdown signals
+	go func() {
+		select {
+		case <-signalCh:
+			fmt.Println("\nReceived termination signal. Shutting down gracefully...")
+			cancel() // Cancel the context to signal all routines to stop
+		case <-ctx.Done():
+			// Context was canceled elsewhere
+		}
+	}()
+
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
@@ -297,13 +316,58 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		dataCh    = make(chan *tmproto.Data, 100)
 		persistCh = make(chan persistData, 100)
 		commit    = types.NewCommit(0, 0, types.BlockID{}, nil)
+		cleanedUp = false // Flag to track if cleanup has been performed
 	)
+
+	// Cleanup function to avoid duplicate cleanup
+	cleanup := func() {
+		if cleanedUp {
+			return
+		}
+		cleanedUp = true
+
+		// Close channels safely
+		close(dataCh)
+		close(persistCh)
+
+		// Wait for goroutines to finish
+		var firstErr error
+		for i := 0; i < cap(errCh); i++ {
+			select {
+			case err := <-errCh:
+				if err != nil && firstErr == nil && err != context.Canceled {
+					firstErr = err
+				}
+			default:
+				// No more errors to read
+				break
+			}
+		}
+
+		// Close databases
+		if blockDB != nil {
+			if err := blockDB.Close(); err != nil {
+				fmt.Printf("Failed to close block database: %v\n", err)
+			}
+		}
+		if stateDB != nil {
+			if err := stateDB.Close(); err != nil {
+				fmt.Printf("Failed to close state database: %v\n", err)
+			}
+		}
+		if appDB != nil {
+			if err := appDB.Close(); err != nil {
+				fmt.Printf("Failed to close application database: %v\n", err)
+			}
+		}
+	}
+	
+	// Ensure cleanup runs before returning
+	defer cleanup()
+
 	if lastHeight > 0 {
 		commit = blockStore.LoadSeenCommit(lastHeight)
 	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	go func() {
 		errCh <- generateSquareRoutine(ctx, signer, cfg, dataCh)
@@ -323,7 +387,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			fmt.Printf("Processing stopped at height %d\n", height-1)
+			return nil // cleanup will be handled by defer
 		case dataPB := <-dataCh:
 			data, err := types.DataFromProto(dataPB)
 			if err != nil {
@@ -426,30 +491,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		}
 	}
 
-	close(dataCh)
-	close(persistCh)
-
-	var firstErr error
-	for i := 0; i < cap(errCh); i++ {
-		err := <-errCh
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-
-	if err := blockDB.Close(); err != nil {
-		return fmt.Errorf("failed to close block database: %w", err)
-	}
-	if err := stateDB.Close(); err != nil {
-		return fmt.Errorf("failed to close state database: %w", err)
-	}
-	if err := appDB.Close(); err != nil {
-		return fmt.Errorf("failed to close application database: %w", err)
-	}
-
 	fmt.Println("Chain built successfully", state.LastBlockHeight)
-
-	return firstErr
+	return nil
 }
 
 func generateSquareRoutine(
