@@ -144,7 +144,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 		},
 		{
 			Module:      evidence.NewAppModule(app.EvidenceKeeper),
-			FromVersion: v1, ToVersion: v3,
+			FromVersion: v1, ToVersion: v2,
 		},
 		{
 			Module:      authzmodule.NewAppModule(app.appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
@@ -341,14 +341,13 @@ func versionedStoreKeys() map[uint64][]string {
 			stakingtypes.StoreKey,
 			upgradetypes.StoreKey,
 		},
-		v3: { // same as v2
+		v3: { // does not include evidence store key
 			authtypes.StoreKey,
 			authzkeeper.StoreKey,
 			banktypes.StoreKey,
 			blobtypes.StoreKey,
 			capabilitytypes.StoreKey,
 			distrtypes.StoreKey,
-			evidencetypes.StoreKey,
 			feegrant.StoreKey,
 			govtypes.StoreKey,
 			ibchost.StoreKey,
