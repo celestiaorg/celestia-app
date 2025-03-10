@@ -15,14 +15,16 @@ service Query {
   }
 }
 
-// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice RPC method.
+// QueryNetworkMinGasPrice is the request type for the Query/NetworkMinGasPrice
+// RPC method.
 message QueryNetworkMinGasPrice {}
 
-// QueryNetworkMinGasPriceResponse is the response type for  Query/NetworkMinGasPrice RPC method.
+// QueryNetworkMinGasPriceResponse is the response type for
+// Query/NetworkMinGasPrice RPC method.
 message QueryNetworkMinGasPriceResponse {
   string network_min_gas_price = 1 [
-    (cosmos_proto.scalar) = "cosmos.Dec",
+    (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
-    (gogoproto.nullable) = false
+    (gogoproto.nullable)   = false
   ];
 }

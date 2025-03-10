@@ -9,9 +9,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 message Params {
   option (gogoproto.goproto_stringer) = false;
 
-  uint32 gas_per_blob_byte = 1
-      [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
+  uint32 gas_per_blob_byte = 1 [(gogoproto.moretags) = "yaml:\"gas_per_blob_byte\""];
 
-  uint64 gov_max_square_size = 2
-      [ (gogoproto.moretags) = "yaml:\"gov_max_square_size\"" ];
+  uint64 gov_max_square_size = 2 [(gogoproto.moretags) = "yaml:\"gov_max_square_size\""];
 }

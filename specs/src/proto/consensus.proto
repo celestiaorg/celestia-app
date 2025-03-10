@@ -11,7 +11,7 @@ enum SignedMsgType {
   SignedMsgTypeUnknown = 0;
 
   // Votes
-  SignedMsgTypePrevote = 1;
+  SignedMsgTypePrevote   = 1;
   SignedMsgTypePrecommit = 2;
 
   // Proposals
@@ -20,12 +20,12 @@ enum SignedMsgType {
 
 // ANCHOR: ConsensusProposal
 message ConsensusProposal {
-  SignedMsgType type = 1;
-  int32 round = 2;
-  int32 pol_round = 3;
+  SignedMsgType type      = 1;
+  int32         round     = 2;
+  int32         pol_round = 3;
   // 32-byte hash
   // Proposed block header
-  Header header = 4;
+  Header              header    = 4;
   AvailableDataHeader da_header = 5;
   // 64-byte signature
   bytes proposer_signature = 6;
@@ -33,15 +33,15 @@ message ConsensusProposal {
 // ANCHOR_END: ConsensusProposal
 
 message ConsensusVote {
-  SignedMsgType type = 1;
-  int64 height = 2;
-  int32 round = 3;
+  SignedMsgType type   = 1;
+  int64         height = 2;
+  int32         round  = 3;
   // 32-byte hash
-  bytes header_hash = 4;
-  google.protobuf.Timestamp timestamp = 5;
+  bytes                     header_hash = 4;
+  google.protobuf.Timestamp timestamp   = 5;
   // 32-byte hash
   bytes validator_address = 6;
-  int32 validator_index = 7;
+  int32 validator_index   = 7;
   // 64-byte signature
   bytes signature = 8;
 }

@@ -13,7 +13,10 @@ service Msg {
 
   // PayForBlobs allows the user to pay for the inclusion of one or more blobs
   rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
-    option (google.api.http) = { post: "/blob/v1/payforblobs", body: "*" };
+    option (google.api.http) = {
+      post: "/blob/v1/payforblobs",
+      body: "*"
+    };
   }
 }
 

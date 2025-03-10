@@ -6,10 +6,10 @@ import "google/protobuf/timestamp.proto";
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#header
 message Header {
-  ConsensusVersion version = 1;
-  string chain_id = 2;
-  int64 height = 3;
-  google.protobuf.Timestamp time = 4;
+  ConsensusVersion          version  = 1;
+  string                    chain_id = 2;
+  int64                     height   = 3;
+  google.protobuf.Timestamp time     = 4;
   // 32-byte hash
   BlockID last_header_hash = 5;
   // 32-byte hash
@@ -17,17 +17,17 @@ message Header {
   // 32-byte hash
   bytes consensus_hash = 7;
   // 32-byte hash
-  bytes state_commitment = 8;
+  bytes  state_commitment                    = 8;
   uint64 available_data_original_shares_used = 9;
   // 32-byte hash
   bytes available_data_root = 10;
-  bytes proposer_address = 11;
+  bytes proposer_address    = 11;
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#consensusversion
 message ConsensusVersion {
   uint64 block = 1;
-  uint64 app = 2;
+  uint64 app   = 2;
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#availabledataheader
@@ -42,14 +42,9 @@ message AvailableDataHeader {
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#account
 // AccountStatus
-enum AccountStatus : uint8_t {
-    None = 1,
-    DelegationBonded = 2,
-    DelegationUnbonding = 3,
-    ValidatorQueued = 4,
-    ValidatorBonded = 5,
-    ValidatorUnbonding = 6,
-    ValidatorUnbonded = 7,
+enum AccountStatus: uint8_t {
+  None = 1, DelegationBonded = 2, DelegationUnbonding = 3, ValidatorQueued = 4, ValidatorBonded = 5,
+  ValidatorUnbonding = 6, ValidatorUnbonded = 7,
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#periodentry
@@ -83,7 +78,8 @@ message MessagePaid {
 message Account {
   // Coin balance
   uint64 balance = 1;
-  // Account nonce. Every outgoing transaction from this account increments the nonce.
+  // Account nonce. Every outgoing transaction from this account increments the
+  // nonce.
   uint64 nonce = 2;
   // Validator or delegation status of this account
   AccountStatus status = 3;
@@ -98,9 +94,9 @@ message Delegation {
   uint64 stakedBalance = 2;
   // Entry when delegation began
   PeriodEntry beginEntry = 3;
-   // Entry when delegation ended (i.e. began unbonding)
+  // Entry when delegation ended (i.e. began unbonding)
   PeriodEntry endEntry = 4;
-   // Block height delegation began unbonding
+  // Block height delegation began unbonding
   int64 unbondingHeight = 5;
 }
 
@@ -144,17 +140,16 @@ message ActiveVotingPower {
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#proposerblockreward
 message ProposerBlockReward {
-  // Total block reward (subsidy + fees) in current block so far. Reset each block
+  // Total block reward (subsidy + fees) in current block so far. Reset each
+  // block
   uint64 reward = 1;
 }
-
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#proposerinitialvotingpower
 message ProposerInitialVotingPower {
   // Voting power of the proposer at the start of each block. Set each block
   uint64 votingPower = 1;
 }
-
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#validatorqueuehead
 message ValidatorQueueHead {
@@ -170,7 +165,7 @@ message MessagePaidHead {
   bytes head = 1;
 }
 
-//Protobuf definitions for the contents of fraud proofs
+// Protobuf definitions for the contents of fraud proofs
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#namespacemerkletreeinclusionproof
 message NamespaceMerkleTreeInclusionProof {
@@ -188,9 +183,9 @@ message NamespaceMerkleTreeInclusionProof {
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#sparsemerkletreeinclusionproof
 message SparseMerkleTreeInclusionProof {
   // depth of the leaf node, must be <= 256
-  // The root node is at depth 0. 
+  // The root node is at depth 0.
   uint16 depth = 1;
-  // sibling hash values, ordered starting from the leaf's neighbor 
+  // sibling hash values, ordered starting from the leaf's neighbor
   // array of 32-byte hashes
   repeated bytes siblings = 2;
   // bitfield of explicitly included sibling hashes
@@ -218,16 +213,16 @@ message StateElement {
   // There exists a unique protobuf for different state elements.
   oneof value = {
     Account account = 2;
-    Delegation delegation = 3;
-    StateValidator stateValidator = 4;
-    ActiveValidatorCount activeValidatorCount = 5;
-    ActiveVotingPower activeVotingPower = 6;
-    ProposerBlockReward proposerBlockReward = 7;
-    ProposerInitialVotingPower proposerInitialVotingPower = 8;
-    ValidatorQueueHead validatorQueueHead = 9;
-    MessagePaid messagePaid = 10;
-    MessagePaidHead messagePaidHead = 11;
-  }
+  Delegation                 delegation                 = 3;
+  StateValidator             stateValidator             = 4;
+  ActiveValidatorCount       activeValidatorCount       = 5;
+  ActiveVotingPower          activeVotingPower          = 6;
+  ProposerBlockReward        proposerBlockReward        = 7;
+  ProposerInitialVotingPower proposerInitialVotingPower = 8;
+  ValidatorQueueHead         validatorQueueHead         = 9;
+  MessagePaid                messagePaid                = 10;
+  MessagePaidHead            messagePaidHead            = 11;
+}
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#shareproof
@@ -236,13 +231,14 @@ message ShareProof {
   Share share = 1;
   // the Merkle proof of the share in the offending row or column root
   NamespaceMerkleTreeInclusionProof proof = 2;
-  // a Boolean indicating if the Merkle proof is from a row root or column root; false if it is a row root
+  // a Boolean indicating if the Merkle proof is from a row root or column root;
+  // false if it is a row root
   bool isCol = 3;
   // the index of the share in the offending row or column
   uint64 position = 4;
 }
 
-//Protobuf definitions for the fraud proofs
+// Protobuf definitions for the fraud proofs
 
 // ANCHOR: BadEncodingFraudProof
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#badencodingfraudproof
@@ -252,7 +248,8 @@ message BadEncodingFraudProof {
   // the available shares in the offending row or column and their Merkle proofs
   // array of ShareProofs
   repeated ShareProof shareProofs = 2;
-  // a Boolean indicating if it is an offending row or column; false if it is a row
+  // a Boolean indicating if it is an offending row or column; false if it is a
+  // row
   bool isCol = 3;
   // the index of the offending row or column in the square
   uint64 position = 4;
@@ -262,8 +259,9 @@ message BadEncodingFraudProof {
 // ANCHOR: StateFraudProof
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#statefraudproof
 message StateFraudProof {
-  // height of the block with the intermediate state roots 
-  // Subtracting one from height gives the height of the block with the transactions.
+  // height of the block with the intermediate state roots
+  // Subtracting one from height gives the height of the block with the
+  // transactions.
   int64 height = 1;
   // shares containing the transactions and their Merkle proofs
   // isCol within the ShareProof must be false.
@@ -273,7 +271,8 @@ message StateFraudProof {
   // isCol within the ShareProof must be false.
   // array of ShareProofs
   repeated ShareProof isrShareProofs = 3;
-  // index for connecting the WrappedIntermediateStateRoot and WrappedTransaction after shares are parsed
+  // index for connecting the WrappedIntermediateStateRoot and
+  // WrappedTransaction after shares are parsed
   uint64 index = 4;
   // state elements that were changed by the transactions
   // array of StateElements

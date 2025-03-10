@@ -27,8 +27,8 @@ service Msg {
 message MsgSignalVersion {
   option (cosmos.msg.v1.signer) = "validator_address";
 
-  string validator_address = 1 [ (cosmos_proto.scalar) = "cosmos.ValidatorAddressString" ];
-  uint64 version = 2;
+  string validator_address = 1 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+  uint64 version           = 2;
 }
 
 // MsgSignalVersionResponse is the response type for the SignalVersion method.
@@ -38,7 +38,7 @@ message MsgSignalVersionResponse {}
 message MsgTryUpgrade {
   option (cosmos.msg.v1.signer) = "signer";
 
-  string signer = 1 [ (cosmos_proto.scalar) = "cosmos.AddressString" ];
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 }
 
 // MsgTryUpgradeResponse is the response type for the TryUpgrade method.

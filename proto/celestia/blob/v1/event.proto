@@ -6,7 +6,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 // EventPayForBlobs defines an event that is emitted after a pay for blob has
 // been processed.
 message EventPayForBlobs {
-  string signer = 1;
+  string          signer     = 1;
   repeated uint32 blob_sizes = 2;
   // namespaces is a list of namespaces that the blobs in blob_sizes belong to.
   // A namespace has length of 29 bytes where the first byte is the

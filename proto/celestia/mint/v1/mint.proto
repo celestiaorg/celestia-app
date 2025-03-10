@@ -13,21 +13,20 @@ message Minter {
   // current year. For example if InflationRate=0.1, then 10% of the total
   // supply will be minted over the course of the year.
   string inflation_rate = 1 [
-    (cosmos_proto.scalar) = "cosmos.Dec",
+    (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
-    (gogoproto.nullable) = false
+    (gogoproto.nullable)   = false
   ];
   // AnnualProvisions is the total number of tokens to be minted in the current
   // year due to inflation.
   string annual_provisions = 2 [
-    (cosmos_proto.scalar) = "cosmos.Dec",
+    (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
-    (gogoproto.nullable) = false
+    (gogoproto.nullable)   = false
   ];
 
   // PreviousBlockTime is the timestamp of the previous block.
-  google.protobuf.Timestamp previous_block_time = 4
-      [ (gogoproto.stdtime) = true ];
+  google.protobuf.Timestamp previous_block_time = 4 [(gogoproto.stdtime) = true];
 
   // BondDenom is the denomination of the token that should be minted.
   string bond_denom = 5;
@@ -36,5 +35,5 @@ message Minter {
 // GenesisTime contains the timestamp of the genesis block.
 message GenesisTime {
   // GenesisTime is the timestamp of the genesis block.
-  google.protobuf.Timestamp genesis_time = 1 [ (gogoproto.stdtime) = true ];
+  google.protobuf.Timestamp genesis_time = 1 [(gogoproto.stdtime) = true];
 }

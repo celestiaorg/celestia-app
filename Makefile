@@ -53,44 +53,53 @@ mod-verify: mod
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
 
-# Use this target if you do not want to use Ignite for generating proto files
+###############################################################################
+###                                Protobuf                                 ###
+###############################################################################
+BUF_VERSION=v1.50.0
 GOLANG_PROTOBUF_VERSION=1.28.1
 GRPC_GATEWAY_VERSION=1.16.0
 GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
 
+
+#? proto-all: Format, lint and generate Protobuf files
+proto-all: proto-deps proto-format proto-lint proto-gen
+
+#? proto-deps: Install Protobuf local dependencies
 proto-deps:
 	@echo "Installing proto deps"
-	@go install github.com/bufbuild/buf/cmd/buf@v1.50.0
-	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@latest
+	@go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
 	@go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest
-	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
+	@go install github.com/cosmos/gogoproto/protoc-gen-gocosmos@latest
+	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@latest
 	@go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION)
 	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
 
-## proto-gen: Generate protobuf files. Requires docker.
-proto-gen: proto-deps
-	@echo "--> Generating Protobuf files"
+#? proto-gen: Generate Protobuf files
+proto-gen:
+	@echo "Generating Protobuf files"
 	@sh ./scripts/protocgen.sh
-.PHONY: proto-gen
 
-## proto-lint: Lint protobuf files. Requires docker.
-proto-lint: proto-deps
-	@echo "--> Linting Protobuf files"
-	@buf lint --error-format=json
-.PHONY: proto-lint
-
-## proto-check-breaking: Check if there are any breaking change to protobuf definitions.
-proto-check-breaking: proto-deps
-	@echo "--> Checking if Protobuf definitions have any breaking changes"
-	@buf breaking --against $(HTTPS_GIT)#branch=main
-.PHONY: proto-check-breaking
-
-## proto-format: Format protobuf files. Requires Docker.
-proto-format: proto-deps
-	@echo "--> Formatting Protobuf files"
+#? proto-format: Format Protobuf files
+proto-format:
 	@find ./ -name "*.proto" -exec clang-format -i {} \;
-.PHONY: proto-format
+
+#? proto-lint: Lint Protobuf files
+proto-lint:
+	@buf lint --error-format=json
+
+#? proto-check-breaking: Check if Protobuf file contains breaking changes
+proto-check-breaking:
+	@buf breaking --against $(HTTPS_GIT)#branch=main
+
+#? proto-update-deps: Update Protobuf dependencies
+proto-update-deps:
+	@echo "Updating Protobuf dependencies"
+	@cd proto && buf dep update
+
+.PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
 
 build-docker:
 	@echo "--> Building Docker image"

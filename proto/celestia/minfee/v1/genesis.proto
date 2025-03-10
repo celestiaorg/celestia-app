@@ -8,9 +8,9 @@ option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
 
 // GenesisState defines the minfee module's genesis state.
 message GenesisState {
-    string network_min_gas_price = 1 [
-    (cosmos_proto.scalar) = "cosmos.Dec",
+  string network_min_gas_price = 1 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
-    (gogoproto.nullable) = false
+    (gogoproto.nullable)   = false
   ];
 }
