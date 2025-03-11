@@ -41,7 +41,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 
 	encodingCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 
-	signer, err := user.NewSigner(kr, encodingCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+	signer, err := user.NewSigner(kr, encodingCfg.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(t, err)
 
 	b, err := blob.NewV0Blob(share.RandomNamespace(), []byte("hello world"))

@@ -268,7 +268,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		addrs = append(addrs, addr)
 		acc := testutil.DirectQueryAccount(testApp, addrs[index])
 		accs = append(accs, acc)
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 		require.NoError(t, err)
 		signers = append(signers, signer)
 	}

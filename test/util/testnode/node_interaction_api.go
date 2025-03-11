@@ -241,7 +241,7 @@ func (c *Context) PostData(account, broadcastMode string, ns share.Namespace, bl
 	}
 
 	// use the key for accounts[i] to create a signer used for a single PFB
-	signer, err := user.NewSigner(c.Keyring, c.TxConfig, c.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc, seq))
+	signer, err := user.NewSigner(c.Keyring, c.TxConfig, c.ChainID, user.NewAccount(account, acc, seq))
 	if err != nil {
 		return nil, err
 	}

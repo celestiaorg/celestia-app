@@ -213,7 +213,6 @@ func SetupTxClient(
 	}
 
 	chainID := resp.SdkBlock.Header.ChainID
-	appVersion := resp.SdkBlock.Header.Version.App
 
 	records, err := keys.List()
 	if err != nil {
@@ -242,7 +241,7 @@ func SetupTxClient(
 	}
 	options = append([]Option{WithDefaultGasPrice(minPrice)}, options...)
 
-	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, appVersion, accounts...)
+	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, accounts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}

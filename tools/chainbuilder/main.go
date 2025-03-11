@@ -285,13 +285,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	validatorPower := state.Validators.Validators[0].VotingPower
 
-	signer, err := user.NewSigner(
-		kr,
-		encCfg.TxConfig,
-		state.ChainID,
-		state.ConsensusParams.Version.App,
-		user.NewAccount(testnode.DefaultValidatorAccountName, 0, uint64(lastHeight)+1),
-	)
+	signer, err := user.NewSigner(kr, encCfg.TxConfig, state.ChainID, user.NewAccount(testnode.DefaultValidatorAccountName, 0, uint64(lastHeight)+1))
 	if err != nil {
 		return fmt.Errorf("failed to create new signer: %w", err)
 	}

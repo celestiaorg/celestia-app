@@ -267,7 +267,7 @@ func TestCheckTx(t *testing.T) {
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	t.Helper()
 
-	signer, err := user.NewSigner(kr, enc, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accountName, accNum, 0))
+	signer, err := user.NewSigner(kr, enc, testutil.ChainID, user.NewAccount(accountName, accNum, 0))
 	require.NoError(t, err)
 	return signer
 }

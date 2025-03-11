@@ -17,7 +17,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/params"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
@@ -46,14 +45,11 @@ func RandBlobTxsWithAccounts(
 
 	txs := make([]coretypes.Tx, len(accounts))
 
-	appVersion, err := capp.AppVersion(capp.NewContext(true))
-	require.NoError(t, err)
-
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := DirectQueryAccount(capp, addr)
 		account := user.NewAccount(accounts[i], acc.GetAccountNumber(), acc.GetSequence())
-		signer, err := user.NewSigner(kr, cfg, chainid, appVersion, account)
+		signer, err := user.NewSigner(kr, cfg, chainid, account)
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -109,7 +105,7 @@ func RandBlobTxsWithManualSequence(
 	for i := 0; i < len(accounts); i++ {
 		addr := testfactory.GetAddress(kr, accounts[i])
 		acc := user.NewAccount(accounts[i], accountNum, sequence)
-		signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, acc)
+		signer, err := user.NewSigner(kr, cfg, chainid, acc)
 		require.NoError(t, err)
 
 		randomizedSize := size
@@ -217,7 +213,7 @@ func SendTxWithManualSequence(
 	opts ...user.TxOption,
 ) coretypes.Tx {
 	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
-	signer, err := user.NewSigner(kr, cfg, chainid, appconsts.LatestVersion, user.NewAccount(fromAcc, accountNum, sequence))
+	signer, err := user.NewSigner(kr, cfg, chainid, user.NewAccount(fromAcc, accountNum, sequence))
 	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewIntFromUint64(amount))))

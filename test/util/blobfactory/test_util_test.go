@@ -9,7 +9,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
@@ -24,7 +23,7 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	TxDecoder := enc.TxConfig.TxDecoder()
 
 	kr, _ := testnode.NewKeyring(testfactory.TestAccName)
-	signer, err := user.NewSigner(kr, enc.TxConfig, testfactory.ChainID, appconsts.LatestVersion, user.NewAccount(testfactory.TestAccName, 1, 0))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testfactory.ChainID, user.NewAccount(testfactory.TestAccName, 1, 0))
 	require.NoError(t, err)
 
 	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(rand.New(rand.NewSource(seed)), signer, normalTxCount)

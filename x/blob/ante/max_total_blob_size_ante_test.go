@@ -24,7 +24,7 @@ func TestMaxTotalBlobSizeDecorator(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "want no error if appVersion v2 and 8 MiB blob",
+			name: "want no error with 8 MiB blob",
 			pfb: &blob.MsgPayForBlobs{
 				BlobSizes: []uint32{1},
 			},

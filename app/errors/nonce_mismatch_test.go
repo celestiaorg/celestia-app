@@ -35,7 +35,7 @@ func TestNonceMismatchIntegration(t *testing.T) {
 	acc := testutil.DirectQueryAccount(testApp, addr)
 
 	// set the sequence to an incorrect value
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()+1))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()+1))
 	require.NoError(t, err)
 
 	b, err := blob.NewV0Blob(share.RandomNamespace(), []byte("hello world"))

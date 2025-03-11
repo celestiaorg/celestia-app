@@ -24,7 +24,7 @@ import (
 
 func TestPFBGasEstimation(t *testing.T) {
 	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
-	rand := random.New()
+	rnd := random.New()
 
 	testCases := []struct {
 		blobSizes []int
@@ -41,9 +41,9 @@ func TestPFBGasEstimation(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
 			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), accnts...)
-			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
+			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, user.NewAccount(accnts[0], 1, 0))
 			require.NoError(t, err)
-			blobs := blobfactory.ManyRandBlobs(rand, tc.blobSizes...)
+			blobs := blobfactory.ManyRandBlobs(rnd, tc.blobSizes...)
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
 			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 			require.NoError(t, err)
@@ -87,12 +87,12 @@ func FuzzPFBGasEstimation(f *testing.F) {
 
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
+		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, user.NewAccount(accnts[0], 1, 0))
 		require.NoError(t, err)
 
-		rand := random.New()
-		rand.Seed(seed)
-		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
+		rnd := random.New()
+		rnd.Seed(seed)
+		blobs := blobfactory.ManyRandBlobs(rnd, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
 		tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 		require.NoError(t, err)

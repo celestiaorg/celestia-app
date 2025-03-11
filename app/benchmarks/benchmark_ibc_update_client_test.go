@@ -246,7 +246,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, number
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	require.NoError(b, err)
 
 	msgs := generateUpdateClientTransaction(

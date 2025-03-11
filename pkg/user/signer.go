@@ -19,6 +19,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
@@ -33,11 +34,6 @@ type Signer struct {
 	enc          client.TxConfig
 	addressCodec address.Codec
 	chainID      string
-	// FIXME: the signer is currently incapable of detecting an appversion
-	// change and could produce incorrect PFBs if it the network is at an
-	// appVersion that the signer does not support
-	appVersion uint64
-
 	// set of accounts that the signer can manage. Should match the keys on the keyring
 	accounts            map[string]*Account
 	addressToAccountMap map[string]string
@@ -46,13 +42,7 @@ type Signer struct {
 // NewSigner returns a new signer using the provided keyring
 // There must be at least one account in the keyring
 // The first account provided will be set as the default
-func NewSigner(
-	keys keyring.Keyring,
-	encCfg client.TxConfig,
-	chainID string,
-	appVersion uint64,
-	accounts ...*Account,
-) (*Signer, error) {
+func NewSigner(keys keyring.Keyring, encCfg client.TxConfig, chainID string, accounts ...*Account) (*Signer, error) {
 	s := &Signer{
 		keys:                keys,
 		chainID:             chainID,
@@ -60,7 +50,6 @@ func NewSigner(
 		addressCodec:        addresscodec.NewBech32Codec(params.Bech32PrefixAccAddr),
 		accounts:            make(map[string]*Account),
 		addressToAccountMap: make(map[string]string),
-		appVersion:          appVersion,
 	}
 
 	for _, acc := range accounts {
@@ -110,7 +99,7 @@ func (s *Signer) CreatePayForBlobs(accountName string, blobs []*share.Blob, opts
 		return nil, 0, err
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs(addr, s.appVersion, blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr, appconsts.LatestVersion, blobs...)
 	if err != nil {
 		return nil, 0, err
 	}
