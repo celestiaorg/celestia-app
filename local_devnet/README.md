@@ -6,7 +6,7 @@ The docker image used is built locally using the code in the root directory. So,
 
 Note: It is necessary to [build the images](#build-the-images) after every change you make so that it is reflected in the network.
 
-Note 2: If you edit the `go.mod` to contain a local package, for example, using a local version of celestia-core:
+Note 2: If you edit `go.mod` to contain a local package, for example, using a local version of celestia-core:
 
 ```go
 replace github.com/celestiaorg/celestia-core => ../celestia-core
