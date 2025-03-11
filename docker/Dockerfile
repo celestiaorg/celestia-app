@@ -4,14 +4,14 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.23.5-alpine3.20
+ARG BUILDER_IMAGE=docker.io/golang:1.23.6-alpine3.20
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maximum square size of the docker image i.e.
+# Use build args to override the maximum square size of the docker image e.g.
 # docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
 ARG MAX_SQUARE_SIZE
-# Use build args to override the upgrade height delay of the docker image i.e.
+# Use build args to override the upgrade height delay of the docker image e.g.
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 

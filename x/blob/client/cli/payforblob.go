@@ -133,14 +133,14 @@ The blob must be a hex encoded string of non-zero length.
 				return broadcastPFB(cmd, blob)
 			}
 
-			paresdBlobs, err := parseSubmitBlobs(path)
+			parsedBlobs, err := parseSubmitBlobs(path)
 			if err != nil {
 				return err
 			}
 
 			var blobs []*share.Blob
-			for _, paresdBlob := range paresdBlobs {
-				blob, err := getBlobFromArguments(paresdBlob.NamespaceID, paresdBlob.Blob, namespaceVersion, shareVersion, signer)
+			for _, parsedBlob := range parsedBlobs {
+				blob, err := getBlobFromArguments(parsedBlob.NamespaceID, parsedBlob.Blob, namespaceVersion, shareVersion, signer)
 				if err != nil {
 					return err
 				}

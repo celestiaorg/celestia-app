@@ -63,9 +63,9 @@ func command() *cobra.Command {
 Txsim is a tool for randomized transaction generation on celestia networks. The tool relies on
 defined sequences; recursive patterns between one or more accounts which will continually submit
 transactions. You can use flags or environment variables (TXSIM_GRPC, TXSIM_SEED,
-TXSIM_POLL, TXSIM_KEYPATH) to configure the client. The keyring provided should have at least one
-well funded account that can act as the master account. The command runs until all sequences error.`,
-		Example: "txsim --key-path /path/to/keyring --grpc-endpoint localhost:9090 --seed 1234 --poll-time 1s --blob 5",
+TXSIM_POLL, TXSIM_KEYPATH) to configure the client. The keyring should have at least one well funded
+account that can act as the master account. The command runs until all sequences error.`,
+		Example: "txsim --key-path /path/to/keyring --grpc-endpoint localhost:9090 --seed 1234 --poll-time 1s --blob 5 --feegrant",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var (
 				keys keyring.Keyring
@@ -86,7 +86,7 @@ well funded account that can act as the master account. The command runs until a
 				keys = keyring.NewInMemory(cdc)
 				_, err = keys.NewAccount("master", os.Getenv(TxsimMnemonic), keyring.DefaultBIP39Passphrase, "", hd.Secp256k1)
 			default:
-				return errors.New("keyring not specified. Use --key-path, --key-mnemonic or TXSIM_KEYPATH env var")
+				keys, err = keyring.New(app.Name, keyring.BackendTest, app.DefaultNodeHome, nil, cdc)
 			}
 			if err != nil {
 				return err

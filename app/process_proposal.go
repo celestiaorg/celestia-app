@@ -36,7 +36,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 	}()
 
-	// Create the anteHander that is used to check the validity of
+	// Create the anteHandler that is used to check the validity of
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).

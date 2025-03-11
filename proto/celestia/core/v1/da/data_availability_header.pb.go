@@ -33,7 +33,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // Note that currently we list row and column roots in separate fields
 // (different from the spec).
 type DataAvailabilityHeader struct {
-	// RowRoot_j 	= root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
+	// RowRoot_j = root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
 	RowRoots [][]byte `protobuf:"bytes,1,rep,name=row_roots,json=rowRoots,proto3" json:"row_roots,omitempty"`
 	// ColumnRoot_j = root((M_{1,j} || M_{2,j} || ... || M_{2k,j} ))
 	ColumnRoots [][]byte `protobuf:"bytes,2,rep,name=column_roots,json=columnRoots,proto3" json:"column_roots,omitempty"`

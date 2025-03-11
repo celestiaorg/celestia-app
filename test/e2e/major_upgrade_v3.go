@@ -20,7 +20,7 @@ import (
 func MajorUpgradeToV3(logger *log.Logger) error {
 	testName := "MajorUpgradeToV3"
 	numNodes := 4
-	upgradeHeightV3 := int64(40)
+	upgradeHeightV3 := int64(15)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -111,6 +111,8 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		}
 	}
 
+	logger.Printf("upgraded height: %v", upgradedHeight)
+
 	// check if the timeouts are set correctly
 	rpcNode := testNet.Nodes()[0]
 	client, err := rpcNode.Client()
@@ -123,6 +125,9 @@ func MajorUpgradeToV3(logger *log.Logger) error {
 		dur   time.Duration
 		block *tmtypes.Block
 	}
+
+	// wait until endHeight is reached
+	testnet.NoError("failed to wait for height", waitForHeight(ctx, client, endHeight, 5*time.Minute))
 
 	blockSummaries := make([]versionDuration, 0, endHeight-startHeight)
 	var prevBlockTime time.Time

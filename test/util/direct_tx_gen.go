@@ -200,7 +200,7 @@ func SendTxsWithAccounts(
 	return txs
 }
 
-// SendTxsWithAccounts will create a send transaction per account provided. The
+// SendTxWithManualSequence will create a send transaction per account provided. The
 // account info must be provided.
 func SendTxWithManualSequence(
 	t *testing.T,

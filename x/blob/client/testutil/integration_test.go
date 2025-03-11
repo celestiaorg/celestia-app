@@ -39,18 +39,16 @@ type IntegrationTestSuite struct {
 func createTestFile(t testing.TB, s string, isValid bool) *os.File {
 	t.Helper()
 
-	tempdir, err := os.MkdirTemp("", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
+	tempdir := t.TempDir()
 
-	var fp *os.File
-
+	filePattern := ""
 	if isValid {
-		fp, err = os.CreateTemp(tempdir, "*.json")
-	} else {
-		fp, err = os.CreateTemp(tempdir, "")
+		filePattern = "*.json"
 	}
+
+	fp, err := os.CreateTemp(tempdir, filePattern)
 	require.NoError(t, err)
+
 	_, err = fp.WriteString(s)
 
 	require.Nil(t, err)

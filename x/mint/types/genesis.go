@@ -21,7 +21,7 @@ func DefaultGenesisState() *GenesisState {
 }
 
 // ValidateGenesis validates the provided genesis state to ensure the
-// expected invariants holds.
+// expected invariants hold.
 func ValidateGenesis(data GenesisState) error {
 	if data.BondDenom == "" {
 		return errors.New("bond denom cannot be empty")

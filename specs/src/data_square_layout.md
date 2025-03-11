@@ -44,7 +44,7 @@ To that end, we impose some additional rules onto _blobs only_: blobs must be pl
 1. The transaction sender must pay sufficient fees for blob inclusion.
 1. The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block). In addition all blobs must be accompanied by a PayForBlob transaction.
 
-Specifically, a `MsgPayForBlobs` must include a `ShareCommitment` over the contents of each blob it is paying for. If the transaction sender knows 1) `k`, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to _subtrees in the row NMTs_. Taking _the simple Merkle root of these subtree roots_ provides us with the `ShareCommitment` that gets included in `MsgPayForBlobs`. Using subtree roots instead of all the leafs makes blob inclusion proofs smaller.
+Specifically, a `MsgPayForBlobs` must include a `ShareCommitment` over the contents of each blob it is paying for. If the transaction sender knows 1) `k`, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to _subtrees in the row NMTs_. Taking _the simple Merkle root of these subtree roots_ provides us with the `ShareCommitment` that gets included in `MsgPayForBlobs`. Using subtree roots instead of all the leaves makes blob inclusion proofs smaller.
 
 ![subtree roots](./figures/blob_share_commitment.svg)
 
