@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 )
 
-// The following defaults correspond to initial parameters of the network that can be changed, not via app versions
+// The following defaults correspond to the initial parameters of the network that can be changed, not via app versions
 // but other means such as on-chain governance, or the node's local config
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
