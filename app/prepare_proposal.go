@@ -33,7 +33,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.IBCKeeper,
 		app.ParamsKeeper,
 		&app.CircuitKeeper,
-		app.BlockedParamsGovernance(),
+		app.GovParamFilters(),
 	)
 
 	// Filter out invalid transactions.

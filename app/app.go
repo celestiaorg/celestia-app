@@ -72,7 +72,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/cosmos/gogoproto/proto"
 	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
 	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/keeper"
 	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
@@ -449,7 +448,7 @@ func New(
 		app.IBCKeeper,
 		app.ParamsKeeper,
 		&app.CircuitKeeper,
-		app.BlockedParamsGovernance(),
+		app.GovParamFilters(),
 	))
 
 	// TODO: migration related, delaying implemenation for now
@@ -668,16 +667,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper
-}
-
-// BlockedParamsGovernance returns the params that require a hardfork to change, and
-// cannot be changed via governance.
-func (app *App) BlockedParamsGovernance() map[string][]string {
-	return map[string][]string{
-		proto.MessageName(&banktypes.MsgUpdateParams{}):      {"send_enabled"},
-		proto.MessageName(&stakingtypes.MsgUpdateParams{}):   {"params.bond_denom", "params.unbonding_time"},
-		proto.MessageName(&consensustypes.MsgUpdateParams{}): {"validator"},
-	}
 }
 
 // AutoCliOpts returns the autocli options for the app.

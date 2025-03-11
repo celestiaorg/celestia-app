@@ -50,7 +50,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.IBCKeeper,
 		app.ParamsKeeper,
 		&app.CircuitKeeper,
-		app.BlockedParamsGovernance(),
+		app.GovParamFilters(),
 	)
 	blockHeader := ctx.BlockHeader()
 

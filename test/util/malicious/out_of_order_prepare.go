@@ -43,7 +43,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.IBCKeeper,
 		a.ParamsKeeper,
 		&a.CircuitKeeper,
-		a.BlockedParamsGovernance(),
+		a.GovParamFilters(),
 	)
 
 	txs := app.FilterTxs(a.Logger(), sdkCtx, handler, a.GetTxConfig(), req.Txs)
