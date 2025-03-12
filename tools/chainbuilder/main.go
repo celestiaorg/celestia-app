@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -316,21 +317,35 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		dataCh    = make(chan *tmproto.Data, 100)
 		persistCh = make(chan persistData, 100)
 		commit    = types.NewCommit(0, 0, types.BlockID{}, nil)
-		cleanedUp = false // Flag to track if cleanup has been performed
+		wg        sync.WaitGroup // Add WaitGroup for goroutines
 	)
 
-	// Cleanup function to avoid duplicate cleanup
-	cleanup := func() {
-		if cleanedUp {
-			return
-		}
-		cleanedUp = true
+	if lastHeight > 0 {
+		commit = blockStore.LoadSeenCommit(lastHeight)
+	}
 
-		// Close channels safely
+	// Start goroutines with WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		errCh <- generateSquareRoutine(ctx, signer, cfg, dataCh)
+	}()
+
+	go func() {
+		defer wg.Done()
+		errCh <- persistDataRoutine(ctx, stateStore, blockStore, persistCh)
+	}()
+
+	// Cleanup function that waits for goroutines to finish before closing resources
+	cleanup := func() {
+		// Signal goroutines to stop by closing channels
 		close(dataCh)
 		close(persistCh)
 
 		// Wait for goroutines to finish
+		wg.Wait()
+
+		// Collect errors from goroutines
 		var firstErr error
 		for i := 0; i < cap(errCh); i++ {
 			select {
@@ -360,22 +375,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				fmt.Printf("Failed to close application database: %v\n", err)
 			}
 		}
+
+		if firstErr != nil && firstErr != context.Canceled {
+			fmt.Printf("Error during execution: %v\n", firstErr)
+		}
 	}
-	
-	// Ensure cleanup runs before returning
+
+	// Defer cleanup to ensure it runs when the function exits
 	defer cleanup()
-
-	if lastHeight > 0 {
-		commit = blockStore.LoadSeenCommit(lastHeight)
-	}
-
-	go func() {
-		errCh <- generateSquareRoutine(ctx, signer, cfg, dataCh)
-	}()
-
-	go func() {
-		errCh <- persistDataRoutine(ctx, stateStore, blockStore, persistCh)
-	}()
 
 	lastBlock := blockStore.LoadBlock(blockStore.Height())
 
