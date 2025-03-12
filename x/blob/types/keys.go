@@ -9,6 +9,9 @@ const (
 
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_blob"
+
+	// ParamsKey defines the key used for storing module parameters
+	ParamsKey = "params"
 )
 
 func KeyPrefix(p string) []byte {

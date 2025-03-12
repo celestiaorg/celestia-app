@@ -1,6 +1,8 @@
 syntax = "proto3";
 package celestia.blob.v1;
 
+import "celestia/blob/v1/params.proto";
+import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
@@ -18,6 +20,9 @@ service Msg {
       body: "*"
     };
   }
+
+  // UpdateBlobParams defines a rpc handler method for MsgUpdateBlobParams.
+  rpc UpdateBlobParams(MsgUpdateBlobParams) returns (MsgUpdateBlobParamsResponse);
 }
 
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
@@ -45,3 +50,17 @@ message MsgPayForBlobs {
 // MsgPayForBlobsResponse describes the response returned after the submission
 // of a PayForBlobs
 message MsgPayForBlobsResponse {}
+
+// MsgUpdateBlobParams defines the sdk.Msg type to update the client parameters.
+message MsgUpdateBlobParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority is the address of the governance account.
+  string authority = 1;
+  // params defines the client parameters to update.
+  //
+  // NOTE: All parameters must be supplied.
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgUpdateBlobParamsResponse defines the MsgUpdateBlobParams response type.
+message MsgUpdateBlobParamsResponse {}

@@ -43,6 +43,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
 	appparams "github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/x/blob"
 )
 
 // TODO: This probably should be deleted.
@@ -362,6 +363,7 @@ func MakeAminoCodec() *codec.LegacyAmino {
 	sdk.RegisterLegacyAminoCodec(cdc)
 	ccodec.RegisterCrypto(cdc)
 	params.AppModule{}.RegisterLegacyAminoCodec(cdc)
+	blob.AppModule{}.RegisterLegacyAminoCodec(cdc)
 	return cdc
 }
 

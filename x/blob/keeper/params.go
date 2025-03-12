@@ -8,25 +8,26 @@ import (
 
 // GetParams gets all parameters as types.Params
 func (k Keeper) GetParams(ctx sdk.Context) types.Params {
-	return types.NewParams(
-		k.GasPerBlobByte(ctx),
-		k.GovMaxSquareSize(ctx),
-	)
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get([]byte(types.ParamsKey))
+	if len(bz) == 0 {
+		return types.Params{}
+	}
+
+	var params types.Params
+	k.cdc.MustUnmarshal(bz, &params)
+	return params
 }
 
 // SetParams sets the params
 func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
-	k.paramStore.SetParamSet(ctx, &params)
+	store := ctx.KVStore(k.storeKey)
+	bz := k.cdc.MustMarshal(&params)
+	store.Set([]byte(types.ParamsKey), bz)
 }
 
-// GasPerBlobByte returns the GasPerBlobByte param
-func (k Keeper) GasPerBlobByte(ctx sdk.Context) (res uint32) {
-	k.paramStore.Get(ctx, types.KeyGasPerBlobByte, &res)
-	return res
-}
-
-// GovMaxSquareSize returns the GovMaxSquareSize param
-func (k Keeper) GovMaxSquareSize(ctx sdk.Context) (res uint64) {
-	k.paramStore.Get(ctx, types.KeyGovMaxSquareSize, &res)
-	return res
+// SetParamsLegacy sets the params in the legacy store space.
+// TODO: this can be removed in versions after migrations have run.
+func (k Keeper) SetParamsLegacy(ctx sdk.Context, params types.Params) {
+	k.legacySubspace.SetParamSet(ctx, &params)
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 
 	"github.com/celestiaorg/celestia-app/v4/x/blob/client/cli"
 	"github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
@@ -25,9 +24,9 @@ var (
 	_ module.HasGenesis          = AppModule{}
 	_ module.HasConsensusVersion = AppModule{}
 	_ module.HasName             = AppModule{}
+	_ module.HasServices         = AppModule{}
 
-	_ appmodule.HasServices = AppModule{}
-	_ appmodule.AppModule   = AppModule{}
+	_ appmodule.AppModule = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the blob module.
@@ -95,12 +94,15 @@ func (AppModule) GetQueryCmd() *cobra.Command {
 	return cli.GetQueryCmd()
 }
 
-// RegisterServices registers a GRPC query service to respond to the
-// module-specific GRPC queries.
-func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
-	types.RegisterMsgServer(registrar, keeper.NewMsgServerImpl(am.keeper))
-	types.RegisterQueryServer(registrar, am.keeper)
-	return nil
+// RegisterServices registers module services.
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServerImpl(am.keeper))
+	types.RegisterQueryServer(cfg.QueryServer(), am.keeper)
+
+	m := keeper.NewMigrator(am.keeper)
+	if err := cfg.RegisterMigration(types.ModuleName, 2, m.MigrateParams); err != nil {
+		panic(err)
+	}
 }
 
 // InitGenesis performs the blob module's genesis initialization.
@@ -122,4 +124,4 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 }
 
 // ConsensusVersion implements ConsensusVersion.
-func (AppModule) ConsensusVersion() uint64 { return 2 }
+func (AppModule) ConsensusVersion() uint64 { return 3 }

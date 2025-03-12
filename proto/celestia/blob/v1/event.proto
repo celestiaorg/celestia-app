@@ -1,6 +1,9 @@
 syntax = "proto3";
 package celestia.blob.v1;
 
+import "gogoproto/gogo.proto";
+import "celestia/blob/v1/params.proto";
+
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // EventPayForBlobs defines an event that is emitted after a pay for blob has
@@ -12,4 +15,11 @@ message EventPayForBlobs {
   // A namespace has length of 29 bytes where the first byte is the
   // namespaceVersion and the subsequent 28 bytes are the namespaceID.
   repeated bytes namespaces = 3;
+}
+
+// EventUpdateBlobParams defines an event that is emitted when blob parameters are
+// updated. It is triggered after a successful execution of a parameter update proposal.
+message EventUpdateBlobParams {
+  string signer = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
 }

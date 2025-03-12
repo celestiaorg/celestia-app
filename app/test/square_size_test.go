@@ -2,20 +2,17 @@ package app_test
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 
 	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -152,18 +149,13 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 		Validator: updatedParams.Validator,
 	}
 
-	// TODO: migrate x/blob to use self contained params, then use x/blob MsgUpdateParams, for now we use ExecLegacyContent
-	maxSquareSizeParamChange := proposal.NewParamChange(blobtypes.ModuleName, string(blobtypes.KeyGovMaxSquareSize), fmt.Sprintf("\"%d\"", squareSize))
-	content := proposal.NewParameterChangeProposal("x/blob max square size param", "param update proposal", []proposal.ParamChange{maxSquareSizeParamChange})
-
-	contentAny, err := codectypes.NewAnyWithValue(content)
-	require.NoError(t, err)
-
-	msgExecLegacyContent := govv1.NewMsgExecLegacyContent(contentAny, govAuthority)
+	newParams := blobtypes.DefaultParams()
+	newParams.GovMaxSquareSize = uint64(squareSize)
+	maxSquareSizeParamChange := blobtypes.NewMsgUpdateBlobParams(govAuthority, newParams)
 
 	proposerAddr := testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName)
 	msgSubmitProp, err := govv1.NewMsgSubmitProposal(
-		[]sdk.Msg{msgExecLegacyContent, msgUpdateConsensusParams},
+		[]sdk.Msg{msgUpdateConsensusParams, maxSquareSizeParamChange},
 		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000000000))),
 		proposerAddr.String(),
 		"meta", "prop: update block size params", "summary", false,

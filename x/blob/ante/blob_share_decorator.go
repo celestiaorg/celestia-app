@@ -63,7 +63,7 @@ func (d BlobShareDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	}
 
 	upperBound := appconsts.DefaultSquareSizeUpperBound
-	govParam := d.k.GovMaxSquareSize(ctx)
+	govParam := d.k.GetParams(ctx).GovMaxSquareSize
 	return min(upperBound, int(govParam))
 }
 

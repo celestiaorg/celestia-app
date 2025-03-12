@@ -15,6 +15,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/assert"
@@ -77,11 +79,13 @@ func createMsgPayForBlob(t *testing.T, signer string, namespace share.Namespace,
 
 func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMultiStore, sdk.Context) {
 	storeKey := storetypes.NewKVStoreKey(paramtypes.StoreKey)
+	blobStoreKey := storetypes.NewKVStoreKey(types.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
 	db := tmdb.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NoOpMetrics{})
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+	stateStore.MountStoreWithDB(blobStoreKey, storetypes.StoreTypeIAVL, db)
 	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())
 
@@ -102,9 +106,14 @@ func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMul
 	)
 	k := keeper.NewKeeper(
 		cdc,
+		blobStoreKey,
 		paramsSubspace,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
-	k.SetParams(ctx, types.DefaultParams())
+
+	// TODO: this should be changed to k.SetParams after migrations have been run.
+	k.SetParamsLegacy(ctx, types.DefaultParams())
+	// k.SetParams(ctx, types.DefaultParams())
 
 	return k, stateStore, ctx
 }
