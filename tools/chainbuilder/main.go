@@ -137,7 +137,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	go func() {
 		select {
 		case <-signalCh:
-			fmt.Println("\nReceived termination signal. Shutting down gracefully...")
+			fmt.Printf("Received termination signal. Shutting down gracefully...\n")
 			cancel() // Cancel the context to signal all routines to stop
 		case <-ctx.Done():
 			// Context was canceled elsewhere
