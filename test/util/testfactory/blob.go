@@ -3,16 +3,18 @@ package testfactory
 import (
 	"bytes"
 	"encoding/binary"
+	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v2/share"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 )
 
 func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {
 	blobs := make([]*share.Blob, count)
 	for i := 0; i < count; i++ {
-		blobs[i] = GenerateRandomBlob(tmrand.Intn(maxBlobSize))
+		blobs[i] = GenerateRandomBlob(rand.Intn(maxBlobSize))
 		if len(blobs[i].Data()) == 0 {
 			i--
 		}
@@ -28,10 +30,10 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []*share.Blob {
 }
 
 // GenerateBlobsWithNamespace generates blobs with namespace share.
-func GenerateBlobsWithNamespace(count int, blobSize int, ns share.Namespace) []*share.Blob {
+func GenerateBlobsWithNamespace(count, blobSize int, ns share.Namespace) []*share.Blob {
 	blobs := make([]*share.Blob, count)
 	for i := 0; i < count; i++ {
-		blob, err := share.NewBlob(ns, tmrand.Bytes(blobSize), appconsts.DefaultShareVersion, nil)
+		blob, err := share.NewBlob(ns, random.Bytes(blobSize), appconsts.DefaultShareVersion, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -48,7 +50,7 @@ func GenerateBlobsWithNamespace(count int, blobSize int, ns share.Namespace) []*
 
 func GenerateRandomBlob(dataSize int) *share.Blob {
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, share.NamespaceVersionZeroIDSize))
-	blob, err := share.NewBlob(ns, tmrand.Bytes(dataSize), appconsts.DefaultShareVersion, nil)
+	blob, err := share.NewBlob(ns, random.Bytes(dataSize), appconsts.DefaultShareVersion, nil)
 	if err != nil {
 		panic(err)
 	}

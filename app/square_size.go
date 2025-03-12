@@ -1,8 +1,9 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // MaxEffectiveSquareSize returns the max effective square size.
@@ -17,7 +18,8 @@ func (app *App) MaxEffectiveSquareSize(ctx sdk.Context) int {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	govMax := int(app.BlobKeeper.GovMaxSquareSize(ctx))
-	hardMax := appconsts.SquareSizeUpperBound(app.AppVersion())
+	govMax := int(app.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
+
+	hardMax := appconsts.DefaultSquareSizeUpperBound
 	return min(govMax, hardMax)
 }

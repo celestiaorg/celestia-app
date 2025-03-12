@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 type LatencyParams struct {
@@ -85,7 +86,7 @@ type Manifest struct {
 }
 
 func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
-	ecfg := encoding.MakeConfig(app.ModuleBasics)
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	var modifiers []genesis.Modifier
 
 	blobParams := blobtypes.DefaultParams()
@@ -99,7 +100,7 @@ func (m *Manifest) GetGenesisModifiers() []genesis.Modifier {
 func (m *Manifest) GetConsensusParams() *tmproto.ConsensusParams {
 	cparams := app.DefaultConsensusParams()
 	cparams.Block.MaxBytes = m.MaxBlockBytes
-	cparams.Version.AppVersion = m.GenesisAppVersion
+	cparams.Version.App = m.GenesisAppVersion
 	return cparams
 }
 

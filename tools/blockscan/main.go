@@ -9,11 +9,12 @@ import (
 	"os/signal"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/tendermint/tendermint/rpc/client/http"
-	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func main() {
@@ -145,10 +146,15 @@ func PrintBlock(block *types.Block) error {
 
 func PrintTx(tx authsigning.Tx) {
 	msgs := tx.GetMsgs()
+	signers, err := tx.GetSigners()
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Printf(`Tx - Signer: %s, Fee: %s {
 %s
 }
-`, tx.GetSigners(), tx.GetFee(), printMessages(msgs))
+`, signers, tx.GetFee(), printMessages(msgs))
 }
 
 func printMessages(msgs []sdk.Msg) string {

@@ -6,10 +6,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/test/e2e/testnet"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // E2ESimple runs a simple testnet with 4 validators. It submits both MsgPayForBlobs

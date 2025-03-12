@@ -3,9 +3,10 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestGetParams(t *testing.T) {
@@ -15,5 +16,4 @@ func TestGetParams(t *testing.T) {
 	k.SetParams(ctx, params)
 
 	require.EqualValues(t, params, k.GetParams(ctx))
-	require.EqualValues(t, params.GasPerBlobByte, k.GasPerBlobByte(ctx))
 }

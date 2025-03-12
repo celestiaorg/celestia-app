@@ -90,7 +90,7 @@ func chainIDs() string {
 }
 
 // downloadFile will download a URL to a local file.
-func downloadFile(filepath string, url string) error {
+func downloadFile(filepath, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err

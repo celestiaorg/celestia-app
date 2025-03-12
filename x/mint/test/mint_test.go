@@ -6,14 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	minttypes "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"cosmossdk.io/math"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 type IntegrationTestSuite struct {
@@ -37,10 +39,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	//
 	// Note: if TimeIotaMs is removed from CometBFT, this technique will no
 	// longer work.
-	cparams.Block.TimeIotaMs = sixMonths.Milliseconds()
 
-	cfg := testnode.DefaultConfig().
-		WithConsensusParams(cparams)
+	_ = sixMonths
+	// cparams.Block.TimeIotaMs = sixMonths.Milliseconds()
+	cfg := testnode.DefaultConfig().WithConsensusParams(cparams)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx
@@ -63,26 +65,28 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	require.NoError(err)
 	laterSupply := s.getTotalSupply(laterHeight)
 
-	require.True(initialSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
+	require.True(initialSupply.AmountOf(params.BondDenom).LT(laterSupply.AmountOf(params.BondDenom)))
 }
 
 // TestInflationRate verifies that the inflation rate each year matches the
 // expected rate of inflation. See the README.md for the expected rate of
 // inflation.
 func (s *IntegrationTestSuite) TestInflationRate() {
+	s.T().Skip("TODO: this test should be rewritten as we no longer have a way to manipulate time at runtime")
+
 	require := s.Require()
 
 	type testCase struct {
 		year int64
-		want sdktypes.Dec
+		want math.LegacyDec
 	}
 	testCases := []testCase{
-		{year: 0, want: sdktypes.MustNewDecFromStr("8.00")},
-		{year: 1, want: sdktypes.MustNewDecFromStr("7.20")},
-		{year: 2, want: sdktypes.MustNewDecFromStr("6.48")},
-		{year: 3, want: sdktypes.MustNewDecFromStr("5.832")},
-		{year: 4, want: sdktypes.MustNewDecFromStr("5.2488")},
-		{year: 5, want: sdktypes.MustNewDecFromStr("4.72392")},
+		{year: 0, want: math.LegacyMustNewDecFromStr("8.00")},
+		{year: 1, want: math.LegacyMustNewDecFromStr("7.20")},
+		{year: 2, want: math.LegacyMustNewDecFromStr("6.48")},
+		{year: 3, want: math.LegacyMustNewDecFromStr("5.832")},
+		{year: 4, want: math.LegacyMustNewDecFromStr("5.2488")},
+		{year: 5, want: math.LegacyMustNewDecFromStr("4.72392")},
 		// Note: since the testnode takes time to create blocks, test cases
 		// for years 6+ will time out give the current TimeIotaMs.
 	}
@@ -106,7 +110,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 
 		inflationRate := s.estimateInflationRate(startHeight, endHeight)
 		actualError := inflationRate.Sub(tc.want).Abs()
-		marginOfError := sdktypes.MustNewDecFromStr("0.01")
+		marginOfError := math.LegacyMustNewDecFromStr("0.01")
 		if marginOfError.GT(actualError) {
 			s.Failf("TestInflationRate failure", "inflation rate for year %v is %v, want %v with a .01 margin of error", tc.year, inflationRate, tc.want)
 		}
@@ -125,12 +129,12 @@ func (s *IntegrationTestSuite) getTotalSupply(height int64) sdktypes.Coins {
 	return resp.Supply
 }
 
-func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeight int64) sdktypes.Dec {
-	startSupply := s.getTotalSupply(startHeight).AmountOf(app.BondDenom)
-	endSupply := s.getTotalSupply(endHeight).AmountOf(app.BondDenom)
+func (s *IntegrationTestSuite) estimateInflationRate(startHeight, endHeight int64) math.LegacyDec {
+	startSupply := s.getTotalSupply(startHeight).AmountOf(params.BondDenom)
+	endSupply := s.getTotalSupply(endHeight).AmountOf(params.BondDenom)
 	diffSupply := endSupply.Sub(startSupply)
 
-	return sdktypes.NewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)
+	return math.LegacyNewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)
 }
 
 // In order for 'go test' to run this suite, we need to create

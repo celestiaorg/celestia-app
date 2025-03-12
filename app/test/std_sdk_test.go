@@ -5,35 +5,41 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
-	signal "github.com/celestiaorg/celestia-app/v3/x/signal/types"
-	"github.com/celestiaorg/go-square/v2/share"
+	"cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	signal "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
@@ -61,13 +67,13 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 
 	accounts := make([]string, 35)
 	for i := 0; i < len(accounts); i++ {
-		accounts[i] = tmrand.Str(9)
+		accounts[i] = random.Str(9)
 	}
 
 	s.cfg = testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
 	s.accounts = accounts
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	s.ecfg = encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 }
 
 func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {
@@ -105,7 +111,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
@@ -118,7 +124,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000))),
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000000000))),
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
@@ -130,7 +136,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				valopAddr := sdk.ValAddress(testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName))
 				account1 := s.unusedAccount()
 				account1Addr := testfactory.GetAddress(s.cctx.Keyring, account1)
-				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				msg := stakingtypes.NewMsgDelegate(account1Addr.String(), valopAddr.String(), sdk.NewCoin(params.BondDenom, math.NewInt(1000000)))
 				return []sdk.Msg{msg}, account1
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -140,7 +146,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccAddr := testfactory.GetAddress(s.cctx.Keyring, testnode.DefaultValidatorAccountName)
 				valopAddr := sdk.ValAddress(valAccAddr)
-				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				msg := stakingtypes.NewMsgUndelegate(valAccAddr.String(), valopAddr.String(), sdk.NewCoin(params.BondDenom, math.NewInt(1000000)))
 				return []sdk.Msg{msg}, testnode.DefaultValidatorAccountName
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -153,12 +159,12 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				valopAccAddr := testfactory.GetAddress(s.cctx.Keyring, account)
 				valopAddr := sdk.ValAddress(valopAccAddr)
 				msg, err := stakingtypes.NewMsgCreateValidator(
-					valopAddr,
+					valopAddr.String(),
 					pv.PrivKey.PubKey(),
-					sdk.NewCoin(app.BondDenom, sdk.NewInt(1)),
+					sdk.NewCoin(params.BondDenom, math.NewInt(1)),
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
-					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
-					sdk.NewInt(1),
+					stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(6, 0o2), math.LegacyNewDecWithPrec(12, 0o2), math.LegacyNewDecWithPrec(1, 0o2)),
+					math.NewInt(1),
 				)
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
@@ -177,7 +183,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000))),
 					time.Now().Add(time.Hour).Unix(),
 					time.Now().Add(time.Hour*2).Unix(),
 					false,
@@ -187,7 +193,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create legacy community spend governance proposal",
+			name: "create community spend governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				// Note: this test depends on at least one coin being present
@@ -195,21 +201,25 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				// to inflation so if 1 coin is not present in the community
 				// pool, consider expanding the block interval or waiting for
 				// more blocks to be produced prior to executing this test case.
-				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
-				content := disttypes.NewCommunityPoolSpendProposal(
-					"title",
-					"description",
-					testfactory.GetAddress(s.cctx.Keyring, s.unusedAccount()),
-					coins,
-				)
+				coins := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1)))
+
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
-					addr,
+				msg, err := govv1.NewMsgSubmitProposal(
+					[]sdk.Msg{
+						disttypes.NewMsgFundCommunityPool(
+							coins,
+							authtypes.NewModuleAddress("gov").String(),
+						),
+					},
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
+					addr.String(),
+					"metadata",
+					"title",
+					"summary",
+					false,
 				)
 				require.NoError(t, err)
+
 				return []sdk.Msg{msg}, account
 			},
 			expectedCode: abci.CodeTypeOK,
@@ -218,13 +228,13 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create legacy text governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
+				content, ok := govv1beta1.ContentFromProposalType("title", "description", "text")
 				require.True(t, ok)
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
+				msg, err := govv1beta1.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+						sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
 					addr,
 				)
 				require.NoError(t, err)
@@ -241,40 +251,41 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msgSend1 := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account2),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1))),
 				)
 				account3 := s.unusedAccount()
 				msgSend2 := banktypes.NewMsgSend(
 					testfactory.GetAddress(s.cctx.Keyring, account1),
 					testfactory.GetAddress(s.cctx.Keyring, account3),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
-		{
-			name: "create param change proposal for a blocked parameter",
-			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				account := s.unusedAccount()
-				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
-				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
-				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
-					addr,
-				)
-				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
-			},
-			// this parameter is protected by the paramfilter module, and we
-			// should expect an error. Due to how errors are bubbled up, we get
-			// this code despite wrapping the expected error,
-			// paramfilter.ErrBlockedParameter
-			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
-		},
+		// TODO: paramfilter module is removed, should be replaced by ante handler
+		// {
+		// 	name: "create param change proposal for a blocked parameter",
+		// 	msgFunc: func() (msgs []sdk.Msg, signer string) {
+		// 		account := s.unusedAccount()
+		// 		change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
+		// 		content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+		// 		addr := testfactory.GetAddress(s.cctx.Keyring, account)
+		// 		msg, err := oldgov.NewMsgSubmitProposal(
+		// 			content,
+		// 			sdk.NewCoins(
+		// 				sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
+		// 			addr,
+		// 		)
+		// 		require.NoError(t, err)
+		// 		return []sdk.Msg{msg}, account
+		// 	},
+		// 	// this parameter is protected by the paramfilter module, and we
+		// 	// should expect an error. Due to how errors are bubbled up, we get
+		// 	// this code despite wrapping the expected error,
+		// 	// paramfilter.ErrBlockedParameter
+		// 	expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
+		// },
 		{
 			name: "create param proposal change for a modifiable parameter",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
@@ -282,10 +293,10 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
 				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := oldgov.NewMsgSubmitProposal(
+				msg, err := govv1beta1.NewMsgSubmitProposal(
 					content,
 					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+						sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
 					addr,
 				)
 				require.NoError(t, err)
@@ -307,7 +318,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "signal a version change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccount := s.getValidatorAccount()
-				msg := signal.NewMsgSignalVersion(valAccount, appconsts.LatestVersion+1)
+				msg := signal.NewMsgSignalVersion(valAccount.String(), appconsts.LatestVersion+1)
 				return []sdk.Msg{msg}, s.getValidatorName()
 			},
 			expectedCode: abci.CodeTypeOK,

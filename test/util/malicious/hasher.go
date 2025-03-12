@@ -300,7 +300,7 @@ func (n *NmtHasher) HashNode(left, right []byte) ([]byte, error) {
 }
 
 // computeNsRange computes the namespace range of the parent node based on the namespace ranges of its left and right children.
-func computeNsRange(leftMinNs, leftMaxNs, rightMinNs, rightMaxNs []byte, ignoreMaxNs bool, precomputedMaxNs namespace.ID) (minNs []byte, maxNs []byte) {
+func computeNsRange(leftMinNs, leftMaxNs, rightMinNs, rightMaxNs []byte, ignoreMaxNs bool, precomputedMaxNs namespace.ID) (minNs, maxNs []byte) {
 	minNs = leftMinNs
 	maxNs = rightMaxNs
 	if ignoreMaxNs && bytes.Equal(precomputedMaxNs, rightMinNs) {

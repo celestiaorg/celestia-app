@@ -19,3 +19,6 @@ square/testdata
 vendor
 go.work
 go.work.sum
+.envrc
+# test artefacts
+app/test/bad_block_*
