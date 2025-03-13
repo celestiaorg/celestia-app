@@ -1,3 +1,5 @@
+//go:build bench_gas_estimation
+
 package benchmarks_test
 
 import (
