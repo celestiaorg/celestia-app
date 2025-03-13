@@ -153,7 +153,7 @@ func TestAppUpgradeV3(t *testing.T) {
 	require.Equal(t, appconsts.GetTimeoutPropose(v3.Version), respEndBlock.Timeouts.TimeoutPropose)
 }
 
-// TestAppUpgradeV2 verifies that the all module's params are overridden during an
+// TestAppUpgradeV2 verifies that all module's params are overridden during an
 // upgrade from v1 -> v2 and the app version changes correctly.
 func TestAppUpgradeV2(t *testing.T) {
 	NetworkMinGasPriceDec, err := sdk.NewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
