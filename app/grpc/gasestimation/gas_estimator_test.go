@@ -1,22 +1,23 @@
 package gasestimation
 
 import (
-	"math"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMean(t *testing.T) {
+func TestMedian(t *testing.T) {
 	tests := []struct {
 		name      string
 		gasPrices []float64
 		want      float64
+		wantErr   bool
 	}{
 		{
 			name:      "Empty slice",
 			gasPrices: []float64{},
-			want:      0,
+			wantErr:   true,
 		},
 		{
 			name:      "Single element",
@@ -37,7 +38,12 @@ func TestMean(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Mean(tt.gasPrices)
+			got, err := Median(tt.gasPrices)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
 			if got != tt.want {
 				t.Errorf("mean(%v) = %v, want %v", tt.gasPrices, got, tt.want)
 			}
@@ -45,51 +51,14 @@ func TestMean(t *testing.T) {
 	}
 }
 
-func TestStandardDeviation(t *testing.T) {
-	tests := []struct {
-		name      string
-		gasPrices []float64
-		want      float64
-	}{
-		{
-			name:      "Empty slice",
-			gasPrices: []float64{},
-			want:      0,
-		},
-		{
-			name:      "Single element",
-			gasPrices: []float64{10},
-			want:      0,
-		},
-		{
-			name:      "Multiple elements",
-			gasPrices: []float64{10, 20, 30, 40, 50},
-			// Variance = 200, stdev ~ 14.142135...
-			want: 14.142135623730951,
-		},
-		{
-			name:      "Identical elements",
-			gasPrices: []float64{5, 5, 5, 5},
-			want:      0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			meanVal := Mean(tt.gasPrices)
-			got := StandardDeviation(meanVal, tt.gasPrices)
-			// We'll do a tolerance check for floating-point comparisons.
-			if math.Abs(got-tt.want) > 1e-9 {
-				t.Errorf("stdDev(%v) = %v, want %v", tt.gasPrices, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestEstimateGasPriceForTransactions(t *testing.T) {
-	gasPrices := []float64{10, 20, 30, 40, 50}
-	meanGasPrices := Mean(gasPrices)
-	stDev := StandardDeviation(meanGasPrices, gasPrices)
+	gasPrices := []float64{10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110}
+	medianGasPrices, err := Median(gasPrices)
+	require.NoError(t, err)
+	bottomMedian, err := Median(gasPrices[:len(gasPrices)*10/100])
+	require.NoError(t, err)
+	topMedian, err := Median(gasPrices[len(gasPrices)*90/100:])
+	require.NoError(t, err)
 
 	tests := []struct {
 		name     string
@@ -98,24 +67,24 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "NONE -> same as MEDIUM (mean)",
+			name:     "NONE -> same as MEDIUM (median)",
 			priority: TxPriority_TX_PRIORITY_UNSPECIFIED,
-			want:     meanGasPrices,
+			want:     medianGasPrices,
 		},
 		{
-			name:     "LOW -> mean - ZScore * stDev",
+			name:     "LOW -> bottom 10% median",
 			priority: TxPriority_TX_PRIORITY_LOW,
-			want:     meanGasPrices - EstimationZScore*stDev,
+			want:     bottomMedian,
 		},
 		{
-			name:     "MEDIUM -> mean",
+			name:     "MEDIUM -> median",
 			priority: TxPriority_TX_PRIORITY_MEDIUM,
-			want:     meanGasPrices,
+			want:     medianGasPrices,
 		},
 		{
-			name:     "HIGH -> mean + ZScore * stDev",
+			name:     "HIGH -> top 10% median",
 			priority: TxPriority_TX_PRIORITY_HIGH,
-			want:     meanGasPrices + EstimationZScore*stDev,
+			want:     topMedian,
 		},
 		{
 			name:     "Unknown -> error",
@@ -135,4 +104,14 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEstimateGasPriceSmallList(t *testing.T) {
+	gasPrices := []float64{10, 20, 30, 40, 50, 60}
+	bottomMedian, err := Median(gasPrices[:1])
+	require.NoError(t, err)
+
+	got, err := estimateGasPriceForTransactions(gasPrices, TxPriority_TX_PRIORITY_LOW)
+	assert.NoError(t, err)
+	assert.Equal(t, got, bottomMedian)
 }

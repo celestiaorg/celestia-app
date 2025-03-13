@@ -755,7 +755,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
 	celestiatx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
-	gasestimation.RegisterGasEstimationService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate)
+	gasestimation.RegisterGasEstimationService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.txConfig.TxDecoder(), app.BaseApp.Simulate)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.

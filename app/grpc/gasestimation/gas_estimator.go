@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	tmclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/types"
 	"sort"
 
@@ -18,25 +19,26 @@ import (
 type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
 
 // RegisterGasEstimationService registers the gas estimation service on the gRPC router.
-func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, simulateFn baseAppSimulateFn) {
+func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, simulateFn baseAppSimulateFn) {
 	RegisterGasEstimatorServer(
 		qrt,
-		NewGasEstimatorServer(clientCtx, simulateFn),
+		NewGasEstimatorServer(clientCtx.Client, txDecoder, simulateFn),
 	)
 }
 
 var _ GasEstimatorServer = &gasEstimatorServer{}
 
 type gasEstimatorServer struct {
-	clientCtx  client.Context
-	simulateFn baseAppSimulateFn
-	txDecoder  sdk.TxDecoder
+	mempoolClient tmclient.MempoolClient
+	simulateFn    baseAppSimulateFn
+	txDecoder     sdk.TxDecoder
 }
 
-func NewGasEstimatorServer(clientCtx client.Context, simulateFn baseAppSimulateFn) GasEstimatorServer {
+func NewGasEstimatorServer(mempoolClient tmclient.MempoolClient, txDecoder sdk.TxDecoder, simulateFn baseAppSimulateFn) GasEstimatorServer {
 	return &gasEstimatorServer{
-		clientCtx:  clientCtx,
-		simulateFn: simulateFn,
+		mempoolClient: mempoolClient,
+		simulateFn:    simulateFn,
+		txDecoder:     txDecoder,
 	}
 }
 
@@ -96,14 +98,14 @@ var gasPriceEstimationThreshold = 0.70
 func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPriority) (float64, error) {
 	// using -1 to return all the transactions.
 	limit := -1
-	txsResp, err := s.clientCtx.Client.UnconfirmedTxs(ctx, &limit)
+	txsResp, err := s.mempoolClient.UnconfirmedTxs(ctx, &limit)
 	if err != nil {
 		return 0, err
 	}
 	if txsResp.TotalBytes < int64(appconsts.DefaultMaxBytes*gasPriceEstimationThreshold) {
 		return appconsts.DefaultMinGasPrice, nil
 	}
-	gasPrices, err := sortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
+	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
 	if err != nil {
 		return 0, err
 	}
@@ -113,18 +115,22 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 // estimateGasPriceForTransactions takes a list of transactions and priority
 // and returns a gas price estimation.
 // The priority sets the estimation as follows:
-// TODO update
-// - High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last five blocks.
-// - Medium Priority: The gas price is the mean of all gas prices from the last five blocks.
-// - Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last five blocks.
-// - Unspecified Priority (default): This is equivalent to the Medium priority, using the mean of all gas prices from the last five blocks.
+// - High Priority: The gas price is the median price of the top 10% of transactions’ gas prices in the mempool.
+// - Medium Priority: The gas price is the median price of the all gas prices in the mempool.
+// - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
+// - Unspecified Priority (default): This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	switch priority {
 	case TxPriority_TX_PRIORITY_UNSPECIFIED:
 		return Median(gasPrices)
 	case TxPriority_TX_PRIORITY_LOW:
-		return Median(gasPrices[:len(gasPrices)*10/100])
+		bottom10PercentIndex := len(gasPrices) * 10 / 100
+		if bottom10PercentIndex == 0 {
+			// the case of a slice containing less than 10 elements
+			bottom10PercentIndex = 1
+		}
+		return Median(gasPrices[:bottom10PercentIndex])
 	case TxPriority_TX_PRIORITY_MEDIUM:
 		return Median(gasPrices)
 	case TxPriority_TX_PRIORITY_HIGH:
@@ -134,10 +140,10 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 	}
 }
 
-// sortAndExtractGasPrices takes a list of transaction results
+// SortAndExtractGasPrices takes a list of transaction results
 // and returns their corresponding gas prices.
 // The total size of the returned transactions won't exceed the max byte parameter.
-func sortAndExtractGasPrices(txDecoder sdk.TxDecoder, txs []types.Tx, maxBytes int64) ([]float64, error) {
+func SortAndExtractGasPrices(txDecoder sdk.TxDecoder, txs []types.Tx, maxBytes int64) ([]float64, error) {
 	type gasPriceAndSize struct {
 		gasPrice float64
 		size     int64
@@ -173,20 +179,23 @@ func sortAndExtractGasPrices(txDecoder sdk.TxDecoder, txs []types.Tx, maxBytes i
 	totalSize := int64(0)
 	for _, tx := range gasPriceAndSizes {
 		if tx.size+totalSize > maxBytes {
-			break
+			// to also add small transactions in case they can be included in the block.
+			continue
 		}
 		gasPrices = append(gasPrices, tx.gasPrice)
+		totalSize += tx.size
 	}
+	sort.Float64s(gasPrices)
 	return gasPrices, nil
 }
 
 // Median calculates the median value of the provided gas prices.
+// Expects a sorted slice.
 func Median(gasPrices []float64) (float64, error) {
 	n := len(gasPrices)
 	if n == 0 {
 		return 0, errors.New("cannot compute median of an empty slice")
 	}
-	sort.Float64s(gasPrices)
 
 	if n%2 == 1 {
 		return gasPrices[n/2], nil
