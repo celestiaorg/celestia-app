@@ -255,8 +255,8 @@ require (
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16
-	// Replace IBC with celestiaorg fork which includes a fix for https://github.com/cosmos/ibc-go/security/advisories/GHSA-jg6f-48ff-5xrw
-	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.2.3
+	// Replace IBC with celestiaorg fork which includes fixes for security vulnerabilities.
+	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.2.4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.49.1-tm-v0.34.35
