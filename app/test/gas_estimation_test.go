@@ -2,13 +2,14 @@ package app_test
 
 import (
 	"fmt"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/tendermint/tendermint/types"
 	"math/rand"
 	"sort"
 	"sync"
 	"testing"
 	"time"
+
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+	"github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"

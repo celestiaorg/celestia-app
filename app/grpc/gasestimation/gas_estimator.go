@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+
 	tmclient "github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/types"
-	"sort"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
