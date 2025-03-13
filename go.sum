@@ -326,8 +326,8 @@ github.com/celestiaorg/go-square v1.1.1 h1:Cy3p8WVspVcyOqHM8BWFuuYPwMitO1pYGe+Im
 github.com/celestiaorg/go-square v1.1.1/go.mod h1:1EXMErhDrWJM8B8V9hN7dqJ2kUTClfwdqMOmF9yQUa0=
 github.com/celestiaorg/go-square/v2 v2.1.0 h1:ECIvYEeHIWiIJGDCJxQNtzqm5DmnBly7XGhSpLsl+Lw=
 github.com/celestiaorg/go-square/v2 v2.1.0/go.mod h1:n3ztrh8CBjWOD6iWYMo3pPOlQIgzLK9yrnqMPcNo6g8=
-github.com/celestiaorg/ibc-go/v6 v6.2.3 h1:INxacgOrRbPLPQVzbGA4QMDdcSLic6Ff5tf3fye3w/E=
-github.com/celestiaorg/ibc-go/v6 v6.2.3/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
+github.com/celestiaorg/ibc-go/v6 v6.2.4 h1:S9jH7e+faYWF9PgDQAQnHxgm+FeDWTKcOF99Zez40bA=
+github.com/celestiaorg/ibc-go/v6 v6.2.4/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
 github.com/celestiaorg/knuu v0.16.3 h1:ORmcBoSW+67iPKF0yIGKwWMefphk5hvy08KklmCT0aw=
 github.com/celestiaorg/knuu v0.16.3/go.mod h1:nB7IGCR984YKEDW+j5xHPOidYfbO4DoZI1rDKijvF5E=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
