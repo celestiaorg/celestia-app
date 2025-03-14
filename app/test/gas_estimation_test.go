@@ -148,7 +148,7 @@ func TestEstimateGasPrice(t *testing.T) {
 	}
 	sort.Float64s(gasPrices)
 
-	medianGasPrices, err := gasestimation.Median(gasPrices)
+	medianGasPrice, err := gasestimation.Median(gasPrices)
 	require.NoError(t, err)
 	bottomMedian, err := gasestimation.Median(gasPrices[:len(gasPrices)*10/100])
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestEstimateGasPrice(t *testing.T) {
 		{
 			name:             "NONE -> same as MEDIUM (median)",
 			priority:         gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED,
-			expectedGasPrice: medianGasPrices,
+			expectedGasPrice: medianGasPrice,
 		},
 		{
 			name:             "LOW -> bottom 10% median",
@@ -173,7 +173,7 @@ func TestEstimateGasPrice(t *testing.T) {
 		{
 			name:             "MEDIUM -> median",
 			priority:         gasestimation.TxPriority_TX_PRIORITY_MEDIUM,
-			expectedGasPrice: medianGasPrices,
+			expectedGasPrice: medianGasPrice,
 		},
 		{
 			name:             "HIGH -> top 10% median",
