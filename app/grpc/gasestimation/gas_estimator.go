@@ -149,7 +149,7 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 
 // SortAndExtractGasPrices takes a list of transaction results
 // and returns their corresponding gas prices.
-// The total size of the returned transactions won't exceed the max byte parameter.
+// The total size of the returned transactions won't exceed the maxBytes parameter.
 func SortAndExtractGasPrices(txDecoder sdk.TxDecoder, txs []types.Tx, maxBytes int64) ([]float64, error) {
 	type gasPriceAndSize struct {
 		gasPrice float64
