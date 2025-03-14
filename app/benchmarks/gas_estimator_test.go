@@ -4,6 +4,8 @@ package benchmarks_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
@@ -21,7 +23,6 @@ import (
 	"github.com/tendermint/tendermint/rpc/client"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
-	"testing"
 )
 
 func BenchmarkGasPriceEstimation(b *testing.B) {

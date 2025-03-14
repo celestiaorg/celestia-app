@@ -2,10 +2,11 @@ package app
 
 import (
 	"fmt"
-	"github.com/celestiaorg/go-square/v2/share"
 	"io"
 	"slices"
 	"time"
+
+	"github.com/celestiaorg/go-square/v2/share"
 
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
 
