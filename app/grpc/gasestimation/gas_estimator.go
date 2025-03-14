@@ -90,6 +90,9 @@ func (s *gasEstimatorServer) EstimateGasPriceAndUsage(ctx context.Context, reque
 
 // gasPriceEstimationThreshold the threshold of mempool transactions to
 // estimate the gas price.
+// If the returned transactions from the mempool can't fill more than 70% of
+// the max block, the node min gas price is returned.
+// Otherwise, the gas is estimated following the provided priority.
 var gasPriceEstimationThreshold = 0.70
 
 // estimateGasPrice takes a transaction priority and estimates the gas price based
