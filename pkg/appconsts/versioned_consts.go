@@ -11,6 +11,9 @@ import (
 
 const (
 	LatestVersion = v3.Version
+	// numBlocksPerDay is the number of blocks in a day assuming a block
+	// interval of 6 seconds. Equivalent to 14,400 blocks.
+	numBlocksPerDay = int64(24 * 60 * 60 / 6)
 )
 
 // SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -95,6 +98,10 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 		}
 		return v2.UpgradeHeightDelay
 	default:
+		// ONLY ON ARABICA: decrease the delay to 1 day.
+		if chainID == ArabicaChainID {
+			return numBlocksPerDay
+		}
 		return v3.UpgradeHeightDelay
 	}
 }
