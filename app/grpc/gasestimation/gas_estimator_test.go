@@ -45,9 +45,7 @@ func TestMedian(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
-			if got != tt.want {
-				t.Errorf("mean(%v) = %v, want %v", tt.gasPrices, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
