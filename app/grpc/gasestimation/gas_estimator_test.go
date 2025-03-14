@@ -52,7 +52,7 @@ func TestMedian(t *testing.T) {
 
 func TestEstimateGasPriceForTransactions(t *testing.T) {
 	gasPrices := []float64{10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110}
-	medianGasPrices, err := Median(gasPrices)
+	medianGasPrice, err := Median(gasPrices)
 	require.NoError(t, err)
 	bottomMedian, err := Median(gasPrices[:len(gasPrices)*10/100])
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 		{
 			name:     "NONE -> same as MEDIUM (median)",
 			priority: TxPriority_TX_PRIORITY_UNSPECIFIED,
-			want:     medianGasPrices,
+			want:     medianGasPrice,
 		},
 		{
 			name:     "LOW -> bottom 10% median",
@@ -78,7 +78,7 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 		{
 			name:     "MEDIUM -> median",
 			priority: TxPriority_TX_PRIORITY_MEDIUM,
-			want:     medianGasPrices,
+			want:     medianGasPrice,
 		},
 		{
 			name:     "HIGH -> top 10% median",
