@@ -19,27 +19,33 @@ import (
 // baseAppSimulateFn is the signature of the Baseapp#Simulate function.
 type baseAppSimulateFn func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error)
 
+// govMaxSquareBytesFn is the signature of a function that returns the
+// current max square size in bytes.
+type govMaxSquareBytesFn func() (uint64, error)
+
 // RegisterGasEstimationService registers the gas estimation service on the gRPC router.
-func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, simulateFn baseAppSimulateFn) {
+func RegisterGasEstimationService(qrt gogogrpc.Server, clientCtx client.Context, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) {
 	RegisterGasEstimatorServer(
 		qrt,
-		NewGasEstimatorServer(clientCtx.Client, txDecoder, simulateFn),
+		NewGasEstimatorServer(clientCtx.Client, txDecoder, govMaxSquareBytesFn, simulateFn),
 	)
 }
 
 var _ GasEstimatorServer = &gasEstimatorServer{}
 
 type gasEstimatorServer struct {
-	mempoolClient tmclient.MempoolClient
-	simulateFn    baseAppSimulateFn
-	txDecoder     sdk.TxDecoder
+	mempoolClient       tmclient.MempoolClient
+	simulateFn          baseAppSimulateFn
+	txDecoder           sdk.TxDecoder
+	govMaxSquareBytesFn govMaxSquareBytesFn
 }
 
-func NewGasEstimatorServer(mempoolClient tmclient.MempoolClient, txDecoder sdk.TxDecoder, simulateFn baseAppSimulateFn) GasEstimatorServer {
+func NewGasEstimatorServer(mempoolClient tmclient.MempoolClient, txDecoder sdk.TxDecoder, govMaxSquareBytesFn govMaxSquareBytesFn, simulateFn baseAppSimulateFn) GasEstimatorServer {
 	return &gasEstimatorServer{
-		mempoolClient: mempoolClient,
-		simulateFn:    simulateFn,
-		txDecoder:     txDecoder,
+		mempoolClient:       mempoolClient,
+		simulateFn:          simulateFn,
+		txDecoder:           txDecoder,
+		govMaxSquareBytesFn: govMaxSquareBytesFn,
 	}
 }
 
@@ -106,7 +112,11 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	if err != nil {
 		return 0, err
 	}
-	if txsResp.TotalBytes < int64(appconsts.DefaultMaxBytes*gasPriceEstimationThreshold) {
+	govMaxSquareBytes, err := s.govMaxSquareBytesFn()
+	if err != nil {
+		return 0, err
+	}
+	if float64(txsResp.TotalBytes) < float64(govMaxSquareBytes)*gasPriceEstimationThreshold {
 		return appconsts.DefaultMinGasPrice, nil
 	}
 	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))

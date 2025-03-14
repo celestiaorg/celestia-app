@@ -32,6 +32,9 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 	signer, err := user.NewSigner(kr, encfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(b, err)
 
+	// 8 mb block
+	blockSizeInBytes := 128 * 128 * share.ContinuationCompactShareContentSize
+
 	benchmarks := []struct {
 		name                 string
 		pfbSize              int
@@ -40,22 +43,22 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 		{
 			name:                 "10kb PFBs filling 120% of a block",
 			pfbSize:              10_000,
-			numberOfTransactions: (appconsts.DefaultMaxBytes * 120 / 100) / 10_000,
+			numberOfTransactions: (blockSizeInBytes * 120 / 100) / 10_000,
 		},
 		{
 			name:                 "100kb PFBs filling 120% of a block",
 			pfbSize:              100_000,
-			numberOfTransactions: (appconsts.DefaultMaxBytes * 120 / 100) / 100_000,
+			numberOfTransactions: (blockSizeInBytes * 120 / 100) / 100_000,
 		},
 		{
 			name:                 "1mb PFBs filling 120% of a block",
 			pfbSize:              1_000_000,
-			numberOfTransactions: (appconsts.DefaultMaxBytes * 120 / 100) / 1_000_000,
+			numberOfTransactions: (blockSizeInBytes * 120 / 100) / 1_000_000,
 		},
 		{
 			name:                 "2mb PFBs filling 120% of a block",
 			pfbSize:              2_000_000,
-			numberOfTransactions: (appconsts.DefaultMaxBytes * 120 / 100) / 2_000_000,
+			numberOfTransactions: (blockSizeInBytes * 120 / 100) / 2_000_000,
 		},
 	}
 
