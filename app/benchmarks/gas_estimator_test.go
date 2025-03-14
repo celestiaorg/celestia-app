@@ -103,13 +103,11 @@ func (b benchMempool) UnconfirmedTxs(ctx context.Context, limit *int) (*rpctypes
 }
 
 func (b benchMempool) NumUnconfirmedTxs(ctx context.Context) (*rpctypes.ResultUnconfirmedTxs, error) {
-	//TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func (b benchMempool) CheckTx(ctx context.Context, tx types.Tx) (*rpctypes.ResultCheckTx, error) {
-	//TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
