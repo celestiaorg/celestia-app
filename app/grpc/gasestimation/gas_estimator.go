@@ -122,7 +122,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 // - High Priority: The gas price is the median price of the top 10% of transactions’ gas prices in the mempool.
 // - Medium Priority: The gas price is the median price of the all gas prices in the mempool.
 // - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
-// - Unspecified Priority (default): This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
+// - Unspecified Priority (default): This is equivalent to the Medium priority, using the median price of all gas prices in the mempool.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	if len(gasPrices) == 0 {
