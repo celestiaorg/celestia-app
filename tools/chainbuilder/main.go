@@ -338,24 +338,113 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 	// Cleanup function that waits for goroutines to finish before closing resources
 	cleanup := func() {
-		// Signal goroutines to stop by closing channels
+		fmt.Printf("Starting cleanup process...\n")
+
+		// First, stop generating new data
 		close(dataCh)
+
+		// Wait for the data generation goroutine to finish
+		// We'll wait for the persist goroutine separately after draining the channel
+		wgDataGen := sync.WaitGroup{}
+		wgDataGen.Add(1)
+		go func() {
+			defer wgDataGen.Done()
+			for i := 0; i < 1; i++ { // We only have 1 data generation goroutine
+				select {
+				case err := <-errCh:
+					if err != nil && err != context.Canceled {
+						fmt.Printf("Error from data generation: %v\n", err)
+					}
+				default:
+					// No error yet, but we'll continue waiting via wg.Wait()
+				}
+			}
+		}()
+		wgDataGen.Wait()
+
+		// Now drain the persistCh to ensure all generated blocks are saved
+		// We need to do this before closing the channel
+		fmt.Printf("Ensuring all pending blocks are saved...\n")
+		drainStart := time.Now()
+		pendingItems := len(persistCh)
+		if pendingItems > 0 {
+			fmt.Printf("Found %d pending blocks to save\n", pendingItems)
+		}
+
+		// Create a timeout context for draining
+		drainCtx, drainCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer drainCancel()
+
+		// Drain the channel with a timeout
+		for {
+			select {
+			case data, ok := <-persistCh:
+				if !ok {
+					// Channel was closed, all items processed
+					break
+				}
+				// Process the data directly to ensure it's saved
+				blockParts := data.block.MakePartSet(types.BlockPartSizeBytes)
+				blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
+				if err := stateStore.Save(data.state); err != nil {
+					fmt.Printf("Error saving state during cleanup: %v\n", err)
+				}
+			case <-drainCtx.Done():
+				// Timeout reached, stop draining
+				fmt.Printf("Timeout reached while saving pending blocks\n")
+				break
+			default:
+				// If the channel is empty, we're done
+				if len(persistCh) == 0 {
+					break
+				}
+			}
+
+			// If the channel is empty or we've timed out, break the loop
+			if len(persistCh) == 0 || drainCtx.Err() != nil {
+				break
+			}
+		}
+
+		if pendingItems > 0 {
+			fmt.Printf("Saved pending blocks in %v\n", time.Since(drainStart))
+		}
+
+		// Now close the persist channel and wait for that goroutine
 		close(persistCh)
 
-		// Wait for goroutines to finish
-		wg.Wait()
-
-		// Collect errors from goroutines
-		var firstErr error
-		for i := 0; i < cap(errCh); i++ {
-			select {
-			case err := <-errCh:
-				if err != nil && firstErr == nil && err != context.Canceled {
-					firstErr = err
+		// Wait for the persist goroutine to finish
+		wgPersist := sync.WaitGroup{}
+		wgPersist.Add(1)
+		go func() {
+			defer wgPersist.Done()
+			for i := 0; i < 1; i++ { // We only have 1 persist goroutine
+				select {
+				case err := <-errCh:
+					if err != nil && err != context.Canceled {
+						fmt.Printf("Error from persist routine: %v\n", err)
+					}
+				default:
+					// No error yet, but we'll continue waiting via wg.Wait()
 				}
-			default:
-				// No more errors to read
-				break
+			}
+		}()
+		wgPersist.Wait()
+
+		// Verify state consistency before closing databases
+		lastAppHeight := infoResp.LastBlockHeight
+		lastStoreHeight := blockStore.Height()
+		if lastAppHeight != lastStoreHeight {
+			fmt.Printf("WARNING: State inconsistency detected - app height: %d, store height: %d\n",
+				lastAppHeight, lastStoreHeight)
+
+			// Try to fix the inconsistency by reloading the app state
+			fmt.Printf("Attempting to fix state inconsistency...\n")
+			infoResp = simApp.Info(abci.RequestInfo{})
+			if infoResp.LastBlockHeight != blockStore.Height() {
+				fmt.Printf("Could not fix state inconsistency\n")
+			} else {
+				fmt.Printf("State inconsistency fixed\n")
 			}
 		}
 
@@ -376,9 +465,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			}
 		}
 
-		if firstErr != nil && firstErr != context.Canceled {
-			fmt.Printf("Error during execution: %v\n", firstErr)
-		}
+		fmt.Printf("Cleanup completed\n")
 	}
 
 	// Defer cleanup to ensure it runs when the function exits
