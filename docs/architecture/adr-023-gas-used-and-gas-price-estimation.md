@@ -3,6 +3,7 @@
 ## Changelog
 
 - 2025/01/17: Initial draft (@rach-id)
+- 2025/03/13: Improve the estimation mechanism and make it rely on the mempool transactions (@rach-id)
 
 ## Status
 
@@ -38,54 +39,36 @@ Clients using this endpoint are responsible for accounting for any necessary mul
 
 ### Gas price estimation
 
-There are multiple ways to have a gas price estimation for a priority level. For a first implementation, we will use the following:
+There are multiple ways to have a gas price estimation for a priority level. This implementation will use the following:
 
-- High Priority: The gas price is the price at the start of the top 10% of transactions’ gas prices from the last 5 blocks.
-- Medium Priority: The gas price is the median of all gas prices from the last 5 blocks.
-- Low Priority: The gas price is the value at the end of the lowest 10% of gas prices from the last 5 blocks.
-- None Priority: This is equivalent to the Medium priority, using the median of all gas prices from the last 5 blocks.
+- High Priority: The gas price is the median price of the top 10% of transactions’ gas prices in the mempool.
+- Medium Priority: The gas price is the median price of the all gas prices in the mempool.
+- Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
+- None Priority: This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
 
-The calculation of the top 10% and bottom 10% will be done using the [standard deviation and z-scores](https://en.wikipedia.org/wiki/Standard_normal_table#Cumulative_(less_than_Z)).
-A z-score or a standard score represents the number of standard deviations a data point is from the mean in a standard normal distribution.
+If the mempool has more transactions that it can fit in the next block, the estimation will be based on the top gas prices that can fit in a full block. Otherwise, if the mempool transactions can't fill more than 70% of the max block size, the minimum gas price will be returned.
 
-Provided the z-scores table, we can see that:
-
-- High priority: corresponds to `mean + 1.28 * standard_deviation` value.
-- Medium priority: is the `mean` value.
-- Low priority: corresponds to `mean - 1.28 * standard_deviation` value.
-- None priority: is the `mean` value.
-
-Note: if the last 5 blocks are all empty, we will return the node's min gas price.
-
-The following is a basic implementation of the standard deviation that we can use:
+The following is a basic implementation of the median that we can use:
 
 ```go
-// mean calculates the mean value of the provided gas prices.
-func mean(gasPrices []float64) float64 {
-    if len(gasPrices) == 0 {
-		return 0
-	}
-	sum := 0.0
-	for _, gasPrice := range gasPrices {
-		sum += gasPrice
-	}
-	return sum / float64(len(gasPrices))
-}
+// Median calculates the median value of the provided gas prices.
+// Expects a sorted slice.
+func Median(gasPrices []float64) (float64, error) {
+    n := len(gasPrices)
+    if n == 0 {
+        return 0, errors.New("cannot compute median of an empty slice")
+    }
 
-// standardDeviation calculates the standard deviation of the provided gas prices.
-func standardDeviation(gasPrices []float64) float64 {
-    if len(gasPrices) < 2 {
-		return 0
-	}
-	meanGasPrice := mean(gasPrices)
-	var variance float64
-	for _, gasPrice := range gasPrices {
-		variance += math.Pow(gasPrice-meanGasPrice, 2)
-	}
-	variance /= float64(len(gasPrices))
-	return math.Sqrt(variance)
+    if n%2 == 1 {
+        return gasPrices[n/2], nil
+    }
+    mid1 := gasPrices[n/2-1]
+    mid2 := gasPrices[n/2]
+    return (mid1 + mid2) / 2.0, nil
 }
 ```
+
+For the top/bottom 10%, they will be extracted after sorting the list of gas prices incrementally, and slicing `gasPrices[:len(gasPrices)*10/100]` and `gasPrices[len(gasPrices)*90/100:]` respectively.
 
 ## Alternative Approaches
 
@@ -110,4 +93,3 @@ None.
 ## References
 
 - [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md).
-- [standard deviation and z-scores](https://en.wikipedia.org/wiki/Standard_normal_table#Cumulative_(less_than_Z)).
