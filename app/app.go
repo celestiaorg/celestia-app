@@ -766,7 +766,7 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 		return 0, err
 	}
 	maxSquareSize := app.BlobKeeper.GovMaxSquareSize(ctx)
-	return uint64(maxSquareSize * maxSquareSize * share.ContinuationSparseShareContentSize), nil
+	return maxSquareSize * maxSquareSize * share.ContinuationSparseShareContentSize, nil
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
