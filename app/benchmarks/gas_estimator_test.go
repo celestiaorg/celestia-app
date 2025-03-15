@@ -34,7 +34,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 	require.NoError(b, err)
 
 	// 8 mb block
-	blockSizeInBytes := 128 * 128 * share.ContinuationCompactShareContentSize
+	blockSizeInBytes := 128 * 128 * share.ContinuationSparseShareContentSize
 
 	benchmarks := []struct {
 		name                 string
@@ -70,6 +70,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 			gasEstimationServer := gasestimation.NewGasEstimatorServer(
 				mempool,
 				encfg.TxConfig.TxDecoder(),
+				func() (uint64, error) { return 128 * 128 * share.ContinuationSparseShareContentSize, nil },
 				func(txBytes []byte) (sdk.GasInfo, *sdk.Result, error) { return sdk.GasInfo{}, nil, nil },
 			)
 			for i := 0; i < b.N; i++ {
