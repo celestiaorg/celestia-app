@@ -765,7 +765,7 @@ func (app *App) getGovMaxSquareBytes() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	maxSquareSize := app.BlobKeeper.GasPerBlobByte(ctx)
+	maxSquareSize := app.BlobKeeper.GovMaxSquareSize(ctx)
 	return uint64(maxSquareSize * maxSquareSize * share.ContinuationSparseShareContentSize), nil
 }
 
