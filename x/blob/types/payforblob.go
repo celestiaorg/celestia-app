@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	fmt "fmt"
-
 	"slices"
 
 	"cosmossdk.io/errors"
