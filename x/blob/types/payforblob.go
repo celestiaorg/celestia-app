@@ -4,6 +4,8 @@ import (
 	"bytes"
 	fmt "fmt"
 
+	"slices"
+
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
@@ -12,7 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"golang.org/x/exp/slices"
 )
 
 const (
