@@ -19,6 +19,7 @@ linters-settings:
     # Ban the use of naked returns because they reduce code readability.
     max-func-lines: 0 # override the default: 30
   revive:
+    confidence: 0.8
     ignore-generated-header: true
     severity: warning
     rules:
