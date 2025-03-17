@@ -34,7 +34,7 @@ func BenchmarkGasPriceEstimation(b *testing.B) {
 	require.NoError(b, err)
 
 	// 8 mb block
-	blockSizeInBytes := 128 * 128 * share.ContinuationSparseShareContentSize
+	blockSizeInBytes := 8 * mebibyte
 
 	benchmarks := []struct {
 		name                 string
