@@ -106,7 +106,7 @@ var gasPriceEstimationThreshold = 0.70
 // If the mempool transactions can't fill more than 70% of the block, the min gas
 // price is returned.
 func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPriority) (float64, error) {
-	// using -1 to return all the transactions.
+	// Use -1 to query all the unconfirmed transactions.
 	limit := -1
 	txsResp, err := s.mempoolClient.UnconfirmedTxs(ctx, &limit)
 	if err != nil {
