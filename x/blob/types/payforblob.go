@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	fmt "fmt"
+	"slices"
 
 	"cosmossdk.io/errors"
 
@@ -12,7 +13,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"golang.org/x/exp/slices"
 )
 
 const (
