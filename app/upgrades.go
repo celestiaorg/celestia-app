@@ -6,6 +6,8 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -109,6 +111,8 @@ func (app App) RegisterUpgradeHandlers() {
 			Added: []string{
 				circuittypes.StoreKey,
 				consensustypes.StoreKey,
+				hyperlanetypes.ModuleName,
+				warptypes.ModuleName,
 			},
 			Deleted: []string{
 				crisistypes.StoreKey,
