@@ -380,8 +380,23 @@ func New(
 	ibcRouter.AddRoute(icahosttypes.SubModuleName, icahost.NewIBCModule(app.ICAHostKeeper)) // Add ICA route
 	app.IBCKeeper.SetRouter(ibcRouter)
 
-	app.HyperlaneKeeper = hyperlanekeeper.NewKeeper(encodingConfig.Codec, encodingConfig.AddressCodec, runtime.NewKVStoreService(keys[hyperlanetypes.ModuleName]), govModuleAddr, app.BankKeeper)
-	app.WarpKeeper = warpkeeper.NewKeeper(encodingConfig.Codec, encodingConfig.AddressCodec, runtime.NewKVStoreService(keys[warptypes.ModuleName]), govModuleAddr, app.BankKeeper, &app.HyperlaneKeeper, nil)
+	app.HyperlaneKeeper = hyperlanekeeper.NewKeeper(
+		encodingConfig.Codec,
+		encodingConfig.AddressCodec,
+		runtime.NewKVStoreService(keys[hyperlanetypes.ModuleName]),
+		govModuleAddr,
+		app.BankKeeper,
+	)
+
+	app.WarpKeeper = warpkeeper.NewKeeper(
+		encodingConfig.Codec,
+		encodingConfig.AddressCodec,
+		runtime.NewKVStoreService(keys[warptypes.ModuleName]),
+		govModuleAddr,
+		app.BankKeeper,
+		&app.HyperlaneKeeper,
+		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
+	)
 
 	/****  Module Options ****/
 
