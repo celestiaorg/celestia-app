@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/go-square/v2/share"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	version "github.com/tendermint/tendermint/proto/tendermint/version"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
 // OutOfOrderPrepareProposal fulfills the celestia-core version of the ABCI
