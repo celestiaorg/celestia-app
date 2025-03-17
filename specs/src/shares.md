@@ -8,7 +8,7 @@ All available data in a Celestia [block](./data_structures.md#block) is split in
 
 ## Terms
 
-- **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
+- **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data is a sequence of opaque bytes included in the block but do not impact Celestia's state.
 - **Share**: A fixed-size data chunk that is associated with exactly one namespace.
 - **Share sequence**: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a [blob](../../x/blob/README.md) is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the [`TRANSACTION_NAMESPACE`](./namespace.md#reserved-namespaces) are contained in one share sequence. All transactions in the [`PAY_FOR_BLOB_NAMESPACE`](./namespace.md#reserved-namespaces) are contained in one share sequence.
 
@@ -19,13 +19,13 @@ User submitted transactions are split into shares (see [share splitting](#share-
 [Padding](#padding) shares are added to the `k * k` matrix to ensure:
 
 1. Blob sequences start on an index that conforms to [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#primary-reserved-padding-share))
-1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))
+2. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))
 
 ## Share Format
 
 ### Share Version
 
-The share version is a 7-bit big-endian unsigned integer that is used to indicate the version of the [share format](#share-format). A new share version MUST be introduced if the share format changes in a way that is not backwards compatible. There are two share versions [share version 0](#share-version-0) and [share version 1](#share-version-1).
+The share version is a 7-bit MSB-first unsigned integer that is used to indicate the version of the [share format](#share-format). A new share version MUST be introduced if the share format changes in a way that is not backwards compatible. There are two share versions [share version 0](#share-version-0) and [share version 1](#share-version-1).
 
 ### Share Version 0
 
