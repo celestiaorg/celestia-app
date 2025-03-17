@@ -10,7 +10,7 @@ const (
 	GasPerBlobByte       uint32 = 8
 	MaxTxSize            int    = 2097152 // 2 MiB in bytes
 	TimeoutPropose              = time.Millisecond * 8000
-	TimeoutCommit               = time.Millisecond * 500
+	TimeoutCommit               = time.Millisecond * 1500
 	// UpgradeHeightDelay is the number of blocks after a quorum has been
 	// reached that the chain should upgrade to the new version. Assuming a block
 	// interval of 6 seconds, this is 7 days.
