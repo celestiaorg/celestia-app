@@ -48,7 +48,7 @@ With the proposed non-interactive default rules, message 2 must start at an inde
 - What is the worst constructible block with the most amount of padding with old and new non-interactive defaults?
 - What is the quantified padding and proof size cost?
 
-## 1. Given square size independent commitments, why does a message in a larger square size result in an O(log(n)) message inclusion proof size
+## 1. Given square size independent commitments, why does a message in a larger square size result in an O(log(n)) message inclusion proof size?
 
 If you use the current non-interactive default rules then the message begins at a location aligned with the largest power of 2 that is not larger than the message length or k. Because the subtree roots are aligned you can skip some subtree roots and calculate their parents.
 In the example below instead of proving H1, H2, H3, and H4 to the DataRoot you can prove H10. **H10 is part of the commitment generation and part of the Merkle tree to the DataRoot.** That is why you can use it for more efficient proofs. In smaller square sizes, you cannot do this, because H10 does not exist. The nodes in **red** are the subtree nodes that you need to provide for the message inclusion proof. The nodes in **blue** are the additional nodes for the Merkle proof.
@@ -60,7 +60,7 @@ The commitment is still the same but we need to use the bottom subtree roots for
 
 ![Shifted Message](./assets/adr009/new-ni-rules-message-shift.png)
 
-## 2. Assuming message inclusion proof sizes change from O(log(n)) to O(sqrt(n)), what is the worst-case constructible message
+## 2. Assuming message inclusion proof sizes change from O(log(n)) to O(sqrt(n)), what is the worst-case constructible message?
 
 Given a square size k, the biggest message that you can construct that is affected by the proposed non-interactive default rules has a size (k/2)². If you construct a message that is bigger than (k/2)² the `minSquareSize` will be k. If the minSquareSize is k in a square of size k then the current non-interactive default rules are equivalent to the proposed non-interactive default rules, because the message starts always at the beginning of a row. In other words, if you have k² shares in a message the worst constructible message is a quarter of that k²/4, because that is the size of the next smaller square.
 
@@ -103,7 +103,7 @@ The worst case constructible message in a square to have the biggest impact from
 
  Reminder: We did this calculation because we need O(log(n)) rows.
 
-## 3. Why can we not use the same trick that we used in Question 1 in a single row for more efficient proofs over the row roots
+## 3. Why can we not use the same trick that we used in Question 1 in a single row for more efficient proofs over the row roots?
 
 The node needs to be part of the commitment generation **and** part of the Merkle tree to the DataRoot for the trick to work. The diagram shows a Celestia square that is erasure coded and those parity shares are marked in green.
 H12 is part of the commitment generation and part of the Merkle tree to the DataRoot.
@@ -112,7 +112,7 @@ As H12 only exists in the bigger square the more efficient proofs only work in t
 
 ![Row root might not be subtree root](./assets/adr009/rowroots-might-not-be-subtreeroot.png)
 
-## 4. How big is the proof size for this message
+## 4. How big is the proof size for this message?
 
 We differentiate the size of the proof between the current non-interactive default rules and the proposed non-interactive default rules.
 For completion, we also included the scenario of k/4 to compare the proof size before and after even though the % gain is not that high.
@@ -152,7 +152,7 @@ Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parit
 Proof size = (**k/2** + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size
 Proof size = 48 \* (3k/4 + log(k)) + 64 \*log(k)
 
-## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules
+## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
 
 For the current non-interactive default rules, when you have a square size of k the worst padding is to fill the square with messages of size k+1
 Padding = (k/2) \* (k -1)
@@ -163,7 +163,7 @@ Padding = 3 \* (k-1) \* k/8
 
 ![Worst Case Padding](./assets/adr009/worst-case-padding.png)
 
-## What are the quantified padding and proof size costs
+## What are the quantified padding and proof size costs?
 
 ### Proof Size for Super-Light-Nodes
 

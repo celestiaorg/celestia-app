@@ -89,7 +89,7 @@ func standardDeviation(gasPrices []float64) float64 {
 
 ## Alternative Approaches
 
-There are multiple ways to estimate the gas price. However, a first default implementation can be as basic as described above.
+There are multiple ways to estimate the gas price. However, a first default implementation can be as basic as described above. 
 
 Better estimations can be done subsequently.
 

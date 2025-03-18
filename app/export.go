@@ -67,8 +67,6 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		}
 		allowedAddrsMap[addr] = true
 	}
-
-
 	/* Handle fee distribution state. */
 
 	// withdraw all validator commission
