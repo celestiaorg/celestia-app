@@ -10,6 +10,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"github.com/celestiaorg/celestia-app/v4/app/ante"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // GovParamFilters returns the params that require a hardfork to change, and
@@ -45,13 +47,12 @@ func stakingParamFilter(msg sdk.Msg) error {
 		return errors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", (*stakingtypes.MsgUpdateParams)(nil), msg)
 	}
 
-	defaultParams := stakingtypes.DefaultParams()
-	if msgUpdateParams.Params.BondDenom != defaultParams.BondDenom {
-		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid bond denom: expected %s, got %s", defaultParams.BondDenom, msgUpdateParams.Params.BondDenom)
+	if msgUpdateParams.Params.BondDenom != params.BondDenom {
+		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid bond denom: expected %s, got %s", params.BondDenom, msgUpdateParams.Params.BondDenom)
 	}
 
-	if msgUpdateParams.Params.UnbondingTime != defaultParams.UnbondingTime {
-		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid unbonding time: expected %s, got %s", defaultParams.UnbondingTime, msgUpdateParams.Params.UnbondingTime)
+	if msgUpdateParams.Params.UnbondingTime != appconsts.DefaultUnbondingTime {
+		return errors.Wrapf(sdkerrors.ErrUnauthorized, "invalid unbonding time: expected %s, got %s", appconsts.DefaultUnbondingTime, msgUpdateParams.Params.UnbondingTime)
 	}
 
 	return nil

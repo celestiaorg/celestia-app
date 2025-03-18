@@ -8,10 +8,12 @@ import (
 	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -20,7 +22,6 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -193,7 +194,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create community spend governance proposal",
+			name: "create community pool spend governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				// Note: this test depends on at least one coin being present
@@ -202,25 +203,22 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				// pool, consider expanding the block interval or waiting for
 				// more blocks to be produced prior to executing this test case.
 				coins := sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1)))
-
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := govv1.NewMsgSubmitProposal(
-					[]sdk.Msg{
-						disttypes.NewMsgFundCommunityPool(
-							coins,
-							authtypes.NewModuleAddress("gov").String(),
-						),
-					},
+				msgCommunityPoolSpend := &disttypes.MsgCommunityPoolSpend{
+					Authority: authtypes.NewModuleAddress("gov").String(),
+					Amount:    coins,
+					Recipient: addr.String(),
+				}
+
+				msgSubmitProposal, err := govv1.NewMsgSubmitProposal(
+					[]sdk.Msg{msgCommunityPoolSpend},
 					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
 					addr.String(),
-					"metadata",
-					"title",
-					"summary",
-					false,
+					"metadata", "title", "summary", false,
 				)
 				require.NoError(t, err)
 
-				return []sdk.Msg{msg}, account
+				return []sdk.Msg{msgSubmitProposal}, account
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
@@ -228,17 +226,21 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create legacy text governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				content, ok := govv1beta1.ContentFromProposalType("title", "description", "text")
-				require.True(t, ok)
+				content := &govv1beta1.TextProposal{Title: "title", Description: "description"}
+				contentAny, err := codectypes.NewAnyWithValue(content)
+				require.NoError(t, err)
+
+				msgExecLegacyContent := govv1.NewMsgExecLegacyContent(contentAny, authtypes.NewModuleAddress("gov").String())
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := govv1beta1.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
-					addr,
+				msgSubmitProposal, err := govv1.NewMsgSubmitProposal(
+					[]sdk.Msg{msgExecLegacyContent},
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
+					addr.String(),
+					"metadata", "title", "summary", false,
 				)
 				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
+
+				return []sdk.Msg{msgSubmitProposal}, account
 			},
 			// plain text proposals have been removed, so we expect an error. "No
 			// handler exists for proposal type"
@@ -263,44 +265,59 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
-		// TODO: paramfilter module is removed, should be replaced by ante handler
-		// {
-		// 	name: "create param change proposal for a blocked parameter",
-		// 	msgFunc: func() (msgs []sdk.Msg, signer string) {
-		// 		account := s.unusedAccount()
-		// 		change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
-		// 		content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
-		// 		addr := testfactory.GetAddress(s.cctx.Keyring, account)
-		// 		msg, err := oldgov.NewMsgSubmitProposal(
-		// 			content,
-		// 			sdk.NewCoins(
-		// 				sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
-		// 			addr,
-		// 		)
-		// 		require.NoError(t, err)
-		// 		return []sdk.Msg{msg}, account
-		// 	},
-		// 	// this parameter is protected by the paramfilter module, and we
-		// 	// should expect an error. Due to how errors are bubbled up, we get
-		// 	// this code despite wrapping the expected error,
-		// 	// paramfilter.ErrBlockedParameter
-		// 	expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
-		// },
 		{
-			name: "create param proposal change for a modifiable parameter",
+			name: "create param update proposal for a blocked parameter",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
-				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+				stakingQueryClient := stakingtypes.NewQueryClient(s.cctx.GRPCClient)
+				stakingParamsResp, err := stakingQueryClient.Params(s.cctx.GoContext(), &stakingtypes.QueryParamsRequest{})
+				require.NoError(t, err)
+
+				stakingParamsResp.Params.BondDenom = "stake"
+				msgUpdateParams := &stakingtypes.MsgUpdateParams{
+					Authority: authtypes.NewModuleAddress("gov").String(),
+					Params:    stakingParamsResp.Params,
+				}
+
 				addr := testfactory.GetAddress(s.cctx.Keyring, account)
-				msg, err := govv1beta1.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
-					addr,
+				msgSubmitProposal, err := govv1.NewMsgSubmitProposal(
+					[]sdk.Msg{msgUpdateParams},
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
+					addr.String(),
+					"meta", "title", "summary", false,
 				)
 				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
+
+				return []sdk.Msg{msgSubmitProposal}, account
+			},
+			// this parameter is protected by the paramfilter ante handler, and we
+			// should expect an error.
+			expectedCode: sdkerrors.ErrUnauthorized.ABCICode(),
+		},
+		{
+			name: "create param update proposal for a modifiable parameter",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				stakingQueryClient := stakingtypes.NewQueryClient(s.cctx.GRPCClient)
+				stakingParamsResp, err := stakingQueryClient.Params(s.cctx.GoContext(), &stakingtypes.QueryParamsRequest{})
+				require.NoError(t, err)
+
+				stakingParamsResp.Params.MaxValidators = 1
+				msgUpdateParams := &stakingtypes.MsgUpdateParams{
+					Authority: authtypes.NewModuleAddress("gov").String(),
+					Params:    stakingParamsResp.Params,
+				}
+
+				addr := testfactory.GetAddress(s.cctx.Keyring, account)
+				msgSubmitProposal, err := govv1.NewMsgSubmitProposal(
+					[]sdk.Msg{msgUpdateParams},
+					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000000))),
+					addr.String(),
+					"meta", "title", "summary", false,
+				)
+				require.NoError(t, err)
+
+				return []sdk.Msg{msgSubmitProposal}, account
 			},
 			expectedCode: abci.CodeTypeOK,
 		},
@@ -336,11 +353,15 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			if tt.expectedCode != abci.CodeTypeOK {
 				require.Error(t, err)
 				require.Nil(t, res)
-				txHash := err.(*user.ExecutionError).TxHash
-				code := err.(*user.ExecutionError).Code
-				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: txHash})
-				require.NoError(t, err)
-				assert.Equal(t, tt.expectedCode, code, getTxResp.TxResponse.RawLog)
+
+				switch txError := err.(type) {
+				case *user.ExecutionError:
+					txResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: txError.TxHash})
+					require.NoError(t, err)
+					assert.Equal(t, tt.expectedCode, txError.Code, txResp.TxResponse.RawLog)
+				case *user.BroadcastTxError:
+					assert.Equal(t, tt.expectedCode, txError.Code, txError.ErrorLog)
+				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, res)

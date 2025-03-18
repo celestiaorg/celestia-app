@@ -13,6 +13,9 @@ import (
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 // TestGovParamFilters tests the functionality of retrieving governance parameter filters from the app.
@@ -99,7 +102,10 @@ func TestStakingParamFilter(t *testing.T) {
 		{
 			name: "valid case: default params",
 			params: &stakingtypes.MsgUpdateParams{
-				Params: stakingtypes.DefaultParams(),
+				Params: stakingtypes.Params{
+					BondDenom:     params.BondDenom,
+					UnbondingTime: appconsts.DefaultUnbondingTime,
+				},
 			},
 			expectedErr: nil,
 		},
@@ -116,7 +122,7 @@ func TestStakingParamFilter(t *testing.T) {
 			name: "invalid case: invalid unbonding time",
 			params: &stakingtypes.MsgUpdateParams{
 				Params: stakingtypes.Params{
-					BondDenom:     stakingtypes.DefaultParams().BondDenom,
+					BondDenom:     params.BondDenom,
 					UnbondingTime: time.Hour * 48, // Different from default
 				},
 			},
