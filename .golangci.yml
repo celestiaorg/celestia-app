@@ -1,7 +1,6 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
-  # build-tags: bench_abci_methods
 
 linters:
   enable:
