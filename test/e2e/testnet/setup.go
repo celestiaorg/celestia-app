@@ -119,5 +119,25 @@ func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	// transactions simultaneously which is useful for big block tests.
 	srvCfg.GRPC.MaxRecvMsgSize = 128 * MiB
 	srvCfg.GRPC.MaxSendMsgSize = 128 * MiB
+	srvCfg.GRPC.Enable = true
+	srvCfg.GRPC.Address = "0.0.0.0:9090" // explicitly ensure that other containers can access the address.
+
+	if err := validateServerConfigForTestnet(srvCfg); err != nil {
+		return nil, err
+	}
+
 	return srvCfg, srvCfg.ValidateBasic()
+}
+
+// validateServerConfigForTestnet ensures that the server config is configured correctly
+// to ensure nodes are accessible during tests.
+func validateServerConfigForTestnet(srvCfg *serverconfig.Config) error {
+	if !srvCfg.GRPC.Enable {
+		return fmt.Errorf("gRPC must be enabled")
+	}
+
+	if !strings.Contains(srvCfg.GRPC.Address, "0.0.0.0") {
+		return fmt.Errorf("gRPC address must contain '0.0.0.0'")
+	}
+	return nil
 }

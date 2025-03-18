@@ -33,7 +33,7 @@ const (
 	grpcPort       = 9090
 	prometheusPort = 26660
 	tracingPort    = 26661
-	dockerSrcURL   = "ghcr.io/celestiaorg/celestia-app"
+	dockerSrcURL   = "ghcr.io/01builders/celestia-app" // TODO: revert to celestiaorg
 	secp256k1Type  = "secp256k1"
 	ed25519Type    = "ed25519"
 	remoteRootDir  = "/home/celestia/.celestia-app"

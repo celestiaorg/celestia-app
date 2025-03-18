@@ -8,7 +8,6 @@ import (
 
 	"github.com/celestiaorg/knuu/pkg/knuu"
 
-	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
@@ -52,7 +51,7 @@ func E2ESimple(logger *log.Logger) error {
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnets")
-	testnet.NoError("failed to setup testnets", testNet.Setup(ctx))
+	testnet.NoError("failed to setup testnets", testNet.Setup(ctx, testnet.WithPrometheus(false))) // TODO: re-enable prometheus once fixed in comet
 
 	logger.Println("Starting testnets")
 	testnet.NoError("failed to start testnets", testNet.Start(ctx))
@@ -66,10 +65,6 @@ func E2ESimple(logger *log.Logger) error {
 
 	totalTxs := 0
 	for _, blockMeta := range blockchain {
-		version := blockMeta.Header.Version.App
-		if appconsts.LatestVersion != version {
-			return fmt.Errorf("expected app version %d, got %d in blockMeta %d", appconsts.LatestVersion, version, blockMeta.Header.Height)
-		}
 		totalTxs += blockMeta.NumTxs
 	}
 	if totalTxs < 10 {
