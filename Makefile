@@ -53,19 +53,15 @@ mod-verify: mod
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
 
-###############################################################################
-###                                Protobuf                                 ###
-###############################################################################
 BUF_VERSION=v1.50.0
 GOLANG_PROTOBUF_VERSION=1.28.1
 GRPC_GATEWAY_VERSION=1.16.0
 GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
 
-
-#? proto-all: Format, lint and generate Protobuf files
+## proto-all: Format, lint and generate Protobuf files
 proto-all: proto-deps proto-format proto-lint proto-gen
 
-#? proto-deps: Install Protobuf local dependencies
+## proto-deps: Install Protobuf local dependencies
 proto-deps:
 	@echo "Installing proto deps"
 	@go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
@@ -77,24 +73,24 @@ proto-deps:
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
 
-#? proto-gen: Generate Protobuf files
+## proto-gen: Generate Protobuf files.
 proto-gen:
 	@echo "Generating Protobuf files"
 	@sh ./scripts/protocgen.sh
 
-#? proto-format: Format Protobuf files
+## proto-format: Format Protobuf files.
 proto-format:
 	@find ./ -name "*.proto" -exec clang-format -i {} \;
 
-#? proto-lint: Lint Protobuf files
+## proto-lint: Lint Protobuf files.
 proto-lint:
 	@buf lint --error-format=json
 
-#? proto-check-breaking: Check if Protobuf file contains breaking changes
+## proto-check-breaking: Check if Protobuf file contains breaking changes.
 proto-check-breaking:
 	@buf breaking --against $(HTTPS_GIT)#branch=main
 
-#? proto-update-deps: Update Protobuf dependencies
+## proto-update-deps: Update Protobuf dependencies.
 proto-update-deps:
 	@echo "Updating Protobuf dependencies"
 	@cd proto && buf dep update
@@ -359,16 +355,3 @@ mptcp-disable: disable-mptcp
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
 SEND_RECV_RATE ?= 10485760  # 10 MiB
-
-configure-v3:
-	@echo "Using config file at: $(CONFIG_FILE)"
-	@if [ "$$(uname)" = "Darwin" ]; then \
-		sed -i '' "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i '' "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i '' "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-	else \
-		sed -i "s/^recv_rate = .*/recv_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i "s/^send_rate = .*/send_rate = $(SEND_RECV_RATE)/" $(CONFIG_FILE); \
-		sed -i "s/ttl-num-blocks = .*/ttl-num-blocks = 12/" $(CONFIG_FILE); \
-	fi
-.PHONY: configure-v3
