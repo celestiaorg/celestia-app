@@ -26,8 +26,8 @@ func NewParamFilterDecorator(paramFilters map[string]ParamFilter) ParamFilterDec
 }
 
 // AnteHandle implements the AnteHandler interface.
-// It ensures that MsgSubmitProposal has at least one message
-// It ensures params are filtered within messages
+// It ensures that MsgSubmitProposal has at least one message.
+// It ensures params are filtered within messages.
 func (d ParamFilterDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	for _, m := range tx.GetMsgs() {
 		if msgSubmitProp, ok := m.(*govv1.MsgSubmitProposal); ok {
