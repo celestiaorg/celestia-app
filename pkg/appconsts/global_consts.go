@@ -29,7 +29,6 @@ const (
 
 var (
 	// DataCommitmentBlocksLimit is the maximum number of blocks that a data commitment can span
-	// DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
 	// Deprecated: this is no longer used as we're moving towards Blobstream X. However, we're leaving it
 	// here for backwards compatibility purpose until it's removed in the next breaking release.
