@@ -264,8 +264,8 @@ func New(
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[feegrant.StoreKey]), app.AccountKeeper)
 
-	// the circuit keeper is used as a replacement of the gate message keeper
-	// in order to block upgrade msg proposals
+	// the circuit keeper is used as a replacement for the message gate keeper (used in v2 and v3)
+	// in order to block upgrade msg proposals.
 	app.CircuitKeeper = circuitkeeper.NewKeeper(encodingConfig.Codec, runtime.NewKVStoreService(keys[circuittypes.StoreKey]), govModuleAddr, app.AccountKeeper.AddressCodec())
 	app.BaseApp.SetCircuitBreaker(&app.CircuitKeeper)
 
@@ -319,10 +319,6 @@ func New(
 	govRouter := govv1beta1.NewRouter()
 	govRouter.AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper))
 	govConfig := govtypes.DefaultConfig()
-	/*
-		Example of setting gov params:
-		govConfig.MaxMetadataLen = 10000
-	*/
 	app.GovKeeper = govkeeper.NewKeeper(
 		encodingConfig.Codec, runtime.NewKVStoreService(keys[govtypes.StoreKey]), app.AccountKeeper, app.BankKeeper,
 		app.StakingKeeper, app.DistrKeeper, app.MsgServiceRouter(), govConfig, govModuleAddr,
@@ -395,7 +391,7 @@ func New(
 		govModuleAddr,
 		app.BankKeeper,
 		&app.HyperlaneKeeper,
-		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL), int32(warptypes.HYP_TOKEN_TYPE_SYNTHETIC)},
+		[]int32{int32(warptypes.HYP_TOKEN_TYPE_COLLATERAL))},
 	)
 
 	/****  Module Options ****/
