@@ -115,8 +115,10 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	versions := Versions()
 
 	debugCmd := debug.Cmd()
-	debugCmd.AddCommand(NewInPlaceTestnetCmd())
-
+	debugCmd.AddCommand(
+		NewInPlaceTestnetCmd(),
+		AppGenesisToCometGenesisConverterCmd(),
+	)
 	passthroughCmd, _ := nova.NewPassthroughCmd(versions)
 	// TODO: handle the error here. (currently breaking ledger tests as they do a cli exec and the expected binary bytes are not there)
 

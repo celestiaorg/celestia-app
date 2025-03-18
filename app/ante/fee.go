@@ -21,6 +21,11 @@ const (
 // ante.NewDeductFeeDecorator whilst still satisfying the ante.TxFeeChecker type.
 func ValidateTxFeeWrapper(paramKeeper params.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+		if ctx.BlockHeight() == 0 {
+			// genesis block, no need to validate fees
+			return nil, 0, nil
+		}
+
 		return ValidateTxFee(ctx, tx, paramKeeper)
 	}
 }
