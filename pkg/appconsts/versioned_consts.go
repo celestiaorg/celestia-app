@@ -81,12 +81,15 @@ func GetTimeoutCommit(v uint64) time.Duration {
 	}
 }
 
-// UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
-func UpgradeHeightDelay(chainID string, v uint64) int64 {
+// UpgradeHeightDelay returns the delay in blocks after a quorum has been
+// reached that the chain should upgrade to the new version. The version
+// argument should be the current application version, not the version after the
+// upgrade.
+func UpgradeHeightDelay(chainID string, version uint64) int64 {
 	if chainID == TestChainID {
 		return 3
 	}
-	switch v {
+	switch version {
 	case v1.Version:
 		return v1.UpgradeHeightDelay
 	case v2.Version:
@@ -97,11 +100,16 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 			return v3.UpgradeHeightDelay
 		}
 		return v2.UpgradeHeightDelay
-	default:
-		// ONLY ON ARABICA: decrease the delay to 1 day.
-		if chainID == ArabicaChainID {
+	case v3.Version:
+		switch chainID {
+		case ArabicaChainID:
 			return numBlocksPerDay
+		case MochaChainID:
+			return numBlocksPerDay * 2
+		case MainnetChainID:
+			return numBlocksPerDay * 3
 		}
-		return v3.UpgradeHeightDelay
 	}
+	// TODO: this should panic because this should never be invoked for v4+
+	return v3.UpgradeHeightDelay
 }
