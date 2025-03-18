@@ -11,8 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
-// ExtendBlock extends the given block data into a data square for a given app
-// version.
+// ExtendBlock extends the given block data into a data square.
 func ExtendBlock(data coretypes.Data) (*rsmt2d.ExtendedDataSquare, error) {
 	// Construct the data square from the block's transactions
 	dataSquare, err := square.Construct(
