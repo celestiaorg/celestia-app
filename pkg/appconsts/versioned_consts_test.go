@@ -128,19 +128,19 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			name:                       "v3 upgrade delay on arabica",
 			chainID:                    appconsts.ArabicaChainID,
 			version:                    v3.Version,
-			expectedUpgradeHeightDelay: 14_400, // one day of 6 secondb locks
+			expectedUpgradeHeightDelay: 14_400, // one day of 6 second blocks
 		},
 		{
 			name:                       "v3 upgrade delay on mocha",
 			chainID:                    appconsts.MochaChainID,
 			version:                    v3.Version,
-			expectedUpgradeHeightDelay: 28_800, // two days of 6 second locks
+			expectedUpgradeHeightDelay: 28_800, // two days of 6 second blocks
 		},
 		{
 			name:                       "v3 upgrade delay on mainnet",
 			chainID:                    appconsts.MainnetChainID,
 			version:                    v3.Version,
-			expectedUpgradeHeightDelay: 43200,
+			expectedUpgradeHeightDelay: 43200, // three days of 6 second blocks
 		},
 		{
 			name:                       "v4 upgrade delay on arabica",
