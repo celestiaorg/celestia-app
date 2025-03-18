@@ -14,7 +14,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blobstream/types";
 service Query {
   // Params queries the current parameters for the blobstream module
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
-    option (google.api.http) = { get: "/qgb/v1/params" };
+    option (google.api.http).get = "/qgb/v1/params";
   }
 
   // Queries for attestation requests waiting to be signed by an orchestrator
