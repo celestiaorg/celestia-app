@@ -37,7 +37,6 @@ var (
 
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
 	// if another hash.Hash should be used as a base hasher in the NMT.
-	// NewBaseHashFunc = consts.NewBaseHashFunc
 	NewBaseHashFunc = sha256.New
 
 	// hashLength is the length of a hash in bytes.
