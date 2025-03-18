@@ -12,7 +12,7 @@ import (
 type ParamFilter func(sdk.Msg) error
 
 // ParamFilterDecorator checks tx msgs for gov.MsgSubmitProposal and authz.MsgExec and ensures that param updates
-// within these conform to the rules defines in paramFilters. ParamFilters are keyed by MsgTypeURL.
+// within these conform to the rules defined in paramFilters. ParamFilters are keyed by MsgTypeURL.
 // NOTE: This replaces the param filter governance proposal handler from v3 and earlier.
 type ParamFilterDecorator struct {
 	paramFilters map[string]ParamFilter
