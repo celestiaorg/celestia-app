@@ -30,10 +30,8 @@ import (
 )
 
 // UpgradeName defines the on-chain upgrade name from v3 to v4.
-// This flow is only used to test an hard fork migration from v3 to v4,
-// without using the multiplexer. This allows us to test the upgrade before
-// the multiplexer is implemented.
-const UpgradeName = "v3-to-v4"
+// IMPORTANT: UpgradeName must be formated as `v`+ app version.
+const UpgradeName = "v4"
 
 func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {

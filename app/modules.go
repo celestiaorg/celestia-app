@@ -107,6 +107,10 @@ func (app *App) setModuleOrder() {
 		packetforwardtypes.ModuleName,
 	)
 
+	app.ModuleManager.SetOrderPreBlockers(
+		upgradetypes.ModuleName,
+	)
+
 	app.ModuleManager.SetOrderEndBlockers(
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
