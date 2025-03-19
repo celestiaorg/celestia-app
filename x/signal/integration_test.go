@@ -84,13 +84,13 @@ func TestUpgradeIntegration(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, types.ErrUpgradePending)
 
-	shouldUpgrade, version := app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade)
-	require.EqualValues(t, 0, version.AppVersion)
+	require.EqualValues(t, 0, upgrade.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, version.AppVersion))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, upgrade.AppVersion))
 
-	shouldUpgrade, version = app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, upgrade = app.SignalKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade)
-	require.EqualValues(t, 3, version.AppVersion)
+	require.EqualValues(t, 3, upgrade.AppVersion)
 }
