@@ -26,24 +26,16 @@ var DefaultNodeHome string
 
 func init() {
 	nodeHome := os.Getenv(nodeHome)
-	if nodeHome != "" {
-		DefaultNodeHome = nodeHome
-		return
-	}
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
 	celestiaHome := os.Getenv(celestiaHome)
-	DefaultNodeHome = getDefaultNodeHome(userHome, celestiaHome)
+	userHome, _ := os.UserHomeDir() // ignore the error because the userHome is not set in Vercel's Go runtime.
+	DefaultNodeHome = getDefaultNodeHome(nodeHome, celestiaHome, userHome)
 }
 
-// getDefaultNodeHome computes the default node home directory based on the
-// provided userHome and celestiaHome. If celestiaHome is provided, it takes
-// precedence and constructs the path by appending the application directory.
-// Otherwise, it falls back to using the userHome with the application directory
-// appended.
-func getDefaultNodeHome(userHome string, celestiaHome string) string {
+// getDefaultNodeHome returns the location of the node home directory.
+func getDefaultNodeHome(nodeHome string, celestiaHome string, userHome string) string {
+	if nodeHome != "" {
+		return nodeHome
+	}
 	if celestiaHome != "" {
 		return filepath.Join(celestiaHome, appDirectory)
 	}
