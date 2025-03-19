@@ -12,6 +12,10 @@ const Name = "celestia-app"
 // to store configs, data, keyrings, etc.
 const appDirectory = ".celestia-app"
 
+// nodeHome is an environment variable that sets where the app directory will be placed.
+// If nodeHome isn't specified, the default user home directory will be used.
+const nodeHome = "NODE_HOME"
+
 // celestiaHome is an environment variable that sets where appDirectory will be placed.
 // If celestiaHome isn't specified, the default user home directory will be used.
 const celestiaHome = "CELESTIA_HOME"
@@ -21,6 +25,11 @@ const celestiaHome = "CELESTIA_HOME"
 var DefaultNodeHome string
 
 func init() {
+	nodeHome := os.Getenv(nodeHome)
+	if nodeHome != "" {
+		DefaultNodeHome = nodeHome
+		return
+	}
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		panic(err)
