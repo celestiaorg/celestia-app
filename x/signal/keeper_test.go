@@ -167,7 +167,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.NoError(t, err)
 	shouldUpgrade, version := upgradeKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade)
-	require.Equal(t, uint64(0), version)
+	require.Equal(t, uint64(0), version.AppVersion)
 
 	// we now have 101/120
 	_, err = upgradeKeeper.SignalVersion(goCtx, &types.MsgSignalVersion{
@@ -181,13 +181,13 @@ func TestTallyingLogic(t *testing.T) {
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
-	require.Equal(t, uint64(0), version)
+	require.Equal(t, uint64(0), version.AppVersion)
 
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, version))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, version.AppVersion))
 
 	shouldUpgrade, version = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.
-	require.Equal(t, v2.Version, version)
+	require.Equal(t, v2.Version, version.AppVersion)
 
 	upgradeKeeper.ResetTally(ctx)
 
