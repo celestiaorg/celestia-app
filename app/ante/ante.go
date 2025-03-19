@@ -7,12 +7,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	ibcante "github.com/cosmos/ibc-go/v8/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
 
 	blobante "github.com/celestiaorg/celestia-app/v4/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
 )
 
 func NewAnteHandler(
@@ -23,7 +23,7 @@ func NewAnteHandler(
 	signModeHandler *txsigning.HandlerMap,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
-	paramKeeper paramkeeper.Keeper,
+	minfeeKeeper *minfeekeeper.Keeper,
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
 ) sdk.AnteHandler {
@@ -49,7 +49,7 @@ func NewAnteHandler(
 		// Ensure the feepayer (fee granter or first signer) has enough funds to pay for the tx.
 		// Ensure the gas price >= network min gas price if app version >= 2.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
-		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(paramKeeper)),
+		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),

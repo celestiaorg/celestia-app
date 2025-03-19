@@ -15,7 +15,7 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 // EstimationZScore is the z-score corresponding to 10% and 90% of the gas prices distribution.
@@ -135,7 +135,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	totalNumberOfTransactions := txSearchResult.TotalCount
 	if totalNumberOfTransactions == 0 {
 		// return the min gas price if no transaction found in the last 5 blocks
-		return minfee.DefaultNetworkMinGasPrice.MustFloat64(), nil
+		return types.DefaultNetworkMinGasPrice.MustFloat64(), nil
 	}
 
 	gasPrices := make([]float64, 0)

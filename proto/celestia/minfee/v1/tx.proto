@@ -1,0 +1,30 @@
+syntax = "proto3";
+package celestia.minfee.v1;
+
+import "celestia/minfee/v1/params.proto";
+import "gogoproto/gogo.proto";
+import "cosmos/msg/v1/msg.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee/types";
+
+// Msg defines the Minfee Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // UpdateMinfeeParams defines a rpc handler method for MsgUpdateMinfeeParams.
+  rpc UpdateMinfeeParams(MsgUpdateMinfeeParams) returns (MsgUpdateMinfeeParamsResponse);
+}
+
+// MsgUpdateMinfeeParams defines a message for updating the minimum fee parameters.
+message MsgUpdateMinfeeParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority is the address of the governance account.
+  string authority = 1;
+  // params defines the minfee parameters to update.
+  //
+  // NOTE: All parameters must be supplied.
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgUpdateMinfeeParamsResponse is the UpdateMinfeeParams response.
+message MsgUpdateMinfeeParamsResponse {}

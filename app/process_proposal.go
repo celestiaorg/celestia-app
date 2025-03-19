@@ -48,7 +48,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
-		app.ParamsKeeper,
+		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 	)

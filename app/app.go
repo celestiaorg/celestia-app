@@ -110,6 +110,8 @@ import (
 	blobkeeper "github.com/celestiaorg/celestia-app/v4/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	"github.com/celestiaorg/celestia-app/v4/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/v4/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/v4/x/mint/types"
@@ -166,6 +168,7 @@ type App struct {
 	GovKeeper           *govkeeper.Keeper
 	UpgradeKeeper       *upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
 	SignalKeeper        signal.Keeper
+	MinFeeKeeper        *minfeekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
 	EvidenceKeeper      evidencekeeper.Keeper
@@ -366,6 +369,8 @@ func New(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
+	app.MinFeeKeeper = minfeekeeper.NewKeeper(encodingConfig.Codec, keys[minfeetypes.StoreKey], app.ParamsKeeper, app.GetSubspace(minfeetypes.ModuleName), authtypes.NewModuleAddress(govtypes.ModuleName).String())
+
 	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 	ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
@@ -413,7 +418,7 @@ func New(
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
-		minfee.NewAppModule(encodingConfig.Codec, app.ParamsKeeper),
+		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName)),
 		// ensure the light client module types are registered.
 		ibctm.NewAppModule(),
@@ -468,7 +473,7 @@ func New(
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
-		app.ParamsKeeper,
+		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 	))
@@ -685,7 +690,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibcexported.ModuleName)
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(blobtypes.ModuleName)
-	paramsKeeper.Subspace(minfee.ModuleName)
+	paramsKeeper.Subspace(minfeetypes.ModuleName)
 	paramsKeeper.Subspace(packetforwardtypes.ModuleName)
 
 	return paramsKeeper

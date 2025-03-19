@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 func TestNewModuleInitializesKeyTable(t *testing.T) {
@@ -24,10 +26,10 @@ func TestNewModuleInitializesKeyTable(t *testing.T) {
 	// Create a params keeper
 	cdc := codec.NewProtoCodec(registry)
 	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), kvStoreKey, tStoreKey)
-	subspace := paramsKeeper.Subspace(minfee.ModuleName)
+	subspace := paramsKeeper.Subspace(types.ModuleName)
 
 	// Initialize the minfee module which registers the key table
-	minfee.NewAppModule(cdc, paramsKeeper)
+	minfee.NewAppModule(cdc, keeper.NewKeeper(cdc, nil, paramsKeeper, subspace, ""))
 
 	// Require key table to be initialized
 	hasKeyTable := subspace.HasKeyTable()

@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/celestiaorg/celestia-app/v4/app"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
 )
 
 type PacketMetadata struct {
@@ -77,10 +76,9 @@ func setMinFeeToZero(t *testing.T, celestiaChain *ibctesting.TestChain) {
 	celestiaApp, ok := celestiaChain.App.(*app.App)
 	require.True(t, ok)
 
-	minFeeSubspace, found := celestiaApp.ParamsKeeper.GetSubspace(minfee.ModuleName)
-	require.True(t, found)
-
-	minFeeSubspace.SetParamSet(celestiaChain.GetContext(), &minfee.Params{NetworkMinGasPrice: math.LegacyNewDec(0)})
+	params := celestiaApp.MinFeeKeeper.GetParams(celestiaChain.GetContext())
+	params.NetworkMinGasPrice = math.LegacyNewDec(0)
+	celestiaApp.MinFeeKeeper.SetParams(celestiaChain.GetContext(), params)
 }
 
 func NewTransferPaths(chain1, chain2, chain3 *ibctesting.TestChain) (*ibctesting.Path, *ibctesting.Path) {

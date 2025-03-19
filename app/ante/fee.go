@@ -6,10 +6,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
 )
 
 const (
@@ -17,23 +16,22 @@ const (
 	priorityScalingFactor = 1_000_000
 )
 
-// The purpose of this wrapper is to enable the passing of an additional paramKeeper parameter in
+// ValidateTxFeeWrapper enables the passing of an additional minfeeKeeper parameter in
 // ante.NewDeductFeeDecorator whilst still satisfying the ante.TxFeeChecker type.
-func ValidateTxFeeWrapper(paramKeeper params.Keeper) ante.TxFeeChecker {
+func ValidateTxFeeWrapper(minfeeKeeper *minfeekeeper.Keeper) ante.TxFeeChecker {
 	return func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
 		if ctx.BlockHeight() == 0 {
 			// genesis block, no need to validate fees
 			return nil, 0, nil
 		}
-
-		return ValidateTxFee(ctx, tx, paramKeeper)
+		return ValidateTxFee(ctx, tx, minfeeKeeper)
 	}
 }
 
 // ValidateTxFee implements default fee validation logic for transactions.
 // It ensures that the provided transaction fee meets a minimum threshold for the node
 // as well as a network minimum threshold and computes the tx priority based on the gas price.
-func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.Coins, int64, error) {
+func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper) (sdk.Coins, int64, error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
@@ -55,20 +53,7 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, paramKeeper params.Keeper) (sdk.C
 		}
 	}
 
-	// Ensure that the provided fee meets a network minimum threshold.
-	subspace, exists := paramKeeper.GetSubspace(minfee.ModuleName)
-	if !exists {
-		return nil, 0, errors.Wrap(sdkerror.ErrInvalidRequest, "minfee is not a registered subspace")
-	}
-
-	if !subspace.Has(ctx, minfee.KeyNetworkMinGasPrice) {
-		return nil, 0, errors.Wrap(sdkerror.ErrKeyNotFound, "NetworkMinGasPrice")
-	}
-
-	var networkMinGasPrice math.LegacyDec
-	// Gets the network minimum gas price from the param store.
-	// Panics if not configured properly.
-	subspace.Get(ctx, minfee.KeyNetworkMinGasPrice, &networkMinGasPrice)
+	networkMinGasPrice := minfeeKeeper.GetParams(ctx).NetworkMinGasPrice
 
 	err := verifyMinFee(fee, gas, networkMinGasPrice, "insufficient gas price for the network")
 	if err != nil {

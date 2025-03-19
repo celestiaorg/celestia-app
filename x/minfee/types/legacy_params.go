@@ -1,4 +1,4 @@
-package minfee
+package types
 
 import (
 	"fmt"
@@ -9,14 +9,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
-const ModuleName = "minfee"
+// TODO: this file can be removed once the upgrade to self managed modules has been completed.
 
 var _ paramtypes.ParamSet = (*Params)(nil)
 
-var (
-	KeyNetworkMinGasPrice     = []byte("NetworkMinGasPrice")
-	DefaultNetworkMinGasPrice math.LegacyDec
-)
+var KeyNetworkMinGasPrice = []byte("NetworkMinGasPrice")
 
 func init() {
 	DefaultNetworkMinGasPriceDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", appconsts.DefaultNetworkMinGasPrice))
@@ -24,10 +21,6 @@ func init() {
 		panic(err)
 	}
 	DefaultNetworkMinGasPrice = DefaultNetworkMinGasPriceDec
-}
-
-type Params struct {
-	NetworkMinGasPrice math.LegacyDec
 }
 
 // RegisterMinFeeParamTable returns a subspace with a key table attached.
@@ -46,12 +39,12 @@ func ParamKeyTable() paramtypes.KeyTable {
 // ParamSetPairs gets the param key-value pair
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(KeyNetworkMinGasPrice, &p.NetworkMinGasPrice, ValidateMinGasPrice),
+		paramtypes.NewParamSetPair(KeyNetworkMinGasPrice, &p.NetworkMinGasPrice, validateMinGasPrice),
 	}
 }
 
-// Validate validates the param type
-func ValidateMinGasPrice(i interface{}) error {
+// validateMinGasPrice validates the param type
+func validateMinGasPrice(i interface{}) error {
 	_, ok := i.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)

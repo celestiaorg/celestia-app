@@ -1,17 +1,22 @@
 syntax = "proto3";
 package celestia.minfee.v1;
 
+import "celestia/minfee/v1/params.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "cosmos_proto/cosmos.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/minfee";
+option go_package = "github.com/celestiaorg/celestia-app/x/minfee/types";
 
 // Query defines the gRPC querier service.
 service Query {
   // NetworkMinGasPrice queries the network wide minimum gas price.
   rpc NetworkMinGasPrice(QueryNetworkMinGasPrice) returns (QueryNetworkMinGasPriceResponse) {
     option (google.api.http).get = "/celestia/minfee/v1/min_gas_price";
+  }
+  // Params queries the parameters of the module.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/minfee/v1/params";
   }
 }
 
@@ -27,4 +32,12 @@ message QueryNetworkMinGasPriceResponse {
     (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
     (gogoproto.nullable)   = false
   ];
+}
+
+// QueryParamsRequest is the request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  Params params = 1 [(gogoproto.nullable) = false];
 }

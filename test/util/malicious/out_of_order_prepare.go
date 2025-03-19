@@ -41,7 +41,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		a.IBCKeeper,
-		a.ParamsKeeper,
+		a.MinFeeKeeper,
 		&a.CircuitKeeper,
 		a.GovParamFilters(),
 	)

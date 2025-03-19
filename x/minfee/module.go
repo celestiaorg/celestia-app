@@ -5,44 +5,45 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	params "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	grpc "google.golang.org/grpc"
+
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 var (
-	_ module.AppModuleBasic = AppModule{}
-	_ module.AppModule      = AppModule{}
-	_ module.HasGenesis     = AppModule{}
-
-	_ appmodule.HasServices = AppModule{}
-	_ appmodule.AppModule   = AppModule{}
+	_ module.AppModuleBasic      = AppModule{}
+	_ module.AppModule           = AppModule{}
+	_ module.HasGenesis          = AppModule{}
+	_ module.HasGenesisBasics    = AppModule{}
+	_ module.HasServices         = AppModule{}
+	_ module.HasConsensusVersion = AppModule{}
+	_ appmodule.AppModule        = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the minfee module.
 type AppModule struct {
 	cdc          codec.Codec
-	paramsKeeper params.Keeper
+	minfeeKeeper *keeper.Keeper
 }
 
 // NewAppModule creates a new AppModule object
-func NewAppModule(cdc codec.Codec, k params.Keeper) AppModule {
+func NewAppModule(cdc codec.Codec, minFeeKeeper *keeper.Keeper) AppModule {
 	// Register the parameter key table in its associated subspace.
-	subspace, exists := k.GetSubspace(ModuleName)
+	subspace, exists := minFeeKeeper.GetParamsKeeper().GetSubspace(types.ModuleName)
 	if !exists {
 		panic("minfee subspace not set")
 	}
-	RegisterMinFeeParamTable(subspace)
+	types.RegisterMinFeeParamTable(subspace)
 
 	return AppModule{
 		cdc:          cdc,
-		paramsKeeper: k,
+		minfeeKeeper: minFeeKeeper,
 	}
 }
 
@@ -52,66 +53,63 @@ func (AppModule) IsOnePerModuleType() {}
 
 // Name returns the minfee module's name.
 func (AppModule) Name() string {
-	return ModuleName
+	return types.ModuleName
 }
 
 // RegisterLegacyAminoCodec registers the blob module's types on the LegacyAmino codec.
 func (AppModule) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
-// RegisterInterfaces registers interfaces and implementations of the blob module.
-func (AppModule) RegisterInterfaces(_ cdctypes.InterfaceRegistry) {}
+// RegisterInterfaces registers interfaces and implementations of the minfee module.
+func (AppModule) RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
+	types.RegisterInterfaces(registry)
+}
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the module.
 func (am AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 // RegisterServices registers module services.
-func (am AppModule) RegisterServices(registrar grpc.ServiceRegistrar) error {
-	RegisterQueryServer(registrar, NewQueryServerImpl(am.paramsKeeper))
-	return nil
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterMsgServer(cfg.MsgServer(), am.minfeeKeeper)
+	types.RegisterQueryServer(cfg.QueryServer(), am.minfeeKeeper)
+
+	m := keeper.NewMigrator(am.minfeeKeeper)
+	if err := cfg.RegisterMigration(types.ModuleName, 1, m.MigrateParams); err != nil {
+		panic(err)
+	}
 }
 
 // DefaultGenesis returns default genesis state as raw bytes for the minfee module.
 func (am AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
-	return am.cdc.MustMarshalJSON(DefaultGenesis())
+	return am.cdc.MustMarshalJSON(types.DefaultGenesis())
 }
 
 // ValidateGenesis performs genesis state validation for the minfee module.
 func (am AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
-	var data GenesisState
+	var data types.GenesisState
 	if err := am.cdc.UnmarshalJSON(bz, &data); err != nil {
-		return fmt.Errorf("failed to unmarshal %s genesis state: %w", ModuleName, err)
+		return fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err)
 	}
 
-	return ValidateGenesis(&data)
+	return types.ValidateGenesis(&data)
 }
 
 // InitGenesis performs genesis initialization for the minfee module.
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, gs json.RawMessage) {
-	var genesisState GenesisState
+	var genesisState types.GenesisState
 	if err := am.cdc.UnmarshalJSON(gs, &genesisState); err != nil {
-		panic(fmt.Errorf("failed to unmarshal %s genesis state: %w", ModuleName, err))
+		panic(fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err))
 	}
 
-	subspace, exists := am.paramsKeeper.GetSubspace(ModuleName)
-	if !exists {
-		panic(fmt.Errorf("minfee subspace not set"))
+	if err := am.minfeeKeeper.InitGenesis(ctx, genesisState); err != nil {
+		panic(fmt.Errorf("failed to initialize %s genesis state: %w", types.ModuleName, err))
 	}
-
-	subspace = RegisterMinFeeParamTable(subspace)
-
-	// Set the network min gas price initial value
-	networkMinGasPriceDec, err := math.LegacyNewDecFromStr(fmt.Sprintf("%f", genesisState.NetworkMinGasPrice))
-	if err != nil {
-		panic(fmt.Errorf("failed to convert NetworkMinGasPrice to "))
-	}
-	subspace.SetParamSet(sdk.UnwrapSDKContext(ctx), &Params{NetworkMinGasPrice: networkMinGasPriceDec})
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the minfee module.
 func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMessage {
-	gs := ExportGenesis(sdk.UnwrapSDKContext(ctx), am.paramsKeeper)
+	gs := am.minfeeKeeper.ExportGenesis(sdk.UnwrapSDKContext(ctx))
 	return am.cdc.MustMarshalJSON(gs)
 }
 
 // ConsensusVersion implements AppModule/ConsensusVersion.
-func (AppModule) ConsensusVersion() uint64 { return 1 }
+func (AppModule) ConsensusVersion() uint64 { return 2 }

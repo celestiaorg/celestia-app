@@ -31,7 +31,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.GetTxConfig().SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
-		app.ParamsKeeper,
+		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 	)

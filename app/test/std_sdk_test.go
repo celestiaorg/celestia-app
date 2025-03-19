@@ -39,7 +39,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 	signal "github.com/celestiaorg/celestia-app/v4/x/signal/types"
 )
 
@@ -376,8 +376,8 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {
 	t := s.T()
 	t.Run("testnode can query network min gas price", func(t *testing.T) {
-		queryClient := minfee.NewQueryClient(s.cctx.GRPCClient)
-		resp, err := queryClient.NetworkMinGasPrice(s.cctx.GoContext(), &minfee.QueryNetworkMinGasPrice{})
+		queryClient := minfeetypes.NewQueryClient(s.cctx.GRPCClient)
+		resp, err := queryClient.NetworkMinGasPrice(s.cctx.GoContext(), &minfeetypes.QueryNetworkMinGasPrice{})
 		require.NoError(t, err)
 		got, err := resp.NetworkMinGasPrice.Float64()
 		require.NoError(t, err)

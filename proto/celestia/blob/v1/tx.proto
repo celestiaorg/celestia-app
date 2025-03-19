@@ -56,7 +56,7 @@ message MsgUpdateBlobParams {
   option (cosmos.msg.v1.signer) = "authority";
   // authority is the address of the governance account.
   string authority = 1;
-  // params defines the client parameters to update.
+  // params defines the blob parameters to update.
   //
   // NOTE: All parameters must be supplied.
   Params params = 2 [(gogoproto.nullable) = false];

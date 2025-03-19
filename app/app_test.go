@@ -17,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 func TestNew(t *testing.T) {
@@ -49,7 +49,7 @@ func TestNew(t *testing.T) {
 	// 	assert.False(t, got.IsSealed())
 	// })
 	t.Run("should have set the minfee key table", func(t *testing.T) {
-		subspace := got.GetSubspace(minfee.ModuleName)
+		subspace := got.GetSubspace(minfeetypes.ModuleName)
 		hasKeyTable := subspace.HasKeyTable()
 		assert.True(t, hasKeyTable)
 	})
