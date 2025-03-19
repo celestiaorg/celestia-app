@@ -263,6 +263,15 @@
             },
             "constitution": ""
         },
+        "hyperlane": {
+            "ism_genesis": null,
+            "post_dispatch_genesis": null,
+            "mailboxes": [],
+            "messages": [],
+            "ism_sequence": "0",
+            "post_dispatch_sequence": "0",
+            "app_sequence": "0"
+        },
         "ibc": {
             "client_genesis": {
                 "clients": [],
@@ -390,6 +399,10 @@
             }
         },
         "vesting": {},
+        "warp": {
+            "params": {},
+            "tokens": []
+        },
         "circuit": {
             "account_permissions": [],
             "disabled_type_urls": [
