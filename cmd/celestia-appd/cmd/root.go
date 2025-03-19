@@ -6,7 +6,6 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/01builders/nova"
 	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
@@ -112,15 +111,11 @@ func NewRootCmd() *cobra.Command {
 
 // initRootCommand performs a bunch of side-effects on the root command.
 func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
-	versions := Versions()
-
 	debugCmd := debug.Cmd()
 	debugCmd.AddCommand(
 		NewInPlaceTestnetCmd(),
 		AppGenesisToCometGenesisConverterCmd(),
 	)
-	passthroughCmd, _ := nova.NewPassthroughCmd(versions)
-	// TODO: handle the error here. (currently breaking ledger tests as they do a cli exec and the expected binary bytes are not there)
 
 	rootCommand.AddCommand(
 		genutilcli.InitCmd(capp.BasicManager, app.DefaultNodeHome),
@@ -137,14 +132,9 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		txCommand(capp.BasicManager),
 		keys.Commands(),
 		snapshot.Cmd(NewAppServer),
-		passthroughCmd,
 	)
 
-	// Add the following commands to the rootCommand: start, tendermint, export, version, and rollback.
-	server.AddCommandsWithStartCmdOptions(rootCommand, app.DefaultNodeHome, NewAppServer, appExporter, server.StartCmdOptions{
-		AddFlags:            addStartFlags,
-		StartCommandHandler: nova.New(versions), // multiplexer
-	})
+	modifyRootCommand(rootCommand)
 
 	// find start command
 	startCmd, _, err := rootCommand.Find([]string{"start"})

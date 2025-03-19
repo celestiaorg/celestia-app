@@ -1,4 +1,4 @@
-//go:build nova
+//go:build multiplexer
 
 package nova
 

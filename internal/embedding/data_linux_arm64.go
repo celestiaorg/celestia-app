@@ -1,3 +1,5 @@
+//go:build multiplexer
+
 package embedding
 
 import _ "embed"

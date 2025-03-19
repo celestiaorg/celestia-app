@@ -18,6 +18,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/celestiaorg/celestia-app/v4/pkg/appconsts.OverrideSquareSizeUpperBoundStr=$(OVERRIDE_MAX_SQUARE_SIZE)
 
 BUILD_FLAGS := -tags "ledger" -ldflags '$(ldflags)'
+BUILD_FLAGS_MULTIPLEXER := -tags "ledger multiplexer" -ldflags '$(ldflags)'
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -33,11 +34,25 @@ build: mod
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 .PHONY: build
 
+## build-multiplexer: Builds with the "multiplexer" build tags.
+build-multiplexer: mod
+	@cd ./cmd/celestia-appd
+	@mkdir -p build/
+	@echo "--> Building build/celestia-appd with multiplexer enabled"
+	@go build $(BUILD_FLAGS_MULTIPLEXER) -o build/celestia-appd ./cmd/celestia-appd
+.PHONY: build-multiplexer
+
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
 install: check-bbr
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS) ./cmd/celestia-appd
 .PHONY: install
+
+## install-multiplexer: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
+install-multiplexer: check-bbr
+	@echo "--> Installing celestia-appd with multiplexer support"
+	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
+.PHONY: install-multiplexer
 
 ## mod: Update all go.mod files.
 mod:
@@ -178,8 +193,8 @@ test-e2e:
 .PHONY: test-e2e
 
 test-multi-plexer:
-	@echo "--> Running multi-plexer tests"
-	go test -tags nova -v ./test/nova/...
+	@echo "--> Running multiplexer tests"
+	go test -tags multiplexer -v ./test/multiplexer/...
 .PHONY: test-multi-plexer
 
 ## test-race: Run tests in race mode.

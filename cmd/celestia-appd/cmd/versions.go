@@ -1,3 +1,5 @@
+//go:build multiplexer
+
 package cmd
 
 import (

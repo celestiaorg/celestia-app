@@ -15,7 +15,7 @@ jobs:
 
       - name: Build Celestia-App
         run: |
-          make build
+          make build-multiplexer
           chmod +x build/celestia-appd
           mv build/celestia-appd /usr/local/bin/celestia-appd
 
