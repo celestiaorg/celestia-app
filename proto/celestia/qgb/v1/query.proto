@@ -17,7 +17,7 @@ service Query {
     option (google.api.http).get = "/qgb/v1/params";
   }
 
-  // queries for attestations requests waiting to be signed by an orchestrator
+  // Queries for attestation requests waiting to be signed by an orchestrator
 
   // AttestationRequestByNonce queries attestation request by nonce.
   // Returns nil if not found.
@@ -66,8 +66,7 @@ service Query {
     option (google.api.http).get = "/qgb/v1/data_commitment/latest";
   }
 
-  // EVMAddress returns the evm address associated with a supplied
-  // validator address
+  // EVMAddress returns the EVM address associated with the provided validator address
   rpc EVMAddress(QueryEVMAddressRequest) returns (QueryEVMAddressResponse) {
     option (google.api.http).get = "/qgb/v1/evm_address";
   }
@@ -85,7 +84,7 @@ message QueryAttestationRequestByNonceRequest { uint64 nonce = 1; }
 
 // QueryAttestationRequestByNonceResponse
 message QueryAttestationRequestByNonceResponse {
-  // AttestationRequestI is either a Data Commitment or a Valset.
+  // AttestationRequestI can be either a DataCommitment or a Valset.
   // This was decided as part of the universal nonce approach under:
   // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
   google.protobuf.Any attestation = 1
