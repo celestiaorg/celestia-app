@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -23,7 +24,11 @@ var DefaultNodeHome string
 
 func init() {
 	celestiaHome := os.Getenv(celestiaHome)
-	userHome, _ := os.UserHomeDir() // ignore the error because the userHome is not set in Vercel's Go runtime.
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		// The userHome is not set in Vercel's Go runtime so log a warning but don't panic.
+		fmt.Printf("Warning userHome err: %s\n", err)
+	}
 	DefaultNodeHome = getDefaultNodeHome(celestiaHome, userHome)
 }
 
