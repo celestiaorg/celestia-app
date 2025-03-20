@@ -521,20 +521,20 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	}
 
 	// use a signaling mechanism for upgrade
-	shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx)
+	shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx)
 	if shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if newVersion.AppVersion > currentVersion {
-			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
+		if upgrade.AppVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
 
 			if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradetypes.Plan{
-				Name:   fmt.Sprintf("v%d", newVersion.AppVersion),
-				Height: newVersion.UpgradeHeight,
+				Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
+				Height: upgrade.UpgradeHeight,
 			}); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
 			}
 
-			if err := app.SetAppVersion(ctx, newVersion.AppVersion); err != nil {
+			if err := app.SetAppVersion(ctx, upgrade.AppVersion); err != nil {
 				return sdk.EndBlock{}, err
 			}
 			app.SignalKeeper.ResetTally(ctx)

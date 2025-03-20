@@ -19,7 +19,11 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			chainID:                    appconsts.TestChainID,
 			expectedUpgradeHeightDelay: 3,
 		},
-
+		{
+			name:                       "the upgrade delay for chainID 'local_devnet' should be 3",
+			chainID:                    appconsts.LocalDevnetChainID,
+			expectedUpgradeHeightDelay: 3,
+		},
 		{
 			name:                       "the upgrade delay should be latest value",
 			chainID:                    "arabica-11",
