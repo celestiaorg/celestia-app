@@ -15,11 +15,11 @@ $CELESTIA_BIN keys add alice
 if [ "$MULTIPLEXER" = "true" ]; then
 cd $SCRIPT_DIR; cp ../celestia-app/genesis_046.json $CELESTIA_HOME/config/genesis.json; cd $PWD # use local_devnet genesis
 $CELESTIA_BIN passthrough v3 add-genesis-account alice 5000000000utia --keyring-backend test
-$CELESTIA_BIN passthrough v3 gentx alice 1000000utia --chain-id local_devnet
+$CELESTIA_BIN passthrough v3 gentx alice 1000000utia --fees 1utia --chain-id local_devnet
 $CELESTIA_BIN passthrough v3 collect-gentxs
 else
 cd $SCRIPT_DIR; cp ../celestia-app/genesis.json $CELESTIA_HOME/config/genesis.json; cd $PWD # use local_devnet genesis
 $CELESTIA_BIN genesis add-genesis-account alice 5000000000utia --keyring-backend test
-$CELESTIA_BIN genesis gentx alice 1000000utia --chain-id local_devnet
+$CELESTIA_BIN genesis gentx alice 1000000utia --fees 1utia --chain-id local_devnet
 $CELESTIA_BIN genesis collect-gentxs
 fi
