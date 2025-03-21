@@ -202,7 +202,7 @@ func (s *Signer) AddAccount(acc *Account) error {
 
 	addr, err := record.GetAddress()
 	if err != nil {
-		return fmt.Errorf("getting address for key %s: %w", acc.pubKey, err)
+		return fmt.Errorf("getting address for key %s: %w", acc.name, err)
 	}
 
 	pk, err := record.GetPubKey()
