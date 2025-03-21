@@ -12,8 +12,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
-	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
 	"github.com/celestiaorg/celestia-app/v3/test/txsim"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
