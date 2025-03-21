@@ -161,8 +161,8 @@ func (s *Signer) Accounts() []*Account {
 
 func (s *Signer) findAccount(txbuilder client.TxBuilder) (*Account, error) {
 	signers := txbuilder.GetTx().GetSigners()
-	if len(signers) == 0 {
-		return nil, fmt.Errorf("message has no signer")
+	if len(signers) == 0 || signers[0] == nil {
+		return nil, fmt.Errorf("message has no valid signer")
 	}
 	accountName, exists := s.addressToAccountMap[signers[0].String()]
 	if !exists {
