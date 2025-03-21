@@ -160,7 +160,7 @@ func (m *QueryAttestationRequestByNonceRequest) GetNonce() uint64 {
 
 // QueryAttestationRequestByNonceResponse
 type QueryAttestationRequestByNonceResponse struct {
-	// AttestationRequestI is either a Data Commitment or a Valset.
+	// AttestationRequestI can be either a DataCommitment or a Valset.
 	// This was decided as part of the universal nonce approach under:
 	// https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
 	Attestation *types.Any `protobuf:"bytes,1,opt,name=attestation,proto3" json:"attestation,omitempty"`
@@ -940,8 +940,7 @@ type QueryClient interface {
 	DataCommitmentRangeForHeight(ctx context.Context, in *QueryDataCommitmentRangeForHeightRequest, opts ...grpc.CallOption) (*QueryDataCommitmentRangeForHeightResponse, error)
 	// LatestDataCommitment returns the latest data commitment in store
 	LatestDataCommitment(ctx context.Context, in *QueryLatestDataCommitmentRequest, opts ...grpc.CallOption) (*QueryLatestDataCommitmentResponse, error)
-	// EVMAddress returns the evm address associated with a supplied
-	// validator address
+	// EVMAddress returns the EVM address associated with the provided validator address
 	EVMAddress(ctx context.Context, in *QueryEVMAddressRequest, opts ...grpc.CallOption) (*QueryEVMAddressResponse, error)
 }
 
@@ -1058,8 +1057,7 @@ type QueryServer interface {
 	DataCommitmentRangeForHeight(context.Context, *QueryDataCommitmentRangeForHeightRequest) (*QueryDataCommitmentRangeForHeightResponse, error)
 	// LatestDataCommitment returns the latest data commitment in store
 	LatestDataCommitment(context.Context, *QueryLatestDataCommitmentRequest) (*QueryLatestDataCommitmentResponse, error)
-	// EVMAddress returns the evm address associated with a supplied
-	// validator address
+	// EVMAddress returns the EVM address associated with the provided validator address
 	EVMAddress(context.Context, *QueryEVMAddressRequest) (*QueryEVMAddressResponse, error)
 }
 
