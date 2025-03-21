@@ -236,9 +236,9 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg sdkmodule.Configurator, from
 	nextVersionModules, exists := m.versionedModules[toVersion]
 	if !exists {
 		// For celestia-appd 4, we do not want to migrate on commit (https://github.com/celestiaorg/cosmos-sdk/blob/release/v0.46.x-celestia/baseapp/abci.go#L342-L366).
-		// Celestia App uses Cosmos SDK v0.50, and upgrade handlers
-		// The migration will be done at PreBlocker on the new binary.
-		// If the binary isn't switched, v3 will anyway halt before the next block is produced (the module manager will panic).
+		// Celestia App v4 uses Cosmos SDK v0.50 and upgrade handlers.
+		// The migration will be occur in PreBlocker on the new binary.
+		// If the binary isn't switched, v3 will halt before the next block is produced because the module manager will panic.
 		if toVersion == v3.NextVersion {
 			return nil
 		}
