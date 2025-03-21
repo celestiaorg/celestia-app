@@ -106,7 +106,7 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
-	require.Equal(t, block.Block.DataRootHash.Bytes(), dah.Hash())
+	require.Equal(t, block.Block.Header.DataHash.Bytes(), dah.Hash())
 
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
 		appconsts.DefaultSquareSizeUpperBound,
@@ -119,5 +119,5 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	goodDah, err := da.NewDataAvailabilityHeader(goodEds)
 	require.NoError(t, err)
-	require.NotEqual(t, block.Block.DataRootHash.Bytes(), goodDah.Hash())
+	require.NotEqual(t, block.Block.Header.DataHash.Bytes(), goodDah.Hash())
 }
