@@ -30,7 +30,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // TxStatusRequest is the request type for the TxStatus gRPC method.
 type TxStatusRequest struct {
-	// this is the hex encoded transaction hash (should be 64 bytes long)
+	// this is the hex encoded transaction hash (should be 64 characters long representing 32 bytes)
 	TxId string `protobuf:"bytes,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
 }
 
