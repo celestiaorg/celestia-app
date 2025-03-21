@@ -154,7 +154,7 @@ type App struct {
 	DistrKeeper         distrkeeper.Keeper
 	GovKeeper           govkeeper.Keeper
 	CrisisKeeper        crisiskeeper.Keeper
-	UpgradeKeeper       upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
+	UpgradeKeeper       upgradekeeper.Keeper // Upgrades are set in endblock when signaled
 	SignalKeeper        signal.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
@@ -484,11 +484,21 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			}
 		}
 		// from v2 to v3 and onwards we use a signaling mechanism
-	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
+	} else if shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted
-		if newVersion > currentVersion {
-			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
-			app.SetAppVersion(ctx, newVersion)
+		if upgrade.AppVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
+
+			if currentVersion == v3 { // v3 -> v4 needs to schedule an upgrade
+				if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradetypes.Plan{
+					Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
+					Height: upgrade.UpgradeHeight,
+				}); err != nil {
+					panic(err)
+				}
+			}
+
+			app.SetAppVersion(ctx, upgrade.AppVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
