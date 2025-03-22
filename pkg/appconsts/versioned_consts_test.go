@@ -15,8 +15,8 @@ func TestVersionedConsts(t *testing.T) {
 	testCases := []struct {
 		name             string
 		version          uint64
-		expectedConstant interface{}
-		got              interface{}
+		expectedConstant any
+		got              any
 	}{
 		{
 			name:             "SubtreeRootThreshold v1",

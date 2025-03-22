@@ -60,7 +60,7 @@ func (p Params) String() string {
 }
 
 // validateGasPerBlobByte validates the GasPerBlobByte param
-func validateGasPerBlobByte(v interface{}) error {
+func validateGasPerBlobByte(v any) error {
 	gasPerBlobByte, ok := v.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
@@ -74,7 +74,7 @@ func validateGasPerBlobByte(v interface{}) error {
 }
 
 // validateGovMaxSquareSize validates the GovMaxSquareSize param
-func validateGovMaxSquareSize(v interface{}) error {
+func validateGovMaxSquareSize(v any) error {
 	govMaxSquareSize, ok := v.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)

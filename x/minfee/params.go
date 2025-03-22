@@ -50,7 +50,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 }
 
 // Validate validates the param type
-func ValidateMinGasPrice(i interface{}) error {
+func ValidateMinGasPrice(i any) error {
 	_, ok := i.(sdk.Dec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)

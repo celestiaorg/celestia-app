@@ -54,7 +54,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	}
 }
 
-func validateDataCommitmentWindow(i interface{}) error {
+func validateDataCommitmentWindow(i any) error {
 	val, ok := i.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
