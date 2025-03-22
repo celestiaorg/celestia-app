@@ -64,7 +64,7 @@ Continuation share in a sequence:
 
 ## Transaction Shares
 
-In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the [`TRANSACTION_NAMESPACE`](./namespace.md#reserved-namespaces) and [`PAY_FOR_BLOB_NAMESPACE`](./namespace.md#reserved-namespaces). This share structure is often referred to as "compact shares" to differentiate from the share structure defined above for all shares. It conforms to the common [share format](#share-format) with one additional field, the "reserved bytes" field, which is described below:
+Transaction shares use share version 0. In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the [`TRANSACTION_NAMESPACE`](./namespace.md#reserved-namespaces) and [`PAY_FOR_BLOB_NAMESPACE`](./namespace.md#reserved-namespaces). This share structure is often referred to as "compact shares" to differentiate from the share structure defined above for all shares. It conforms to the common [share format](#share-format) with one additional field, the "reserved bytes" field, which is described below:
 
 - Every transaction share includes [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes that contain the index of the starting byte of the length of the [canonically serialized](./consensus.md#serialization) first transaction that starts in the share, or `0` if there is none, as a binary big endian `uint32`. Denoted by "reserved bytes" in the figure below. The [`SHARE_RESERVED_BYTES`](./consensus.md#constants) are placed immediately after the `SEQUENCE_BYTES` if this is the first share in a sequence or immediately after the `SHARE_INFO_BYTES` if this is a continuation share in a sequence.
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes (if continuation share) are transaction or PayForBlob transaction data (denoted by "tx1" and "tx2" in the figure below). Each transaction or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit (denoted by "len(tx1)" and "len(tx2)" in the figure below).
@@ -84,7 +84,7 @@ where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000
 
 ## Padding
 
-Padding shares vary based on namespace but they conform to the [share format](#share-format) described above.
+Padding shares use share version 0 and conform to the [share format](#share-format) described above. There are multiple variants of padding shares that differ based on their namespace.
 
 - The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (initially, this will be `0`).
 - The next [`NAMESPACE_ID_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace ID of that share. This varies based on the type of padding share.
@@ -109,7 +109,8 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./namespace.md#reserved-n
 
 ## Parity Share
 
-Parity shares use the [`PARITY_SHARE_NAMESPACE`](./namespace.md#reserved-namespaces). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
+Parity shares are the output of the erasure coding step of the data square construction process. They
+occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Parity shares do not conform to the [share format](#share-format) described above. In the square layout, parity shares do not have a significant namespace. When parity shares are used in NMTs, they are prefixed with the `PARITY_SHARE_NAMESPACE` to preserve the property that all shares are ordered by namespace.
 
 ## Share Splitting
 
