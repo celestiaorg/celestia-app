@@ -57,7 +57,7 @@ func init() {
 type EmptyAppOptions struct{}
 
 // Get implements AppOptions
-func (ao EmptyAppOptions) Get(_ string) interface{} {
+func (ao EmptyAppOptions) Get(_ string) any {
 	return nil
 }
 

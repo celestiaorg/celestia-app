@@ -211,6 +211,6 @@ func (nw *NoopWriter) Write(p []byte) (n int, err error) {
 // NoopAppOptions is a no-op implementation of servertypes.AppOptions.
 type NoopAppOptions struct{}
 
-func (nao NoopAppOptions) Get(string) interface{} {
+func (nao NoopAppOptions) Get(string) any {
 	return nil
 }

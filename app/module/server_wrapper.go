@@ -18,11 +18,11 @@ type serverWrapper struct {
 	msgServer   pbgrpc.Server
 }
 
-func (s *serverWrapper) RegisterService(sd *grpc.ServiceDesc, v interface{}) {
+func (s *serverWrapper) RegisterService(sd *grpc.ServiceDesc, v any) {
 	msgs := make([]string, len(sd.Methods))
 	for idx, method := range sd.Methods {
 		// we execute the handler to extract the message type
-		_, _ = method.Handler(nil, context.Background(), func(i interface{}) error {
+		_, _ = method.Handler(nil, context.Background(), func(i any) error {
 			msg, ok := i.(sdk.Msg)
 			if !ok {
 				panic(fmt.Errorf("unable to register service method %s/%s: %T does not implement sdk.Msg", sd.ServiceName, method.MethodName, i))
@@ -36,6 +36,6 @@ func (s *serverWrapper) RegisterService(sd *grpc.ServiceDesc, v interface{}) {
 	s.msgServer.RegisterService(sd, v)
 }
 
-func noopInterceptor(_ context.Context, _ interface{}, _ *grpc.UnaryServerInfo, _ grpc.UnaryHandler) (interface{}, error) {
+func noopInterceptor(_ context.Context, _ any, _ *grpc.UnaryServerInfo, _ grpc.UnaryHandler) (any, error) {
 	return nil, nil
 }

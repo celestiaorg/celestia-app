@@ -29,8 +29,8 @@ func TestVersionedIBCModule(t *testing.T) {
 		name          string
 		version       uint64
 		setupMocks    func(ctx sdk.Context)
-		method        func(ctx sdk.Context) (interface{}, error)
-		expectedValue interface{}
+		method        func(ctx sdk.Context) (any, error)
+		expectedValue any
 	}{
 		{
 			name:    "OnChanOpenInit with supported version",
@@ -38,7 +38,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnChanOpenInit(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1").Return("wrapped_version", nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return versionedModule.OnChanOpenInit(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1")
 			},
 			expectedValue: "wrapped_version",
@@ -49,7 +49,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnChanOpenInit(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1").Return("next_version", nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return versionedModule.OnChanOpenInit(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1")
 			},
 			expectedValue: "next_version",
@@ -60,7 +60,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnChanOpenTry(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1").Return("wrapped_version", nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return versionedModule.OnChanOpenTry(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1")
 			},
 			expectedValue: "wrapped_version",
@@ -71,7 +71,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnChanOpenTry(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1").Return("next_version", nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return versionedModule.OnChanOpenTry(ctx, types.ORDERED, []string{"connection"}, "port", "channel", nil, types.Counterparty{}, "1")
 			},
 			expectedValue: "next_version",
@@ -82,7 +82,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnChanOpenAck(ctx, "port", "channel", "counterpartyChannelID", "counterpartyVersion").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanOpenAck(ctx, "port", "channel", "counterpartyChannelID", "counterpartyVersion")
 			},
 			expectedValue: nil,
@@ -93,7 +93,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnChanOpenAck(ctx, "port", "channel", "counterpartyChannelID", "counterpartyVersion").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanOpenAck(ctx, "port", "channel", "counterpartyChannelID", "counterpartyVersion")
 			},
 			expectedValue: nil,
@@ -104,7 +104,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnChanOpenConfirm(ctx, "port", "channel").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanOpenConfirm(ctx, "port", "channel")
 			},
 			expectedValue: nil,
@@ -115,7 +115,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnChanOpenConfirm(ctx, "port", "channel").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanOpenConfirm(ctx, "port", "channel")
 			},
 			expectedValue: nil,
@@ -126,7 +126,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnChanCloseInit(ctx, "port", "channel").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanCloseInit(ctx, "port", "channel")
 			},
 			expectedValue: nil,
@@ -137,7 +137,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnChanCloseInit(ctx, "port", "channel").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanCloseInit(ctx, "port", "channel")
 			},
 			expectedValue: nil,
@@ -148,7 +148,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnChanCloseConfirm(ctx, "port", "channel").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanCloseConfirm(ctx, "port", "channel")
 			},
 			expectedValue: nil,
@@ -159,7 +159,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnChanCloseConfirm(ctx, "port", "channel").Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnChanCloseConfirm(ctx, "port", "channel")
 			},
 			expectedValue: nil,
@@ -171,7 +171,7 @@ func TestVersionedIBCModule(t *testing.T) {
 				expectedAck := types.NewResultAcknowledgement([]byte("wrapped_ack"))
 				mockWrappedModule.EXPECT().OnRecvPacket(ctx, types.Packet{}, sdk.AccAddress{}).Return(expectedAck)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return versionedModule.OnRecvPacket(ctx, types.Packet{}, sdk.AccAddress{}), nil
 			},
 			expectedValue: types.NewResultAcknowledgement([]byte("wrapped_ack")),
@@ -183,7 +183,7 @@ func TestVersionedIBCModule(t *testing.T) {
 				expectedAck := types.NewResultAcknowledgement([]byte("next_ack"))
 				mockNextModule.EXPECT().OnRecvPacket(ctx, types.Packet{}, sdk.AccAddress{}).Return(expectedAck)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return versionedModule.OnRecvPacket(ctx, types.Packet{}, sdk.AccAddress{}), nil
 			},
 			expectedValue: types.NewResultAcknowledgement([]byte("next_ack")),
@@ -194,7 +194,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{}).Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{})
 			},
 			expectedValue: nil,
@@ -205,7 +205,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{}).Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnAcknowledgementPacket(ctx, types.Packet{}, []byte{}, sdk.AccAddress{})
 			},
 			expectedValue: nil,
@@ -216,7 +216,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockWrappedModule.EXPECT().OnTimeoutPacket(ctx, types.Packet{}, sdk.AccAddress{}).Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnTimeoutPacket(ctx, types.Packet{}, sdk.AccAddress{})
 			},
 			expectedValue: nil,
@@ -227,7 +227,7 @@ func TestVersionedIBCModule(t *testing.T) {
 			setupMocks: func(ctx sdk.Context) {
 				mockNextModule.EXPECT().OnTimeoutPacket(ctx, types.Packet{}, sdk.AccAddress{}).Return(nil)
 			},
-			method: func(ctx sdk.Context) (interface{}, error) {
+			method: func(ctx sdk.Context) (any, error) {
 				return nil, versionedModule.OnTimeoutPacket(ctx, types.Packet{}, sdk.AccAddress{})
 			},
 			expectedValue: nil,
