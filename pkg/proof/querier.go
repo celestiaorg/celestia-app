@@ -132,7 +132,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 // The provided range, defined by startShare and endShare, is end-exclusive.
 func ParseNamespace(rawShares []share.Share, startShare int, endShare int) (share.Namespace, error) {
 	if startShare < 0 {
-		return share.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
+		return share.Namespace{}, fmt.Errorf("start share %d should not be negative", startShare)
 	}
 
 	if endShare < 0 {
