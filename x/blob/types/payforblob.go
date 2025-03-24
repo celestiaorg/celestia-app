@@ -55,7 +55,7 @@ func NewMsgPayForBlobs(signer string, _ uint64, blobs ...*share.Blob) (*MsgPayFo
 		return nil, err
 	}
 
-	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
+	commitments, err := inclusion.CreateCommitments(blobs, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("creating commitments: %w", err)
 	}

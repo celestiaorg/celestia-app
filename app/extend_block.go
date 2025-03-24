@@ -17,7 +17,7 @@ func ExtendBlock(data coretypes.Data) (*rsmt2d.ExtendedDataSquare, error) {
 	dataSquare, err := square.Construct(
 		data.Txs.ToSliceOfBytes(),
 		appconsts.DefaultSquareSizeUpperBound,
-		appconsts.DefaultSubtreeRootThreshold,
+		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
 		return nil, err

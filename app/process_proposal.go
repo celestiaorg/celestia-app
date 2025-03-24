@@ -108,7 +108,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		// - that the sizes match
 		// - that the namespaces match between blob and PFB
 		// - that the share commitment is correct
-		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.DefaultSubtreeRootThreshold, appconsts.LatestVersion); err != nil {
+		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, blobTx, appconsts.SubtreeRootThreshold, appconsts.LatestVersion); err != nil {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("invalid blob tx %d", idx), err)
 			return reject(), nil
 		}
@@ -122,7 +122,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	dataSquare, err := square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.DefaultSubtreeRootThreshold)
+	dataSquare, err := square.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute data square from transactions:", err)
 		return reject(), nil

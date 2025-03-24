@@ -133,7 +133,7 @@ func TestValidateBlobTx(t *testing.T) {
 				badCommit, err := inclusion.CreateCommitment(
 					anotherBlob,
 					merkle.HashFromByteSlices,
-					appconsts.DefaultSubtreeRootThreshold,
+					appconsts.SubtreeRootThreshold,
 				)
 				require.NoError(t, err)
 
@@ -255,7 +255,7 @@ func TestValidateBlobTx(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx(), appconsts.DefaultSubtreeRootThreshold, appconsts.LatestVersion)
+			err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx(), appconsts.SubtreeRootThreshold, appconsts.LatestVersion)
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, err, tt.expectedErr, tt.name)
 			}

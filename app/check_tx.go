@@ -52,7 +52,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		err = blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.DefaultSubtreeRootThreshold, appconsts.LatestVersion)
+		err = blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.SubtreeRootThreshold, appconsts.LatestVersion)
 		if err != nil {
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}

@@ -424,7 +424,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 			[]int{31},
 		},
 		{
-			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.DefaultSubtreeRootThreshold,
+			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootThreshold,
 			[]path{
 				{
 					row:          0,
@@ -434,7 +434,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 			[]int{31},
 		},
 		{
-			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.DefaultSubtreeRootThreshold + 1,
+			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootThreshold + 1,
 			[]path{
 				{
 					row:          0,
@@ -453,7 +453,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 		t.Run(
 			tt.name,
 			func(t *testing.T) {
-				paths := calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen, appconsts.DefaultSubtreeRootThreshold)
+				paths := calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen, appconsts.SubtreeRootThreshold)
 				for j, pi := range tt.expectedPathIndexes {
 					assert.Equal(t, tt.expectedPath[j], paths[pi])
 				}

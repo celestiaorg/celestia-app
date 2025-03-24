@@ -110,7 +110,7 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
 		appconsts.DefaultSquareSizeUpperBound,
-		appconsts.DefaultSubtreeRootThreshold,
+		appconsts.SubtreeRootThreshold,
 	)
 	require.NoError(t, err)
 

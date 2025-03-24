@@ -11,7 +11,6 @@ const (
 )
 
 var (
-	DefaultSubtreeRootThreshold = v4.SubtreeRootThreshold
 	DefaultSquareSizeUpperBound = v4.SquareSizeUpperBound
 	DefaultTxSizeCostPerByte    = v4.TxSizeCostPerByte
 	DefaultGasPerBlobByte       = v4.GasPerBlobByte
@@ -19,6 +18,7 @@ var (
 	DefaultTimeoutCommit        = v4.TimeoutCommit
 	DefaultUpgradeHeightDelay   = v4.UpgradeHeightDelay
 	DefaultMaxTxSize            = v4.MaxTxSize
+	SubtreeRootThreshold        = v4.SubtreeRootThreshold
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {

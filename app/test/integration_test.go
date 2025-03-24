@@ -243,7 +243,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		// get the blob shares
 		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0,
 			appconsts.DefaultSquareSizeUpperBound,
-			appconsts.DefaultSubtreeRootThreshold,
+			appconsts.SubtreeRootThreshold,
 		)
 		require.NoError(t, err)
 

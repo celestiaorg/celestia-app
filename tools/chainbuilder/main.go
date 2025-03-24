@@ -487,7 +487,7 @@ func generateSquareRoutine(
 		dataSquare, txs, err := square.Build(
 			[][]byte{tx},
 			maxSquareSize,
-			appconsts.DefaultSubtreeRootThreshold,
+			appconsts.SubtreeRootThreshold,
 		)
 		if err != nil {
 			return err

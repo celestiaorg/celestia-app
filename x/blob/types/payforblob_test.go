@@ -255,7 +255,7 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, ns, blob.Namespace())
 
-				expectedCommitment, err := inclusion.CreateCommitment(blob, merkle.HashFromByteSlices, appconsts.DefaultSubtreeRootThreshold)
+				expectedCommitment, err := inclusion.CreateCommitment(blob, merkle.HashFromByteSlices, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				assert.Equal(t, expectedCommitment, msgPFB.ShareCommitments[i])
 			}
