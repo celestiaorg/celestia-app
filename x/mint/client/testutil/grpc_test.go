@@ -30,7 +30,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			map[string]string{},
 			&mint.QueryInflationRateResponse{},
 			&mint.QueryInflationRateResponse{
-				InflationRate: math.LegacyNewDecWithPrec(8, 2),
+				InflationRate: math.LegacyNewDecWithPrec(536, 4),
 			},
 		},
 		{

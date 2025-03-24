@@ -57,12 +57,12 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 		{
 			name: "json output",
 			args: s.jsonArgs(),
-			want: `0.080000000000000000`,
+			want: "0.053600000000000000",
 		},
 		{
 			name: "text output",
 			args: s.textArgs(),
-			want: `0.080000000000000000`,
+			want: "0.053600000000000000",
 		},
 	}
 
@@ -79,7 +79,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 
 // TestGetCmdQueryAnnualProvisions tests that the CLI query command for annual-provisions
 // returns the correct value. This test assumes that the initial inflation
-// rate is 0.08 and the initial total supply is 500_000_000 utia.
+// rate is 0.0536 (as defined in CIP-29) and the initial total supply is 500_000_000 utia.
 //
 // TODO assert that total supply is 500_000_000 utia.
 func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {

@@ -16,10 +16,10 @@ const (
 	SecondsPerYear     = int64(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
 	NanosecondsPerYear = NanosecondsPerSecond * SecondsPerYear                                // 31,556,952,000,000,000
 
-	// InitialInflationRate is the inflation rate that the network starts at.
-	InitialInflationRate = 0.08
-	// DisinflationRate is the rate at which the inflation rate decreases each year.
-	DisinflationRate = 0.1
+	// InitialInflationRate is the inflation rate as defined in CIP-29.
+	InitialInflationRate = 0.0536
+	// DisinflationRate is the rate at which the inflation rate decreases each year as defined in CIP-29.
+	DisinflationRate = 0.067
 	// TargetInflationRate is the inflation rate that the network aims to
 	// stabilize at. In practice, TargetInflationRate acts as a minimum so that
 	// the inflation rate doesn't decrease after reaching it.
@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	initialInflationRateAsDec = math.LegacyNewDecWithPrec(InitialInflationRate*1000, 3)
+	initialInflationRateAsDec = math.LegacyNewDecWithPrec(InitialInflationRate*10000, 4)
 	disinflationRateAsDec     = math.LegacyNewDecWithPrec(DisinflationRate*1000, 3)
 	targetInflationRateAsDec  = math.LegacyNewDecWithPrec(TargetInflationRate*1000, 3)
 )
