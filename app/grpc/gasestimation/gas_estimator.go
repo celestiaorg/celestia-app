@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 
 	tmclient "github.com/tendermint/tendermint/rpc/client"
@@ -135,6 +136,9 @@ const (
 	// mediumPriorityGasAdjustmentRate similar to highPriorityGasAdjustmentRate but for
 	// the medium priority.
 	mediumPriorityGasAdjustmentRate = 1.1
+	// gasPriceAdjustmentThreshold the standard deviation threshold under which we
+	// apply the gas price adjustment.
+	gasPriceAdjustmentThreshold = 0.001
 )
 
 // estimateGasPriceForTransactions takes a list of transactions and priority
@@ -144,19 +148,21 @@ const (
 // - Medium Priority: The gas price is the median price of the all gas prices in the mempool.
 // - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
 // - Unspecified Priority (default): This is equivalent to the Medium priority, using the median price of all gas prices in the mempool.
-// If the estimated gas price is equal to the minimum gas price, an increase of 30% and 10% will be added for high and medium priority respectively.
+// If the list of gas prices has a standard deviation < gasPriceAdjustmentThreshold, meaning the gas price values are tightly clustered,
+// an increase of 30% and 10% will be added for high and medium priority respectively.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	if len(gasPrices) == 0 {
 		return 0, errors.New("empty gas prices list")
 	}
+	stDev := StandardDeviation(Mean(gasPrices), gasPrices)
 	switch priority {
 	case TxPriority_TX_PRIORITY_UNSPECIFIED:
 		estimation, err := Median(gasPrices)
 		if err != nil {
 			return 0, err
 		}
-		if estimation == appconsts.DefaultMinGasPrice {
+		if stDev < gasPriceAdjustmentThreshold {
 			return estimation * mediumPriorityGasAdjustmentRate, nil
 		}
 		return estimation, nil
@@ -172,7 +178,7 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 		if err != nil {
 			return 0, err
 		}
-		if estimation == appconsts.DefaultMinGasPrice {
+		if stDev < gasPriceAdjustmentThreshold {
 			return estimation * mediumPriorityGasAdjustmentRate, nil
 		}
 		return estimation, nil
@@ -181,7 +187,7 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 		if err != nil {
 			return 0, err
 		}
-		if estimation == appconsts.DefaultMinGasPrice {
+		if stDev < gasPriceAdjustmentThreshold {
 			return estimation * highPriorityGasAdjustmentRate, nil
 		}
 		return estimation, nil
@@ -253,4 +259,29 @@ func Median(gasPrices []float64) (float64, error) {
 	mid1 := gasPrices[n/2-1]
 	mid2 := gasPrices[n/2]
 	return (mid1 + mid2) / 2.0, nil
+}
+
+// Mean calculates the mean value of the provided gas prices.
+func Mean(gasPrices []float64) float64 {
+	if len(gasPrices) == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, gasPrice := range gasPrices {
+		sum += gasPrice
+	}
+	return sum / float64(len(gasPrices))
+}
+
+// StandardDeviation calculates the standard deviation of the provided gas prices.
+func StandardDeviation(meanGasPrice float64, gasPrices []float64) float64 {
+	if len(gasPrices) < 2 {
+		return 0
+	}
+	var variance float64
+	for _, gasPrice := range gasPrices {
+		variance += math.Pow(gasPrice-meanGasPrice, 2)
+	}
+	variance /= float64(len(gasPrices))
+	return math.Sqrt(variance)
 }
