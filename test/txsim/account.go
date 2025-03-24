@@ -226,33 +226,43 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	opts := make([]user.TxOption, 0)
-	if op.GasLimit == 0 {
-		if am.gasLimit > 0 {
-			// Use the custom gas limit set on the AccountManager
-			opts = append(opts, user.SetGasLimit(am.gasLimit))
-			
-			// Calculate fee based on gas price
-			var gasPrice float64
-			if am.gasPrice > 0 {
-				gasPrice = am.gasPrice
-			} else {
-				gasPrice = appconsts.DefaultMinGasPrice
+	var gasLimit, fee uint64
+	var gasPrice float64
+
+	// Determine gas limit
+	switch {
+	case op.GasLimit > 0:
+		gasLimit = op.GasLimit
+	case am.gasLimit > 0:
+		gasLimit = am.gasLimit
+	default:
+		gasLimit = DefaultGasLimit
+		fee = defaultFee
+	}
+
+	// Set gas limit
+	if gasLimit > 0 {
+		opts = append(opts, user.SetGasLimit(gasLimit))
+	}
+
+	// Determine gas price and calculate fee if not already set
+	if fee == 0 {
+		switch {
+		case op.GasPrice > 0:
+			gasPrice = op.GasPrice
+		case am.gasPrice > 0:
+			gasPrice = am.gasPrice
+			if gasPrice < appconsts.DefaultMinGasPrice {
+				log.Warn().
+					Float64("gas_price", gasPrice).
+					Float64("default_min_gas_price", appconsts.DefaultMinGasPrice).
+					Msg("custom gas price is lower than default minimum")
 			}
-			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(am.gasLimit)*gasPrice))))
-		} else {
-			// Use the default gas limit
-			opts = append(opts, user.SetGasLimit(DefaultGasLimit), user.SetFee(defaultFee))
+		default:
+			gasPrice = appconsts.DefaultMinGasPrice
 		}
-	} else {
-		opts = append(opts, user.SetGasLimit(op.GasLimit))
-		if op.GasPrice > 0 {
-			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*op.GasPrice))))
-		} else if am.gasPrice > 0 {
-			// Use custom gas price set on AccountManager if available
-			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*am.gasPrice))))
-		} else {
-			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice))))
-		}
+		fee = uint64(math.Ceil(float64(gasLimit) * gasPrice))
+		opts = append(opts, user.SetFee(fee))
 	}
 
 	if am.useFeegrant {
