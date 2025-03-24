@@ -490,10 +490,16 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
 
 			if currentVersion == v3 { // v3 -> v4 needs to schedule an upgrade
-				if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradetypes.Plan{
+				plan := upgradetypes.Plan{
 					Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
 					Height: upgrade.UpgradeHeight,
-				}); err != nil {
+				}
+
+				if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
+					panic(err)
+				}
+
+				if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgrade.UpgradeHeight, plan); err != nil {
 					panic(err)
 				}
 			}
