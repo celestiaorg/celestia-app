@@ -63,6 +63,16 @@ func Run(
 		return err
 	}
 
+	// Set custom gas limit if provided
+	if opts.gasLimit > 0 {
+		manager.SetGasLimit(opts.gasLimit)
+	}
+
+	// Set custom gas price if provided
+	if opts.gasPrice > 0 {
+		manager.SetGasPrice(opts.gasPrice)
+	}
+
 	// Initialize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
 		sequence.Init(ctx, manager.conn, manager.AllocateAccounts, r, opts.useFeeGrant)
@@ -129,6 +139,8 @@ type Options struct {
 	pollTime       time.Duration
 	useFeeGrant    bool
 	suppressLogger bool
+	gasLimit       uint64
+	gasPrice       float64
 }
 
 func (o *Options) Fill() {
@@ -168,5 +180,15 @@ func (o *Options) WithSeed(seed int64) *Options {
 
 func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	o.pollTime = pollTime
+	return o
+}
+
+func (o *Options) WithGasLimit(gasLimit uint64) *Options {
+	o.gasLimit = gasLimit
+	return o
+}
+
+func (o *Options) WithGasPrice(gasPrice float64) *Options {
+	o.gasPrice = gasPrice
 	return o
 }
