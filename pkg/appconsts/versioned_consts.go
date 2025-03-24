@@ -107,7 +107,7 @@ func UpgradeHeightDelay(chainID string, version uint64) int64 {
 		case MochaChainID:
 			return numBlocksPerDay * 2
 		case MainnetChainID:
-			return numBlocksPerDay * 3
+			return v3.UpgradeHeightDelay
 		}
 	}
 	// TODO: this should panic because this should never be invoked for v4+
