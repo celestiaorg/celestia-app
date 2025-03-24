@@ -18,7 +18,7 @@ message MessageCommitmentAndSignature {
   uint64 k = 1;
   // 32-byte hash: commitment to message shares
   bytes share_commitment = 2;
-  // 64-byte signature a single SignedTransactionPayForMessage
+  // 64-byte signature of a single SignedTransactionPayForMessage
   // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#signedtransactiondatamsgpayfordata
   bytes signature = 3;
 }
@@ -81,7 +81,7 @@ message WireTxBurn {
   uint64 amount = 1;
   TransactionFee fee = 2;
   uint64 nonce = 3;
-  // 32-byte graffiti
+  // 32-byte optional graffiti field for arbitrary data
   bytes graffiti = 4;
 }
 
