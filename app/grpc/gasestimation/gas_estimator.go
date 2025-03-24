@@ -130,7 +130,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 const (
 	// highPriorityGasAdjustmentRate is the percentage increase applied to the
 	// estimated gas price when the block is more than 70% full, i.e., gasPriceEstimationThreshold,
-	// and the estimated gas price equals the minimum gas price. This ensures that high-priority
+	// but the gas prices are tightly clustered. This ensures that high-priority
 	// transactions still have a competitive fee to improve inclusion probability.
 	highPriorityGasAdjustmentRate = 1.3
 	// mediumPriorityGasAdjustmentRate similar to highPriorityGasAdjustmentRate but for
