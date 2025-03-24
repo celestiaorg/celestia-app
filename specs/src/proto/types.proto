@@ -42,7 +42,7 @@ message AvailableDataHeader {
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#account
 // AccountStatus
-enum AccountStatus : uint8_t {
+enum AccountStatus {
     None = 1,
     DelegationBonded = 2,
     DelegationUnbonding = 3,
@@ -63,7 +63,7 @@ message Decimal {
   // Rational numerator
   uint64 numerator = 1;
   // Rational denominator
-  uint64 denominator = 1;
+  uint64 denominator = 2;
 }
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#messagepaid
@@ -91,8 +91,8 @@ message Account {
 
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#delegation
 message Delegation {
-  // The validator being delegating to
-  // 32-bytes
+  // The validator being delegated to
+  // 32-byte
   bytes validator = 1;
   // Delegated stake, in 4u
   uint64 stakedBalance = 2;
@@ -126,7 +126,7 @@ message StateValidator {
   // slashRate should be zero if isSlashed is false.
   Decimal slashRate = 9;
   // Next validator in the queue. Zero if this validator is not in the queue
-  // 32-bytes
+  // 32-byte
   bytes next = 10;
 }
 
@@ -159,7 +159,7 @@ message ProposerInitialVotingPower {
 // https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#validatorqueuehead
 message ValidatorQueueHead {
   // Address of inactive validator at the head of the validator queue
-  // 32-bytes
+  // 32-byte
   bytes head = 1;
 }
 
@@ -188,7 +188,7 @@ message NamespaceMerkleTreeInclusionProof {
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#sparsemerkletreeinclusionproof
 message SparseMerkleTreeInclusionProof {
   // depth of the leaf node, must be <= 256
-  // The root node is at depth 0. 
+  // The root node is at depth 0
   uint16 depth = 1;
   // sibling hash values, ordered starting from the leaf's neighbor 
   // array of 32-byte hashes
@@ -211,9 +211,8 @@ message Share {
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#stateelement
 message StateElement {
   // key of the state element
-  // 32-bytes
+  // 32-byte
   bytes key = 1;
-  // key of the state element
   // value can be of different types depending on the state element.
   // There exists a unique protobuf for different state elements.
   oneof value = {
