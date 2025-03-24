@@ -126,6 +126,17 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	return estimateGasPriceForTransactions(gasPrices, priority)
 }
 
+const (
+	// highPriorityGasAdjustmentRate is the percentage increase applied to the
+	// estimated gas price when the block is more than 70% full, i.e., gasPriceEstimationThreshold,
+	// and the estimated gas price equals the minimum gas price. This ensures that high-priority
+	// transactions still have a competitive fee to improve inclusion probability.
+	highPriorityGasAdjustmentRate = 1.3
+	// mediumPriorityGasAdjustmentRate similar to highPriorityGasAdjustmentRate but for
+	// the medium priority.
+	mediumPriorityGasAdjustmentRate = 1.1
+)
+
 // estimateGasPriceForTransactions takes a list of transactions and priority
 // and returns a gas price estimation.
 // The priority sets the estimation as follows:
@@ -133,6 +144,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 // - Medium Priority: The gas price is the median price of the all gas prices in the mempool.
 // - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
 // - Unspecified Priority (default): This is equivalent to the Medium priority, using the median price of all gas prices in the mempool.
+// If the estimated gas price is equal to the minimum gas price, an increase of 30% and 10% will be added for high and medium priority respectively.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	if len(gasPrices) == 0 {
@@ -140,7 +152,14 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 	}
 	switch priority {
 	case TxPriority_TX_PRIORITY_UNSPECIFIED:
-		return Median(gasPrices)
+		estimation, err := Median(gasPrices)
+		if err != nil {
+			return 0, err
+		}
+		if estimation == appconsts.DefaultMinGasPrice {
+			return estimation * mediumPriorityGasAdjustmentRate, nil
+		}
+		return estimation, nil
 	case TxPriority_TX_PRIORITY_LOW:
 		bottom10PercentIndex := len(gasPrices) * 10 / 100
 		if bottom10PercentIndex == 0 {
@@ -149,9 +168,23 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 		}
 		return Median(gasPrices[:bottom10PercentIndex])
 	case TxPriority_TX_PRIORITY_MEDIUM:
-		return Median(gasPrices)
+		estimation, err := Median(gasPrices)
+		if err != nil {
+			return 0, err
+		}
+		if estimation == appconsts.DefaultMinGasPrice {
+			return estimation * mediumPriorityGasAdjustmentRate, nil
+		}
+		return estimation, nil
 	case TxPriority_TX_PRIORITY_HIGH:
-		return Median(gasPrices[len(gasPrices)*90/100:])
+		estimation, err := Median(gasPrices[len(gasPrices)*90/100:])
+		if err != nil {
+			return 0, err
+		}
+		if estimation == appconsts.DefaultMinGasPrice {
+			return estimation * highPriorityGasAdjustmentRate, nil
+		}
+		return estimation, nil
 	default:
 		return 0, fmt.Errorf("unknown priority: %d", priority)
 	}

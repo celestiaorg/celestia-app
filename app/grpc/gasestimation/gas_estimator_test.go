@@ -1,6 +1,7 @@
 package gasestimation
 
 import (
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -89,6 +90,59 @@ func TestEstimateGasPriceForTransactions(t *testing.T) {
 			name:     "Unknown -> error",
 			priority: 999,
 			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := estimateGasPriceForTransactions(gasPrices, tt.priority)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestEstimateGasPriceEqualToMinGasPrice(t *testing.T) {
+	minGasPrice := appconsts.DefaultMinGasPrice
+	gasPrices := []float64{minGasPrice, minGasPrice, minGasPrice, minGasPrice, minGasPrice, minGasPrice, minGasPrice, minGasPrice, minGasPrice, minGasPrice}
+	medianGasPrice, err := Median(gasPrices)
+	require.NoError(t, err)
+	medianGasPrice = medianGasPrice * mediumPriorityGasAdjustmentRate
+	bottomMedian, err := Median(gasPrices[:len(gasPrices)*10/100])
+	require.NoError(t, err)
+	topMedian, err := Median(gasPrices[len(gasPrices)*90/100:])
+	require.NoError(t, err)
+	topMedian = topMedian * highPriorityGasAdjustmentRate
+
+	tests := []struct {
+		name     string
+		priority TxPriority
+		want     float64
+		wantErr  bool
+	}{
+		{
+			name:     "NONE -> same as MEDIUM (median)",
+			priority: TxPriority_TX_PRIORITY_UNSPECIFIED,
+			want:     medianGasPrice,
+		},
+		{
+			name:     "LOW -> bottom 10% median",
+			priority: TxPriority_TX_PRIORITY_LOW,
+			want:     bottomMedian,
+		},
+		{
+			name:     "MEDIUM -> median",
+			priority: TxPriority_TX_PRIORITY_MEDIUM,
+			want:     medianGasPrice,
+		},
+		{
+			name:     "HIGH -> top 10% median",
+			priority: TxPriority_TX_PRIORITY_HIGH,
+			want:     topMedian,
 		},
 	}
 
