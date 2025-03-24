@@ -119,12 +119,12 @@ func TestEstimateClusteredGasPrices(t *testing.T) {
 	}
 	medianGasPrice, err := Median(gasPrices)
 	require.NoError(t, err)
-	medianGasPrice = medianGasPrice * mediumPriorityGasAdjustmentRate
+	medianGasPrice *= mediumPriorityGasAdjustmentRate
 	bottomMedian, err := Median(gasPrices[:len(gasPrices)*10/100])
 	require.NoError(t, err)
 	topMedian, err := Median(gasPrices[len(gasPrices)*90/100:])
 	require.NoError(t, err)
-	topMedian = topMedian * highPriorityGasAdjustmentRate
+	topMedian *= highPriorityGasAdjustmentRate
 
 	tests := []struct {
 		name     string
