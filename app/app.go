@@ -487,21 +487,21 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 		}
 		// from v2 to v3 and onwards we use a signaling mechanism
 	} else if shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
-		// Version changes must be increasing. Downgrades are not permitted
+		// Version changes must be increasing. Downgrades are not permitted.
 		if upgrade.AppVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
 
 			if currentVersion == v3 { // v3 -> v4 needs to schedule an upgrade
 				plan := upgradetypes.Plan{
 					Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
-					Height: upgrade.UpgradeHeight,
+					Height: upgrade.UpgradeHeight + 1, // next block executing the upgrade.
 				}
 
 				if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
 					panic(err)
 				}
 
-				if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgrade.UpgradeHeight, plan); err != nil {
+				if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, plan); err != nil {
 					panic(err)
 				}
 			}
