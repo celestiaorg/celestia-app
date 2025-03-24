@@ -1,10 +1,11 @@
 package gasestimation
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/tendermint/tendermint/libs/rand"
 	"math"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/stretchr/testify/require"
 
