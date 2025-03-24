@@ -504,10 +504,6 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 				if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, plan); err != nil {
 					panic(err)
 				}
-
-				// reset migrators to nil, migration happens in next version
-				app.SetMigrateModuleFn(nil)
-				app.SetMigrateStoreFn(nil)
 			}
 
 			app.SetAppVersion(ctx, upgrade.AppVersion)
@@ -522,6 +518,11 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 // migrateCommitStore tells the baseapp during a version upgrade, which stores to add and which
 // stores to remove
 func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.StoreMigrations, error) {
+	// migration from v3 -> v4 happens in the upgrade module
+	if toVersion == appv3.NextVersion {
+		return baseapp.StoreMigrations{}, nil
+	}
+
 	oldStoreKeys := app.keyVersions[fromVersion]
 	newStoreKeys := app.keyVersions[toVersion]
 	result := baseapp.StoreMigrations{
@@ -544,6 +545,11 @@ func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.Store
 // migrateModules performs migrations on existing modules that have registered migrations
 // between versions and initializes the state of new modules for the specified app version.
 func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) error {
+	// migration from v3 -> v4 happens in the upgrade module
+	if toVersion == appv3.NextVersion {
+		return nil
+	}
+
 	return app.manager.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
 
