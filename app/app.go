@@ -504,6 +504,10 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 				if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, plan); err != nil {
 					panic(err)
 				}
+
+				// reset migrators to nil, migration happens in next version
+				app.SetMigrateModuleFn(nil)
+				app.SetMigrateStoreFn(nil)
 			}
 
 			app.SetAppVersion(ctx, upgrade.AppVersion)
