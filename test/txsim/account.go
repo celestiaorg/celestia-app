@@ -32,6 +32,8 @@ type AccountManager struct {
 	encCfg      encoding.Config
 	pollTime    time.Duration
 	useFeegrant bool
+	gasLimit    uint64
+	gasPrice    float64
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
@@ -225,11 +227,29 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 	opts := make([]user.TxOption, 0)
 	if op.GasLimit == 0 {
-		opts = append(opts, user.SetGasLimit(DefaultGasLimit), user.SetFee(defaultFee))
+		if am.gasLimit > 0 {
+			// Use the custom gas limit set on the AccountManager
+			opts = append(opts, user.SetGasLimit(am.gasLimit))
+			
+			// Calculate fee based on gas price
+			var gasPrice float64
+			if am.gasPrice > 0 {
+				gasPrice = am.gasPrice
+			} else {
+				gasPrice = appconsts.DefaultMinGasPrice
+			}
+			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(am.gasLimit)*gasPrice))))
+		} else {
+			// Use the default gas limit
+			opts = append(opts, user.SetGasLimit(DefaultGasLimit), user.SetFee(defaultFee))
+		}
 	} else {
 		opts = append(opts, user.SetGasLimit(op.GasLimit))
 		if op.GasPrice > 0 {
 			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*op.GasPrice))))
+		} else if am.gasPrice > 0 {
+			// Use custom gas price set on AccountManager if available
+			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*am.gasPrice))))
 		} else {
 			opts = append(opts, user.SetFee(uint64(math.Ceil(float64(op.GasLimit)*appconsts.DefaultMinGasPrice))))
 		}
@@ -409,9 +429,18 @@ func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 }
 
 func (am *AccountManager) nextAccountName() string {
-	am.mtx.Lock()
-	defer am.mtx.Unlock()
-	return accountName(len(am.pending) + am.accountIndex)
+	am.accountIndex++
+	return accountName(am.accountIndex)
+}
+
+// SetGasLimit sets a custom gas limit to be used for all transactions
+func (am *AccountManager) SetGasLimit(gasLimit uint64) {
+	am.gasLimit = gasLimit
+}
+
+// SetGasPrice sets a custom gas price to be used for all transactions
+func (am *AccountManager) SetGasPrice(gasPrice float64) {
+	am.gasPrice = gasPrice
 }
 
 type account struct {
