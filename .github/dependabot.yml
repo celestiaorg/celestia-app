@@ -1,5 +1,5 @@
 version: 2
-updates: # trying to run dependabot
+updates:
   - package-ecosystem: docker
     directory: "/"
     schedule:
