@@ -484,10 +484,6 @@ func New(
 		app.GovParamFilters(),
 	))
 
-	// TODO: migration related, delaying implemenation for now
-	// app.SetMigrateStoreFn(app.migrateCommitStore)
-	// app.SetMigrateModuleFn(app.migrateModules)
-
 	app.encodingConfig = encodingConfig
 	if err := app.LoadLatestVersion(); err != nil {
 		panic(err)
@@ -527,11 +523,17 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		if upgrade.AppVersion > currentVersion {
 			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
 
-			if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, upgradetypes.Plan{
+			plan := upgradetypes.Plan{
 				Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
-				Height: upgrade.UpgradeHeight,
-			}); err != nil {
+				Height: upgrade.UpgradeHeight + 1, // next block is performing the upgrade.
+			}
+
+			if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
 				return sdk.EndBlock{}, fmt.Errorf("failed to schedule upgrade: %v", err)
+			}
+
+			if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(upgrade.UpgradeHeight, plan); err != nil {
+				return sdk.EndBlock{}, fmt.Errorf("failed to dump upgrade info to disk: %v", err)
 			}
 
 			if err := app.SetAppVersion(ctx, upgrade.AppVersion); err != nil {
