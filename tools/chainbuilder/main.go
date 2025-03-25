@@ -379,9 +379,9 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				LastCommitInfo: lastCommitInfo,
 			})
 
-			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Data.Txs))
+			deliverTxResponses := make([]*abci.ResponseDeliverTx, len(block.Txs))
 
-			for idx, tx := range block.Data.Txs {
+			for idx, tx := range block.Txs {
 				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
 				if isBlobTx {
 					tx = blobTx.Tx

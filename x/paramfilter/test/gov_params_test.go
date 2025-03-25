@@ -38,7 +38,7 @@ type GovParamsTestSuite struct {
 
 func (suite *GovParamsTestSuite) SetupTest() {
 	suite.app, _ = testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
+	suite.ctx = suite.app.NewContext(false, tmproto.Header{})
 	suite.govHandler = paramfilter.NewParamBlockList(suite.app.BlockedParams()...).GovHandler(suite.app.ParamsKeeper)
 }
 
@@ -171,11 +171,11 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `{"max_bytes": "1", "max_gas": "2"}`,
 			}),
 			func() {
-				gotMaxBytes := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block.MaxBytes
+				gotMaxBytes := suite.app.GetConsensusParams(suite.ctx).Block.MaxBytes
 				wantMaxBytes := int64(1)
 				assert.Equal(wantMaxBytes, gotMaxBytes)
 
-				gotMaxGas := suite.app.BaseApp.GetConsensusParams(suite.ctx).Block.MaxGas
+				gotMaxGas := suite.app.GetConsensusParams(suite.ctx).Block.MaxGas
 				wantMaxGas := int64(2)
 				assert.Equal(wantMaxGas, gotMaxGas)
 			},
@@ -188,15 +188,15 @@ func (suite *GovParamsTestSuite) TestModifiableParams() {
 				Value:    `{"max_age_duration": "1", "max_age_num_blocks": "2", "max_bytes": "3"}`,
 			}),
 			func() {
-				gotMaxAgeDuration := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxAgeDuration
+				gotMaxAgeDuration := suite.app.GetConsensusParams(suite.ctx).Evidence.MaxAgeDuration
 				wantMaxAgeDuration := time.Duration(1)
 				assert.Equal(wantMaxAgeDuration, gotMaxAgeDuration)
 
-				gotMaxAgeNumBlocks := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxAgeNumBlocks
+				gotMaxAgeNumBlocks := suite.app.GetConsensusParams(suite.ctx).Evidence.MaxAgeNumBlocks
 				wantMaxAgeNumBlocks := int64(2)
 				assert.Equal(wantMaxAgeNumBlocks, gotMaxAgeNumBlocks)
 
-				gotMaxBytes := suite.app.BaseApp.GetConsensusParams(suite.ctx).Evidence.MaxBytes
+				gotMaxBytes := suite.app.GetConsensusParams(suite.ctx).Evidence.MaxBytes
 				wantMaxBytes := int64(3)
 				assert.Equal(wantMaxBytes, gotMaxBytes)
 			},
