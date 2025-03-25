@@ -130,7 +130,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				// this test must create transactions that are smaller than that.
 				require.LessOrEqual(t, len(tx), 1*mebibyte)
 
-				res, err := s.cctx.Context.BroadcastTxSync(tx)
+				res, err := s.cctx.BroadcastTxSync(tx)
 				require.NoError(t, err)
 				assert.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 				if res.Code != abci.CodeTypeOK {
@@ -157,17 +157,17 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			sizes := []uint64{}
 			// check the square size
 			for height := range heights {
-				node, err := s.cctx.Context.GetNode()
+				node, err := s.cctx.GetNode()
 				require.NoError(t, err)
 				blockRes, err := node.Block(context.Background(), &height)
 				require.NoError(t, err)
-				size := blockRes.Block.Data.SquareSize
+				size := blockRes.Block.SquareSize
 
 				// perform basic checks on the size of the square
 				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
 				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
-				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
+				require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
 
 				sizes = append(sizes, size)
 				ExtendBlockTest(t, blockRes.Block)
@@ -218,7 +218,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	hashes := make([]string, len(txs))
 
 	for i, tx := range txs {
-		res, err := s.cctx.Context.BroadcastTxSync(tx)
+		res, err := s.cctx.BroadcastTxSync(tx)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 		hashes[i] = res.TxHash
@@ -231,12 +231,12 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, txResp.TxResult.Code)
 
-		node, err := s.cctx.Context.GetNode()
+		node, err := s.cctx.GetNode()
 		require.NoError(t, err)
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(t, err)
 
-		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
+		require.EqualValues(t, appconsts.LatestVersion, blockRes.Block.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
 		require.True(t, isBlobTx)
@@ -263,7 +263,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 // ExtendBlockTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
 func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
-	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
+	eds, err := app.ExtendBlock(block.Data, block.Version.App)
 	require.NoError(t, err)
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
@@ -292,7 +292,7 @@ func (s *IntegrationTestSuite) TestIsEmptyBlockRef() {
 	for _, h := range emptyHeights {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
-		require.True(t, app.IsEmptyBlockRef(&blockRes.Block.Data, blockRes.Block.Header.Version.App))
+		require.True(t, app.IsEmptyBlockRef(&blockRes.Block.Data, blockRes.Block.Version.App))
 		ExtendBlockTest(t, blockRes.Block)
 	}
 }
