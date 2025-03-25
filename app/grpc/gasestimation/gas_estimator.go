@@ -271,7 +271,8 @@ func StandardDeviation(meanGasPrice float64, gasPrices []float64) float64 {
 	}
 	var variance float64
 	for _, gasPrice := range gasPrices {
-		variance += math.Pow(gasPrice-meanGasPrice, 2)
+		diff := gasPrice - meanGasPrice
+		variance += diff * diff
 	}
 	variance /= float64(len(gasPrices))
 	return math.Sqrt(variance)
