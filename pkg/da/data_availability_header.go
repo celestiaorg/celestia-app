@@ -203,8 +203,8 @@ func EmptySquareShares() []share.Share {
 
 // SquareSize is a copy of the function defined in the square package to avoid
 // a circular dependency. TODO deduplicate
-func SquareSize(len int) int {
-	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(len)))))
+func SquareSize(length int) int {
+	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(length)))))
 }
 
 // RoundUpPowerOfTwo returns the next power of two greater than or equal to input.
