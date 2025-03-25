@@ -157,7 +157,7 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 	}
 	stDev := StandardDeviation(Mean(gasPrices), gasPrices)
 	switch priority {
-	case TxPriority_TX_PRIORITY_UNSPECIFIED:
+	case TxPriority_TX_PRIORITY_MEDIUM, TxPriority_TX_PRIORITY_UNSPECIFIED:
 		estimation, err := Median(gasPrices)
 		if err != nil {
 			return 0, err
@@ -173,15 +173,6 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 			bottom10PercentIndex = 1
 		}
 		return Median(gasPrices[:bottom10PercentIndex])
-	case TxPriority_TX_PRIORITY_MEDIUM:
-		estimation, err := Median(gasPrices)
-		if err != nil {
-			return 0, err
-		}
-		if stDev < gasPriceAdjustmentThreshold {
-			return estimation * mediumPriorityGasAdjustmentRate, nil
-		}
-		return estimation, nil
 	case TxPriority_TX_PRIORITY_HIGH:
 		estimation, err := Median(gasPrices[len(gasPrices)*90/100:])
 		if err != nil {
