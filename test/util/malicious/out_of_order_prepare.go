@@ -23,7 +23,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 		Height:  req.Height,
 		Time:    req.Time,
 		Version: version.Consensus{
-			App: a.BaseApp.AppVersion(),
+			App: a.AppVersion(),
 		},
 	})
 	// filter out invalid transactions.
