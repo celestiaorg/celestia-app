@@ -171,14 +171,7 @@ func calculateSubTreeRoots(t *testing.T, row [][]byte, depth int) [][]byte {
 func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 	var chunks [][][]byte
 	for i := 0; i < len(slice); i += chunkSize {
-		end := i + chunkSize
-
-		// necessary check to avoid slicing beyond
-		// slice capacity
-		if end > len(slice) {
-			end = len(slice)
-		}
-
+		end := min(i+chunkSize, len(slice))
 		chunks = append(chunks, slice[i:end])
 	}
 
