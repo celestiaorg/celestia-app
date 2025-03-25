@@ -2,12 +2,14 @@ package app
 
 import (
 	"context"
+	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
+	cmttypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -28,6 +30,7 @@ import (
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
@@ -63,6 +66,10 @@ func (app App) RegisterUpgradeHandlers() {
 			keyTable, set = ibctransfertypes.ParamKeyTable(), true //nolint:staticcheck
 		case icahosttypes.SubModuleName:
 			keyTable, set = icahosttypes.ParamKeyTable(), true //nolint:staticcheck
+		case blobtypes.ModuleName:
+			keyTable, set = blobtypes.ParamKeyTable(), true //nolint:staticcheck
+		case minfeetypes.ModuleName:
+			keyTable, set = minfeetypes.ParamKeyTable(), true //nolint:staticcheck
 		default:
 			set = false
 			// TODO add params migration for celestia modules after https://linear.app/binarybuilders/issue/CEL-5
@@ -80,9 +87,21 @@ func (app App) RegisterUpgradeHandlers() {
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 
+			start := time.Now()
+			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", UpgradeName, "start", start)
+
 			// migrate consensus params from the legacy params keeper to consensus params module
-			if err := baseapp.MigrateParams(sdkCtx, baseAppLegacySS, &app.ConsensusKeeper.ParamsStore); err != nil {
-				return nil, err
+			oldConsensusParams := baseapp.GetConsensusParams(sdkCtx, baseAppLegacySS)
+			if oldConsensusParams != nil {
+				if oldConsensusParams.Version == nil {
+					oldConsensusParams.Version = &cmttypes.VersionParams{
+						App: 3,
+					}
+				}
+
+				if err := app.ConsensusKeeper.ParamsStore.Set(ctx, *oldConsensusParams); err != nil {
+					return nil, err
+				}
 			}
 
 			// block by default msg upgrade proposal from circuit breaker
@@ -97,7 +116,14 @@ func (app App) RegisterUpgradeHandlers() {
 			}
 
 			// run module migrations
-			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			vm, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			if err != nil {
+				return nil, err
+			}
+
+			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", UpgradeName, "duration-sec", time.Since(start).Seconds())
+
+			return vm, nil
 		},
 	)
 
