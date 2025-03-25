@@ -155,7 +155,7 @@ type App struct {
 	DistrKeeper         distrkeeper.Keeper
 	GovKeeper           govkeeper.Keeper
 	CrisisKeeper        crisiskeeper.Keeper
-	UpgradeKeeper       upgradekeeper.Keeper // Upgrades are set in endblock when signaled
+	UpgradeKeeper       upgradekeeper.Keeper
 	SignalKeeper        signal.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
@@ -270,9 +270,6 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	// The upgrade keeper is initialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
-	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
-	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, homePath, app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
@@ -494,7 +491,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			if currentVersion == v3 { // v3 -> v4 needs to schedule an upgrade
 				plan := upgradetypes.Plan{
 					Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
-					Height: upgrade.UpgradeHeight + 1, // next block executing the upgrade.
+					Height: upgrade.UpgradeHeight + 1, // the block after the upgrade height executes the upgrade.
 				}
 
 				if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
