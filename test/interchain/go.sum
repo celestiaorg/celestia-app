@@ -253,8 +253,8 @@ github.com/celestiaorg/celestia-core v1.51.0-tm-v0.34.35 h1:B9CRRq3VtraIe3Jktqep
 github.com/celestiaorg/celestia-core v1.51.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
 github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16 h1:qxWiGrDEcg4FzVTpIXU/v3wjP7q1Lz4AMhSBBRABInU=
 github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16/go.mod h1:W30mNt3+2l516HVR8Gt9+Gf4qOrWC9/x18MTEx2GljE=
-github.com/celestiaorg/ibc-go/v6 v6.2.4 h1:S9jH7e+faYWF9PgDQAQnHxgm+FeDWTKcOF99Zez40bA=
-github.com/celestiaorg/ibc-go/v6 v6.2.4/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
+github.com/celestiaorg/ibc-go/v6 v6.2.5 h1:mUmZptulQGsGgyBqmdBeSCPQtMu0aFMJstgvKhUdqy4=
+github.com/celestiaorg/ibc-go/v6 v6.2.5/go.mod h1:XLsARy4Y7+GtAqzMcxNdlQf6lx+ti1e8KcMGv5NIK7A=
 github.com/celestiaorg/nmt v0.23.0 h1:cfYy//hL1HeDSH0ub3CPlJuox5U5xzgg4JGZrw23I/I=
 github.com/celestiaorg/nmt v0.23.0/go.mod h1:kYfIjRq5rmA2mJnv41GLWkxn5KyLNPlma3v5Q68rHdI=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
