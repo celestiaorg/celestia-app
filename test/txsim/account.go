@@ -229,7 +229,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	var gasLimit, fee uint64
 	var gasPrice float64
 
-	// Determine gas limit
+	// Step 1: Determine gas limit
 	switch {
 	case op.GasLimit > 0:
 		gasLimit = op.GasLimit
@@ -237,7 +237,6 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		gasLimit = am.gasLimit
 	default:
 		gasLimit = DefaultGasLimit
-		fee = defaultFee
 	}
 
 	// Set gas limit
@@ -245,22 +244,24 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		opts = append(opts, user.SetGasLimit(gasLimit))
 	}
 
-	// Determine gas price and calculate fee if not already set
-	if fee == 0 {
-		switch {
-		case op.GasPrice > 0:
-			gasPrice = op.GasPrice
-		case am.gasPrice > 0:
-			gasPrice = am.gasPrice
-			if gasPrice < appconsts.DefaultMinGasPrice {
-				log.Warn().
-					Float64("gas_price", gasPrice).
-					Float64("default_min_gas_price", appconsts.DefaultMinGasPrice).
-					Msg("custom gas price is lower than default minimum")
-			}
-		default:
-			gasPrice = appconsts.DefaultMinGasPrice
+	// Step 2: Determine gas price
+	switch {
+	case op.GasPrice > 0:
+		gasPrice = op.GasPrice
+	case am.gasPrice > 0:
+		gasPrice = am.gasPrice
+		if gasPrice < appconsts.DefaultMinGasPrice {
+			log.Warn().
+				Float64("gas_price", gasPrice).
+				Float64("default_min_gas_price", appconsts.DefaultMinGasPrice).
+				Msg("custom gas price is lower than default minimum")
 		}
+	default:
+		gasPrice = appconsts.DefaultMinGasPrice
+	}
+
+	// Step 3: Calculate fee
+	if fee == 0 {
 		fee = uint64(math.Ceil(float64(gasLimit) * gasPrice))
 		opts = append(opts, user.SetFee(fee))
 	}
