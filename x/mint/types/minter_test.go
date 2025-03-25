@@ -163,7 +163,7 @@ func randomBlockInterval() time.Duration {
 
 // randInRange returns a random number in the range (min, max) inclusive.
 func randInRange(minimum int64, maximum int64) int64 {
-	return minimum + rand.Int63n(maximum-minimum+1)
+	return minimum + rand.Int63n(maximum-minimum)
 }
 
 func BenchmarkCalculateBlockProvision(b *testing.B) {
