@@ -42,10 +42,7 @@ func Run() error {
 		}
 	}
 	blockTimes := make([]time.Time, 0, queryRange)
-	firstHeight := lastHeight - int64(queryRange) + 1
-	if firstHeight < 1 {
-		firstHeight = 1
-	}
+	firstHeight := max(lastHeight-int64(queryRange)+1, 1)
 	for height := firstHeight; height <= lastHeight; height++ {
 		resp, err := c.Commit(context.Background(), &height)
 		if err != nil {
