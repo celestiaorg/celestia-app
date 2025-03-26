@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -16,25 +17,23 @@ const appDirectory = ".celestia-app"
 // If celestiaHome isn't specified, the default user home directory will be used.
 const celestiaHome = "CELESTIA_HOME"
 
-// DefaultNodeHome is the default home directory for the application daemon.
-// This gets set as a side-effect of the init() function.
+// DefaultNodeHome is the home directory for the app directory. In other words,
+// this is the path to the directory that will contain .celestia-app. This gets
+// set as a side-effect of the init() function.
 var DefaultNodeHome string
 
 func init() {
+	celestiaHome := os.Getenv(celestiaHome)
 	userHome, err := os.UserHomeDir()
 	if err != nil {
-		panic(err)
+		// The userHome is not set in Vercel's Go runtime so log a warning but don't panic.
+		fmt.Printf("Warning userHome err: %s\n", err)
 	}
-	celestiaHome := os.Getenv(celestiaHome)
-	DefaultNodeHome = getDefaultNodeHome(userHome, celestiaHome)
+	DefaultNodeHome = getDefaultNodeHome(celestiaHome, userHome)
 }
 
-// getDefaultNodeHome computes the default node home directory based on the
-// provided userHome and celestiaHome. If celestiaHome is provided, it takes
-// precedence and constructs the path by appending the application directory.
-// Otherwise, it falls back to using the userHome with the application directory
-// appended.
-func getDefaultNodeHome(userHome string, celestiaHome string) string {
+// getDefaultNodeHome returns the location of the default home app directory.
+func getDefaultNodeHome(celestiaHome string, userHome string) string {
 	if celestiaHome != "" {
 		return filepath.Join(celestiaHome, appDirectory)
 	}

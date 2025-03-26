@@ -11,7 +11,7 @@ Implemented
 
 ## Context
 
-As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md), celestia-app will provide a base implementation for the gas and fee estimation so it can be used when building transactions.
+As per [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-018.md), celestia-app will provide a base implementation for the gas and fee estimation so it can be used when building transactions.
 
 ## Decision
 
@@ -21,7 +21,7 @@ The fee estimation mechanism is described below.
 
 ## Detailed Design
 
-The API will be provided through gRPC following the interface provided in [CIP-18](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md).
+The API will be provided through gRPC following the interface provided in [CIP-18](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-018.md).
 
 ### Gas used estimation
 
@@ -47,6 +47,8 @@ There are multiple ways to have a gas price estimation for a priority level. Thi
 - None Priority: This is equivalent to the Medium priority, using is the median price of all gas prices in the mempool.
 
 If the mempool has more transactions that it can fit in the next block, the estimation will be based on the top gas prices that can fit in a full block. Otherwise, if the mempool transactions can't fill more than 70% of the max block size, the minimum gas price will be returned.
+
+If the gas prices used for the estimation are tightly clustered, an increase of 30% and 10% will be added for high and medium priority respectively. Tightly clustered values are defined by the standard deviation of the elements being below the `gasPriceAdjustmentThreshold`. 
 
 The following is a basic implementation of the median that we can use:
 
@@ -92,4 +94,4 @@ None.
 
 ## References
 
-- [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-18.md).
+- [CIP-18: Standardised Gas and Pricing Estimation Interface](https://github.com/celestiaorg/CIPs/blob/main/cips/cip-018.md).
