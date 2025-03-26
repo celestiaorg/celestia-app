@@ -14,15 +14,15 @@ ARG MAX_SQUARE_SIZE
 # Use build args to override the upgrade height delay of the docker image e.g.
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
-
-
+# the tag used for the embedded v3 binary.
 ARG CELESTIA_VERSION=v3.4.2
+# the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
 
-# this base image contains already released binaries which can be embedded in the multiplexer.
+# Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
 
-# Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
+# Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
@@ -53,7 +53,7 @@ RUN uname -a &&\
     OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
     make build-multiplexer
 
-# Stage 2: Create a minimal image to run the celestia-appd binary
+# Stage 3: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
