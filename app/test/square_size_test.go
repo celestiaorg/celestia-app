@@ -117,9 +117,9 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 
 			block, err := s.cctx.Client.Block(s.cctx.GoContext(), &latestHeight)
 			require.NoError(t, err)
-			require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tc.govMaxSquareSize))
+			require.LessOrEqual(t, block.Block.SquareSize, uint64(tc.govMaxSquareSize))
 
-			require.Equal(t, tc.expMaxSquareSize, int(block.Block.Data.SquareSize))
+			require.Equal(t, tc.expMaxSquareSize, int(block.Block.SquareSize))
 		})
 	}
 	cancel()

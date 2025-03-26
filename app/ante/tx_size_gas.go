@@ -2,6 +2,7 @@ package ante
 
 import (
 	"encoding/hex"
+	"slices"
 
 	"cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
@@ -126,10 +127,8 @@ func isIncompleteSignature(data signing.SignatureData) bool {
 		if len(data.Signatures) == 0 {
 			return true
 		}
-		for _, s := range data.Signatures {
-			if isIncompleteSignature(s) {
-				return true
-			}
+		if slices.ContainsFunc(data.Signatures, isIncompleteSignature) {
+			return true
 		}
 	}
 

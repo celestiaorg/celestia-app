@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 )
 
@@ -24,6 +26,7 @@ func init() {
 	clienthelpers.EnvPrefix = EnvPrefix
 	DefaultNodeHome, err = clienthelpers.GetNodeHomeDirectory(appDirectory)
 	if err != nil {
-		panic(err)
+		// The userHome is not set in Vercel's Go runtime so log a warning but don't panic.
+		fmt.Printf("Warning userHome err: %s\n", err)
 	}
 }

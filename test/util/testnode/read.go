@@ -173,8 +173,8 @@ func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeigh
 		if err != nil {
 			return average(), count, err
 		}
-		indices := make([]int, 0, len(resp.Block.Data.Txs))
-		for i, rawTx := range resp.Block.Data.Txs {
+		indices := make([]int, 0, len(resp.Block.Txs))
+		for i, rawTx := range resp.Block.Txs {
 			tx, err := decoder(rawTx)
 			if err != nil {
 				return average(), count, fmt.Errorf("decoding tx (height: %d): %w", height, err)

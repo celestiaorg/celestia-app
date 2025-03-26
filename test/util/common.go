@@ -306,12 +306,13 @@ func CreateTestEnv(t *testing.T) TestInput {
 	for name, permissions := range moduleAccountPermissions {
 		moduleAccount := authtypes.NewEmptyModuleAccount(name, permissions...)
 		totalSupply := sdk.NewCoins(sdk.NewInt64Coin("stake", 100000000))
-		if name == stakingtypes.NotBondedPoolName {
+		switch name {
+		case stakingtypes.NotBondedPoolName:
 			err = bankKeeper.MintCoins(ctx, blobstreamModuleName, totalSupply)
 			require.NoError(t, err)
 			err = bankKeeper.SendCoinsFromModuleToModule(ctx, blobstreamModuleName, moduleAccount.Name, totalSupply)
 			require.NoError(t, err)
-		} else if name == distrtypes.ModuleName {
+		case distrtypes.ModuleName:
 			// some big pot to pay out
 			amt := sdk.NewCoins(sdk.NewInt64Coin("stake", 500000))
 			err = bankKeeper.MintCoins(ctx, blobstreamModuleName, amt)
