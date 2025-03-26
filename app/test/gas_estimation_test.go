@@ -1,13 +1,15 @@
-package app
+package app_test
 
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"sync"
 	"testing"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
@@ -20,12 +22,74 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
 	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/random"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
+
+func TestSortAndExtractGasPrice(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	accounts := testfactory.GenerateAccounts(4)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	blobs := blobfactory.NestedBlobs(
+		t,
+		testfactory.RandomBlobNamespaces(random.New(), 4),
+		[][]int{{100}, {1000}, {420}, {500}},
+	)
+
+	txGas := uint64(100000)
+	txs := make([]coretypes.Tx, 0)
+	txGasToSizeMap := make(map[float64]int)
+	for i, acc := range accounts {
+		signer, err := user.NewSigner(kr, enc, testutil.ChainID, user.NewAccount(acc, infos[i].AccountNum, infos[i].Sequence))
+		require.NoError(t, err)
+		bTxFee := rand.Uint64() % 10000
+		bTx, _, err := signer.CreatePayForBlobs(acc, blobs[i],
+			user.SetFee(bTxFee),
+			user.SetGasLimit(txGas))
+		require.NoError(t, err)
+		bTxGasPrice := float64(bTxFee) / float64(txGas)
+
+		sTxFee := rand.Uint64() % 10000
+		sendTx := testutil.SendTxWithManualSequence(
+			t,
+			enc,
+			kr,
+			accounts[i],
+			accounts[0],
+			1000,
+			testutil.ChainID,
+			infos[i].Sequence,
+			infos[i].AccountNum,
+			user.SetFee(sTxFee),
+			user.SetGasLimit(txGas),
+		)
+		sTxGasPrice := float64(sTxFee) / float64(txGas)
+
+		txs = append(txs, sendTx)
+		txs = append(txs, bTx)
+
+		txGasToSizeMap[bTxGasPrice] = len(bTx)
+		txGasToSizeMap[sTxGasPrice] = len(sendTx)
+	}
+
+	maxBytes := 3000
+	gasPrices, err := gasestimation.SortAndExtractGasPrices(testApp.GetTxConfig().TxDecoder(), txs, int64(maxBytes))
+	require.NoError(t, err)
+	require.Greater(t, len(gasPrices), 0)
+
+	currentGasPrice := gasPrices[0]
+	currentSize := txGasToSizeMap[currentGasPrice]
+	for _, gasPrice := range gasPrices[1:] {
+		assert.GreaterOrEqual(t, gasPrice, currentGasPrice)
+		currentSize += txGasToSizeMap[gasPrice]
+	}
+	assert.LessOrEqual(t, currentSize, maxBytes)
+}
 
 func TestEstimateGasPrice(t *testing.T) {
 	if testing.Short() {
@@ -34,11 +98,14 @@ func TestEstimateGasPrice(t *testing.T) {
 
 	// test setup: create a test chain, submit a few PFBs to it, keep track of their gas
 	// price, then test the gas estimator API.
-	accountNames := testfactory.GenerateAccounts(150)                                                       // using 150 to have 2 pages of txs
-	cfg := testnode.DefaultConfig().WithFundedAccounts(accountNames...).WithTimeoutCommit(10 * time.Second) // to have all the transactions in just a few blocks
+	accountNames := testfactory.GenerateAccounts(10)
+	cfg := testnode.DefaultConfig().WithFundedAccounts(accountNames...).
+		WithTimeoutCommit(20 * time.Second) // to have all transactions in the mempool without being included in a block
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
-	require.NoError(t, cctx.WaitForNextBlock())
+
+	err := cctx.WaitForNextBlock()
+	require.NoError(t, err)
 
 	// create the gas estimation client
 	gasEstimationAPI := gasestimation.NewGasEstimatorClient(cctx.GRPCClient)
@@ -46,22 +113,23 @@ func TestEstimateGasPrice(t *testing.T) {
 	// test getting the gas price for an empty blockchain
 	resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{})
 	require.NoError(t, err)
-	assert.Equal(t, appconsts.DefaultNetworkMinGasPrice, resp.EstimatedGasPrice)
+	assert.Equal(t, appconsts.DefaultMinGasPrice, resp.EstimatedGasPrice)
 
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, enc)
 	require.NoError(t, err)
 
-	gasLimit := blobtypes.DefaultEstimateGas([]uint32{100})
-	gasPricesChan := make(chan float64, len(accountNames))
+	blobSize := (appconsts.DefaultMaxBytes - 1) / len(accountNames)
+	gasLimit := blobtypes.DefaultEstimateGas([]uint32{uint32(blobSize)})
 	wg := &sync.WaitGroup{}
+	gasPricesChan := make(chan float64, len(accountNames))
 	for _, accName := range accountNames {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
-			blobs := blobfactory.ManyBlobs(random.New(), []share.Namespace{share.RandomBlobNamespace()}, []int{100})
+			blobs := blobfactory.ManyBlobs(random.New(), []share.Namespace{share.RandomBlobNamespace()}, []int{blobSize})
 			resp, err := txClient.BroadcastPayForBlobWithAccount(
 				cctx.GoContext(),
 				accName,
@@ -74,49 +142,45 @@ func TestEstimateGasPrice(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	err = cctx.WaitForNextBlock()
-	require.NoError(t, err)
 
 	close(gasPricesChan)
 	gasPrices := make([]float64, 0, len(accountNames))
 	for price := range gasPricesChan {
 		gasPrices = append(gasPrices, price)
 	}
+	sort.Float64s(gasPrices)
 
-	meanGasPrice := gasestimation.Mean(gasPrices)
-	stDev := gasestimation.StandardDeviation(meanGasPrice, gasPrices)
+	medianGasPrice, err := gasestimation.Median(gasPrices)
+	require.NoError(t, err)
+	bottomMedian, err := gasestimation.Median(gasPrices[:len(gasPrices)*10/100])
+	require.NoError(t, err)
+	topMedian, err := gasestimation.Median(gasPrices[len(gasPrices)*90/100:])
+	require.NoError(t, err)
+
 	tests := []struct {
 		name             string
 		priority         gasestimation.TxPriority
 		expectedGasPrice float64
 	}{
 		{
-			name:     "NONE -> same as MEDIUM (mean)",
-			priority: gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED,
-			expectedGasPrice: func() float64 {
-				return meanGasPrice
-			}(),
+			name:             "NONE -> same as MEDIUM (median)",
+			priority:         gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED,
+			expectedGasPrice: medianGasPrice,
 		},
 		{
-			name:     "LOW -> mean - ZScore * stDev",
-			priority: gasestimation.TxPriority_TX_PRIORITY_LOW,
-			expectedGasPrice: func() float64 {
-				return meanGasPrice - gasestimation.EstimationZScore*stDev
-			}(),
+			name:             "LOW -> bottom 10% median",
+			priority:         gasestimation.TxPriority_TX_PRIORITY_LOW,
+			expectedGasPrice: bottomMedian,
 		},
 		{
-			name:     "MEDIUM -> mean",
-			priority: gasestimation.TxPriority_TX_PRIORITY_MEDIUM,
-			expectedGasPrice: func() float64 {
-				return meanGasPrice
-			}(),
+			name:             "MEDIUM -> median",
+			priority:         gasestimation.TxPriority_TX_PRIORITY_MEDIUM,
+			expectedGasPrice: medianGasPrice,
 		},
 		{
-			name:     "HIGH -> mean + ZScore * stDev",
-			priority: gasestimation.TxPriority_TX_PRIORITY_HIGH,
-			expectedGasPrice: func() float64 {
-				return meanGasPrice + gasestimation.EstimationZScore*stDev
-			}(),
+			name:             "HIGH -> top 10% median",
+			priority:         gasestimation.TxPriority_TX_PRIORITY_HIGH,
+			expectedGasPrice: topMedian,
 		},
 	}
 

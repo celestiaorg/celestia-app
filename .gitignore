@@ -7,7 +7,7 @@ coverage.txt
 .idea
 .vscode
 tools-stamp
-__debug_bin
+__debug_bin*
 profile.out
 tmp/
 run.sh
@@ -20,5 +20,5 @@ vendor
 go.work
 go.work.sum
 .envrc
-# test artefacts
+# test artifacts
 app/test/bad_block_*

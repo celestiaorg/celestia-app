@@ -8,11 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b #v5.4.0
         with:
-          go-version-file: 'go.mod'
-      - uses: technote-space/get-diff-action@v6.1.2
+          go-version-file: "go.mod"
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
         with:
           # This job will pass without running if go.mod, go.sum, and *.go
           # wasn't modified.
@@ -20,21 +20,21 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - uses: golangci/golangci-lint-action@v6.5.0
+      - uses: golangci/golangci-lint-action@1481404843c368bc19ca9406f87d6e0fc97bdcfd #v7.0.0
         with:
-          version: v1.64.5
+          version: v2.0.1
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
 
   # hadolint lints the Dockerfile
   hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@v0.5.0
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@45533fc35847a8568deb0d4cae1851a2872f3651 #v0.5.0
     with:
       dockerfile: "docker/Dockerfile"
 
   yamllint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: celestiaorg/.github/.github/actions/yamllint@v0.5.0
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+      - uses: celestiaorg/.github/.github/actions/yamllint@45533fc35847a8568deb0d4cae1851a2872f3651 #v0.5.0

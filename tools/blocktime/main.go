@@ -42,17 +42,14 @@ func Run() error {
 		}
 	}
 	blockTimes := make([]time.Time, 0, queryRange)
-	firstHeight := lastHeight - int64(queryRange) + 1
-	if firstHeight < 1 {
-		firstHeight = 1
-	}
+	firstHeight := max(lastHeight-int64(queryRange)+1, 1)
 	for height := firstHeight; height <= lastHeight; height++ {
 		resp, err := c.Commit(context.Background(), &height)
 		if err != nil {
 			return err
 		}
 
-		blockTimes = append(blockTimes, resp.Header.Time)
+		blockTimes = append(blockTimes, resp.Time)
 	}
 	avgTime, minTime, maxTime, stdvTime := analyzeBlockTimes(blockTimes)
 	fmt.Printf(`
@@ -89,7 +86,7 @@ func analyzeBlockTimes(times []time.Time) (float64, float64, float64, float64) {
 		if maxTime == 0 || diff > maxTime {
 			maxTime = diff
 		}
-		variance += math.Pow(averageTime-diff, 2)
+		variance += (averageTime - diff) * (averageTime - diff)
 	}
 	stddev := math.Sqrt(variance / float64(numberOfObservations))
 	return averageTime, minTime, maxTime, stddev

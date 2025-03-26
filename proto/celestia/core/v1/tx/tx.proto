@@ -22,7 +22,7 @@ service Tx {
 
 // TxStatusRequest is the request type for the TxStatus gRPC method.
 message TxStatusRequest {
-  // this is the hex encoded transaction hash (should be 64 bytes long)
+  // this is the hex encoded transaction hash (should be 64 characters long representing 32 bytes)
   string tx_id = 1;
 }
 
