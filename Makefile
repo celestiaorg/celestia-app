@@ -121,6 +121,12 @@ build-docker:
 docker-build: build-docker
 .PHONY: docker-build
 
+build-docker-multiplexer:
+	@echo "--> Building Multiplexer Docker image"
+	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer:$(COMMIT) -f docker/multiplexer.Dockerfile .
+.PHONY: build-docker-multiplexer
+
+
 build-ghcr-docker:
 	@echo "--> Building Docker image"
 	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app:$(COMMIT) -f docker/Dockerfile .

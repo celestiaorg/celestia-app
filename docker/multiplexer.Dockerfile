@@ -14,8 +14,15 @@ ARG MAX_SQUARE_SIZE
 # Use build args to override the upgrade height delay of the docker image e.g.
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
+# the tag used for the embedded v3 binary.
+ARG CELESTIA_VERSION=v3.4.2
+# the docker registry used for the embedded v3 binary.
+ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
 
-# Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
+# Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
+
+# Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
@@ -30,6 +37,7 @@ RUN apk update && apk add --no-cache \
     linux-headers \
     make \
     musl-dev
+
 WORKDIR /celestia-app
 
 # cache go module dependencies
@@ -39,13 +47,19 @@ RUN go mod download
 # copy source code after downloading modules (to leverage caching)
 COPY . .
 
+COPY --from=base /bin/celestia-appd /tmp/celestia-appd
+
+# compress the binary to the path to be embedded correctly.
+RUN tar -cvzf internal/embedding/celestia-app_Linux_v3_arm64.tar.gz /tmp/celestia-appd \
+    && rm /tmp/celestia-appd
+
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     OVERRIDE_MAX_SQUARE_SIZE=${MAX_SQUARE_SIZE} \
     OVERRIDE_UPGRADE_HEIGHT_DELAY=${UPGRADE_HEIGHT_DELAY} \
-    make build
+    make build-multiplexer
 
-# Stage 2: Create a minimal image to run the celestia-appd binary
+# Stage 3: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
