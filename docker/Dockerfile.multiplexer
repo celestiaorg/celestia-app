@@ -42,7 +42,6 @@ COPY . /celestia-app
 WORKDIR /celestia-app
 
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
-RUN /tmp/celestia-appd --help
 
 # compress the binary to the path to be embedded correctly.
 RUN tar -cvzf internal/embedding/celestia-app_Linux_v3_arm64.tar.gz /tmp/celestia-appd \
