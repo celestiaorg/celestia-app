@@ -5,11 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/p2p"
+	"github.com/cometbft/cometbft/p2p/pex"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-	"github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/p2p"
-	"github.com/tendermint/tendermint/p2p/pex"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
 )
 
 func MakeConfig(node *Node, peers []string, opts ...Option) (*config.Config, error) {
@@ -58,7 +60,7 @@ func WithPrometheus(prometheus bool) Option {
 
 func WithMempool(mempool string) Option {
 	return func(cfg *config.Config) {
-		cfg.Mempool.Version = mempool
+		cfg.Mempool.Type = mempool
 	}
 }
 
@@ -112,10 +114,30 @@ func WriteAddressBook(peers []string, file string) error {
 
 func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg := serverconfig.DefaultConfig()
-	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
+	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", params.BondDenom)
 	// updating MaxRecvMsgSize and MaxSendMsgSize allows submission of 128MiB worth of
 	// transactions simultaneously which is useful for big block tests.
 	srvCfg.GRPC.MaxRecvMsgSize = 128 * MiB
 	srvCfg.GRPC.MaxSendMsgSize = 128 * MiB
+	srvCfg.GRPC.Enable = true
+	srvCfg.GRPC.Address = "0.0.0.0:9090" // explicitly ensure that other containers can access the address.
+
+	if err := validateServerConfigForTestnet(srvCfg); err != nil {
+		return nil, err
+	}
+
 	return srvCfg, srvCfg.ValidateBasic()
+}
+
+// validateServerConfigForTestnet ensures that the server config is configured correctly
+// to ensure nodes are accessible during tests.
+func validateServerConfigForTestnet(srvCfg *serverconfig.Config) error {
+	if !srvCfg.GRPC.Enable {
+		return fmt.Errorf("gRPC must be enabled")
+	}
+
+	if !strings.Contains(srvCfg.GRPC.Address, "0.0.0.0") {
+		return fmt.Errorf("gRPC address must contain '0.0.0.0'")
+	}
+	return nil
 }

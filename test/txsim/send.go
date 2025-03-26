@@ -4,10 +4,11 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/gogo/protobuf/grpc"
+	"github.com/cosmos/gogoproto/grpc"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
 )
 
 var _ Sequence = &SendSequence{}

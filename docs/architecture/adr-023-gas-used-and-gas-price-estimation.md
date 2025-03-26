@@ -72,7 +72,7 @@ For the top/bottom 10%, they will be extracted after sorting the list of gas pri
 
 ## Alternative Approaches
 
-There are multiple ways to estimate the gas price. However, a first default implementation can be as basic as described above. 
+There are multiple ways to estimate the gas price. However, a first default implementation can be as basic as described above.
 
 Better estimations can be done subsequently.
 

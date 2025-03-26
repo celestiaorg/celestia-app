@@ -1,13 +1,16 @@
 package blobfactory
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
+	"math/rand"
+
+	"cosmossdk.io/math"
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
 )
 
 func DefaultTxOpts() []user.TxOption {
@@ -39,13 +42,13 @@ func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
 
 	amountCoin := sdk.Coin{
 		Denom:  appconsts.BondDenom,
-		Amount: sdk.NewInt(amount),
+		Amount: math.NewInt(amount),
 	}
 
 	addr := signer.Account(testfactory.TestAccName).Address()
 	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(amountCoin))
 
-	tx, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
+	tx, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	if err != nil {
 		panic(err)
 	}
@@ -54,8 +57,8 @@ func GenerateRawSendTx(signer *user.Signer, amount int64) []byte {
 }
 
 // GenerateRandomAmount generates a random amount for a Send transaction.
-func GenerateRandomAmount(rand *tmrand.Rand) int64 {
-	n := rand.Int64()
+func GenerateRandomAmount(r *rand.Rand) int64 {
+	n := r.Int63()
 	if n < 0 {
 		return -n
 	}
@@ -63,13 +66,13 @@ func GenerateRandomAmount(rand *tmrand.Rand) int64 {
 }
 
 // GenerateRandomRawSendTx generates a random raw send tx.
-func GenerateRandomRawSendTx(rand *tmrand.Rand, signer *user.Signer) (rawTx []byte) {
+func GenerateRandomRawSendTx(rand *rand.Rand, signer *user.Signer) (rawTx []byte) {
 	amount := GenerateRandomAmount(rand)
 	return GenerateRawSendTx(signer, amount)
 }
 
 // GenerateManyRandomRawSendTxsSameSigner  generates count many random raw send txs.
-func GenerateManyRandomRawSendTxsSameSigner(rand *tmrand.Rand, signer *user.Signer, count int) []coretypes.Tx {
+func GenerateManyRandomRawSendTxsSameSigner(rand *rand.Rand, signer *user.Signer, count int) []coretypes.Tx {
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
 		txs[i] = GenerateRandomRawSendTx(rand, signer)

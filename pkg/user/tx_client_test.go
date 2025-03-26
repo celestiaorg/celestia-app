@@ -5,24 +5,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"cosmossdk.io/math/unsafe"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 func TestTxClientTestSuite(t *testing.T) {
@@ -42,13 +44,13 @@ type TxClientTestSuite struct {
 }
 
 func (suite *TxClientTestSuite) SetupSuite() {
-	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T(), testnode.DefaultTendermintConfig().Mempool.TTLDuration)
+	suite.encCfg, suite.txClient, suite.ctx = setupTxClient(suite.T())
 	suite.serviceClient = sdktx.NewServiceClient(suite.ctx.GRPCClient)
 }
 
 func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	t := suite.T()
-	blobs := blobfactory.ManyRandBlobs(rand.NewRand(), 1e3, 1e4)
+	blobs := blobfactory.ManyRandBlobs(random.New(), 1e3, 1e4)
 
 	subCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -95,7 +97,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 	gasLimitOption := user.SetGasLimit(gasLimit)
 	feeOption := user.SetFee(1e6)
 	addr := suite.txClient.DefaultAddress()
-	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 
 	t.Run("submit tx without provided fee and gas limit", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
@@ -132,7 +134,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 
 	t.Run("submit tx with a different account", func(t *testing.T) {
 		addr := suite.txClient.Account("b").Address()
-		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
@@ -158,7 +160,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		defer cancel()
 
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		msg := bank.NewMsgSend(suite.txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := bank.NewMsgSend(suite.txClient.DefaultAddress(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 		require.NoError(t, err)
 		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
@@ -178,7 +180,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 
 	t.Run("should return error log when execution fails", func(t *testing.T) {
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		innerMsg := bank.NewMsgSend(testnode.RandomAddress().(sdk.AccAddress), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		msg := authz.NewMsgExec(suite.txClient.DefaultAddress(), []sdk.Msg{innerMsg})
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{&msg}, fee, gas)
 		require.NoError(t, err)
@@ -194,7 +196,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	t.Run("should success when tx is found immediately", func(t *testing.T) {
 		addr := suite.txClient.DefaultAddress()
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
-		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
@@ -213,7 +215,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		addr := suite.txClient.DefaultAddress()
 		seqBeforeBroadcast := suite.txClient.Signer().Account(suite.txClient.DefaultAccountName()).Sequence()
 		// Create a msg send with out of balance, ensure this tx fails
-		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 1+balance)))
+		msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 1+balance)))
 		resp, err := suite.txClient.BroadcastTx(suite.ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
 		require.NoError(t, err)
 		require.Equal(t, resp.Code, abci.CodeTypeOK)
@@ -228,36 +230,9 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 	})
 }
 
-func TestEvictions(t *testing.T) {
-	_, txClient, ctx := setupTxClient(t, 1*time.Nanosecond)
-
-	fee := user.SetFee(1e6)
-	gas := user.SetGasLimit(1e6)
-
-	// Keep submitting the transaction until we get the eviction error
-	sender := txClient.Signer().Account(txClient.DefaultAccountName())
-	msg := bank.NewMsgSend(sender.Address(), testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
-	var seqBeforeEviction uint64
-	// Loop five times until the tx is evicted
-	for i := 0; i < 5; i++ {
-		seqBeforeEviction = sender.Sequence()
-		resp, err := txClient.BroadcastTx(ctx.GoContext(), []sdk.Msg{msg}, fee, gas)
-		require.NoError(t, err)
-		_, err = txClient.ConfirmTx(ctx.GoContext(), resp.TxHash)
-		if err != nil {
-			if err.Error() == "tx was evicted from the mempool" {
-				break
-			}
-		}
-	}
-
-	seqAfterEviction := sender.Sequence()
-	require.Equal(t, seqBeforeEviction, seqAfterEviction)
-}
-
 func (suite *TxClientTestSuite) TestGasEstimation() {
 	addr := suite.txClient.DefaultAddress()
-	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
 	gas, err := suite.txClient.EstimateGas(suite.ctx.GoContext(), []sdk.Msg{msg})
 	require.NoError(suite.T(), err)
 	require.Greater(suite.T(), gas, uint64(0))
@@ -272,7 +247,7 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 
 	utiaToSend := int64(1)
 	addr := suite.txClient.DefaultAddress()
-	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, utiaToSend)))
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, utiaToSend)))
 
 	gasPrice := int64(1)
 	gasLimit := uint64(1e6)
@@ -318,7 +293,7 @@ func (suite *TxClientTestSuite) queryCurrentBalance(t *testing.T) int64 {
 	addr := suite.txClient.DefaultAddress()
 	balanceResp, err := balanceQuery.AllBalances(suite.ctx.GoContext(), &bank.QueryAllBalancesRequest{Address: addr.String()})
 	require.NoError(t, err)
-	return balanceResp.Balances.AmountOf(app.BondDenom).Int64()
+	return balanceResp.Balances.AmountOf(params.BondDenom).Int64()
 }
 
 func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
@@ -327,7 +302,7 @@ func wasRemovedFromTxTracker(txHash string, txClient *user.TxClient) bool {
 }
 
 // asserts that a tx was indexed in the tx tracker and that the sequence does not increase
-func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, expectedSigner string, seqBeforeBroadcast uint64) {
+func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash, expectedSigner string, seqBeforeBroadcast uint64) {
 	seqFromTxTracker, signer, exists := txClient.GetTxFromTxTracker(txHash)
 	require.True(t, exists)
 	require.Equal(t, expectedSigner, signer)
@@ -338,20 +313,24 @@ func assertTxInTxTracker(t *testing.T, txClient *user.TxClient, txHash string, e
 	require.Equal(t, seqAfterBroadcast, seqBeforeBroadcast+1)
 }
 
-func setupTxClient(t *testing.T, ttlDuration time.Duration) (encoding.Config, *user.TxClient, testnode.Context) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+func setupTxClient(t *testing.T) (encoding.Config, *user.TxClient, testnode.Context) {
+	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	defaultTmConfig := testnode.DefaultTendermintConfig()
-	defaultTmConfig.Mempool.TTLDuration = ttlDuration
+
+	chainID := unsafe.Str(6)
 	testnodeConfig := testnode.DefaultConfig().
 		WithTendermintConfig(defaultTmConfig).
 		WithFundedAccounts("a", "b", "c").
-		WithAppCreator(testnode.CustomAppCreator("0utia"))
+		WithChainID(chainID).
+		WithTimeoutCommit(100 * time.Millisecond).
+		WithAppCreator(testnode.CustomAppCreator(baseapp.SetMinGasPrices("0utia"), baseapp.SetChainID(chainID)))
+
 	ctx, _, _ := testnode.NewNetwork(t, testnodeConfig)
 	_, err := ctx.WaitForHeight(1)
 	require.NoError(t, err)
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, user.WithGasMultiplier(1.2))
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, enc, user.WithGasMultiplier(1.2))
 	require.NoError(t, err)
-	return encCfg, txClient, ctx
+	return enc, txClient, ctx
 }
 
 func (suite *TxClientTestSuite) TestGasPriceAndUsedEstimate() {
@@ -371,7 +350,7 @@ func (suite *TxClientTestSuite) TestGasPriceAndUsedEstimate() {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, err := signer.CreateTx([]sdk.Msg{msg})
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg})
 		require.NoError(t, err)
 		gasPrice, gasUsed, err := signer.QueryGasUsedAndPrice(ctx, suite.ctx.GRPCClient, gasestimation.TxPriority_TX_PRIORITY_HIGH, rawTx)
 		assert.NoError(t, err)

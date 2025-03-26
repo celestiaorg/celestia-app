@@ -3,37 +3,33 @@ package minfee_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/store"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-	tmdb "github.com/tendermint/tm-db"
+
+	"github.com/celestiaorg/celestia-app/v4/x/minfee"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 func TestNewModuleInitializesKeyTable(t *testing.T) {
-	storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
+	kvStoreKey := storetypes.NewKVStoreKey(paramtypes.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
-
-	// Create the state store
-	db := tmdb.NewMemDB()
-	stateStore := store.NewCommitMultiStore(db)
-	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
-	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)
-	require.NoError(t, stateStore.LoadLatestVersion())
+	_ = testutil.DefaultContextWithDB(t, kvStoreKey, tStoreKey)
 
 	registry := codectypes.NewInterfaceRegistry()
 
 	// Create a params keeper
-	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), storeKey, tStoreKey)
-	subspace := paramsKeeper.Subspace(minfee.ModuleName)
+	cdc := codec.NewProtoCodec(registry)
+	paramsKeeper := paramkeeper.NewKeeper(codec.NewProtoCodec(registry), codec.NewLegacyAmino(), kvStoreKey, tStoreKey)
+	subspace := paramsKeeper.Subspace(types.ModuleName)
 
 	// Initialize the minfee module which registers the key table
-	minfee.NewAppModule(paramsKeeper)
+	minfee.NewAppModule(cdc, keeper.NewKeeper(cdc, nil, paramsKeeper, subspace, ""))
 
 	// Require key table to be initialized
 	hasKeyTable := subspace.HasKeyTable()

@@ -2,11 +2,12 @@ package ante
 
 import (
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 // MaxTotalBlobSizeDecorator helps to prevent a PFB from being included in a
@@ -27,15 +28,11 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		return next(ctx, tx, simulate)
 	}
 
-	if ctx.BlockHeader().Version.App != v1.Version {
-		return next(ctx, tx, simulate)
-	}
-
-	maximum := d.maxTotalBlobSize(ctx)
+	maxSize := d.maxTotalBlobSize(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if total := getTotal(pfb.BlobSizes); total > maximum {
-				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds max %d", total, maximum)
+			if total := getTotal(pfb.BlobSizes); total > maxSize {
+				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds max %d", total, maxSize)
 			}
 		}
 	}
@@ -65,14 +62,13 @@ func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 	// and comet that have full support of PrepareProposal, although
 	// celestia-app does not currently use those. see this PR for more details
 	// https://github.com/cosmos/cosmos-sdk/pull/14505
-	if ctx.BlockHeader().Height <= 1 {
+	if ctx.HeaderInfo().Height <= 1 {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	upperBound := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
-	govParam := d.k.GovMaxSquareSize(ctx)
-	minimum := min(upperBound, int(govParam))
-	return minimum
+	upperBound := appconsts.DefaultSquareSizeUpperBound
+	govParam := d.k.GetParams(ctx).GovMaxSquareSize
+	return min(upperBound, int(govParam))
 }
 
 // getTotal returns the sum of the given sizes.

@@ -11,25 +11,28 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/go-square/v2/share"
+	sdkmath "cosmossdk.io/math"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
+	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
-	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
+	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/rpc/core"
 	"google.golang.org/grpc"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v3/x/minfee"
+	"github.com/celestiaorg/go-square/v2/share"
+
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v4/app/params"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v4/x/minfee/types"
 )
 
 const (
@@ -133,6 +136,7 @@ func WithDefaultAccount(name string) Option {
 // TxClient is thread-safe.
 type TxClient struct {
 	mtx      sync.Mutex
+	cdc      codec.Codec
 	signer   *Signer
 	registry codectypes.InterfaceRegistry
 	grpc     *grpc.ClientConn
@@ -151,6 +155,7 @@ type TxClient struct {
 
 // NewTxClient returns a new signer using the provided keyring
 func NewTxClient(
+	cdc codec.Codec,
 	signer *Signer,
 	conn *grpc.ClientConn,
 	registry codectypes.InterfaceRegistry,
@@ -180,6 +185,7 @@ func NewTxClient(
 		defaultAccount:  records[0].Name,
 		defaultAddress:  addr,
 		txTracker:       make(map[string]txInfo),
+		cdc:             cdc,
 	}
 
 	for _, opt := range options {
@@ -207,7 +213,6 @@ func SetupTxClient(
 	}
 
 	chainID := resp.SdkBlock.Header.ChainID
-	appVersion := resp.SdkBlock.Header.Version.App
 
 	records, err := keys.List()
 	if err != nil {
@@ -236,12 +241,12 @@ func SetupTxClient(
 	}
 	options = append([]Option{WithDefaultGasPrice(minPrice)}, options...)
 
-	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, appVersion, accounts...)
+	signer, err := NewSigner(keys, encCfg.TxConfig, chainID, accounts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create signer: %w", err)
 	}
 
-	return NewTxClient(signer, conn, encCfg.InterfaceRegistry, options...)
+	return NewTxClient(encCfg.Codec, signer, conn, encCfg.InterfaceRegistry, options...)
 }
 
 // SubmitPayForBlob forms a transaction from the provided blobs, signs it, and submits it to the chain.
@@ -345,7 +350,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	if gasLimit == 0 {
 		if !hasUserSetFee {
 			// add at least 1utia as fee to builder as it affects gas calculation.
-			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 		}
 		gasLimit, err = client.estimateGas(ctx, txBuilder)
 		if err != nil {
@@ -356,7 +361,7 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 
 	if !hasUserSetFee {
 		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
-		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(fee))))
+		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(fee))))
 	}
 
 	account, _, err = client.signer.signTransaction(txBuilder)
@@ -514,7 +519,7 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
 	// add at least 1utia as fee to builder as it affects gas calculation.
-	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 
 	_, _, err := client.signer.signTransaction(txBuilder)
 	if err != nil {
@@ -583,7 +588,10 @@ func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) 
 func (client *TxClient) getAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
 	var addr sdktypes.AccAddress
 	for _, msg := range msgs {
-		signers := msg.GetSigners()
+		signers, _, err := client.cdc.GetMsgV1Signers(msg)
+		if err != nil {
+			return "", fmt.Errorf("getting signers from message: %w", err)
+		}
 		if len(signers) != 1 {
 			return "", fmt.Errorf("only one signer per transaction supported, got %d", len(signers))
 		}
@@ -638,7 +646,7 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 	if err != nil {
 		return 0, err
 	}
-	localMinPrice := localMinCoins.AmountOf(app.BondDenom).MustFloat64()
+	localMinPrice := localMinCoins.AmountOf(params.BondDenom).MustFloat64()
 
 	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
 	if err != nil {
@@ -658,7 +666,7 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
 	paramsClient := paramtypes.NewQueryClient(grpcConn)
 	// NOTE: that we don't prove that this is the correct value
-	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfee.ModuleName, Key: string(minfee.KeyNetworkMinGasPrice)})
+	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfeetypes.ModuleName, Key: string(minfeetypes.KeyNetworkMinGasPrice)})
 	if err != nil {
 		return 0, fmt.Errorf("querying params module: %w", err)
 	}

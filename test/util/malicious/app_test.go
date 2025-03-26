@@ -1,19 +1,23 @@
 package malicious
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
-	"github.com/celestiaorg/celestia-app/v3/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/stretchr/testify/require"
+
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
+	"github.com/celestiaorg/celestia-app/v4/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
 )
 
 // TestOutOfOrderNMT tests that the malicious NMT implementation is able to
@@ -46,7 +50,7 @@ func TestOutOfOrderNMT(t *testing.T) {
 
 	// test the new tree with unordered data
 	for i := range data {
-		j := tmrand.Intn(len(data))
+		j := rand.Intn(len(data))
 		data[i], data[j] = data[j], data[i]
 	}
 
@@ -69,7 +73,8 @@ func TestMaliciousTestNode(t *testing.T) {
 	}
 	accounts := testfactory.RandomAccountNames(5)
 	cfg := OutOfOrderNamespaceConfig(5).
-		WithFundedAccounts(accounts...)
+		WithFundedAccounts(accounts...).
+		WithTimeoutCommit(100 * time.Millisecond)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	_, err := cctx.WaitForHeight(6)
@@ -80,7 +85,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	// malicious square builder.
 	client, err := testnode.NewTxClientFromContext(cctx)
 	require.NoError(t, err)
-	blobs := blobfactory.ManyRandBlobs(tmrand.NewRand(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
+	blobs := blobfactory.ManyRandBlobs(random.New(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
 	txres, err := client.SubmitPayForBlob(cctx.GoContext(), blobs, blobfactory.DefaultTxOpts()...)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)
@@ -105,7 +110,7 @@ func TestMaliciousTestNode(t *testing.T) {
 
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
 		appconsts.DefaultSquareSizeUpperBound,
-		appconsts.DefaultSubtreeRootThreshold,
+		appconsts.SubtreeRootThreshold,
 	)
 	require.NoError(t, err)
 

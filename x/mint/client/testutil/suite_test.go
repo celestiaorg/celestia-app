@@ -6,16 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/suite"
-	tmcli "github.com/tendermint/tendermint/libs/cli"
-
-	"github.com/celestiaorg/celestia-app/v3/x/mint/client/cli"
-	mint "github.com/celestiaorg/celestia-app/v3/x/mint/types"
+	"cosmossdk.io/math"
+	tmcli "github.com/cometbft/cometbft/libs/cli"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v4/x/mint/client/cli"
+	mint "github.com/celestiaorg/celestia-app/v4/x/mint/types"
 )
 
 type IntegrationTestSuite struct {
@@ -58,12 +57,12 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 		{
 			name: "json output",
 			args: s.jsonArgs(),
-			want: `0.080000000000000000`,
+			want: "0.053600000000000000",
 		},
 		{
 			name: "text output",
 			args: s.textArgs(),
-			want: `0.080000000000000000`,
+			want: "0.053600000000000000",
 		},
 	}
 
@@ -80,7 +79,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 
 // TestGetCmdQueryAnnualProvisions tests that the CLI query command for annual-provisions
 // returns the correct value. This test assumes that the initial inflation
-// rate is 0.08 and the initial total supply is 500_000_000 utia.
+// rate is 0.0536 (as defined in CIP-29) and the initial total supply is 500_000_000 utia.
 //
 // TODO assert that total supply is 500_000_000 utia.
 func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
@@ -99,7 +98,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 		},
 	}
 
-	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(sdk.NewInt(testnode.DefaultInitialBalance))
+	expectedAnnualProvision := mint.InitialInflationRateAsDec().MulInt(math.NewInt(testnode.DefaultInitialBalance))
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			cmd := cli.GetCmdQueryAnnualProvisions()

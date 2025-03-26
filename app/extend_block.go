@@ -1,22 +1,23 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/da"
+	coretypes "github.com/cometbft/cometbft/types"
+
 	square "github.com/celestiaorg/go-square/v2"
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/celestiaorg/rsmt2d"
-	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/da"
 )
 
-// ExtendBlock extends the given block data into a data square for a given app
-// version.
-func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSquare, error) {
+// ExtendBlock extends the given block data into a data square.
+func ExtendBlock(data coretypes.Data) (*rsmt2d.ExtendedDataSquare, error) {
 	// Construct the data square from the block's transactions
 	dataSquare, err := square.Construct(
 		data.Txs.ToSliceOfBytes(),
-		appconsts.SquareSizeUpperBound(appVersion),
-		appconsts.SubtreeRootThreshold(appVersion),
+		appconsts.DefaultSquareSizeUpperBound,
+		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
 		return nil, err

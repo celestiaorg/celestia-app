@@ -1,8 +1,8 @@
 package encoding
 
 import (
+	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func indexWrapperDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {

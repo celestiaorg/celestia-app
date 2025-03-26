@@ -2,26 +2,29 @@ package types_test
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v3/app"
-	"github.com/celestiaorg/celestia-app/v3/app/encoding"
-	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v3/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
-	"github.com/celestiaorg/celestia-app/v3/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
-	blobtx "github.com/celestiaorg/go-square/v2/tx"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
+	blobtx "github.com/celestiaorg/go-square/v2/tx"
+
+	"github.com/celestiaorg/celestia-app/v4/app"
+	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	"github.com/celestiaorg/celestia-app/v4/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v4/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v4/test/util"
+	"github.com/celestiaorg/celestia-app/v4/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v4/test/util/random"
+	"github.com/celestiaorg/celestia-app/v4/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v4/x/blob/types"
 )
 
 func TestPFBGasEstimation(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	rand := tmrand.NewRand()
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
+	rnd := random.New()
 
 	testCases := []struct {
 		blobSizes []int
@@ -38,20 +41,24 @@ func TestPFBGasEstimation(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
 			accnts := testfactory.GenerateAccounts(1)
 			testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultInitialConsensusParams(), accnts...)
-			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
+			signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, user.NewAccount(accnts[0], 1, 0))
 			require.NoError(t, err)
-			blobs := blobfactory.ManyRandBlobs(rand, tc.blobSizes...)
+			blobs := blobfactory.ManyRandBlobs(rnd, tc.blobSizes...)
 			gas := blobtypes.DefaultEstimateGas(toUint32(tc.blobSizes))
 			tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 			require.NoError(t, err)
 			blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
 			require.NoError(t, err)
 			require.True(t, ok)
-			resp := testApp.DeliverTx(abci.RequestDeliverTx{
-				Tx: blobTx.Tx,
+			resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+				Txs:    [][]byte{blobTx.Tx},
+				Time:   time.Now(),
+				Height: 2, // height 1 is genesis
 			})
-			require.EqualValues(t, 0, resp.Code, resp.Log)
-			require.Less(t, resp.GasUsed, int64(gas))
+			require.NoError(t, err)
+			result := resp.TxResults[0]
+			require.EqualValues(t, 0, result.Code, result.Log)
+			require.Less(t, result.GasUsed, int64(gas))
 		})
 	}
 }
@@ -70,43 +77,48 @@ func FuzzPFBGasEstimation(f *testing.F) {
 		maxBlobSize = 418
 		seed        = int64(9001)
 	)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	f.Add(numBlobs, maxBlobSize, seed)
 	f.Fuzz(func(t *testing.T, numBlobs, maxBlobSize int, seed int64) {
 		if numBlobs <= 0 || maxBlobSize <= 0 {
 			t.Skip()
 		}
-		rand := tmrand.NewRand()
-		rand.Seed(seed)
-		blobSizes := randBlobSize(rand, numBlobs, maxBlobSize)
+		blobSizes := randBlobSize(seed, numBlobs, maxBlobSize)
 
 		accnts := testfactory.GenerateAccounts(1)
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
-		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, appconsts.LatestVersion, user.NewAccount(accnts[0], 1, 0))
+		signer, err := user.NewSigner(kr, encCfg.TxConfig, testutil.ChainID, user.NewAccount(accnts[0], 1, 0))
 		require.NoError(t, err)
-		blobs := blobfactory.ManyRandBlobs(rand, blobSizes...)
+
+		rnd := random.New()
+		rnd.Seed(seed)
+		blobs := blobfactory.ManyRandBlobs(rnd, blobSizes...)
 		gas := blobtypes.DefaultEstimateGas(toUint32(blobSizes))
 		tx, _, err := signer.CreatePayForBlobs(accnts[0], blobs, user.SetGasLimitAndGasPrice(gas, appconsts.DefaultMinGasPrice))
 		require.NoError(t, err)
 		blobTx, ok, err := blobtx.UnmarshalBlobTx(tx)
 		require.NoError(t, err)
 		require.True(t, ok)
-		resp := testApp.DeliverTx(abci.RequestDeliverTx{
-			Tx: blobTx.Tx,
+		resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+			Txs:    [][]byte{blobTx.Tx},
+			Time:   time.Now(),
+			Height: 2, // height 1 is genesis
 		})
-		require.EqualValues(t, 0, resp.Code, resp.Log)
-		require.Less(t, resp.GasUsed, int64(gas))
+		require.NoError(t, err)
+		result := resp.TxResults[0]
+		require.EqualValues(t, 0, result.Code, result.Log)
+		require.Less(t, result.GasUsed, int64(gas))
 	})
 }
 
-func randBlobSize(rand *tmrand.Rand, numBlobs, maxBlobSize int) []int {
+func randBlobSize(seed int64, numBlobs, maxBlobSize int) []int {
 	res := make([]int, numBlobs)
 	for i := 0; i < numBlobs; i++ {
 		if maxBlobSize == 1 {
 			res[i] = 1
 			continue
 		}
-		res[i] = rand.Intn(maxBlobSize-1) + 1
+		res[i] = rand.New(rand.NewSource(seed)).Intn(maxBlobSize-1) + 1
 	}
 	return res
 }
