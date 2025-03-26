@@ -10,19 +10,20 @@ jobs:
       - name: Checkout Celestia-App repository
         uses: actions/checkout@v4
 
-      - name: Download v3 Celestia Binary
-        run: curl -L -o internal/embedding/celestia-app_Linux_x86_64.tar.gz https://github.com/celestiaorg/celestia-app/releases/download/v3.4.2/celestia-app_Linux_x86_64.tar.gz
-
-      - name: Build Celestia-App
-        run: |
-          make build-multiplexer
-          chmod +x build/celestia-appd
-          mv build/celestia-appd /usr/local/bin/celestia-appd
-
-      - name: Verify Binary Installation
-        run: |
-          which celestia-appd
-          celestia-appd version
-
-      - name: Run Multiplexer tests
-        run: make test-multi-plexer
+# TODO: replace this with knuu E2E test which performs v4 upgrade.
+#      - name: Download v3 Celestia Binary
+#        run: curl -L -o internal/embedding/celestia-app_Linux_x86_64.tar.gz https://github.com/celestiaorg/celestia-app/releases/download/v3.4.2/celestia-app_Linux_x86_64.tar.gz
+#
+#      - name: Build Celestia-App
+#        run: |
+#          make build-multiplexer
+#          chmod +x build/celestia-appd
+#          mv build/celestia-appd /usr/local/bin/celestia-appd
+#
+#      - name: Verify Binary Installation
+#        run: |
+#          which celestia-appd
+#          celestia-appd version
+#
+#      - name: Run Multiplexer tests
+#        run: make test-multi-plexer

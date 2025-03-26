@@ -38,8 +38,14 @@ RUN apk update && apk add --no-cache \
     make \
     musl-dev
 
-COPY . /celestia-app
 WORKDIR /celestia-app
+
+# cache go module dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# copy source code after downloading modules (to leverage caching)
+COPY . .
 
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
 
