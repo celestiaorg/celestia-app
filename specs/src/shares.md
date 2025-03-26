@@ -109,8 +109,7 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./namespace.md#reserved-n
 
 ## Parity Share
 
-Parity shares are the output of the erasure coding step of the data square construction process. They
-occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Parity shares do not conform to the [share format](#share-format) described above. In the square layout, parity shares do not have a significant namespace. When parity shares are used in NMTs, they are prefixed with the `PARITY_SHARE_NAMESPACE` to preserve the property that all shares are ordered by namespace.
+Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Parity shares do not conform to the [share format](#share-format) described above. In the square layout, parity shares do not have a significant namespace. When parity shares are used in NMTs, they are prefixed with the `PARITY_SHARE_NAMESPACE` to preserve the property that all shares are ordered by namespace.
 
 ## Share Splitting
 
