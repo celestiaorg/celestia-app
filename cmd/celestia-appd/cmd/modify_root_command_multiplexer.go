@@ -17,10 +17,14 @@ import (
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
 	v3AppBinary, err := embedding.CelestiaAppV3()
-	_ = err // TODO: handle the error in this case.
+	if err != nil {
+		panic(err)
+	}
 
 	v3, err := appd.New("v3", v3AppBinary)
-	_ = err // TODO: handle the error in this case.
+	if err != nil {
+		panic(err)
+	}
 
 	versions, err := abci.NewVersions(abci.Version{
 		Appd:        v3,
@@ -35,7 +39,9 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			// "--v2-upgrade-height=0",
 		},
 	})
-	_ = err // TODO: handle the error in this case.
+	if err != nil {
+		panic(err)
+	}
 
 	rootCommand.AddCommand(
 		nova.NewPassthroughCmd(versions),

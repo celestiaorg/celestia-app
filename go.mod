@@ -16,7 +16,7 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
-	github.com/01builders/nova v0.0.0-20250321154530-00785283f61f
+	github.com/01builders/nova v0.0.0-20250326081858-46ef7ddcb5c6
 	github.com/bcp-innovations/hyperlane-cosmos v0.0.0-20250304103734-261788112522
 	github.com/celestiaorg/go-square/v2 v2.1.0
 	github.com/celestiaorg/knuu v0.16.3
