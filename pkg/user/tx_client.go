@@ -668,10 +668,7 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 	}
 
 	// return the highest value of the two
-	if networkMinPrice > localMinPrice {
-		return networkMinPrice, nil
-	}
-	return localMinPrice, nil
+	return max(localMinPrice, networkMinPrice), nil
 }
 
 func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {

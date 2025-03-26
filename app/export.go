@@ -50,7 +50,7 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 		AppState:        appState,
 		Validators:      validators,
 		Height:          app.getExportHeight(forZeroHeight),
-		ConsensusParams: app.BaseApp.GetConsensusParams(ctx),
+		ConsensusParams: app.GetConsensusParams(ctx),
 	}, nil
 }
 
@@ -67,12 +67,7 @@ func (app *App) getExportHeight(forZeroHeight bool) int64 {
 // genesis is a temporary feature which will be deprecated in favour of export
 // at a block height.
 func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
-	applyAllowedAddrs := false
-
-	// check if there is an allowed address list
-	if len(jailAllowedAddrs) > 0 {
-		applyAllowedAddrs = true
-	}
+	applyAllowedAddrs := len(jailAllowedAddrs) > 0
 
 	allowedAddrsMap := make(map[string]bool)
 
