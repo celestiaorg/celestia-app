@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
 	"math"
 	"strconv"
 	"strings"
@@ -146,7 +147,8 @@ type TxClient struct {
 	defaultAddress  sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	txTracker map[string]txInfo
+	txTracker           map[string]txInfo
+	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -171,15 +173,16 @@ func NewTxClient(
 	}
 
 	txClient := &TxClient{
-		signer:          signer,
-		registry:        registry,
-		grpc:            conn,
-		pollTime:        DefaultPollTime,
-		gasMultiplier:   DefaultGasMultiplier,
-		defaultGasPrice: appconsts.DefaultMinGasPrice,
-		defaultAccount:  records[0].Name,
-		defaultAddress:  addr,
-		txTracker:       make(map[string]txInfo),
+		signer:              signer,
+		registry:            registry,
+		grpc:                conn,
+		pollTime:            DefaultPollTime,
+		gasMultiplier:       DefaultGasMultiplier,
+		defaultGasPrice:     appconsts.DefaultMinGasPrice,
+		defaultAccount:      records[0].Name,
+		defaultAddress:      addr,
+		txTracker:           make(map[string]txInfo),
+		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
 
 	for _, opt := range options {
@@ -512,6 +515,20 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 	return client.estimateGas(ctx, txBuilder)
 }
 
+// EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.
+func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestimation.TxPriority) (float64, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+
+	resp, err := client.gasEstimationClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{
+		TxPriority: priority,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return resp.EstimatedGasPrice, nil
+}
+
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
 	// add at least 1utia as fee to builder as it affects gas calculation.
 	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
@@ -524,14 +541,12 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	if err != nil {
 		return 0, err
 	}
-	resp, err := sdktx.NewServiceClient(client.grpc).Simulate(ctx, &sdktx.SimulateRequest{
-		TxBytes: txBytes,
-	})
+	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: txBytes})
 	if err != nil {
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.GasInfo.GasUsed) * client.gasMultiplier)
+	gasLimit := uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
 	return gasLimit, nil
 }
 

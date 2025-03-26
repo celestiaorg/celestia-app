@@ -263,6 +263,12 @@ func (suite *TxClientTestSuite) TestGasEstimation() {
 	require.Greater(suite.T(), gas, uint64(0))
 }
 
+func (suite *TxClientTestSuite) TestGasPriceEstimation() {
+	gasPrice, err := suite.txClient.EstimateGasPrice(suite.ctx.GoContext(), 0)
+	require.NoError(suite.T(), err)
+	require.Equal(suite.T(), gasPrice, appconsts.DefaultMinGasPrice)
+}
+
 // TestGasConsumption verifies that the amount deducted from a user's balance is
 // based on the fee provided in the tx instead of the gas used by the tx. This
 // behavior leads to poor UX because tx submitters must over-estimate the amount
