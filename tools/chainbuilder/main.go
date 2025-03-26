@@ -376,8 +376,8 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 				}
 			}
 
-			txs := make([][]byte, len(block.Data.Txs))
-			for idx, tx := range block.Data.Txs {
+			txs := make([][]byte, len(block.Txs))
+			for idx, tx := range block.Txs {
 				blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
 				if isBlobTx {
 					tx = blobTx.Tx

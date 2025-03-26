@@ -8,7 +8,6 @@ import (
 
 	cmtclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cometbft/cometbft/types"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	gogogrpc "github.com/cosmos/gogoproto/grpc"

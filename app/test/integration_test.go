@@ -257,7 +257,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 			uint64(shareRange.End),
 		)
 		require.NoError(t, err)
-		require.NoError(t, blobProof.ShareProof.Validate(blockRes.Block.Header.DataHash.Bytes()))
+		require.NoError(t, blobProof.ShareProof.Validate(blockRes.Block.DataHash.Bytes()))
 	}
 }
 
@@ -269,7 +269,7 @@ func ExtendBlockTest(t *testing.T, block *coretypes.Block) {
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	require.NoError(t, err)
 	// TODO: verify why dataHash and dataRootHash are not equivalent
-	if !assert.Equal(t, dah.Hash(), block.Header.DataHash.Bytes()) {
+	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
 		// save block to json file for further debugging if this occurs
 		b, err := json.MarshalIndent(block, "", "  ")
 		require.NoError(t, err)

@@ -12,7 +12,6 @@ linters:
     - staticcheck
     - unconvert
     - gocritic
-    - gci
   exclusions:
     generated: lax
     presets:
