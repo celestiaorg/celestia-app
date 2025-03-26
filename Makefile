@@ -123,7 +123,7 @@ docker-build: build-docker
 
 build-docker-multiplexer:
 	@echo "--> Building Multiplexer Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile.multiplexer .
+	$(DOCKER) build -t celestiaorg/celestia-app-multiplexer:$(COMMIT) -f docker/Dockerfile.multiplexer .
 .PHONY: build-docker-multiplexer
 
 
