@@ -81,16 +81,6 @@ func GetTimeoutCommit(v uint64) time.Duration {
 	}
 }
 
-<<<<<<< HEAD
-// UpgradeHeightDelay returns the delay in blocks after a quorum has been reached that the chain should upgrade to the new version.
-func UpgradeHeightDelay(chainID string, v uint64) int64 {
-	if OverrideUpgradeHeightDelayStr != "" {
-		parsedValue, err := strconv.ParseInt(OverrideUpgradeHeightDelayStr, 10, 64)
-		if err != nil {
-			panic("Invalid OverrideUpgradeHeightDelayStr value")
-		}
-		return parsedValue
-=======
 // UpgradeHeightDelay returns the delay in blocks after a quorum has been
 // reached that the chain should upgrade to the new version. The version
 // argument should be the current application version, not the version after the
@@ -98,7 +88,6 @@ func UpgradeHeightDelay(chainID string, v uint64) int64 {
 func UpgradeHeightDelay(chainID string, version uint64) int64 {
 	if chainID == TestChainID {
 		return 3
->>>>>>> fd4b784 (feat!: reduce upgrade height delay for Arabica and Mocha (#4414))
 	}
 	switch version {
 	case v1.Version:
@@ -111,11 +100,6 @@ func UpgradeHeightDelay(chainID string, version uint64) int64 {
 			return v3.UpgradeHeightDelay
 		}
 		return v2.UpgradeHeightDelay
-<<<<<<< HEAD
-	default:
-		return v3.UpgradeHeightDelay
-
-=======
 	case v3.Version:
 		switch chainID {
 		case ArabicaChainID:
@@ -125,7 +109,6 @@ func UpgradeHeightDelay(chainID string, version uint64) int64 {
 		case MainnetChainID:
 			return v3.UpgradeHeightDelay
 		}
->>>>>>> fd4b784 (feat!: reduce upgrade height delay for Arabica and Mocha (#4414))
 	}
 	// TODO: this should panic because this should never be invoked for v4+
 	return v3.UpgradeHeightDelay

@@ -113,12 +113,6 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay, // falls back to v3 because of arabica bug
 		},
 		{
-<<<<<<< HEAD
-			name:                       "v3 upgrade delay",
-			chainID:                    "mocha-4",
-			version:                    3,
-			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay,
-=======
 			name:                       "the upgrade delay for chainID 'test' should be 3 regardless of the version",
 			chainID:                    appconsts.TestChainID,
 			version:                    v3.Version,
@@ -153,7 +147,6 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			chainID:                    appconsts.ArabicaChainID,
 			version:                    4,
 			expectedUpgradeHeightDelay: v3.UpgradeHeightDelay, // TODO: this should panic
->>>>>>> fd4b784 (feat!: reduce upgrade height delay for Arabica and Mocha (#4414))
 		},
 	}
 
