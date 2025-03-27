@@ -2,6 +2,7 @@ package ante_test
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
@@ -12,6 +13,8 @@ import (
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proto/tendermint/version"
@@ -139,6 +142,39 @@ func TestPFBAnteHandler(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestMinGasPFBDecoratorWithMsgExec tests that the MinGasPFBDecorator rejects a
+// MsgExec containing a MsgPayForBlob with a gas cost greater than the tx's gas
+// limit.
+func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
+	anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+
+	// Create a context with a gas meter with a high gas limit
+	gasLimit := uint64(10000)
+	ctx := sdk.NewContext(nil, tmproto.Header{
+		Version: version.Consensus{
+			App: appconsts.LatestVersion,
+		},
+	}, true, nil).WithGasMeter(sdk.NewGasMeter(gasLimit)).WithIsCheckTx(true)
+
+	// Build a tx with a MsgExec containing a MsgPayForBlobs with a huge gas cost
+	txBuilder := txConfig.NewTxBuilder()
+	nestedPFB := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
+		&blob.MsgPayForBlobs{
+			Signer:    "celestia...",
+			BlobSizes: []uint32{uint32(math.MaxUint32)},
+		},
+	})
+
+	require.NoError(t, txBuilder.SetMsgs(&nestedPFB))
+	tx := txBuilder.GetTx()
+
+	// Run the ante handler
+	_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
+	require.Error(t, err)
+	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
 }
 
 type mockBlobKeeper struct{}

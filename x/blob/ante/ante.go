@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 // MinGasPFBDecorator helps to prevent a PFB from being included in a block
@@ -29,27 +30,40 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
-	var gasPerByte uint32
+	gasPerByte := d.getGasPerByte(ctx)
 	txGas := ctx.GasMeter().GasRemaining()
 	for _, m := range tx.GetMsgs() {
 		// NOTE: here we assume only one PFB per transaction
 		if pfb, ok := m.(*types.MsgPayForBlobs); ok {
-			if gasPerByte == 0 {
-				if ctx.BlockHeader().Version.App <= v2.Version {
-					// lazily fetch the gas per byte param
-					gasPerByte = d.k.GasPerBlobByte(ctx)
-				} else {
-					gasPerByte = appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App)
-				}
-			}
 			gasToConsume := pfb.Gas(gasPerByte)
 			if gasToConsume > txGas {
 				return ctx, errors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)
 			}
 		}
+		if execMsg, ok := m.(*authz.MsgExec); ok {
+			nestedMsgs, err := execMsg.GetMessages()
+			if err != nil {
+				return ctx, err
+			}
+			for _, nestedMsg := range nestedMsgs {
+				if pfb, ok := nestedMsg.(*types.MsgPayForBlobs); ok {
+					gasToConsume := pfb.Gas(gasPerByte)
+					if gasToConsume > txGas {
+						return ctx, errors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)
+					}
+				}
+			}
+		}
 	}
 
 	return next(ctx, tx, simulate)
+}
+
+func (d MinGasPFBDecorator) getGasPerByte(ctx sdk.Context) uint32 {
+	if ctx.BlockHeader().Version.App <= v2.Version {
+		return d.k.GasPerBlobByte(ctx)
+	}
+	return appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App)
 }
 
 type BlobKeeper interface {
