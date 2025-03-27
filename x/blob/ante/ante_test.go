@@ -173,7 +173,7 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	tx := txBuilder.GetTx()
 
 	// Run the ante handler
-	_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
+	_, err := anteHandler.AnteHandle(ctx, tx, false, mockNext)
 	require.Error(t, err)
 	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
 
@@ -183,7 +183,7 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	tx = txBuilder.GetTx()
 
 	// Run the ante handler
-	_, err = anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
+	_, err = anteHandler.AnteHandle(ctx, tx, false, mockNext)
 	require.Error(t, err)
 }
 
