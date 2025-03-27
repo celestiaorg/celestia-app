@@ -42,7 +42,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
-	latestVersion = "91f6ab5"
+	latestVersion = "pr-82"
 
 	consensusParams := app.DefaultConsensusParams()
 	consensusParams.Version.App = 1 // Start the test on v1

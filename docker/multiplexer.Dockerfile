@@ -50,7 +50,7 @@ COPY . .
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
 
 # compress the binary to the path to be embedded correctly.
-RUN tar -cvzf internal/embedding/celestia-app_Linux_v3_arm64.tar.gz /tmp/celestia-appd \
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd \
     && rm /tmp/celestia-appd
 
 RUN uname -a &&\
