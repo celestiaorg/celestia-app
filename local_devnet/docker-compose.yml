@@ -12,6 +12,7 @@ services:
     ports:
       - "9090:9090"
       - "26657:26657"
+      - "6060:6060"
     entrypoint: [
       "/bin/bash"
     ]
@@ -155,6 +156,12 @@ services:
       - ${PWD}/telemetry/grafana/:/var/lib/grafana/dashboards/
       - ${PWD}/telemetry/grafana/datasources/:/var/lib/grafana/datasources/
       - grafana-data:/var/lib/grafana
+
+  pyroscope:
+    image: pyroscope/pyroscope:latest
+    ports:
+      - "4040:4040"  # Pyroscope web UI
+    command: "server"
 
 volumes:
   prometheus-data:

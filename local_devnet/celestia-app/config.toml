@@ -243,10 +243,10 @@ flush_throttle_timeout = "100ms"
 max_packet_msg_payload_size = 1024
 
 # Rate at which packets can be sent, in bytes/second
-send_rate = 5120000
+send_rate = 112000000
 
 # Rate at which packets can be received, in bytes/second
-recv_rate = 5120000
+recv_rate = 212000000
 
 # Set true to enable the peer-exchange reactor
 pex = true
@@ -276,7 +276,7 @@ dial_timeout = "3s"
 #   1) "v0" - FIFO mempool.
 #   2) "v1" - (default) prioritized mempool.
 #   3) "v2" - content addressable transaction pool
-version = "v1"
+version = "v2"
 
 # Recheck (default: true) defines whether CometBFT should recheck the
 # validity for all remaining transaction in the mempool after a block.
@@ -288,12 +288,12 @@ broadcast = true
 wal_dir = ""
 
 # Maximum number of transactions in the mempool
-size = 5000
+size = 500000
 
 # Limit the total size of all txs in the mempool.
 # This only accounts for raw transactions (e.g. given 1MB transactions and
 # max_txs_bytes=5MB, mempool will only accept 5 transactions).
-max_txs_bytes = 39485440
+max_txs_bytes = 3948544000
 
 # Size of the cache (used to filter transactions we saw earlier) in transactions
 cache_size = 10000
@@ -305,7 +305,7 @@ keep-invalid-txs-in-cache = false
 
 # Maximum size of a single transaction.
 # NOTE: the max size of a tx transmitted over the network is {max_tx_bytes}.
-max_tx_bytes = 7897088
+max_tx_bytes = 789708800
 
 # Maximum size of a batch of transactions to send to a peer
 # Including space needed by encoding (one varint per transaction).
@@ -395,7 +395,7 @@ only_internal_wal = "false"
 wal_file = "data/cs.wal/wal"
 
 # How long we wait for a proposal block before prevoting nil
-timeout_propose = "10s"
+timeout_propose = "2s"
 # How much timeout_propose increases with each round
 timeout_propose_delta = "500ms"
 # How long we wait after receiving +2/3 prevotes for "anything" (ie. not a single block or nil)
@@ -409,7 +409,7 @@ timeout_precommit_delta = "500ms"
 # How long we wait after committing a block, before starting on the new
 # height (this gives us a chance to receive some more precommits, even
 # though we already have +2/3).
-timeout_commit = "11s"
+timeout_commit = "3s"
 
 # How many blocks to look back to check existence of the node's consensus votes before joining consensus
 # When non-zero, the node will panic upon restart
@@ -506,7 +506,7 @@ tracing_tables = "mempool_tx,mempool_peer_state,consensus_round_state,consensus_
 
 # The URL of the pyroscope instance to use for continuous profiling.
 # If empty, continuous profiling is disabled.
-pyroscope_url = ""
+pyroscope_url = "http://pyroscope:4040"
 
 # When true, tracing data is added to the continuous profiling
 # performed by pyroscope.
