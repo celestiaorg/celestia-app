@@ -3,13 +3,13 @@ package ante
 import (
 	"math"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
-
-	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
 // BlobShareDecorator helps to prevent a PFB from being included in a block but
@@ -42,15 +42,35 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	txSize := uint32(len(txBytes))
 	maxBlobShares := d.getMaxBlobShares(ctx)
 
-	for _, m := range tx.GetMsgs() {
-		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if sharesNeeded := getSharesNeeded(txSize, pfb.BlobSizes); sharesNeeded > maxBlobShares {
-				return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
-			}
-		}
+	err := d.validateMsgs(tx.GetMsgs(), txSize, maxBlobShares)
+	if err != nil {
+		return ctx, err
 	}
 
 	return next(ctx, tx, simulate)
+}
+
+func (d BlobShareDecorator) validateMsgs(msgs []sdk.Msg, txSize uint32, maxBlobShares int) error {
+	for _, m := range msgs {
+		if execMsg, ok := m.(*authz.MsgExec); ok {
+			// Recursively look for PFBs in nested authz messages.
+			nestedMsgs, err := execMsg.GetMessages()
+			if err != nil {
+				return err
+			}
+			err = d.validateMsgs(nestedMsgs, txSize, maxBlobShares)
+			if err != nil {
+				return err
+			}
+		}
+
+		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
+			if sharesNeeded := getSharesNeeded(txSize, pfb.BlobSizes); sharesNeeded > maxBlobShares {
+				return errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
+			}
+		}
+	}
+	return nil
 }
 
 // getMaxBlobShares returns the max the number of shares available for blob data.
