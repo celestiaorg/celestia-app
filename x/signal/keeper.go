@@ -199,19 +199,19 @@ func (k Keeper) GetVotingPowerThreshold(ctx sdk.Context) sdkmath.Int {
 }
 
 // ShouldUpgrade returns whether the signalling mechanism has concluded that the
-// network is ready to upgrade and the version to upgrade to. It returns false
-// and 0 if no version has reached quorum.
-func (k *Keeper) ShouldUpgrade(ctx sdk.Context) (isQuorumVersion bool, version uint64) {
+// network is ready to upgrade and the upgrade. It returns false
+// and an empty upgrade if no version has reached quorum.
+func (k *Keeper) ShouldUpgrade(ctx sdk.Context) (isQuorumVersion bool, upgrade types.Upgrade) {
 	upgrade, ok := k.getUpgrade(ctx)
 	if !ok {
-		return false, 0
+		return false, types.Upgrade{}
 	}
 
 	hasUpgradeHeightBeenReached := ctx.BlockHeight() >= upgrade.UpgradeHeight
 	if hasUpgradeHeightBeenReached {
-		return true, upgrade.AppVersion
+		return true, upgrade
 	}
-	return false, 0
+	return false, types.Upgrade{}
 }
 
 // ResetTally resets the tally after a version change. It iterates over the
