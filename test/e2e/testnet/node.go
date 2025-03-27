@@ -4,13 +4,13 @@ package testnet
 import (
 	"context"
 	"fmt"
+	tmtypes "github.com/cometbft/cometbft/types"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
-	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/libs/trace"
 	"github.com/cometbft/cometbft/libs/trace/schema"
 	"github.com/cometbft/cometbft/p2p"
@@ -198,7 +198,7 @@ func (n *Node) SetLatencyAndJitter(latency, jitter int64) error {
 	return n.netShaper.SetLatencyAndJitter(latency, jitter)
 }
 
-func (n *Node) Init(ctx context.Context, genesisBz []byte, peers []string, configOptions ...Option) error {
+func (n *Node) Init(ctx context.Context, genesis *tmtypes.GenesisDoc, peers []string, configOptions ...Option) error {
 	if len(peers) == 0 {
 		return fmt.Errorf("no peers provided")
 	}
@@ -230,7 +230,7 @@ func (n *Node) Init(ctx context.Context, genesisBz []byte, peers []string, confi
 
 	// Store the genesis file
 	genesisFilePath := filepath.Join(nodeDir, "config", "genesis.json")
-	err = cmtos.WriteFile(genesisFilePath, genesisBz, 0644)
+	err = genesis.SaveAs(genesisFilePath)
 	if err != nil {
 		return fmt.Errorf("saving genesis: %w", err)
 	}

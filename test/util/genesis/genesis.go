@@ -198,40 +198,6 @@ func (g *Genesis) NewValidator(val Validator) error {
 	return g.AddValidator(val)
 }
 
-// ExportLegacy returns the genesis document of the network.
-func (g *Genesis) ExportLegacy() (*coretypes.GenesisDoc, error) {
-	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
-	for _, val := range g.validators {
-		genTx, err := val.GenTx(g.ecfg, g.kr, g.ChainID)
-		if err != nil {
-			return nil, err
-		}
-
-		bz, err := g.ecfg.TxConfig.TxJSONEncoder()(genTx)
-		if err != nil {
-			return nil, err
-		}
-
-		gentxs = append(gentxs, bz)
-	}
-
-	var genesisState map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(v3Genesis), &genesisState); err != nil {
-		return nil, err
-	}
-
-	return Document(
-		genesisState,
-		g.ecfg,
-		g.ConsensusParams,
-		g.ChainID,
-		gentxs,
-		g.accounts,
-		g.GenesisTime,
-		g.genOps...,
-	)
-}
-
 // ExportBytes returns the bytes of the genesis document of the network.
 func (g *Genesis) ExportBytes() ([]byte, error) {
 	if !g.legacy {
@@ -247,14 +213,14 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 		return nil, err
 	}
 
-	var genesisState map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(v3Genesis), &genesisState); err != nil {
+	var defaultAppState map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(v3GenesisAppState), &defaultAppState); err != nil {
 		return nil, err
 	}
 
 	// we are dealing with an older genesis version, and cannot depend on the latest coretypes.GenesisDoc type.
 	legacyDoc, err := DocumentLegacy(
-		genesisState,
+		defaultAppState,
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,
@@ -294,17 +260,33 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	if err != nil {
 		return nil, err
 	}
-	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
 
-	return Document(
-		tempApp.DefaultGenesis(),
+	if !g.legacy {
+		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+		return DocumentLegacy(
+			tempApp.DefaultGenesis(),
+			g.ecfg,
+			g.ConsensusParams,
+			g.ChainID,
+			gentxs,
+			g.accounts,
+			g.GenesisTime,
+		)
+	}
+
+	var defaultAppState map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(v3GenesisAppState), &defaultAppState); err != nil {
+		return nil, err
+	}
+
+	return DocumentLegacy(
+		defaultAppState,
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,
 		gentxs,
 		g.accounts,
 		g.GenesisTime,
-		g.genOps...,
 	)
 }
 
