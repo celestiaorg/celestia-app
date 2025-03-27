@@ -504,6 +504,7 @@ func (client *TxClient) deleteFromTxTracker(txHash string) {
 
 // EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
 // result will be multiplied by gasMultiplier(that is set in TxClient)
+// Deprecated: use EstimateGasPriceAndUsage
 func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
@@ -514,6 +515,47 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 	}
 
 	return client.estimateGas(ctx, txBuilder)
+}
+
+// EstimateGasPriceAndUsage simulates the transaction, calculating the amount of gas that was consumed during execution. The final
+// result will be multiplied by gasMultiplier(that is set in TxClient).
+// Also returns the estimated gas price given the provided priority.
+func (client *TxClient) EstimateGasPriceAndUsage(
+	ctx context.Context,
+	msgs []sdktypes.Msg,
+	priority gasestimation.TxPriority,
+	opts ...TxOption,
+) (float64, uint64, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+
+	txBuilder, err := client.signer.txBuilder(msgs, opts...)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// add at least 1utia as fee to builder as it affects gas calculation.
+	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+
+	_, _, err = client.signer.signTransaction(txBuilder)
+	if err != nil {
+		return 0, 0, err
+	}
+	txBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return 0, 0, err
+	}
+	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
+		TxPriority: priority,
+		TxBytes:    txBytes,
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	gasLimit := uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
+
+	return resp.EstimatedGasPrice, gasLimit, nil
 }
 
 // EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.

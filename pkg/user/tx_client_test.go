@@ -263,6 +263,15 @@ func (suite *TxClientTestSuite) TestGasEstimation() {
 	require.Greater(suite.T(), gas, uint64(0))
 }
 
+func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
+	addr := suite.txClient.DefaultAddress()
+	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(app.BondDenom, 10)))
+	gasPrice, gasUsage, err := suite.txClient.EstimateGasPriceAndUsage(suite.ctx.GoContext(), []sdk.Msg{msg}, 1)
+	require.NoError(suite.T(), err)
+	require.Greater(suite.T(), gasPrice, float64(0))
+	require.Greater(suite.T(), gasUsage, uint64(0))
+}
+
 func (suite *TxClientTestSuite) TestGasPriceEstimation() {
 	gasPrice, err := suite.txClient.EstimateGasPrice(suite.ctx.GoContext(), 0)
 	require.NoError(suite.T(), err)

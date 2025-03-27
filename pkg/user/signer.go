@@ -305,6 +305,7 @@ func (s *Signer) getSignatureV2(sequence uint64, pubKey cryptotypes.PubKey, sign
 // QueryGasPrice takes a priority and an app gRPC client.
 // Returns the current network gas price corresponding to the provided priority.
 // More on the gas price estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
+// Deprecated: use TxClient.EstimateGasPrice
 func (s *Signer) QueryGasPrice(
 	ctx context.Context,
 	grpcClient *grpc.ClientConn,
@@ -325,6 +326,7 @@ func (s *Signer) QueryGasPrice(
 // Returns the current network gas price corresponding to the provided priority,
 // and the gas used estimation for the provided transaction bytes.
 // More on the gas estimation can be found in docs/architecture/adr-023-gas-used-and-gas-price-estimation.md
+// Deprecated: use TxClient.EstimateGasPriceAndUsage
 func (s *Signer) QueryGasUsedAndPrice(
 	ctx context.Context,
 	grpcClient *grpc.ClientConn,
