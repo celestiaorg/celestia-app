@@ -1,6 +1,8 @@
 package ante
 
 import (
+	"math"
+
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -33,10 +35,16 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
+	txBytes := ctx.TxBytes()
+	if len(txBytes) > math.MaxUint32 {
+		return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the tx size %d exceeds the max uint32", txBytes)
+	}
+	txSize := uint32(len(txBytes))
 	maxBlobShares := d.getMaxBlobShares(ctx)
+
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if sharesNeeded := getSharesNeeded(uint32(len(ctx.TxBytes())), pfb.BlobSizes); sharesNeeded > maxBlobShares {
+			if sharesNeeded := getSharesNeeded(txSize, pfb.BlobSizes); sharesNeeded > maxBlobShares {
 				return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the number of shares occupied by blobs in this MsgPayForBlobs %d exceeds the max number of shares available for blob data %d", sharesNeeded, maxBlobShares)
 			}
 		}
