@@ -169,15 +169,22 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 			BlobSizes: []uint32{uint32(math.MaxUint32)},
 		},
 	})
-	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
-
-	require.NoError(t, txBuilder.SetMsgs(&nestedMsgExec))
+	require.NoError(t, txBuilder.SetMsgs(&msgExec))
 	tx := txBuilder.GetTx()
 
 	// Run the ante handler
 	_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
 	require.Error(t, err)
 	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
+
+	// Create a MsgExec that wraps a MsgExec that contains a MsgPayForBlobs with a huge gas cost
+	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
+	require.NoError(t, txBuilder.SetMsgs(&nestedMsgExec))
+	tx = txBuilder.GetTx()
+
+	// Run the ante handler
+	_, err = anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil })
+	require.Error(t, err)
 }
 
 type mockBlobKeeper struct{}
