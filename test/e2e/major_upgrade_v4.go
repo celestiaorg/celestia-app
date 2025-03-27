@@ -2,12 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	govtypesv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"log"
 	"time"
 
@@ -18,82 +13,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v4/test/e2e/testnet"
 )
 
-func covertBankModuleGenesisFromV3ToV4(state map[string]json.RawMessage) map[string]json.RawMessage {
-	bankState := state[banktypes.ModuleName]
-
-	// revert the update in bank genesis.
-	var bankGenesis banktypes.GenesisState
-	if err := json.Unmarshal(bankState, &bankGenesis); err != nil {
-		panic(err)
-	}
-
-	bankGenesis.Params.SendEnabled = make([]*banktypes.SendEnabled, 0)
-	for _, se := range bankGenesis.SendEnabled {
-		bankGenesis.Params.SendEnabled = append(bankGenesis.Params.SendEnabled, &se)
-	}
-	bankGenesis.SendEnabled = nil
-
-	bz, err := json.Marshal(bankGenesis)
-	if err != nil {
-		panic(err)
-	}
-
-	var jsonMap map[string]interface{}
-	if err := json.Unmarshal(bz, &jsonMap); err != nil {
-		panic(err)
-	}
-
-	delete(jsonMap, "send_enabled") // send_enabled does not have omitempty
-
-	bz, err = json.Marshal(jsonMap)
-	if err != nil {
-		panic(err)
-	}
-
-	state[banktypes.ModuleName] = bz
-
-	return state
-}
-
-func covertGovModuleGenesisFromV3ToV4(state map[string]json.RawMessage) map[string]json.RawMessage {
-	govState := state[govtypes.ModuleName]
-
-	// revert the update in govv1 genesis.
-	var govGenesis govtypesv1.GenesisState
-	if err := json.Unmarshal(govState, &govGenesis); err != nil {
-		panic(err)
-	}
-
-	govGenesis.Params = nil
-
-	bz, err := json.Marshal(govGenesis)
-	if err != nil {
-		panic(err)
-	}
-
-	//
-	//var jsonMap map[string]interface{}
-	//if err := json.Unmarshal(bz, &jsonMap); err != nil {
-	//	panic(err)
-	//}
-	//
-	//delete(jsonMap, "params")
-	//
-	//bz, err = json.Marshal(jsonMap)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	state[banktypes.ModuleName] = bz
-
-	return state
-}
-
 func MajorUpgradeToV4(logger *log.Logger) error {
 	testName := "MajorUpgradeToV4"
 	numNodes := 4
-	//upgradeHeightV3 := int64(15)
-	upgradeHeightV4 := int64(30)
+	upgradeHeightV4 := int64(15)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -108,18 +31,9 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
-	convertV4ToV3Genesis := func(state map[string]json.RawMessage) map[string]json.RawMessage {
-		state = covertBankModuleGenesisFromV3ToV4(state)
-		state = covertGovModuleGenesisFromV3ToV4(state)
-		return state
-	}
-
 	logger.Println("Creating testnet")
 	testNet, err := testnet.New(logger, kn, testnet.Options{
 		ChainID: appconsts.TestChainID,
-		GenesisModifiers: []genesis.Modifier{
-			convertV4ToV3Genesis,
-		},
 	})
 	testnet.NoError("failed to create testnet", err)
 
@@ -150,7 +64,6 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{
-		//upgradeHeightV3: 3,
 		upgradeHeightV4: 4,
 	}
 
@@ -169,32 +82,6 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	defer ticker.Stop()
 
 	logger.Println("waiting for upgrade")
-
-	// wait for the upgrade to complete
-	//var upgradedHeightV3 int64
-	//for _, node := range testNet.Nodes() {
-	//	client, err := node.Client()
-	//	testnet.NoError("failed to get client", err)
-	//	upgradeComplete := false
-	//	lastHeight := int64(0)
-	//	for !upgradeComplete {
-	//		select {
-	//		case <-timer.C:
-	//			return fmt.Errorf("failed to upgrade to v3, last height: %d", lastHeight)
-	//		case <-ticker.C:
-	//			resp, err := client.Header(ctx, nil)
-	//			testnet.NoError("failed to get header", err)
-	//			if resp.Header.Version.App == 3 {
-	//				upgradeComplete = true
-	//				if upgradedHeightV3 == 0 {
-	//					upgradedHeightV3 = resp.Header.Height
-	//				}
-	//			}
-	//			logger.Printf("height %v", resp.Header.Height)
-	//			lastHeight = resp.Header.Height
-	//		}
-	//	}
-	//}
 
 	// wait for the upgrade to complete
 	var upgradedHeightV4 int64
