@@ -256,8 +256,7 @@ require (
 )
 
 replace (
-	// github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16
-	github.com/cosmos/cosmos-sdk => github.com/01builders/cosmos-sdk v0.0.0-20250325092710-1e3e754bda2a
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.27.0-sdk-v0.46.16.0.20250327122859-1f9452635467
 	// Replace IBC with celestiaorg fork which includes fixes for security vulnerabilities.
 	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.2.5
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
