@@ -124,8 +124,8 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			version:                    4,
 			expectedUpgradeHeightDelay: 3,
 		},
-    {
-      name:                       "the upgrade delay for chainID 'local_devnet' should be 3 regardless of the version",
+		{
+			name:                       "the upgrade delay for chainID 'local_devnet' should be 3 regardless of the version",
 			chainID:                    appconsts.LocalDevnetChainID,
 			version:                    3,
 			expectedUpgradeHeightDelay: 3,
@@ -135,7 +135,7 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			chainID:                    appconsts.LocalDevnetChainID,
 			version:                    4,
 			expectedUpgradeHeightDelay: 3,
-    },
+		},
 		{
 
 			name:                       "v3 upgrade delay on arabica is 1 day",
