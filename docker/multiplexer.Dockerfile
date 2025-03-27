@@ -28,6 +28,8 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 
+# must be specified for this build step.
+# TODO: remove hard coded values for TARGETOS and TARGETARCH
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
@@ -52,9 +54,6 @@ RUN go mod download
 COPY . .
 
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
-
-
-RUN echo "TARGETOS=$TARGETOS" && echo "TARGETARCH=$TARGETARCH"
 
 # compress the binary to the path to be embedded correctly.
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd \

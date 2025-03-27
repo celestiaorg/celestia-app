@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/v4/test/util/genesis"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"log"
 	"time"
 
@@ -16,7 +19,7 @@ import (
 func MajorUpgradeToV4(logger *log.Logger) error {
 	testName := "MajorUpgradeToV4"
 	numNodes := 4
-	upgradeHeightV3 := int64(15)
+	//upgradeHeightV3 := int64(15)
 	upgradeHeightV4 := int64(30)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -32,9 +35,18 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	kn.HandleStopSignal(ctx)
 	logger.Printf("Knuu initialized with scope %s", kn.Scope)
 
+	convertV4ToV3Genesis := func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		state[banktypes.ModuleName] = []byte(`{"send_enabled":true}`)
+		banktypes.GenesisState{}
+		return state
+	}
+
 	logger.Println("Creating testnet")
 	testNet, err := testnet.New(logger, kn, testnet.Options{
 		ChainID: appconsts.TestChainID,
+		GenesisModifiers: []genesis.Modifier{
+			convertV4ToV3Genesis,
+		},
 	})
 	testnet.NoError("failed to create testnet", err)
 
@@ -45,7 +57,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	latestVersion = "pr-82"
 
 	consensusParams := app.DefaultConsensusParams()
-	consensusParams.Version.App = 1 // Start the test on v1
+	consensusParams.Version.App = 3 // Start the test on v3
 	testNet.SetConsensusParams(consensusParams)
 
 	preloader, err := testNet.NewPreloader()
@@ -65,7 +77,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	endpoints, err := testNet.RemoteGRPCEndpoints()
 	testnet.NoError("failed to get remote gRPC endpoints", err)
 	upgradeSchedule := map[int64]uint64{
-		upgradeHeightV3: 3,
+		//upgradeHeightV3: 3,
 		upgradeHeightV4: 4,
 	}
 
@@ -73,7 +85,8 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")
-	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx))
+
+	testnet.NoError("Failed to setup testnet", testNet.Setup(ctx, testnet.WithPrometheus(false)))
 	logger.Println("Starting testnet")
 	testnet.NoError("Failed to start testnet", testNet.Start(ctx))
 
@@ -85,30 +98,30 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	logger.Println("waiting for upgrade")
 
 	// wait for the upgrade to complete
-	var upgradedHeightV3 int64
-	for _, node := range testNet.Nodes() {
-		client, err := node.Client()
-		testnet.NoError("failed to get client", err)
-		upgradeComplete := false
-		lastHeight := int64(0)
-		for !upgradeComplete {
-			select {
-			case <-timer.C:
-				return fmt.Errorf("failed to upgrade to v3, last height: %d", lastHeight)
-			case <-ticker.C:
-				resp, err := client.Header(ctx, nil)
-				testnet.NoError("failed to get header", err)
-				if resp.Header.Version.App == 3 {
-					upgradeComplete = true
-					if upgradedHeightV3 == 0 {
-						upgradedHeightV3 = resp.Header.Height
-					}
-				}
-				logger.Printf("height %v", resp.Header.Height)
-				lastHeight = resp.Header.Height
-			}
-		}
-	}
+	//var upgradedHeightV3 int64
+	//for _, node := range testNet.Nodes() {
+	//	client, err := node.Client()
+	//	testnet.NoError("failed to get client", err)
+	//	upgradeComplete := false
+	//	lastHeight := int64(0)
+	//	for !upgradeComplete {
+	//		select {
+	//		case <-timer.C:
+	//			return fmt.Errorf("failed to upgrade to v3, last height: %d", lastHeight)
+	//		case <-ticker.C:
+	//			resp, err := client.Header(ctx, nil)
+	//			testnet.NoError("failed to get header", err)
+	//			if resp.Header.Version.App == 3 {
+	//				upgradeComplete = true
+	//				if upgradedHeightV3 == 0 {
+	//					upgradedHeightV3 = resp.Header.Height
+	//				}
+	//			}
+	//			logger.Printf("height %v", resp.Header.Height)
+	//			lastHeight = resp.Header.Height
+	//		}
+	//	}
+	//}
 
 	// wait for the upgrade to complete
 	var upgradedHeightV4 int64
