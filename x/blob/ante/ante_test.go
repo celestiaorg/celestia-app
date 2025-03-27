@@ -153,7 +153,7 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
 
 	// Create a context with a gas meter with a high gas limit
-	gasLimit := uint64(10000)
+	gasLimit := uint64(100_000_000)
 	ctx := sdk.NewContext(nil, tmproto.Header{
 		Version: version.Consensus{
 			App: appconsts.LatestVersion,
@@ -185,6 +185,7 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	// Run the ante handler
 	_, err = anteHandler.AnteHandle(ctx, tx, false, mockNext)
 	require.Error(t, err)
+	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
 }
 
 type mockBlobKeeper struct{}
