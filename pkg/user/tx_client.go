@@ -517,15 +517,16 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 	return client.estimateGas(ctx, txBuilder)
 }
 
-// EstimateGasPriceAndUsage simulates the transaction, calculating the amount of gas that was consumed during execution. The final
-// result will be multiplied by gasMultiplier(that is set in TxClient).
-// Also returns the estimated gas price given the provided priority.
+// EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
+// and also the gas limit/used for the provided transaction.
+// The gas limit is calculated by simulating the transaction and then calculating the amount of gas that was consumed during execution.
+// The final result will be multiplied by gasMultiplier(that is set in TxClient).
 func (client *TxClient) EstimateGasPriceAndUsage(
 	ctx context.Context,
 	msgs []sdktypes.Msg,
 	priority gasestimation.TxPriority,
 	opts ...TxOption,
-) (float64, uint64, error) {
+) (gasPrice float64, gasUsed uint64, err error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
@@ -553,9 +554,9 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 		return 0, 0, err
 	}
 
-	gasLimit := uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
+	gasUsed = uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
 
-	return resp.EstimatedGasPrice, gasLimit, nil
+	return resp.EstimatedGasPrice, gasUsed, nil
 }
 
 // EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.
