@@ -6,8 +6,8 @@
 # considerably smaller because it doesn't need to have Golang installed.
 ARG BUILDER_IMAGE=docker.io/golang:1.23.6-alpine3.20
 ARG RUNTIME_IMAGE=docker.io/alpine:3.19
-ARG TARGETOS
-ARG TARGETARCH
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 # Use build args to override the maximum square size of the docker image e.g.
 # docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
 ARG MAX_SQUARE_SIZE
@@ -48,10 +48,6 @@ RUN go mod download
 COPY . .
 
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
-
-RUN echo "TARGETOS=$TARGETOS" && \
-    echo "TARGETARCH=$TARGETARCH" && \
-    echo "TARGETVARIANT=$TARGETVARIANT" \
 
 # compress the binary to the path to be embedded correctly.
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd \
