@@ -145,8 +145,8 @@ func TestPFBAnteHandler(t *testing.T) {
 }
 
 // TestMinGasPFBDecoratorWithMsgExec tests that the MinGasPFBDecorator rejects a
-// MsgExec containing a MsgPayForBlob with a gas cost greater than the tx's gas
-// limit.
+// MsgExec that contains a MsgExec with a MsgPayForBlob where the MsgPayForBlob
+// gas cost is greater than the tx's gas limit.
 func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
@@ -161,14 +161,15 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 
 	// Build a tx with a MsgExec containing a MsgPayForBlobs with a huge gas cost
 	txBuilder := txConfig.NewTxBuilder()
-	nestedPFB := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
+	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
 		&blob.MsgPayForBlobs{
 			Signer:    "celestia...",
 			BlobSizes: []uint32{uint32(math.MaxUint32)},
 		},
 	})
+	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
 
-	require.NoError(t, txBuilder.SetMsgs(&nestedPFB))
+	require.NoError(t, txBuilder.SetMsgs(&nestedMsgExec))
 	tx := txBuilder.GetTx()
 
 	// Run the ante handler
