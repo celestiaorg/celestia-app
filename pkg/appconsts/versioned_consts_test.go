@@ -137,7 +137,6 @@ func TestUpgradeHeightDelay(t *testing.T) {
 			expectedUpgradeHeightDelay: 3,
 		},
 		{
-
 			name:                       "v3 upgrade delay on arabica is 1 day",
 			chainID:                    appconsts.ArabicaChainID,
 			version:                    v3.Version,
