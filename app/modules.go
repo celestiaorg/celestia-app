@@ -225,6 +225,7 @@ func (app *App) setModuleOrder() {
 	)
 
 	app.manager.SetOrderEndBlockers(
+		upgradetypes.ModuleName,
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
