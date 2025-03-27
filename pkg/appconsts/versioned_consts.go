@@ -86,7 +86,7 @@ func GetTimeoutCommit(v uint64) time.Duration {
 // argument should be the current application version, not the version after the
 // upgrade.
 func UpgradeHeightDelay(chainID string, version uint64) int64 {
-	if chainID == TestChainID {
+	if chainID == TestChainID || chainID == LocalDevnetChainID {
 		return 3
 	}
 	switch version {

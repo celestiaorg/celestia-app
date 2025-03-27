@@ -33,6 +33,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/x/tokenfilter"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -154,7 +155,7 @@ type App struct {
 	DistrKeeper         distrkeeper.Keeper
 	GovKeeper           govkeeper.Keeper
 	CrisisKeeper        crisiskeeper.Keeper
-	UpgradeKeeper       upgradekeeper.Keeper // This is included purely for the IBC Keeper. It is not used for upgrading
+	UpgradeKeeper       upgradekeeper.Keeper
 	SignalKeeper        signal.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
@@ -269,10 +270,8 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-	// The upgrade keeper is initialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
-	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
-	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
-	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
+	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
+	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, homePath, app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
 	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
@@ -484,11 +483,27 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			}
 		}
 		// from v2 to v3 and onwards we use a signaling mechanism
-	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
-		// Version changes must be increasing. Downgrades are not permitted
-		if newVersion > currentVersion {
-			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", newVersion)
-			app.SetAppVersion(ctx, newVersion)
+	} else if shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
+		// Version changes must be increasing. Downgrades are not permitted.
+		if upgrade.AppVersion > currentVersion {
+			app.BaseApp.Logger().Info("upgrading app version", "current version", currentVersion, "new version", upgrade.AppVersion)
+
+			if currentVersion == v3 { // v3 -> v4 needs to schedule an upgrade
+				plan := upgradetypes.Plan{
+					Name:   fmt.Sprintf("v%d", upgrade.AppVersion),
+					Height: upgrade.UpgradeHeight + 1, // the block after the upgrade height executes the upgrade.
+				}
+
+				if err := app.UpgradeKeeper.ScheduleUpgrade(ctx, plan); err != nil {
+					panic(err)
+				}
+
+				if err := app.UpgradeKeeper.DumpUpgradeInfoToDisk(plan.Height, plan); err != nil {
+					panic(err)
+				}
+			}
+
+			app.SetAppVersion(ctx, upgrade.AppVersion)
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
@@ -500,6 +515,11 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 // migrateCommitStore tells the baseapp during a version upgrade, which stores to add and which
 // stores to remove
 func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.StoreMigrations, error) {
+	// migration from v3 -> v4 happens in the upgrade module
+	if toVersion == appv3.NextVersion {
+		return baseapp.StoreMigrations{}, nil
+	}
+
 	oldStoreKeys := app.keyVersions[fromVersion]
 	newStoreKeys := app.keyVersions[toVersion]
 	result := baseapp.StoreMigrations{
@@ -522,6 +542,11 @@ func (app *App) migrateCommitStore(fromVersion, toVersion uint64) (baseapp.Store
 // migrateModules performs migrations on existing modules that have registered migrations
 // between versions and initializes the state of new modules for the specified app version.
 func (app *App) migrateModules(ctx sdk.Context, fromVersion, toVersion uint64) error {
+	// migration from v3 -> v4 happens in the upgrade module
+	if toVersion == appv3.NextVersion {
+		return nil
+	}
+
 	return app.manager.RunMigrations(ctx, app.configurator, fromVersion, toVersion)
 }
 
