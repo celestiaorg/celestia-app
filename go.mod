@@ -7,7 +7,7 @@ require (
 	cosmossdk.io/math v1.4.0
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.1
-	github.com/celestiaorg/go-square/v2 v2.1.0
+	github.com/celestiaorg/go-square/v2 v2.2.0
 	github.com/celestiaorg/knuu v0.16.2
 	github.com/celestiaorg/nmt v0.23.0
 	github.com/celestiaorg/rsmt2d v0.14.0
@@ -34,7 +34,7 @@ require (
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	google.golang.org/genproto/googleapis/api v0.0.0-20240903143218-8af14fe29dc1
 	google.golang.org/grpc v1.68.0
-	google.golang.org/protobuf v1.36.4
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.31.1
 )
