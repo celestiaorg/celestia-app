@@ -45,6 +45,9 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	return next(ctx, tx, simulate)
 }
 
+// validatePFBHasEnoughGas iterates through all the msgs and nested msgs to find
+// a MsgPayForBlobs. If found, it validates that the txGas is enough to pay for
+// the blobs.
 func (d MinGasPFBDecorator) validatePFBHasEnoughGas(msgs []sdk.Msg, gasPerByte uint32, txGas uint64) error {
 	for _, m := range msgs {
 		if execMsg, ok := m.(*authz.MsgExec); ok {
@@ -58,7 +61,6 @@ func (d MinGasPFBDecorator) validatePFBHasEnoughGas(msgs []sdk.Msg, gasPerByte u
 				return err
 			}
 		}
-		// NOTE: here we assume only one PFB per transaction
 		if pfb, ok := m.(*types.MsgPayForBlobs); ok {
 			err := validateEnoughGas(pfb, gasPerByte, txGas)
 			if err != nil {
@@ -76,9 +78,10 @@ func (d MinGasPFBDecorator) getGasPerByte(ctx sdk.Context) uint32 {
 	return appconsts.GasPerBlobByte(ctx.BlockHeader().Version.App)
 }
 
-// validateEnoughGas checks if the pfb has enough gas to pay for the PFB.
-func validateEnoughGas(pfb *types.MsgPayForBlobs, gasPerByte uint32, txGas uint64) error {
-	gasToConsume := pfb.Gas(gasPerByte)
+// validateEnoughGas returns an error if the gas needed to pay for the blobs is
+// greater than the txGas.
+func validateEnoughGas(msg *types.MsgPayForBlobs, gasPerByte uint32, txGas uint64) error {
+	gasToConsume := msg.Gas(gasPerByte)
 	if gasToConsume > txGas {
 		return errors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)
 	}
