@@ -40,7 +40,7 @@ message AvailableDataHeader {
 
 // Protobuf definitions for the contents of state elements
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#account
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#account
 // AccountStatus
 enum AccountStatus : uint8_t {
     None = 1,
@@ -52,13 +52,13 @@ enum AccountStatus : uint8_t {
     ValidatorUnbonded = 7,
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#periodentry
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#periodentry
 message PeriodEntry {
   // Rewards per unit of voting power accumulated so far, in 1u
   uint64 rewardRate = 1;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#decimal
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#decimal
 message Decimal {
   // Rational numerator
   uint64 numerator = 1;
@@ -66,7 +66,7 @@ message Decimal {
   uint64 denominator = 1;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#messagepaid
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#messagepaid
 message MessagePaid {
   // Share index (in row-major order) of first share paid for (inclusive)
   uint64 start = 1;
@@ -79,7 +79,7 @@ message MessagePaid {
 
 // Protobuf definitions for the state elements
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#account
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#account
 message Account {
   // Coin balance
   uint64 balance = 1;
@@ -89,7 +89,7 @@ message Account {
   AccountStatus status = 3;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#delegation
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#delegation
 message Delegation {
   // The validator being delegating to
   // 32-bytes
@@ -104,7 +104,7 @@ message Delegation {
   int64 unbondingHeight = 5;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#validator
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#validator
 message StateValidator {
   // Validator's commission rewards, in 1u
   uint64 commissionRewards = 1;
@@ -130,40 +130,40 @@ message StateValidator {
   bytes next = 10;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#activevalidatorcount
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#activevalidatorcount
 message ActiveValidatorCount {
   // Number of active validators
   uint32 numValidators = 1;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#activevotingpower
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#activevotingpower
 message ActiveVotingPower {
   // Active voting power
   uint64 votingPower = 1;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#proposerblockreward
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#proposerblockreward
 message ProposerBlockReward {
   // Total block reward (subsidy + fees) in current block so far. Reset each block
   uint64 reward = 1;
 }
 
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#proposerinitialvotingpower
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#proposerinitialvotingpower
 message ProposerInitialVotingPower {
   // Voting power of the proposer at the start of each block. Set each block
   uint64 votingPower = 1;
 }
 
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#validatorqueuehead
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#validatorqueuehead
 message ValidatorQueueHead {
   // Address of inactive validator at the head of the validator queue
   // 32-bytes
   bytes head = 1;
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#messagepaidhead
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#messagepaidhead
 message MessagePaidHead {
   // Transaction hash at the head of the list (has the smallest start index)
   // 32-byte hash
@@ -230,7 +230,7 @@ message StateElement {
   }
 }
 
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#shareproof
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#shareproof
 message ShareProof {
   // the share
   Share share = 1;
@@ -245,7 +245,7 @@ message ShareProof {
 //Protobuf definitions for the fraud proofs
 
 // ANCHOR: BadEncodingFraudProof
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#badencodingfraudproof
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#badencodingfraudproof
 message BadEncodingFraudProof {
   // height of the block with the offending row or column
   int64 height = 1;
@@ -260,7 +260,7 @@ message BadEncodingFraudProof {
 // ANCHOR_END: BadEncodingFraudProof
 
 // ANCHOR: StateFraudProof
-// https://github.com/celestiaorg/celestia-specs/blob/master/specs/networking.md#statefraudproof
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/networking.md#statefraudproof
 message StateFraudProof {
   // height of the block with the intermediate state roots 
   // Subtracting one from height gives the height of the block with the transactions.
