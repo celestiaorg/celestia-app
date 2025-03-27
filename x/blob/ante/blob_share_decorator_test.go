@@ -15,7 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	ante "github.com/celestiaorg/celestia-app/v3/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	"github.com/celestiaorg/go-square/v2/share"
 	blobtx "github.com/celestiaorg/go-square/v2/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -191,7 +190,7 @@ func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
 
 	_, err := decorator.AnteHandle(ctx, tx, false, mockNext)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, blobtypes.ErrBlobsTooLarge)
+	assert.ErrorIs(t, err, blob.ErrBlobsTooLarge)
 
 	// Create a MsgExec that wraps a MsgExec that contains a MsgPayForBlobs with a huge
 	// blob that can not fit in a square.
@@ -200,7 +199,7 @@ func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
 	tx = txBuilder.GetTx()
 	_, err = decorator.AnteHandle(ctx, tx, false, mockNext)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, blobtypes.ErrBlobsTooLarge)
+	assert.ErrorIs(t, err, blob.ErrBlobsTooLarge)
 }
 
 func mockNext(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
