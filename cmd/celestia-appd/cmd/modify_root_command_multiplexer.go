@@ -3,13 +3,14 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-
+	"fmt"
 	"github.com/01builders/nova"
 	"github.com/01builders/nova/abci"
 	"github.com/01builders/nova/appd"
 	"github.com/celestiaorg/celestia-app/v4/app"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/spf13/cobra"
+	"runtime"
 
 	embedding "github.com/celestiaorg/celestia-app/v4/internal/embedding"
 )
@@ -23,7 +24,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 
 	v3, err := appd.New("v3", v3AppBinary)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to create v3 app for platform %s: %w", platform(), err))
 	}
 
 	versions, err := abci.NewVersions(abci.Version{
@@ -58,4 +59,8 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			StartCommandHandler: nova.New(versions),
 		},
 	)
+}
+
+func platform() string {
+	return runtime.GOOS + "_" + runtime.GOARCH
 }

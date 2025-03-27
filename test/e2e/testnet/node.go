@@ -33,12 +33,11 @@ const (
 	grpcPort       = 9090
 	prometheusPort = 26660
 	tracingPort    = 26661
-	//dockerSrcURL   = "ghcr.io/01builders/celestia-app" // TODO: revert to celestiaorg
-	dockerSrcURL  = "docker.io/chatton/celestia-app" // TODO: revert to celestiaorg
-	secp256k1Type = "secp256k1"
-	ed25519Type   = "ed25519"
-	remoteRootDir = "/home/celestia/.celestia-app"
-	txsimRootDir  = "/home/celestia"
+	dockerSrcURL   = "ghcr.io/01builders/celestia-app" // TODO: revert to celestiaorg
+	secp256k1Type  = "secp256k1"
+	ed25519Type    = "ed25519"
+	remoteRootDir  = "/home/celestia/.celestia-app"
+	txsimRootDir   = "/home/celestia"
 )
 
 type Node struct {
@@ -119,7 +118,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = knInstance.Build().SetImage(ctx, DockerImageName(version))
+	err = knInstance.Build().SetImage(ctx, "ghcr.io/01builders/celestia-app-multiplexer:"+version)
 	if err != nil {
 		return nil, err
 	}

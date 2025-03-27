@@ -42,7 +42,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	latestVersion, err := testnet.GetLatestVersion()
 	testnet.NoError("failed to get latest version", err)
-	latestVersion = "multiplexer"
+	latestVersion = "91f6ab5"
 
 	consensusParams := app.DefaultConsensusParams()
 	consensusParams.Version.App = 1 // Start the test on v1
@@ -51,7 +51,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 	preloader, err := testNet.NewPreloader()
 	testnet.NoError("failed to create preloader", err)
 
-	err = preloader.AddImage(ctx, testnet.DockerImageName(latestVersion))
+	err = preloader.AddImage(ctx, "ghcr.io/01builders/celestia-app-multiplexer:"+latestVersion)
 	testnet.NoError("failed to add image", err)
 	defer func() { _ = preloader.EmptyImages(ctx) }()
 
