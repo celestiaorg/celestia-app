@@ -54,9 +54,7 @@ COPY . .
 COPY --from=base /bin/celestia-appd /tmp/celestia-appd
 
 
-RUN echo "TARGETOS=${TARGETOS}" && \
-    echo "TARGETARCH=${TARGETARCH}" && \
-    echo "BINARY_PATH=internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz
+RUN echo "TARGETOS=$TARGETOS" && echo "TARGETARCH=$TARGETARCH"
 
 # compress the binary to the path to be embedded correctly.
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v3_${TARGETARCH}.tar.gz /tmp/celestia-appd \
