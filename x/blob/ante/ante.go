@@ -30,6 +30,11 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
+	// Skip gas checks during genesis initialization
+	if ctx.BlockHeight() == 0 {
+		return next(ctx, tx, simulate)
+	}
+
 	gasPerByte := d.getGasPerByte(ctx)
 	txGas := ctx.GasMeter().GasRemaining()
 	err := d.validatePFBHasEnoughGas(tx.GetMsgs(), gasPerByte, txGas)
