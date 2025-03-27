@@ -127,6 +127,7 @@ func TestPFBAnteHandler(t *testing.T) {
 					Version: version.Consensus{
 						App: currentVersion,
 					},
+					Height: 1,
 				}, true, nil).WithGasMeter(sdk.NewGasMeter(uint64(tc.txGas(gasPerBlobByte)))).WithIsCheckTx(true)
 
 				ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
@@ -157,6 +158,7 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 		Version: version.Consensus{
 			App: appconsts.LatestVersion,
 		},
+		Height: 1,
 	}, true, nil).WithGasMeter(sdk.NewGasMeter(gasLimit)).WithIsCheckTx(true)
 
 	// Build a tx with a MsgExec containing a MsgPayForBlobs with a huge gas cost
