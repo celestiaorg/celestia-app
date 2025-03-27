@@ -171,6 +171,11 @@ func TestBlobShareDecorator(t *testing.T) {
 }
 
 func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
+	decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
+	ctx := sdk.Context{}.
+		WithIsCheckTx(true).
+		WithBlockHeader(tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}})
+
 	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
 	txBuilder := txConfig.NewTxBuilder()
 	// Create a tx with a MsgExec that contains a MsgPayForBlobs with a huge
@@ -184,11 +189,16 @@ func TestBlobShareDecoratorWithMsgExec(t *testing.T) {
 	require.NoError(t, txBuilder.SetMsgs(&msgExec))
 	tx := txBuilder.GetTx()
 
-	decorator := ante.NewBlobShareDecorator(mockBlobKeeper{})
-	ctx := sdk.Context{}.
-		WithIsCheckTx(true).
-		WithBlockHeader(tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}})
 	_, err := decorator.AnteHandle(ctx, tx, false, mockNext)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, blobtypes.ErrBlobsTooLarge)
+
+	// Create a MsgExec that wraps a MsgExec that contains a MsgPayForBlobs with a huge
+	// blob that can not fit in a square.
+	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
+	require.NoError(t, txBuilder.SetMsgs(&nestedMsgExec))
+	tx = txBuilder.GetTx()
+	_, err = decorator.AnteHandle(ctx, tx, false, mockNext)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, blobtypes.ErrBlobsTooLarge)
 }
