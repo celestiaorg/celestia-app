@@ -183,11 +183,7 @@ func TestTallyingLogic(t *testing.T) {
 	require.False(t, shouldUpgrade) // should be false because upgrade height hasn't been reached.
 	require.Equal(t, uint64(0), upgrade.AppVersion)
 
-<<<<<<< HEAD
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay("test", version))
-=======
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay(appconsts.TestChainID, upgrade.AppVersion))
->>>>>>> cdfb7d3 (feat!: set upgrade on upgrade keeper in endblocker (#4430))
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + appconsts.UpgradeHeightDelay("test", upgrade.AppVersion))
 
 	shouldUpgrade, upgrade = upgradeKeeper.ShouldUpgrade(ctx)
 	require.True(t, shouldUpgrade) // should be true because upgrade height has been reached.

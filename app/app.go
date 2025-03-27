@@ -270,15 +270,8 @@ func New(
 	)
 
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
-<<<<<<< HEAD
-	// The upgrade keeper is intialised solely for the ibc keeper which depends on it to know what the next validator hash is for after the
-	// upgrade. This keeper is not used for the actual upgrades but merely for compatibility reasons. Ideally IBC has their own upgrade module
-	// for performing IBC based upgrades. Note, as we use rolling upgrades, IBC technically never needs this functionality.
-	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, "", app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-=======
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(nil, keys[upgradetypes.StoreKey], appCodec, homePath, app.BaseApp, authtypes.NewModuleAddress(govtypes.ModuleName).String())
->>>>>>> cdfb7d3 (feat!: set upgrade on upgrade keeper in endblocker (#4430))
 
 	app.BlobstreamKeeper = *blobstreamkeeper.NewKeeper(
 		appCodec,
@@ -489,13 +482,6 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 				panic(err)
 			}
 		}
-<<<<<<< HEAD
-		// from v2 to v3 and onwards we use a signalling mechanism
-	} else if shouldUpgrade, newVersion := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
-		// Version changes must be increasing. Downgrades are not permitted
-		if newVersion > currentVersion {
-			app.SetAppVersion(ctx, newVersion)
-=======
 		// from v2 to v3 and onwards we use a signaling mechanism
 	} else if shouldUpgrade, upgrade := app.SignalKeeper.ShouldUpgrade(ctx); shouldUpgrade {
 		// Version changes must be increasing. Downgrades are not permitted.
@@ -518,7 +504,6 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 			}
 
 			app.SetAppVersion(ctx, upgrade.AppVersion)
->>>>>>> cdfb7d3 (feat!: set upgrade on upgrade keeper in endblocker (#4430))
 			app.SignalKeeper.ResetTally(ctx)
 		}
 	}
