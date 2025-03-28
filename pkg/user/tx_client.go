@@ -129,6 +129,15 @@ func WithDefaultAccount(name string) Option {
 	}
 }
 
+// WithEstimatorService allows a user to provide a connection to a special gas
+// estimation service to be used by the TxClient for estimating gas price
+// and usage.
+func WithEstimatorService(conn *grpc.ClientConn) Option {
+	return func(c *TxClient) {
+		c.gasEstimationClient = gasestimation.NewGasEstimatorClient(conn)
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
