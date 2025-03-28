@@ -21,24 +21,34 @@ func TestMsgExecDecorator(t *testing.T) {
 	nestedMsgPayForBlobs := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&blobtypes.MsgPayForBlobs{}})
 
 	tests := []struct {
-		name    string
-		msg     sdk.Msg
-		wantErr error
+		name      string
+		msg       sdk.Msg
+		isCheckTx bool
+		wantErr   error
 	}{
 		{
-			name:    "Accept msgExec",
-			msg:     &msgExec,
-			wantErr: nil,
+			name:      "Accept msgExec",
+			msg:       &msgExec,
+			isCheckTx: true,
+			wantErr:   nil,
 		},
 		{
-			name:    "Reject nestedMsgExec",
-			msg:     &nestedMsgExec,
-			wantErr: sdkerrors.ErrNotSupported,
+			name:      "Reject nestedMsgExec",
+			msg:       &nestedMsgExec,
+			isCheckTx: true,
+			wantErr:   sdkerrors.ErrNotSupported,
 		},
 		{
-			name:    "Reject nestedMsgPayForBlobs",
-			msg:     &nestedMsgPayForBlobs,
-			wantErr: sdkerrors.ErrNotSupported,
+			name:      "Reject nestedMsgPayForBlobs",
+			msg:       &nestedMsgPayForBlobs,
+			isCheckTx: true,
+			wantErr:   sdkerrors.ErrNotSupported,
+		},
+		{
+			name:      "Accept nestedMsgExec if isCheckTx is false",
+			msg:       &nestedMsgPayForBlobs,
+			isCheckTx: false,
+			wantErr:   nil,
 		},
 	}
 
@@ -49,7 +59,7 @@ func TestMsgExecDecorator(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup
-			ctx := sdk.NewContext(nil, tmproto.Header{}, true, nil)
+			ctx := sdk.NewContext(nil, tmproto.Header{}, tc.isCheckTx, nil)
 			txBuilder := cdc.TxConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.msg))
 
