@@ -50,7 +50,7 @@ Users will specify a version (1 byte) and a ID (28 bytes) in their PFB. Addition
 
 ### Criteria 1
 
-The namespace ID must provide at least 72 bits of randomness [^2] to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fail to meet this criteria.
+The namespace ID must provide at least 72 bits of randomness to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fail to meet this criteria.
 
 | Namespace ID size (bytes) | Criteria 1 |
 |---------------------------|------------|
@@ -229,7 +229,6 @@ Note: to verify the number of SHA256 compression invocations, we analyzed the nu
 - <https://github.com/celestiaorg/celestia-app/issues/1308>
 
 [^1]: This assumes a user uses sufficient entropy to generate the namespace ID and isn't front-run by an adversary prior to actually using the namespace.
-[^2]: <https://eager.io/blog/how-long-does-an-id-need-to-be/>
 [^3]: <https://kevingal.com/apps/collision.html>
 [^4]: <https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/>
 <!-- markdown-link-check-disable -->

@@ -44,6 +44,6 @@ grpcurl -plaintext localhost:9090 celestia.signal.v1.Query/VersionTally
 ## Appendix
 
 1. <https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-018-network-upgrades.md>
-1. <https://github.com/celestiaorg/CIPs/blob/main/cips/cip-10.md>
+1. <https://github.com/celestiaorg/CIPs/blob/main/cips/cip-010.md>
 1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/upgrade/README.md>
 1. <https://github.com/cosmos/cosmos-sdk/blob/v0.46.15/x/gov/README.md>
