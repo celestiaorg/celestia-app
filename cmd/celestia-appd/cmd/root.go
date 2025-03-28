@@ -105,6 +105,11 @@ func NewRootCmd() *cobra.Command {
 
 // initRootCommand performs a bunch of side-effects on the root command.
 func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config) {
+	debugCmd := debug.Cmd()
+	debugCmd.AddCommand(
+		server.ModuleHashByHeightQuery(NewAppServer),
+	)
+
 	rootCommand.AddCommand(
 		genutilcli.InitCmd(app.ModuleBasics, app.DefaultNodeHome),
 		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
@@ -113,7 +118,7 @@ func initRootCommand(rootCommand *cobra.Command, encodingConfig encoding.Config)
 		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
 		tmcli.NewCompletionCmd(rootCommand, true),
-		debug.Cmd(),
+		debugCmd,
 		clientconfig.Cmd(),
 		commands.CompactGoLevelDBCmd,
 		addrbookCommand(),
