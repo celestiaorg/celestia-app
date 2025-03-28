@@ -1,6 +1,7 @@
 package ante
 
 import (
+	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -8,8 +9,8 @@ import (
 
 var _ sdk.AnteDecorator = MsgExecDecorator{}
 
-// MsgExecDecorator ensures that the tx does not contain any nested MsgExec messages.
-// Only applies to app version >= 4.
+// MsgExecDecorator ensures that the tx does not contain a MsgExec with a
+// nested MsgExec or MsgPayForBlobs.
 type MsgExecDecorator struct{}
 
 func NewMsgExecDecorator() *MsgExecDecorator {
@@ -17,8 +18,9 @@ func NewMsgExecDecorator() *MsgExecDecorator {
 }
 
 func (mgk MsgExecDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
-	// This decorator is only applicable to app version 4 and above
-	if ctx.BlockHeader().Version.App < 4 {
+	// Only apply this decorator in checkTx.
+	// TODO: in v4, consider enforcing this in ProcessProposal too.
+	if !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
 
@@ -31,6 +33,11 @@ func (mgk MsgExecDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 			for _, nestedMsg := range nestedMsgs {
 				if _, ok := nestedMsg.(*authz.MsgExec); ok {
 					return ctx, sdkerrors.ErrNotSupported.Wrapf("MsgExec inside MsgExec is not supported")
+				}
+			}
+			for _, nestedMsg := range nestedMsgs {
+				if _, ok := nestedMsg.(*blobtypes.MsgPayForBlobs); ok {
+					return ctx, sdkerrors.ErrNotSupported.Wrapf("MsgPayForBlobs inside MsgExec is not supported")
 				}
 			}
 		}
