@@ -6,10 +6,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
-var (
-	_ sdk.AnteDecorator = MsgExecDecorator{}
-)
+var _ sdk.AnteDecorator = MsgExecDecorator{}
 
+// MsgExecDecorator ensures that the tx does not contain any nested MsgExec messages.
+// Only applies to app version >= 4.
 type MsgExecDecorator struct{}
 
 func NewMsgExecDecorator() *MsgExecDecorator {
