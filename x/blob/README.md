@@ -180,8 +180,7 @@ The blob module emits the following events:
 celestia-appd tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [flags]
 ```
 
-For submitting PFB transaction via a light client's rpc, see [celestia-node's
-documentation](https://docs.celestia.org/developers/node-tutorial#submitting-data).
+For submitting PFB transaction see [docs](https://docs.celestia.org/how-to-guides/submit-data#submitting-data-blobs-to-celestia).
 
 The steps in the
 [`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)
