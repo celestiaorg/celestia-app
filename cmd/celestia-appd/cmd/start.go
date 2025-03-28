@@ -141,7 +141,7 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			if !withTM {
 				serverCtx.Logger.Info("starting ABCI without Tendermint")
 				return wrapCPUProfile(serverCtx, func() error {
-					return startStandAlone(serverCtx, appCreator)
+					return startStandAlone(serverCtx, clientCtx, appCreator)
 				})
 			}
 
@@ -204,7 +204,7 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 	return cmd
 }
 
-func startStandAlone(ctx *server.Context, appCreator srvrtypes.AppCreator) error {
+func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator srvrtypes.AppCreator) error {
 	addr := ctx.Viper.GetString(flagAddress)
 	transport := ctx.Viper.GetString(flagTransport)
 	home := ctx.Viper.GetString(flags.FlagHome)
@@ -230,6 +230,107 @@ func startStandAlone(ctx *server.Context, appCreator srvrtypes.AppCreator) error
 	_, err = startTelemetry(config)
 	if err != nil {
 		return err
+	}
+
+	// Add the tx service to the gRPC router. We only need to register this
+	// service if API or gRPC is enabled.
+	if config.API.Enable || config.GRPC.Enable {
+		app.RegisterTxService(clientCtx)
+	}
+
+	metrics, err := startTelemetry(config)
+	if err != nil {
+		return err
+	}
+
+	var apiSrv *api.Server
+	if config.API.Enable {
+		genDocProvider := node.DefaultGenesisDocProviderFunc(ctx.Config)
+		genDoc, err := genDocProvider()
+		if err != nil {
+			return err
+		}
+
+		clientCtx = clientCtx.WithHomeDir(home).WithChainID(genDoc.ChainID)
+
+		if config.GRPC.Enable {
+			_, _, err := net.SplitHostPort(config.GRPC.Address)
+			if err != nil {
+				return err
+			}
+
+			maxSendMsgSize := config.GRPC.MaxSendMsgSize
+			if maxSendMsgSize == 0 {
+				maxSendMsgSize = serverconfig.DefaultGRPCMaxSendMsgSize
+			}
+
+			maxRecvMsgSize := config.GRPC.MaxRecvMsgSize
+			if maxRecvMsgSize == 0 {
+				maxRecvMsgSize = serverconfig.DefaultGRPCMaxRecvMsgSize
+			}
+
+			// If grpc is enabled, configure grpc client for grpc gateway.
+			grpcClient, err := grpc.NewClient(
+				config.GRPC.Address,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithDefaultCallOptions(
+					grpc.ForceCodec(codec.NewProtoCodec(clientCtx.InterfaceRegistry).GRPCCodec()),
+					grpc.MaxCallRecvMsgSize(maxRecvMsgSize),
+					grpc.MaxCallSendMsgSize(maxSendMsgSize),
+				),
+			)
+			if err != nil {
+				return err
+			}
+
+			clientCtx = clientCtx.WithGRPCClient(grpcClient)
+			ctx.Logger.Debug("grpc client assigned to client context", "target", config.GRPC.Address)
+		}
+
+		apiSrv = api.New(clientCtx, ctx.Logger.With("module", "api-server"))
+		app.RegisterAPIRoutes(apiSrv, config.API)
+		if config.Telemetry.Enabled {
+			apiSrv.SetTelemetry(metrics)
+		}
+		errCh := make(chan error)
+
+		go func() {
+			if err := apiSrv.Start(config); err != nil {
+				errCh <- err
+			}
+		}()
+
+		select {
+		case err := <-errCh:
+			return err
+
+		case <-time.After(srvrtypes.ServerStartTime): // assume server started successfully
+		}
+	}
+
+	var (
+		grpcSrv    *grpc.Server
+		grpcWebSrv *http.Server
+	)
+
+	if config.GRPC.Enable {
+		grpcSrv, err = servergrpc.StartGRPCServer(clientCtx, app, config.GRPC)
+		if err != nil {
+			return err
+		}
+		defer grpcSrv.Stop()
+		if config.GRPCWeb.Enable {
+			grpcWebSrv, err = servergrpc.StartGRPCWeb(grpcSrv, config)
+			if err != nil {
+				ctx.Logger.Error("failed to start grpc-web http server: ", err)
+				return err
+			}
+			defer func() {
+				if err := grpcWebSrv.Close(); err != nil {
+					ctx.Logger.Error("failed to close grpc-web http server: ", err)
+				}
+			}()
+		}
 	}
 
 	svr, err := tmserver.NewServer(addr, transport, app)
