@@ -26,7 +26,7 @@ func NewMinGasPFBDecorator(k BlobKeeper) MinGasPFBDecorator {
 // if the transaction contains a MsgPayForBlobs and if so, checks that
 // the transaction has allocated enough gas.
 func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if ctx.IsReCheckTx() {
+	if !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
 

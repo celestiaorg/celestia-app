@@ -188,6 +188,60 @@ func TestMinGasPFBDecoratorWithMsgExec(t *testing.T) {
 	require.ErrorIs(t, err, sdkerrors.ErrInsufficientFee)
 }
 
+func TestMinGasPFBDecoratorCtx(t *testing.T) {
+	type testCase struct {
+		name    string
+		ctx     sdk.Context
+		wantErr error
+	}
+
+	// Create a context with a gas meter with a high gas limit
+	gasLimit := uint64(100_000_000)
+	testCases := []testCase{
+		{
+			name:    "should return no error if checkTx and reCheckTx are false (e.g. ProcessProposal)",
+			ctx:     sdk.NewContext(nil, tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}, Height: 1}, false, nil).WithGasMeter(sdk.NewGasMeter(gasLimit)),
+			wantErr: nil,
+		},
+		{
+			name:    "should return an error if checkTx is true",
+			ctx:     sdk.NewContext(nil, tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}, Height: 1}, false, nil).WithGasMeter(sdk.NewGasMeter(gasLimit)).WithIsCheckTx(true),
+			wantErr: sdkerrors.ErrInsufficientFee,
+		},
+		{
+			name:    "should return an error if recheckTx is true",
+			ctx:     sdk.NewContext(nil, tmproto.Header{Version: version.Consensus{App: appconsts.LatestVersion}, Height: 1}, false, nil).WithGasMeter(sdk.NewGasMeter(gasLimit)).WithIsReCheckTx(true),
+			wantErr: sdkerrors.ErrInsufficientFee,
+		},
+	}
+
+	anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+
+	// Build a tx with a MsgExec containing a MsgPayForBlobs with a huge gas cost
+	txBuilder := txConfig.NewTxBuilder()
+	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{
+		&blob.MsgPayForBlobs{
+			Signer:    "celestia...",
+			BlobSizes: []uint32{uint32(math.MaxUint32)},
+		},
+	})
+	require.NoError(t, txBuilder.SetMsgs(&msgExec))
+	tx := txBuilder.GetTx()
+
+	for _, tc := range testCases {
+		// Run the ante handler
+		fmt.Printf("tc.name: %s\n", tc.name)
+		_, err := anteHandler.AnteHandle(tc.ctx, tx, false, mockNext)
+		if tc.wantErr != nil {
+			require.Error(t, err)
+			require.ErrorIs(t, err, tc.wantErr)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}
+
 type mockBlobKeeper struct{}
 
 func (mockBlobKeeper) GasPerBlobByte(_ sdk.Context) uint32 {
