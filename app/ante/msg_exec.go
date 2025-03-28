@@ -18,12 +18,6 @@ func NewMsgExecDecorator() *MsgExecDecorator {
 }
 
 func (mgk MsgExecDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
-	// Only apply this decorator in checkTx.
-	// TODO: in v4, consider enforcing this in ProcessProposal too.
-	if !ctx.IsCheckTx() {
-		return next(ctx, tx, simulate)
-	}
-
 	for _, msg := range tx.GetMsgs() {
 		if msgExec, ok := msg.(*authz.MsgExec); ok {
 			nestedMsgs, err := msgExec.GetMessages()
@@ -34,8 +28,6 @@ func (mgk MsgExecDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 				if _, ok := nestedMsg.(*authz.MsgExec); ok {
 					return ctx, sdkerrors.ErrNotSupported.Wrapf("MsgExec inside MsgExec is not supported")
 				}
-			}
-			for _, nestedMsg := range nestedMsgs {
 				if _, ok := nestedMsg.(*blobtypes.MsgPayForBlobs); ok {
 					return ctx, sdkerrors.ErrNotSupported.Wrapf("MsgPayForBlobs inside MsgExec is not supported")
 				}
