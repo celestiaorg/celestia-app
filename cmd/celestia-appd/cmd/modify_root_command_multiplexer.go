@@ -33,11 +33,13 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		AppVersion:  3,
 		StartArgs: []string{
 			"--grpc.enable=true",
+			"--grpc.address=0.0.0.0:9090", // ensure the grpc address is accessible from hosts such as txsim. (not just localhost)
 			"--api.enable=true",
 			"--api.swagger=false",
 			"--with-tendermint=false",
 			"--transport=grpc",
-			"--v2-upgrade-height=3",
+			"--address=0.0.0.0:26658",
+			//"--v2-upgrade-height=0",
 		},
 	})
 	if err != nil {
