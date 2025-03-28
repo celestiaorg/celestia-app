@@ -51,7 +51,10 @@ func Run(
 	opts.Fill()
 	r := rand.New(rand.NewSource(opts.seed))
 
-	conn, err := buildGrpcConn(grpcEndpoint, defaultTLSConfig)
+	grpcCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	conn, err := waitAndBuildGrpcConn(grpcCtx, grpcEndpoint, defaultTLSConfig, opts.pollTime)
 	if err != nil {
 		return fmt.Errorf("error connecting to %s: %w", grpcEndpoint, err)
 	}
@@ -173,6 +176,28 @@ func (o *Options) WithSeed(seed int64) *Options {
 func (o *Options) WithPollTime(pollTime time.Duration) *Options {
 	o.pollTime = pollTime
 	return o
+}
+
+// waitAndBuildGrpcConn attempts to establish a gRPC connection until the provided context times out.
+func waitAndBuildGrpcConn(ctx context.Context, grpcEndpoint string, config *tls.Config, retryInterval time.Duration) (*grpc.ClientConn, error) {
+	for {
+		conn, err := buildGrpcConn(grpcEndpoint, config)
+		if err == nil {
+			return conn, nil
+		}
+
+		log.Info().
+			Str("grpcEndpoint", grpcEndpoint).
+			Str("error", err.Error()).
+			Msg("gRPC not ready yet, retrying...")
+
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context cancelled or timed out while waiting for gRPC at %s: %w", grpcEndpoint, ctx.Err())
+		case <-time.After(retryInterval):
+			// Retry after interval
+		}
+	}
 }
 
 // buildGrpcConn applies the config if the handshake succeeds; otherwise, it falls back to an insecure connection.

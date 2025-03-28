@@ -67,7 +67,7 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 		upgradeHeightV4: 4,
 	}
 
-	err = testNet.CreateTxClient(ctx, "txsim", "latest", 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
+	err = testNet.CreateTxClient(ctx, "txsim", latestVersion, 1, "100-2000", 100, testnet.DefaultResources, endpoints[0], upgradeSchedule)
 	testnet.NoError("failed to create tx client", err)
 
 	logger.Println("Setting up testnet")

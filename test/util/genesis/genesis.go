@@ -198,44 +198,6 @@ func (g *Genesis) NewValidator(val Validator) error {
 	return g.AddValidator(val)
 }
 
-// ExportBytes returns the bytes of the genesis document of the network.
-func (g *Genesis) ExportBytes() ([]byte, error) {
-	if !g.legacy {
-		doc, err := g.Export()
-		if err != nil {
-			return nil, err
-		}
-		return json.MarshalIndent(doc, "", " ")
-	}
-
-	gentxs, err := g.getGenTxs()
-	if err != nil {
-		return nil, err
-	}
-
-	var defaultAppState map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(v3GenesisAppState), &defaultAppState); err != nil {
-		return nil, err
-	}
-
-	// we are dealing with an older genesis version, and cannot depend on the latest coretypes.GenesisDoc type.
-	legacyDoc, err := DocumentLegacy(
-		defaultAppState,
-		g.ecfg,
-		g.ConsensusParams,
-		g.ChainID,
-		gentxs,
-		g.accounts,
-		g.GenesisTime,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return json.MarshalIndent(legacyDoc, "", " ")
-}
-
 func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 	gentxs := make([]json.RawMessage, 0, len(g.genTxs))
 	for _, val := range g.validators {
@@ -263,7 +225,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 
 	if !g.legacy {
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
-		return DocumentLegacy(
+		return Document(
 			tempApp.DefaultGenesis(),
 			g.ecfg,
 			g.ConsensusParams,
