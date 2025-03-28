@@ -41,27 +41,29 @@ func FilterTxs(logger log.Logger, ctx sdk.Context, handler sdk.AnteHandler, txCo
 }
 
 // filterStdTxs applies the provided antehandler to each transaction and removes
-// transactions that return an error. Panics are caught by the checkTxValidity
-// function used to apply the ante handler.
+// transactions that return an error. Panics are not caught here;
+// invalid transactions are skipped with logging.
 func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
 	nonPFBMessageCount := 0
 	for _, tx := range txs {
 		sdkTx, err := dec(tx)
+                txHash := tmbytes.HexBytes(coretypes.Tx(tx).Hash())
 		if err != nil {
-			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			logger.Error("decoding already checked transaction", "tx", txHash, "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
 
+		msgs := sdkTx.GetMsgs()
 		msgTypes := msgTypes(sdkTx)
-		if nonPFBMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxNonPFBMessages {
-			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+		if nonPFBMessageCount+len(msgs) > appconsts.MaxNonPFBMessages {
+			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", txHash)
 			continue
 		}
-		nonPFBMessageCount += len(sdkTx.GetMsgs())
+		nonPFBMessageCount += len(msgs)
 
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
@@ -70,7 +72,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 		if err != nil {
 			logger.Error(
 				"filtering already checked transaction",
-				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
+				"tx", txHash,
 				"error", err,
 				"msgs", msgTypes,
 			)
@@ -86,26 +88,28 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 }
 
 // filterBlobTxs applies the provided antehandler to each transaction
-// and removes transactions that return an error. Panics are caught by the checkTxValidity
-// function used to apply the ante handler.
+// and removes transactions that return an error. Panics are not caught here;
+// invalid transactions are skipped with logging.
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []*tx.BlobTx) ([]*tx.BlobTx, sdk.Context) {
 	n := 0
 	pfbMessageCount := 0
 	for _, tx := range txs {
+		txHash := tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash())
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
-			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			logger.Error("decoding already checked blob transaction", "tx", txHash, "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx.Tx)
+		msgs := sdkTx.GetMsgs()
 
-		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
-			logger.Debug("skipping tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+		if pfbMessageCount+len(msgs) > appconsts.MaxPFBMessages {
+			logger.Debug("skipping tx because the max pfb message count was reached", "tx", txHash)
 			continue
 		}
-		pfbMessageCount += len(sdkTx.GetMsgs())
+		pfbMessageCount += len(msgs)
 
 		ctx, err = handler(ctx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
@@ -113,7 +117,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 		// of the anteHandlers which is logged.
 		if err != nil {
 			logger.Error(
-				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
+				"filtering already checked blob transaction", "tx", txHash, "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			continue
