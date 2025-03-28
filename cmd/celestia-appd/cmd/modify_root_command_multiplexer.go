@@ -32,7 +32,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		ABCIVersion: abci.ABCIClientVersion1,
 		AppVersion:  3,
 		StartArgs: []string{
-			"--grpc.enable=true",
+			"--grpc.enable",
 			"--grpc.address=0.0.0.0:9090", // ensure the grpc address is accessible from hosts such as txsim. (not just localhost)
 			"--api.enable=true",
 			"--api.swagger=false",
