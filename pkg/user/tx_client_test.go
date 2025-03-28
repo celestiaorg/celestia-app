@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
 
@@ -278,7 +279,6 @@ func TestSeparateGasEstimatorService(t *testing.T) {
 
 	assert.Equal(t, 0.02, price)
 	assert.Equal(t, uint64(70000*multiplier), used)
-
 }
 
 func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
