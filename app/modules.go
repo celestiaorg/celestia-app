@@ -95,7 +95,7 @@ func (app *App) setupModuleManager(skipGenesisInvariants bool) error {
 	var err error
 	app.manager, err = module.NewManager([]module.VersionedModule{
 		{
-			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx, app.txConfig),
+			Module:      genutil.NewAppModule(app.AccountKeeper, app.StakingKeeper, app.DeliverTx, app.txConfig),
 			FromVersion: v1, ToVersion: v3,
 		},
 		{
@@ -225,6 +225,7 @@ func (app *App) setModuleOrder() {
 	)
 
 	app.manager.SetOrderEndBlockers(
+		upgradetypes.ModuleName,
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,

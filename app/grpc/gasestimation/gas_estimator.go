@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 
 	tmclient "github.com/tendermint/tendermint/rpc/client"
@@ -126,6 +127,20 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 	return estimateGasPriceForTransactions(gasPrices, priority)
 }
 
+const (
+	// highPriorityGasAdjustmentRate is the percentage increase applied to the
+	// estimated gas price when the block is more than 70% full, i.e., gasPriceEstimationThreshold,
+	// but the gas prices are tightly clustered. This ensures that high-priority
+	// transactions still have a competitive fee to improve inclusion probability.
+	highPriorityGasAdjustmentRate = 1.3
+	// mediumPriorityGasAdjustmentRate similar to highPriorityGasAdjustmentRate but for
+	// the medium priority.
+	mediumPriorityGasAdjustmentRate = 1.1
+	// gasPriceAdjustmentThreshold the standard deviation threshold under which we
+	// apply the gas price adjustment.
+	gasPriceAdjustmentThreshold = 0.001
+)
+
 // estimateGasPriceForTransactions takes a list of transactions and priority
 // and returns a gas price estimation.
 // The priority sets the estimation as follows:
@@ -133,14 +148,24 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 // - Medium Priority: The gas price is the median price of the all gas prices in the mempool.
 // - Low Priority: The gas price is the median price of the bottom 10% of gas prices in the mempool.
 // - Unspecified Priority (default): This is equivalent to the Medium priority, using the median price of all gas prices in the mempool.
+// If the list of gas prices has a standard deviation < gasPriceAdjustmentThreshold, meaning the gas price values are tightly clustered,
+// an increase of 30% and 10% will be added for high and medium priority respectively.
 // More information can be found in ADR-023.
 func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (float64, error) {
 	if len(gasPrices) == 0 {
 		return 0, errors.New("empty gas prices list")
 	}
+	stDev := StandardDeviation(Mean(gasPrices), gasPrices)
 	switch priority {
-	case TxPriority_TX_PRIORITY_UNSPECIFIED:
-		return Median(gasPrices)
+	case TxPriority_TX_PRIORITY_MEDIUM, TxPriority_TX_PRIORITY_UNSPECIFIED:
+		estimation, err := Median(gasPrices)
+		if err != nil {
+			return 0, err
+		}
+		if stDev < gasPriceAdjustmentThreshold {
+			return estimation * mediumPriorityGasAdjustmentRate, nil
+		}
+		return estimation, nil
 	case TxPriority_TX_PRIORITY_LOW:
 		bottom10PercentIndex := len(gasPrices) * 10 / 100
 		if bottom10PercentIndex == 0 {
@@ -148,10 +173,15 @@ func estimateGasPriceForTransactions(gasPrices []float64, priority TxPriority) (
 			bottom10PercentIndex = 1
 		}
 		return Median(gasPrices[:bottom10PercentIndex])
-	case TxPriority_TX_PRIORITY_MEDIUM:
-		return Median(gasPrices)
 	case TxPriority_TX_PRIORITY_HIGH:
-		return Median(gasPrices[len(gasPrices)*90/100:])
+		estimation, err := Median(gasPrices[len(gasPrices)*90/100:])
+		if err != nil {
+			return 0, err
+		}
+		if stDev < gasPriceAdjustmentThreshold {
+			return estimation * highPriorityGasAdjustmentRate, nil
+		}
+		return estimation, nil
 	default:
 		return 0, fmt.Errorf("unknown priority: %d", priority)
 	}
@@ -220,4 +250,30 @@ func Median(gasPrices []float64) (float64, error) {
 	mid1 := gasPrices[n/2-1]
 	mid2 := gasPrices[n/2]
 	return (mid1 + mid2) / 2.0, nil
+}
+
+// Mean calculates the mean value of the provided gas prices.
+func Mean(gasPrices []float64) float64 {
+	if len(gasPrices) == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, gasPrice := range gasPrices {
+		sum += gasPrice
+	}
+	return sum / float64(len(gasPrices))
+}
+
+// StandardDeviation calculates the standard deviation of the provided gas prices.
+func StandardDeviation(meanGasPrice float64, gasPrices []float64) float64 {
+	if len(gasPrices) < 2 {
+		return 0
+	}
+	var variance float64
+	for _, gasPrice := range gasPrices {
+		diff := gasPrice - meanGasPrice
+		variance += diff * diff
+	}
+	variance /= float64(len(gasPrices))
+	return math.Sqrt(variance)
 }

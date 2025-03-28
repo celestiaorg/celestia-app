@@ -31,11 +31,11 @@ func (d MaxTotalBlobSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		return next(ctx, tx, simulate)
 	}
 
-	max := d.maxTotalBlobSize(ctx)
+	maximum := d.maxTotalBlobSize(ctx)
 	for _, m := range tx.GetMsgs() {
 		if pfb, ok := m.(*blobtypes.MsgPayForBlobs); ok {
-			if total := getTotal(pfb.BlobSizes); total > max {
-				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds max %d", total, max)
+			if total := getTotal(pfb.BlobSizes); total > maximum {
+				return ctx, errors.Wrapf(blobtypes.ErrTotalBlobSizeTooLarge, "total blob size %d exceeds max %d", total, maximum)
 			}
 		}
 	}
@@ -71,7 +71,8 @@ func (d MaxTotalBlobSizeDecorator) getMaxSquareSize(ctx sdk.Context) int {
 
 	upperBound := appconsts.SquareSizeUpperBound(ctx.BlockHeader().Version.App)
 	govParam := d.k.GovMaxSquareSize(ctx)
-	return min(upperBound, int(govParam))
+	minimum := min(upperBound, int(govParam))
+	return minimum
 }
 
 // getTotal returns the sum of the given sizes.

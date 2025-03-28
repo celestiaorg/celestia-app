@@ -272,7 +272,7 @@ func AddDeterministicValidatorsToGenesis(g *genesis.Genesis) error {
 		// Construct account from keyring account
 		account := genesis.Account{
 			PubKey:  validatorPubKey,
-			Balance: val.KeyringAccount.InitialTokens,
+			Balance: val.InitialTokens,
 			Name:    val.Name,
 		}
 

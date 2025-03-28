@@ -9,41 +9,41 @@ import (
 func Test_getDefaultNodeHome(t *testing.T) {
 	type testCase struct {
 		name         string
-		userHome     string
 		celestiaHome string
+		userHome     string
 		want         string
 	}
 
 	testCases := []testCase{
 		{
-			name:         "want .celestia-app when userHome is empty and celestiaHome is empty",
-			userHome:     "",
+			name:         "by default use the root directory",
 			celestiaHome: "",
+			userHome:     "",
 			want:         ".celestia-app",
 		},
 		{
-			name:         "want celestia-home/.celestia-app when userHome is empty and celestiaHome is not empty",
-			userHome:     "",
+			name:         "use celestia-home if it is set",
 			celestiaHome: "celestia-home",
+			userHome:     "",
 			want:         "celestia-home/.celestia-app",
 		},
 		{
-			name:         "want user-home/.celestia-app when userHome is not empty and celestiaHome is empty",
-			userHome:     "user-home",
+			name:         "use user-home if it is set",
 			celestiaHome: "",
+			userHome:     "user-home",
 			want:         "user-home/.celestia-app",
 		},
 		{
-			name:         "want celestiaHome to take precedence if both are not empty",
-			userHome:     "user-home",
+			name:         "celestia-home takes precedence over user-home",
 			celestiaHome: "celestia-home",
+			userHome:     "user-home",
 			want:         "celestia-home/.celestia-app",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := getDefaultNodeHome(tc.userHome, tc.celestiaHome)
+			got := getDefaultNodeHome(tc.celestiaHome, tc.userHome)
 			assert.Equal(t, tc.want, got)
 		})
 	}
