@@ -560,7 +560,7 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 		TxBytes:    txBytes,
 	})
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
 	gasUsed = uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)

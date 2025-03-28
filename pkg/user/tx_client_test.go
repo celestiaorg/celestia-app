@@ -426,7 +426,8 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	require.NoError(t, err)
 
 	grpcServer := grpc.NewServer()
-	gasestimation.RegisterGasEstimatorServer(grpcServer, &mockEstimatorServer{})
+	mes := &mockEstimatorServer{srv: grpcServer, addr: addr}
+	gasestimation.RegisterGasEstimatorServer(grpcServer, mes)
 
 	go func() {
 		err := grpcServer.Serve(net)
@@ -441,8 +442,8 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 		err = conn.Close()
 		require.NoError(t, err)
 	})
+	mes.conn = conn
 
-	mes := &mockEstimatorServer{srv: grpcServer, addr: addr, conn: conn}
 	t.Cleanup(mes.stop)
 	return mes
 }
