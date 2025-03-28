@@ -38,9 +38,6 @@ func TestAppUpgradeV3(t *testing.T) {
 		t.Skip("skipping TestAppUpgradeV3 in short mode")
 	}
 
-	appconsts.OverrideUpgradeHeightDelayStr = "1"
-	defer func() { appconsts.OverrideUpgradeHeightDelayStr = "" }()
-
 	testApp, genesis := SetupTestAppWithUpgradeHeight(t, 3)
 	upgradeFromV1ToV2(t, testApp)
 
@@ -252,13 +249,14 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 	require.Error(t, err)
 }
 
-func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, *genesis.Genesis) {
+func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeightV2 int64) (*app.App, *genesis.Genesis) {
 	t.Helper()
 
 	db := dbm.NewMemDB()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, 0, util.EmptyAppOptions{})
+	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeightV2, 0, util.EmptyAppOptions{})
 	genesis := genesis.NewDefaultGenesis().
+		WithChainID(appconsts.TestChainID).
 		WithValidators(genesis.NewDefaultValidator(testnode.DefaultValidatorAccountName)).
 		WithConsensusParams(app.DefaultInitialConsensusParams())
 	genDoc, err := genesis.Export()
