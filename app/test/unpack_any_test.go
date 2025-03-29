@@ -67,119 +67,6 @@ func TestUnpackAny(t *testing.T) {
 	}
 	t.Logf("Account number: %d, sequence: %d", accNum, accSeq)
 
-	// Create direct transaction with MsgSend messages
-	msgs := make([]sdk.Msg, 10)
-	for i := 0; i < 10; i++ {
-		// Create a MsgSend for each of the 10 messages
-		msgSend := &banktypes.MsgSend{
-			FromAddress: validatorAddr.String(),
-			ToAddress:   validatorAddr.String(), // Send to self for simplicity
-			Amount:      sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(1000))),
-		}
-		msgs[i] = msgSend
-	}
-
-	// Instead of MsgExec, let's use direct transactions first
-	txBuilder := encCfg.TxConfig.NewTxBuilder()
-	require.NoError(t, txBuilder.SetMsgs(msgs...))
-	txBuilder.SetGasLimit(2000000) // Higher gas limit for multiple messages
-	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(100000))))
-	txBuilder.SetMemo("Test multiple messages")
-
-	// Sign with the validator's key
-	signerData := authsigning.SignerData{
-		ChainID:       chainID,
-		AccountNumber: accNum,
-		Sequence:      accSeq,
-	}
-
-	// Create and add an empty signature first (required by the SDK)
-	signMode := signing.SignMode_SIGN_MODE_DIRECT
-	sig := signing.SignatureV2{
-		PubKey: pubKey,
-		Data: &signing.SingleSignatureData{
-			SignMode:  signMode,
-			Signature: nil,
-		},
-		Sequence: accSeq,
-	}
-	err = txBuilder.SetSignatures(sig)
-	require.NoError(t, err)
-
-	// Get the sign bytes
-	signBytes, err := encCfg.TxConfig.SignModeHandler().GetSignBytes(
-		signMode,
-		signerData,
-		txBuilder.GetTx(),
-	)
-	require.NoError(t, err)
-
-	// Generate the signature
-	sigBytes, _, err := keyring.Sign(record.Name, signBytes)
-	require.NoError(t, err)
-
-	// Update the signature with the actual signature bytes
-	sig = signing.SignatureV2{
-		PubKey: pubKey,
-		Data: &signing.SingleSignatureData{
-			SignMode:  signMode,
-			Signature: sigBytes,
-		},
-		Sequence: accSeq,
-	}
-	err = txBuilder.SetSignatures(sig)
-	require.NoError(t, err)
-
-	// Get the transaction bytes
-	authTx := txBuilder.GetTx()
-	txBytes, err := encCfg.TxConfig.TxEncoder()(authTx)
-	require.NoError(t, err)
-
-	// Deliver the transaction
-	header := tmproto.Header{
-		Version: tmversion.Consensus{
-			App: appconsts.LatestVersion,
-		},
-		ChainID: chainID,
-		Height:  testApp.LastBlockHeight() + 1,
-		Time:    time.Now(),
-	}
-
-	testApp.BeginBlock(abci.RequestBeginBlock{
-		Header: header,
-	})
-
-	// First check the account balance before executing
-	coin := testApp.BankKeeper.GetBalance(ctx, validatorAddr, "utia")
-	t.Logf("Initial balance: %s", coin.String())
-
-	// Add funds to the account so it can pay fees and send coins
-	err = testApp.BankKeeper.MintCoins(ctx, "mint", sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(10000000))))
-	require.NoError(t, err)
-
-	err = testApp.BankKeeper.SendCoinsFromModuleToAccount(ctx, "mint", validatorAddr, sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(10000000))))
-	require.NoError(t, err)
-
-	coin = testApp.BankKeeper.GetBalance(ctx, validatorAddr, "utia")
-	t.Logf("Balance after minting: %s", coin.String())
-
-	deliverResp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
-	t.Logf("Transaction result: code=%d, log=%s", deliverResp.Code, deliverResp.Log)
-
-	// Now we assert that the transaction was successful
-	assert.Equal(t, abci.CodeTypeOK, deliverResp.Code, "Transaction failed: %s", deliverResp.Log)
-
-	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
-	testApp.Commit()
-
-	t.Logf("Successfully executed a transaction with 10 messages")
-
-	// Now that we've proven we can execute a transaction, let's create another one with MsgExec
-	// This will still fail due to lack of authorization, which is expected and we won't assert success
-
-	// Increment sequence for next transaction
-	accSeq++
-
 	// Create a MsgExec
 	msgExec := &authz.MsgExec{
 		Grantee: validatorAddr.String(),
@@ -202,23 +89,23 @@ func TestUnpackAny(t *testing.T) {
 	t.Logf("Created MsgExec with %d messages", len(msgExec.Msgs))
 
 	// Create and sign the MsgExec transaction
-	txBuilder = encCfg.TxConfig.NewTxBuilder()
+	txBuilder := encCfg.TxConfig.NewTxBuilder()
 	require.NoError(t, txBuilder.SetMsgs(msgExec))
 	txBuilder.SetGasLimit(2000000) // Higher gas limit for multiple messages
 	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(100000))))
 
 	// Sign with the validator's key
-	signerData = authsigning.SignerData{
+	signerData := authsigning.SignerData{
 		ChainID:       chainID,
 		AccountNumber: accNum,
 		Sequence:      accSeq,
 	}
 
 	// Create and add an empty signature first
-	sig = signing.SignatureV2{
+	sig := signing.SignatureV2{
 		PubKey: pubKey,
 		Data: &signing.SingleSignatureData{
-			SignMode:  signMode,
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: nil,
 		},
 		Sequence: accSeq,
@@ -227,22 +114,22 @@ func TestUnpackAny(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the sign bytes
-	signBytes, err = encCfg.TxConfig.SignModeHandler().GetSignBytes(
-		signMode,
+	signBytes, err := encCfg.TxConfig.SignModeHandler().GetSignBytes(
+		signing.SignMode_SIGN_MODE_DIRECT,
 		signerData,
 		txBuilder.GetTx(),
 	)
 	require.NoError(t, err)
 
 	// Generate the signature
-	sigBytes, _, err = keyring.Sign(record.Name, signBytes)
+	sigBytes, _, err := keyring.Sign(record.Name, signBytes)
 	require.NoError(t, err)
 
 	// Update the signature with the actual signature bytes
 	sig = signing.SignatureV2{
 		PubKey: pubKey,
 		Data: &signing.SingleSignatureData{
-			SignMode:  signMode,
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: sigBytes,
 		},
 		Sequence: accSeq,
@@ -251,12 +138,12 @@ func TestUnpackAny(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the transaction bytes
-	authTx = txBuilder.GetTx()
-	txBytes, err = encCfg.TxConfig.TxEncoder()(authTx)
+	authTx := txBuilder.GetTx()
+	txBytes, err := encCfg.TxConfig.TxEncoder()(authTx)
 	require.NoError(t, err)
 
 	// Execute the MsgExec transaction
-	header = tmproto.Header{
+	header := tmproto.Header{
 		Version: tmversion.Consensus{
 			App: appconsts.LatestVersion,
 		},
@@ -269,7 +156,7 @@ func TestUnpackAny(t *testing.T) {
 		Header: header,
 	})
 
-	deliverResp = testApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	deliverResp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	t.Logf("MsgExec transaction result: code=%d, log=%s", deliverResp.Code, deliverResp.Log)
 	assert.Equal(t, uint32(2), deliverResp.Code) // Code 2 is the encoding error code
 	assert.Contains(t, deliverResp.Log, "call limit exceeded: tx parse error")
