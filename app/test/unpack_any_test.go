@@ -23,7 +23,8 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 )
 
-// TestUnpackAny tests executing a transaction with a MsgExec containing 176 MsgTransfer messages
+// TestUnpackAny tests executing a transaction with a MsgExec containing 176
+// MsgTransfer messages
 func TestUnpackAny(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping TestUnpackAny in short mode")
@@ -91,8 +92,8 @@ func TestUnpackAny(t *testing.T) {
 	// Create and sign the MsgExec transaction
 	txBuilder := encCfg.TxConfig.NewTxBuilder()
 	require.NoError(t, txBuilder.SetMsgs(msgExec))
-	txBuilder.SetGasLimit(2000000) // Higher gas limit for multiple messages
-	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(100000))))
+	txBuilder.SetGasLimit(300_000_000)
+	txBuilder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(300_000_000))))
 
 	// Sign with the validator's key
 	signerData := authsigning.SignerData{
