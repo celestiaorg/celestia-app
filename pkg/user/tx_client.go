@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v3/app/grpc/gasestimation"
+
 	"github.com/celestiaorg/go-square/v2/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -127,6 +129,15 @@ func WithDefaultAccount(name string) Option {
 	}
 }
 
+// WithEstimatorService allows a user to provide a connection to a special gas
+// estimation service to be used by the TxClient for estimating gas price
+// and usage.
+func WithEstimatorService(conn *grpc.ClientConn) Option {
+	return func(c *TxClient) {
+		c.gasEstimationClient = gasestimation.NewGasEstimatorClient(conn)
+	}
+}
+
 // TxClient is an abstraction for building, signing, and broadcasting Celestia transactions
 // It supports multiple accounts. If none is specified, it will
 // try to use the default account.
@@ -146,7 +157,8 @@ type TxClient struct {
 	defaultAddress  sdktypes.AccAddress
 	// txTracker maps the tx hash to the Sequence and signer of the transaction
 	// that was submitted to the chain
-	txTracker map[string]txInfo
+	txTracker           map[string]txInfo
+	gasEstimationClient gasestimation.GasEstimatorClient
 }
 
 // NewTxClient returns a new signer using the provided keyring
@@ -171,15 +183,16 @@ func NewTxClient(
 	}
 
 	txClient := &TxClient{
-		signer:          signer,
-		registry:        registry,
-		grpc:            conn,
-		pollTime:        DefaultPollTime,
-		gasMultiplier:   DefaultGasMultiplier,
-		defaultGasPrice: appconsts.DefaultMinGasPrice,
-		defaultAccount:  records[0].Name,
-		defaultAddress:  addr,
-		txTracker:       make(map[string]txInfo),
+		signer:              signer,
+		registry:            registry,
+		grpc:                conn,
+		pollTime:            DefaultPollTime,
+		gasMultiplier:       DefaultGasMultiplier,
+		defaultGasPrice:     appconsts.DefaultMinGasPrice,
+		defaultAccount:      records[0].Name,
+		defaultAddress:      addr,
+		txTracker:           make(map[string]txInfo),
+		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
 	}
 
 	for _, opt := range options {
@@ -500,6 +513,7 @@ func (client *TxClient) deleteFromTxTracker(txHash string) {
 
 // EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
 // result will be multiplied by gasMultiplier(that is set in TxClient)
+// Deprecated: use EstimateGasPriceAndUsage
 func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
@@ -510,6 +524,62 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 	}
 
 	return client.estimateGas(ctx, txBuilder)
+}
+
+// EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
+// and also the gas limit/used for the provided transaction.
+// The gas limit is calculated by simulating the transaction and then calculating the amount of gas that was consumed during execution.
+// The final result will be multiplied by gasMultiplier(that is set in TxClient).
+func (client *TxClient) EstimateGasPriceAndUsage(
+	ctx context.Context,
+	msgs []sdktypes.Msg,
+	priority gasestimation.TxPriority,
+	opts ...TxOption,
+) (gasPrice float64, gasUsed uint64, err error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+
+	txBuilder, err := client.signer.txBuilder(msgs, opts...)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// add at least 1utia as fee to builder as it affects gas calculation.
+	txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdktypes.NewInt(1))))
+
+	_, _, err = client.signer.signTransaction(txBuilder)
+	if err != nil {
+		return 0, 0, err
+	}
+	txBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
+	if err != nil {
+		return 0, 0, err
+	}
+	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{
+		TxPriority: priority,
+		TxBytes:    txBytes,
+	})
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
+	}
+
+	gasUsed = uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
+
+	return resp.EstimatedGasPrice, gasUsed, nil
+}
+
+// EstimateGasPrice calls the gas estimation endpoint to return the estimated gas price based on priority.
+func (client *TxClient) EstimateGasPrice(ctx context.Context, priority gasestimation.TxPriority) (float64, error) {
+	client.mtx.Lock()
+	defer client.mtx.Unlock()
+
+	resp, err := client.gasEstimationClient.EstimateGasPrice(ctx, &gasestimation.EstimateGasPriceRequest{
+		TxPriority: priority,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return resp.EstimatedGasPrice, nil
 }
 
 func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
@@ -524,14 +594,12 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	if err != nil {
 		return 0, err
 	}
-	resp, err := sdktx.NewServiceClient(client.grpc).Simulate(ctx, &sdktx.SimulateRequest{
-		TxBytes: txBytes,
-	})
+	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: txBytes})
 	if err != nil {
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.GasInfo.GasUsed) * client.gasMultiplier)
+	gasLimit := uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
 	return gasLimit, nil
 }
 
