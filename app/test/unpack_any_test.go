@@ -24,7 +24,8 @@ import (
 )
 
 // TestUnpackAny tests executing a transaction with a MsgExec containing 176
-// MsgTransfer messages
+// MsgTransfer messages. Motivated by
+// https://github.com/celestiaorg/celestia-app/issues/4370
 func TestUnpackAny(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping TestUnpackAny in short mode")
@@ -159,9 +160,5 @@ func TestUnpackAny(t *testing.T) {
 
 	deliverResp := testApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	t.Logf("MsgExec transaction result: code=%d, log=%s", deliverResp.Code, deliverResp.Log)
-	assert.Equal(t, uint32(2), deliverResp.Code) // Code 2 is the encoding error code
-	assert.Contains(t, deliverResp.Log, "call limit exceeded: tx parse error")
-
-	testApp.EndBlock(abci.RequestEndBlock{Height: header.Height})
-	testApp.Commit()
+	assert.Equal(t, abci.CodeTypeOK, deliverResp.Code)
 }
