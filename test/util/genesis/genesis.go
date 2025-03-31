@@ -245,7 +245,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	}
 
 	var defaultAppState map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(v3GenesisAppState), &defaultAppState); err != nil {
+	if err := json.Unmarshal(LoadV3GenesisAppState(), &defaultAppState); err != nil {
 		return nil, err
 	}
 
