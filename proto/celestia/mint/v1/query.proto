@@ -36,7 +36,7 @@ message QueryInflationRateRequest {}
 // RPC method.
 message QueryInflationRateResponse {
   // InflationRate is the current inflation rate.
-  bytes inflation_rate = 1 [
+  string inflation_rate = 1 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
     (gogoproto.nullable) = false
   ];
@@ -50,7 +50,7 @@ message QueryAnnualProvisionsRequest {}
 // Query/AnnualProvisions RPC method.
 message QueryAnnualProvisionsResponse {
   // AnnualProvisions is the current annual provisions.
-  bytes annual_provisions = 1 [
+  string annual_provisions = 1 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
     (gogoproto.nullable) = false
   ];
