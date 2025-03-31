@@ -693,15 +693,10 @@ The BBR (Bottleneck Bandwidth and Round-trip propagation time) congestion contro
 BBR is important for the performance of the p2p stack.
 
 To enable BBR:
-sudo modprobe tcp_bbr
-net.core.default_qdisc=fq
-net.ipv4.tcp_congestion_control=bbr
-sudo sysctl -p
+make enable-bbr
 
 Then verify BBR is enabled:
-sysctl net.ipv4.tcp_congestion_control
-or
-cat /proc/sys/net/ipv4/tcp_congestion_control
+make check-bbr
 
 This node will get worse p2p performance using a different congestion control algorithm.
 If you need to bypass this check use the --force-no-bbr flag.
