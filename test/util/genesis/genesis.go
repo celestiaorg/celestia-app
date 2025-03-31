@@ -48,6 +48,8 @@ type Genesis struct {
 	genTxs []sdk.Tx
 	genOps []Modifier
 
+	// legacy specifies if this Genesis should generate a valid v3 and lower genesis file
+	// as opposed to a v4 and above genesis file.
 	legacy bool
 }
 
@@ -70,7 +72,7 @@ func (g *Genesis) Validators() []Validator {
 func NewDefaultGenesis() *Genesis {
 	enc := encoding.MakeTestConfig(app.ModuleEncodingRegisters...)
 	g := &Genesis{
-		legacy:          true, // TODO: configurable
+		legacy:          false,
 		ecfg:            enc,
 		ConsensusParams: app.DefaultConsensusParams(),
 		ChainID:         unsafe.Str(6),
@@ -130,6 +132,12 @@ func (g *Genesis) WithKeyringAccounts(accs ...KeyringAccount) *Genesis {
 
 func (g *Genesis) WithKeyring(kr keyring.Keyring) *Genesis {
 	g.kr = kr
+	return g
+}
+
+// WithLegacy configures the Genesis to be a legacy one or not.
+func (g *Genesis) WithLegacy(legacy bool) *Genesis {
+	g.legacy = legacy
 	return g
 }
 

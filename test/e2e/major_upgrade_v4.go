@@ -33,7 +33,8 @@ func MajorUpgradeToV4(logger *log.Logger) error {
 
 	logger.Println("Creating testnet")
 	testNet, err := testnet.New(logger, kn, testnet.Options{
-		ChainID: appconsts.TestChainID,
+		ChainID:       appconsts.TestChainID,
+		LegacyGenesis: true, // we are explicitly creating a network that will start on an older version (v3)
 	})
 	testnet.NoError("failed to create testnet", err)
 

@@ -46,6 +46,7 @@ type Options struct {
 	Grafana          *GrafanaInfo
 	ChainID          string
 	GenesisModifiers []genesis.Modifier
+	LegacyGenesis    bool
 }
 
 func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
@@ -53,7 +54,7 @@ func New(logger *log.Logger, knuu *knuu.Knuu, opts Options) (*Testnet, error) {
 	return &Testnet{
 		seed:        opts.Seed,
 		nodes:       make([]*Node, 0),
-		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...),
+		genesis:     genesis.NewDefaultGenesis().WithChainID(opts.ChainID).WithModifiers(opts.GenesisModifiers...).WithLegacy(opts.LegacyGenesis),
 		keygen:      newKeyGenerator(opts.Seed),
 		grafana:     opts.Grafana,
 		knuu:        knuu,
