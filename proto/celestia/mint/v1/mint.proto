@@ -26,8 +26,7 @@ message Minter {
   ];
 
   // PreviousBlockTime is the timestamp of the previous block.
-  google.protobuf.Timestamp previous_block_time = 4
-      [ (gogoproto.stdtime) = true ];
+  google.protobuf.Timestamp previous_block_time = 4 [ (gogoproto.stdtime) = true ];
 
   // BondDenom is the denomination of the token that should be minted.
   string bond_denom = 5;
