@@ -4,7 +4,7 @@ go 1.23.6
 
 require (
 	cosmossdk.io/errors v1.0.2
-	cosmossdk.io/math v1.5.0
+	cosmossdk.io/math v1.5.1
 	github.com/celestiaorg/blobstream-contracts/v3 v3.1.0
 	github.com/celestiaorg/go-square v1.1.1
 	github.com/celestiaorg/go-square/v2 v2.2.0
