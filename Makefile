@@ -29,7 +29,7 @@ GOLANG_CROSS_VERSION  ?= v1.23.5
 # Set this to override the max square size of the binary
 OVERRIDE_MAX_SQUARE_SIZE ?=
 # Set this to override the upgrade height delay of the binary
-OVERRIDE_UPGRADE_HEIGHT_DELAY ?=
+OVERRIDE_UPGRADE_HEIGHT_DELAY ?=3
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
