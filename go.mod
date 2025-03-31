@@ -262,5 +262,5 @@ replace (
 	github.com/cosmos/ibc-go/v6 => github.com/celestiaorg/ibc-go/v6 v6.2.3
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.49.0-tm-v0.34.35.0.20250331214458-c82a17945ac5
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.49.0-tm-v0.34.35.0.20250331224750-f61fe49f8fe5
 )
