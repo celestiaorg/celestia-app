@@ -22,7 +22,8 @@ echo ""
 
 # Ask the user for confirmation before deleting the existing celestia-app home
 # directory.
-read -r -p "Are you sure you want to delete: $CELESTIA_APP_HOME? [y/n] " response
+printf "Are you sure you want to delete: %s? [y/n] " "$CELESTIA_APP_HOME"
+read response
 
 # Check the user's response
 case "$response" in
