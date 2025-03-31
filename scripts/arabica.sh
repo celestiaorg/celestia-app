@@ -22,17 +22,17 @@ echo ""
 
 # Ask the user for confirmation before deleting the existing celestia-app home
 # directory.
-read -p "Are you sure you want to delete: $CELESTIA_APP_HOME? [y/n] " response
+read -r -p "Are you sure you want to delete: $CELESTIA_APP_HOME? [y/n] " response
 
 # Check the user's response
-if [ "$response" != "y" ]; then
+case "$response" in
+    [yY]) ;;
     # Exit if the user did not respond with "y"
-    echo "You must delete $CELESTIA_APP_HOME to continue."
-    exit 1
-fi
+    *) echo "You must delete $CELESTIA_APP_HOME to continue."; exit 1 ;;
+    esac
 
 echo "Deleting $CELESTIA_APP_HOME..."
-rm -r "$CELESTIA_APP_HOME"
+rm -rf "$CELESTIA_APP_HOME"
 
 echo "Initializing config files..."
 celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
