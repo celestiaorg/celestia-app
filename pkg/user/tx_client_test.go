@@ -32,8 +32,6 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 )
 
-var multiplier = float64(1.2)
-
 func TestTxClientTestSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode.")
@@ -278,7 +276,7 @@ func TestWithEstimatorService(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 0.02, price)
-	assert.Equal(t, uint64(70000*multiplier), used)
+	assert.Equal(t, uint64(70000), used)
 }
 
 func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
@@ -388,8 +386,7 @@ func setupTxClient(
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg,
-		append(opts, user.WithGasMultiplier(multiplier))...)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
 	require.NoError(t, err)
 
 	return encCfg, txClient, ctx

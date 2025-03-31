@@ -35,9 +35,8 @@ import (
 )
 
 const (
-	DefaultPollTime                  = 3 * time.Second
-	DefaultGasMultiplier     float64 = 1.1
-	txTrackerPruningInterval         = 10 * time.Minute
+	DefaultPollTime          = 3 * time.Second
+	txTrackerPruningInterval = 10 * time.Minute
 )
 
 type Option func(client *TxClient)
@@ -81,13 +80,6 @@ type ExecutionError struct {
 
 func (e *ExecutionError) Error() string {
 	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
-}
-
-// WithGasMultiplier is a functional option that allows configuring the gas multiplier.
-func WithGasMultiplier(multiplier float64) Option {
-	return func(c *TxClient) {
-		c.gasMultiplier = multiplier
-	}
 }
 
 // WithDefaultGasPrice sets the gas price.
@@ -149,8 +141,6 @@ type TxClient struct {
 	grpc     *grpc.ClientConn
 	// how often to poll the network for confirmation of a transaction
 	pollTime time.Duration
-	// gasMultiplier is used to increase gas limit as it is sometimes underestimated
-	gasMultiplier float64
 	// defaultGasPrice is the price used if no price is provided
 	defaultGasPrice float64
 	defaultAccount  string
@@ -187,7 +177,6 @@ func NewTxClient(
 		registry:            registry,
 		grpc:                conn,
 		pollTime:            DefaultPollTime,
-		gasMultiplier:       DefaultGasMultiplier,
 		defaultGasPrice:     appconsts.DefaultMinGasPrice,
 		defaultAccount:      records[0].Name,
 		defaultAddress:      addr,
@@ -299,7 +288,7 @@ func (client *TxClient) BroadcastPayForBlobWithAccount(ctx context.Context, acco
 		blobSizes[i] = uint32(len(blob.Data()))
 	}
 
-	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)) * client.gasMultiplier)
+	gasLimit := uint64(float64(types.DefaultEstimateGas(blobSizes)))
 	fee := uint64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 	// prepend calculated params, so it can be overwritten in case the user has specified it.
 	opts = append([]TxOption{SetGasLimit(gasLimit), SetFee(fee)}, opts...)
@@ -511,8 +500,8 @@ func (client *TxClient) deleteFromTxTracker(txHash string) {
 	delete(client.txTracker, txHash)
 }
 
-// EstimateGas simulates the transaction, calculating the amount of gas that was consumed during execution. The final
-// result will be multiplied by gasMultiplier(that is set in TxClient)
+// EstimateGas simulates the transaction, calculating the amount of gas that was
+// consumed during execution.
 // Deprecated: use EstimateGasPriceAndUsage
 func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (uint64, error) {
 	client.mtx.Lock()
@@ -529,7 +518,6 @@ func (client *TxClient) EstimateGas(ctx context.Context, msgs []sdktypes.Msg, op
 // EstimateGasPriceAndUsage returns the estimated gas price based on the provided priority,
 // and also the gas limit/used for the provided transaction.
 // The gas limit is calculated by simulating the transaction and then calculating the amount of gas that was consumed during execution.
-// The final result will be multiplied by gasMultiplier(that is set in TxClient).
 func (client *TxClient) EstimateGasPriceAndUsage(
 	ctx context.Context,
 	msgs []sdktypes.Msg,
@@ -563,7 +551,7 @@ func (client *TxClient) EstimateGasPriceAndUsage(
 		return 0, 0, fmt.Errorf("failed to estimate gas price and usage: %w", err)
 	}
 
-	gasUsed = uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
+	gasUsed = uint64(float64(resp.EstimatedGasUsed))
 
 	return resp.EstimatedGasPrice, gasUsed, nil
 }
@@ -599,7 +587,7 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 		return 0, err
 	}
 
-	gasLimit := uint64(float64(resp.EstimatedGasUsed) * client.gasMultiplier)
+	gasLimit := uint64(float64(resp.EstimatedGasUsed))
 	return gasLimit, nil
 }
 
@@ -686,12 +674,6 @@ func (client *TxClient) SetDefaultGasPrice(price float64) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 	client.defaultGasPrice = price
-}
-
-func (client *TxClient) SetGasMultiplier(multiplier float64) {
-	client.mtx.Lock()
-	defer client.mtx.Unlock()
-	client.gasMultiplier = multiplier
 }
 
 // QueryMinimumGasPrice queries both the nodes local and network wide
