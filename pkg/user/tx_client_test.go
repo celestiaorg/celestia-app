@@ -386,7 +386,7 @@ func setupTxClient(
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg)
+	txClient, err := user.SetupTxClient(ctx.GoContext(), ctx.Keyring, ctx.GRPCClient, encCfg, opts...)
 	require.NoError(t, err)
 
 	return encCfg, txClient, ctx
