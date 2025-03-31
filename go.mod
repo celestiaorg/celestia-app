@@ -2,8 +2,6 @@ module github.com/celestiaorg/celestia-app/v3
 
 go 1.23.6
 
-toolchain go1.24.1
-
 require (
 	cosmossdk.io/errors v1.0.2
 	cosmossdk.io/math v1.5.0
