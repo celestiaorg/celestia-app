@@ -264,10 +264,10 @@ func TestEvictions(t *testing.T) {
 	require.Equal(t, seqBeforeEviction, seqAfterEviction)
 }
 
-// TestSeparateGasEstimatorService ensures that if the WithEstimatorService
+// TestWithEstimatorService ensures that if the WithEstimatorService
 // option is provided to the tx client, the separate gas estimator service is
 // used to estimate gas price and usage instead of the default connection.
-func TestSeparateGasEstimatorService(t *testing.T) {
+func TestWithEstimatorService(t *testing.T) {
 	mockEstimator := setupEstimatorService(t)
 	_, txClient, ctx := setupTxClient(t, testnode.DefaultTendermintConfig().Mempool.TTLDuration,
 		user.WithEstimatorService(mockEstimator.conn))
