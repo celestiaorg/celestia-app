@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v3/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -58,6 +60,15 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
+
+		// all txs must be less than or equal to the max tx size limit
+		maxTxSize := appconsts.MaxTxSize(app.AppVersion())
+		currentTxSize := len(tx)
+		if currentTxSize > maxTxSize {
+			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with tx %d size", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()))
+			return reject()
+		}
+
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
