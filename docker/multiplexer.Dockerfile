@@ -15,7 +15,8 @@ ARG MAX_SQUARE_SIZE
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 # the tag used for the embedded v3 binary.
-ARG CELESTIA_VERSION=v3.4.2
+# TODO: this is an image built from this PR https://github.com/celestiaorg/celestia-app/pull/4474
+ARG CELESTIA_VERSION="cb68ab9"
 # the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
 
@@ -29,9 +30,8 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 
 # must be specified for this build step.
-# TODO: remove hard coded values for TARGETOS and TARGETARCH
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on

@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
