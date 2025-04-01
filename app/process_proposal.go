@@ -65,7 +65,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		maxTxSize := appconsts.MaxTxSize(app.AppVersion())
 		currentTxSize := len(tx)
 		if currentTxSize > maxTxSize {
-			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with tx %d size", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()))
+			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()))
 			return reject()
 		}
 

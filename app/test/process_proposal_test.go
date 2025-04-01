@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -324,6 +325,23 @@ func TestProcessProposal(t *testing.T) {
 				// this tx will get filtered out by prepare proposal before this
 				// so we add it here
 				d.Txs = append(d.Txs, tooManyShareBtx)
+			},
+			appVersion:     v3.Version,
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "tx size exceeds max tx size limit",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				maxTxSize := appconsts.MaxTxSize(testApp.AppVersion()) // max tx size for the latest version
+				// set the blob size to maxTxSize so that the raw transaction size will exceeds the max tx size limit
+				blob, err := share.NewBlob(ns1, bytes.Repeat([]byte{1}, maxTxSize), appconsts.DefaultShareVersion, nil)
+				require.NoError(t, err)
+				rawTx, _, err := signer.CreatePayForBlobs(accounts[0], []*share.Blob{blob}, user.SetGasLimit(100000), user.SetFee(100000))
+				require.NoError(t, err)
+				// override the last valid blob tx with large one that exceeds the max tx size limit
+				// proposal block should be rejected
+				d.Txs[2] = rawTx
 			},
 			appVersion:     v3.Version,
 			expectedResult: abci.ResponseProcessProposal_REJECT,
