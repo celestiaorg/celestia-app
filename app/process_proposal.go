@@ -56,8 +56,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	sdkCtx := app.NewProposalContext(req.Header)
 	subtreeRootThreshold := appconsts.SubtreeRootThreshold(app.GetBaseApp().AppVersion())
 
-	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
-	// blobTxs have no PFBs present
+	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
+	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
 
