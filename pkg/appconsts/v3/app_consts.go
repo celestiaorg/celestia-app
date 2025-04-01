@@ -4,6 +4,7 @@ import "time"
 
 const (
 	Version              uint64 = 3
+	NextVersion          uint64 = 4
 	SquareSizeUpperBound int    = 128
 	SubtreeRootThreshold int    = 64
 	TxSizeCostPerByte    uint64 = 10
