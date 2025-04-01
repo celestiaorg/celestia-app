@@ -61,12 +61,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
 
-		// all txs must be less than or equal to the max tx size limit
-		maxTxSize := appconsts.MaxTxSize(app.AppVersion())
-		currentTxSize := len(tx)
-		if currentTxSize > maxTxSize {
-			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()))
-			return reject()
+		// all txs must be less than or equal to the max tx size limit for app version v4 and greater
+		if app.AppVersion() >= v4.Version {
+			maxTxSize := appconsts.MaxTxSize(app.AppVersion())
+			currentTxSize := len(tx)
+			if currentTxSize > maxTxSize {
+				logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", currentTxSize, maxTxSize, app.AppVersion()))
+				return reject()
+			}
 		}
 
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
