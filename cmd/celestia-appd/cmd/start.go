@@ -251,6 +251,10 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 
 	if config.API.Enable {
 		apiSrv, clientCtx, err = startAPIServer(ctx, clientCtx, app, config, metrics)
+		if err != nil {
+			ctx.Logger.Error("failed to start api server: ", err)
+			return err
+		}
 		defer func() {
 			if err := apiSrv.Close(); err != nil {
 				ctx.Logger.Error("failed to close api server: ", err)
@@ -259,7 +263,11 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 	}
 
 	if config.GRPC.Enable {
-		grpcSrv, clientCtx, err = setupGRPCServer(ctx, clientCtx, app, config)
+		grpcSrv, _, err = setupGRPCServer(ctx, clientCtx, app, config)
+		if err != nil {
+			ctx.Logger.Error("failed to start grpc server: ", err)
+			return err
+		}
 		defer grpcSrv.Stop()
 	}
 
@@ -393,6 +401,10 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 
 	if config.API.Enable {
 		apiSrv, clientCtx, err = startAPIServer(ctx, clientCtx, app, config, metrics)
+		if err != nil {
+			ctx.Logger.Error("failed to start api server: ", err)
+			return err
+		}
 		defer func() {
 			if err := apiSrv.Close(); err != nil {
 				ctx.Logger.Error("failed to close api server: ", err)
@@ -402,6 +414,10 @@ func startInProcess(ctx *server.Context, clientCtx client.Context, appCreator sr
 
 	if config.GRPC.Enable {
 		grpcSrv, clientCtx, err = setupGRPCServer(ctx, clientCtx, app, config)
+		if err != nil {
+			ctx.Logger.Error("failed to start grpc server: ", err)
+			return err
+		}
 		defer grpcSrv.Stop()
 	}
 
