@@ -40,6 +40,9 @@ RUN apk update && apk add --no-cache \
 
 WORKDIR /celestia-app
 
+# multiplexer needs to be present due to local pin.
+COPY multiplexer multiplexer
+
 # cache go module dependencies
 COPY go.mod go.sum ./
 RUN go mod download
