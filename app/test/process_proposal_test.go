@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
