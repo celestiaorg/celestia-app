@@ -8,8 +8,17 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/tendermint/tendermint/types"
+
+	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
+
+	"github.com/celestiaorg/go-square/v2/share"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
@@ -20,13 +29,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestSortAndExtractGasPrice(t *testing.T) {
@@ -203,7 +205,6 @@ func TestEstimateGasUsed(t *testing.T) {
 	encfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txClient, err := user.SetupTxClient(cctx.GoContext(), cctx.Keyring, cctx.GRPCClient, encfg)
 	require.NoError(t, err)
-	txClient.SetGasMultiplier(1)
 	addr := testfactory.GetAddress(cctx.Keyring, "test")
 
 	// create a transfer transaction
