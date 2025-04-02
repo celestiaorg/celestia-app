@@ -231,26 +231,9 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		return nil, err
 	}
 
-	if !g.legacy {
-		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
-		return Document(
-			tempApp.DefaultGenesis(),
-			g.ecfg,
-			g.ConsensusParams,
-			g.ChainID,
-			gentxs,
-			g.accounts,
-			g.GenesisTime,
-		)
-	}
-
-	var defaultAppState map[string]json.RawMessage
-	if err := json.Unmarshal(LoadV3GenesisAppState(), &defaultAppState); err != nil {
-		return nil, err
-	}
-
-	return DocumentLegacy(
-		defaultAppState,
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+	return Document(
+		tempApp.DefaultGenesis(),
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,

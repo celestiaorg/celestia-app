@@ -16,7 +16,7 @@ import (
 func MajorUpgradeToV4(logger *log.Logger) error {
 	testName := "MajorUpgradeToV4"
 	numNodes := 4
-	upgradeHeightV4 := int64(15)
+	upgradeHeightV4 := int64(50)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
