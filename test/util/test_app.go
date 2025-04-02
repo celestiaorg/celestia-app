@@ -22,12 +22,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	simulationcli "github.com/cosmos/cosmos-sdk/x/simulation/client/cli"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
@@ -110,91 +108,6 @@ func NewTestApp() *app.App {
 		EmptyAppOptions{},
 		baseapp.SetChainID(ChainID),
 	)
-}
-
-// SetupDeterministicGenesisState sets genesis on initialized testApp with the provided arguments.
-func SetupDeterministicGenesisState(testApp *app.App, pubKeys []cryptotypes.PubKey, balance int64, cparams *tmproto.ConsensusParams) (keyring.Keyring, []genesis.Account, error) {
-	slashingParams := slashingtypes.NewParams(2, math.LegacyOneDec(), time.Minute, math.LegacyOneDec(), math.LegacyOneDec())
-
-	// Create genesis
-	gen := genesis.NewDefaultGenesis().
-		WithChainID(ChainID).
-		WithConsensusParams(cparams).
-		WithModifiers(genesis.SetSlashingParams(testApp.AppCodec(), slashingParams)).
-		WithGenesisTime(GenesisTime)
-
-	// Add accounts to genesis
-	for i, pk := range pubKeys {
-		err := gen.AddAccount(genesis.Account{
-			PubKey:  pk,
-			Balance: balance,
-			Name:    fmt.Sprintf("%v", i),
-		})
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	// Add validators to genesis
-	err := AddDeterministicValidatorsToGenesis(gen)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to add validator: %w", err)
-	}
-
-	genDoc, err := gen.Export()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to export genesis doc: %w", err)
-	}
-
-	// Initialise test app against genesis
-	_, err = testApp.Info(&abci.RequestInfo{})
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get app info: %w", err)
-	}
-
-	abciParams := &tmproto.ConsensusParams{
-		Block: &tmproto.BlockParams{
-			// Choose some value large enough to not bottleneck the max square
-			// size
-			MaxBytes: int64(appconsts.DefaultUpperBoundMaxBytes),
-			MaxGas:   cparams.Block.MaxGas,
-		},
-		Evidence:  cparams.Evidence,
-		Validator: cparams.Validator,
-		Version:   cparams.Version,
-	}
-
-	// Init chain will set the validator set and initialize the genesis accounts
-	_, err = testApp.InitChain(
-		&abci.RequestInitChain{
-			Time:            gen.GenesisTime,
-			Validators:      []abci.ValidatorUpdate{},
-			ConsensusParams: abciParams,
-			AppStateBytes:   genDoc.AppState,
-			ChainId:         genDoc.ChainID,
-		},
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to init chain: %w", err)
-	}
-
-	// Commit genesis changes
-	_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Height:             testApp.LastBlockHeight() + 1,
-		Hash:               testApp.LastCommitID().Hash,
-		NextValidatorsHash: genDoc.ValidatorHash(),
-		Time:               gen.GenesisTime,
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to finalize block: %w", err)
-	}
-
-	_, err = testApp.Commit()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to commit: %w", err)
-	}
-
-	return gen.Keyring(), gen.Accounts(), nil
 }
 
 // NewTestAppWithGenesisSet initializes a new app with genesis accounts and returns the testApp, validator set and keyring.

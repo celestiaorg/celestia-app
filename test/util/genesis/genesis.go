@@ -226,6 +226,10 @@ func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 
 // Export returns the genesis document of the network.
 func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
+	if g.legacy {
+		return nil, fmt.Errorf("cannot export legacy genesis: use ExportBytes() instead")
+	}
+
 	gentxs, err := g.getGenTxs()
 	if err != nil {
 		return nil, err
@@ -243,7 +247,8 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	)
 }
 
-func (g *Genesis) ExportBz() ([]byte, error) {
+// ExportBytes generates and returns a serialized genesis document as raw bytes that can be written to a file.
+func (g *Genesis) ExportBytes() ([]byte, error) {
 	gentxs, err := g.getGenTxs()
 	if err != nil {
 		return nil, err
@@ -251,7 +256,7 @@ func (g *Genesis) ExportBz() ([]byte, error) {
 
 	if !g.legacy {
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
-		return DocumentBz(
+		return DocumentBytes(
 			tempApp.DefaultGenesis(),
 			g.ecfg,
 			g.ConsensusParams,
@@ -262,13 +267,8 @@ func (g *Genesis) ExportBz() ([]byte, error) {
 		)
 	}
 
-	var defaultAppState map[string]json.RawMessage
-	if err := json.Unmarshal(LoadV3GenesisAppState(), &defaultAppState); err != nil {
-		return nil, err
-	}
-
-	return DocumentLegacyBz(
-		defaultAppState,
+	return DocumentLegacyBytes(
+		loadV3GenesisAppState(),
 		g.ecfg,
 		g.ConsensusParams,
 		g.ChainID,

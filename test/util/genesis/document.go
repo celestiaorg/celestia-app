@@ -3,6 +3,7 @@ package genesis
 import (
 	"encoding/json"
 	"fmt"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"time"
 
 	"cosmossdk.io/math"
@@ -92,7 +93,8 @@ func Document(
 	return genesisDoc, nil
 }
 
-func DocumentBz(
+// DocumentBytes generates and serializes a genesis document into JSON bytes using default genesis and provided parameters.
+func DocumentBytes(
 	defaultGenesis map[string]json.RawMessage,
 	ecfg encoding.Config,
 	params *tmproto.ConsensusParams,
@@ -106,7 +108,7 @@ func DocumentBz(
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(genesisDoc)
+	return cmtjson.Marshal(genesisDoc)
 }
 
 // accountsToSDKTypes converts the genesis accounts to native SDK types.

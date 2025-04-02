@@ -285,7 +285,7 @@ func (t *Testnet) CreateNode(ctx context.Context, version string, startHeight, u
 }
 
 func (t *Testnet) Setup(ctx context.Context, configOpts ...Option) error {
-	genesisBz, err := t.genesis.ExportBz()
+	genesisBz, err := t.genesis.ExportBytes()
 	if err != nil {
 		return err
 	}

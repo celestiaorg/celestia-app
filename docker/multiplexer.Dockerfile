@@ -15,10 +15,10 @@ ARG MAX_SQUARE_SIZE
 # docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
 ARG UPGRADE_HEIGHT_DELAY
 # the tag used for the embedded v3 binary.
-# TODO: this is an image built from this PR https://github.com/celestiaorg/celestia-app/pull/4474
-ARG CELESTIA_VERSION="main"
+# TODO: this is an image built from this PR https://github.com/celestiaorg/celestia-app/pull/4497
+ARG CELESTIA_VERSION="d433a4c"
 # the docker registry used for the embedded v3 binary.
-ARG CELESTIA_APP_REPOSITORY=ghcr.io/chatton/celestia-app
+ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app
 
 # Stage 1: this base image contains already released binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION} AS base
