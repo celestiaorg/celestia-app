@@ -160,7 +160,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657", "--log_level=debug"}
+	args := []string{"start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657"}
 	if disableBBR {
 		args = append(args, "--force-no-bbr")
 	}
