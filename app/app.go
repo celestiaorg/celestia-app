@@ -19,6 +19,7 @@ import (
 	appv1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	appv2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	appv3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	appv4 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v4"
 	"github.com/celestiaorg/celestia-app/v3/pkg/proof"
 	blobkeeper "github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -117,6 +118,7 @@ const (
 	v1                    = appv1.Version
 	v2                    = appv2.Version
 	v3                    = appv3.Version
+	v4                    = appv4.Version
 	DefaultInitialVersion = v1
 )
 
