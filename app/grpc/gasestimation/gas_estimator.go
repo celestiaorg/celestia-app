@@ -18,7 +18,7 @@ import (
 )
 
 // gasMultiplier is the multiplier for the gas limit. It's used to account for the fact that
-// when the gas is simulated it will occasionally underestimate the real gas used by the transaction.
+// when the gas is simulated, it will occasionally underestimate the real gas used by the transaction.
 const gasMultiplier = 1.1
 
 // baseAppSimulateFn is the signature of the Baseapp#Simulate function.

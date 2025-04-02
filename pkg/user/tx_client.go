@@ -82,16 +82,6 @@ func (e *ExecutionError) Error() string {
 	return fmt.Sprintf("tx execution failed with code %d: %s", e.Code, e.ErrorLog)
 }
 
-<<<<<<< HEAD
-// WithGasMultiplier is a functional option allows to configure the gas multiplier.
-func WithGasMultiplier(multiplier float64) Option {
-	return func(c *TxClient) {
-		c.gasMultiplier = multiplier
-	}
-}
-
-=======
->>>>>>> 66468ef (feat(pkg/user): Implement gas price + usage estimation endpoints on `TxClient`, and option for using separate estimator service (#4459))
 // WithDefaultGasPrice sets the gas price.
 func WithDefaultGasPrice(price float64) Option {
 	return func(c *TxClient) {
