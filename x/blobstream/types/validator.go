@@ -1,10 +1,10 @@
 package types
 
 import (
-	"bytes"
 	"math"
 	"math/big"
 	"sort"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -95,7 +95,7 @@ func (ibv InternalBridgeValidators) Sort() {
 
 // EVMAddrLessThan migrates the EVM address less than function.
 func EVMAddrLessThan(e common.Address, o common.Address) bool {
-	return bytes.Compare([]byte(e.Hex()), []byte(o.Hex())) == -1
+	return strings.Compare(e.Hex(), o.Hex()) < 0
 }
 
 // PowerDiff returns the difference in power between two bridge validator sets.
