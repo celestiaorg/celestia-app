@@ -3,6 +3,8 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward"
+	packetforwardtypes "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8/packetforward/types"
 	"time"
 
 	"cosmossdk.io/math"
@@ -150,6 +152,22 @@ func (icaModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	gs.HostGenesisState.Params.HostEnabled = true
 	gs.ControllerGenesisState.Params.ControllerEnabled = false
 	return cdc.MustMarshalJSON(gs)
+}
+
+type pfmMiddleware struct {
+	packetforward.AppModule
+}
+
+func (am pfmMiddleware) RegisterServices(cfg module.Configurator) {
+	err := cfg.RegisterMigration(packetforwardtypes.ModuleName, 1, func(ctx sdk.Context) error {
+		// a no-op registration needs to happen from v1 -> v2.
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	// handle existing migrations from v2 -> v3
+	am.AppModule.RegisterServices(cfg)
 }
 
 type mintModule struct {

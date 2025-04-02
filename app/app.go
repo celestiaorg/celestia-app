@@ -355,7 +355,7 @@ func New(
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper,
-		0, // retries on timeout
+		0,                                                                // retries on timeout
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
 
@@ -426,7 +426,7 @@ func New(
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
-		packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName)),
+		pfmMiddleware{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
 		// ensure the light client module types are registered.
 		ibctm.NewAppModule(),
 		solomachine.NewAppModule(),
