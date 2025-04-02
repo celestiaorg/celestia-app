@@ -347,7 +347,7 @@
     "mint": {
       "bond_denom": "utia"
     },
-    "packetfowardmiddleware": {
+    "packetforwardmiddleware": {
       "params": {
         "fee_percentage": "0.000000000000000000"
       },
