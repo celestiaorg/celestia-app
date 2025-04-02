@@ -31,14 +31,14 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@45533fc35847a8568deb0d4cae1851a2872f3651
+    uses: chatton/.github/.github/workflows/reusable_dockerfile_pipeline.yml@63c6e49e856e8f6f11dd33877046a97c3975e320
     with:
       dockerfile: docker/multiplexer.Dockerfile
       checkout_ref: ${{ github.event.inputs.ref }}
       packageName: celestia-app-multiplexer
-#      buildArgs: >
-#        TARGETOS=linux
-#        TARGETARCH=amd64
+      buildArgs: |
+        TARGETOS=linux
+        TARGETARCH=amd64
     secrets: inherit
 
   docker-txsim-build:
