@@ -162,7 +162,7 @@ type pfmMiddleware struct {
 // RegisterServices needs to be overridden to add a no-op handler when going from v1 -> v2
 // the existing app module (v8) has a built-in migration for going from v2 -> v3
 func (am pfmMiddleware) RegisterServices(cfg module.Configurator) {
-	err := cfg.RegisterMigration(packetforwardtypes.ModuleName, 1, func(ctx sdk.Context) error {
+	err := cfg.RegisterMigration(packetforwardtypes.ModuleName, 1, func(sdk.Context) error {
 		// a no-op registration needs to happen from v1 -> v2.
 		return nil
 	})

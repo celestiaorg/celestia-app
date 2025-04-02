@@ -39,7 +39,6 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			"--with-tendermint=false",
 			"--transport=grpc",
 			"--address=0.0.0.0:26658",
-			//"--v2-upgrade-height=0",
 		},
 	})
 	if err != nil {

@@ -111,9 +111,9 @@ func getLegacyBankState(genBals []banktypes.Balance) []byte {
 
 	// the SendEnabled field was moved from Params.SendEnabled to the top level.
 	// we need to re-vert this change in order to convert a v4 genesis app state to a valid v3 genesis app state.
-	bankGenState.Params.SendEnabled = make([]*banktypes.SendEnabled, 0)
+	bankGenState.Params.SendEnabled = make([]*banktypes.SendEnabled, 0) //nolint:staticcheck
 	for _, se := range bankGenState.SendEnabled {
-		bankGenState.Params.SendEnabled = append(bankGenState.Params.SendEnabled, &se)
+		bankGenState.Params.SendEnabled = append(bankGenState.Params.SendEnabled, &se) //nolint:staticcheck
 	}
 	bankGenState.SendEnabled = nil
 
@@ -130,7 +130,6 @@ func getLegacyBankState(genBals []banktypes.Balance) []byte {
 	}
 
 	return withoutSendEnabled
-
 }
 
 // removeKeyFromMapBz removes specified keys from a JSON-encoded byte slice and returns the updated byte slice or an error.

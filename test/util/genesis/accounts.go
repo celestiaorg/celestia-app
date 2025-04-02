@@ -122,7 +122,7 @@ func (v *Validator) GenTx(ecfg encoding.Config, kr keyring.Keyring, chainID stri
 		stakingtypes.NewCommissionRates(commission, math.LegacyOneDec(), math.LegacyOneDec()),
 		math.NewInt(v.Stake/2),
 	)
-	createValMsg.DelegatorAddress = addr.String()
+	createValMsg.DelegatorAddress = addr.String() //nolint:staticcheck // required for sdk 50
 	if err != nil {
 		return nil, err
 	}
