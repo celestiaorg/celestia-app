@@ -95,7 +95,7 @@ func (ibv InternalBridgeValidators) Sort() {
 
 // EVMAddrLessThan migrates the EVM address less than function.
 func EVMAddrLessThan(e common.Address, o common.Address) bool {
-	return strings.Compare(e.Hex(), o.Hex()) < 0
+	return strings.Compare(e.Hex(), o.Hex()) == -1
 }
 
 // PowerDiff returns the difference in power between two bridge validator sets.
