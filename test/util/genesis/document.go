@@ -92,6 +92,23 @@ func Document(
 	return genesisDoc, nil
 }
 
+func DocumentBz(
+	defaultGenesis map[string]json.RawMessage,
+	ecfg encoding.Config,
+	params *tmproto.ConsensusParams,
+	chainID string,
+	gentxs []json.RawMessage,
+	accounts []Account,
+	genesisTime time.Time,
+	mods ...Modifier,
+) ([]byte, error) {
+	genesisDoc, err := Document(defaultGenesis, ecfg, params, chainID, gentxs, accounts, genesisTime, mods...)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(genesisDoc)
+}
+
 // accountsToSDKTypes converts the genesis accounts to native SDK types.
 func accountsToSDKTypes(accounts []Account) ([]banktypes.Balance, []authtypes.GenesisAccount, error) {
 	genBals := make([]banktypes.Balance, len(accounts))

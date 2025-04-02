@@ -260,6 +260,41 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 	)
 }
 
+func (g *Genesis) ExportBz() ([]byte, error) {
+	gentxs, err := g.getGenTxs()
+	if err != nil {
+		return nil, err
+	}
+
+	if !g.legacy {
+		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+		return DocumentBz(
+			tempApp.DefaultGenesis(),
+			g.ecfg,
+			g.ConsensusParams,
+			g.ChainID,
+			gentxs,
+			g.accounts,
+			g.GenesisTime,
+		)
+	}
+
+	var defaultAppState map[string]json.RawMessage
+	if err := json.Unmarshal(LoadV3GenesisAppState(), &defaultAppState); err != nil {
+		return nil, err
+	}
+
+	return DocumentLegacyBz(
+		defaultAppState,
+		g.ecfg,
+		g.ConsensusParams,
+		g.ChainID,
+		gentxs,
+		g.accounts,
+		g.GenesisTime,
+	)
+}
+
 // Validator returns the validator at the given index. False is returned if the
 // index is out of bounds.
 func (g *Genesis) Validator(i int) (Validator, bool) {

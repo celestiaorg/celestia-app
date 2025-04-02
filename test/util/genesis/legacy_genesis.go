@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/v4/app/encoding"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -14,8 +15,7 @@ import (
 	"time"
 )
 
-// DocumentLegacy will create a valid genesis doc with funded addresses.
-func DocumentLegacy(
+func DocumentLegacyBz(
 	defaultGenesis map[string]json.RawMessage,
 	ecfg encoding.Config,
 	params *tmproto.ConsensusParams,
@@ -23,7 +23,7 @@ func DocumentLegacy(
 	gentxs []json.RawMessage,
 	accounts []Account,
 	genesisTime time.Time,
-) (*coretypes.GenesisDoc, error) {
+) ([]byte, error) {
 
 	genutilGenState := genutiltypes.DefaultGenesisState()
 	genutilGenState.GenTxs = gentxs
@@ -60,7 +60,47 @@ func DocumentLegacy(
 		GenesisTime:     genesisTime,
 	}
 
-	return genesisDoc, nil
+	bz, err := cmtjson.Marshal(genesisDoc)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling genesis doc: %w", err)
+	}
+
+	// we need to add back this field that has been removed between v3 and v4.
+	withTimeIotaMs, err := addTimeIotaMsField(bz, "1000")
+	if err != nil {
+		return nil, fmt.Errorf("adding time_iota_ms field: %w", err)
+	}
+
+	return withTimeIotaMs, nil
+}
+
+func addTimeIotaMsField(genesisDocBytes []byte, timeIotaMs string) ([]byte, error) {
+	// Unmarshal to a generic map
+	var doc map[string]interface{}
+	if err := json.Unmarshal(genesisDocBytes, &doc); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal genesis: %w", err)
+	}
+
+	// Traverse to consensus_params.block and add the field
+	consensusParams, ok := doc["consensus_params"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("missing consensus_params")
+	}
+
+	blockParams, ok := consensusParams["block"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("missing consensus_params.block")
+	}
+
+	// Add the missing field
+	blockParams["time_iota_ms"] = timeIotaMs
+
+	// Marshal it back
+	newBytes, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal updated genesis: %w", err)
+	}
+	return newBytes, nil
 }
 
 // getLegacyBankState returns valid bytes for a pre v4 bank genesis appstate.
