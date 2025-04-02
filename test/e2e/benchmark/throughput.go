@@ -27,7 +27,7 @@ var bigBlockManifest = Manifest{
 		Volume:        resource.MustParse("1Gi"),
 	},
 	SelfDelegation: 10000000,
-	// @TODO Update the CelestiaAppVersion and  TxClientVersion to the latest
+	// @TODO Update the CelestiaAppVersion and TxClientVersion to the latest
 	// version of the main branch once the PR#3261 is merged by addressing this
 	// issue https://github.com/celestiaorg/celestia-app/issues/3603.
 	CelestiaAppVersion: "pr-3261",
