@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
-	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/stretchr/testify/require"

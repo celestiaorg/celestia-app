@@ -22,6 +22,11 @@ linters:
       - third_party$
       - builtin$
       - examples$
+  settings:
+    revive:
+      severity: warning
+      rules:
+        - name: redundant-import-alias
 formatters:
   enable:
     - gofumpt
