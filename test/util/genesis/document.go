@@ -3,10 +3,11 @@ package genesis
 import (
 	"encoding/json"
 	"fmt"
-	cmtjson "github.com/cometbft/cometbft/libs/json"
+
 	"time"
 
 	"cosmossdk.io/math"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
