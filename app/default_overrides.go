@@ -9,7 +9,6 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"

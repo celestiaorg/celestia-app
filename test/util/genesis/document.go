@@ -3,7 +3,6 @@ package genesis
 import (
 	"encoding/json"
 	"fmt"
-
 	"time"
 
 	"cosmossdk.io/math"

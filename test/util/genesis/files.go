@@ -2,11 +2,11 @@ package genesis
 
 import (
 	"fmt"
-	cmtos "github.com/cometbft/cometbft/libs/os"
 	"os"
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/privval"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -35,13 +35,13 @@ func InitFiles(
 	if err != nil {
 		return err
 	}
-	
+
 	genesisDocBz, err := genesis.ExportBytes()
 	if err != nil {
 		return fmt.Errorf("exporting genesis: %w", err)
 	}
 
-	err = cmtos.WriteFile(tmConfig.GenesisFile(), genesisDocBz, 0644)
+	err = cmtos.WriteFile(tmConfig.GenesisFile(), genesisDocBz, 0o644)
 	if err != nil {
 		return err
 	}

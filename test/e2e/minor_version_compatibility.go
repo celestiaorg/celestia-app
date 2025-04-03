@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cometbft/cometbft/rpc/client/http"
 	"log"
 	"math/rand"
 	"os/exec"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/cometbft/cometbft/rpc/client/http"
 
 	"github.com/celestiaorg/knuu/pkg/knuu"
 

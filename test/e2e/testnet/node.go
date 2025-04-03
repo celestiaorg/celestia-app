@@ -4,13 +4,13 @@ package testnet
 import (
 	"context"
 	"fmt"
-	cmtos "github.com/cometbft/cometbft/libs/os"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/crypto"
+	cmtos "github.com/cometbft/cometbft/libs/os"
 	"github.com/cometbft/cometbft/libs/trace"
 	"github.com/cometbft/cometbft/libs/trace/schema"
 	"github.com/cometbft/cometbft/p2p"
@@ -231,7 +231,7 @@ func (n *Node) Init(ctx context.Context, genesisBz []byte, peers []string, confi
 
 	// Store the genesis file
 	genesisFilePath := filepath.Join(nodeDir, "config", "genesis.json")
-	err = cmtos.WriteFile(genesisFilePath, genesisBz, 0644)
+	err = cmtos.WriteFile(genesisFilePath, genesisBz, 0o644)
 	if err != nil {
 		return fmt.Errorf("saving genesis: %w", err)
 	}
