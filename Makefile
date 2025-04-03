@@ -198,10 +198,10 @@ test-e2e:
 	go run ./test/e2e $(filter-out $@,$(MAKECMDGOALS))
 .PHONY: test-e2e
 
-test-multi-plexer:
+test-multiplexer:
 	@echo "--> Running multiplexer tests"
 	go test -tags multiplexer -v ./test/multiplexer/...
-.PHONY: test-multi-plexer
+.PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
 test-race:
