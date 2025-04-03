@@ -5,6 +5,13 @@ import (
 	"testing"
 
 	"cosmossdk.io/errors"
+	"github.com/celestiaorg/go-square/v2/share"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/auth/ante"
+	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v3/app/errors"
@@ -13,12 +20,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/v3/x/blob/types"
-	"github.com/celestiaorg/go-square/v2/share"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // This will detect any changes to the DeductFeeDecorator which may cause a
@@ -56,7 +57,7 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = anteHandler(ctx, sdkTx, false)
-	require.True(t, apperr.IsInsufficientMinGasPrice(err))
+	require.True(t, apperr.IsInsufficientFee(err))
 	actualGasPrice, err := apperr.ParseInsufficientMinGasPrice(err, gasPrice, gasLimit)
 	require.NoError(t, err)
 	require.Equal(t, appconsts.DefaultMinGasPrice, actualGasPrice, err)
@@ -132,7 +133,7 @@ func TestInsufficientMinGasPriceTable(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.isInsufficientMinGasPriceErr, apperr.IsInsufficientMinGasPrice(tc.err))
+			require.Equal(t, tc.isInsufficientMinGasPriceErr, apperr.IsInsufficientFee(tc.err))
 			actualGasPrice, err := apperr.ParseInsufficientMinGasPrice(tc.err, tc.inputGasPrice, tc.inputGasLimit)
 			if tc.expectParsingError {
 				require.Error(t, err)
