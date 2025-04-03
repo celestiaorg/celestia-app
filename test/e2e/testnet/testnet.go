@@ -431,10 +431,10 @@ func (t *Testnet) StartNodes(ctx context.Context) error {
 	for _, node := range genesisNodes {
 		err := node.WaitUntilStartedAndCreateProxy(ctx)
 		if err != nil {
-			t.logger.Println("failed to start and create proxy", "name", node.Name, "version", node.Version, "error", err)
+			t.logger.Println("failed to start and create proxy", "name", node.Name, "image", node.Image, "error", err)
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
-		t.logger.Println("started and created proxy", "name", node.Name, "version", node.Version)
+		t.logger.Println("started and created proxy", "name", node.Name, "image", node.Image)
 	}
 	return nil
 }

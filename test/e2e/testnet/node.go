@@ -43,7 +43,7 @@ const (
 
 type Node struct {
 	Name           string
-	Version        string
+	Image          string
 	StartHeight    int64
 	InitialPeers   []string
 	SignerKey      crypto.PrivKey
@@ -176,7 +176,7 @@ func NewNode(
 	return &Node{
 		Name:           name,
 		Instance:       knInstance,
-		Version:        version,
+		Image:          image,
 		StartHeight:    startHeight,
 		InitialPeers:   peers,
 		SignerKey:      signerKey,
