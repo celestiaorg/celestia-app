@@ -263,13 +263,13 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	cfg.RPC.MaxBodyBytes = int64(838860800) // 8 MiB
 
-	cfg.Mempool.TTLNumBlocks = 12
-	cfg.Mempool.TTLDuration = 75 * time.Second
-	cfg.Mempool.MaxTxBytes = 2 * mebibyte
-	cfg.Mempool.MaxTxsBytes = 80 * mebibyte
-	cfg.Mempool.Version = "v1" // Content Addressable Transaction (CAT) mempool
+	cfg.Mempool.TTLNumBlocks = 1000
+	cfg.Mempool.TTLDuration = 1000 * time.Second
+	cfg.Mempool.MaxTxBytes = 8 * mebibyte
+	cfg.Mempool.MaxTxsBytes = 1000 * mebibyte
+	cfg.Mempool.Version = "v2" // Content Addressable Transaction (CAT) mempool
 
 	cfg.Consensus.TimeoutPropose = appconsts.GetTimeoutPropose(appconsts.LatestVersion)
 	cfg.Consensus.TimeoutCommit = appconsts.GetTimeoutCommit(appconsts.LatestVersion)
@@ -286,19 +286,22 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 func DefaultAppConfig() *serverconfig.Config {
 	cfg := serverconfig.DefaultConfig()
-	cfg.API.Enable = false
-	cfg.GRPC.Enable = false
+	cfg.API.Enable = true
+	cfg.GRPC.Enable = true
 	cfg.GRPCWeb.Enable = false
 
 	// the default snapshot interval was determined by picking a large enough
 	// value as to not dramatically increase resource requirements while also
 	// being greater than zero so that there are more nodes that will serve
 	// snapshots to nodes that state sync
-	cfg.StateSync.SnapshotInterval = 1500
+	cfg.StateSync.SnapshotInterval = 0
 	cfg.StateSync.SnapshotKeepRecent = 2
 	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
 
 	const mebibyte = 1048576
-	cfg.GRPC.MaxRecvMsgSize = 20 * mebibyte
+	cfg.GRPC.MaxRecvMsgSize = 2000 * mebibyte
+	cfg.GRPC.MaxSendMsgSize = 2000 * mebibyte
+	cfg.GRPC.Enable = true
+	cfg.GRPC.Address = "0.0.0.0:9090"
 	return cfg
 }

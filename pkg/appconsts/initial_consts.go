@@ -11,21 +11,21 @@ import (
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
-	DefaultGovMaxSquareSize = 64
+	DefaultGovMaxSquareSize = 512
 
 	// DefaultMaxBytes is the default value for the governance modifiable
 	// maximum number of bytes allowed in a valid block.
-	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * share.ContinuationSparseShareContentSize
+	DefaultMaxBytes = 128_000_000
 
 	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
 	// The min gas price acts as a filter. Transactions below that limit will not pass
 	// a node's `CheckTx` and thus not be proposed by that node.
-	DefaultMinGasPrice = 0.002 // utia
+	DefaultMinGasPrice = 0.0002 // utia
 
 	// DefaultUnbondingTime is the default time a validator must wait
 	// to unbond in a proof of stake system. Any validator within this
 	// time can be subject to slashing under conditions of misbehavior.
-	DefaultUnbondingTime = 3 * 7 * 24 * time.Hour
+	DefaultUnbondingTime = 1 * 1 * 24 * time.Hour
 
 	// DefaultNetworkMinGasPrice is used by x/minfee to prevent transactions from being
 	// included in a block if they specify a gas price lower than this.

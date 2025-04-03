@@ -1,6 +1,8 @@
 package app
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmcfg "github.com/tendermint/tendermint/config"
 )
 
@@ -108,4 +111,11 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	assert.Equal(t, got.HostGenesisState.Params.AllowMessages, icaAllowMessages())
 	assert.True(t, got.HostGenesisState.Params.HostEnabled)
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
+}
+
+func TestEV(t *testing.T) {
+	ev := DefaultEvidenceParams()
+	bz, err := json.Marshal(ev)
+	require.NoError(t, err)
+	fmt.Println(string(bz))
 }
