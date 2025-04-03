@@ -2,6 +2,8 @@ module github.com/celestiaorg/celestia-app/v3
 
 go 1.23.6
 
+toolchain go1.24.1
+
 require (
 	cosmossdk.io/errors v1.0.2
 	cosmossdk.io/math v1.5.1
@@ -33,7 +35,7 @@ require (
 	github.com/tendermint/tm-db v0.6.7
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.32.3
