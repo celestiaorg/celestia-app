@@ -219,7 +219,7 @@ func (g *Genesis) getGenTxs() ([]json.RawMessage, error) {
 			return nil, err
 		}
 
-		gentxs = append(gentxs, json.RawMessage(bz))
+		gentxs = append(gentxs, bz)
 	}
 	return gentxs, nil
 }
@@ -264,6 +264,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			gentxs,
 			g.accounts,
 			g.GenesisTime,
+			g.genOps...,
 		)
 	}
 
